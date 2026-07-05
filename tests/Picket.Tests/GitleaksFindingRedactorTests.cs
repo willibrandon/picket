@@ -23,6 +23,8 @@ public sealed class GitleaksFindingRedactorTests
         Assert.AreEqual("line containing REDACTED", redacted.Match);
         Assert.AreEqual("line containing REDACTED", redacted.Line);
         Assert.AreEqual("https://github.com/example/repo/blob/commit/secret.txt#L1", redacted.Link);
+        Assert.AreEqual("2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b", redacted.SecretSha256);
+        Assert.AreEqual("307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3", redacted.MatchSha256);
     }
 
     /// <summary>

@@ -106,6 +106,8 @@ public static class PicketJsonReportWriter
         WriteNumber(builder, "endColumn", finding.EndColumn, comma: true);
         WriteString(builder, "match", finding.Match, comma: true);
         WriteString(builder, "secret", finding.Secret, comma: true);
+        WriteString(builder, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);
+        WriteString(builder, "matchSha256", PicketFindingMetadata.CreateMatchSha256(finding), comma: true);
         WriteString(builder, "line", finding.Line, comma: true);
         WriteString(builder, "commit", finding.Commit, comma: true);
         WriteNumber(builder, "entropy", finding.Entropy, comma: true);
@@ -115,8 +117,27 @@ public static class PicketJsonReportWriter
         WriteString(builder, "message", finding.Message, comma: true);
         WriteArray(builder, "tags", finding.Tags, comma: true);
         WriteString(builder, "fingerprint", finding.Fingerprint, comma: true);
+        WriteString(builder, "validationState", PicketFindingMetadata.ValidationState, comma: true);
+        WriteString(builder, "severity", PicketFindingMetadata.Severity, comma: true);
+        WriteString(builder, "confidence", PicketFindingMetadata.Confidence, comma: true);
+        WriteProvenance(builder, finding, comma: true);
+        WriteEmptyArray(builder, "decodePath", comma: true);
+        WriteString(builder, "baselineStatus", PicketFindingMetadata.BaselineStatus, comma: true);
+        WriteString(builder, "ignoreReason", PicketFindingMetadata.IgnoreReason, comma: true);
+        WriteEmptyArray(builder, "remediationLinks", comma: true);
         WriteString(builder, "link", finding.Link, comma: false);
         builder.Append('}');
+    }
+
+    private static void WriteProvenance(StringBuilder builder, Finding finding, bool comma)
+    {
+        WritePropertyName(builder, "provenance");
+        builder.Append('{');
+        WriteString(builder, "type", PicketFindingMetadata.CreateProvenanceType(finding), comma: true);
+        WriteString(builder, "path", PicketFindingMetadata.CreateLocationPath(finding), comma: true);
+        WriteString(builder, "commit", finding.Commit, comma: false);
+        builder.Append('}');
+        WriteComma(builder, comma);
     }
 
     private static void WriteString(StringBuilder builder, string name, string value, bool comma)
@@ -162,6 +183,13 @@ public static class PicketJsonReportWriter
         }
 
         builder.Append(']');
+        WriteComma(builder, comma);
+    }
+
+    private static void WriteEmptyArray(StringBuilder builder, string name, bool comma)
+    {
+        WritePropertyName(builder, name);
+        builder.Append("[]");
         WriteComma(builder, comma);
     }
 

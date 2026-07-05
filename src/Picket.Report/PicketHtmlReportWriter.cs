@@ -69,6 +69,8 @@ public static class PicketHtmlReportWriter
         builder.Append(".empty{border:1px solid #d9ddd2;background:#fff;border-radius:6px;padding:20px;color:#596052}");
         builder.Append(".tags{display:flex;flex-wrap:wrap;gap:6px}");
         builder.Append(".tag{border:1px solid #cfd5c6;background:#f4f6ef;border-radius:999px;padding:2px 8px;font-size:12px;color:#30352c}");
+        builder.Append(".metadata{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:4px 8px;font-size:13px}");
+        builder.Append(".metadata dt{margin:0;color:#596052}.metadata dd{margin:0;word-break:break-word}");
         builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,table,.empty{background:#1d211a;border-color:#3a4233}th{background:#293023;color:#f1f4eb}td,th{border-color:#333b2d}.eyebrow,.metric span,.empty{color:#b5bcae}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
         builder.Append("</style>\n");
         builder.Append("</head>\n");
@@ -118,7 +120,7 @@ public static class PicketHtmlReportWriter
         }
 
         builder.Append("<table>\n");
-        builder.Append("<thead><tr><th>Rule</th><th>Location</th><th>Secret</th><th>Match</th><th>Fingerprint</th><th>Tags</th></tr></thead>\n");
+        builder.Append("<thead><tr><th>Rule</th><th>Location</th><th>Secret</th><th>Match</th><th>Fingerprint</th><th>Metadata</th><th>Tags</th></tr></thead>\n");
         builder.Append("<tbody>\n");
         for (int i = 0; i < findings.Count; i++)
         {
@@ -155,8 +157,30 @@ public static class PicketHtmlReportWriter
         builder.Append("</pre></td><td><code>");
         AppendHtml(builder, CreateFingerprint(finding));
         builder.Append("</code></td><td>");
+        WriteFindingMetadata(builder, finding);
+        builder.Append("</td><td>");
         WriteTags(builder, finding.Tags);
         builder.Append("</td></tr>\n");
+    }
+
+    private static void WriteFindingMetadata(StringBuilder builder, Finding finding)
+    {
+        builder.Append("<dl class=\"metadata\">");
+        WriteMetadata(builder, "Severity", PicketFindingMetadata.Severity);
+        WriteMetadata(builder, "Confidence", PicketFindingMetadata.Confidence);
+        WriteMetadata(builder, "Validation", PicketFindingMetadata.ValidationState);
+        WriteMetadata(builder, "Provenance", PicketFindingMetadata.CreateProvenanceType(finding));
+        WriteMetadata(builder, "Secret SHA-256", PicketFindingMetadata.CreateSecretSha256(finding));
+        builder.Append("</dl>");
+    }
+
+    private static void WriteMetadata(StringBuilder builder, string name, string value)
+    {
+        builder.Append("<dt>");
+        AppendHtml(builder, name);
+        builder.Append("</dt><dd><code>");
+        AppendHtml(builder, value);
+        builder.Append("</code></dd>");
     }
 
     private static void WriteRules(StringBuilder builder, IReadOnlyList<SecretRule> rules)

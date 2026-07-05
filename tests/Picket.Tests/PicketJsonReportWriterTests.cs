@@ -58,7 +58,17 @@ public sealed class PicketJsonReportWriterTests
 
         Assert.Contains("\"schema\":\"picket.finding.v1\"", json);
         Assert.Contains("\"match\":\"x=\\\"y\\\"\\nnext\"", json);
+        Assert.Contains("\"secretSha256\":\"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", json);
+        Assert.Contains("\"matchSha256\":\"c67137832a0e4df13a1f667166b91ffe010134d01578d7bd6499c36def655d6b\"", json);
         Assert.Contains("\"keywords\":[\"x\"]", json);
         Assert.Contains("\"fingerprint\":\"stdin:rule:1\"", json);
+        Assert.Contains("\"validationState\":\"unknown\"", json);
+        Assert.Contains("\"severity\":\"critical\"", json);
+        Assert.Contains("\"confidence\":\"high\"", json);
+        Assert.Contains("\"provenance\":{\"type\":\"filesystem\",\"path\":\"stdin\",\"commit\":\"\"}", json);
+        Assert.Contains("\"decodePath\":[]", json);
+        Assert.Contains("\"baselineStatus\":\"new\"", json);
+        Assert.Contains("\"ignoreReason\":\"\"", json);
+        Assert.Contains("\"remediationLinks\":[]", json);
     }
 }

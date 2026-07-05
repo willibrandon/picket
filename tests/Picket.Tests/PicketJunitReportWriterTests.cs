@@ -38,6 +38,8 @@ public sealed class PicketJunitReportWriterTests
         Assert.Contains("<testcase classname=\"test-rule\" file=\"auth.py\" name=\"test-rule: Test Rule detected a secret in auth.py on line 1.\" time=\"\">", xml);
         Assert.Contains("<failure message=\"test-rule: Test Rule detected a secret in auth.py on line 1.\" type=\"picket.finding.v1\">", xml);
         Assert.Contains("{&#34;schema&#34;:&#34;picket.finding.v1&#34;,&#34;ruleId&#34;:&#34;test-rule&#34;", xml);
+        Assert.Contains("&#34;secretSha256&#34;:&#34;984ca5162200734c592148f1820b71057f098573d138666b48663e4e30cd8d3a&#34;", xml);
+        Assert.Contains("&#34;validationState&#34;:&#34;unknown&#34;", xml);
         Assert.Contains("&#34;fingerprint&#34;:&#34;fingerprint&#34;", xml);
     }
 

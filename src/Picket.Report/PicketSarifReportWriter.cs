@@ -260,6 +260,16 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 6, "fingerprint", CreateFingerprint(finding), comma: true);
         WriteStringProperty(builder, 6, "commit", finding.Commit, comma: true);
         WriteNumberProperty(builder, 6, "entropy", finding.Entropy, comma: true);
+        WriteStringProperty(builder, 6, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);
+        WriteStringProperty(builder, 6, "matchSha256", PicketFindingMetadata.CreateMatchSha256(finding), comma: true);
+        WriteStringProperty(builder, 6, "validationState", PicketFindingMetadata.ValidationState, comma: true);
+        WriteStringProperty(builder, 6, "severity", PicketFindingMetadata.Severity, comma: true);
+        WriteStringProperty(builder, 6, "confidence", PicketFindingMetadata.Confidence, comma: true);
+        WriteStringProperty(builder, 6, "provenanceType", PicketFindingMetadata.CreateProvenanceType(finding), comma: true);
+        WriteStringProperty(builder, 6, "baselineStatus", PicketFindingMetadata.BaselineStatus, comma: true);
+        WriteStringProperty(builder, 6, "ignoreReason", PicketFindingMetadata.IgnoreReason, comma: true);
+        WriteArrayProperty(builder, 6, "decodePath", Array.Empty<string>(), comma: true);
+        WriteArrayProperty(builder, 6, "remediationLinks", Array.Empty<string>(), comma: true);
         WriteArrayProperty(builder, 6, "tags", finding.Tags, comma: true);
         WriteStringProperty(builder, 6, "link", finding.Link, comma: false);
         Indent(builder, 5);

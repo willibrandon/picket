@@ -51,6 +51,15 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"picketFingerprint\": \"fingerprint\"", sarif);
         Assert.Contains("\"schema\": \"picket.finding.v1\"", sarif);
         Assert.Contains("\"entropy\": 2.5", sarif);
+        Assert.Contains("\"secretSha256\": \"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", sarif);
+        Assert.Contains("\"matchSha256\": \"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", sarif);
+        Assert.Contains("\"validationState\": \"unknown\"", sarif);
+        Assert.Contains("\"severity\": \"critical\"", sarif);
+        Assert.Contains("\"confidence\": \"high\"", sarif);
+        Assert.Contains("\"provenanceType\": \"git\"", sarif);
+        Assert.Contains("\"baselineStatus\": \"new\"", sarif);
+        Assert.Contains("\"decodePath\": []", sarif);
+        Assert.Contains("\"remediationLinks\": []", sarif);
     }
 
     /// <summary>

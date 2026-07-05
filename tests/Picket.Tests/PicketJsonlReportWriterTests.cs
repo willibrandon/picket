@@ -55,7 +55,13 @@ public sealed class PicketJsonlReportWriterTests
 
         Assert.Contains("\"schema\":\"picket.finding.v1\"", jsonl);
         Assert.Contains("\"match\":\"x=\\\"y\\\"\\nnext\"", jsonl);
+        Assert.Contains("\"secretSha256\":\"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", jsonl);
+        Assert.Contains("\"matchSha256\":\"c67137832a0e4df13a1f667166b91ffe010134d01578d7bd6499c36def655d6b\"", jsonl);
         Assert.Contains("\"tags\":[\"tag1\",\"tag2\"]", jsonl);
+        Assert.Contains("\"validationState\":\"unknown\"", jsonl);
+        Assert.Contains("\"severity\":\"critical\"", jsonl);
+        Assert.Contains("\"confidence\":\"high\"", jsonl);
+        Assert.Contains("\"provenance\":{\"type\":\"git\",\"path\":\"stdin\",\"commit\":\"0000000000000000\"}", jsonl);
         Assert.Contains("\"link\":\"https://github.com/example/repo/blob/commit/stdin#L1\"", jsonl);
     }
 

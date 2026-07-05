@@ -23,6 +23,8 @@ namespace Picket.Engine;
 /// <param name="fingerprint">The Gitleaks-compatible fingerprint.</param>
 /// <param name="line">The full source line that contains the match.</param>
 /// <param name="link">The source control link, or an empty string.</param>
+/// <param name="secretSha256">The original secret SHA-256 hash for native reports, or an empty string.</param>
+/// <param name="matchSha256">The original match SHA-256 hash for native reports, or an empty string.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -43,7 +45,9 @@ public sealed class Finding(
     IReadOnlyList<string> tags,
     string fingerprint,
     string line = "",
-    string link = "")
+    string link = "",
+    string secretSha256 = "",
+    string matchSha256 = "")
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -144,4 +148,14 @@ public sealed class Finding(
     /// Gets the source control link, or an empty string.
     /// </summary>
     public string Link { get; } = link;
+
+    /// <summary>
+    /// Gets the original secret SHA-256 hash for native reports, or an empty string.
+    /// </summary>
+    public string SecretSha256 { get; } = secretSha256;
+
+    /// <summary>
+    /// Gets the original match SHA-256 hash for native reports, or an empty string.
+    /// </summary>
+    public string MatchSha256 { get; } = matchSha256;
 }

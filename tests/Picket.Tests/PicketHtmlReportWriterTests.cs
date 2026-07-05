@@ -55,6 +55,9 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("src/auth&amp;config.txt:1:2", html);
         Assert.Contains("token=&quot;abc&lt;123&gt;&quot;", html);
         Assert.Contains("finger&amp;print", html);
+        Assert.Contains("Secret SHA-256", html);
+        Assert.Contains("6ed417714f0de0a4685ed766cb926df89182f22cd40646f59a9072f72f41c6e0", html);
+        Assert.Contains("<dt>Validation</dt><dd><code>unknown</code></dd>", html);
         Assert.Contains("sec&lt;ret&gt;", html);
         Assert.DoesNotContain("<script>", html);
     }
