@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Picket.Tests;
 
@@ -106,17 +107,13 @@ public sealed class CliCompatibilityTests
     private static async Task<CliResult> RunCliAsync(params string[] arguments)
     {
         using var process = new Process();
-        process.StartInfo = new ProcessStartInfo("dotnet")
+        process.StartInfo = new ProcessStartInfo(GetCliExecutablePath())
         {
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
             WorkingDirectory = GetRepositoryRoot(),
         };
-        process.StartInfo.ArgumentList.Add("run");
-        process.StartInfo.ArgumentList.Add("--project");
-        process.StartInfo.ArgumentList.Add(Path.Combine("src", "Picket.Cli", "Picket.Cli.csproj"));
-        process.StartInfo.ArgumentList.Add("--");
         foreach (string argument in arguments)
         {
             process.StartInfo.ArgumentList.Add(argument);
@@ -127,6 +124,44 @@ public sealed class CliCompatibilityTests
         string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
         await process.WaitForExitAsync().ConfigureAwait(false);
         return new CliResult(process.ExitCode, stdout, stderr);
+    }
+
+    private static string GetCliExecutablePath()
+    {
+        string executableName = OperatingSystem.IsWindows() ? "picket.exe" : "picket";
+        string executablePath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "Picket.Cli",
+            "bin",
+            GetBuildConfiguration(),
+            "net10.0",
+            RuntimeInformation.RuntimeIdentifier,
+            executableName);
+
+        if (!File.Exists(executablePath))
+        {
+            throw new FileNotFoundException("Could not locate built picket executable.", executablePath);
+        }
+
+        return executablePath;
+    }
+
+    private static string GetBuildConfiguration()
+    {
+        string? directory = AppContext.BaseDirectory;
+        while (directory is not null)
+        {
+            var info = new DirectoryInfo(directory);
+            if (info.Parent?.Name.Equals("bin", StringComparison.Ordinal) == true)
+            {
+                return info.Name;
+            }
+
+            directory = info.Parent?.FullName;
+        }
+
+        return "Debug";
     }
 
     private static string GetRepositoryRoot()
