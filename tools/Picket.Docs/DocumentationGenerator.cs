@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Text;
 using System.Xml.Linq;
 
@@ -97,32 +98,28 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         List<string> rootBlock = helpBlocks.Count == 0 ? [] : helpBlocks[0];
         List<List<string>> commandBlocks = [.. helpBlocks.Skip(1)];
         List<string> rootUsageLines = ReadCliHelpSection(rootBlock, "Usage");
+        HashSet<string> rootCommands = ReadCliUsageCommands(rootUsageLines);
         Dictionary<string, string> commandSummaries = ReadCliCommandSummaries(commandBlocks);
 
         var builder = new StringBuilder();
-        builder.AppendLine("This page is generated from the CLI help source so the published command reference stays aligned with the executable.");
+        builder.AppendLine("<p class=\"cli-reference-lede\">Use Picket commands to scan code, verify and analyze findings, manage rule packs, maintain caches, install hooks, and run Gitleaks-compatible workflows.</p>");
         builder.AppendLine();
-        string rootSummary = ReadCliTitleSummary(rootBlock);
-        if (rootSummary.Length != 0)
-        {
-            builder.AppendLine(EscapeMarkdownText(rootSummary));
-            builder.AppendLine();
-        }
 
-        AppendCliCommandIndex(builder, rootUsageLines, commandBlocks, commandSummaries);
+        AppendCliCommandOverview(builder, rootCommands, commandSummaries);
         builder.AppendLine("## Command Reference");
         builder.AppendLine();
-        foreach (List<string> commandBlock in commandBlocks)
-        {
-            AppendCliHelpBlock(builder, commandBlock);
-        }
-
-        HashSet<string> documentedCommands = [.. commandSummaries.Keys];
+        Dictionary<string, List<string>> commandBlockByCommand = ReadCliCommandBlocks(commandBlocks);
         foreach (string usageLine in rootUsageLines)
         {
             string command = GetCliUsageCommandName(usageLine);
-            if (command.Length == 0 || documentedCommands.Contains(command))
+            if (command.Length == 0)
             {
+                continue;
+            }
+
+            if (commandBlockByCommand.TryGetValue(command, out List<string>? commandBlock))
+            {
+                AppendCliHelpBlock(builder, commandBlock);
                 continue;
             }
 
@@ -394,63 +391,141 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         return summaries;
     }
 
-    private static void AppendCliCommandIndex(
+    private static HashSet<string> ReadCliUsageCommands(List<string> usageLines)
+    {
+        var commands = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string usageLine in usageLines)
+        {
+            string command = GetCliUsageCommandName(usageLine);
+            if (command.Length != 0)
+            {
+                commands.Add(command);
+            }
+        }
+
+        return commands;
+    }
+
+    private static Dictionary<string, List<string>> ReadCliCommandBlocks(List<List<string>> commandBlocks)
+    {
+        var blocks = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (List<string> commandBlock in commandBlocks)
+        {
+            if (!TryReadCliTitle(commandBlock, out string command, out _))
+            {
+                continue;
+            }
+
+            blocks[command] = commandBlock;
+        }
+
+        return blocks;
+    }
+
+    private static void AppendCliCommandOverview(
         StringBuilder builder,
-        List<string> rootUsageLines,
-        List<List<string>> commandBlocks,
+        HashSet<string> availableCommands,
         Dictionary<string, string> commandSummaries)
     {
         builder.AppendLine("## Commands");
         builder.AppendLine();
-        var indexedCommands = new HashSet<string>(StringComparer.Ordinal);
-        foreach (List<string> commandBlock in commandBlocks)
-        {
-            if (!TryReadCliTitle(commandBlock, out string command, out string summary))
-            {
-                continue;
-            }
+        builder.AppendLine("Use the grouped index to jump to the workflow you need.");
+        builder.AppendLine();
+        var renderedCommands = new HashSet<string>(StringComparer.Ordinal);
+        builder.AppendLine("<div class=\"cli-command-groups\">");
+        AppendCliCommandGroup(
+            builder,
+            "Scan and triage",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            ["picket scan", "picket verify", "picket analyze"]);
+        AppendCliCommandGroup(
+            builder,
+            "Reports and baselines",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            ["picket baseline create", "picket view"]);
+        AppendCliCommandGroup(
+            builder,
+            "Rules",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            ["picket rules check", "picket rules test"]);
+        AppendCliCommandGroup(
+            builder,
+            "Maintenance",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            ["picket cache stats", "picket cache prune", "picket hooks install"]);
+        AppendCliCommandGroup(
+            builder,
+            "Compatibility",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            ["picket git", "picket dir", "picket stdin", "picket version"]);
 
-            AppendCliCommandIndexItem(builder, indexedCommands, command, summary);
-        }
-
-        foreach (string usageLine in rootUsageLines)
-        {
-            string command = GetCliUsageCommandName(usageLine);
-            if (command.Length == 0)
-            {
-                continue;
-            }
-
-            string summary = commandSummaries.GetValueOrDefault(command, GetCliFallbackSummary(command));
-            AppendCliCommandIndexItem(builder, indexedCommands, command, summary);
-        }
-
+        string[] remainingCommands = [.. availableCommands
+            .Where(command => !renderedCommands.Contains(command))
+            .Order(StringComparer.Ordinal)];
+        AppendCliCommandGroup(
+            builder,
+            "Other",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            remainingCommands);
+        builder.AppendLine("</div>");
         builder.AppendLine();
     }
 
-    private static void AppendCliCommandIndexItem(
+    private static void AppendCliCommandGroup(
         StringBuilder builder,
-        HashSet<string> indexedCommands,
-        string command,
-        string summary)
+        string title,
+        HashSet<string> availableCommands,
+        HashSet<string> renderedCommands,
+        Dictionary<string, string> commandSummaries,
+        string[] commands)
     {
-        if (!indexedCommands.Add(command))
+        string[] groupCommands = [.. commands.Where(availableCommands.Contains)];
+        if (groupCommands.Length == 0)
         {
             return;
         }
 
-        builder.Append("- [`");
-        builder.Append(EscapeMarkdownText(command));
-        builder.Append("`](#");
-        builder.Append(Slugify(command));
-        builder.Append(')');
-        if (summary.Length != 0)
+        builder.AppendLine("  <section class=\"cli-command-group\">");
+        builder.Append("    <p class=\"cli-command-group-title\">");
+        builder.Append(EscapeHtmlText(title));
+        builder.AppendLine("</p>");
+        builder.AppendLine("    <ul class=\"cli-command-list\">");
+        foreach (string command in groupCommands)
         {
-            builder.Append(" - ");
-            builder.Append(EscapeMarkdownText(summary));
+            renderedCommands.Add(command);
+            string summary = commandSummaries.GetValueOrDefault(command, GetCliFallbackSummary(command));
+            builder.AppendLine("      <li>");
+            builder.Append("        <a class=\"cli-command-link\" href=\"#");
+            builder.Append(Slugify(command));
+            builder.AppendLine("\">");
+            builder.Append("          <code>");
+            builder.Append(EscapeHtmlText(command));
+            builder.AppendLine("</code>");
+            if (summary.Length != 0)
+            {
+                builder.Append("          <span>");
+                builder.Append(EscapeHtmlText(summary));
+                builder.AppendLine("</span>");
+            }
+
+            builder.AppendLine("        </a>");
+            builder.AppendLine("      </li>");
         }
 
-        builder.AppendLine();
+        builder.AppendLine("    </ul>");
+        builder.AppendLine("  </section>");
     }
 
     private static void AppendCliHelpBlock(StringBuilder builder, List<string> block)
@@ -463,10 +538,12 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         builder.Append("### ");
         builder.AppendLine(EscapeMarkdownText(command));
         builder.AppendLine();
+        builder.AppendLine("<div class=\"cli-command-detail\">");
         if (summary.Length != 0)
         {
-            builder.AppendLine(EscapeMarkdownText(summary));
-            builder.AppendLine();
+            builder.Append("  <p class=\"cli-command-summary\">");
+            builder.Append(EscapeHtmlText(summary));
+            builder.AppendLine("</p>");
         }
 
         for (int i = 1; i < block.Count; i++)
@@ -498,6 +575,9 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
 
             AppendCliHelpSection(builder, sectionName, sectionLines);
         }
+
+        builder.AppendLine("</div>");
+        builder.AppendLine();
     }
 
     private static void AppendCliUsageOnlyBlock(StringBuilder builder, string command, string summary, string usageLine)
@@ -505,13 +585,17 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         builder.Append("### ");
         builder.AppendLine(EscapeMarkdownText(command));
         builder.AppendLine();
+        builder.AppendLine("<div class=\"cli-command-detail\">");
         if (summary.Length != 0)
         {
-            builder.AppendLine(EscapeMarkdownText(summary));
-            builder.AppendLine();
+            builder.Append("  <p class=\"cli-command-summary\">");
+            builder.Append(EscapeHtmlText(summary));
+            builder.AppendLine("</p>");
         }
 
         AppendCliHelpSection(builder, "Usage", [usageLine]);
+        builder.AppendLine("</div>");
+        builder.AppendLine();
     }
 
     private static void AppendCliHelpSection(StringBuilder builder, string sectionName, List<string> sectionLines)
@@ -521,44 +605,48 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             return;
         }
 
-        builder.Append("#### ");
-        builder.AppendLine(EscapeMarkdownText(sectionName));
-        builder.AppendLine();
         if (sectionName.Equals("Usage", StringComparison.Ordinal))
         {
-            builder.AppendLine("```text");
+            builder.AppendLine("  <div class=\"cli-usage-list\">");
             for (int i = 0; i < sectionLines.Count; i++)
             {
-                if (i > 0)
-                {
-                    builder.AppendLine();
-                }
-
-                foreach (string usageLine in FormatCliUsageLine(sectionLines[i]))
-                {
-                    builder.AppendLine(usageLine);
-                }
+                builder.AppendLine("    <div class=\"cli-usage-block\">");
+                builder.Append("      <p class=\"cli-section-label\">");
+                builder.Append(sectionLines.Count == 1 ? "Usage" : string.Concat("Usage ", i + 1));
+                builder.AppendLine("</p>");
+                builder.Append("      <pre class=\"cli-usage-code\"><code>");
+                builder.Append(EscapeHtmlCode(string.Join("\n", FormatCliUsageLine(sectionLines[i]))));
+                builder.AppendLine("</code></pre>");
+                builder.AppendLine("    </div>");
             }
 
-            builder.AppendLine("```");
-            builder.AppendLine();
+            builder.AppendLine("  </div>");
             return;
         }
 
+        builder.AppendLine("  <div class=\"cli-info-block\">");
+        builder.Append("    <p class=\"cli-section-label\">");
+        builder.Append(EscapeHtmlText(sectionName));
+        builder.AppendLine("</p>");
         if (sectionLines.Count == 1)
         {
-            builder.AppendLine(EscapeMarkdownText(sectionLines[0]));
-            builder.AppendLine();
+            builder.Append("    <p>");
+            builder.Append(EscapeHtmlText(sectionLines[0]));
+            builder.AppendLine("</p>");
+            builder.AppendLine("  </div>");
             return;
         }
 
+        builder.AppendLine("    <ul>");
         foreach (string sectionLine in sectionLines)
         {
-            builder.Append("- ");
-            builder.AppendLine(EscapeMarkdownText(sectionLine));
+            builder.Append("      <li>");
+            builder.Append(EscapeHtmlText(sectionLine));
+            builder.AppendLine("</li>");
         }
 
-        builder.AppendLine();
+        builder.AppendLine("    </ul>");
+        builder.AppendLine("  </div>");
     }
 
     private static bool TryReadCliTitle(List<string> block, out string command, out string summary)
@@ -581,11 +669,6 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         command = title[..separatorIndex];
         summary = FormatCliDescription(title[(separatorIndex + 3)..]);
         return command.Length != 0;
-    }
-
-    private static string ReadCliTitleSummary(List<string> block)
-    {
-        return TryReadCliTitle(block, out _, out string summary) ? summary : string.Empty;
     }
 
     private static bool IsCliHelpHeader(string line)
@@ -1252,5 +1335,15 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
     private static string EscapeMarkdownText(string value)
     {
         return NormalizeDocumentationText(value).Replace("`", "\\`", StringComparison.Ordinal);
+    }
+
+    private static string EscapeHtmlText(string value)
+    {
+        return WebUtility.HtmlEncode(NormalizeDocumentationText(value)) ?? string.Empty;
+    }
+
+    private static string EscapeHtmlCode(string value)
+    {
+        return WebUtility.HtmlEncode(value) ?? string.Empty;
     }
 }

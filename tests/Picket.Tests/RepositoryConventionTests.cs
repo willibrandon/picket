@@ -331,8 +331,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Report.csproj", packageJson);
         Assert.Contains("## Commands", cliReference);
         Assert.Contains("## Command Reference", cliReference);
-        Assert.Contains("[`picket scan`](#picket-scan)", cliReference);
+        Assert.Contains("class=\"cli-command-groups\"", cliReference);
+        Assert.Contains("class=\"cli-command-detail\"", cliReference);
+        Assert.Contains("href=\"#picket-scan\"", cliReference);
         Assert.Contains("### picket git", cliReference);
+        Assert.DoesNotContain("### picket cache\n", cliReference);
+        Assert.DoesNotContain("### picket rules\n", cliReference);
         Assert.Contains("Picket.Rules API", rulesApi);
         Assert.Contains("SecretRule", rulesApi);
         Assert.Contains("Picket.Engine API", engineApi);
