@@ -442,6 +442,77 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native analysis writes offline incident-response JSON without leaking the raw secret.
+    /// </summary>
+    [TestMethod]
+    public async Task AnalyzeWritesOfflineIncidentResponseJson()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
+        string token = string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), token);
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "analyze", "--offline", "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.analysis.report.v1\"", result.Stdout);
+        Assert.Contains("\"schema\":\"picket.analysis.v1\"", result.Stdout);
+        Assert.Contains("\"provider\":\"GitHub\"", result.Stdout);
+        Assert.Contains("\"credentialType\":\"GitHub token\"", result.Stdout);
+        Assert.Contains("\"risk\":\"critical\"", result.Stdout);
+        Assert.Contains("\"identity\":\"unknown-offline\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.Contains("\"recommendedActions\"", result.Stdout);
+        Assert.DoesNotContain(token, result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native analysis can filter by offline validation result and write JSON Lines.
+    /// </summary>
+    [TestMethod]
+    public async Task AnalyzeFiltersOfflineValidationResults()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteVerificationFilterConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_invalid", Environment.NewLine, "custom-12345"));
+
+        CliResult result = await RunCliAsync("analyze", root.Path, "-c", configPath, "-f", "jsonl", "--results", "invalid").ConfigureAwait(false);
+        string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.HasCount(1, lines);
+        Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
+        Assert.Contains("\"validationState\":\"invalid\"", lines[0]);
+        Assert.DoesNotContain("custom-token", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that live access analysis does not silently run before provider integrations are implemented.
+    /// </summary>
+    [TestMethod]
+    public async Task AnalyzeRejectsLiveAccessAnalysis()
+    {
+        CliResult result = await RunCliAsync("analyze", "--live").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("live access analysis is not implemented yet", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that analyze help advertises offline analysis output.
+    /// </summary>
+    [TestMethod]
+    public async Task AnalyzeHelpAdvertisesOfflineAnalysis()
+    {
+        CliResult result = await RunCliAsync("analyze", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket analyze", result.Stdout);
+        Assert.Contains("--offline", result.Stdout);
+        Assert.Contains("json|jsonl|text", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scan cache files are not scanned as source files on later runs.
     /// </summary>
     [TestMethod]

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Picket.Analyze/Picket.Analyze.csproj" />
     <Project Path="src/Picket.Cli/Picket.Cli.csproj" />
     <Project Path="src/Picket.Compat/Picket.Compat.csproj" />
     <Project Path="src/Picket.Engine/Picket.Engine.csproj" />

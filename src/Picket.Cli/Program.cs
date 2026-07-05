@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Picket;
+using Picket.Analyze;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
@@ -38,6 +39,11 @@ if (command.Equals("scan", StringComparison.OrdinalIgnoreCase))
 if (command.Equals("verify", StringComparison.OrdinalIgnoreCase))
 {
     return RunVerify(args[1..]);
+}
+
+if (command.Equals("analyze", StringComparison.OrdinalIgnoreCase))
+{
+    return RunAnalyze(args[1..]);
 }
 
 if (command.Equals("baseline", StringComparison.OrdinalIgnoreCase))
@@ -428,6 +434,73 @@ static int RunVerify(string[] args)
         diagnosticsCommand: "verify",
         defaultRoot: ".",
         allowValidationResultFilters: true);
+}
+
+static int RunAnalyze(string[] args)
+{
+    var forwardedArgs = new List<string>();
+    string? source = null;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsHelp(arg))
+        {
+            WriteAnalyzeHelp();
+            return 0;
+        }
+
+        if (IsSourceFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            source = sourceValue.Length == 0 ? "." : sourceValue;
+            continue;
+        }
+
+        if (IsOfflineVerificationFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--offline", out bool offline) || !offline)
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsLiveVerificationFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--live", out bool live))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            if (live)
+            {
+                Console.Error.WriteLine("live access analysis is not implemented yet; use --offline");
+                return 1;
+            }
+
+            continue;
+        }
+
+        forwardedArgs.Add(arg);
+    }
+
+    if (source is not null)
+    {
+        forwardedArgs.Add(source);
+    }
+
+    return RunDirectory(
+        [.. forwardedArgs],
+        nativeReportFormats: true,
+        diagnosticsCommand: "analyze",
+        defaultRoot: ".",
+        allowValidationResultFilters: true,
+        nativeResultWriter: TryWriteAnalysisReports);
 }
 
 static int RunBaseline(string[] args)
@@ -875,7 +948,8 @@ static int RunDirectory(
     bool nativeReportFormats = false,
     string diagnosticsCommand = "dir",
     string? defaultRoot = null,
-    bool allowValidationResultFilters = false)
+    bool allowValidationResultFilters = false,
+    Func<IReadOnlyList<Finding>, string?, IReadOnlyList<string>, string?, string?, bool>? nativeResultWriter = null)
 {
     string? baselinePath = null;
     string? cacheDir = null;
@@ -1301,7 +1375,10 @@ static int RunDirectory(
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeReportFormats))
+    bool wroteResults = nativeResultWriter is null
+        ? TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeReportFormats)
+        : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath);
+    if (!wroteResults)
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -3095,6 +3172,107 @@ static bool TryWriteReports(
     return true;
 }
 
+static bool TryWriteAnalysisReports(
+    IReadOnlyList<Finding> findings,
+    string? reportPath,
+    IReadOnlyList<string> reportPaths,
+    string? reportFormat,
+    string? reportTemplatePath)
+{
+    if (!string.IsNullOrWhiteSpace(reportTemplatePath))
+    {
+        Console.Error.WriteLine("report templates are not supported for analyze");
+        return false;
+    }
+
+    if (reportPaths.Count <= 1)
+    {
+        return TryWriteAnalysisReport(findings, reportPath, reportFormat);
+    }
+
+    if (!string.IsNullOrWhiteSpace(reportFormat))
+    {
+        Console.Error.WriteLine("report format cannot be specified when multiple report paths are specified");
+        return false;
+    }
+
+    bool wroteStdout = false;
+    foreach (string path in reportPaths)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.Equals("-", StringComparison.Ordinal))
+        {
+            if (wroteStdout)
+            {
+                Console.Error.WriteLine("standard output can be specified only once when multiple report paths are specified");
+                return false;
+            }
+
+            wroteStdout = true;
+        }
+
+        if (!TryWriteAnalysisReport(findings, path, reportFormat: null))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool TryWriteAnalysisReport(IReadOnlyList<Finding> findings, string? reportPath, string? reportFormat)
+{
+    if (!TryResolveAnalysisReportFormat(reportPath, reportFormat, out string? resolvedReportFormat))
+    {
+        return false;
+    }
+
+    List<CredentialAnalysis> analyses = CredentialAnalyzer.Analyze(findings);
+    string report = resolvedReportFormat switch
+    {
+        "json" => CredentialAnalysisReportWriter.WriteJson(analyses),
+        "jsonl" => CredentialAnalysisReportWriter.WriteJsonLines(analyses),
+        "text" => CredentialAnalysisReportWriter.WriteText(analyses),
+        _ => throw new InvalidOperationException($"unsupported analyze report format: {resolvedReportFormat}"),
+    };
+
+    return TryWriteTextReport(report, reportPath);
+}
+
+static bool TryResolveAnalysisReportFormat(string? reportPath, string? reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
+{
+    if (!string.IsNullOrWhiteSpace(reportFormat))
+    {
+        resolvedReportFormat = reportFormat.ToLowerInvariant();
+        if (resolvedReportFormat is "json" or "jsonl" or "text")
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine($"unsupported analyze report format: {reportFormat}");
+        resolvedReportFormat = null;
+        return false;
+    }
+
+    resolvedReportFormat = InferAnalysisReportFormat(reportPath);
+    return true;
+}
+
+static string InferAnalysisReportFormat(string? reportPath)
+{
+    if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
+    {
+        return "json";
+    }
+
+    string extension = Path.GetExtension(reportPath);
+    return extension.ToLowerInvariant() switch
+    {
+        ".jsonl" => "jsonl",
+        ".txt" or ".text" => "text",
+        _ => "json",
+    };
+}
+
 static bool TryWriteReport(
     IReadOnlyList<Finding> findings,
     IReadOnlyList<SecretRule> rules,
@@ -3131,6 +3309,11 @@ static bool TryWriteReport(
         return false;
     }
 
+    return TryWriteTextReport(report, reportPath);
+}
+
+static bool TryWriteTextReport(string report, string? reportPath)
+{
     if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
     {
         Console.Out.Write(report);
@@ -3487,6 +3670,7 @@ static void WriteHelp()
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified]");
+    Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--source path] [--cache-dir path] [--offline] [--results value]");
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -3511,6 +3695,14 @@ static void WriteVerifyHelp()
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified]");
+}
+
+static void WriteAnalyzeHelp()
+{
+    Console.Out.WriteLine("picket analyze - write offline incident-response analysis for detected findings");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid]");
 }
 
 static void WriteBaselineHelp()
