@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Picket.Tests;
@@ -591,6 +592,28 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans honor .picketignore SHA-256 content hashes.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanHonorsPicketIgnoreContentHash()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignoredContent = "token-12345";
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), $"sha256:{ComputeSha256(ignoredContent)}\n");
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), ignoredContent);
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"keep.txt\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-23456\"", result.Stdout);
+        Assert.DoesNotContain("ignored.txt", result.Stdout);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans can disable .picketignore handling.
     /// </summary>
     [TestMethod]
@@ -713,6 +736,28 @@ public sealed class CliCompatibilityTests
         Assert.DoesNotContain("ignored.txt", result.Stdout);
         Assert.DoesNotContain("token-12345", result.Stdout);
         Assert.DoesNotContain("token-99991", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that baseline creation honors .picketignore SHA-256 content hashes.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateHonorsPicketIgnoreContentHash()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignoredContent = "token-12345";
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), $"sha256:{ComputeSha256(ignoredContent)}\n");
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), ignoredContent);
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult result = await RunCliAsync("baseline", "create", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"File\": \"keep.txt\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-23456\"", result.Stdout);
+        Assert.DoesNotContain("ignored.txt", result.Stdout);
+        Assert.DoesNotContain("token-12345", result.Stdout);
     }
 
     /// <summary>
@@ -1948,6 +1993,11 @@ public sealed class CliCompatibilityTests
         }
 
         return $"'''{value}'''";
+    }
+
+    private static string ComputeSha256(string value)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
     }
 
     private static async Task InitializeGitRepositoryAsync(string root)

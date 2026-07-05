@@ -636,6 +636,11 @@ static int RunBaselineCreate(string[] args)
         return CompleteRun(1, diagnosticsSession);
     }
 
+    if (!TryLoadPicketIgnore(root, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? picketIgnore))
+    {
+        return CompleteRun(1, diagnosticsSession);
+    }
+
     IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
         root,
         maxTargetBytes,
@@ -670,6 +675,11 @@ static int RunBaselineCreate(string[] args)
         try
         {
             byte[] input = file.ReadAllBytes();
+            if (picketIgnore.IsContentHashIgnored(input))
+            {
+                continue;
+            }
+
             if (LooksBinary(input))
             {
                 continue;
@@ -1058,6 +1068,11 @@ static int RunDirectory(
         return CompleteRun(1, diagnosticsSession);
     }
 
+    if (!TryLoadPicketIgnore(root, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? picketIgnore))
+    {
+        return CompleteRun(1, diagnosticsSession);
+    }
+
     IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
         root,
         maxTargetBytes,
@@ -1098,6 +1113,11 @@ static int RunDirectory(
         try
         {
             byte[] input = file.ReadAllBytes();
+            if (picketIgnore.IsContentHashIgnored(input))
+            {
+                continue;
+            }
+
             if (LooksBinary(input))
             {
                 continue;
@@ -2953,6 +2973,31 @@ static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string sourc
         Path.Combine(gitleaksIgnorePath, ".gitleaksignore"),
         Path.Combine(source, ".gitleaksignore"),
     ]);
+}
+
+static bool TryLoadPicketIgnore(
+    string root,
+    IReadOnlyList<string> nativeIgnorePaths,
+    bool respectNativeIgnoreFiles,
+    [NotNullWhen(true)] out PicketIgnore? picketIgnore)
+{
+    if (!respectNativeIgnoreFiles)
+    {
+        picketIgnore = PicketIgnore.Empty;
+        return true;
+    }
+
+    try
+    {
+        picketIgnore = PicketIgnore.LoadExisting(root, nativeIgnorePaths);
+        return true;
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        picketIgnore = null;
+        return false;
+    }
 }
 
 static List<string?> CreateControlFileDisplayPaths(string root, string? reportPath, IReadOnlyList<string> reportPaths)
