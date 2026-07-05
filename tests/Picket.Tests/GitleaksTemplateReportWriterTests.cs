@@ -24,8 +24,9 @@ public sealed class GitleaksTemplateReportWriterTests
             | {{ .File }} | {{ .StartLine }} | {{ quote .Secret }} |
             {{ end -}}
             """);
+        string normalizedReport = report.ReplaceLineEndings("\n");
 
-        Assert.AreEqual("| File | Line | Secret |\n|:-----|-----:|--------|\n| auth.py | 1 | \"a secret\" |\n", report);
+        Assert.AreEqual("| File | Line | Secret |\n|:-----|-----:|--------|\n| auth.py | 1 | \"a secret\" |\n", normalizedReport);
     }
 
     /// <summary>
