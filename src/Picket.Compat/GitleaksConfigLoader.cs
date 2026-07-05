@@ -73,8 +73,13 @@ public static class GitleaksConfigLoader
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
 
         var rules = new List<SecretRule>();
+        var globalAllowlists = new List<SecretAllowlist>();
+        var targetedGlobalAllowlists = new Dictionary<string, List<SecretAllowlist>>(StringComparer.Ordinal);
+        var ruleAllowlists = new List<SecretAllowlist>();
         string section = string.Empty;
+        string allowlistScope = string.Empty;
         bool hasRule = false;
+        bool hasAllowlist = false;
         string id = string.Empty;
         string description = string.Empty;
         string pattern = string.Empty;
@@ -83,6 +88,14 @@ public static class GitleaksConfigLoader
         double entropy = 0;
         IReadOnlyList<string> keywords = [];
         IReadOnlyList<string> tags = [];
+        string allowlistDescription = string.Empty;
+        AllowlistCondition allowlistCondition = AllowlistCondition.Or;
+        List<string> allowlistCommits = [];
+        List<string> allowlistPaths = [];
+        AllowlistRegexTarget allowlistRegexTarget = AllowlistRegexTarget.Secret;
+        List<string> allowlistRegexes = [];
+        List<string> allowlistStopWords = [];
+        List<string> allowlistTargetRules = [];
         string[] lines = toml.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
 
         for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
@@ -98,6 +111,7 @@ public static class GitleaksConfigLoader
                 string table = line[2..^2].Trim();
                 if (table.Equals("rules", StringComparison.Ordinal))
                 {
+                    AddCurrentAllowlist();
                     AddCurrentRule();
                     section = "rules";
                     hasRule = true;
@@ -112,6 +126,26 @@ public static class GitleaksConfigLoader
                     continue;
                 }
 
+                if (table.Equals("rules.allowlists", StringComparison.Ordinal))
+                {
+                    if (!hasRule)
+                    {
+                        throw new InvalidDataException($"{sourceName}: [[rules.allowlists]] must follow a [[rules]] entry");
+                    }
+
+                    AddCurrentAllowlist();
+                    StartAllowlist("rule");
+                    continue;
+                }
+
+                if (table.Equals("allowlists", StringComparison.Ordinal))
+                {
+                    AddCurrentAllowlist();
+                    AddCurrentRule();
+                    StartAllowlist("global");
+                    continue;
+                }
+
                 ThrowUnsupportedTable(table, sourceName);
                 section = table;
                 continue;
@@ -120,6 +154,26 @@ public static class GitleaksConfigLoader
             if (line.StartsWith('[') && line.EndsWith(']'))
             {
                 string table = line[1..^1].Trim();
+                if (table.Equals("rules.allowlist", StringComparison.Ordinal))
+                {
+                    if (!hasRule)
+                    {
+                        throw new InvalidDataException($"{sourceName}: [rules.allowlist] must follow a [[rules]] entry");
+                    }
+
+                    AddCurrentAllowlist();
+                    StartAllowlist("rule");
+                    continue;
+                }
+
+                if (table.Equals("allowlist", StringComparison.Ordinal))
+                {
+                    AddCurrentAllowlist();
+                    AddCurrentRule();
+                    StartAllowlist("global");
+                    continue;
+                }
+
                 ThrowUnsupportedTable(table, sourceName);
                 section = table;
                 continue;
@@ -138,6 +192,44 @@ public static class GitleaksConfigLoader
             if (section.Equals("extend", StringComparison.Ordinal))
             {
                 ThrowUnsupported(sourceName, "extend blocks");
+            }
+
+            if (section.Equals("allowlist", StringComparison.Ordinal))
+            {
+                switch (key)
+                {
+                    case "description":
+                        allowlistDescription = ParseString(value, sourceName, key);
+                        break;
+                    case "condition":
+                        allowlistCondition = ParseAllowlistCondition(value, sourceName, key);
+                        break;
+                    case "commits":
+                        allowlistCommits = ParseStringArray(value, sourceName, key);
+                        break;
+                    case "paths":
+                        allowlistPaths = ParseStringArray(value, sourceName, key);
+                        break;
+                    case "regexTarget":
+                        allowlistRegexTarget = ParseAllowlistRegexTarget(value, sourceName, key);
+                        break;
+                    case "regexes":
+                        allowlistRegexes = ParseStringArray(value, sourceName, key);
+                        break;
+                    case "stopwords":
+                        allowlistStopWords = ParseStringArray(value, sourceName, key);
+                        break;
+                    case "targetRules":
+                        if (!allowlistScope.Equals("global", StringComparison.Ordinal))
+                        {
+                            throw new InvalidDataException($"{sourceName}: 'targetRules' is only valid on global allowlists");
+                        }
+
+                        allowlistTargetRules = ParseStringArray(value, sourceName, key);
+                        break;
+                }
+
+                continue;
             }
 
             if (!section.Equals("rules", StringComparison.Ordinal))
@@ -177,13 +269,80 @@ public static class GitleaksConfigLoader
             }
         }
 
+        AddCurrentAllowlist();
         AddCurrentRule();
+        ApplyTargetedGlobalAllowlists();
         if (rules.Count == 0)
         {
             throw new InvalidDataException($"{sourceName}: no [[rules]] entries were found");
         }
 
-        return new RuleSet(rules);
+        return new RuleSet(rules, globalAllowlists);
+
+        void StartAllowlist(string scope)
+        {
+            section = "allowlist";
+            allowlistScope = scope;
+            hasAllowlist = true;
+            allowlistDescription = string.Empty;
+            allowlistCondition = AllowlistCondition.Or;
+            allowlistCommits = [];
+            allowlistPaths = [];
+            allowlistRegexTarget = AllowlistRegexTarget.Secret;
+            allowlistRegexes = [];
+            allowlistStopWords = [];
+            allowlistTargetRules = [];
+        }
+
+        void AddCurrentAllowlist()
+        {
+            if (!hasAllowlist)
+            {
+                return;
+            }
+
+            SecretAllowlist allowlist;
+            try
+            {
+                allowlist = SecretAllowlist.Create(
+                    allowlistDescription,
+                    allowlistCondition,
+                    allowlistCommits,
+                    allowlistPaths,
+                    allowlistRegexTarget,
+                    allowlistRegexes,
+                    allowlistStopWords);
+            }
+            catch (ArgumentException exception)
+            {
+                throw new InvalidDataException($"{sourceName}: allowlist must contain at least one check for: commits, paths, regexes, or stopwords", exception);
+            }
+
+            if (allowlistScope.Equals("rule", StringComparison.Ordinal))
+            {
+                ruleAllowlists.Add(allowlist);
+            }
+            else if (allowlistTargetRules.Count == 0)
+            {
+                globalAllowlists.Add(allowlist);
+            }
+            else
+            {
+                foreach (string ruleId in allowlistTargetRules)
+                {
+                    if (!targetedGlobalAllowlists.TryGetValue(ruleId, out List<SecretAllowlist>? allowlists))
+                    {
+                        allowlists = [];
+                        targetedGlobalAllowlists.Add(ruleId, allowlists);
+                    }
+
+                    allowlists.Add(allowlist);
+                }
+            }
+
+            hasAllowlist = false;
+            allowlistScope = string.Empty;
+        }
 
         void AddCurrentRule()
         {
@@ -209,8 +368,37 @@ public static class GitleaksConfigLoader
                 secretGroup: secretGroup,
                 entropy: entropy,
                 pathPattern: pathPattern,
+                allowlists: ruleAllowlists,
                 keywords: keywords,
                 tags: tags));
+            ruleAllowlists = [];
+            hasRule = false;
+        }
+
+        void ApplyTargetedGlobalAllowlists()
+        {
+            if (targetedGlobalAllowlists.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < rules.Count; i++)
+            {
+                SecretRule rule = rules[i];
+                if (!targetedGlobalAllowlists.TryGetValue(rule.Id, out List<SecretAllowlist>? allowlists))
+                {
+                    continue;
+                }
+
+                rules[i] = CloneRuleWithAdditionalAllowlists(rule, allowlists);
+                targetedGlobalAllowlists.Remove(rule.Id);
+            }
+
+            if (targetedGlobalAllowlists.Count != 0)
+            {
+                string missingRuleId = targetedGlobalAllowlists.Keys.First();
+                throw new InvalidDataException($"{sourceName}: [[allowlists]] target rule ID '{missingRuleId}' does not exist");
+            }
         }
     }
 
@@ -461,6 +649,29 @@ public static class GitleaksConfigLoader
         return result;
     }
 
+    private static AllowlistCondition ParseAllowlistCondition(string value, string sourceName, string key)
+    {
+        string condition = ParseString(value, sourceName, key);
+        return condition.ToUpperInvariant() switch
+        {
+            "" or "OR" or "||" => AllowlistCondition.Or,
+            "AND" or "&&" => AllowlistCondition.And,
+            _ => throw new InvalidDataException($"{sourceName}: unknown allowlist |condition| '{condition}' (expected 'and', 'or')"),
+        };
+    }
+
+    private static AllowlistRegexTarget ParseAllowlistRegexTarget(string value, string sourceName, string key)
+    {
+        string regexTarget = ParseString(value, sourceName, key);
+        return regexTarget switch
+        {
+            "" or "secret" => AllowlistRegexTarget.Secret,
+            "match" => AllowlistRegexTarget.Match,
+            "line" => AllowlistRegexTarget.Line,
+            _ => throw new InvalidDataException($"{sourceName}: unknown allowlist |regexTarget| '{regexTarget}' (expected 'match', 'line')"),
+        };
+    }
+
     private static double ParseNonNegativeDouble(string value, string sourceName, string key)
     {
         if (!double.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double result)
@@ -539,5 +750,19 @@ public static class GitleaksConfigLoader
     private static void ThrowUnsupported(string sourceName, string feature)
     {
         throw new NotSupportedException($"{sourceName}: Gitleaks config {feature} are not supported yet");
+    }
+
+    private static SecretRule CloneRuleWithAdditionalAllowlists(SecretRule rule, IReadOnlyList<SecretAllowlist> allowlists)
+    {
+        return SecretRule.Create(
+            rule.Id,
+            rule.Description,
+            rule.Pattern,
+            secretGroup: rule.SecretGroup,
+            entropy: rule.Entropy,
+            pathPattern: rule.PathPattern,
+            allowlists: [.. rule.Allowlists, .. allowlists],
+            keywords: rule.Keywords,
+            tags: rule.Tags);
     }
 }

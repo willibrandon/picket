@@ -267,4 +267,104 @@ public sealed class SecretScannerTests
         Assert.HasCount(1, findings);
         Assert.AreEqual("bar", findings[0].Secret);
     }
+
+    /// <summary>
+    /// Verifies that per-rule regex allowlists suppress matching findings.
+    /// </summary>
+    [TestMethod]
+    public void ScanAppliesRuleRegexAllowlist()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=AKIALALEMEL33243OLIA");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "aws-access-key",
+                "AWS Access Key",
+                "AKIA[0-9A-Z]{16}",
+                allowlists: [
+                    SecretAllowlist.Create(regexPatterns: ["AKIALALEMEL33243OLIA"]),
+                ]),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that global path allowlists suppress findings from matching files.
+    /// </summary>
+    [TestMethod]
+    public void ScanAppliesGlobalPathAllowlist()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=AKIA1234567890ABCDEF");
+        RuleSet sourceRules = new(
+            [
+                SecretRule.Create(
+                    "aws-access-key",
+                    "AWS Access Key",
+                    "AKIA[0-9A-Z]{16}"),
+            ],
+            [
+                SecretAllowlist.Create(pathPatterns: ["vendor/"]),
+            ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "vendor/secret.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that allowlist regexTarget can suppress based on the source line.
+    /// </summary>
+    [TestMethod]
+    public void ScanAppliesAllowlistRegexTargetLine()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("prefix token-1234 # test fixture");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "token",
+                "Token",
+                "token-([0-9]+)",
+                allowlists: [
+                    SecretAllowlist.Create(
+                        regexTarget: AllowlistRegexTarget.Line,
+                        regexPatterns: ["test fixture"]),
+                ]),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that AND allowlists require every configured check.
+    /// </summary>
+    [TestMethod]
+    public void ScanRequiresEveryAllowlistCheckForAndCondition()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-1234");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "token",
+                "Token",
+                "token-([0-9]+)",
+                allowlists: [
+                    SecretAllowlist.Create(
+                        condition: AllowlistCondition.And,
+                        pathPatterns: [@"\.txt$"],
+                        regexPatterns: ["1234"]),
+                ]),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> allowed = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+        IReadOnlyList<Finding> detected = SecretScanner.Scan(new ScanRequest(input, "secret.py", rules));
+
+        Assert.IsEmpty(allowed);
+        Assert.HasCount(1, detected);
+    }
 }

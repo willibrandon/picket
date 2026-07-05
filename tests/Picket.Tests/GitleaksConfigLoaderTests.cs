@@ -110,10 +110,10 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
-    /// Verifies that unsupported Gitleaks config behavior is rejected instead of silently ignored.
+    /// Verifies that unsupported Gitleaks required-rule behavior is rejected instead of silently ignored.
     /// </summary>
     [TestMethod]
-    public void FromTomlRejectsUnsupportedAllowlistTable()
+    public void FromTomlRejectsUnsupportedRequiredTable()
     {
         Assert.ThrowsExactly<NotSupportedException>(() => GitleaksConfigLoader.FromToml(
             """
@@ -121,10 +121,83 @@ public sealed class GitleaksConfigLoaderTests
             id = "custom-token"
             regex = '''token-[0-9]+'''
 
-            [[rules.allowlists]]
-            regexes = ['test']
+            [[rules.required]]
+            id = "other"
             """,
             "memory"));
+    }
+
+    /// <summary>
+    /// Verifies that per-rule allowlists are parsed from Gitleaks TOML.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesRuleAllowlist()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "aws-access-key"
+            regex = '''AKIA[0-9A-Z]{16}'''
+
+            [[rules.allowlists]]
+            regexes = ['''AKIALALEMEL33243OLIA''']
+            stopwords = ["example"]
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules);
+        Assert.HasCount(1, ruleSet.Rules[0].Allowlists);
+        SecretAllowlist allowlist = ruleSet.Rules[0].Allowlists[0];
+        Assert.Contains("AKIALALEMEL33243OLIA", allowlist.RegexPatterns);
+        Assert.Contains("example", allowlist.StopWords);
+    }
+
+    /// <summary>
+    /// Verifies that top-level targetRules attach global allowlists to matching rules.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlAttachesTargetedGlobalAllowlists()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "github-app-token"
+            regex = '''ghs_[0-9A-Za-z]{36}'''
+
+            [[rules]]
+            id = "github-oauth"
+            regex = '''gho_[0-9A-Za-z]{36}'''
+
+            [[allowlists]]
+            targetRules = ["github-app-token"]
+            paths = ['''README\.md$''']
+            """,
+            "memory");
+
+        Assert.IsEmpty(ruleSet.Allowlists);
+        Assert.HasCount(1, ruleSet.Rules[0].Allowlists);
+        Assert.IsEmpty(ruleSet.Rules[1].Allowlists);
+    }
+
+    /// <summary>
+    /// Verifies that top-level allowlists without targetRules remain global.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesGlobalAllowlist()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [allowlist]
+            paths = ['''vendor/''']
+
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Allowlists);
+        Assert.Contains("vendor/", ruleSet.Allowlists[0].PathPatterns);
     }
 
     /// <summary>

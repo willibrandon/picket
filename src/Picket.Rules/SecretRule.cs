@@ -9,6 +9,7 @@ namespace Picket.Rules;
 /// <param name="secretGroup">The capture group that contains the secret. Zero means the whole match.</param>
 /// <param name="entropy">The minimum Shannon entropy required for the secret. Zero disables entropy filtering.</param>
 /// <param name="pathPattern">The optional path regex pattern in the compatibility dialect.</param>
+/// <param name="allowlists">Per-rule allowlists used to suppress findings.</param>
 /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
 /// <param name="tags">Rule classification tags.</param>
 public sealed class SecretRule(
@@ -18,6 +19,7 @@ public sealed class SecretRule(
     int secretGroup = 0,
     double entropy = 0,
     string pathPattern = "",
+    IReadOnlyList<SecretAllowlist>? allowlists = null,
     IReadOnlyList<string>? keywords = null,
     IReadOnlyList<string>? tags = null)
 {
@@ -52,6 +54,11 @@ public sealed class SecretRule(
     public string PathPattern { get; } = RequirePatternOrPath(pattern, pathPattern);
 
     /// <summary>
+    /// Gets per-rule allowlists used to suppress findings.
+    /// </summary>
+    public IReadOnlyList<SecretAllowlist> Allowlists { get; } = allowlists ?? [];
+
+    /// <summary>
     /// Gets case-insensitive keywords used for candidate prefiltering.
     /// </summary>
     public IReadOnlyList<string> Keywords { get; } = keywords ?? [];
@@ -70,6 +77,7 @@ public sealed class SecretRule(
     /// <param name="secretGroup">The capture group that contains the secret. Zero means the whole match.</param>
     /// <param name="entropy">The minimum Shannon entropy required for the secret. Zero disables entropy filtering.</param>
     /// <param name="pathPattern">The optional path regex pattern in the compatibility dialect.</param>
+    /// <param name="allowlists">Per-rule allowlists used to suppress findings.</param>
     /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
     /// <param name="tags">Rule classification tags.</param>
     /// <returns>The created rule.</returns>
@@ -80,6 +88,7 @@ public sealed class SecretRule(
         int secretGroup = 0,
         double entropy = 0,
         string pathPattern = "",
+        IReadOnlyList<SecretAllowlist>? allowlists = null,
         IReadOnlyList<string>? keywords = null,
         IReadOnlyList<string>? tags = null)
     {
@@ -90,6 +99,7 @@ public sealed class SecretRule(
             secretGroup,
             entropy,
             pathPattern,
+            allowlists ?? [],
             keywords ?? [],
             tags ?? []);
     }

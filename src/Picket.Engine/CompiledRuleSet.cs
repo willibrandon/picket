@@ -16,6 +16,8 @@ public sealed class CompiledRuleSet(RuleSet rules)
 
     internal List<CompiledRule> CompiledRules { get; } = CompileRules(rules);
 
+    internal List<CompiledAllowlist> Allowlists { get; } = CompiledAllowlist.Compile(rules.Allowlists);
+
     /// <summary>
     /// Compiles a source rule set.
     /// </summary>
@@ -43,6 +45,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
                 rule,
                 CompileOptionalRegex(rule.Pattern),
                 CompileOptionalRegex(rule.PathPattern),
+                CompiledAllowlist.Compile(rule.Allowlists),
                 KeywordPrefilter.Create(rule.Keywords)));
         }
 
