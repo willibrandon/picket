@@ -241,6 +241,31 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that directory scans honor rules inherited through Gitleaks extend.path configs.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanUsesExtendedConfigRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string baseConfigPath = Path.Combine(root.Path, "base.toml");
+        string childConfigPath = Path.Combine(root.Path, "child.toml");
+        File.WriteAllText(baseConfigPath, CreateRuleConfig("base-token", "base-[0-9]+"));
+        File.WriteAllText(
+            childConfigPath,
+            $$"""
+            [extend]
+            path = {{CreateTomlLiteral(baseConfigPath)}}
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "base-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", childConfigPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"base-token\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"base-12345\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that git history scans report committed secrets with commit metadata and fingerprints.
     /// </summary>
     [TestMethod]
@@ -413,6 +438,25 @@ public sealed class CliCompatibilityTests
             regex = '''token-[0-9]+'''
             """);
         return configPath;
+    }
+
+    private static string CreateRuleConfig(string id, string pattern)
+    {
+        return $$"""
+            [[rules]]
+            id = "{{id}}"
+            regex = '''{{pattern}}'''
+            """;
+    }
+
+    private static string CreateTomlLiteral(string value)
+    {
+        if (value.Contains("'''", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Test path cannot be represented as a TOML literal string.");
+        }
+
+        return $"'''{value}'''";
     }
 
     private static async Task InitializeGitRepositoryAsync(string root)

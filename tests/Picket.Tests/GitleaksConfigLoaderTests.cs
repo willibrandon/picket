@@ -272,6 +272,145 @@ public sealed class GitleaksConfigLoaderTests
         Assert.AreEqual(".py", ruleSet.Rules[0].PathPattern);
     }
 
+    /// <summary>
+    /// Verifies that extend.url is accepted like Gitleaks even though URL loading is not implemented upstream.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesExtendUrlWithoutLoadingIt()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [extend]
+            url = "https://example.invalid/gitleaks.toml"
+
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules);
+        Assert.AreEqual("token", ruleSet.Rules[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that extend.path loads base rules, disables inherited rules, and merges metadata-only overrides.
+    /// </summary>
+    [TestMethod]
+    public void LoadFileExtendsPathAndMergesRuleOverrides()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string baseConfigPath = Path.Combine(root, "base.toml");
+            string childConfigPath = Path.Combine(root, "child.toml");
+            File.WriteAllText(
+                baseConfigPath,
+                """
+                [[rules]]
+                id = "base-token"
+                regex = '''base-[0-9]+'''
+
+                [[rules]]
+                id = "disabled-token"
+                regex = '''disabled-[0-9]+'''
+
+                [[rules]]
+                id = "shared-token"
+                description = "base shared"
+                regex = '''shared-base-([0-9]+)'''
+                path = '''\.txt$'''
+                secretGroup = 1
+                entropy = 2.1
+                keywords = ["base-key"]
+                tags = ["base-tag"]
+
+                [[rules.allowlists]]
+                stopwords = ["base-example"]
+                """);
+            File.WriteAllText(
+                childConfigPath,
+                $$"""
+                [extend]
+                path = {{CreateTomlLiteral(baseConfigPath)}}
+                disabledRules = ["disabled-token"]
+
+                [[rules]]
+                id = "shared-token"
+                description = "child shared"
+                keywords = ["child-key"]
+                tags = ["child-tag"]
+
+                [[rules.allowlists]]
+                stopwords = ["child-example"]
+
+                [[rules]]
+                id = "child-token"
+                regex = '''child-[0-9]+'''
+                """);
+
+            RuleSet ruleSet = GitleaksConfigLoader.LoadFile(childConfigPath);
+
+            Assert.HasCount(3, ruleSet.Rules);
+            Assert.AreEqual("base-token", ruleSet.Rules[0].Id);
+            Assert.AreEqual("child-token", ruleSet.Rules[1].Id);
+            Assert.AreEqual("shared-token", ruleSet.Rules[2].Id);
+
+            SecretRule sharedRule = ruleSet.Rules[2];
+            Assert.AreEqual("child shared", sharedRule.Description);
+            Assert.AreEqual("shared-base-([0-9]+)", sharedRule.Pattern);
+            Assert.AreEqual(@"\.txt$", sharedRule.PathPattern);
+            Assert.AreEqual(1, sharedRule.SecretGroup);
+            Assert.AreEqual(2.1, sharedRule.Entropy);
+            Assert.Contains("base-key", sharedRule.Keywords);
+            Assert.Contains("child-key", sharedRule.Keywords);
+            Assert.Contains("base-tag", sharedRule.Tags);
+            Assert.Contains("child-tag", sharedRule.Tags);
+            Assert.HasCount(2, sharedRule.Allowlists);
+            Assert.Contains("base-example", sharedRule.Allowlists[0].StopWords);
+            Assert.Contains("child-example", sharedRule.Allowlists[1].StopWords);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that targeted global allowlists can target rules inherited from an extended config.
+    /// </summary>
+    [TestMethod]
+    public void LoadFileAppliesTargetedGlobalAllowlistsAfterExtend()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string baseConfigPath = Path.Combine(root, "base.toml");
+            string childConfigPath = Path.Combine(root, "child.toml");
+            File.WriteAllText(baseConfigPath, CreateRuleConfig("base-token", "base-[0-9]+"));
+            File.WriteAllText(
+                childConfigPath,
+                $$"""
+                [extend]
+                path = {{CreateTomlLiteral(baseConfigPath)}}
+
+                [[allowlists]]
+                targetRules = ["base-token"]
+                paths = ['''README\.md$''']
+                """);
+
+            RuleSet ruleSet = GitleaksConfigLoader.LoadFile(childConfigPath);
+
+            Assert.HasCount(1, ruleSet.Rules);
+            Assert.HasCount(1, ruleSet.Rules[0].Allowlists);
+            Assert.Contains(@"README\.md$", ruleSet.Rules[0].Allowlists[0].PathPatterns);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateRuleConfig(string id, string pattern)
     {
         return $$"""
@@ -279,6 +418,16 @@ public sealed class GitleaksConfigLoaderTests
             id = "{{id}}"
             regex = '''{{pattern}}'''
             """;
+    }
+
+    private static string CreateTomlLiteral(string value)
+    {
+        if (value.Contains("'''", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Test path cannot be represented as a TOML literal string.");
+        }
+
+        return $"'''{value}'''";
     }
 
     private static string CreateTempDirectory()

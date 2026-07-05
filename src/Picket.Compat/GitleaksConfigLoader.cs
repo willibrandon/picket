@@ -12,6 +12,7 @@ public static class GitleaksConfigLoader
     private const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
     private const string GitleaksConfigTomlEnvironmentVariable = "GITLEAKS_CONFIG_TOML";
     private const string GitleaksConfigFileName = ".gitleaks.toml";
+    private const int MaxExtendDepth = 2;
 
     /// <summary>
     /// Loads rules using Gitleaks-compatible config precedence.
@@ -58,7 +59,7 @@ public static class GitleaksConfigLoader
     public static RuleSet LoadFile(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return FromToml(File.ReadAllText(path), path);
+        return LoadFile(path, 0);
     }
 
     /// <summary>
@@ -69,10 +70,20 @@ public static class GitleaksConfigLoader
     /// <returns>The loaded rules.</returns>
     public static RuleSet FromToml(string toml, string sourceName)
     {
+        return FromToml(toml, sourceName, 0);
+    }
+
+    private static RuleSet LoadFile(string path, int extendDepth)
+    {
+        return FromToml(File.ReadAllText(path), path, extendDepth);
+    }
+
+    private static RuleSet FromToml(string toml, string sourceName, int extendDepth)
+    {
         ArgumentNullException.ThrowIfNull(toml);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
 
-        var rules = new List<SecretRule>();
+        var rules = new List<GitleaksRuleDefinition>();
         var globalAllowlists = new List<SecretAllowlist>();
         var targetedGlobalAllowlists = new Dictionary<string, List<SecretAllowlist>>(StringComparer.Ordinal);
         var ruleAllowlists = new List<SecretAllowlist>();
@@ -99,6 +110,9 @@ public static class GitleaksConfigLoader
         List<string> allowlistRegexes = [];
         List<string> allowlistStopWords = [];
         List<string> allowlistTargetRules = [];
+        string extendPath = string.Empty;
+        bool extendUseDefault = false;
+        List<string> extendDisabledRules = [];
         string requiredRuleId = string.Empty;
         int? requiredWithinLines = null;
         int? requiredWithinColumns = null;
@@ -177,6 +191,15 @@ public static class GitleaksConfigLoader
             if (line.StartsWith('[') && line.EndsWith(']'))
             {
                 string table = line[1..^1].Trim();
+                if (table.Equals("extend", StringComparison.Ordinal))
+                {
+                    AddCurrentAllowlist();
+                    AddCurrentRequiredRule();
+                    AddCurrentRule();
+                    section = "extend";
+                    continue;
+                }
+
                 if (table.Equals("rules.allowlist", StringComparison.Ordinal))
                 {
                     if (!hasRule)
@@ -216,7 +239,23 @@ public static class GitleaksConfigLoader
 
             if (section.Equals("extend", StringComparison.Ordinal))
             {
-                ThrowUnsupported(sourceName, "extend blocks");
+                switch (key)
+                {
+                    case "path":
+                        extendPath = ParseString(value, sourceName, key);
+                        break;
+                    case "url":
+                        _ = ParseString(value, sourceName, key);
+                        break;
+                    case "useDefault":
+                        extendUseDefault = ParseBoolean(value, sourceName, key);
+                        break;
+                    case "disabledRules":
+                        extendDisabledRules = ParseStringArray(value, sourceName, key);
+                        break;
+                }
+
+                continue;
             }
 
             if (section.Equals("allowlist", StringComparison.Ordinal))
@@ -315,14 +354,16 @@ public static class GitleaksConfigLoader
         AddCurrentAllowlist();
         AddCurrentRequiredRule();
         AddCurrentRule();
+        ResolveExtends();
         ApplyTargetedGlobalAllowlists();
-        ValidateRequiredRules();
         if (rules.Count == 0)
         {
             throw new InvalidDataException($"{sourceName}: no [[rules]] entries were found");
         }
 
-        return new RuleSet(rules, globalAllowlists);
+        List<SecretRule> loadedRules = CreateRules();
+        ValidateRequiredRules(loadedRules);
+        return new RuleSet(loadedRules, globalAllowlists);
 
         void StartAllowlist(string scope)
         {
@@ -426,26 +467,83 @@ public static class GitleaksConfigLoader
                 throw new InvalidDataException($"{sourceName}: rule |id| is missing or empty");
             }
 
-            if (pattern.Length == 0 && pathPattern.Length == 0)
-            {
-                throw new InvalidDataException($"{sourceName}: {id}: both |regex| and |path| are empty");
-            }
-
-            rules.Add(SecretRule.Create(
+            rules.Add(new GitleaksRuleDefinition(
                 id,
                 description,
                 pattern,
-                secretGroup: secretGroup,
-                entropy: entropy,
-                pathPattern: pathPattern,
-                allowlists: ruleAllowlists,
-                keywords: keywords,
-                tags: tags,
-                skipReport: skipReport,
-                requiredRules: ruleRequiredRules));
+                secretGroup,
+                entropy,
+                pathPattern,
+                ruleAllowlists,
+                keywords,
+                tags,
+                skipReport,
+                ruleRequiredRules));
             ruleAllowlists = [];
             ruleRequiredRules = [];
             hasRule = false;
+        }
+
+        void ResolveExtends()
+        {
+            if (extendDepth >= MaxExtendDepth)
+            {
+                return;
+            }
+
+            if (extendPath.Length != 0 && extendUseDefault)
+            {
+                throw new InvalidDataException($"{sourceName}: unable to load config due to extend.path and extend.useDefault being set");
+            }
+
+            RuleSet? extendedRuleSet = null;
+            if (extendUseDefault)
+            {
+                extendedRuleSet = EmbeddedGitleaksRules.Bootstrap;
+            }
+            else if (extendPath.Length != 0)
+            {
+                try
+                {
+                    extendedRuleSet = LoadFile(extendPath, extendDepth + 1);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+                {
+                    throw new InvalidDataException($"{sourceName}: failed to load extended config '{extendPath}'", exception);
+                }
+            }
+
+            if (extendedRuleSet is null)
+            {
+                return;
+            }
+
+            var disabledRules = new HashSet<string>(extendDisabledRules, StringComparer.Ordinal);
+            var mergedRules = new Dictionary<string, GitleaksRuleDefinition>(StringComparer.Ordinal);
+            foreach (GitleaksRuleDefinition rule in rules)
+            {
+                mergedRules[rule.Id] = rule;
+            }
+
+            foreach (SecretRule baseRule in extendedRuleSet.Rules)
+            {
+                if (disabledRules.Contains(baseRule.Id))
+                {
+                    continue;
+                }
+
+                if (mergedRules.TryGetValue(baseRule.Id, out GitleaksRuleDefinition? currentRule))
+                {
+                    mergedRules[baseRule.Id] = currentRule.MergeWithBase(baseRule);
+                }
+                else
+                {
+                    mergedRules.Add(baseRule.Id, GitleaksRuleDefinition.FromRule(baseRule));
+                }
+            }
+
+            rules = [.. mergedRules.Values.OrderBy(rule => rule.Id, StringComparer.Ordinal)];
+            globalAllowlists.AddRange(extendedRuleSet.Allowlists);
         }
 
         void ApplyTargetedGlobalAllowlists()
@@ -457,13 +555,13 @@ public static class GitleaksConfigLoader
 
             for (int i = 0; i < rules.Count; i++)
             {
-                SecretRule rule = rules[i];
+                GitleaksRuleDefinition rule = rules[i];
                 if (!targetedGlobalAllowlists.TryGetValue(rule.Id, out List<SecretAllowlist>? allowlists))
                 {
                     continue;
                 }
 
-                rules[i] = CloneRuleWithAdditionalAllowlists(rule, allowlists);
+                rules[i] = rule.WithAdditionalAllowlists(allowlists);
                 targetedGlobalAllowlists.Remove(rule.Id);
             }
 
@@ -474,15 +572,26 @@ public static class GitleaksConfigLoader
             }
         }
 
-        void ValidateRequiredRules()
+        List<SecretRule> CreateRules()
         {
-            if (rules.Count == 0)
+            var loadedRules = new List<SecretRule>(rules.Count);
+            foreach (GitleaksRuleDefinition rule in rules)
+            {
+                loadedRules.Add(rule.ToRule(sourceName));
+            }
+
+            return loadedRules;
+        }
+
+        void ValidateRequiredRules(IReadOnlyList<SecretRule> loadedRules)
+        {
+            if (loadedRules.Count == 0)
             {
                 return;
             }
 
-            var ruleIds = new HashSet<string>(rules.Select(rule => rule.Id), StringComparer.Ordinal);
-            foreach (SecretRule rule in rules)
+            var ruleIds = new HashSet<string>(loadedRules.Select(rule => rule.Id), StringComparer.Ordinal);
+            foreach (SecretRule rule in loadedRules)
             {
                 foreach (SecretRequiredRule requiredRule in rule.RequiredRules)
                 {
@@ -836,9 +945,7 @@ public static class GitleaksConfigLoader
         switch (table)
         {
             case "rules":
-                return;
             case "extend":
-                ThrowUnsupported(sourceName, "extend blocks");
                 return;
             case "allowlist":
             case "allowlists":
@@ -852,21 +959,5 @@ public static class GitleaksConfigLoader
     private static void ThrowUnsupported(string sourceName, string feature)
     {
         throw new NotSupportedException($"{sourceName}: Gitleaks config {feature} are not supported yet");
-    }
-
-    private static SecretRule CloneRuleWithAdditionalAllowlists(SecretRule rule, IReadOnlyList<SecretAllowlist> allowlists)
-    {
-        return SecretRule.Create(
-            rule.Id,
-            rule.Description,
-            rule.Pattern,
-            secretGroup: rule.SecretGroup,
-            entropy: rule.Entropy,
-            pathPattern: rule.PathPattern,
-            allowlists: [.. rule.Allowlists, .. allowlists],
-            keywords: rule.Keywords,
-            tags: rule.Tags,
-            skipReport: rule.SkipReport,
-            requiredRules: rule.RequiredRules);
     }
 }
