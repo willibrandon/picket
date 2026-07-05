@@ -241,6 +241,25 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that directory scans skip files that look binary.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanSkipsBinaryFiles()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        byte[] secretBytes = Encoding.UTF8.GetBytes("token-12345");
+        byte[] binaryBytes = new byte[secretBytes.Length + 1];
+        secretBytes.CopyTo(binaryBytes, 1);
+        File.WriteAllBytes(Path.Combine(root.Path, "secret.bin"), binaryBytes);
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that --max-decode-depth controls recursive decoded scanning.
     /// </summary>
     [TestMethod]

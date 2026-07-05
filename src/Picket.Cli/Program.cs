@@ -7,6 +7,7 @@ using Picket.Rules;
 using Picket.Sources;
 
 const int UnknownFlagExitCode = 126;
+const int BinaryProbeLength = 8192;
 const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
 const string GitleaksConfigTomlEnvironmentVariable = "GITLEAKS_CONFIG_TOML";
 const string TimeoutErrorMessage = "context deadline exceeded";
@@ -471,6 +472,11 @@ static int RunDirectory(string[] args)
         try
         {
             byte[] input = file.ReadAllBytes();
+            if (LooksBinary(input))
+            {
+                continue;
+            }
+
             findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -1038,6 +1044,20 @@ static long CreateTimeoutTimestamp(int timeoutSeconds)
 static bool IsTimedOut(long timeoutTimestamp)
 {
     return timeoutTimestamp != 0 && Stopwatch.GetTimestamp() >= timeoutTimestamp;
+}
+
+static bool LooksBinary(ReadOnlySpan<byte> input)
+{
+    int length = Math.Min(input.Length, BinaryProbeLength);
+    for (int i = 0; i < length; i++)
+    {
+        if (input[i] == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static bool TryParseMegabytes(string value, out long? bytes)
