@@ -222,6 +222,24 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans can write Picket CSV reports.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesCsvReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "csv").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,Match,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,Tags,Link\n", result.Stdout);
+        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,token-12345,token-12345,token-12345,,", result.Stdout);
+        Assert.DoesNotContain("RuleID,Commit,File,SymlinkFile", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans can write GitLab Code Quality reports.
     /// </summary>
     [TestMethod]
@@ -315,6 +333,24 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("\"schema\":\"picket.finding.v1\"", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
+    /// Verifies that native scans infer CSV from report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanInfersCsvReportFormatFromPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.csv");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,token-12345,token-12345,token-12345,,", File.ReadAllText(reportPath));
     }
 
     /// <summary>

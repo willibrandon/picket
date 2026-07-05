@@ -2221,7 +2221,7 @@ static bool TryWriteReport(
     {
         report = resolvedReportFormat switch
         {
-            "csv" => GitleaksCsvReportWriter.Write(findings),
+            "csv" => nativeReportFormats ? PicketCsvReportWriter.Write(findings) : GitleaksCsvReportWriter.Write(findings),
             "gitlab" => PicketGitLabCodeQualityReportWriter.Write(findings),
             "html" => PicketHtmlReportWriter.Write(findings, rules),
             "junit" => GitleaksJunitReportWriter.Write(findings),
@@ -2441,7 +2441,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -2455,7 +2455,7 @@ static void WriteScanHelp()
     Console.Out.WriteLine("picket scan - native filesystem scan");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteRulesHelp()
