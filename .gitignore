@@ -297,6 +297,7 @@ FakesAssemblies/
 node_modules/
 docs-site/.astro/
 docs-site/dist/
+.playwright-cli/
 
 # Visual Studio 6 build log
 *.plg

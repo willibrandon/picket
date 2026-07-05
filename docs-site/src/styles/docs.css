@@ -6,3 +6,13 @@
   overflow-wrap: anywhere;
   white-space: normal;
 }
+
+@media (max-width: 48rem) {
+  .sl-markdown-content figure.frame pre,
+  .sl-markdown-content figure.frame pre code,
+  .sl-markdown-content figure.frame pre .code,
+  .sl-markdown-content figure.frame pre .ec-line {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}
