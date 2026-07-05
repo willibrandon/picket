@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using Picket;
 using Picket.Compat;
 using Picket.Engine;
@@ -1106,6 +1107,11 @@ static int RunRules(string[] args)
         return RunRulesCheck(args[1..]);
     }
 
+    if (subcommand.Equals("test", StringComparison.OrdinalIgnoreCase))
+    {
+        return RunRulesTest(args[1..]);
+    }
+
     Console.Error.WriteLine($"unknown rules command: {subcommand}");
     return UnknownFlagExitCode;
 }
@@ -1157,6 +1163,84 @@ static int RunRulesCheck(string[] args)
         int ruleCount = ruleSet.Rules.Count;
         string noun = ruleCount == 1 ? "rule" : "rules";
         Console.Out.WriteLine($"rules ok: {ruleCount} {noun}");
+        return 0;
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or NotSupportedException or ArgumentException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        return 1;
+    }
+}
+
+static int RunRulesTest(string[] args)
+{
+    string? configPath = null;
+    string fileName = "rules-test.txt";
+    var positional = new List<string>(2);
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsHelp(arg))
+        {
+            WriteRulesTestHelp();
+            return 0;
+        }
+
+        if (IsConfigFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsRulesTestPathFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--path", out string? pathValue))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            fileName = pathValue;
+            continue;
+        }
+
+        if (arg.StartsWith('-'))
+        {
+            Console.Error.WriteLine($"unknown flag: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        if (positional.Count == 2)
+        {
+            Console.Error.WriteLine($"unexpected argument: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        positional.Add(arg);
+    }
+
+    if (positional.Count != 2)
+    {
+        Console.Error.WriteLine("rules test requires a rule ID and input");
+        return UnknownFlagExitCode;
+    }
+
+    string ruleId = positional[0];
+    string input = positional[1];
+    try
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, ".");
+        ValidateRulesWithScout(ruleSet);
+        RuleSet selectedRuleSet = FilterEnabledRules(ruleSet, [ruleId]);
+        byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            inputBytes,
+            fileName,
+            CompiledRuleSet.Compile(selectedRuleSet)));
+        Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
         return 0;
     }
     catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or NotSupportedException or ArgumentException)
@@ -1640,6 +1724,12 @@ static bool IsConfigFlag(string arg)
 {
     return arg is "-c" or "--config"
         || arg.StartsWith("--config=", StringComparison.Ordinal);
+}
+
+static bool IsRulesTestPathFlag(string arg)
+{
+    return arg.Equals("--path", StringComparison.Ordinal)
+        || arg.StartsWith("--path=", StringComparison.Ordinal);
 }
 
 static bool IsGitleaksIgnorePathFlag(string arg)
@@ -2259,6 +2349,7 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket rules check [source] [-c path]");
+    Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
     Console.Out.WriteLine("  picket version");
 }
 
@@ -2268,6 +2359,7 @@ static void WriteRulesHelp()
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket rules check [source] [-c path]");
+    Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
 }
 
 static void WriteRulesCheckHelp()
@@ -2276,4 +2368,12 @@ static void WriteRulesCheckHelp()
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket rules check [source] [-c path]");
+}
+
+static void WriteRulesTestHelp()
+{
+    Console.Out.WriteLine("picket rules test - scan sample text with a single rule");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
 }

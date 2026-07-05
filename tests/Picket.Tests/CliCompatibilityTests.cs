@@ -1178,6 +1178,69 @@ public sealed class CliCompatibilityTests
         Assert.Contains("rules ok: 1 rule", result.Stdout);
     }
 
+    /// <summary>
+    /// Verifies that rules test scans sample text with a selected rule.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestWritesMatchingFindings()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync(
+            "rules",
+            "test",
+            "token",
+            "token-12345",
+            "-c",
+            configPath,
+            "--path",
+            "sample.txt").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
+        Assert.Contains("\"File\": \"sample.txt\"", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules test rejects missing selected rules.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestRejectsMissingRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("rules", "test", "missing", "token-12345", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("Requested rule missing not found in rules", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules test can exercise path-only rules with a logical path.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestHonorsLogicalPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WritePathOnlyConfig(root.Path);
+
+        CliResult result = await RunCliAsync(
+            "rules",
+            "test",
+            "path-secret",
+            "",
+            "-c",
+            configPath,
+            "--path=secret.txt").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"path-secret\"", result.Stdout);
+        Assert.Contains("\"File\": \"secret.txt\"", result.Stdout);
+    }
+
     private static string WriteTokenConfig(string root, string fileName = "gitleaks.toml")
     {
         string configPath = Path.Combine(root, fileName);
