@@ -1,0 +1,13 @@
+<Project Sdk="MSTest.Sdk/4.1.0">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <TestingExtensionsProfile>Default</TestingExtensionsProfile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Picket.Engine\Picket.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />
+    <ProjectReference Include="..\..\src\Picket.Rules\Picket.Rules.csproj" />
+  </ItemGroup>
+</Project>

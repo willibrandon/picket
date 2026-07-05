@@ -353,6 +353,10 @@ The applied guidance comes from current Microsoft Learn pages. These links are m
 - [SIMD-accelerated types in .NET](https://learn.microsoft.com/en-us/dotnet/standard/simd)
 - [ReadyToRun deployment overview](https://learn.microsoft.com/en-us/dotnet/core/deploying/ready-to-run)
 - [.NET diagnostic tools overview](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/tools-overview)
+- [Testing in .NET](https://learn.microsoft.com/en-us/dotnet/core/testing/)
+- [MSTest overview](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-mstest-intro)
+- [MSTest SDK configuration](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-mstest-sdk)
+- [Microsoft.Testing.Platform overview](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro)
 
 ---
 
@@ -678,6 +682,8 @@ Every validator has a threat-model entry: data sent, endpoint contacted, auth re
 ---
 
 ## 10. Testing Strategy
+
+Test projects use `MSTest.Sdk` with Microsoft.Testing.Platform (MTP), Microsoft's modern recommended test platform for new MSTest projects. The repository opts into .NET 10 MTP mode through `global.json` (`"test": { "runner": "Microsoft.Testing.Platform" }`), so solution tests run with `dotnet test --solution Picket.slnx`. This avoids legacy VSTest project plumbing by default and lets Picket choose MTP extension profiles explicitly.
 
 ### 10.1 Compatibility Oracle
 

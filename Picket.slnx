@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Picket.Cli/Picket.Cli.csproj" />
+    <Project Path="src/Picket.Engine/Picket.Engine.csproj" />
+    <Project Path="src/Picket.Report/Picket.Report.csproj" />
+    <Project Path="src/Picket.Rules/Picket.Rules.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Picket.Tests/Picket.Tests.csproj" />
+  </Folder>
+</Solution>

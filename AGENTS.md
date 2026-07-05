@@ -115,6 +115,8 @@ Keep modules focused. Compatibility code belongs in `Picket.Compat` or compatibi
 
 ## Testing Expectations
 
+Use `MSTest.Sdk` with Microsoft.Testing.Platform (MTP) for new test projects. Microsoft currently recommends MSTest.Sdk + MTP for new MSTest projects; do not add legacy `Microsoft.NET.Test.Sdk`, VSTest adapters, or xUnit/NUnit unless the user explicitly changes the testing strategy. The repository opts into .NET 10 MTP mode in `global.json`; run solution tests with `dotnet test --solution Picket.slnx`.
+
 Add tests at the level of risk:
 
 - Unit tests for config parsing, entropy, fingerprints, decoder offset remapping, regex dialect translation, report writers, validators, and security boundaries.
@@ -149,5 +151,9 @@ Prefer precise, testable statements over marketing claims. If a competitor capab
 - Use `apply_patch` for manual edits.
 - Prefer small, coherent changes with focused tests.
 - Keep files ASCII unless there is a clear reason otherwise.
+- Follow the .NET runtime C# style baseline from `D:\SRC\runtime\docs\coding-guidelines\coding-style.md`: Allman braces, four-space indentation, System usings first with all other usings sorted alphabetically, no separated using groups, avoid `this.` unless required, constants in PascalCase, private/internal instance fields as `_camelCase`, private/internal static fields as `s_camelCase`, and primary constructor parameters in normal `camelCase`.
+- Keep one explicit type declaration per `.cs` file. Top-level `Program.cs` is allowed for the CLI entry point.
+- All public types and members require triple-slash XML documentation.
+- Do not leave unused usings; `IDE0005` is an error.
 - Do not vendor or copy large code from reference repositories. Reimplement behavior from observed contracts and tests.
 - For OpenAI/.NET/current external guidance, use primary official docs and record links in docs when they affect design or implementation.
