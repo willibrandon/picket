@@ -32,6 +32,24 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that reported columns after a newline match Gitleaks' compatibility location model.
+    /// </summary>
+    [TestMethod]
+    public void ScanUsesGitleaksCompatibleColumnsAfterNewline()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("old = \"token-11111\"\nnew = \"token-22222\"");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.HasCount(2, findings);
+        Assert.AreEqual(8, findings[0].StartColumn);
+        Assert.AreEqual(18, findings[0].EndColumn);
+        Assert.AreEqual(9, findings[1].StartColumn);
+        Assert.AreEqual(19, findings[1].EndColumn);
+    }
+
+    /// <summary>
     /// Verifies that non-matching input returns no findings.
     /// </summary>
     [TestMethod]

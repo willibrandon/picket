@@ -1,7 +1,7 @@
 namespace Picket.Engine;
 
 /// <summary>
-/// Represents a one-based source line and column.
+/// Represents a Gitleaks-compatible source line and column.
 /// </summary>
 /// <param name="line">The one-based line.</param>
 /// <param name="column">The one-based column.</param>
@@ -18,7 +18,7 @@ public readonly struct SourcePosition(int line, int column) : IEquatable<SourceP
     public int Column { get; } = column;
 
     /// <summary>
-    /// Maps a zero-based byte offset to a one-based line and column.
+    /// Maps a zero-based byte offset to a Gitleaks-compatible line and column.
     /// </summary>
     /// <param name="input">The input bytes.</param>
     /// <param name="offset">The zero-based byte offset.</param>
@@ -35,7 +35,9 @@ public readonly struct SourcePosition(int line, int column) : IEquatable<SourceP
             if (input[i] == (byte)'\n')
             {
                 line++;
-                column = 1;
+                // Gitleaks keeps the newline byte as the previous line index,
+                // so the first byte after a newline reports as column two.
+                column = 2;
                 continue;
             }
 

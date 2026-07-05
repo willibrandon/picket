@@ -1,0 +1,24 @@
+[
+ {
+  "RuleID": "baseline-token",
+  "Description": "Synthetic token used for baseline oracle compatibility tests.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 8,
+  "EndColumn": 28,
+  "Match": "baseline-secret-11111",
+  "Secret": "baseline-secret-11111",
+  "File": "source.txt",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.2680488,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [
+   "baseline-old"
+  ],
+  "Fingerprint": "legacy-fingerprint"
+ }
+]

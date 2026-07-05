@@ -1,0 +1,2 @@
+<time> INF scanned ~1061 bytes (1.06 KB) in <duration>
+<time> WRN leaks found: 1

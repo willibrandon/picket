@@ -57,6 +57,42 @@ public sealed class GitleaksJsonReportWriterTests
     }
 
     /// <summary>
+    /// Verifies that non-empty tag arrays use Gitleaks JSON indentation.
+    /// </summary>
+    [TestMethod]
+    public void WriteFormatsNonEmptyTagsLikeGitleaks()
+    {
+        var finding = new Finding(
+            "rule",
+            "desc",
+            1,
+            1,
+            2,
+            8,
+            "x",
+            "secret",
+            "stdin",
+            string.Empty,
+            string.Empty,
+            2.5,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["one", "two"],
+            "stdin:rule:1");
+
+        string json = GitleaksJsonReportWriter.Write([finding]);
+
+        Assert.Contains("""
+              "Tags": [
+               "one",
+               "two"
+              ],
+            """, json);
+    }
+
+    /// <summary>
     /// Verifies the Gitleaks object whitespace and float32 entropy formatting.
     /// </summary>
     [TestMethod]

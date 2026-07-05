@@ -113,18 +113,33 @@ public static class GitleaksJsonReportWriter
     {
         builder.Append("  \"");
         builder.Append(name);
-        builder.Append("\": [");
-        for (int i = 0; i < values.Count; i++)
+        builder.Append("\": ");
+        if (values.Count == 0)
         {
-            if (i > 0)
+            builder.Append("[]");
+            if (comma)
             {
                 builder.Append(',');
             }
 
-            AppendJsonString(builder, values[i]);
+            builder.Append('\n');
+            return;
         }
 
-        builder.Append(']');
+        builder.Append("[\n");
+        for (int i = 0; i < values.Count; i++)
+        {
+            builder.Append("   ");
+            AppendJsonString(builder, values[i]);
+            if (i + 1 < values.Count)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append('\n');
+        }
+
+        builder.Append("  ]");
         if (comma)
         {
             builder.Append(',');

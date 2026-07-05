@@ -1,0 +1,12 @@
+title = "picket baseline oracle"
+
+[[rules]]
+id = "baseline-token"
+description = "Synthetic token used for baseline oracle compatibility tests."
+regex = '''baseline-secret-[0-9]{5}'''
+keywords = [
+    "baseline-secret-",
+]
+tags = [
+    "baseline-current",
+]
