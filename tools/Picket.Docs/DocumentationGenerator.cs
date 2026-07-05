@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Xml.Linq;
 
 namespace Picket.Docs;
 
@@ -8,6 +9,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
     private readonly string _repositoryRoot = repositoryRoot;
     private readonly string _docsRoot = Path.Combine(repositoryRoot, "docs");
     private readonly string _siteDocsRoot = Path.Combine(repositoryRoot, "docs-site", "src", "content", "docs");
+    private readonly string[] _publicPackageIds = ["Picket.Rules", "Picket.Engine", "Picket.Report"];
 
     internal static string FindRepositoryRoot(string startDirectory)
     {
@@ -30,12 +32,15 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
     {
         string generatedRoot = Path.Combine(_siteDocsRoot, "generated");
         string referenceRoot = Path.Combine(_siteDocsRoot, "reference");
+        string apiRoot = Path.Combine(_siteDocsRoot, "api");
         RecreateDirectory(generatedRoot);
         RecreateDirectory(referenceRoot);
+        RecreateDirectory(apiRoot);
 
         GenerateProjectDocumentation(generatedRoot);
         GenerateCliReference(referenceRoot);
         GenerateActionReference(referenceRoot);
+        GenerateApiReference(apiRoot);
     }
 
     internal string GetGeneratedDocumentationStatus()
@@ -51,6 +56,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         process.StartInfo.ArgumentList.Add("status");
         process.StartInfo.ArgumentList.Add("--porcelain");
         process.StartInfo.ArgumentList.Add("--");
+        process.StartInfo.ArgumentList.Add("docs-site/src/content/docs/api");
         process.StartInfo.ArgumentList.Add("docs-site/src/content/docs/generated");
         process.StartInfo.ArgumentList.Add("docs-site/src/content/docs/reference");
 
@@ -115,6 +121,83 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "CLI Reference",
             "Generated command reference for the Picket CLI.",
             builder.ToString());
+    }
+
+    private void GenerateApiReference(string outputRoot)
+    {
+        foreach (string packageId in _publicPackageIds)
+        {
+            string xmlPath = Path.Combine(_repositoryRoot, "src", packageId, "bin", "Release", "net10.0", string.Concat(packageId, ".xml"));
+            if (!File.Exists(xmlPath))
+            {
+                throw new FileNotFoundException(
+                    $"Missing XML documentation for {packageId}. Run `dotnet build src/{packageId}/{packageId}.csproj --configuration Release --framework net10.0` first.",
+                    xmlPath);
+            }
+
+            XDocument document = XDocument.Load(xmlPath);
+            List<XElement> members = [.. document.Descendants("member")];
+            List<XElement> types = [.. members
+                .Where(member => GetMemberId(member).StartsWith("T:", StringComparison.Ordinal))
+                .OrderBy(member => GetMemberId(member), StringComparer.Ordinal)];
+
+            var builder = new StringBuilder();
+            builder.Append("Generated from XML documentation for `");
+            builder.Append(packageId);
+            builder.AppendLine("`.");
+            builder.AppendLine();
+            builder.AppendLine("## Types");
+            builder.AppendLine();
+            foreach (XElement type in types)
+            {
+                string typeName = GetMemberId(type)[2..];
+                builder.Append("- `");
+                builder.Append(typeName);
+                builder.Append("` - ");
+                builder.AppendLine(EscapeMarkdownText(ReadSummary(type)));
+            }
+
+            foreach (XElement type in types)
+            {
+                string typeName = GetMemberId(type)[2..];
+                List<XElement> typeMembers = [.. members
+                    .Where(member => IsTypeMember(GetMemberId(member), typeName))
+                    .OrderBy(member => GetMemberKind(GetMemberId(member)), StringComparer.Ordinal)
+                    .ThenBy(member => GetMemberDisplayName(GetMemberId(member), typeName), StringComparer.Ordinal)];
+
+                builder.AppendLine();
+                builder.Append("## `");
+                builder.Append(typeName);
+                builder.AppendLine("`");
+                builder.AppendLine();
+                builder.AppendLine(ReadSummary(type));
+                if (typeMembers.Count == 0)
+                {
+                    continue;
+                }
+
+                builder.AppendLine();
+                builder.AppendLine("| Kind | Member | Summary |");
+                builder.AppendLine("|---|---|---|");
+                foreach (XElement member in typeMembers)
+                {
+                    string memberId = GetMemberId(member);
+                    builder.Append("| ");
+                    builder.Append(GetMemberKind(memberId));
+                    builder.Append(" | `");
+                    builder.Append(EscapeTable(GetMemberDisplayName(memberId, typeName)));
+                    builder.Append("` | ");
+                    builder.Append(EscapeTable(ReadSummary(member)));
+                    builder.AppendLine(" |");
+                }
+            }
+
+            WriteMarkdown(
+                Path.Combine(outputRoot, string.Concat(Slugify(packageId), ".md")),
+                string.Concat(packageId, " API"),
+                string.Concat("Generated API reference for ", packageId, "."),
+                builder.ToString());
+        }
     }
 
     private void GenerateActionReference(string outputRoot)
@@ -303,7 +386,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
                 continue;
             }
 
-            if (c is '-' or '_' or ' ')
+            if (c is '-' or '_' or ' ' or '.')
             {
                 builder.Append('-');
             }
@@ -324,11 +407,126 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
 
     private static string EscapeTable(string value)
     {
-        return value.Replace("|", "\\|", StringComparison.Ordinal);
+        return EscapeMarkdownText(value).Replace("|", "\\|", StringComparison.Ordinal);
     }
 
     private static string NormalizeLineEndings(string value)
     {
         return value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
+    }
+
+    private static string GetMemberId(XElement member)
+    {
+        return member.Attribute("name")?.Value ?? string.Empty;
+    }
+
+    private static bool IsTypeMember(string memberId, string typeName)
+    {
+        if (memberId.StartsWith("T:", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return memberId.Length > 2 && FindMemberTypeName(memberId[2..]).Equals(typeName, StringComparison.Ordinal);
+    }
+
+    private static string FindMemberTypeName(string memberName)
+    {
+        int parameterIndex = memberName.IndexOf('(', StringComparison.Ordinal);
+        if (parameterIndex >= 0)
+        {
+            memberName = memberName[..parameterIndex];
+        }
+
+        int separatorIndex = memberName.LastIndexOf('.');
+        return separatorIndex <= 0 ? string.Empty : memberName[..separatorIndex];
+    }
+
+    private static string GetMemberKind(string memberId)
+    {
+        if (memberId.Length < 2)
+        {
+            return "Member";
+        }
+
+        return memberId[0] switch
+        {
+            'F' => "Field",
+            'M' => "Method",
+            'P' => "Property",
+            'T' => "Type",
+            _ => "Member",
+        };
+    }
+
+    private static string GetMemberDisplayName(string memberId, string typeName)
+    {
+        if (memberId.Length <= 2)
+        {
+            return memberId;
+        }
+
+        string memberName = memberId[2..];
+        string parameters = string.Empty;
+        int parameterIndex = memberName.IndexOf('(', StringComparison.Ordinal);
+        if (parameterIndex >= 0)
+        {
+            parameters = memberName[parameterIndex..];
+            memberName = memberName[..parameterIndex];
+        }
+
+        string typePrefix = string.Concat(typeName, ".");
+        if (memberName.StartsWith(typePrefix, StringComparison.Ordinal))
+        {
+            memberName = memberName[typePrefix.Length..];
+        }
+
+        if (memberName.Equals("#ctor", StringComparison.Ordinal))
+        {
+            memberName = GetShortTypeName(typeName);
+        }
+
+        return string.Concat(memberName, parameters);
+    }
+
+    private static string GetShortTypeName(string typeName)
+    {
+        int separatorIndex = typeName.LastIndexOf('.');
+        return separatorIndex < 0 ? typeName : typeName[(separatorIndex + 1)..];
+    }
+
+    private static string ReadSummary(XElement member)
+    {
+        XElement? summary = member.Element("summary");
+        return summary is null ? string.Empty : NormalizeDocumentationText(summary.Value);
+    }
+
+    private static string NormalizeDocumentationText(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        bool previousWasWhiteSpace = true;
+        foreach (char c in value)
+        {
+            if (char.IsWhiteSpace(c))
+            {
+                if (!previousWasWhiteSpace)
+                {
+                    builder.Append(' ');
+                    previousWasWhiteSpace = true;
+                }
+
+                continue;
+            }
+
+            builder.Append(c);
+            previousWasWhiteSpace = false;
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    private static string EscapeMarkdownText(string value)
+    {
+        return NormalizeDocumentationText(value).Replace("`", "\\`", StringComparison.Ordinal);
     }
 }

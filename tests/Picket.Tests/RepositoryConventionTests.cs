@@ -314,6 +314,32 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that the generated documentation site includes API reference pages for public packages.
+    /// </summary>
+    [TestMethod]
+    public void GeneratedDocumentationIncludesPublicApiReference()
+    {
+        string siteConfig = ReadRepositoryFile("docs-site/astro.config.mjs");
+        string packageJson = ReadRepositoryFile("docs-site/package.json");
+        string rulesApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-rules.md");
+        string engineApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-engine.md");
+        string reportApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-report.md");
+
+        Assert.Contains("directory: \"api\"", siteConfig);
+        Assert.Contains("docs:api-build", packageJson);
+        Assert.Contains("Picket.Rules.csproj", packageJson);
+        Assert.Contains("Picket.Engine.csproj", packageJson);
+        Assert.Contains("Picket.Report.csproj", packageJson);
+        Assert.Contains("Picket.Rules API", rulesApi);
+        Assert.Contains("SecretRule", rulesApi);
+        Assert.Contains("Picket.Engine API", engineApi);
+        Assert.Contains("SecretScanner", engineApi);
+        Assert.Contains("CompiledRuleSet", engineApi);
+        Assert.Contains("Picket.Report API", reportApi);
+        Assert.Contains("PicketJsonlReportWriter", reportApi);
+    }
+
+    /// <summary>
     /// Verifies that committed docs and automation do not contain machine-specific reference clone paths.
     /// </summary>
     [TestMethod]
@@ -425,7 +451,7 @@ public sealed partial class RepositoryConventionTests
 
     private static IEnumerable<string> EnumeratePortableTextFiles(string root)
     {
-        foreach (string relativePath in new[] { "AGENTS.md", "docs", "scripts", ".github", "src", "tests" })
+        foreach (string relativePath in new[] { "AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "src", "tests" })
         {
             string path = ResolveRepositoryPath(relativePath);
             if (File.Exists(path))
