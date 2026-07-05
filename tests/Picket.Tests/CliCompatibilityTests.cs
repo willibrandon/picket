@@ -2131,6 +2131,83 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that --profile picket opts git scans into native config and report behavior.
+    /// </summary>
+    [TestMethod]
+    public async Task GitProfilePicketUsesNativeConfigAndReports()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "native-only-secret\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add native secret").ConfigureAwait(false);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-git-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            environment,
+            "git",
+            root.Path,
+            "--profile",
+            "picket",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"native-git-rule\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"unknown\"", result.Stdout);
+        Assert.DoesNotContain("\"RuleID\"", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that strict compatibility git scans ignore PICKET_CONFIG_TOML.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanIgnoresPicketConfigTomlEnvironmentVariable()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, ".gitleaks.toml"), CreateRuleConfig("compat-rule", "compat-only-secret"));
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "native-only-secret\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add native secret").ConfigureAwait(false);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            environment,
+            "git",
+            root.Path).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+        Assert.DoesNotContain("native-rule", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that unsupported git profiles are rejected before scanning.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanRejectsUnsupportedProfile()
+    {
+        CliResult result = await RunCliAsync("git", "--profile", "strict").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported profile: strict", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that max-target filtering does not suppress path-only git findings.
     /// </summary>
     [TestMethod]

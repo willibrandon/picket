@@ -1558,6 +1558,11 @@ static int RunDirectory(
 
 static int RunGit(string[] args)
 {
+    if (!TryResolveNativeProfile(args, defaultNativeProfile: false, out bool nativeMode))
+    {
+        return UnknownFlagExitCode;
+    }
+
     string? baselinePath = null;
     string? configPath = null;
     string? diagnostics = null;
@@ -1596,6 +1601,16 @@ static int RunGit(string[] args)
         if (IsConfigFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsProfileFlag(arg))
+        {
+            if (!TryReadProfileFlag(args, ref i, out _))
             {
                 return UnknownFlagExitCode;
             }
@@ -1820,7 +1835,7 @@ static int RunGit(string[] args)
         return UnknownFlagExitCode;
     }
 
-    if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: false, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: nativeMode, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -1853,12 +1868,17 @@ static int RunGit(string[] args)
     CreateGitLinkContext(root, staged || preCommit, platform, out string scmPlatform, out string remoteUrl);
     List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth, timeoutTimestamp, scmPlatform, remoteUrl, out bool timedOut);
     IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
+    if (nativeMode)
+    {
+        filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
+    }
+
     if (redactionPercent > 0)
     {
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
+    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -4475,7 +4495,7 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]");
-    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
