@@ -126,7 +126,7 @@ public sealed class DirectorySource
 
     private static FileWalkerOptions CreateWalkerOptions(DirectoryScanOptions options)
     {
-        return new FileWalkerOptions
+        var walkerOptions = new FileWalkerOptions
         {
             IgnoreHidden = false,
             FollowSymbolicLinks = options.FollowSymbolicLinks,
@@ -139,6 +139,18 @@ public sealed class DirectorySource
             Sort = FileWalkSort.FullPath,
             MaxFileSize = options.MaxTargetBytes,
         };
+
+        if (options.ReadPicketIgnoreFiles)
+        {
+            walkerOptions.CustomIgnoreFileNames.Add(".picketignore");
+        }
+
+        for (int i = 0; i < options.IgnoreFilePaths.Count; i++)
+        {
+            walkerOptions.IgnoreFiles.Add(options.IgnoreFilePaths[i]);
+        }
+
+        return walkerOptions;
     }
 
     private static string CreateDisplayPath(string root, string fullPath)

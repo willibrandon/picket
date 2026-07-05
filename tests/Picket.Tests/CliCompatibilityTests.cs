@@ -569,6 +569,86 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans honor .picketignore without scanning the ignore file itself.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanHonorsPicketIgnore()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), "ignored.txt\ntoken-99991\n");
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"keep.txt\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-23456\"", result.Stdout);
+        Assert.DoesNotContain("ignored.txt", result.Stdout);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("token-99991", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can disable .picketignore handling.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanNoIgnoreDisablesPicketIgnore()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), "ignored.txt\n");
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl", "--no-ignore").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"ignored.txt\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can apply explicit Scout ignore files.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanHonorsExplicitIgnorePath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignorePath = Path.Combine(root.Path, "picket.ignore");
+        File.WriteAllText(ignorePath, "ignored.txt\ntoken-99991\n");
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "--ignore-path", ignorePath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"keep.txt\"", result.Stdout);
+        Assert.DoesNotContain("ignored.txt", result.Stdout);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("token-99991", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that compatibility directory scans are not affected by native .picketignore rules.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanIgnoresNativePicketIgnore()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), "ignored.txt\n");
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"File\": \"ignored.txt\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that baseline creation writes a Gitleaks-compatible baseline that suppresses later scans.
     /// </summary>
     [TestMethod]
@@ -611,6 +691,28 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
         Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that baseline creation honors native .picketignore rules.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateHonorsPicketIgnore()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), "ignored.txt\ntoken-99991\n");
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult result = await RunCliAsync("baseline", "create", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"File\": \"keep.txt\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-23456\"", result.Stdout);
+        Assert.DoesNotContain("ignored.txt", result.Stdout);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("token-99991", result.Stdout);
     }
 
     /// <summary>

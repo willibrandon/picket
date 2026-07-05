@@ -19,8 +19,10 @@ public sealed class DirectorySourceTests
         string root = CreateTempDirectory();
         try
         {
+            File.WriteAllText(Path.Combine(root, ".picketignore"), "picket-ignored.txt");
             File.WriteAllText(Path.Combine(root, ".gitignore"), "ignored.txt");
             File.WriteAllText(Path.Combine(root, "ignored.txt"), "secret");
+            File.WriteAllText(Path.Combine(root, "picket-ignored.txt"), "secret");
             File.WriteAllText(Path.Combine(root, ".hidden"), "hidden");
 
             IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root));
@@ -28,7 +30,65 @@ public sealed class DirectorySourceTests
 
             Assert.Contains(".hidden", displayPaths);
             Assert.Contains(".gitignore", displayPaths);
+            Assert.Contains(".picketignore", displayPaths);
             Assert.Contains("ignored.txt", displayPaths);
+            Assert.Contains("picket-ignored.txt", displayPaths);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that native enumeration can apply per-directory .picketignore rules.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateCanApplyPicketIgnoreFiles()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "secrets"));
+            Directory.CreateDirectory(Path.Combine(root, "keep"));
+            File.WriteAllText(Path.Combine(root, ".picketignore"), "secrets/\n*.tmp\n");
+            File.WriteAllText(Path.Combine(root, "secrets", "token.txt"), "token-12345");
+            File.WriteAllText(Path.Combine(root, "keep", "scratch.tmp"), "token-23456");
+            File.WriteAllText(Path.Combine(root, "keep", "token.txt"), "token-34567");
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, readPicketIgnoreFiles: true));
+            string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
+
+            Assert.Contains(".picketignore", displayPaths);
+            Assert.Contains("keep/token.txt", displayPaths);
+            Assert.DoesNotContain("secrets/token.txt", displayPaths);
+            Assert.DoesNotContain("keep/scratch.tmp", displayPaths);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that native enumeration can apply explicit ignore files through Scout.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateCanApplyExplicitIgnoreFile()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string ignorePath = Path.Combine(root, "picket.ignore");
+            File.WriteAllText(ignorePath, "ignored.txt\n");
+            File.WriteAllText(Path.Combine(root, "ignored.txt"), "token-12345");
+            File.WriteAllText(Path.Combine(root, "keep.txt"), "token-23456");
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, ignoreFilePaths: [ignorePath]));
+            string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
+
+            Assert.Contains("keep.txt", displayPaths);
+            Assert.DoesNotContain("ignored.txt", displayPaths);
         }
         finally
         {

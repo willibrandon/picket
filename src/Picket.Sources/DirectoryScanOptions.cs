@@ -8,13 +8,19 @@ namespace Picket.Sources;
 /// <param name="followSymbolicLinks">A value indicating whether symbolic links are followed.</param>
 /// <param name="maxArchiveDepth">The maximum nested archive depth to enumerate.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> for globally allowlisted paths.</param>
+/// <param name="readPicketIgnoreFiles">A value indicating whether per-directory <c>.picketignore</c> files are read.</param>
+/// <param name="ignoreFilePaths">Explicit ignore files to apply while traversing.</param>
 public sealed class DirectoryScanOptions(
     string root,
     long? maxTargetBytes = null,
     bool followSymbolicLinks = false,
     int maxArchiveDepth = 0,
-    Func<string, bool>? isPathAllowed = null)
+    Func<string, bool>? isPathAllowed = null,
+    bool readPicketIgnoreFiles = false,
+    IReadOnlyList<string>? ignoreFilePaths = null)
 {
+    private readonly IReadOnlyList<string> _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
+
     /// <summary>
     /// Gets the full root path to enumerate.
     /// </summary>
@@ -34,6 +40,16 @@ public sealed class DirectoryScanOptions(
     /// Gets the maximum nested archive depth to enumerate.
     /// </summary>
     public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
+    /// <summary>
+    /// Gets a value indicating whether per-directory <c>.picketignore</c> files are read.
+    /// </summary>
+    public bool ReadPicketIgnoreFiles { get; } = readPicketIgnoreFiles;
+
+    /// <summary>
+    /// Gets explicit ignore files applied while traversing.
+    /// </summary>
+    public IReadOnlyList<string> IgnoreFilePaths => _ignoreFilePaths;
 
     internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
@@ -57,5 +73,22 @@ public sealed class DirectoryScanOptions(
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
+    }
+
+    private static IReadOnlyList<string> RequireIgnoreFilePaths(IReadOnlyList<string>? value)
+    {
+        if (value is null || value.Count == 0)
+        {
+            return [];
+        }
+
+        var paths = new string[value.Count];
+        for (int i = 0; i < value.Count; i++)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(value[i]);
+            paths[i] = value[i];
+        }
+
+        return paths;
     }
 }

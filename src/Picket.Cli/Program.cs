@@ -383,8 +383,10 @@ static int RunBaselineCreate(string[] args)
     string? reportPath = null;
     List<string> enabledRuleIds = [];
     string gitleaksIgnorePath = ".";
+    var nativeIgnorePaths = new List<string>();
     bool followSymlinks = false;
     bool ignoreGitleaksAllow = false;
+    bool respectNativeIgnoreFiles = true;
     int maxArchiveDepth = 0;
     int maxDecodeDepth = 5;
     long? maxTargetBytes = null;
@@ -482,6 +484,28 @@ static int RunBaselineCreate(string[] args)
             }
 
             gitleaksIgnorePath = value;
+            continue;
+        }
+
+        if (IsNativeIgnorePathFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--ignore-path", out string? value))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            nativeIgnorePaths.Add(value);
+            continue;
+        }
+
+        if (IsNoIgnoreFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--no-ignore", out bool disableIgnore))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            respectNativeIgnoreFiles = !disableIgnore;
             continue;
         }
 
@@ -617,10 +641,15 @@ static int RunBaselineCreate(string[] args)
         maxTargetBytes,
         followSymlinks,
         maxArchiveDepth,
-        rules.IsGlobalPathAllowed));
+        rules.IsGlobalPathAllowed,
+        respectNativeIgnoreFiles,
+        respectNativeIgnoreFiles ? nativeIgnorePaths : []));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
     string? reportDisplayPath = CreateControlFileDisplayPath(root, reportPath);
+    List<string?> nativeIgnoreDisplayPaths = respectNativeIgnoreFiles
+        ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
+        : [];
     var findings = new List<Finding>();
     bool hadScanError = false;
     foreach (SourceFile file in files)
@@ -632,7 +661,8 @@ static int RunBaselineCreate(string[] args)
             break;
         }
 
-        if (IsControlFile(file, configDisplayPath, reportDisplayPath))
+        if (IsControlFile(file, [configDisplayPath, reportDisplayPath, .. nativeIgnoreDisplayPaths])
+            || (respectNativeIgnoreFiles && IsPicketIgnoreFile(file)))
         {
             continue;
         }
@@ -768,9 +798,11 @@ static int RunDirectory(
     var reportPaths = new List<string>();
     List<string> enabledRuleIds = [];
     string gitleaksIgnorePath = ".";
+    var nativeIgnorePaths = new List<string>();
     int exitCode = 1;
     bool followSymlinks = false;
     bool ignoreGitleaksAllow = false;
+    bool respectNativeIgnoreFiles = nativeReportFormats;
     int maxArchiveDepth = 0;
     int maxDecodeDepth = 5;
     long? maxTargetBytes = null;
@@ -853,6 +885,28 @@ static int RunDirectory(
                 reportPaths.Add(value);
             }
 
+            continue;
+        }
+
+        if (nativeReportFormats && IsNativeIgnorePathFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--ignore-path", out string? value))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            nativeIgnorePaths.Add(value);
+            continue;
+        }
+
+        if (nativeReportFormats && IsNoIgnoreFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--no-ignore", out bool disableIgnore))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            respectNativeIgnoreFiles = !disableIgnore;
             continue;
         }
 
@@ -1009,7 +1063,9 @@ static int RunDirectory(
         maxTargetBytes,
         followSymlinks,
         maxArchiveDepth,
-        rules.IsGlobalPathAllowed));
+        rules.IsGlobalPathAllowed,
+        respectNativeIgnoreFiles,
+        respectNativeIgnoreFiles ? nativeIgnorePaths : []));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
@@ -1019,6 +1075,9 @@ static int RunDirectory(
     string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath);
     string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
     List<string?> reportDisplayPaths = CreateControlFileDisplayPaths(root, reportPath, reportPaths);
+    List<string?> nativeIgnoreDisplayPaths = respectNativeIgnoreFiles
+        ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
+        : [];
     var findings = new List<Finding>();
     bool hadScanError = false;
     foreach (SourceFile file in files)
@@ -1030,7 +1089,8 @@ static int RunDirectory(
             break;
         }
 
-        if (IsControlFile(file, [baselineDisplayPath, configDisplayPath, .. reportDisplayPaths]))
+        if (IsControlFile(file, [baselineDisplayPath, configDisplayPath, .. reportDisplayPaths, .. nativeIgnoreDisplayPaths])
+            || (respectNativeIgnoreFiles && IsPicketIgnoreFile(file)))
         {
             continue;
         }
@@ -2294,6 +2354,18 @@ static bool IsSourceFlag(string arg)
         || arg.StartsWith("--source=", StringComparison.Ordinal);
 }
 
+static bool IsNativeIgnorePathFlag(string arg)
+{
+    return arg.Equals("--ignore-path", StringComparison.Ordinal)
+        || arg.StartsWith("--ignore-path=", StringComparison.Ordinal);
+}
+
+static bool IsNoIgnoreFlag(string arg)
+{
+    return arg.Equals("--no-ignore", StringComparison.Ordinal)
+        || arg.StartsWith("--no-ignore=", StringComparison.Ordinal);
+}
+
 static bool IsOpenFlag(string arg)
 {
     return arg.Equals("--open", StringComparison.Ordinal)
@@ -2918,6 +2990,12 @@ static string? CreateControlFileDisplayPath(string root, string? path)
     return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
 }
 
+static bool IsPicketIgnoreFile(SourceFile file)
+{
+    string fileName = Path.GetFileName(file.DisplayPath);
+    return fileName.Equals(".picketignore", StringComparison.Ordinal);
+}
+
 static string? ResolveConfigControlPath(string? configPath, string source)
 {
     if (!string.IsNullOrWhiteSpace(configPath))
@@ -3013,8 +3091,8 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--enable-rule id] [--max-target-megabytes n]");
-    Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -3029,7 +3107,7 @@ static void WriteScanHelp()
     Console.Out.WriteLine("picket scan - native filesystem scan");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteBaselineHelp()
@@ -3037,7 +3115,7 @@ static void WriteBaselineHelp()
     Console.Out.WriteLine("picket baseline - baseline workflow commands");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
 }
 
 static void WriteBaselineCreateHelp()
@@ -3045,7 +3123,7 @@ static void WriteBaselineCreateHelp()
     Console.Out.WriteLine("picket baseline create - write a Gitleaks-compatible baseline JSON report");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
 }
 
 static void WriteViewHelp()
