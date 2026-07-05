@@ -356,6 +356,92 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native verification runs safe offline validators and writes native findings.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyWritesOfflineValidationState()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "verify", "--offline", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native verification can filter findings by offline validation result.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyFiltersOfflineValidationResults()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteVerificationFilterConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_invalid", Environment.NewLine, "custom-12345"));
+
+        CliResult result = await RunCliAsync("verify", root.Path, "-c", configPath, "-f", "jsonl", "--results", "invalid").ConfigureAwait(false);
+        string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.HasCount(1, lines);
+        Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
+        Assert.Contains("\"validationState\":\"invalid\"", lines[0]);
+        Assert.DoesNotContain("custom-token", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that --only-verified keeps structurally valid offline results.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyOnlyVerifiedKeepsStructurallyValidResults()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteVerificationFilterConfig(root.Path);
+        File.WriteAllText(
+            Path.Combine(root.Path, "secret.txt"),
+            string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", Environment.NewLine, "custom-12345"));
+
+        CliResult result = await RunCliAsync("verify", root.Path, "-c", configPath, "-f", "jsonl", "--only-verified").ConfigureAwait(false);
+        string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.HasCount(1, lines);
+        Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", lines[0]);
+        Assert.DoesNotContain("custom-token", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that live verification does not silently run before the provider safety model exists.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyRejectsLiveVerification()
+    {
+        CliResult result = await RunCliAsync("verify", "--live").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("live verification is not implemented yet", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that verify help advertises the native offline workflow.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyHelpAdvertisesOfflineValidation()
+    {
+        CliResult result = await RunCliAsync("verify", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket verify", result.Stdout);
+        Assert.Contains("--offline", result.Stdout);
+        Assert.Contains("--results", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scan cache files are not scanned as source files on later runs.
     /// </summary>
     [TestMethod]
@@ -2072,6 +2158,23 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "word"
             regex = '''finding'''
+            """);
+        return configPath;
+    }
+
+    private static string WriteVerificationFilterConfig(string root)
+    {
+        string configPath = Path.Combine(root, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "github-pat"
+            regex = '''ghp_[0-9A-Za-z_]+'''
+
+            [[rules]]
+            id = "custom-token"
+            regex = '''custom-[0-9]+'''
             """);
         return configPath;
     }

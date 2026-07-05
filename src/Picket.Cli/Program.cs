@@ -35,6 +35,11 @@ if (command.Equals("scan", StringComparison.OrdinalIgnoreCase))
     return RunScan(args[1..]);
 }
 
+if (command.Equals("verify", StringComparison.OrdinalIgnoreCase))
+{
+    return RunVerify(args[1..]);
+}
+
 if (command.Equals("baseline", StringComparison.OrdinalIgnoreCase))
 {
     return RunBaseline(args[1..]);
@@ -357,6 +362,72 @@ static int RunScan(string[] args)
         nativeReportFormats: true,
         diagnosticsCommand: "scan",
         defaultRoot: ".");
+}
+
+static int RunVerify(string[] args)
+{
+    var forwardedArgs = new List<string>();
+    string? source = null;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsHelp(arg))
+        {
+            WriteVerifyHelp();
+            return 0;
+        }
+
+        if (IsSourceFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            source = sourceValue.Length == 0 ? "." : sourceValue;
+            continue;
+        }
+
+        if (IsOfflineVerificationFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--offline", out bool offline) || !offline)
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsLiveVerificationFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--live", out bool live))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            if (live)
+            {
+                Console.Error.WriteLine("live verification is not implemented yet; use --offline");
+                return 1;
+            }
+
+            continue;
+        }
+
+        forwardedArgs.Add(arg);
+    }
+
+    if (source is not null)
+    {
+        forwardedArgs.Add(source);
+    }
+
+    return RunDirectory(
+        [.. forwardedArgs],
+        nativeReportFormats: true,
+        diagnosticsCommand: "verify",
+        defaultRoot: ".",
+        allowValidationResultFilters: true);
 }
 
 static int RunBaseline(string[] args)
@@ -803,7 +874,8 @@ static int RunDirectory(
     string[] args,
     bool nativeReportFormats = false,
     string diagnosticsCommand = "dir",
-    string? defaultRoot = null)
+    string? defaultRoot = null,
+    bool allowValidationResultFilters = false)
 {
     string? baselinePath = null;
     string? cacheDir = null;
@@ -814,6 +886,7 @@ static int RunDirectory(
     string? reportFormat = null;
     string? reportTemplatePath = null;
     var reportPaths = new List<string>();
+    var validationResults = new HashSet<string>(StringComparer.Ordinal);
     List<string> enabledRuleIds = [];
     string gitleaksIgnorePath = ".";
     var nativeIgnorePaths = new List<string>();
@@ -935,6 +1008,32 @@ static int RunDirectory(
             }
 
             respectNativeIgnoreFiles = !disableIgnore;
+            continue;
+        }
+
+        if (allowValidationResultFilters && IsValidationResultsFlag(arg))
+        {
+            if (!TryReadValidationResultsFlag(args, ref i, validationResults))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (allowValidationResultFilters && IsOnlyVerifiedFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--only-verified", out bool onlyVerified))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            if (onlyVerified)
+            {
+                validationResults.Clear();
+                validationResults.Add("structurally-valid");
+            }
+
             continue;
         }
 
@@ -1190,6 +1289,11 @@ static int RunDirectory(
     if (nativeReportFormats)
     {
         filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
+    }
+
+    if (validationResults.Count != 0)
+    {
+        filteredFindings = FilterValidationResults(filteredFindings, validationResults);
     }
 
     if (redactionPercent > 0)
@@ -2312,6 +2416,60 @@ static bool TryReadRuleIdFlag(string[] args, ref int index, List<string> enabled
     return true;
 }
 
+static bool TryReadValidationResultsFlag(string[] args, ref int index, HashSet<string> validationResults)
+{
+    if (!TryReadStringFlag(args, ref index, "--results", out string? value))
+    {
+        return false;
+    }
+
+    foreach (string result in value.Split(','))
+    {
+        string normalizedResult = result.Trim();
+        if (normalizedResult.Length == 0)
+        {
+            continue;
+        }
+
+        if (!IsSupportedValidationResult(normalizedResult))
+        {
+            Console.Error.WriteLine($"unsupported verification result: {normalizedResult}");
+            return false;
+        }
+
+        validationResults.Add(normalizedResult);
+    }
+
+    if (validationResults.Count != 0)
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine("--results requires at least one verification result");
+    return false;
+}
+
+static bool IsSupportedValidationResult(string value)
+{
+    return value is "unknown" or "structurally-valid" or "test-credential" or "invalid";
+}
+
+static List<Finding> FilterValidationResults(IReadOnlyList<Finding> findings, HashSet<string> validationResults)
+{
+    var filtered = new List<Finding>(findings.Count);
+    for (int i = 0; i < findings.Count; i++)
+    {
+        Finding finding = findings[i];
+        string validationState = finding.ValidationState.Length == 0 ? "unknown" : finding.ValidationState;
+        if (validationResults.Contains(validationState))
+        {
+            filtered.Add(finding);
+        }
+    }
+
+    return filtered;
+}
+
 static bool IsBaselinePathFlag(string arg)
 {
     return arg is "-b" or "--baseline-path"
@@ -2424,6 +2582,30 @@ static bool IsDiagnosticsDirFlag(string arg)
 {
     return arg.Equals("--diagnostics-dir", StringComparison.Ordinal)
         || arg.StartsWith("--diagnostics-dir=", StringComparison.Ordinal);
+}
+
+static bool IsOfflineVerificationFlag(string arg)
+{
+    return arg.Equals("--offline", StringComparison.Ordinal)
+        || arg.StartsWith("--offline=", StringComparison.Ordinal);
+}
+
+static bool IsLiveVerificationFlag(string arg)
+{
+    return arg.Equals("--live", StringComparison.Ordinal)
+        || arg.StartsWith("--live=", StringComparison.Ordinal);
+}
+
+static bool IsValidationResultsFlag(string arg)
+{
+    return arg.Equals("--results", StringComparison.Ordinal)
+        || arg.StartsWith("--results=", StringComparison.Ordinal);
+}
+
+static bool IsOnlyVerifiedFlag(string arg)
+{
+    return arg.Equals("--only-verified", StringComparison.Ordinal)
+        || arg.StartsWith("--only-verified=", StringComparison.Ordinal);
 }
 
 static bool IsSourceFlag(string arg)
@@ -3212,6 +3394,7 @@ static void WriteHelp()
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified]");
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -3228,6 +3411,14 @@ static void WriteScanHelp()
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
+}
+
+static void WriteVerifyHelp()
+{
+    Console.Out.WriteLine("picket verify - run native offline verification for detected findings");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified]");
 }
 
 static void WriteBaselineHelp()
