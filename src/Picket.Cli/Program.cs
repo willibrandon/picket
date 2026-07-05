@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Picket.Compat;
 using Picket.Engine;
@@ -8,6 +9,7 @@ using Picket.Sources;
 const int UnknownFlagExitCode = 126;
 const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
 const string GitleaksConfigTomlEnvironmentVariable = "GITLEAKS_CONFIG_TOML";
+const string TimeoutErrorMessage = "context deadline exceeded";
 
 if (args.Length == 0 || IsHelp(args[0]))
 {
@@ -60,6 +62,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     List<string> enabledRuleIds = [];
     int exitCode = 1;
     int maxDecodeDepth = 5;
+    int timeoutSeconds = 0;
     bool ignoreGitleaksAllow = false;
     int redactionPercent = 0;
     for (int i = 0; i < args.Length; i++)
@@ -165,6 +168,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
             continue;
         }
 
+        if (IsTimeoutFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -179,6 +192,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
         return UnknownFlagExitCode;
     }
 
+    long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
@@ -189,6 +203,17 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
 
     if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
+        return 1;
+    }
+
+    if (IsTimedOut(timeoutTimestamp))
+    {
+        Console.Error.WriteLine(TimeoutErrorMessage);
+        if (!TryWriteReport([], rules.Rules, reportPath, reportFormat, reportTemplatePath))
+        {
+            return 1;
+        }
+
         return 1;
     }
 
@@ -224,6 +249,7 @@ static int RunDirectory(string[] args)
     int maxDecodeDepth = 5;
     long? maxTargetBytes = null;
     int redactionPercent = 0;
+    int timeoutSeconds = 0;
     string? root = null;
     for (int i = 0; i < args.Length; i++)
     {
@@ -369,6 +395,16 @@ static int RunDirectory(string[] args)
             continue;
         }
 
+        if (IsTimeoutFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -400,6 +436,7 @@ static int RunDirectory(string[] args)
         return UnknownFlagExitCode;
     }
 
+    long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
     IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes, followSymlinks, maxArchiveDepth));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
@@ -419,6 +456,13 @@ static int RunDirectory(string[] args)
     bool hadScanError = false;
     foreach (SourceFile file in files)
     {
+        if (IsTimedOut(timeoutTimestamp))
+        {
+            Console.Error.WriteLine(TimeoutErrorMessage);
+            hadScanError = true;
+            break;
+        }
+
         if (IsControlFile(file, baselineDisplayPath, configDisplayPath, reportDisplayPath))
         {
             continue;
@@ -476,6 +520,7 @@ static int RunGit(string[] args)
     bool staged = false;
     long? maxTargetBytes = null;
     int redactionPercent = 0;
+    int timeoutSeconds = 0;
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
@@ -650,6 +695,16 @@ static int RunGit(string[] args)
             continue;
         }
 
+        if (IsTimeoutFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -691,6 +746,7 @@ static int RunGit(string[] args)
         return 1;
     }
 
+    long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
     IReadOnlyList<GitPatchFragment> fragments;
     try
     {
@@ -703,7 +759,7 @@ static int RunGit(string[] args)
     }
 
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
-    List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth);
+    List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth, timeoutTimestamp, out bool timedOut);
     IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
     if (redactionPercent > 0)
     {
@@ -712,6 +768,12 @@ static int RunGit(string[] args)
 
     if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
     {
+        return 1;
+    }
+
+    if (timedOut)
+    {
+        Console.Error.WriteLine(TimeoutErrorMessage);
         return 1;
     }
 
@@ -895,11 +957,20 @@ static List<Finding> ScanGitFragments(
     CompiledRuleSet rules,
     bool ignoreGitleaksAllow,
     long? maxTargetBytes,
-    int maxDecodeDepth)
+    int maxDecodeDepth,
+    long timeoutTimestamp,
+    out bool timedOut)
 {
+    timedOut = false;
     var findings = new List<Finding>();
     foreach (GitPatchFragment fragment in fragments)
     {
+        if (IsTimedOut(timeoutTimestamp))
+        {
+            timedOut = true;
+            break;
+        }
+
         if (maxTargetBytes.HasValue && fragment.Input.Length > maxTargetBytes.Value)
         {
             continue;
@@ -957,6 +1028,16 @@ static string CreateFingerprint(string commit, string fileName, string ruleId, i
     return commit.Length == 0
         ? $"{fileName}:{ruleId}:{startLine}"
         : $"{commit}:{fileName}:{ruleId}:{startLine}";
+}
+
+static long CreateTimeoutTimestamp(int timeoutSeconds)
+{
+    return timeoutSeconds == 0 ? 0 : Stopwatch.GetTimestamp() + timeoutSeconds * Stopwatch.Frequency;
+}
+
+static bool IsTimedOut(long timeoutTimestamp)
+{
+    return timeoutTimestamp != 0 && Stopwatch.GetTimestamp() >= timeoutTimestamp;
 }
 
 static bool TryParseMegabytes(string value, out long? bytes)

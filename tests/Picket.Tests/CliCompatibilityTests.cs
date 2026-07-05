@@ -233,6 +233,7 @@ public sealed class CliCompatibilityTests
             "-v",
             "--no-color",
             "--no-banner",
+            "--timeout=1",
             "--max-target-megabytes=0").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
@@ -313,7 +314,7 @@ public sealed class CliCompatibilityTests
         string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
 
         CliResult disabled = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
-        CliResult enabled = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1", "--timeout=1").ConfigureAwait(false);
 
         Assert.AreEqual(0, disabled.ExitCode);
         Assert.AreEqual("[]\n", disabled.Stdout);
@@ -480,6 +481,21 @@ public sealed class CliCompatibilityTests
         Assert.DoesNotContain("\"RuleID\": \"alpha-token\"", result.Stdout);
         Assert.Contains("\"RuleID\": \"beta-token\"", result.Stdout);
         Assert.Contains("\"Secret\": \"beta-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that stdin scans accept the Gitleaks-compatible timeout flag.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanAcceptsTimeoutFlag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--timeout=1").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
     }
 
     /// <summary>
