@@ -569,6 +569,63 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that baseline creation writes a Gitleaks-compatible baseline that suppresses later scans.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateWritesConsumableGitleaksBaseline()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string baselinePath = Path.Combine(root.Path, "baseline.json");
+        File.WriteAllText(baselinePath, "token-99991");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult create = await RunCliAsync("baseline", "create", root.Path, "-c", configPath, "-r", baselinePath).ConfigureAwait(false);
+        string baseline = File.ReadAllText(baselinePath);
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "--baseline-path", baselinePath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, create.ExitCode);
+        Assert.IsEmpty(create.Stdout);
+        Assert.Contains("\"RuleID\": \"token\"", baseline);
+        Assert.Contains("\"Secret\": \"token-12345\"", baseline);
+        Assert.Contains("\"Fingerprint\": \"secret.txt:token:1\"", baseline);
+        Assert.DoesNotContain("\"schema\":\"picket.report.v1\"", baseline);
+        Assert.DoesNotContain("token-99991", baseline);
+        Assert.AreEqual(0, scan.ExitCode);
+        Assert.IsEmpty(scan.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that baseline creation can scan a --source path and write to standard output.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateUsesSourceFlagAndStdout()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("baseline", "create", "--source", root.Path, "-c", configPath, "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that baseline help advertises the baseline create workflow.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineHelpShowsCreateCommand()
+    {
+        CliResult result = await RunCliAsync("baseline", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket baseline create", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that report paths ending in .sarif infer SARIF when -f is omitted.
     /// </summary>
     [TestMethod]
