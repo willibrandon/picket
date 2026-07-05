@@ -158,7 +158,6 @@ public static class GitleaksConfigLoader
                     break;
                 case "path":
                     pathPattern = ParseString(value, sourceName, key);
-                    ThrowUnsupported(sourceName, "rule path filters");
                     break;
                 case "secretGroup":
                     secretGroup = ParseNonNegativeInt(value, sourceName, key);
@@ -198,15 +197,20 @@ public static class GitleaksConfigLoader
                 throw new InvalidDataException($"{sourceName}: rule |id| is missing or empty");
             }
 
-            if (pattern.Length == 0)
+            if (pattern.Length == 0 && pathPattern.Length == 0)
             {
-                string reason = pathPattern.Length == 0
-                    ? "both |regex| and |path| are empty"
-                    : "path-only rules are not supported yet";
-                throw new InvalidDataException($"{sourceName}: {id}: {reason}");
+                throw new InvalidDataException($"{sourceName}: {id}: both |regex| and |path| are empty");
             }
 
-            rules.Add(SecretRule.Create(id, description, pattern, secretGroup, entropy, keywords, tags));
+            rules.Add(SecretRule.Create(
+                id,
+                description,
+                pattern,
+                secretGroup: secretGroup,
+                entropy: entropy,
+                pathPattern: pathPattern,
+                keywords: keywords,
+                tags: tags));
         }
     }
 

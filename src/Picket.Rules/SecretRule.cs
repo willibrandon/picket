@@ -5,9 +5,10 @@ namespace Picket.Rules;
 /// </summary>
 /// <param name="id">The stable rule identifier.</param>
 /// <param name="description">The user-facing rule description.</param>
-/// <param name="pattern">The regex pattern in the compatibility dialect.</param>
+/// <param name="pattern">The content regex pattern in the compatibility dialect. Empty means path-only.</param>
 /// <param name="secretGroup">The capture group that contains the secret. Zero means the whole match.</param>
 /// <param name="entropy">The minimum Shannon entropy required for the secret. Zero disables entropy filtering.</param>
+/// <param name="pathPattern">The optional path regex pattern in the compatibility dialect.</param>
 /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
 /// <param name="tags">Rule classification tags.</param>
 public sealed class SecretRule(
@@ -16,6 +17,7 @@ public sealed class SecretRule(
     string pattern,
     int secretGroup = 0,
     double entropy = 0,
+    string pathPattern = "",
     IReadOnlyList<string>? keywords = null,
     IReadOnlyList<string>? tags = null)
 {
@@ -30,9 +32,9 @@ public sealed class SecretRule(
     public string Description { get; } = description ?? string.Empty;
 
     /// <summary>
-    /// Gets the regex pattern in the compatibility dialect.
+    /// Gets the content regex pattern in the compatibility dialect. Empty means path-only.
     /// </summary>
-    public string Pattern { get; } = RequireText(pattern);
+    public string Pattern { get; } = pattern ?? string.Empty;
 
     /// <summary>
     /// Gets the capture group that contains the secret. Zero means the whole match.
@@ -43,6 +45,11 @@ public sealed class SecretRule(
     /// Gets the minimum Shannon entropy required for the secret. Zero disables entropy filtering.
     /// </summary>
     public double Entropy { get; } = RequireNonNegativeFinite(entropy);
+
+    /// <summary>
+    /// Gets the optional path regex pattern in the compatibility dialect.
+    /// </summary>
+    public string PathPattern { get; } = RequirePatternOrPath(pattern, pathPattern);
 
     /// <summary>
     /// Gets case-insensitive keywords used for candidate prefiltering.
@@ -59,9 +66,10 @@ public sealed class SecretRule(
     /// </summary>
     /// <param name="id">The stable rule identifier.</param>
     /// <param name="description">The user-facing rule description.</param>
-    /// <param name="pattern">The regex pattern in the compatibility dialect.</param>
+    /// <param name="pattern">The content regex pattern in the compatibility dialect. Empty means path-only.</param>
     /// <param name="secretGroup">The capture group that contains the secret. Zero means the whole match.</param>
     /// <param name="entropy">The minimum Shannon entropy required for the secret. Zero disables entropy filtering.</param>
+    /// <param name="pathPattern">The optional path regex pattern in the compatibility dialect.</param>
     /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
     /// <param name="tags">Rule classification tags.</param>
     /// <returns>The created rule.</returns>
@@ -71,6 +79,7 @@ public sealed class SecretRule(
         string pattern,
         int secretGroup = 0,
         double entropy = 0,
+        string pathPattern = "",
         IReadOnlyList<string>? keywords = null,
         IReadOnlyList<string>? tags = null)
     {
@@ -80,6 +89,7 @@ public sealed class SecretRule(
             pattern,
             secretGroup,
             entropy,
+            pathPattern,
             keywords ?? [],
             tags ?? []);
     }
@@ -88,6 +98,17 @@ public sealed class SecretRule(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         return value;
+    }
+
+    private static string RequirePatternOrPath(string? pattern, string? pathPattern)
+    {
+        string normalizedPathPattern = pathPattern ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(pattern) && string.IsNullOrWhiteSpace(normalizedPathPattern))
+        {
+            throw new ArgumentException("A rule requires a content regex or path regex.", nameof(pattern));
+        }
+
+        return normalizedPathPattern;
     }
 
     private static int RequireNonNegative(int value)

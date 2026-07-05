@@ -17,13 +17,26 @@ public sealed class SecretScanner
         ArgumentNullException.ThrowIfNull(request);
 
         ReadOnlySpan<byte> input = request.Input.Span;
+        byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
+        byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
         var findings = new List<Finding>();
 
         foreach (CompiledRule compiledRule in request.RuleSet.CompiledRules)
         {
+            if (!IsPathCandidate(compiledRule, fileNameBytes, windowsFileNameBytes))
+            {
+                continue;
+            }
+
+            if (compiledRule.Regex is null)
+            {
+                findings.Add(CreatePathFinding(request.FileName, compiledRule.Rule));
+                continue;
+            }
+
             if (compiledRule.Prefilter.IsCandidate(input))
             {
-                ScanRule(input, request.FileName, compiledRule, findings);
+                ScanRule(input, request.FileName, compiledRule, compiledRule.Regex, findings);
             }
         }
 
@@ -34,13 +47,14 @@ public sealed class SecretScanner
         ReadOnlySpan<byte> input,
         string fileName,
         CompiledRule compiledRule,
+        ByteRegex regex,
         List<Finding> findings)
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
         while (offset <= input.Length)
         {
-            ByteRegexCaptures? captures = compiledRule.Regex.FindCaptures(input, offset);
+            ByteRegexCaptures? captures = regex.FindCaptures(input, offset);
             if (captures is null)
             {
                 return;
@@ -85,6 +99,45 @@ public sealed class SecretScanner
         }
     }
 
+    private static bool IsPathCandidate(CompiledRule compiledRule, ReadOnlySpan<byte> fileNameBytes, ReadOnlySpan<byte> windowsFileNameBytes)
+    {
+        if (compiledRule.PathRegex is null)
+        {
+            return true;
+        }
+
+        if (compiledRule.PathRegex.FindCaptures(fileNameBytes, 0) is not null)
+        {
+            return true;
+        }
+
+        return !windowsFileNameBytes.IsEmpty
+            && compiledRule.PathRegex.FindCaptures(windowsFileNameBytes, 0) is not null;
+    }
+
+    private static Finding CreatePathFinding(string fileName, SecretRule rule)
+    {
+        return new Finding(
+            rule.Id,
+            rule.Description,
+            0,
+            0,
+            0,
+            0,
+            $"file detected: {fileName}",
+            string.Empty,
+            fileName,
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            rule.Tags,
+            $"{fileName}:{rule.Id}:0");
+    }
+
     private static ByteRegexMatch ResolveSecret(ByteRegexCaptures captures, int secretGroup)
     {
         if (secretGroup == 0)
@@ -109,5 +162,12 @@ public sealed class SecretScanner
     private static string DecodeReportText(ReadOnlySpan<byte> bytes)
     {
         return Encoding.UTF8.GetString(bytes);
+    }
+
+    private static byte[] CreateWindowsFileNameBytes(string fileName)
+    {
+        return fileName.Contains('/')
+            ? Encoding.UTF8.GetBytes(fileName.Replace('/', '\\'))
+            : [];
     }
 }

@@ -154,4 +154,74 @@ public sealed class SecretScannerTests
         Assert.AreEqual("abcdef12", findings[0].Secret);
         Assert.AreEqual(3, findings[0].Entropy);
     }
+
+    /// <summary>
+    /// Verifies that path-scoped rules scan only matching file paths.
+    /// </summary>
+    [TestMethod]
+    public void ScanAppliesRulePathFilter()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-abcdef12");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "path-scoped",
+                "Path scoped",
+                "token-([a-z0-9]+)",
+                secretGroup: 1,
+                pathPattern: @"\.py$"),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> skipped = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+        IReadOnlyList<Finding> matched = SecretScanner.Scan(new ScanRequest(input, "secret.py", rules));
+
+        Assert.IsEmpty(skipped);
+        Assert.HasCount(1, matched);
+        Assert.AreEqual("secret.py", matched[0].File);
+    }
+
+    /// <summary>
+    /// Verifies that path-only rules create file findings without content regex matches.
+    /// </summary>
+    [TestMethod]
+    public void ScanReportsPathOnlyRule()
+    {
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "python-files-only",
+                "Python Files",
+                string.Empty,
+                pathPattern: ".py"),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(ReadOnlyMemory<byte>.Empty, "tmp.py", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("python-files-only", findings[0].RuleID);
+        Assert.AreEqual("file detected: tmp.py", findings[0].Match);
+        Assert.AreEqual(string.Empty, findings[0].Secret);
+        Assert.AreEqual("tmp.py:python-files-only:0", findings[0].Fingerprint);
+    }
+
+    /// <summary>
+    /// Verifies that rule path patterns can match Windows separators against normalized paths.
+    /// </summary>
+    [TestMethod]
+    public void ScanMatchesWindowsRulePathSeparator()
+    {
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "maven-settings",
+                "Maven Settings",
+                string.Empty,
+                pathPattern: @"(^|\\)\.m2\\settings\.xml"),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(ReadOnlyMemory<byte>.Empty, ".m2/settings.xml", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual(".m2/settings.xml", findings[0].File);
+    }
 }

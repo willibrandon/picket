@@ -24,6 +24,7 @@ public sealed class GitleaksConfigLoaderTests
             id = "custom-token"
             description = ""
             regex = '''token-([A-Z]{4})'''
+            path = '''\.txt$'''
             secretGroup = 1
             entropy = 3.5
             keywords = [
@@ -39,6 +40,7 @@ public sealed class GitleaksConfigLoaderTests
         Assert.AreEqual("custom-token", rule.Id);
         Assert.AreEqual(string.Empty, rule.Description);
         Assert.AreEqual("token-([A-Z]{4})", rule.Pattern);
+        Assert.AreEqual(@"\.txt$", rule.PathPattern);
         Assert.AreEqual(1, rule.SecretGroup);
         Assert.AreEqual(3.5, rule.Entropy);
         Assert.Contains("token", rule.Keywords);
@@ -123,6 +125,27 @@ public sealed class GitleaksConfigLoaderTests
             regexes = ['test']
             """,
             "memory"));
+    }
+
+    /// <summary>
+    /// Verifies that Gitleaks path-only rules load without requiring a content regex.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesPathOnlyRule()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "python-files-only"
+            description = "Python Files"
+            path = '''.py'''
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules);
+        Assert.AreEqual("python-files-only", ruleSet.Rules[0].Id);
+        Assert.AreEqual(string.Empty, ruleSet.Rules[0].Pattern);
+        Assert.AreEqual(".py", ruleSet.Rules[0].PathPattern);
     }
 
     private static string CreateRuleConfig(string id, string pattern)

@@ -41,10 +41,16 @@ public sealed class CompiledRuleSet(RuleSet rules)
         {
             compiledRules.Add(new CompiledRule(
                 rule,
-                ByteRegex.Compile(rule.Pattern),
+                CompileOptionalRegex(rule.Pattern),
+                CompileOptionalRegex(rule.PathPattern),
                 KeywordPrefilter.Create(rule.Keywords)));
         }
 
         return compiledRules;
+    }
+
+    private static ByteRegex? CompileOptionalRegex(string pattern)
+    {
+        return pattern.Length == 0 ? null : ByteRegex.Compile(pattern);
     }
 }
