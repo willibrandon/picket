@@ -110,17 +110,25 @@ internal static class SecretDecoder
                 continue;
             }
 
-            if (IsHex(input[position]) && TryDecodeHex(input, position, out EncodingMatch hexMatch))
+            if (IsHex(input[position])
+                && TryDecodeHex(input, position, FindHexEnd(input, position), out EncodingMatch hexMatch))
             {
                 matches.Add(hexMatch);
                 position = hexMatch.End;
                 continue;
             }
 
-            if (IsBase64(input[position]) && TryDecodeBase64(input, position, out EncodingMatch base64Match))
+            if (IsBase64(input[position]))
             {
-                matches.Add(base64Match);
-                position = base64Match.End;
+                int base64End = FindBase64End(input, position);
+                if (TryDecodeBase64(input, position, base64End, out EncodingMatch base64Match))
+                {
+                    matches.Add(base64Match);
+                    position = base64Match.End;
+                    continue;
+                }
+
+                position = base64End;
                 continue;
             }
 
@@ -224,14 +232,12 @@ internal static class SecretDecoder
         return true;
     }
 
-    private static bool TryDecodeHex(ReadOnlySpan<byte> input, int start, out EncodingMatch match)
+    private static bool TryDecodeHex(ReadOnlySpan<byte> input, int start, int end, out EncodingMatch match)
     {
-        int end = start;
         bool hasDigit = false;
-        while (end < input.Length && IsHex(input[end]))
+        for (int i = start; i < end; i++)
         {
-            hasDigit |= input[end] is >= (byte)'0' and <= (byte)'9';
-            end++;
+            hasDigit |= input[i] is >= (byte)'0' and <= (byte)'9';
         }
 
         int length = end - start;
@@ -256,19 +262,23 @@ internal static class SecretDecoder
         return true;
     }
 
-    private static bool TryDecodeBase64(ReadOnlySpan<byte> input, int start, out EncodingMatch match)
+    private static int FindHexEnd(ReadOnlySpan<byte> input, int start)
     {
         int end = start;
-        bool hasLikelyBase64Char = false;
-        while (end < input.Length && IsBase64(input[end]))
+        while (end < input.Length && IsHex(input[end]))
         {
-            hasLikelyBase64Char |= IsLikelyBase64Char(input[end]);
             end++;
         }
 
-        while (end < input.Length && input[end] == (byte)'=')
+        return end;
+    }
+
+    private static bool TryDecodeBase64(ReadOnlySpan<byte> input, int start, int end, out EncodingMatch match)
+    {
+        bool hasLikelyBase64Char = false;
+        for (int i = start; i < end; i++)
         {
-            end++;
+            hasLikelyBase64Char |= IsLikelyBase64Char(input[i]);
         }
 
         int length = end - start;
@@ -287,6 +297,22 @@ internal static class SecretDecoder
 
         match = new EncodingMatch(start, end, decoded, DecodedEncoding.Base64);
         return true;
+    }
+
+    private static int FindBase64End(ReadOnlySpan<byte> input, int start)
+    {
+        int end = start;
+        while (end < input.Length && IsBase64(input[end]))
+        {
+            end++;
+        }
+
+        while (end < input.Length && input[end] == (byte)'=')
+        {
+            end++;
+        }
+
+        return end;
     }
 
     private static bool TryDecodeBase64Bytes(byte[] encoded, [NotNullWhen(true)] out byte[]? decoded)

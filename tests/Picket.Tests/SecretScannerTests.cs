@@ -593,6 +593,25 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that long non-decoding base64-like tokens do not cause repeated decoder probes.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanSkipsLongNonDecodingBase64LikeToken()
+    {
+        byte[] input = Encoding.UTF8.GetBytes(new string('a', 100_000) + "\nencoded=dG9rZW4tMTIzNDU=\n");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.HasCount(1, findings);
+        Finding finding = findings[0];
+        Assert.AreEqual("token-12345", finding.Secret);
+        Assert.AreEqual("encoded=dG9rZW4tMTIzNDU=", finding.Line);
+        Assert.Contains("decoded:base64", finding.Tags);
+    }
+
+    /// <summary>
     /// Verifies that Unicode code point encoded findings report decoded text with original source locations.
     /// </summary>
     [TestMethod]
