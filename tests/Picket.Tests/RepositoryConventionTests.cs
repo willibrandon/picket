@@ -259,6 +259,7 @@ public sealed partial class RepositoryConventionTests
         string rules = ReadRepositoryFile("docs/RULES.md");
         string validation = ReadRepositoryFile("docs/VALIDATION.md");
         string reports = ReadRepositoryFile("docs/REPORTS.md");
+        string cache = ReadRepositoryFile("docs/CACHE.md");
 
         Assert.Contains("picket rules check", rules);
         Assert.Contains("picket rules test", rules);
@@ -278,6 +279,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.report.v1", reports);
         Assert.Contains("picket view", reports);
         Assert.Contains("Report readers must not print raw secrets", reports);
+        Assert.Contains("strict Gitleaks-compatible commands reject `--cache-dir`", cache);
+        Assert.Contains("scanner configuration fingerprint", cache);
+        Assert.Contains("Older entries without creation and finding-count metadata remain readable", cache);
+        Assert.Contains("PicketScanCache.GetStats()", cache);
+        Assert.Contains("PicketScanCache.PruneOtherKeys()", cache);
+        Assert.Contains("PicketScanCache.PruneOlderThan", cache);
     }
 
     [GeneratedRegex(
