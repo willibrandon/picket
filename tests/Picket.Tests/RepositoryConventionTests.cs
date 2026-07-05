@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace Picket.Tests;
 
@@ -108,6 +109,53 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.jsonl", documentation);
     }
 
+    /// <summary>
+    /// Verifies that named Native AOT publish profiles match the release design contract.
+    /// </summary>
+    [TestMethod]
+    public void CliPublishProfilesMatchReleaseContract()
+    {
+        XElement speed = ReadPublishProfile("release-speed");
+        XElement minSize = ReadPublishProfile("release-minsize");
+        XElement diagnostics = ReadPublishProfile("release-diagnostics");
+
+        AssertCommonNativeAotProfile(speed);
+        AssertCommonNativeAotProfile(minSize);
+        AssertCommonNativeAotProfile(diagnostics);
+        AssertProfileProperty(speed, "OptimizationPreference", "Speed");
+        AssertProfileProperty(speed, "StripSymbols", "true");
+        AssertProfileProperty(speed, "DebuggerSupport", "false");
+        AssertProfileProperty(minSize, "OptimizationPreference", "Size");
+        AssertProfileProperty(minSize, "StripSymbols", "true");
+        AssertProfileProperty(minSize, "DebuggerSupport", "false");
+        AssertProfileProperty(minSize, "EventSourceSupport", "false");
+        AssertProfileProperty(minSize, "MetricsSupport", "false");
+        AssertProfileProperty(minSize, "StackTraceSupport", "false");
+        AssertProfileProperty(minSize, "UseSystemResourceKeys", "true");
+        AssertProfileProperty(diagnostics, "OptimizationPreference", "Speed");
+        AssertProfileProperty(diagnostics, "StripSymbols", "false");
+        AssertProfileProperty(diagnostics, "DebuggerSupport", "true");
+        AssertProfileProperty(diagnostics, "EventSourceSupport", "true");
+        AssertProfileProperty(diagnostics, "MetricsSupport", "true");
+        AssertProfileProperty(diagnostics, "StackTraceSupport", "true");
+    }
+
+    /// <summary>
+    /// Verifies that release documentation covers the named Native AOT publish profiles.
+    /// </summary>
+    [TestMethod]
+    public void ReleaseDocumentationCoversPublishProfiles()
+    {
+        string documentation = ReadRepositoryFile("docs/RELEASE.md");
+
+        Assert.Contains("release-speed", documentation);
+        Assert.Contains("release-minsize", documentation);
+        Assert.Contains("release-diagnostics", documentation);
+        Assert.Contains("-r win-x64", documentation);
+        Assert.Contains("Native AOT", documentation);
+        Assert.Contains("must not change scanner findings", documentation);
+    }
+
     [GeneratedRegex(
         @"^\s*(?:(?:public|internal|private|protected|file)\s+)*(?:(?:abstract|sealed|static|partial|readonly|ref|unsafe)\s+)*(?:record\s+)?(?:class|struct|interface|enum|delegate)\s+",
         RegexOptions.Multiline | RegexOptions.CultureInvariant)]
@@ -141,5 +189,38 @@ public sealed partial class RepositoryConventionTests
     private static string ReadRepositoryFile(string relativePath)
     {
         return File.ReadAllText(Path.Combine(FindRepositoryRoot(), relativePath));
+    }
+
+    private static XElement ReadPublishProfile(string name)
+    {
+        string path = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Picket.Cli",
+            "Properties",
+            "PublishProfiles",
+            string.Concat(name, ".pubxml"));
+        Assert.IsTrue(File.Exists(path), $"Missing publish profile: {name}");
+        return XElement.Load(path);
+    }
+
+    private static void AssertCommonNativeAotProfile(XElement profile)
+    {
+        AssertProfileProperty(profile, "Configuration", "Release");
+        AssertProfileProperty(profile, "PublishAot", "true");
+        AssertProfileProperty(profile, "SelfContained", "true");
+        AssertProfileProperty(profile, "PublishSingleFile", "true");
+        AssertProfileProperty(profile, "InvariantGlobalization", "true");
+        AssertProfileProperty(profile, "EnableUnsafeBinaryFormatterSerialization", "false");
+        AssertProfileProperty(profile, "EnableUnsafeUTF7Encoding", "false");
+        AssertProfileProperty(profile, "MetadataUpdaterSupport", "false");
+        AssertProfileProperty(profile, "XmlResolverIsNetworkingEnabledByDefault", "false");
+        AssertProfileProperty(profile, "Http3Support", "false");
+    }
+
+    private static void AssertProfileProperty(XElement profile, string name, string expected)
+    {
+        string? actual = profile.Element("PropertyGroup")?.Element(name)?.Value;
+        Assert.AreEqual(expected, actual, $"Unexpected publish profile property {name}.");
     }
 }

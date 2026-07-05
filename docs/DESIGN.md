@@ -905,4 +905,5 @@ Required before v1:
 - `docs/REPORTS.md`: compatibility and native schemas,
 - `docs/ACTION.md`: CI action behavior and security posture,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,
+- `docs/RELEASE.md`: Native AOT publish profiles and release artifact guidance,
 - `docs/EMBEDDING.md`: library API guide.

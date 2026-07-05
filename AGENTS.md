@@ -141,6 +141,7 @@ Update docs when behavior changes:
 - `docs/REPORTS.md`: compatibility and native schemas.
 - `docs/ACTION.md`: GitHub Action behavior.
 - `docs/HOOKS.md`: local and server-side Git hook behavior.
+- `docs/RELEASE.md`: Native AOT publish profiles and release artifact guidance.
 - `docs/EMBEDDING.md`: library API guide.
 
 Prefer precise, testable statements over marketing claims. If a competitor capability is mentioned, verify it against the local clone or current primary docs.
