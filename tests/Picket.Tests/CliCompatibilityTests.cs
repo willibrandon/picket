@@ -242,6 +242,54 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that --profile picket opts a compatibility directory command into native config and report behavior.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryProfilePicketUsesNativeConfigAndReports()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG"] = configPath,
+        };
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            environment,
+            "dir",
+            root.Path,
+            "--profile",
+            "picket",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"blobSha256\":\"7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad\"", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that unsupported scan profiles are rejected before scanning.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsUnsupportedProfile()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "--profile", "strict").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported profile: strict", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scans report decode provenance for decoded findings.
     /// </summary>
     [TestMethod]

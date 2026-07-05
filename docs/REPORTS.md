@@ -27,6 +27,8 @@ Native commands support:
 - TOON
 - GitLab code-quality JSON
 
+Gitleaks-compatible filesystem commands can opt into this native report surface with `--profile picket`. Without that explicit profile, `picket dir`, `picket file`, and `picket directory` keep Gitleaks-compatible report selection and reject native-only formats such as JSON Lines, HTML, TOON, and GitLab code-quality.
+
 Native finding records use schema `picket.finding.v1`. Rich JSON reports use schema `picket.report.v1`.
 
 Native reports can include:

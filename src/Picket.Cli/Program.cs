@@ -1081,6 +1081,11 @@ static int RunDirectory(
     bool allowValidationResultFilters = false,
     Func<IReadOnlyList<Finding>, string?, IReadOnlyList<string>, string?, string?, bool>? nativeResultWriter = null)
 {
+    if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
+    {
+        return UnknownFlagExitCode;
+    }
+
     string? baselinePath = null;
     string? cacheDir = null;
     string? configPath = null;
@@ -1097,7 +1102,7 @@ static int RunDirectory(
     int exitCode = 1;
     bool followSymlinks = false;
     bool ignoreGitleaksAllow = false;
-    bool respectNativeIgnoreFiles = nativeReportFormats;
+    bool respectNativeIgnoreFiles = nativeMode;
     int maxArchiveDepth = 0;
     int maxDecodeDepth = 5;
     long? maxTargetBytes = null;
@@ -1127,7 +1132,17 @@ static int RunDirectory(
             continue;
         }
 
-        if (nativeReportFormats && IsCacheDirFlag(arg))
+        if (IsProfileFlag(arg))
+        {
+            if (!TryReadProfileFlag(args, ref i, out _))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (nativeMode && IsCacheDirFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--cache-dir", out cacheDir))
             {
@@ -1185,7 +1200,7 @@ static int RunDirectory(
             }
 
             reportPath = value;
-            if (nativeReportFormats)
+            if (nativeMode)
             {
                 reportPaths.Add(value);
             }
@@ -1193,7 +1208,7 @@ static int RunDirectory(
             continue;
         }
 
-        if (nativeReportFormats && IsNativeIgnorePathFlag(arg))
+        if (nativeMode && IsNativeIgnorePathFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--ignore-path", out string? value))
             {
@@ -1204,7 +1219,7 @@ static int RunDirectory(
             continue;
         }
 
-        if (nativeReportFormats && IsNoIgnoreFlag(arg))
+        if (nativeMode && IsNoIgnoreFlag(arg))
         {
             if (!TryReadBooleanFlag(arg, "--no-ignore", out bool disableIgnore))
             {
@@ -1384,13 +1399,13 @@ static int RunDirectory(
     }
 
     long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-    if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: nativeReportFormats, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: nativeMode, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
 
     PicketScanCache? scanCache = null;
-    if (nativeReportFormats && !string.IsNullOrWhiteSpace(cacheDir))
+    if (nativeMode && !string.IsNullOrWhiteSpace(cacheDir))
     {
         try
         {
@@ -1433,7 +1448,7 @@ static int RunDirectory(
     List<string?> nativeIgnoreDisplayPaths = respectNativeIgnoreFiles
         ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
         : [];
-    string? cacheDisplayPath = nativeReportFormats ? CreateControlFileDisplayPath(root, cacheDir) : null;
+    string? cacheDisplayPath = nativeMode ? CreateControlFileDisplayPath(root, cacheDir) : null;
     var findings = new List<Finding>();
     bool hadScanError = false;
     foreach (SourceFile file in files)
@@ -1490,7 +1505,7 @@ static int RunDirectory(
     }
 
     IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
-    if (nativeReportFormats)
+    if (nativeMode)
     {
         filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
     }
@@ -1506,7 +1521,7 @@ static int RunDirectory(
     }
 
     bool wroteResults = nativeResultWriter is null
-        ? TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeReportFormats)
+        ? TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeMode)
         : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath);
     if (!wroteResults)
     {
@@ -2989,6 +3004,45 @@ static bool TryReadMegabytesFlag(string[] args, ref int index, out long? maxTarg
     return false;
 }
 
+static bool TryResolveNativeProfile(string[] args, bool defaultNativeProfile, out bool nativeProfile)
+{
+    nativeProfile = defaultNativeProfile;
+    for (int i = 0; i < args.Length; i++)
+    {
+        if (!IsProfileFlag(args[i]))
+        {
+            continue;
+        }
+
+        if (!TryReadProfileFlag(args, ref i, out bool parsedNativeProfile))
+        {
+            return false;
+        }
+
+        nativeProfile = parsedNativeProfile;
+    }
+
+    return true;
+}
+
+static bool TryReadProfileFlag(string[] args, ref int index, out bool nativeProfile)
+{
+    nativeProfile = false;
+    if (!TryReadStringFlag(args, ref index, "--profile", out string? value))
+    {
+        return false;
+    }
+
+    if (value.Equals("picket", StringComparison.OrdinalIgnoreCase))
+    {
+        nativeProfile = true;
+        return true;
+    }
+
+    Console.Error.WriteLine($"unsupported profile: {value}");
+    return false;
+}
+
 static bool TryReadStringFlag(string[] args, ref int index, string longName, [NotNullWhen(true)] out string? value)
 {
     string arg = args[index];
@@ -3386,6 +3440,12 @@ static bool IsSourceFlag(string arg)
 {
     return arg is "-s" or "--source"
         || arg.StartsWith("--source=", StringComparison.Ordinal);
+}
+
+static bool IsProfileFlag(string arg)
+{
+    return arg.Equals("--profile", StringComparison.Ordinal)
+        || arg.StartsWith("--profile=", StringComparison.Ordinal);
 }
 
 static bool IsHooksRepoFlag(string arg)
@@ -4389,14 +4449,14 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
-    Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified]");
-    Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--source path] [--cache-dir path] [--offline] [--results value]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified]");
+    Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value]");
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
@@ -4410,7 +4470,7 @@ static void WriteScanHelp()
     Console.Out.WriteLine("picket scan - native filesystem scan");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteVerifyHelp()
@@ -4418,7 +4478,7 @@ static void WriteVerifyHelp()
     Console.Out.WriteLine("picket verify - run native offline verification for detected findings");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified]");
+    Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified]");
 }
 
 static void WriteAnalyzeHelp()
@@ -4426,7 +4486,7 @@ static void WriteAnalyzeHelp()
     Console.Out.WriteLine("picket analyze - write offline incident-response analysis for detected findings");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid]");
+    Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid]");
 }
 
 static void WriteBaselineHelp()
