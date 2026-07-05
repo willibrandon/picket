@@ -23,52 +23,215 @@ public sealed class SecretScanner
 
         foreach (CompiledRule compiledRule in request.RuleSet.CompiledRules)
         {
-            if (compiledRule.Rule.SkipReport)
+            List<Finding> ruleFindings = ScanCompiledRule(
+                input,
+                request.FileName,
+                fileNameBytes,
+                windowsFileNameBytes,
+                request.RuleSet.Allowlists,
+                request.IgnoreGitleaksAllow,
+                request.Commit,
+                compiledRule,
+                includeSkipReport: false);
+            if (compiledRule.Rule.RequiredRules.Count != 0)
             {
-                continue;
-            }
-
-            if (!IsPathCandidate(compiledRule, fileNameBytes, windowsFileNameBytes))
-            {
-                continue;
-            }
-
-            if (compiledRule.Regex is null)
-            {
-                if (!IsAllowed(
-                    request.RuleSet.Allowlists,
-                    compiledRule.Allowlists,
-                    fileNameBytes,
-                    windowsFileNameBytes,
-                    [],
-                    [],
-                    [],
-                    string.Empty,
-                    request.Commit))
-                {
-                    findings.Add(CreatePathFinding(request.FileName, compiledRule.Rule, request.Commit));
-                }
-
-                continue;
-            }
-
-            if (compiledRule.Prefilter.IsCandidate(input))
-            {
-                ScanRule(
+                ruleFindings = FilterRequiredFindings(
+                    ruleFindings,
                     input,
                     request.FileName,
                     fileNameBytes,
                     windowsFileNameBytes,
-                    request.RuleSet.Allowlists,
+                    request.RuleSet,
                     request.IgnoreGitleaksAllow,
                     request.Commit,
-                    compiledRule,
-                    compiledRule.Regex,
-                    findings);
+                    compiledRule);
             }
+
+            findings.AddRange(ruleFindings);
         }
 
         return findings;
+    }
+
+    private static List<Finding> ScanCompiledRule(
+        ReadOnlySpan<byte> input,
+        string fileName,
+        ReadOnlySpan<byte> fileNameBytes,
+        ReadOnlySpan<byte> windowsFileNameBytes,
+        List<CompiledAllowlist> globalAllowlists,
+        bool ignoreGitleaksAllow,
+        string commit,
+        CompiledRule compiledRule,
+        bool includeSkipReport)
+    {
+        var findings = new List<Finding>();
+        if (compiledRule.Rule.SkipReport && !includeSkipReport)
+        {
+            return findings;
+        }
+
+        if (!IsPathCandidate(compiledRule, fileNameBytes, windowsFileNameBytes))
+        {
+            return findings;
+        }
+
+        if (compiledRule.Regex is null)
+        {
+            if (!IsAllowed(
+                globalAllowlists,
+                compiledRule.Allowlists,
+                fileNameBytes,
+                windowsFileNameBytes,
+                [],
+                [],
+                [],
+                string.Empty,
+                commit))
+            {
+                findings.Add(CreatePathFinding(fileName, compiledRule.Rule, commit));
+            }
+
+            return findings;
+        }
+
+        if (compiledRule.Prefilter.IsCandidate(input))
+        {
+            ScanRule(
+                input,
+                fileName,
+                fileNameBytes,
+                windowsFileNameBytes,
+                globalAllowlists,
+                ignoreGitleaksAllow,
+                commit,
+                compiledRule,
+                compiledRule.Regex,
+                findings);
+        }
+
+        return findings;
+    }
+
+    private static List<Finding> FilterRequiredFindings(
+        List<Finding> primaryFindings,
+        ReadOnlySpan<byte> input,
+        string fileName,
+        ReadOnlySpan<byte> fileNameBytes,
+        ReadOnlySpan<byte> windowsFileNameBytes,
+        CompiledRuleSet ruleSet,
+        bool ignoreGitleaksAllow,
+        string commit,
+        CompiledRule primaryRule)
+    {
+        if (primaryFindings.Count == 0)
+        {
+            return primaryFindings;
+        }
+
+        var requiredFindingsByRuleId = new Dictionary<string, List<Finding>>(StringComparer.Ordinal);
+        foreach (SecretRequiredRule requiredRule in primaryRule.Rule.RequiredRules)
+        {
+            if (requiredFindingsByRuleId.ContainsKey(requiredRule.Id))
+            {
+                continue;
+            }
+
+            CompiledRule? compiledRequiredRule = FindCompiledRule(ruleSet, requiredRule.Id);
+            requiredFindingsByRuleId.Add(
+                requiredRule.Id,
+                compiledRequiredRule is null
+                    ? []
+                    : ScanCompiledRule(
+                        input,
+                        fileName,
+                        fileNameBytes,
+                        windowsFileNameBytes,
+                        ruleSet.Allowlists,
+                        ignoreGitleaksAllow,
+                        commit,
+                        compiledRequiredRule,
+                        includeSkipReport: true));
+        }
+
+        var filteredFindings = new List<Finding>(primaryFindings.Count);
+        foreach (Finding primaryFinding in primaryFindings)
+        {
+            if (HasAllRequiredRules(primaryFinding, primaryRule.Rule.RequiredRules, requiredFindingsByRuleId))
+            {
+                filteredFindings.Add(primaryFinding);
+            }
+        }
+
+        return filteredFindings;
+    }
+
+    private static CompiledRule? FindCompiledRule(CompiledRuleSet ruleSet, string ruleId)
+    {
+        foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
+        {
+            if (compiledRule.Rule.Id.Equals(ruleId, StringComparison.Ordinal))
+            {
+                return compiledRule;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool HasAllRequiredRules(
+        Finding primaryFinding,
+        IReadOnlyList<SecretRequiredRule> requiredRules,
+        Dictionary<string, List<Finding>> requiredFindingsByRuleId)
+    {
+        var foundRuleIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (SecretRequiredRule requiredRule in requiredRules)
+        {
+            if (!requiredFindingsByRuleId.TryGetValue(requiredRule.Id, out List<Finding>? requiredFindings))
+            {
+                continue;
+            }
+
+            foreach (Finding requiredFinding in requiredFindings)
+            {
+                if (IsWithinProximity(primaryFinding, requiredFinding, requiredRule))
+                {
+                    foundRuleIds.Add(requiredRule.Id);
+                    break;
+                }
+            }
+        }
+
+        if (foundRuleIds.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (SecretRequiredRule requiredRule in requiredRules)
+        {
+            if (!foundRuleIds.Contains(requiredRule.Id))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsWithinProximity(Finding primaryFinding, Finding requiredFinding, SecretRequiredRule requiredRule)
+    {
+        if (requiredRule.WithinLines is null && requiredRule.WithinColumns is null)
+        {
+            return true;
+        }
+
+        if (requiredRule.WithinLines is int withinLines
+            && Math.Abs(primaryFinding.StartLine - requiredFinding.StartLine) > withinLines)
+        {
+            return false;
+        }
+
+        return requiredRule.WithinColumns is not int withinColumns
+            || Math.Abs(primaryFinding.StartColumn - requiredFinding.StartColumn) <= withinColumns;
     }
 
     private static void ScanRule(

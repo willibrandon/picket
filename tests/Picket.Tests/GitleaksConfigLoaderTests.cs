@@ -129,21 +129,53 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
-    /// Verifies that unsupported Gitleaks required-rule behavior is rejected instead of silently ignored.
+    /// Verifies that Gitleaks required-rule tables load into scanner rules.
     /// </summary>
     [TestMethod]
-    public void FromTomlRejectsUnsupportedRequiredTable()
+    public void FromTomlParsesRequiredTable()
     {
-        Assert.ThrowsExactly<NotSupportedException>(() => GitleaksConfigLoader.FromToml(
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
             """
             [[rules]]
             id = "custom-token"
             regex = '''token-[0-9]+'''
 
             [[rules.required]]
-            id = "other"
+            id = "context"
+            withinLines = 2
+            withinColumns = 10
+
+            [[rules]]
+            id = "context"
+            regex = '''context'''
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules[0].RequiredRules);
+        SecretRequiredRule requiredRule = ruleSet.Rules[0].RequiredRules[0];
+        Assert.AreEqual("context", requiredRule.Id);
+        Assert.AreEqual(2, requiredRule.WithinLines);
+        Assert.AreEqual(10, requiredRule.WithinColumns);
+    }
+
+    /// <summary>
+    /// Verifies that missing required-rule targets are rejected like Gitleaks.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsMissingRequiredRuleTarget()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "custom-token"
+            regex = '''token-[0-9]+'''
+
+            [[rules.required]]
+            id = "missing"
             """,
             "memory"));
+
+        Assert.Contains("[[rules.required]] rule ID 'missing' does not exist", exception.Message);
     }
 
     /// <summary>

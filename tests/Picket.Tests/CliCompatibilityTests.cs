@@ -208,6 +208,39 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that required supporting rules gate normal CLI findings.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanReportsCompositeRuleWhenRequiredRuleMatches()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "primary-rule"
+            regex = '''password="([^"]+)"'''
+
+            [[rules.required]]
+            id = "username-rule"
+
+            [[rules]]
+            id = "username-rule"
+            regex = '''username="([^"]+)"'''
+            skipReport = true
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "username=\"alice\"\npassword=\"secret\"");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"primary-rule\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"secret\"", result.Stdout);
+        Assert.DoesNotContain("\"RuleID\": \"username-rule\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that git history scans report committed secrets with commit metadata and fingerprints.
     /// </summary>
     [TestMethod]

@@ -226,6 +226,60 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that required supporting rules enable composite findings.
+    /// </summary>
+    [TestMethod]
+    public void ScanReportsFindingWhenRequiredRuleMatches()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("username=\"alice\"\npassword=\"secret\"");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "primary-rule",
+                "Primary Rule",
+                "password=\"([^\"]+)\"",
+                requiredRules: [new SecretRequiredRule("username-rule")]),
+            SecretRule.Create(
+                "username-rule",
+                "Username Rule",
+                "username=\"([^\"]+)\"",
+                skipReport: true),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "config.txt", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("primary-rule", findings[0].RuleID);
+        Assert.AreEqual("secret", findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that required supporting rules honor line proximity.
+    /// </summary>
+    [TestMethod]
+    public void ScanSuppressesFindingWhenRequiredRuleIsOutsideLineProximity()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("username=\"alice\"\nother=true\npassword=\"secret\"");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "primary-rule",
+                "Primary Rule",
+                "password=\"([^\"]+)\"",
+                requiredRules: [new SecretRequiredRule("username-rule", withinLines: 1)]),
+            SecretRule.Create(
+                "username-rule",
+                "Username Rule",
+                "username=\"([^\"]+)\"",
+                skipReport: true),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "config.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that rule path patterns can match Windows separators against normalized paths.
     /// </summary>
     [TestMethod]
