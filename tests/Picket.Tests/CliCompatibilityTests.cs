@@ -213,6 +213,36 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that mixed singular and plural allowlist tables fail during CLI config loading.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsMixedAllowlistForms()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [allowlist]
+            paths = ['''vendor/''']
+
+            [[allowlists]]
+            paths = ['''README\.md$''']
+
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("[allowlist] is deprecated, it cannot be used alongside [[allowlists]]", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that common Gitleaks global flags and equals-value spellings are accepted.
     /// </summary>
     [TestMethod]

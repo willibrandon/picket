@@ -94,6 +94,10 @@ public static class GitleaksConfigLoader
         bool hasRule = false;
         bool hasAllowlist = false;
         bool hasRequiredRule = false;
+        bool globalDeprecatedAllowlistSeen = false;
+        bool globalPluralAllowlistsSeen = false;
+        bool ruleDeprecatedAllowlistSeen = false;
+        bool rulePluralAllowlistsSeen = false;
         string id = string.Empty;
         string description = string.Empty;
         string pattern = string.Empty;
@@ -137,6 +141,8 @@ public static class GitleaksConfigLoader
                     AddCurrentRule();
                     section = "rules";
                     hasRule = true;
+                    ruleDeprecatedAllowlistSeen = false;
+                    rulePluralAllowlistsSeen = false;
                     id = string.Empty;
                     description = string.Empty;
                     pattern = string.Empty;
@@ -158,6 +164,7 @@ public static class GitleaksConfigLoader
 
                     AddCurrentAllowlist();
                     AddCurrentRequiredRule();
+                    CheckRuleAllowlistStyle(deprecated: false);
                     StartAllowlist("rule");
                     continue;
                 }
@@ -180,6 +187,7 @@ public static class GitleaksConfigLoader
                     AddCurrentAllowlist();
                     AddCurrentRequiredRule();
                     AddCurrentRule();
+                    CheckGlobalAllowlistStyle(deprecated: false);
                     StartAllowlist("global");
                     continue;
                 }
@@ -210,6 +218,7 @@ public static class GitleaksConfigLoader
 
                     AddCurrentAllowlist();
                     AddCurrentRequiredRule();
+                    CheckRuleAllowlistStyle(deprecated: true);
                     StartAllowlist("rule");
                     continue;
                 }
@@ -219,6 +228,7 @@ public static class GitleaksConfigLoader
                     AddCurrentAllowlist();
                     AddCurrentRequiredRule();
                     AddCurrentRule();
+                    CheckGlobalAllowlistStyle(deprecated: true);
                     StartAllowlist("global");
                     continue;
                 }
@@ -440,6 +450,46 @@ public static class GitleaksConfigLoader
             allowlistScope = string.Empty;
         }
 
+        void CheckGlobalAllowlistStyle(bool deprecated)
+        {
+            if (deprecated)
+            {
+                globalDeprecatedAllowlistSeen = true;
+                if (globalPluralAllowlistsSeen)
+                {
+                    throw new InvalidDataException($"{sourceName}: [allowlist] is deprecated, it cannot be used alongside [[allowlists]]");
+                }
+
+                return;
+            }
+
+            globalPluralAllowlistsSeen = true;
+            if (globalDeprecatedAllowlistSeen)
+            {
+                throw new InvalidDataException($"{sourceName}: [allowlist] is deprecated, it cannot be used alongside [[allowlists]]");
+            }
+        }
+
+        void CheckRuleAllowlistStyle(bool deprecated)
+        {
+            if (deprecated)
+            {
+                ruleDeprecatedAllowlistSeen = true;
+                if (rulePluralAllowlistsSeen)
+                {
+                    throw new InvalidDataException($"{sourceName}: {id}: [rules.allowlist] is deprecated, it cannot be used alongside [[rules.allowlist]]");
+                }
+
+                return;
+            }
+
+            rulePluralAllowlistsSeen = true;
+            if (ruleDeprecatedAllowlistSeen)
+            {
+                throw new InvalidDataException($"{sourceName}: {id}: [rules.allowlist] is deprecated, it cannot be used alongside [[rules.allowlist]]");
+            }
+        }
+
         void AddCurrentRequiredRule()
         {
             if (!hasRequiredRule)
@@ -483,6 +533,8 @@ public static class GitleaksConfigLoader
             ruleAllowlists = [];
             ruleRequiredRules = [];
             hasRule = false;
+            ruleDeprecatedAllowlistSeen = false;
+            rulePluralAllowlistsSeen = false;
         }
 
         void ResolveExtends()

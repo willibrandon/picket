@@ -283,6 +283,52 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that deprecated and plural global allowlist tables cannot be mixed.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsMixedGlobalAllowlistForms()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            [allowlist]
+            paths = ['''vendor/''']
+
+            [[allowlists]]
+            paths = ['''README\.md$''']
+
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            """,
+            "memory"));
+
+        Assert.Contains("[allowlist] is deprecated, it cannot be used alongside [[allowlists]]", exception.Message);
+    }
+
+    /// <summary>
+    /// Verifies that deprecated and plural per-rule allowlist tables cannot be mixed on the same rule.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsMixedRuleAllowlistForms()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+
+            [rules.allowlist]
+            stopwords = ["example"]
+
+            [[rules.allowlists]]
+            stopwords = ["sample"]
+            """,
+            "memory"));
+
+        Assert.Contains("token: [rules.allowlist] is deprecated, it cannot be used alongside [[rules.allowlist]]", exception.Message);
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks path-only rules load without requiring a content regex.
     /// </summary>
     [TestMethod]
