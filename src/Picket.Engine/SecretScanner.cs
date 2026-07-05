@@ -210,6 +210,29 @@ public sealed class SecretScanner
             return findings;
         }
 
+        if (compiledRule.UsesGcpServiceAccountKeyMatcher)
+        {
+            if (compiledRule.Prefilter.IsCandidate(input))
+            {
+                ScanGcpServiceAccountKeyRule(
+                    input,
+                    originalInput,
+                    decodedInput,
+                    fileName,
+                    fileNameBytes,
+                    windowsFileNameBytes,
+                    globalAllowlists,
+                    ignoreGitleaksAllow,
+                    commit,
+                    symlinkFile,
+                    blobIdentity,
+                    compiledRule,
+                    findings);
+            }
+
+            return findings;
+        }
+
         if (compiledRule.Prefilter.IsCandidate(input))
         {
             ByteRegex regex = compiledRule.Regex ?? throw new InvalidOperationException("Content rule regex was not compiled.");
@@ -444,6 +467,101 @@ public sealed class SecretScanner
                 end.Column,
                 matchText,
                 secretText,
+                fileName,
+                symlinkFile,
+                commit,
+                entropy,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                CombineTags(rule.Tags, decodeTags),
+                CreateFingerprint(commit, fileName, rule.Id, start.Line),
+                lineText,
+                blobSha256: blobIdentity.Sha256,
+                decodePath: decodePath));
+
+            offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+        }
+    }
+
+    private static void ScanGcpServiceAccountKeyRule(
+        ReadOnlySpan<byte> input,
+        ReadOnlySpan<byte> originalInput,
+        DecodedInput? decodedInput,
+        string fileName,
+        ReadOnlySpan<byte> fileNameBytes,
+        ReadOnlySpan<byte> windowsFileNameBytes,
+        List<CompiledAllowlist> globalAllowlists,
+        bool ignoreGitleaksAllow,
+        string commit,
+        string symlinkFile,
+        SourceBlobIdentity blobIdentity,
+        CompiledRule compiledRule,
+        List<Finding> findings)
+    {
+        SecretRule rule = compiledRule.Rule;
+        int offset = 0;
+        while (GcpServiceAccountKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd))
+        {
+            if (!TryMapMatch(
+                decodedInput,
+                matchStart,
+                matchEnd,
+                out int reportStart,
+                out int reportEnd,
+                out IReadOnlyList<string> decodeTags,
+                out IReadOnlyList<string> decodePath))
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
+            ReadOnlySpan<byte> secretBytes = input[matchStart..matchEnd];
+            double entropy = ShannonEntropy.Calculate(secretBytes);
+            if (rule.Entropy > 0 && entropy <= rule.Entropy)
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
+            ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
+            SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
+            SourcePosition end = SourcePosition.FromOffset(reportInput, reportEnd);
+            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
+            ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
+            if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
+            string matchText = DecodeReportText(secretBytes);
+            string lineText = DecodeReportText(lineBytes);
+            if (IsAllowed(
+                globalAllowlists,
+                compiledRule.Allowlists,
+                fileNameBytes,
+                windowsFileNameBytes,
+                secretBytes,
+                secretBytes,
+                allowlistLineBytes,
+                matchText,
+                commit))
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
+            findings.Add(new Finding(
+                rule.Id,
+                rule.Description,
+                start.Line,
+                end.Line,
+                start.Column,
+                end.Column,
+                matchText,
+                matchText,
                 fileName,
                 symlinkFile,
                 commit,

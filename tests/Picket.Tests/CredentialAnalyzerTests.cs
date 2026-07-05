@@ -17,7 +17,7 @@ public sealed class CredentialAnalyzerTests
     public void AnalyzeRecognizesAzureStorageConnectionStrings()
     {
         string accountKey = CreateAzureStorageAccountKey();
-        Finding finding = CreateFinding(accountKey);
+        Finding finding = CreateAzureFinding(accountKey);
 
         CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
 
@@ -29,7 +29,27 @@ public sealed class CredentialAnalyzerTests
         Assert.DoesNotContain(accountKey, string.Join('\n', analysis.Evidence));
     }
 
-    private static Finding CreateFinding(string accountKey)
+    /// <summary>
+    /// Verifies that GCP service account key findings receive GCP-specific triage guidance.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesGcpServiceAccountKeys()
+    {
+        string serviceAccountJson = CreateGcpServiceAccountKeyJson();
+        Finding finding = CreateGcpFinding(serviceAccountJson);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("GCP", analysis.Provider);
+        Assert.AreEqual("GCP service account key", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains("projectId=picket-prod-123", analysis.Evidence);
+        Assert.Contains("clientEmail=scanner-sa@picket-prod-123.iam.gserviceaccount.com", analysis.Evidence);
+        Assert.Contains("Disable or delete the leaked service account key", string.Join('\n', analysis.RecommendedActions));
+        Assert.DoesNotContain(serviceAccountJson, string.Join('\n', analysis.Evidence));
+    }
+
+    private static Finding CreateAzureFinding(string accountKey)
     {
         string connectionString = $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net";
         return new Finding(
@@ -54,10 +74,50 @@ public sealed class CredentialAnalyzerTests
             validationState: "structurally-valid");
     }
 
+    private static Finding CreateGcpFinding(string serviceAccountJson)
+    {
+        return new Finding(
+            "picket-gcp-service-account-key",
+            "Detected a Google Cloud service account key JSON document.",
+            1,
+            10,
+            1,
+            2,
+            serviceAccountJson,
+            serviceAccountJson,
+            "service-account.json",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["picket", "gcp", "service-account"],
+            "service-account.json:picket-gcp-service-account-key:1",
+            validationState: "structurally-valid");
+    }
+
     private static string CreateAzureStorageAccountKey()
     {
         return Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(
             "0123456789ABCDEFGHIJKLMNOPQRSTUV",
             "WXYZabcdefghijklmnopqrstuvwxyz01")));
+    }
+
+    private static string CreateGcpServiceAccountKeyJson()
+    {
+        return """
+            {
+              "type": "service_account",
+              "project_id": "picket-prod-123",
+              "private_key_id": "0123456789abcdef0123456789abcdef01234567",
+              "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7Yz0123456789abcd\n-----END PRIVATE KEY-----\n",
+              "client_email": "scanner-sa@picket-prod-123.iam.gserviceaccount.com",
+              "client_id": "123456789012345678901",
+              "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+              "token_uri": "https://oauth2.googleapis.com/token"
+            }
+            """;
     }
 }

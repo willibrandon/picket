@@ -23,5 +23,17 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "Azure"
 documentationUrl = "https://learn.microsoft.com/azure/storage/common/storage-account-keys-manage"
+
+[[rules]]
+id = "picket-gcp-service-account-key"
+description = "Detected a Google Cloud service account key JSON document."
+regex = '''"type"\s*:\s*"service_account"'''
+keywords = ["service_account", "private_key_id", "iam.gserviceaccount.com"]
+tags = ["picket", "gcp", "google", "service-account", "json"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "GCP"
+documentationUrl = "https://cloud.google.com/iam/docs/keys-create-delete"
 """;
 }

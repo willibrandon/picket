@@ -23,6 +23,7 @@ Current offline coverage includes:
 
 - AWS access key ID shape and alphabet checks.
 - Azure Storage connection-string structure, account name, endpoint suffix, and 512-bit Base64 account-key checks.
+- GCP service account key JSON structure, project ID, private key ID, private-key envelope, service account email, and token URI checks.
 - GitHub classic, OAuth, refresh, app, and fine-grained token shape checks.
 - JWT and Base64-wrapped JWT segment, header, payload, algorithm, and signature-shape checks.
 - private-key envelope checks.

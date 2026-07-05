@@ -147,6 +147,36 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that GCP service account key JSON is structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesGcpServiceAccountKeyJson()
+    {
+        Finding finding = CreateFinding("picket-gcp-service-account-key", CreateGcpServiceAccountKeyJson());
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that malformed GCP service account key JSON is rejected.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsMalformedGcpServiceAccountKeyJson()
+    {
+        Finding finding = CreateFinding(
+            "picket-gcp-service-account-key",
+            CreateGcpServiceAccountKeyJson(tokenUri: "https://metadata.google.internal/token"));
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that unknown rule families remain explicitly unknown.
     /// </summary>
     [TestMethod]
@@ -224,6 +254,22 @@ public sealed class OfflineSecretValidatorTests
         return Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(
             "0123456789ABCDEFGHIJKLMNOPQRSTUV",
             "WXYZabcdefghijklmnopqrstuvwxyz01")));
+    }
+
+    private static string CreateGcpServiceAccountKeyJson(string tokenUri = "https://oauth2.googleapis.com/token")
+    {
+        return $$"""
+            {
+              "type": "service_account",
+              "project_id": "picket-prod-123",
+              "private_key_id": "0123456789abcdef0123456789abcdef01234567",
+              "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7Yz0123456789abcd\n-----END PRIVATE KEY-----\n",
+              "client_email": "scanner-sa@picket-prod-123.iam.gserviceaccount.com",
+              "client_id": "123456789012345678901",
+              "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+              "token_uri": "{{tokenUri}}"
+            }
+            """;
     }
 
     private static string CreateJwt()

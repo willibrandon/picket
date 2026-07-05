@@ -10,6 +10,7 @@ internal sealed class CompiledRule(
     List<CompiledAllowlist> allowlists,
     KeywordPrefilter prefilter,
     bool usesGenericApiKeyMatcher,
+    bool usesGcpServiceAccountKeyMatcher,
     bool deferRegexCompilation,
     string regexContext,
     string pathRegexContext)
@@ -22,17 +23,19 @@ internal sealed class CompiledRule(
 
     internal SecretRule Rule { get; } = rule ?? throw new ArgumentNullException(nameof(rule));
 
-    internal ByteRegex? Regex => UsesGenericApiKeyMatcher ? null : GetRegex(ref _regex, _pattern, regexContext);
+    internal ByteRegex? Regex => UsesGenericApiKeyMatcher || UsesGcpServiceAccountKeyMatcher ? null : GetRegex(ref _regex, _pattern, regexContext);
 
     internal ByteRegex? PathRegex => GetRegex(ref _pathRegex, _pathPattern, pathRegexContext);
 
-    internal bool HasContentPattern => _pattern.Length != 0 || UsesGenericApiKeyMatcher;
+    internal bool HasContentPattern => _pattern.Length != 0 || UsesGenericApiKeyMatcher || UsesGcpServiceAccountKeyMatcher;
 
     internal List<CompiledAllowlist> Allowlists { get; } = allowlists ?? throw new ArgumentNullException(nameof(allowlists));
 
     internal KeywordPrefilter Prefilter { get; } = prefilter ?? throw new ArgumentNullException(nameof(prefilter));
 
     internal bool UsesGenericApiKeyMatcher { get; } = usesGenericApiKeyMatcher;
+
+    internal bool UsesGcpServiceAccountKeyMatcher { get; } = usesGcpServiceAccountKeyMatcher;
 
     private ByteRegex? GetRegex(ref ByteRegex? regex, string pattern, string context)
     {

@@ -42,6 +42,7 @@ public static class OfflineSecretValidator
             "github-refresh-token" => ValidateGitHubClassicToken(secret, "ghr_"),
             "jwt" => ValidateJwt(secret),
             "jwt-base64" => ValidateBase64EncodedJwt(secret),
+            "picket-gcp-service-account-key" => ValidateGcpServiceAccountKeyJson(secret),
             "picket-azure-storage-connection-string" => ValidateAzureStorageConnectionString(finding.Match, secret),
             "private-key" => ValidatePrivateKeyEnvelope(finding.Match),
             _ => Unknown(),
@@ -168,6 +169,131 @@ public static class OfflineSecretValidator
         }
 
         return StructurallyValid("valid Azure Storage connection string shape");
+    }
+
+    private static SecretValidationResult ValidateGcpServiceAccountKeyJson(string secret)
+    {
+        if (!TryParseJsonObject(secret, out JsonDocument? document))
+        {
+            return Invalid("invalid GCP service account key JSON");
+        }
+
+        using (document)
+        {
+            JsonElement root = document.RootElement;
+            if (!TryGetJsonString(root, "type", out string type)
+                || !type.Equals("service_account", StringComparison.Ordinal)
+                || !TryGetJsonString(root, "project_id", out string projectId)
+                || !IsGcpProjectId(projectId)
+                || !TryGetJsonString(root, "private_key_id", out string privateKeyId)
+                || !IsGcpPrivateKeyId(privateKeyId)
+                || !TryGetJsonString(root, "private_key", out string privateKey)
+                || ValidatePrivateKeyEnvelope(privateKey).State != SecretValidationState.StructurallyValid
+                || !TryGetJsonString(root, "client_email", out string clientEmail)
+                || !IsGcpServiceAccountEmail(clientEmail, projectId)
+                || !TryGetJsonString(root, "token_uri", out string tokenUri)
+                || !tokenUri.Equals("https://oauth2.googleapis.com/token", StringComparison.Ordinal))
+            {
+                return Invalid("invalid GCP service account key shape");
+            }
+        }
+
+        return StructurallyValid("valid GCP service account key shape");
+    }
+
+    private static bool TryParseJsonObject(string json, [NotNullWhen(true)] out JsonDocument? document)
+    {
+        document = null;
+        try
+        {
+            document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                return true;
+            }
+
+            document.Dispose();
+            document = null;
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetJsonString(JsonElement root, string propertyName, out string value)
+    {
+        value = string.Empty;
+        if (!root.TryGetProperty(propertyName, out JsonElement property)
+            || property.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        value = property.GetString() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool IsGcpProjectId(string projectId)
+    {
+        if (projectId.Length is < 6 or > 30
+            || !IsLowerAsciiAlpha(projectId[0])
+            || !IsLowerAsciiAlphaNumeric(projectId[^1]))
+        {
+            return false;
+        }
+
+        for (int i = 1; i < projectId.Length - 1; i++)
+        {
+            char value = projectId[i];
+            if (!IsLowerAsciiAlphaNumeric(value) && value != '-')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsGcpPrivateKeyId(string privateKeyId)
+    {
+        if (privateKeyId.Length != 40)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < privateKeyId.Length; i++)
+        {
+            if (!IsLowerHexCharacter(privateKeyId[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsGcpServiceAccountEmail(string clientEmail, string projectId)
+    {
+        string suffix = string.Concat("@", projectId, ".iam.gserviceaccount.com");
+        if (!clientEmail.EndsWith(suffix, StringComparison.Ordinal)
+            || clientEmail.Length <= suffix.Length)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> name = clientEmail.AsSpan(0, clientEmail.Length - suffix.Length);
+        for (int i = 0; i < name.Length; i++)
+        {
+            char value = name[i];
+            if (!IsAsciiAlphaNumeric(value) && value is not '.' and not '_' and not '-')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool TryGetConnectionStringField(
@@ -757,6 +883,17 @@ public static class OfflineSecretValidator
     {
         return value is >= 'a' and <= 'z'
             or >= '0' and <= '9';
+    }
+
+    private static bool IsLowerAsciiAlpha(char value)
+    {
+        return value is >= 'a' and <= 'z';
+    }
+
+    private static bool IsLowerHexCharacter(char value)
+    {
+        return value is >= '0' and <= '9'
+            or >= 'a' and <= 'f';
     }
 
     private static bool IsAsciiAlphaNumeric(char value)

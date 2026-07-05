@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Picket.Engine;
 
 namespace Picket.Analyze;
@@ -75,6 +76,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS",
+            "picket-gcp-service-account-key" => "GCP",
             "picket-azure-storage-connection-string" => "Azure",
             "private-key" => "Generic",
             _ => "Unknown",
@@ -91,6 +93,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS access key ID",
+            "picket-gcp-service-account-key" => "GCP service account key",
             "picket-azure-storage-connection-string" => "Azure Storage account key",
             "private-key" => "Private key",
             _ => "Secret",
@@ -155,6 +158,11 @@ public static class CredentialAnalyzer
                 "Review storage account diagnostics, access logs, SAS token issuance, and firewall/network rules.",
                 "Search application settings, deployment outputs, CI variables, and logs for the same credential hash."
             ],
+            "GCP" => [
+                "Disable or delete the leaked service account key in Google Cloud IAM.",
+                "Review the service account IAM roles, key usage, and Cloud Audit Logs for suspicious activity.",
+                "Move the workload to a rotated key or keyless authentication such as Workload Identity where possible."
+            ],
             _ => [
                 $"Rotate or revoke the {credentialType} with the owning provider or system.",
                 "Search history, build logs, artifacts, and deployment metadata for reuse.",
@@ -184,7 +192,54 @@ public static class CredentialAnalyzer
             evidence.Add($"accountName={accountName}");
         }
 
+        if (finding.RuleID.Equals("picket-gcp-service-account-key", StringComparison.Ordinal)
+            && TryReadGcpServiceAccountEvidence(GetFindingSecretMaterial(finding), out string projectId, out string clientEmail))
+        {
+            evidence.Add($"projectId={projectId}");
+            evidence.Add($"clientEmail={clientEmail}");
+        }
+
         return evidence;
+    }
+
+    private static string GetFindingSecretMaterial(Finding finding)
+    {
+        return finding.Secret.Length == 0 ? finding.Match : finding.Secret;
+    }
+
+    private static bool TryReadGcpServiceAccountEvidence(string json, out string projectId, out string clientEmail)
+    {
+        projectId = string.Empty;
+        clientEmail = string.Empty;
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !TryGetJsonString(document.RootElement, "project_id", out projectId)
+                || !TryGetJsonString(document.RootElement, "client_email", out clientEmail))
+            {
+                return false;
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetJsonString(JsonElement root, string propertyName, out string value)
+    {
+        value = string.Empty;
+        if (!root.TryGetProperty(propertyName, out JsonElement property)
+            || property.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        value = property.GetString() ?? string.Empty;
+        return value.Length != 0;
     }
 
     private static bool TryGetConnectionStringField(string connectionString, string fieldName, out string fieldValue)

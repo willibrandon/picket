@@ -265,6 +265,25 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the embedded GCP service account key rule.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesEmbeddedGcpServiceAccountRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, "service-account.json"), CreateGcpServiceAccountKeyJsonFixture());
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-gcp-service-account-key\"", result.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
+        Assert.Contains("\"provider\":\"GCP\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.Contains("\"documentationUrl\":\"https://cloud.google.com/iam/docs/keys-create-delete\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that target-local config still takes precedence over the embedded Picket default rule pack.
     /// </summary>
     [TestMethod]
@@ -3175,6 +3194,22 @@ public sealed class CliCompatibilityTests
             "MDEyMzQ1Njc4OUFCQ0RFRkdISktMTU5PUFFS",
             "U1RVVldYWVoxMjM0NTY3ODlBQkNERUZHSElK",
             "S0xNTk9QUVJTVA==");
+    }
+
+    private static string CreateGcpServiceAccountKeyJsonFixture()
+    {
+        return """
+            {
+              "type": "service_account",
+              "project_id": "picket-prod-123",
+              "private_key_id": "0123456789abcdef0123456789abcdef01234567",
+              "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7Yz0123456789abcd\n-----END PRIVATE KEY-----\n",
+              "client_email": "scanner-sa@picket-prod-123.iam.gserviceaccount.com",
+              "client_id": "123456789012345678901",
+              "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+              "token_uri": "https://oauth2.googleapis.com/token"
+            }
+            """;
     }
 
     private static string CreateTomlLiteral(string value)
