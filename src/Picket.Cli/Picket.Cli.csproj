@@ -19,5 +19,6 @@
     <ProjectReference Include="..\Picket.Engine\Picket.Engine.csproj" />
     <ProjectReference Include="..\Picket.Report\Picket.Report.csproj" />
     <ProjectReference Include="..\Picket.Rules\Picket.Rules.csproj" />
+    <ProjectReference Include="..\Picket.Sources\Picket.Sources.csproj" />
   </ItemGroup>
 </Project>

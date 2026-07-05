@@ -9,5 +9,6 @@
     <ProjectReference Include="..\..\src\Picket.Engine\Picket.Engine.csproj" />
     <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />
     <ProjectReference Include="..\..\src\Picket.Rules\Picket.Rules.csproj" />
+    <ProjectReference Include="..\..\src\Picket.Sources\Picket.Sources.csproj" />
   </ItemGroup>
 </Project>
