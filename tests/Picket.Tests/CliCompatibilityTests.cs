@@ -758,6 +758,21 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that stdin scans accept the Gitleaks-compatible archive depth flag.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanAcceptsMaxArchiveDepthFlag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that stdin scans honor the Gitleaks-compatible max-target flag.
     /// </summary>
     [TestMethod]

@@ -185,6 +185,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
             continue;
         }
 
+        if (IsMaxArchiveDepthFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-depth", out _))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (IsMaxTargetMegabytesFlag(arg))
         {
             if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
