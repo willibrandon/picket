@@ -42,6 +42,7 @@ public static class OfflineSecretValidator
             "github-refresh-token" => ValidateGitHubClassicToken(secret, "ghr_"),
             "jwt" => ValidateJwt(secret),
             "jwt-base64" => ValidateBase64EncodedJwt(secret),
+            "picket-azure-storage-connection-string" => ValidateAzureStorageConnectionString(finding.Match, secret),
             "private-key" => ValidatePrivateKeyEnvelope(finding.Match),
             _ => Unknown(),
         };
@@ -145,6 +146,142 @@ public static class OfflineSecretValidator
             && match.Contains("-----END", StringComparison.Ordinal)
             ? StructurallyValid("valid private key envelope")
             : Invalid("invalid private key envelope");
+    }
+
+    private static SecretValidationResult ValidateAzureStorageConnectionString(string match, string secret)
+    {
+        if (!TryGetConnectionStringField(match, "DefaultEndpointsProtocol", out ReadOnlySpan<char> protocol)
+            || !IsAzureStorageProtocol(protocol)
+            || !TryGetConnectionStringField(match, "AccountName", out ReadOnlySpan<char> accountName)
+            || !IsAzureStorageAccountName(accountName)
+            || !TryGetConnectionStringField(match, "AccountKey", out ReadOnlySpan<char> accountKey)
+            || !accountKey.SequenceEqual(secret.AsSpan())
+            || !IsAzureStorageAccountKey(secret))
+        {
+            return Invalid("invalid Azure Storage connection string shape");
+        }
+
+        if (TryGetConnectionStringField(match, "EndpointSuffix", out ReadOnlySpan<char> endpointSuffix)
+            && !IsAzureEndpointSuffix(endpointSuffix))
+        {
+            return Invalid("invalid Azure Storage endpoint suffix");
+        }
+
+        return StructurallyValid("valid Azure Storage connection string shape");
+    }
+
+    private static bool TryGetConnectionStringField(
+        string connectionString,
+        string fieldName,
+        out ReadOnlySpan<char> fieldValue)
+    {
+        ReadOnlySpan<char> remaining = connectionString.AsSpan().Trim();
+        while (!remaining.IsEmpty)
+        {
+            int separator = remaining.IndexOf(';');
+            ReadOnlySpan<char> segment = separator < 0 ? remaining : remaining[..separator];
+            segment = segment.Trim();
+            if (!segment.IsEmpty)
+            {
+                int equals = segment.IndexOf('=');
+                if (equals <= 0)
+                {
+                    fieldValue = [];
+                    return false;
+                }
+
+                ReadOnlySpan<char> key = segment[..equals].Trim();
+                if (key.Equals(fieldName.AsSpan(), StringComparison.OrdinalIgnoreCase))
+                {
+                    fieldValue = segment[(equals + 1)..].Trim();
+                    return true;
+                }
+            }
+
+            if (separator < 0)
+            {
+                break;
+            }
+
+            remaining = remaining[(separator + 1)..];
+        }
+
+        fieldValue = [];
+        return false;
+    }
+
+    private static bool IsAzureStorageProtocol(ReadOnlySpan<char> protocol)
+    {
+        return protocol.Equals("https".AsSpan(), StringComparison.OrdinalIgnoreCase)
+            || protocol.Equals("http".AsSpan(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAzureStorageAccountName(ReadOnlySpan<char> accountName)
+    {
+        if (accountName.Length is < 3 or > 24)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < accountName.Length; i++)
+        {
+            if (!IsLowerAsciiAlphaNumeric(accountName[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsAzureStorageAccountKey(string secret)
+    {
+        if (!IsStandardBase64Segment(secret.AsSpan())
+            || !TryBase64Decode(secret.AsSpan(), urlSafe: false, out byte[]? bytes))
+        {
+            return false;
+        }
+
+        return bytes.Length == 64;
+    }
+
+    private static bool IsAzureEndpointSuffix(ReadOnlySpan<char> endpointSuffix)
+    {
+        if (endpointSuffix.IsEmpty || endpointSuffix[0] is '.' or '-')
+        {
+            return false;
+        }
+
+        bool hasDot = false;
+        char previous = '\0';
+        for (int i = 0; i < endpointSuffix.Length; i++)
+        {
+            char value = endpointSuffix[i];
+            if (value == '.')
+            {
+                if (previous is '\0' or '.' or '-')
+                {
+                    return false;
+                }
+
+                hasDot = true;
+            }
+            else if (value == '-')
+            {
+                if (previous is '\0' or '.' or '-')
+                {
+                    return false;
+                }
+            }
+            else if (!IsAsciiAlphaNumeric(value))
+            {
+                return false;
+            }
+
+            previous = value;
+        }
+
+        return hasDot && previous is not '.' and not '-';
     }
 
     private static SecretValidationResult ValidateBase64EncodedJwt(string secret)
@@ -471,9 +608,40 @@ public static class OfflineSecretValidator
         return true;
     }
 
+    private static bool IsStandardBase64Segment(ReadOnlySpan<char> segment)
+    {
+        if (segment.IsEmpty)
+        {
+            return false;
+        }
+
+        bool paddingStarted = false;
+        for (int i = 0; i < segment.Length; i++)
+        {
+            char value = segment[i];
+            if (value == '=')
+            {
+                paddingStarted = true;
+                continue;
+            }
+
+            if (paddingStarted || !IsStandardBase64Character(value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool IsBase64UrlCharacter(char value)
     {
         return IsAsciiAlphaNumeric(value) || value is '-' or '_';
+    }
+
+    private static bool IsStandardBase64Character(char value)
+    {
+        return IsAsciiAlphaNumeric(value) || value is '+' or '/';
     }
 
     private static bool IsAsciiWhitespace(char value)
@@ -583,6 +751,12 @@ public static class OfflineSecretValidator
     private static bool IsWordCharacter(char value)
     {
         return IsAsciiAlphaNumeric(value) || value == '_';
+    }
+
+    private static bool IsLowerAsciiAlphaNumeric(char value)
+    {
+        return value is >= 'a' and <= 'z'
+            or >= '0' and <= '9';
     }
 
     private static bool IsAsciiAlphaNumeric(char value)

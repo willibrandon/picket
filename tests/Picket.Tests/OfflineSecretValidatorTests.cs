@@ -109,6 +109,44 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that Azure Storage connection strings are structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesAzureStorageConnectionStringShape()
+    {
+        string accountKey = CreateAzureStorageAccountKey();
+        string connectionString = CreateAzureStorageConnectionString(accountKey);
+        Finding finding = CreateFinding(
+            "picket-azure-storage-connection-string",
+            accountKey,
+            connectionString);
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that malformed Azure Storage account keys are rejected.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsMalformedAzureStorageAccountKey()
+    {
+        string accountKey = Convert.ToBase64String(Encoding.UTF8.GetBytes("too-short"));
+        string connectionString = CreateAzureStorageConnectionString(accountKey);
+        Finding finding = CreateFinding(
+            "picket-azure-storage-connection-string",
+            accountKey,
+            connectionString);
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that unknown rule families remain explicitly unknown.
     /// </summary>
     [TestMethod]
@@ -137,16 +175,17 @@ public sealed class OfflineSecretValidatorTests
         Assert.AreEqual("structurally-valid", annotated.ValidationState);
     }
 
-    private static Finding CreateFinding(string ruleId, string secret)
+    private static Finding CreateFinding(string ruleId, string secret, string? match = null)
     {
+        match ??= secret;
         return new Finding(
             ruleId,
             "description",
             1,
             1,
             1,
-            secret.Length,
-            secret,
+            match.Length,
+            match,
             secret,
             "secret.txt",
             string.Empty,
@@ -173,6 +212,18 @@ public sealed class OfflineSecretValidatorTests
     private static string CreateGitHubPat()
     {
         return string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    }
+
+    private static string CreateAzureStorageConnectionString(string accountKey)
+    {
+        return $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net";
+    }
+
+    private static string CreateAzureStorageAccountKey()
+    {
+        return Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(
+            "0123456789ABCDEFGHIJKLMNOPQRSTUV",
+            "WXYZabcdefghijklmnopqrstuvwxyz01")));
     }
 
     private static string CreateJwt()

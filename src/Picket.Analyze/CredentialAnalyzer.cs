@@ -75,6 +75,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS",
+            "picket-azure-storage-connection-string" => "Azure",
             "private-key" => "Generic",
             _ => "Unknown",
         };
@@ -90,6 +91,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS access key ID",
+            "picket-azure-storage-connection-string" => "Azure Storage account key",
             "private-key" => "Private key",
             _ => "Secret",
         };
@@ -148,6 +150,11 @@ public static class CredentialAnalyzer
                 "Disable or rotate the access key in IAM when ownership is confirmed.",
                 "Review CloudTrail and IAM last-used data for suspicious activity."
             ],
+            "Azure" => [
+                "Rotate one Azure Storage account key, update dependent applications, then rotate the second key.",
+                "Review storage account diagnostics, access logs, SAS token issuance, and firewall/network rules.",
+                "Search application settings, deployment outputs, CI variables, and logs for the same credential hash."
+            ],
             _ => [
                 $"Rotate or revoke the {credentialType} with the owning provider or system.",
                 "Search history, build logs, artifacts, and deployment metadata for reuse.",
@@ -174,7 +181,50 @@ public static class CredentialAnalyzer
             evidence.Add($"secretSha256={secretSha256}");
         }
 
+        if (finding.RuleID.Equals("picket-azure-storage-connection-string", StringComparison.Ordinal)
+            && TryGetConnectionStringField(finding.Match, "AccountName", out string accountName))
+        {
+            evidence.Add($"accountName={accountName}");
+        }
+
         return evidence;
+    }
+
+    private static bool TryGetConnectionStringField(string connectionString, string fieldName, out string fieldValue)
+    {
+        ReadOnlySpan<char> remaining = connectionString.AsSpan().Trim();
+        while (!remaining.IsEmpty)
+        {
+            int separator = remaining.IndexOf(';');
+            ReadOnlySpan<char> segment = separator < 0 ? remaining : remaining[..separator];
+            segment = segment.Trim();
+            if (!segment.IsEmpty)
+            {
+                int equals = segment.IndexOf('=');
+                if (equals <= 0)
+                {
+                    fieldValue = string.Empty;
+                    return false;
+                }
+
+                ReadOnlySpan<char> key = segment[..equals].Trim();
+                if (key.Equals(fieldName.AsSpan(), StringComparison.OrdinalIgnoreCase))
+                {
+                    fieldValue = segment[(equals + 1)..].Trim().ToString();
+                    return true;
+                }
+            }
+
+            if (separator < 0)
+            {
+                break;
+            }
+
+            remaining = remaining[(separator + 1)..];
+        }
+
+        fieldValue = string.Empty;
+        return false;
     }
 
     private static string ComputeSha256(string value)

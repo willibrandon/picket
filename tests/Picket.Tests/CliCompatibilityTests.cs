@@ -260,6 +260,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains($"\"secret\":\"{accountKey}\"", result.Stdout);
         Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
         Assert.Contains("\"provider\":\"Azure\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
         Assert.Contains("\"documentationUrl\":\"https://learn.microsoft.com/azure/storage/common/storage-account-keys-manage\"", result.Stdout);
     }
 
