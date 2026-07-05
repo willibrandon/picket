@@ -23,12 +23,13 @@ public sealed class DirectoryScanTests
             Directory.CreateDirectory(nested);
             File.WriteAllText(Path.Combine(nested, "secret.txt"), "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF");
 
+            CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
             var scanner = new SecretScanner();
             var findings = new List<Finding>();
             foreach (SourceFile file in new DirectorySource().Enumerate(new DirectoryScanOptions(root)))
             {
                 byte[] input = File.ReadAllBytes(file.FullPath);
-                findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, EmbeddedGitleaksRules.Bootstrap)));
+                findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
             }
 
             Assert.HasCount(1, findings);

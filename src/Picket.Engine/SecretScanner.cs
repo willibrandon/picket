@@ -19,10 +19,12 @@ public sealed class SecretScanner
         ReadOnlySpan<byte> input = request.Input.Span;
         var findings = new List<Finding>();
 
-        foreach (SecretRule rule in request.RuleSet.Rules)
+        foreach (CompiledRule compiledRule in request.RuleSet.CompiledRules)
         {
-            ByteRegex regex = ByteRegex.Compile(rule.Pattern);
-            ScanRule(input, request.FileName, rule, regex, findings);
+            if (compiledRule.Prefilter.IsCandidate(input))
+            {
+                ScanRule(input, request.FileName, compiledRule, findings);
+            }
         }
 
         return findings;
@@ -31,14 +33,14 @@ public sealed class SecretScanner
     private static void ScanRule(
         ReadOnlySpan<byte> input,
         string fileName,
-        SecretRule rule,
-        ByteRegex regex,
+        CompiledRule compiledRule,
         List<Finding> findings)
     {
+        SecretRule rule = compiledRule.Rule;
         int offset = 0;
         while (offset <= input.Length)
         {
-            ByteRegexCaptures? captures = regex.FindCaptures(input, offset);
+            ByteRegexCaptures? captures = compiledRule.Regex.FindCaptures(input, offset);
             if (captures is null)
             {
                 return;

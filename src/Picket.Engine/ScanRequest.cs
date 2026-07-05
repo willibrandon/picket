@@ -7,9 +7,20 @@ namespace Picket.Engine;
 /// </summary>
 /// <param name="input">The input bytes to scan.</param>
 /// <param name="fileName">The logical file name used in reports and fingerprints.</param>
-/// <param name="ruleSet">The rules used for detection.</param>
-public sealed class ScanRequest(ReadOnlyMemory<byte> input, string fileName, RuleSet ruleSet)
+/// <param name="ruleSet">The compiled rules used for detection.</param>
+public sealed class ScanRequest(ReadOnlyMemory<byte> input, string fileName, CompiledRuleSet ruleSet)
 {
+    /// <summary>
+    /// Initializes a new scan request and compiles the supplied source rules.
+    /// </summary>
+    /// <param name="input">The input bytes to scan.</param>
+    /// <param name="fileName">The logical file name used in reports and fingerprints.</param>
+    /// <param name="ruleSet">The source rules used for detection.</param>
+    public ScanRequest(ReadOnlyMemory<byte> input, string fileName, RuleSet ruleSet)
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet))
+    {
+    }
+
     /// <summary>
     /// Gets the input bytes to scan.
     /// </summary>
@@ -21,9 +32,9 @@ public sealed class ScanRequest(ReadOnlyMemory<byte> input, string fileName, Rul
     public string FileName { get; } = RequireFileName(fileName);
 
     /// <summary>
-    /// Gets the rules used for detection.
+    /// Gets the compiled rules used for detection.
     /// </summary>
-    public RuleSet RuleSet { get; } = ruleSet ?? throw new ArgumentNullException(nameof(ruleSet));
+    public CompiledRuleSet RuleSet { get; } = ruleSet ?? throw new ArgumentNullException(nameof(ruleSet));
 
     private static string RequireFileName(string value)
     {

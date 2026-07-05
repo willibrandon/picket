@@ -1,0 +1,50 @@
+using Picket.Rules;
+using Scout.Text.Regex;
+
+namespace Picket.Engine;
+
+/// <summary>
+/// Represents a rule set with precompiled Scout regexes and keyword prefilters.
+/// </summary>
+/// <param name="rules">The source rules in deterministic evaluation order.</param>
+public sealed class CompiledRuleSet(RuleSet rules)
+{
+    /// <summary>
+    /// Gets the source rules in deterministic evaluation order.
+    /// </summary>
+    public IReadOnlyList<SecretRule> Rules { get; } = RequireRules(rules).Rules;
+
+    internal IReadOnlyList<CompiledRule> CompiledRules { get; } = CompileRules(rules);
+
+    /// <summary>
+    /// Compiles a source rule set.
+    /// </summary>
+    /// <param name="rules">The source rules in deterministic evaluation order.</param>
+    /// <returns>The compiled rule set.</returns>
+    public static CompiledRuleSet Compile(RuleSet rules)
+    {
+        return new CompiledRuleSet(rules);
+    }
+
+    private static RuleSet RequireRules(RuleSet rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+        return rules;
+    }
+
+    private static IReadOnlyList<CompiledRule> CompileRules(RuleSet rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+
+        var compiledRules = new List<CompiledRule>(rules.Rules.Count);
+        foreach (SecretRule rule in rules.Rules)
+        {
+            compiledRules.Add(new CompiledRule(
+                rule,
+                ByteRegex.Compile(rule.Pattern),
+                KeywordPrefilter.Create(rule.Keywords)));
+        }
+
+        return compiledRules;
+    }
+}

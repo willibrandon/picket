@@ -62,8 +62,9 @@ static async Task<int> RunStdinAsync(string[] args)
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
+    CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
     var scanner = new SecretScanner();
-    IReadOnlyList<Finding> findings = scanner.Scan(new ScanRequest(input, "stdin", EmbeddedGitleaksRules.Bootstrap));
+    IReadOnlyList<Finding> findings = scanner.Scan(new ScanRequest(input, "stdin", rules));
     Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
     return findings.Count == 0 ? 0 : 1;
 }
@@ -133,12 +134,13 @@ static int RunDirectory(string[] args)
     }
 
     IReadOnlyList<SourceFile> files = new DirectorySource().Enumerate(new DirectoryScanOptions(root, maxTargetBytes));
+    CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
     var findings = new List<Finding>();
     var scanner = new SecretScanner();
     foreach (SourceFile file in files)
     {
         byte[] input = File.ReadAllBytes(file.FullPath);
-        findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, EmbeddedGitleaksRules.Bootstrap)));
+        findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
     }
 
     Console.Out.Write(GitleaksJsonReportWriter.Write(findings));

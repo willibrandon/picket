@@ -18,8 +18,9 @@ public sealed class SecretScannerTests
     {
         byte[] input = Encoding.UTF8.GetBytes("before\nAWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF\nafter\n");
 
-        IReadOnlyList<Finding> findings = new SecretScanner().Scan(
-            new ScanRequest(input, "stdin", EmbeddedGitleaksRules.Bootstrap));
+        CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+
+        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.HasCount(1, findings);
         Finding finding = findings[0];
@@ -37,9 +38,74 @@ public sealed class SecretScannerTests
     {
         byte[] input = Encoding.UTF8.GetBytes("no secrets here");
 
-        IReadOnlyList<Finding> findings = new SecretScanner().Scan(
-            new ScanRequest(input, "stdin", EmbeddedGitleaksRules.Bootstrap));
+        CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+
+        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that a missing keyword prevents regex execution for keyword-scoped rules.
+    /// </summary>
+    [TestMethod]
+    public void ScanSkipsRulesWhenKeywordsAreMissing()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("secret-value");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "keyword-gated",
+                "Keyword gated",
+                "secret-[a-z]+",
+                keywords: ["missing"]),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that keyword matching is ASCII case-insensitive.
+    /// </summary>
+    [TestMethod]
+    public void ScanMatchesKeywordsCaseInsensitively()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("secret-value");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "keyword-gated",
+                "Keyword gated",
+                "secret-[a-z]+",
+                keywords: ["SECRET"]),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("keyword-gated", findings[0].RuleID);
+    }
+
+    /// <summary>
+    /// Verifies that rules without keywords still run.
+    /// </summary>
+    [TestMethod]
+    public void ScanRunsRulesWithoutKeywords()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("nokey-123");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "no-keyword",
+                "No keyword",
+                "nokey-[0-9]+"),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("no-keyword", findings[0].RuleID);
     }
 }
