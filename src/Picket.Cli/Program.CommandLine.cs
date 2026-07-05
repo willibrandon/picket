@@ -470,6 +470,12 @@ internal static partial class Program
             || arg.StartsWith("--max-archive-depth=", StringComparison.Ordinal);
     }
 
+    static bool IsMaxArchiveEntriesFlag(string arg)
+    {
+        return arg.Equals("--max-archive-entries", StringComparison.Ordinal)
+            || arg.StartsWith("--max-archive-entries=", StringComparison.Ordinal);
+    }
+
     static bool IsTimeoutFlag(string arg)
     {
         return arg.Equals("--timeout", StringComparison.Ordinal)

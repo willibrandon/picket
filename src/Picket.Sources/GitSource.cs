@@ -261,8 +261,10 @@ public static class GitSource
             blob,
             filePath,
             options.MaxArchiveDepth,
+            options.MaxArchiveEntries,
             options.MaxTargetBytes,
             options.IsPathAllowed,
+            options.WarningSink,
             entries))
         {
             return;

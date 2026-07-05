@@ -746,6 +746,52 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies strict compatibility directory scans reject native archive entry-count caps.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeArchiveEntryLimitFlag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-entries", "1").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("unknown flag: --max-archive-entries", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies native scans can cap archive entries and emit a clear warning.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanHonorsArchiveEntryLimit()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        WriteZipFile(
+            Path.Combine(root.Path, "secrets.zip"),
+            ("first.txt", "token-12345"),
+            ("second.txt", "token-23456"));
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--max-archive-depth",
+            "1",
+            "--max-archive-entries",
+            "1",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"secrets.zip!first.txt\"", result.Stdout);
+        Assert.DoesNotContain("secrets.zip!second.txt", result.Stdout);
+        Assert.Contains("archive entry limit reached after 1 entries while reading secrets.zip", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native cache stats summarize entries for the active scanner key.
     /// </summary>
     [TestMethod]

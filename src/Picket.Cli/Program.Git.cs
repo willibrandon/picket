@@ -29,6 +29,7 @@ internal static partial class Program
         string root = ".";
         int exitCode = 1;
         bool ignoreGitleaksAllow = false;
+        int maxArchiveEntries = nativeMode ? 4096 : 0;
         int maxArchiveDepth = 0;
         int maxDecodeDepth = 5;
         bool preCommit = false;
@@ -221,6 +222,16 @@ internal static partial class Program
                 continue;
             }
 
+            if (nativeMode && IsMaxArchiveEntriesFlag(arg))
+            {
+                if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-entries", out maxArchiveEntries))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
             if (IsTimeoutFlag(arg))
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
@@ -303,12 +314,14 @@ internal static partial class Program
         {
             fragments = GitSource.Enumerate(new GitScanOptions(
                 root,
-                logOptions,
-                staged,
-                preCommit,
-                maxArchiveDepth,
-                maxTargetBytes,
-                rules.IsGlobalPathAllowed));
+                logOptions: logOptions,
+                staged: staged,
+                preCommit: preCommit,
+                maxArchiveDepth: maxArchiveDepth,
+                maxArchiveEntries: maxArchiveEntries,
+                maxTargetBytes: maxTargetBytes,
+                isPathAllowed: rules.IsGlobalPathAllowed,
+                warningSink: nativeMode ? Console.Error.WriteLine : null));
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
         {

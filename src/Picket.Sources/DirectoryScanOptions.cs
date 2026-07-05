@@ -15,6 +15,8 @@ namespace Picket.Sources;
 /// <param name="ignoreHidden">A value indicating whether hidden files and directories are ignored.</param>
 /// <param name="readParentIgnoreFiles">A value indicating whether ignore files from parent directories above the root are read.</param>
 /// <param name="ignoreFilePaths">Explicit ignore files to apply while traversing.</param>
+/// <param name="maxArchiveEntries">The maximum number of archive entries to enumerate, or 0 for no cap.</param>
+/// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 public sealed class DirectoryScanOptions(
     string root,
     long? maxTargetBytes = null,
@@ -27,7 +29,9 @@ public sealed class DirectoryScanOptions(
     bool readGlobalGitIgnore = false,
     bool ignoreHidden = false,
     bool readParentIgnoreFiles = false,
-    IReadOnlyList<string>? ignoreFilePaths = null)
+    IReadOnlyList<string>? ignoreFilePaths = null,
+    int maxArchiveEntries = 0,
+    Action<string>? warningSink = null)
 {
     private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
 
@@ -50,6 +54,11 @@ public sealed class DirectoryScanOptions(
     /// Gets the maximum nested archive depth to enumerate.
     /// </summary>
     public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
+    /// <summary>
+    /// Gets the maximum number of archive entries to enumerate, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveEntries { get; } = RequireMaxArchiveEntries(maxArchiveEntries);
 
     /// <summary>
     /// Gets a value indicating whether per-directory <c>.picketignore</c> files are read.
@@ -88,6 +97,8 @@ public sealed class DirectoryScanOptions(
 
     internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
+    internal Action<string>? WarningSink { get; } = warningSink;
+
     private static string RequireRoot(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -105,6 +116,12 @@ public sealed class DirectoryScanOptions(
     }
 
     private static int RequireMaxArchiveDepth(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static int RequireMaxArchiveEntries(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;

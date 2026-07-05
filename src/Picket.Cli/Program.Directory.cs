@@ -39,6 +39,7 @@ internal static partial class Program
         bool followSymlinks = false;
         bool ignoreGitleaksAllow = false;
         bool respectNativeIgnoreFiles = nativeMode;
+        int maxArchiveEntries = nativeMode ? 4096 : 0;
         int maxArchiveDepth = 0;
         int maxDecodeDepth = 5;
         long? maxTargetBytes = null;
@@ -263,6 +264,16 @@ internal static partial class Program
                 continue;
             }
 
+            if (nativeMode && IsMaxArchiveEntriesFlag(arg))
+            {
+                if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-entries", out maxArchiveEntries))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
             if (IsTimeoutFlag(arg))
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
@@ -361,17 +372,19 @@ internal static partial class Program
 
         IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
             root,
-            maxTargetBytes,
-            followSymlinks,
-            maxArchiveDepth,
-            rules.IsGlobalPathAllowed,
+            maxTargetBytes: maxTargetBytes,
+            followSymbolicLinks: followSymlinks,
+            maxArchiveDepth: maxArchiveDepth,
+            maxArchiveEntries: maxArchiveEntries,
+            isPathAllowed: rules.IsGlobalPathAllowed,
             readPicketIgnoreFiles: respectNativeIgnoreFiles,
             readIgnoreFiles: respectNativeIgnoreFiles,
             readGitIgnoreFiles: respectNativeIgnoreFiles,
             readGlobalGitIgnore: respectNativeIgnoreFiles,
             ignoreHidden: respectNativeIgnoreFiles,
             readParentIgnoreFiles: respectNativeIgnoreFiles,
-            ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : []));
+            ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
+            warningSink: nativeMode ? Console.Error.WriteLine : null));
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
         {

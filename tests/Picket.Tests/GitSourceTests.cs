@@ -86,6 +86,36 @@ public sealed class GitSourceTests
     }
 
     /// <summary>
+    /// Verifies that git archive enumeration honors the configured entry-count safety cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateHonorsArchiveBlobEntryLimit()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        WriteZipFile(
+            Path.Combine(root.Path, "secrets.zip"),
+            ("first.txt", "token-12345"),
+            ("second.txt", "token-23456"));
+        await RunGitCommandAsync(root.Path, "add", "secrets.zip").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add archive").ConfigureAwait(false);
+        var warnings = new List<string>();
+
+        IReadOnlyList<GitPatchFragment> fragments = GitSource.Enumerate(new GitScanOptions(
+            root.Path,
+            maxArchiveDepth: 1,
+            maxArchiveEntries: 1,
+            warningSink: warnings.Add));
+        string[] paths = [.. fragments.Select(fragment => fragment.FilePath)];
+
+        Assert.HasCount(1, fragments);
+        Assert.Contains("secrets.zip!first.txt", paths);
+        Assert.DoesNotContain("secrets.zip!second.txt", paths);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("archive entry limit reached after 1 entries while reading secrets.zip", warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that staged git enumeration expands zip archive blobs from the index.
     /// </summary>
     [TestMethod]

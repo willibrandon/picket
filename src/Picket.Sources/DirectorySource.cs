@@ -107,8 +107,10 @@ public sealed class DirectorySource
                     fullPath,
                     displayPath,
                     options.MaxArchiveDepth,
+                    options.MaxArchiveEntries,
                     options.MaxTargetBytes,
                     options.IsPathAllowed,
+                    options.WarningSink,
                     entries))
                 {
                     foreach (ArchiveEntry entry in entries)

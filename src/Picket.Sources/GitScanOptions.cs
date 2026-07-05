@@ -10,6 +10,8 @@ namespace Picket.Sources;
 /// <param name="maxArchiveDepth">The maximum nested archive depth to enumerate.</param>
 /// <param name="maxTargetBytes">The maximum archive entry size to yield, or <see langword="null" /> for no cap.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> for globally allowlisted archive entry paths.</param>
+/// <param name="maxArchiveEntries">The maximum number of archive entries to enumerate, or 0 for no cap.</param>
+/// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 public sealed class GitScanOptions(
     string root,
     string? logOptions = null,
@@ -17,7 +19,9 @@ public sealed class GitScanOptions(
     bool preCommit = false,
     int maxArchiveDepth = 0,
     long? maxTargetBytes = null,
-    Func<string, bool>? isPathAllowed = null)
+    Func<string, bool>? isPathAllowed = null,
+    int maxArchiveEntries = 0,
+    Action<string>? warningSink = null)
 {
     /// <summary>
     /// Gets the full git repository path.
@@ -45,11 +49,18 @@ public sealed class GitScanOptions(
     public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
 
     /// <summary>
+    /// Gets the maximum number of archive entries to enumerate, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveEntries { get; } = RequireMaxArchiveEntries(maxArchiveEntries);
+
+    /// <summary>
     /// Gets the maximum archive entry size to yield, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxTargetBytes { get; } = RequireMaxTargetBytes(maxTargetBytes);
 
     internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
+
+    internal Action<string>? WarningSink { get; } = warningSink;
 
     private static string RequireRoot(string value)
     {
@@ -58,6 +69,12 @@ public sealed class GitScanOptions(
     }
 
     private static int RequireMaxArchiveDepth(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static int RequireMaxArchiveEntries(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;

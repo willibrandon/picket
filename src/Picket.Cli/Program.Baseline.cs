@@ -37,6 +37,7 @@ internal static partial class Program
         bool followSymlinks = false;
         bool ignoreGitleaksAllow = false;
         bool respectNativeIgnoreFiles = true;
+        int maxArchiveEntries = 4096;
         int maxArchiveDepth = 0;
         int maxDecodeDepth = 5;
         long? maxTargetBytes = null;
@@ -219,6 +220,16 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsMaxArchiveEntriesFlag(arg))
+            {
+                if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-entries", out maxArchiveEntries))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
             if (IsTimeoutFlag(arg))
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
@@ -293,17 +304,19 @@ internal static partial class Program
 
         IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
             root,
-            maxTargetBytes,
-            followSymlinks,
-            maxArchiveDepth,
-            rules.IsGlobalPathAllowed,
+            maxTargetBytes: maxTargetBytes,
+            followSymbolicLinks: followSymlinks,
+            maxArchiveDepth: maxArchiveDepth,
+            maxArchiveEntries: maxArchiveEntries,
+            isPathAllowed: rules.IsGlobalPathAllowed,
             readPicketIgnoreFiles: respectNativeIgnoreFiles,
             readIgnoreFiles: respectNativeIgnoreFiles,
             readGitIgnoreFiles: respectNativeIgnoreFiles,
             readGlobalGitIgnore: respectNativeIgnoreFiles,
             ignoreHidden: respectNativeIgnoreFiles,
             readParentIgnoreFiles: respectNativeIgnoreFiles,
-            ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : []));
+            ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
+            warningSink: Console.Error.WriteLine));
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
         string? reportDisplayPath = CreateControlFileDisplayPath(root, reportPath);
