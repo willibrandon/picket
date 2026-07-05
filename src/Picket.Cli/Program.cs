@@ -305,7 +305,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
-    if (!TryLoadRules(configPath, configSource, enabledRuleIds, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, configSource, enabledRuleIds, nativeConfig: false, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -907,7 +907,7 @@ static int RunBaselineCreate(string[] args)
     }
 
     long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-    if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: true, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -1384,7 +1384,7 @@ static int RunDirectory(
     }
 
     long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-    if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: nativeReportFormats, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -1785,7 +1785,7 @@ static int RunGit(string[] args)
         return UnknownFlagExitCode;
     }
 
-    if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: false, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -3659,11 +3659,14 @@ static bool TryLoadRules(
     string? configPath,
     string source,
     IReadOnlyList<string> enabledRuleIds,
+    bool nativeConfig,
     [NotNullWhen(true)] out CompiledRuleSet? rules)
 {
     try
     {
-        RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, source);
+        RuleSet ruleSet = nativeConfig
+            ? PicketConfigLoader.LoadRuleSet(configPath, source)
+            : GitleaksConfigLoader.LoadRuleSet(configPath, source);
         ruleSet = FilterEnabledRules(ruleSet, enabledRuleIds);
         rules = CompiledRuleSet.Compile(ruleSet);
         return true;
@@ -3685,7 +3688,7 @@ static bool TryOpenNativeScanCache(
     [NotNullWhen(true)] out PicketScanCache? scanCache)
 {
     scanCache = null;
-    if (!TryLoadRules(configPath, source, [], out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, source, [], nativeConfig: true, out CompiledRuleSet? rules))
     {
         return false;
     }

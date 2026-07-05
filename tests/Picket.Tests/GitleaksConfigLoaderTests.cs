@@ -231,6 +231,112 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that strict compatibility config loading ignores Picket-native environment variables.
+    /// </summary>
+    [TestMethod]
+    public void LoadRuleSetIgnoresPicketEnvironmentVariables()
+    {
+        string root = CreateTempDirectory();
+        string? previousPicketConfigPath = Environment.GetEnvironmentVariable("PICKET_CONFIG");
+        string? previousPicketConfigToml = Environment.GetEnvironmentVariable("PICKET_CONFIG_TOML");
+        string? previousGitleaksConfigPath = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG");
+        string? previousGitleaksConfigToml = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG_TOML");
+        try
+        {
+            File.WriteAllText(Path.Combine(root, ".gitleaks.toml"), CreateRuleConfig("source-rule", "source-[0-9]+"));
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", null);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", CreateRuleConfig("picket-rule", "picket-[0-9]+"));
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", null);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", null);
+
+            RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(null, root);
+
+            Assert.HasCount(1, ruleSet.Rules);
+            Assert.AreEqual("source-rule", ruleSet.Rules[0].Id);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", previousPicketConfigPath);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", previousPicketConfigToml);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", previousGitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", previousGitleaksConfigToml);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Picket-native config loading uses PICKET_CONFIG before Gitleaks-compatible environment variables.
+    /// </summary>
+    [TestMethod]
+    public void PicketConfigLoaderUsesPicketConfigBeforeGitleaksConfig()
+    {
+        string root = CreateTempDirectory();
+        string picketConfigPath = Path.Combine(root, "picket.toml");
+        string gitleaksConfigPath = Path.Combine(root, "gitleaks.toml");
+        string? previousPicketConfigPath = Environment.GetEnvironmentVariable("PICKET_CONFIG");
+        string? previousPicketConfigToml = Environment.GetEnvironmentVariable("PICKET_CONFIG_TOML");
+        string? previousGitleaksConfigPath = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG");
+        string? previousGitleaksConfigToml = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG_TOML");
+        try
+        {
+            File.WriteAllText(picketConfigPath, CreateRuleConfig("picket-rule", "picket-[0-9]+"));
+            File.WriteAllText(gitleaksConfigPath, CreateRuleConfig("gitleaks-rule", "gitleaks-[0-9]+"));
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", picketConfigPath);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", CreateRuleConfig("picket-inline-rule", "picket-inline-[0-9]+"));
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", gitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", CreateRuleConfig("gitleaks-inline-rule", "gitleaks-inline-[0-9]+"));
+
+            RuleSet ruleSet = PicketConfigLoader.LoadRuleSet(null, root);
+
+            Assert.HasCount(1, ruleSet.Rules);
+            Assert.AreEqual("picket-rule", ruleSet.Rules[0].Id);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", previousPicketConfigPath);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", previousPicketConfigToml);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", previousGitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", previousGitleaksConfigToml);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Picket-native inline config takes precedence before Gitleaks-compatible environment variables.
+    /// </summary>
+    [TestMethod]
+    public void PicketConfigLoaderUsesPicketConfigTomlBeforeGitleaksConfig()
+    {
+        string root = CreateTempDirectory();
+        string gitleaksConfigPath = Path.Combine(root, "gitleaks.toml");
+        string? previousPicketConfigPath = Environment.GetEnvironmentVariable("PICKET_CONFIG");
+        string? previousPicketConfigToml = Environment.GetEnvironmentVariable("PICKET_CONFIG_TOML");
+        string? previousGitleaksConfigPath = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG");
+        string? previousGitleaksConfigToml = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG_TOML");
+        try
+        {
+            File.WriteAllText(gitleaksConfigPath, CreateRuleConfig("gitleaks-rule", "gitleaks-[0-9]+"));
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", null);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", CreateRuleConfig("picket-inline-rule", "picket-inline-[0-9]+"));
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", gitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", CreateRuleConfig("gitleaks-inline-rule", "gitleaks-inline-[0-9]+"));
+
+            RuleSet ruleSet = PicketConfigLoader.LoadRuleSet(null, root);
+
+            Assert.HasCount(1, ruleSet.Rules);
+            Assert.AreEqual("picket-inline-rule", ruleSet.Rules[0].Id);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", previousPicketConfigPath);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", previousPicketConfigToml);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", previousGitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", previousGitleaksConfigToml);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks required-rule tables load into scanner rules.
     /// </summary>
     [TestMethod]

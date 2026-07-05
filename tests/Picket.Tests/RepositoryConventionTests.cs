@@ -263,6 +263,8 @@ public sealed partial class RepositoryConventionTests
 
         Assert.Contains("picket rules check", rules);
         Assert.Contains("picket rules test", rules);
+        Assert.Contains("PICKET_CONFIG", rules);
+        Assert.Contains("Strict compatibility commands ignore", rules);
         Assert.Contains("secretGroup", rules);
         Assert.Contains("targetRules", rules);
         Assert.Contains("Scout `ByteRegex`", rules);

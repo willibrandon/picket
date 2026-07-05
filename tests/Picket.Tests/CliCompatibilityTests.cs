@@ -536,6 +536,46 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans can load config from PICKET_CONFIG_TOML.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesPicketConfigTomlEnvironmentVariable()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "native-only-secret");
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(environment, "scan", root.Path, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"native-rule\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that strict compatibility directory scans ignore PICKET_CONFIG_TOML.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanIgnoresPicketConfigTomlEnvironmentVariable()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, ".gitleaks.toml"), CreateRuleConfig("compat-rule", "compat-only-secret"));
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "native-only-secret");
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(environment, "dir", root.Path, "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.DoesNotContain("native-rule", result.Stdout);
+        Assert.DoesNotContain("native-only-secret", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies strict compatibility directory scans reject native cache flags.
     /// </summary>
     [TestMethod]
@@ -2687,12 +2727,26 @@ public sealed class CliCompatibilityTests
         return await RunCliWithInputAsync(null, arguments).ConfigureAwait(false);
     }
 
+    private static async Task<CliResult> RunCliWithEnvironmentAsync(IReadOnlyDictionary<string, string?> environment, params string[] arguments)
+    {
+        return await RunCliWithInputFromDirectoryAsync(GetRepositoryRoot(), null, environment, arguments).ConfigureAwait(false);
+    }
+
     private static async Task<CliResult> RunCliWithInputAsync(string? standardInput, params string[] arguments)
     {
         return await RunCliWithInputFromDirectoryAsync(GetRepositoryRoot(), standardInput, arguments).ConfigureAwait(false);
     }
 
     private static async Task<CliResult> RunCliWithInputFromDirectoryAsync(string workingDirectory, string? standardInput, params string[] arguments)
+    {
+        return await RunCliWithInputFromDirectoryAsync(workingDirectory, standardInput, environment: null, arguments).ConfigureAwait(false);
+    }
+
+    private static async Task<CliResult> RunCliWithInputFromDirectoryAsync(
+        string workingDirectory,
+        string? standardInput,
+        IReadOnlyDictionary<string, string?>? environment,
+        params string[] arguments)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo(GetCliExecutablePath())
@@ -2710,6 +2764,23 @@ public sealed class CliCompatibilityTests
 
         process.StartInfo.Environment.Remove("GITLEAKS_CONFIG");
         process.StartInfo.Environment.Remove("GITLEAKS_CONFIG_TOML");
+        process.StartInfo.Environment.Remove("PICKET_CONFIG");
+        process.StartInfo.Environment.Remove("PICKET_CONFIG_TOML");
+        if (environment is not null)
+        {
+            foreach (KeyValuePair<string, string?> variable in environment)
+            {
+                if (variable.Value is null)
+                {
+                    process.StartInfo.Environment.Remove(variable.Key);
+                }
+                else
+                {
+                    process.StartInfo.Environment[variable.Key] = variable.Value;
+                }
+            }
+        }
+
         process.Start();
         if (standardInput is not null)
         {

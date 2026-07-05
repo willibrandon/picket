@@ -12,7 +12,17 @@ Compatibility commands load configuration in this order:
 4. `{target}/.gitleaks.toml`
 5. embedded Gitleaks compatibility rules
 
-Native commands currently use the same rule model and may add Picket-native rule packs behind explicit native profiles or flags.
+Native commands currently use the same rule model with Picket-native environment precedence:
+
+1. `--config`
+2. `PICKET_CONFIG`
+3. `PICKET_CONFIG_TOML`
+4. `GITLEAKS_CONFIG`
+5. `GITLEAKS_CONFIG_TOML`
+6. `{target}/.gitleaks.toml`
+7. embedded Gitleaks compatibility rules
+
+Strict compatibility commands ignore `PICKET_CONFIG` and `PICKET_CONFIG_TOML`. Native rule packs may later extend this model behind explicit native profiles or flags.
 
 ## Rule Shape
 
