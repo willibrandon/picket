@@ -1,3 +1,4 @@
+using Picket.Compat;
 using Picket.Engine;
 using Picket.Rules;
 using Picket.Sources;
@@ -35,6 +36,38 @@ public sealed class DirectoryScanTests
             Assert.HasCount(1, findings);
             Assert.AreEqual("nested/secret.txt", findings[0].File);
             Assert.AreEqual("nested/secret.txt:aws-access-token:1", findings[0].Fingerprint);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that .gitleaksignore fingerprints suppress directory scan findings.
+    /// </summary>
+    [TestMethod]
+    public void ScanFiltersIgnoredDirectoryFinding()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "secret.txt"), "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF");
+            File.WriteAllText(Path.Combine(root, ".gitleaksignore"), "secret.txt:aws-access-token:1");
+
+            CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+            GitleaksIgnore ignore = GitleaksIgnore.Load(Path.Combine(root, ".gitleaksignore"));
+            var scanner = new SecretScanner();
+            var findings = new List<Finding>();
+            foreach (SourceFile file in new DirectorySource().Enumerate(new DirectoryScanOptions(root)))
+            {
+                byte[] input = File.ReadAllBytes(file.FullPath);
+                findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
+            }
+
+            IReadOnlyList<Finding> filtered = ignore.Filter(findings);
+
+            Assert.IsEmpty(filtered);
         }
         finally
         {

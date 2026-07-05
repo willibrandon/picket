@@ -1,3 +1,4 @@
+using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
@@ -72,6 +73,7 @@ static async Task<int> RunStdinAsync(string[] args)
 static int RunDirectory(string[] args)
 {
     string reportFormat = "json";
+    string gitleaksIgnorePath = ".";
     long? maxTargetBytes = null;
     string? root = null;
     for (int i = 0; i < args.Length; i++)
@@ -86,6 +88,18 @@ static int RunDirectory(string[] args)
             }
 
             reportFormat = args[++i];
+            continue;
+        }
+
+        if (arg is "-i" or "--gitleaks-ignore-path")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            gitleaksIgnorePath = args[++i];
             continue;
         }
 
@@ -134,6 +148,7 @@ static int RunDirectory(string[] args)
     }
 
     IReadOnlyList<SourceFile> files = new DirectorySource().Enumerate(new DirectoryScanOptions(root, maxTargetBytes));
+    GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
     var findings = new List<Finding>();
     var scanner = new SecretScanner();
@@ -143,8 +158,9 @@ static int RunDirectory(string[] args)
         findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
     }
 
-    Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
-    return findings.Count == 0 ? 0 : 1;
+    IReadOnlyList<Finding> filteredFindings = gitleaksIgnore.Filter(findings);
+    Console.Out.Write(GitleaksJsonReportWriter.Write(filteredFindings));
+    return filteredFindings.Count == 0 ? 0 : 1;
 }
 
 static bool IsHelp(string arg)
@@ -171,12 +187,21 @@ static bool TryParseMegabytes(string value, out long? bytes)
     return true;
 }
 
+static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string source)
+{
+    return GitleaksIgnore.LoadExisting([
+        gitleaksIgnorePath,
+        Path.Combine(gitleaksIgnorePath, ".gitleaksignore"),
+        Path.Combine(source, ".gitleaksignore"),
+    ]);
+}
+
 static void WriteHelp()
 {
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-f json] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket dir <path> [-f json] [-i path] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket stdin [-f json]");
     Console.Out.WriteLine("  picket version");
 }

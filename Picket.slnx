@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Picket.Cli/Picket.Cli.csproj" />
+    <Project Path="src/Picket.Compat/Picket.Compat.csproj" />
     <Project Path="src/Picket.Engine/Picket.Engine.csproj" />
     <Project Path="src/Picket.Report/Picket.Report.csproj" />
     <Project Path="src/Picket.Rules/Picket.Rules.csproj" />

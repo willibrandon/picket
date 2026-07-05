@@ -16,6 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Picket.Compat\Picket.Compat.csproj" />
     <ProjectReference Include="..\Picket.Engine\Picket.Engine.csproj" />
     <ProjectReference Include="..\Picket.Report\Picket.Report.csproj" />
     <ProjectReference Include="..\Picket.Rules\Picket.Rules.csproj" />
