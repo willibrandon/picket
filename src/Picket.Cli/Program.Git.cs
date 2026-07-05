@@ -29,7 +29,8 @@ internal static partial class Program
         string root = ".";
         int exitCode = 1;
         bool ignoreGitleaksAllow = false;
-        int maxArchiveEntries = nativeMode ? 4096 : 0;
+        int maxArchiveEntries = nativeMode ? DefaultNativeMaxArchiveEntries : 0;
+        long? maxArchiveBytes = nativeMode ? DefaultNativeMaxArchiveBytes : null;
         int maxArchiveDepth = 0;
         int maxDecodeDepth = 5;
         bool preCommit = false;
@@ -232,6 +233,16 @@ internal static partial class Program
                 continue;
             }
 
+            if (nativeMode && IsMaxArchiveMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, "--max-archive-megabytes", out maxArchiveBytes))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
             if (IsTimeoutFlag(arg))
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
@@ -319,6 +330,7 @@ internal static partial class Program
                 preCommit: preCommit,
                 maxArchiveDepth: maxArchiveDepth,
                 maxArchiveEntries: maxArchiveEntries,
+                maxArchiveBytes: maxArchiveBytes,
                 maxTargetBytes: maxTargetBytes,
                 isPathAllowed: rules.IsGlobalPathAllowed,
                 warningSink: nativeMode ? Console.Error.WriteLine : null));

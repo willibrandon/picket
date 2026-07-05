@@ -761,6 +761,21 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies strict compatibility directory scans reject native archive byte caps.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeArchiveByteLimitFlag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-megabytes", "1").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("unknown flag: --max-archive-megabytes", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies native scans can cap archive entries and emit a clear warning.
     /// </summary>
     [TestMethod]
@@ -789,6 +804,37 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"file\":\"secrets.zip!first.txt\"", result.Stdout);
         Assert.DoesNotContain("secrets.zip!second.txt", result.Stdout);
         Assert.Contains("archive entry limit reached after 1 entries while reading secrets.zip", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies native scans can cap decompressed archive bytes and emit a clear warning.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanHonorsArchiveByteLimit()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        WriteZipFile(
+            Path.Combine(root.Path, "secrets.zip"),
+            ("first.txt", string.Concat("token-12345\n", new string('!', 599_988))),
+            ("second.txt", string.Concat("token-23456\n", new string('!', 599_988))));
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--max-archive-depth",
+            "1",
+            "--max-archive-megabytes",
+            "1",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"secrets.zip!first.txt\"", result.Stdout);
+        Assert.DoesNotContain("secrets.zip!second.txt", result.Stdout);
+        Assert.Contains("archive byte limit reached while reading secrets.zip", result.Stderr);
     }
 
     /// <summary>

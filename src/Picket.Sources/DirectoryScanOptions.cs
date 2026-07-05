@@ -16,6 +16,7 @@ namespace Picket.Sources;
 /// <param name="readParentIgnoreFiles">A value indicating whether ignore files from parent directories above the root are read.</param>
 /// <param name="ignoreFilePaths">Explicit ignore files to apply while traversing.</param>
 /// <param name="maxArchiveEntries">The maximum number of archive entries to enumerate, or 0 for no cap.</param>
+/// <param name="maxArchiveBytes">The maximum number of decompressed archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 public sealed class DirectoryScanOptions(
     string root,
@@ -31,6 +32,7 @@ public sealed class DirectoryScanOptions(
     bool readParentIgnoreFiles = false,
     IReadOnlyList<string>? ignoreFilePaths = null,
     int maxArchiveEntries = 0,
+    long? maxArchiveBytes = null,
     Action<string>? warningSink = null)
 {
     private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
@@ -59,6 +61,11 @@ public sealed class DirectoryScanOptions(
     /// Gets the maximum number of archive entries to enumerate, or 0 for no cap.
     /// </summary>
     public int MaxArchiveEntries { get; } = RequireMaxArchiveEntries(maxArchiveEntries);
+
+    /// <summary>
+    /// Gets the maximum number of decompressed archive bytes to enumerate, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxArchiveBytes { get; } = RequireMaxArchiveBytes(maxArchiveBytes);
 
     /// <summary>
     /// Gets a value indicating whether per-directory <c>.picketignore</c> files are read.
@@ -124,6 +131,16 @@ public sealed class DirectoryScanOptions(
     private static int RequireMaxArchiveEntries(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static long? RequireMaxArchiveBytes(long? value)
+    {
+        if (value.HasValue)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+        }
+
         return value;
     }
 

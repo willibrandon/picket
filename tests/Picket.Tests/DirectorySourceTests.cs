@@ -372,6 +372,40 @@ public sealed class DirectorySourceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that archive enumeration honors the configured decompressed byte safety cap.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateHonorsArchiveByteLimit()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            WriteZipFile(
+                Path.Combine(root, "secrets.zip"),
+                ("first.txt", "token-12345"),
+                ("second.txt", "token-23456"));
+            var warnings = new List<string>();
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxArchiveDepth: 1,
+                maxArchiveBytes: 11,
+                warningSink: warnings.Add));
+            string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
+
+            Assert.HasCount(1, files);
+            Assert.Contains("secrets.zip!first.txt", displayPaths);
+            Assert.DoesNotContain("secrets.zip!second.txt", displayPaths);
+            Assert.HasCount(1, warnings);
+            Assert.Contains("archive byte limit reached while reading secrets.zip", warnings[0]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         string path = Path.Combine(Path.GetTempPath(), "picket-tests", Guid.NewGuid().ToString("N"));

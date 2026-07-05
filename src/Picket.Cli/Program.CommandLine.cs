@@ -75,14 +75,19 @@ internal static partial class Program
 
     static bool TryReadMegabytesFlag(string[] args, ref int index, out long? maxTargetBytes)
     {
-        if (TryReadStringFlag(args, ref index, "--max-target-megabytes", out string? value)
-            && TryParseMegabytes(value, out maxTargetBytes))
+        return TryReadMegabytesFlag(args, ref index, "--max-target-megabytes", out maxTargetBytes);
+    }
+
+    static bool TryReadMegabytesFlag(string[] args, ref int index, string longName, out long? bytes)
+    {
+        if (TryReadStringFlag(args, ref index, longName, out string? value)
+            && TryParseMegabytes(value, out bytes))
         {
             return true;
         }
 
-        Console.Error.WriteLine("--max-target-megabytes requires a non-negative integer value");
-        maxTargetBytes = null;
+        Console.Error.WriteLine($"{longName} requires a non-negative integer value");
+        bytes = null;
         return false;
     }
 
@@ -474,6 +479,12 @@ internal static partial class Program
     {
         return arg.Equals("--max-archive-entries", StringComparison.Ordinal)
             || arg.StartsWith("--max-archive-entries=", StringComparison.Ordinal);
+    }
+
+    static bool IsMaxArchiveMegabytesFlag(string arg)
+    {
+        return arg.Equals("--max-archive-megabytes", StringComparison.Ordinal)
+            || arg.StartsWith("--max-archive-megabytes=", StringComparison.Ordinal);
     }
 
     static bool IsTimeoutFlag(string arg)

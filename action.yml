@@ -52,7 +52,11 @@ inputs:
     required: false
     default: "100"
   max-target-megabytes:
-    description: Optional maximum file size in MiB for content rules.
+    description: Optional maximum file size in decimal MB for content rules.
+    required: false
+    default: ""
+  max-archive-megabytes:
+    description: Optional maximum decompressed archive payload in decimal MB.
     required: false
     default: ""
   dotnet-version:
@@ -120,6 +124,7 @@ runs:
         PICKET_ANNOTATION_LIMIT: ${{ inputs.annotation-limit }}
         PICKET_REDACT: ${{ inputs.redact }}
         PICKET_MAX_TARGET_MEGABYTES: ${{ inputs.max-target-megabytes }}
+        PICKET_MAX_ARCHIVE_MEGABYTES: ${{ inputs.max-archive-megabytes }}
       run: '& "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.ps1"'
 
     - name: Save scan cache

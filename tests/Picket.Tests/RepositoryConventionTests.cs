@@ -51,6 +51,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("annotation-limit", action);
         Assert.Contains("cache-path", action);
         Assert.Contains("redact", action);
+        Assert.Contains("max-archive-megabytes", action);
         Assert.Contains("actions/cache/restore", action);
         Assert.Contains("actions/cache/save", action);
         Assert.Contains("github/codeql-action/upload-sarif", action);
@@ -73,6 +74,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--redact=$redact", helper);
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--max-target-megabytes", helper);
+        Assert.Contains("--max-archive-megabytes", helper);
         Assert.Contains("ConvertFrom-Json", helper);
         Assert.Contains("::warning", helper);
         Assert.Contains("PICKET_ANNOTATIONS", helper);
@@ -103,6 +105,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("redact: 0", documentation);
         Assert.Contains("upload-sarif", documentation);
         Assert.Contains("cache-path", documentation);
+        Assert.Contains("max-archive-megabytes", documentation);
         Assert.Contains("actions/cache/restore", documentation);
         Assert.Contains("actions/cache/save", documentation);
         Assert.Contains("picket.sarif", documentation);
@@ -192,7 +195,7 @@ public sealed partial class RepositoryConventionTests
         XElement props = ReadProjectFile("Directory.Build.props");
 
         AssertProjectProperty(props, "VersionPrefix", "0.1.0");
-        AssertProjectProperty(props, "Authors", "Picket contributors");
+        AssertProjectProperty(props, "Authors", "willibrandon");
         AssertProjectProperty(props, "PackageLicenseExpression", "MIT");
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
         AssertProjectProperty(props, "RepositoryType", "git");

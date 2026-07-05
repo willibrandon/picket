@@ -108,6 +108,7 @@ public sealed class DirectorySource
                     displayPath,
                     options.MaxArchiveDepth,
                     options.MaxArchiveEntries,
+                    options.MaxArchiveBytes,
                     options.MaxTargetBytes,
                     options.IsPathAllowed,
                     options.WarningSink,

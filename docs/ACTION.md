@@ -44,7 +44,8 @@ jobs:
 | `annotations` | `true` | Emit safe GitHub workflow warning annotations from JSONL findings. |
 | `annotation-limit` | `50` | Maximum number of workflow annotations to emit. Use `0` to disable without changing `annotations`. |
 | `redact` | `100` | Redaction percentage from `0` through `100`. Public CI defaults to full redaction. |
-| `max-target-megabytes` | empty | Optional maximum file size in MiB for content rules. |
+| `max-target-megabytes` | empty | Optional maximum file size in decimal MB for content rules. |
+| `max-archive-megabytes` | empty | Optional maximum decompressed archive payload in decimal MB. |
 | `dotnet-version` | `10.0.301` | .NET SDK version used by the source-based action. |
 | `setup-dotnet` | `true` | Install the configured SDK before restoring and running Picket. |
 

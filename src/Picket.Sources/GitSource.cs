@@ -262,6 +262,7 @@ public static class GitSource
             filePath,
             options.MaxArchiveDepth,
             options.MaxArchiveEntries,
+            options.MaxArchiveBytes,
             options.MaxTargetBytes,
             options.IsPathAllowed,
             options.WarningSink,

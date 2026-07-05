@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Formats.Tar;
 using System.IO.Compression;
 
@@ -37,6 +38,7 @@ internal static class ArchiveReader
         string displayPath,
         int maxArchiveDepth,
         int maxArchiveEntries,
+        long? maxArchiveBytes,
         long? maxEntryBytes,
         Func<string, bool>? isPathAllowed,
         Action<string>? warningSink,
@@ -59,7 +61,7 @@ internal static class ArchiveReader
             }
 
             stream.Position = 0;
-            var budget = new ArchiveReadBudget(maxArchiveEntries, warningSink);
+            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, warningSink);
             AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth: 1);
             return true;
         }
@@ -74,6 +76,7 @@ internal static class ArchiveReader
         string displayPath,
         int maxArchiveDepth,
         int maxArchiveEntries,
+        long? maxArchiveBytes,
         long? maxEntryBytes,
         Func<string, bool>? isPathAllowed,
         Action<string>? warningSink,
@@ -93,7 +96,7 @@ internal static class ArchiveReader
         try
         {
             using var stream = new MemoryStream(content, writable: false);
-            var budget = new ArchiveReadBudget(maxArchiveEntries, warningSink);
+            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, warningSink);
             AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth: 1);
             return true;
         }
@@ -163,7 +166,7 @@ internal static class ArchiveReader
             }
 
             using Stream entryStream = entry.Open();
-            if (!TryReadStreamBytes(entryStream, entry.Length, maxEntryBytes, out byte[] entryContent))
+            if (!TryReadStreamBytes(displayPath, entryStream, entry.Length, maxEntryBytes, budget, out byte[] entryContent))
             {
                 continue;
             }
@@ -215,7 +218,7 @@ internal static class ArchiveReader
                 return;
             }
 
-            if (!TryReadStreamBytes(entry.DataStream, entry.Length, maxEntryBytes, out byte[] entryContent))
+            if (!TryReadStreamBytes(displayPath, entry.DataStream, entry.Length, maxEntryBytes, budget, out byte[] entryContent))
             {
                 continue;
             }
@@ -243,7 +246,7 @@ internal static class ArchiveReader
         int archiveDepth)
     {
         using var gzipStream = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
-        if (!TryReadStreamBytes(gzipStream, length: null, maxEntryBytes, out byte[] decompressedContent))
+        if (!TryReadStreamBytes(displayPath, gzipStream, length: null, maxEntryBytes, budget, out byte[] decompressedContent))
         {
             return;
         }
@@ -297,7 +300,13 @@ internal static class ArchiveReader
         }
     }
 
-    private static bool TryReadStreamBytes(Stream stream, long? length, long? maxBytes, out byte[] bytes)
+    private static bool TryReadStreamBytes(
+        string archivePath,
+        Stream stream,
+        long? length,
+        long? maxBytes,
+        ArchiveReadBudget budget,
+        out byte[] bytes)
     {
         if (length.HasValue && IsTooLarge(length.Value, maxBytes))
         {
@@ -305,10 +314,39 @@ internal static class ArchiveReader
             return false;
         }
 
+        bool reservedKnownLength = length.HasValue;
+        if (reservedKnownLength && !budget.TryReserveBytes(archivePath, length.GetValueOrDefault()))
+        {
+            bytes = [];
+            return false;
+        }
+
         int capacity = length is > 0 and <= int.MaxValue ? (int)length.Value : 0;
         using var memoryStream = new MemoryStream(capacity);
-        stream.CopyTo(memoryStream);
-        if (IsTooLarge(memoryStream.Length, maxBytes))
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);
+        long totalRead = 0;
+        try
+        {
+            int read;
+            while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
+            {
+                totalRead += read;
+                if (IsTooLarge(totalRead, maxBytes)
+                    || (!reservedKnownLength && !budget.TryConsumeBytes(archivePath, read)))
+                {
+                    bytes = [];
+                    return false;
+                }
+
+                memoryStream.Write(buffer, 0, read);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+
+        if (reservedKnownLength && totalRead > length.GetValueOrDefault())
         {
             bytes = [];
             return false;

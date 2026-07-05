@@ -37,7 +37,8 @@ internal static partial class Program
         bool followSymlinks = false;
         bool ignoreGitleaksAllow = false;
         bool respectNativeIgnoreFiles = true;
-        int maxArchiveEntries = 4096;
+        int maxArchiveEntries = DefaultNativeMaxArchiveEntries;
+        long? maxArchiveBytes = DefaultNativeMaxArchiveBytes;
         int maxArchiveDepth = 0;
         int maxDecodeDepth = 5;
         long? maxTargetBytes = null;
@@ -230,6 +231,16 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsMaxArchiveMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, "--max-archive-megabytes", out maxArchiveBytes))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
             if (IsTimeoutFlag(arg))
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
@@ -308,6 +319,7 @@ internal static partial class Program
             followSymbolicLinks: followSymlinks,
             maxArchiveDepth: maxArchiveDepth,
             maxArchiveEntries: maxArchiveEntries,
+            maxArchiveBytes: maxArchiveBytes,
             isPathAllowed: rules.IsGlobalPathAllowed,
             readPicketIgnoreFiles: respectNativeIgnoreFiles,
             readIgnoreFiles: respectNativeIgnoreFiles,

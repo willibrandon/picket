@@ -505,7 +505,7 @@ Compatibility mode follows Gitleaks for:
 - git binary blob handling,
 - decimal megabyte size caps.
 
-Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, timeouts, path traversal protection, temp-file policy, and clear diagnostics. Native directory, git, verify, analyze, and baseline workflows cap archive enumeration at 4096 entries by default; `--max-archive-entries 0` disables the cap for trusted inputs.
+Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, timeouts, path traversal protection, temp-file policy, and clear diagnostics. Native directory, git, verify, analyze, and baseline workflows cap archive enumeration at 4096 entries and 512 decimal MB of decompressed archive payload by default; `--max-archive-entries 0` and `--max-archive-megabytes 0` disable those caps for trusted inputs.
 
 ---
 
