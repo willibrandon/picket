@@ -481,6 +481,7 @@ public static class GitleaksTemplateReportWriter
             "File" => finding.File,
             "Fingerprint" => finding.Fingerprint,
             "Line" => finding.Line,
+            "Link" => finding.Link,
             "Match" => finding.Match,
             "Message" => finding.Message,
             "RuleID" => finding.RuleID,

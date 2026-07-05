@@ -42,10 +42,20 @@ public static class GitleaksCsvReportWriter
         }
 
         var builder = new StringBuilder();
-        WriteRow(builder, s_columns);
+        bool includeLink = findings[0].Link.Length != 0;
+        if (includeLink)
+        {
+            WriteRow(builder, [.. s_columns, "Link"]);
+        }
+        else
+        {
+            WriteRow(builder, s_columns);
+        }
+
         foreach (Finding finding in findings)
         {
-            WriteRow(builder, [
+            string[] row =
+            [
                 finding.RuleID,
                 finding.Commit,
                 finding.File,
@@ -62,7 +72,15 @@ public static class GitleaksCsvReportWriter
                 finding.Email,
                 finding.Fingerprint,
                 string.Join(' ', finding.Tags),
-            ]);
+            ];
+            if (includeLink)
+            {
+                WriteRow(builder, [.. row, finding.Link]);
+            }
+            else
+            {
+                WriteRow(builder, row);
+            }
         }
 
         return builder.ToString();

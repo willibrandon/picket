@@ -65,7 +65,8 @@ public static class GitleaksFindingRedactor
             finding.Message,
             finding.Tags,
             finding.Fingerprint,
-            line);
+            line,
+            finding.Link);
     }
 
     private static string MaskSecret(string secret, int redactionPercent)

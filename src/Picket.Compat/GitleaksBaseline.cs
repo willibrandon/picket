@@ -140,7 +140,8 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
             GetString(element, "Date"),
             GetString(element, "Message"),
             GetStringArray(element, "Tags"),
-            GetString(element, "Fingerprint"));
+            GetString(element, "Fingerprint"),
+            link: GetString(element, "Link"));
     }
 
     private static string GetString(JsonElement element, string name)

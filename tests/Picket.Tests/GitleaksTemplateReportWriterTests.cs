@@ -42,6 +42,7 @@ public sealed class GitleaksTemplateReportWriterTests
             {{- range $i, $finding := . }}{{with $finding}}
                 {
                     "Line": {{ quote .Line }},
+                    "Link": {{ quote .Link }},
                     "Tags": [{{ $lastTag := (sub (len .Tags ) 1) }}{{ range $j, $tag := .Tags }}{{ quote . }}{{ if ne $j $lastTag }},{{ end }}{{ end }}],
                     "RuleID": {{ quote .RuleID }}
                 }{{ if ne $i $lastFinding }},{{ end }}
@@ -50,6 +51,7 @@ public sealed class GitleaksTemplateReportWriterTests
             """);
 
         Assert.Contains("\"Line\": \"whole line containing secret\"", report);
+        Assert.Contains("\"Link\": \"https://github.com/example/repo/blob/commit/auth.py#L1\"", report);
         Assert.Contains("\"Tags\": [\"tag1\",\"tag2\",\"tag3\"]", report);
         Assert.Contains("\"RuleID\": \"test-rule\"", report);
     }
@@ -87,6 +89,7 @@ public sealed class GitleaksTemplateReportWriterTests
             "opps",
             ["tag1", "tag2", "tag3"],
             "fingerprint",
-            "whole line containing secret");
+            "whole line containing secret",
+            "https://github.com/example/repo/blob/commit/auth.py#L1");
     }
 }

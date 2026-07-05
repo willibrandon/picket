@@ -48,9 +48,24 @@ public sealed class GitleaksCsvReportWriterTests
         Assert.Contains("\"line\ncontaining secret\"", csv);
     }
 
+    /// <summary>
+    /// Verifies that Gitleaks only writes the Link column when the first finding has a link.
+    /// </summary>
+    [TestMethod]
+    public void WriteIncludesLinkColumnWhenFirstFindingHasLink()
+    {
+        Finding finding = CreateFinding(link: "https://github.com/example/repo/blob/commit/auth.py#L1");
+
+        string csv = GitleaksCsvReportWriter.Write([finding]);
+
+        Assert.Contains("RuleID,Commit,File,SymlinkFile,Secret,Match,StartLine,EndLine,StartColumn,EndColumn,Author,Message,Date,Email,Fingerprint,Tags,Link\n", csv);
+        Assert.Contains(",tag1 tag2 tag3,https://github.com/example/repo/blob/commit/auth.py#L1\n", csv);
+    }
+
     private static Finding CreateFinding(
         string secret = "a secret",
-        string match = "line containing secret")
+        string match = "line containing secret",
+        string link = "")
     {
         return new Finding(
             "test-rule",
@@ -70,6 +85,7 @@ public sealed class GitleaksCsvReportWriterTests
             "10-19-2003",
             "opps",
             ["tag1", "tag2", "tag3"],
-            "fingerprint");
+            "fingerprint",
+            link: link);
     }
 }

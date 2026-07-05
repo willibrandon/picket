@@ -22,6 +22,7 @@ namespace Picket.Engine;
 /// <param name="tags">The rule tags.</param>
 /// <param name="fingerprint">The Gitleaks-compatible fingerprint.</param>
 /// <param name="line">The full source line that contains the match.</param>
+/// <param name="link">The source control link, or an empty string.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -41,7 +42,8 @@ public sealed class Finding(
     string message,
     IReadOnlyList<string> tags,
     string fingerprint,
-    string line = "")
+    string line = "",
+    string link = "")
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -137,4 +139,9 @@ public sealed class Finding(
     /// Gets the Gitleaks-compatible fingerprint.
     /// </summary>
     public string Fingerprint { get; } = fingerprint;
+
+    /// <summary>
+    /// Gets the source control link, or an empty string.
+    /// </summary>
+    public string Link { get; } = link;
 }

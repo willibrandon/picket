@@ -52,6 +52,11 @@ public static class GitleaksJsonReportWriter
         WriteString(builder, "File", finding.File, comma: true);
         WriteString(builder, "SymlinkFile", finding.SymlinkFile, comma: true);
         WriteString(builder, "Commit", finding.Commit, comma: true);
+        if (finding.Link.Length != 0)
+        {
+            WriteString(builder, "Link", finding.Link, comma: true);
+        }
+
         WriteNumber(builder, "Entropy", finding.Entropy, comma: true);
         WriteString(builder, "Author", finding.Author, comma: true);
         WriteString(builder, "Email", finding.Email, comma: true);

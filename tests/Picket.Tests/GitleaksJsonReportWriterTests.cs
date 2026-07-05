@@ -55,4 +55,57 @@ public sealed class GitleaksJsonReportWriterTests
 
         Assert.IsLessThan(fingerprintIndex, ruleIdIndex);
     }
+
+    /// <summary>
+    /// Verifies that Gitleaks JSON includes Link only when it is present.
+    /// </summary>
+    [TestMethod]
+    public void WriteOmitsEmptyLinkAndIncludesPresentLink()
+    {
+        var findingWithoutLink = new Finding(
+            "rule",
+            "desc",
+            1,
+            1,
+            2,
+            8,
+            "x",
+            "secret",
+            "stdin",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "stdin:rule:1");
+        var findingWithLink = new Finding(
+            "rule",
+            "desc",
+            1,
+            1,
+            2,
+            8,
+            "x",
+            "secret",
+            "stdin",
+            string.Empty,
+            "commit",
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "commit:stdin:rule:1",
+            link: "https://github.com/example/repo/blob/commit/stdin#L1");
+
+        string jsonWithoutLink = GitleaksJsonReportWriter.Write([findingWithoutLink]);
+        string jsonWithLink = GitleaksJsonReportWriter.Write([findingWithLink]);
+
+        Assert.DoesNotContain("\"Link\"", jsonWithoutLink);
+        Assert.Contains("\"Link\": \"https://github.com/example/repo/blob/commit/stdin#L1\"", jsonWithLink);
+    }
 }

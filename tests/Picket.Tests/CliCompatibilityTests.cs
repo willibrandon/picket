@@ -602,6 +602,32 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that git history scans include Gitleaks-compatible source-control links.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanReportsSourceControlLinks()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "remote", "add", "origin", "git@github.com:gitleaks/test.git").ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
+        string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
+        string expectedLink = $"https://github.com/gitleaks/test/blob/{commit}/secret.txt#L1";
+
+        CliResult json = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult csv = await RunCliAsync("git", root.Path, "-c", configPath, "--platform", "github", "-f", "csv").ConfigureAwait(false);
+
+        Assert.AreEqual(1, json.ExitCode);
+        Assert.Contains($"\"Link\": \"{expectedLink}\"", json.Stdout);
+        Assert.AreEqual(1, csv.ExitCode);
+        Assert.Contains("RuleID,Commit,File,SymlinkFile,Secret,Match,StartLine,EndLine,StartColumn,EndColumn,Author,Message,Date,Email,Fingerprint,Tags,Link\n", csv.Stdout);
+        Assert.Contains(expectedLink, csv.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that --enable-rule limits git history scans to requested rule IDs.
     /// </summary>
     [TestMethod]
