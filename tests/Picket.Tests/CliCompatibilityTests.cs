@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Picket.Tests;
 
@@ -277,16 +279,35 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that behavior-changing future flags fail instead of silently doing nothing.
+    /// Verifies that directory scans find secrets inside zip archives when archive traversal is enabled.
     /// </summary>
     [TestMethod]
-    public async Task DirectoryScanRejectsUnimplementedPositiveDepthFlags()
+    public async Task DirectoryScanFindsZipArchiveSecretWhenArchiveDepthEnabled()
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
-        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        WriteZipFile(Path.Combine(root.Path, "secrets.zip"), ("nested/secret.txt", "token-12345"));
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+
+        Assert.AreEqual(0, disabled.ExitCode);
+        Assert.AreEqual("[]\n", disabled.Stdout);
+        Assert.AreEqual(1, enabled.ExitCode);
+        Assert.Contains("\"File\": \"secrets.zip!nested/secret.txt\"", enabled.Stdout);
+        Assert.Contains("\"Secret\": \"token-12345\"", enabled.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that git archive traversal still fails explicitly until git blob archives are implemented.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanRejectsUnimplementedPositiveArchiveDepth()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
 
         Assert.AreEqual(126, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
@@ -703,6 +724,22 @@ public sealed class CliCompatibilityTests
             regex = '''token-[0-9]+'''
             """);
         return configPath;
+    }
+
+    private static void WriteZipFile(string path, params (string Name, string Content)[] entries)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach ((string name, string content) in entries)
+            {
+                ZipArchiveEntry entry = archive.CreateEntry(name, CompressionLevel.NoCompression);
+                using Stream entryStream = entry.Open();
+                entryStream.Write(Encoding.UTF8.GetBytes(content));
+            }
+        }
+
+        File.WriteAllBytes(path, stream.ToArray());
     }
 
     private static string WriteTwoRuleConfig(string root)

@@ -220,6 +220,7 @@ static int RunDirectory(string[] args)
     int exitCode = 1;
     bool followSymlinks = false;
     bool ignoreGitleaksAllow = false;
+    int maxArchiveDepth = 0;
     int maxDecodeDepth = 5;
     long? maxTargetBytes = null;
     int redactionPercent = 0;
@@ -358,6 +359,16 @@ static int RunDirectory(string[] args)
             continue;
         }
 
+        if (IsMaxArchiveDepthFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-depth", out maxArchiveDepth))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -389,7 +400,7 @@ static int RunDirectory(string[] args)
         return UnknownFlagExitCode;
     }
 
-    IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes, followSymlinks));
+    IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes, followSymlinks, maxArchiveDepth));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
     {
@@ -415,7 +426,7 @@ static int RunDirectory(string[] args)
 
         try
         {
-            byte[] input = File.ReadAllBytes(file.FullPath);
+            byte[] input = file.ReadAllBytes();
             findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

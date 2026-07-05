@@ -28,7 +28,7 @@ public sealed class DirectoryScanTests
             var findings = new List<Finding>();
             foreach (SourceFile file in DirectorySource.Enumerate(new DirectoryScanOptions(root)))
             {
-                byte[] input = File.ReadAllBytes(file.FullPath);
+                byte[] input = file.ReadAllBytes();
                 findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
             }
 
@@ -59,7 +59,7 @@ public sealed class DirectoryScanTests
             var findings = new List<Finding>();
             foreach (SourceFile file in DirectorySource.Enumerate(new DirectoryScanOptions(root)))
             {
-                byte[] input = File.ReadAllBytes(file.FullPath);
+                byte[] input = file.ReadAllBytes();
                 findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
             }
 

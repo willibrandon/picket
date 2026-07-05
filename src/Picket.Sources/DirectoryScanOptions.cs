@@ -6,7 +6,12 @@ namespace Picket.Sources;
 /// <param name="root">The directory or file path to enumerate.</param>
 /// <param name="maxTargetBytes">The maximum file size to yield, or <see langword="null" /> for no cap.</param>
 /// <param name="followSymbolicLinks">A value indicating whether symbolic links are followed.</param>
-public sealed class DirectoryScanOptions(string root, long? maxTargetBytes = null, bool followSymbolicLinks = false)
+/// <param name="maxArchiveDepth">The maximum nested archive depth to enumerate.</param>
+public sealed class DirectoryScanOptions(
+    string root,
+    long? maxTargetBytes = null,
+    bool followSymbolicLinks = false,
+    int maxArchiveDepth = 0)
 {
     /// <summary>
     /// Gets the full root path to enumerate.
@@ -23,6 +28,11 @@ public sealed class DirectoryScanOptions(string root, long? maxTargetBytes = nul
     /// </summary>
     public bool FollowSymbolicLinks { get; } = followSymbolicLinks;
 
+    /// <summary>
+    /// Gets the maximum nested archive depth to enumerate.
+    /// </summary>
+    public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
     private static string RequireRoot(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -36,6 +46,12 @@ public sealed class DirectoryScanOptions(string root, long? maxTargetBytes = nul
             ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
         }
 
+        return value;
+    }
+
+    private static int RequireMaxArchiveDepth(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 }
