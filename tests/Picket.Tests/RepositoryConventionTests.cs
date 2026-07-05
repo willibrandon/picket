@@ -52,6 +52,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("cache-path", action);
         Assert.Contains("redact", action);
         Assert.Contains("max-archive-megabytes", action);
+        Assert.Contains("max-archive-ratio", action);
         Assert.Contains("actions/cache/restore", action);
         Assert.Contains("actions/cache/save", action);
         Assert.Contains("github/codeql-action/upload-sarif", action);
@@ -75,6 +76,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--max-target-megabytes", helper);
         Assert.Contains("--max-archive-megabytes", helper);
+        Assert.Contains("--max-archive-ratio", helper);
         Assert.Contains("ConvertFrom-Json", helper);
         Assert.Contains("::warning", helper);
         Assert.Contains("PICKET_ANNOTATIONS", helper);
@@ -106,6 +108,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("upload-sarif", documentation);
         Assert.Contains("cache-path", documentation);
         Assert.Contains("max-archive-megabytes", documentation);
+        Assert.Contains("max-archive-ratio", documentation);
         Assert.Contains("actions/cache/restore", documentation);
         Assert.Contains("actions/cache/save", documentation);
         Assert.Contains("picket.sarif", documentation);

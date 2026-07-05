@@ -46,6 +46,7 @@ jobs:
 | `redact` | `100` | Redaction percentage from `0` through `100`. Public CI defaults to full redaction. |
 | `max-target-megabytes` | empty | Optional maximum file size in decimal MB for content rules. |
 | `max-archive-megabytes` | empty | Optional maximum decompressed archive payload in decimal MB. |
+| `max-archive-ratio` | empty | Optional maximum archive expansion ratio. Use `0` to disable. |
 | `dotnet-version` | `10.0.301` | .NET SDK version used by the source-based action. |
 | `setup-dotnet` | `true` | Install the configured SDK before restoring and running Picket. |
 

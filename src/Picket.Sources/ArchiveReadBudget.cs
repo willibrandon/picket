@@ -2,11 +2,13 @@ using System.Globalization;
 
 namespace Picket.Sources;
 
-internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, Action<string>? warningSink)
+internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, int maxCompressionRatio, Action<string>? warningSink)
 {
     internal int MaxEntries { get; } = maxEntries;
 
     internal long MaxBytes { get; } = maxBytes.GetValueOrDefault();
+
+    internal int MaxCompressionRatio { get; } = maxCompressionRatio;
 
     internal int EntryCount { get; private set; }
 
@@ -15,6 +17,8 @@ internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, Action<s
     internal bool EntryLimitReported { get; private set; }
 
     internal bool ByteLimitReported { get; private set; }
+
+    internal bool CompressionRatioLimitReported { get; private set; }
 
     internal bool TryConsumeEntry(string archivePath)
     {
@@ -41,6 +45,29 @@ internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, Action<s
     internal bool TryReserveBytes(string archivePath, long byteCount)
     {
         return TryConsumeBytesCore(archivePath, byteCount);
+    }
+
+    internal bool TryConsumeCompressionRatio(string archivePath, long compressedByteCount, long decompressedByteCount)
+    {
+        if (MaxCompressionRatio == 0 || decompressedByteCount == 0)
+        {
+            return true;
+        }
+
+        if (compressedByteCount <= 0)
+        {
+            ReportCompressionRatioLimit(archivePath, compressedByteCount, decompressedByteCount);
+            return false;
+        }
+
+        if (compressedByteCount <= long.MaxValue / MaxCompressionRatio
+            && decompressedByteCount > compressedByteCount * MaxCompressionRatio)
+        {
+            ReportCompressionRatioLimit(archivePath, compressedByteCount, decompressedByteCount);
+            return false;
+        }
+
+        return true;
     }
 
     private bool TryConsumeBytesCore(string archivePath, long byteCount)
@@ -90,5 +117,25 @@ internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, Action<s
             MaxBytes.ToString(CultureInfo.InvariantCulture),
             " bytes"));
         ByteLimitReported = true;
+    }
+
+    private void ReportCompressionRatioLimit(string archivePath, long compressedByteCount, long decompressedByteCount)
+    {
+        if (CompressionRatioLimitReported)
+        {
+            return;
+        }
+
+        warningSink?.Invoke(string.Concat(
+            "archive compression ratio limit reached while reading ",
+            archivePath,
+            ": ",
+            decompressedByteCount.ToString(CultureInfo.InvariantCulture),
+            " decompressed bytes from ",
+            compressedByteCount.ToString(CultureInfo.InvariantCulture),
+            " compressed bytes would exceed ",
+            MaxCompressionRatio.ToString(CultureInfo.InvariantCulture),
+            ":1"));
+        CompressionRatioLimitReported = true;
     }
 }

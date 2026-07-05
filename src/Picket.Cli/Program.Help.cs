@@ -7,14 +7,14 @@ internal static partial class Program
         Console.Out.WriteLine("picket - bootstrap secrets scanner");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n]");
-        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n]");
-        Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--max-archive-entries n] [--max-archive-megabytes n]");
-        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--redact[=n]]");
+        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
+        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
+        Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
+        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]");
         Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]");
         Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]");
-        Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--redact[=n]]");
-        Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--redact[=n]]");
+        Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]");
+        Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]");
         Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
         Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
         Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
@@ -28,7 +28,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket scan - native filesystem scan");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n]");
+        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
     }
 
     static void WriteVerifyHelp()
@@ -36,7 +36,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket verify - run native offline verification for detected findings");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n]");
+        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
     }
 
     static void WriteAnalyzeHelp()
@@ -44,7 +44,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket analyze - write offline incident-response analysis for detected findings");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--max-archive-entries n] [--max-archive-megabytes n]");
+        Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
     }
 
     static void WriteBaselineHelp()
@@ -52,7 +52,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket baseline - baseline workflow commands");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--redact[=n]]");
+        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]");
     }
 
     static void WriteBaselineCreateHelp()
@@ -60,7 +60,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket baseline create - write a Gitleaks-compatible baseline JSON report");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--redact[=n]]");
+        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]");
     }
 
     static void WriteCacheHelp()

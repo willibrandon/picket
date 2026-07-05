@@ -39,6 +39,7 @@ internal static partial class Program
         bool respectNativeIgnoreFiles = true;
         int maxArchiveEntries = DefaultNativeMaxArchiveEntries;
         long? maxArchiveBytes = DefaultNativeMaxArchiveBytes;
+        int maxArchiveCompressionRatio = DefaultNativeMaxArchiveCompressionRatio;
         int maxArchiveDepth = 0;
         int maxDecodeDepth = 5;
         long? maxTargetBytes = null;
@@ -241,6 +242,16 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsMaxArchiveRatioFlag(arg))
+            {
+                if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-ratio", out maxArchiveCompressionRatio))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
             if (IsTimeoutFlag(arg))
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
@@ -320,6 +331,7 @@ internal static partial class Program
             maxArchiveDepth: maxArchiveDepth,
             maxArchiveEntries: maxArchiveEntries,
             maxArchiveBytes: maxArchiveBytes,
+            maxArchiveCompressionRatio: maxArchiveCompressionRatio,
             isPathAllowed: rules.IsGlobalPathAllowed,
             readPicketIgnoreFiles: respectNativeIgnoreFiles,
             readIgnoreFiles: respectNativeIgnoreFiles,

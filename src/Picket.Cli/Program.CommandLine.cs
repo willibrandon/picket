@@ -487,6 +487,12 @@ internal static partial class Program
             || arg.StartsWith("--max-archive-megabytes=", StringComparison.Ordinal);
     }
 
+    static bool IsMaxArchiveRatioFlag(string arg)
+    {
+        return arg.Equals("--max-archive-ratio", StringComparison.Ordinal)
+            || arg.StartsWith("--max-archive-ratio=", StringComparison.Ordinal);
+    }
+
     static bool IsTimeoutFlag(string arg)
     {
         return arg.Equals("--timeout", StringComparison.Ordinal)

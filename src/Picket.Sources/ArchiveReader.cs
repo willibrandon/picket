@@ -39,6 +39,7 @@ internal static class ArchiveReader
         int maxArchiveDepth,
         int maxArchiveEntries,
         long? maxArchiveBytes,
+        int maxArchiveCompressionRatio,
         long? maxEntryBytes,
         Func<string, bool>? isPathAllowed,
         Action<string>? warningSink,
@@ -61,7 +62,7 @@ internal static class ArchiveReader
             }
 
             stream.Position = 0;
-            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, warningSink);
+            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, warningSink);
             AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth: 1);
             return true;
         }
@@ -77,6 +78,7 @@ internal static class ArchiveReader
         int maxArchiveDepth,
         int maxArchiveEntries,
         long? maxArchiveBytes,
+        int maxArchiveCompressionRatio,
         long? maxEntryBytes,
         Func<string, bool>? isPathAllowed,
         Action<string>? warningSink,
@@ -96,7 +98,7 @@ internal static class ArchiveReader
         try
         {
             using var stream = new MemoryStream(content, writable: false);
-            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, warningSink);
+            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, warningSink);
             AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth: 1);
             return true;
         }
@@ -166,7 +168,7 @@ internal static class ArchiveReader
             }
 
             using Stream entryStream = entry.Open();
-            if (!TryReadStreamBytes(displayPath, entryStream, entry.Length, maxEntryBytes, budget, out byte[] entryContent))
+            if (!TryReadStreamBytes(displayPath, entryStream, entry.Length, entry.CompressedLength, maxEntryBytes, budget, out byte[] entryContent))
             {
                 continue;
             }
@@ -218,7 +220,7 @@ internal static class ArchiveReader
                 return;
             }
 
-            if (!TryReadStreamBytes(displayPath, entry.DataStream, entry.Length, maxEntryBytes, budget, out byte[] entryContent))
+            if (!TryReadStreamBytes(displayPath, entry.DataStream, entry.Length, compressedLength: null, maxEntryBytes, budget, out byte[] entryContent))
             {
                 continue;
             }
@@ -245,8 +247,9 @@ internal static class ArchiveReader
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
+        long? compressedLength = TryGetRemainingLength(stream);
         using var gzipStream = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
-        if (!TryReadStreamBytes(displayPath, gzipStream, length: null, maxEntryBytes, budget, out byte[] decompressedContent))
+        if (!TryReadStreamBytes(displayPath, gzipStream, length: null, compressedLength, maxEntryBytes, budget, out byte[] decompressedContent))
         {
             return;
         }
@@ -304,6 +307,7 @@ internal static class ArchiveReader
         string archivePath,
         Stream stream,
         long? length,
+        long? compressedLength,
         long? maxBytes,
         ArchiveReadBudget budget,
         out byte[] bytes)
@@ -315,6 +319,14 @@ internal static class ArchiveReader
         }
 
         bool reservedKnownLength = length.HasValue;
+        if (reservedKnownLength
+            && compressedLength.HasValue
+            && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, length.GetValueOrDefault()))
+        {
+            bytes = [];
+            return false;
+        }
+
         if (reservedKnownLength && !budget.TryReserveBytes(archivePath, length.GetValueOrDefault()))
         {
             bytes = [];
@@ -332,6 +344,7 @@ internal static class ArchiveReader
             {
                 totalRead += read;
                 if (IsTooLarge(totalRead, maxBytes)
+                    || (compressedLength.HasValue && !reservedKnownLength && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, totalRead))
                     || (!reservedKnownLength && !budget.TryConsumeBytes(archivePath, read)))
                 {
                     bytes = [];
@@ -354,6 +367,17 @@ internal static class ArchiveReader
 
         bytes = memoryStream.ToArray();
         return true;
+    }
+
+    private static long? TryGetRemainingLength(Stream stream)
+    {
+        if (!stream.CanSeek)
+        {
+            return null;
+        }
+
+        long length = stream.Length - stream.Position;
+        return length < 0 ? 0 : length;
     }
 
     private static bool IsDirectoryEntry(ZipArchiveEntry entry)

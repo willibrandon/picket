@@ -175,6 +175,7 @@ $annotationLimit = ConvertTo-PositiveInt (Get-ActionInput -Name 'PICKET_ANNOTATI
 $redact = Get-ActionInput -Name 'PICKET_REDACT' -Default '100'
 $maxTargetMegabytes = Get-ActionInput -Name 'PICKET_MAX_TARGET_MEGABYTES'
 $maxArchiveMegabytes = Get-ActionInput -Name 'PICKET_MAX_ARCHIVE_MEGABYTES'
+$maxArchiveRatio = Get-ActionInput -Name 'PICKET_MAX_ARCHIVE_RATIO'
 
 if ($failOn -notin @('findings', 'errors', 'never')) {
     Write-Host '::error title=Invalid fail-on::fail-on must be findings, errors, or never.'
@@ -223,6 +224,10 @@ if (![string]::IsNullOrWhiteSpace($maxTargetMegabytes)) {
 
 if (![string]::IsNullOrWhiteSpace($maxArchiveMegabytes)) {
     $arguments += @('--max-archive-megabytes', $maxArchiveMegabytes)
+}
+
+if (![string]::IsNullOrWhiteSpace($maxArchiveRatio)) {
+    $arguments += @('--max-archive-ratio', $maxArchiveRatio)
 }
 
 $scannerExitCode = 0

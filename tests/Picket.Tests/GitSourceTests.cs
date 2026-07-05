@@ -146,6 +146,32 @@ public sealed class GitSourceTests
     }
 
     /// <summary>
+    /// Verifies that git archive enumeration honors the configured compression-ratio safety cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateHonorsArchiveBlobCompressionRatioLimit()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        WriteCompressedZipFile(
+            Path.Combine(root.Path, "secrets.zip"),
+            ("secret.txt", string.Concat("token-12345\n", new string('!', 8192))));
+        await RunGitCommandAsync(root.Path, "add", "secrets.zip").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add archive").ConfigureAwait(false);
+        var warnings = new List<string>();
+
+        IReadOnlyList<GitPatchFragment> fragments = GitSource.Enumerate(new GitScanOptions(
+            root.Path,
+            maxArchiveDepth: 1,
+            warningSink: warnings.Add,
+            maxArchiveCompressionRatio: 1));
+
+        Assert.IsEmpty(fragments);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("archive compression ratio limit reached while reading secrets.zip", warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that staged git enumeration expands zip archive blobs from the index.
     /// </summary>
     [TestMethod]
@@ -205,14 +231,24 @@ public sealed class GitSourceTests
         File.WriteAllBytes(path, CreateZipBytes([.. entries.Select(entry => (entry.Name, Encoding.UTF8.GetBytes(entry.Content)))]));
     }
 
+    private static void WriteCompressedZipFile(string path, params (string Name, string Content)[] entries)
+    {
+        File.WriteAllBytes(path, CreateZipBytes(CompressionLevel.SmallestSize, [.. entries.Select(entry => (entry.Name, Encoding.UTF8.GetBytes(entry.Content)))]));
+    }
+
     private static byte[] CreateZipBytes(params (string Name, byte[] Content)[] entries)
+    {
+        return CreateZipBytes(CompressionLevel.NoCompression, entries);
+    }
+
+    private static byte[] CreateZipBytes(CompressionLevel compressionLevel, params (string Name, byte[] Content)[] entries)
     {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             foreach ((string name, byte[] content) in entries)
             {
-                ZipArchiveEntry entry = archive.CreateEntry(name, CompressionLevel.NoCompression);
+                ZipArchiveEntry entry = archive.CreateEntry(name, compressionLevel);
                 using Stream entryStream = entry.Open();
                 entryStream.Write(content);
             }

@@ -18,6 +18,7 @@ namespace Picket.Sources;
 /// <param name="maxArchiveEntries">The maximum number of archive entries to enumerate, or 0 for no cap.</param>
 /// <param name="maxArchiveBytes">The maximum number of decompressed archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
+/// <param name="maxArchiveCompressionRatio">The maximum archive expansion ratio, or 0 for no cap.</param>
 public sealed class DirectoryScanOptions(
     string root,
     long? maxTargetBytes = null,
@@ -33,7 +34,8 @@ public sealed class DirectoryScanOptions(
     IReadOnlyList<string>? ignoreFilePaths = null,
     int maxArchiveEntries = 0,
     long? maxArchiveBytes = null,
-    Action<string>? warningSink = null)
+    Action<string>? warningSink = null,
+    int maxArchiveCompressionRatio = 0)
 {
     private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
 
@@ -66,6 +68,11 @@ public sealed class DirectoryScanOptions(
     /// Gets the maximum number of decompressed archive bytes to enumerate, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxArchiveBytes { get; } = RequireMaxArchiveBytes(maxArchiveBytes);
+
+    /// <summary>
+    /// Gets the maximum archive expansion ratio, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveCompressionRatio { get; } = RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
 
     /// <summary>
     /// Gets a value indicating whether per-directory <c>.picketignore</c> files are read.
@@ -141,6 +148,12 @@ public sealed class DirectoryScanOptions(
             ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
         }
 
+        return value;
+    }
+
+    private static int RequireMaxArchiveCompressionRatio(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 

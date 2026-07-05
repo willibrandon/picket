@@ -776,6 +776,21 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies strict compatibility directory scans reject native archive compression-ratio caps.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeArchiveRatioFlag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-ratio", "1").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("unknown flag: --max-archive-ratio", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies native scans can cap archive entries and emit a clear warning.
     /// </summary>
     [TestMethod]
@@ -835,6 +850,35 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"file\":\"secrets.zip!first.txt\"", result.Stdout);
         Assert.DoesNotContain("secrets.zip!second.txt", result.Stdout);
         Assert.Contains("archive byte limit reached while reading secrets.zip", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies native scans can cap archive compression ratios and emit a clear warning.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanHonorsArchiveCompressionRatioLimit()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        WriteCompressedZipFile(
+            Path.Combine(root.Path, "secrets.zip"),
+            ("secret.txt", string.Concat("token-12345\n", new string('!', 8192))));
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--max-archive-depth",
+            "1",
+            "--max-archive-ratio",
+            "1",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("archive compression ratio limit reached while reading secrets.zip", result.Stderr);
     }
 
     /// <summary>
@@ -3254,6 +3298,22 @@ public sealed class CliCompatibilityTests
             foreach ((string name, string content) in entries)
             {
                 ZipArchiveEntry entry = archive.CreateEntry(name, CompressionLevel.NoCompression);
+                using Stream entryStream = entry.Open();
+                entryStream.Write(Encoding.UTF8.GetBytes(content));
+            }
+        }
+
+        File.WriteAllBytes(path, stream.ToArray());
+    }
+
+    private static void WriteCompressedZipFile(string path, params (string Name, string Content)[] entries)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach ((string name, string content) in entries)
+            {
+                ZipArchiveEntry entry = archive.CreateEntry(name, CompressionLevel.SmallestSize);
                 using Stream entryStream = entry.Open();
                 entryStream.Write(Encoding.UTF8.GetBytes(content));
             }

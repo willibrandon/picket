@@ -13,6 +13,7 @@ namespace Picket.Sources;
 /// <param name="maxArchiveEntries">The maximum number of archive entries to enumerate, or 0 for no cap.</param>
 /// <param name="maxArchiveBytes">The maximum number of decompressed archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
+/// <param name="maxArchiveCompressionRatio">The maximum archive expansion ratio, or 0 for no cap.</param>
 public sealed class GitScanOptions(
     string root,
     string? logOptions = null,
@@ -23,7 +24,8 @@ public sealed class GitScanOptions(
     Func<string, bool>? isPathAllowed = null,
     int maxArchiveEntries = 0,
     long? maxArchiveBytes = null,
-    Action<string>? warningSink = null)
+    Action<string>? warningSink = null,
+    int maxArchiveCompressionRatio = 0)
 {
     /// <summary>
     /// Gets the full git repository path.
@@ -61,6 +63,11 @@ public sealed class GitScanOptions(
     public long? MaxArchiveBytes { get; } = RequireMaxArchiveBytes(maxArchiveBytes);
 
     /// <summary>
+    /// Gets the maximum archive expansion ratio, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveCompressionRatio { get; } = RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
+
+    /// <summary>
     /// Gets the maximum archive entry size to yield, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxTargetBytes { get; } = RequireMaxTargetBytes(maxTargetBytes);
@@ -94,6 +101,12 @@ public sealed class GitScanOptions(
             ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
         }
 
+        return value;
+    }
+
+    private static int RequireMaxArchiveCompressionRatio(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 

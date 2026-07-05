@@ -59,6 +59,10 @@ inputs:
     description: Optional maximum decompressed archive payload in decimal MB.
     required: false
     default: ""
+  max-archive-ratio:
+    description: Optional maximum archive expansion ratio. Use 0 to disable.
+    required: false
+    default: ""
   dotnet-version:
     description: .NET SDK version used to run the source-based action.
     required: false
@@ -125,6 +129,7 @@ runs:
         PICKET_REDACT: ${{ inputs.redact }}
         PICKET_MAX_TARGET_MEGABYTES: ${{ inputs.max-target-megabytes }}
         PICKET_MAX_ARCHIVE_MEGABYTES: ${{ inputs.max-archive-megabytes }}
+        PICKET_MAX_ARCHIVE_RATIO: ${{ inputs.max-archive-ratio }}
       run: '& "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.ps1"'
 
     - name: Save scan cache
