@@ -7,11 +7,13 @@ namespace Picket.Sources;
 /// <param name="maxTargetBytes">The maximum file size to yield, or <see langword="null" /> for no cap.</param>
 /// <param name="followSymbolicLinks">A value indicating whether symbolic links are followed.</param>
 /// <param name="maxArchiveDepth">The maximum nested archive depth to enumerate.</param>
+/// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> for globally allowlisted paths.</param>
 public sealed class DirectoryScanOptions(
     string root,
     long? maxTargetBytes = null,
     bool followSymbolicLinks = false,
-    int maxArchiveDepth = 0)
+    int maxArchiveDepth = 0,
+    Func<string, bool>? isPathAllowed = null)
 {
     /// <summary>
     /// Gets the full root path to enumerate.
@@ -32,6 +34,8 @@ public sealed class DirectoryScanOptions(
     /// Gets the maximum nested archive depth to enumerate.
     /// </summary>
     public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
+    internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
     private static string RequireRoot(string value)
     {

@@ -449,6 +449,26 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that directory archive extraction honors anchored global allowlist paths against inner entry names.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanArchiveHonorsInnerPathGlobalAllowlist()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteArchiveInnerAllowlistConfig(root.Path);
+        WriteZipFile(
+            Path.Combine(root.Path, "secrets.zip"),
+            ("ignored.txt", "token-11111"),
+            ("kept.txt", "token-22222"));
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.DoesNotContain("\"Secret\": \"token-11111\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-22222\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that git scans find secrets inside zip archives when archive traversal is enabled.
     /// </summary>
     [TestMethod]
@@ -472,6 +492,29 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Secret\": \"token-12345\"", enabled.Stdout);
         Assert.Contains($"\"Commit\": \"{commit}\"", enabled.Stdout);
         Assert.Contains($"\"Fingerprint\": \"{commit}:secrets.zip!nested/secret.txt:token:1\"", enabled.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that git archive extraction honors anchored global allowlist paths against inner entry names.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanArchiveHonorsInnerPathGlobalAllowlist()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteArchiveInnerAllowlistConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        WriteZipFile(
+            Path.Combine(root.Path, "secrets.zip"),
+            ("ignored.txt", "token-11111"),
+            ("kept.txt", "token-22222"));
+        await RunGitCommandAsync(root.Path, "add", "secrets.zip").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add archive").ConfigureAwait(false);
+
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.DoesNotContain("\"Secret\": \"token-11111\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-22222\"", result.Stdout);
     }
 
     /// <summary>
@@ -991,6 +1034,22 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "beta-token"
             regex = '''beta-[0-9]+'''
+            """);
+        return configPath;
+    }
+
+    private static string WriteArchiveInnerAllowlistConfig(string root)
+    {
+        string configPath = Path.Combine(root, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[allowlists]]
+            paths = ['''^ignored\.txt$''']
+
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
             """);
         return configPath;
     }

@@ -37,6 +37,7 @@ internal static class ArchiveReader
         string displayPath,
         int maxArchiveDepth,
         long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
         List<ArchiveEntry> entries)
     {
         if (maxArchiveDepth <= 0)
@@ -56,7 +57,7 @@ internal static class ArchiveReader
             }
 
             stream.Position = 0;
-            AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, entries, archiveDepth: 1);
+            AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, entries, archiveDepth: 1);
             return true;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
@@ -70,6 +71,7 @@ internal static class ArchiveReader
         string displayPath,
         int maxArchiveDepth,
         long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
         List<ArchiveEntry> entries)
     {
         if (maxArchiveDepth <= 0)
@@ -86,7 +88,7 @@ internal static class ArchiveReader
         try
         {
             using var stream = new MemoryStream(content, writable: false);
-            AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, entries, archiveDepth: 1);
+            AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, entries, archiveDepth: 1);
             return true;
         }
         catch (InvalidDataException)
@@ -101,19 +103,20 @@ internal static class ArchiveReader
         int archiveKind,
         int maxArchiveDepth,
         long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
         switch (archiveKind)
         {
             case ArchiveKindGzip:
-                AddGzipEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, entries, archiveDepth);
+                AddGzipEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, isPathAllowed, entries, archiveDepth);
                 break;
             case ArchiveKindTar:
-                AddTarEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, entries, archiveDepth);
+                AddTarEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, isPathAllowed, entries, archiveDepth);
                 break;
             case ArchiveKindZip:
-                AddZipEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, entries, archiveDepth);
+                AddZipEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, isPathAllowed, entries, archiveDepth);
                 break;
         }
     }
@@ -123,6 +126,7 @@ internal static class ArchiveReader
         Stream stream,
         int maxArchiveDepth,
         long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
@@ -140,6 +144,11 @@ internal static class ArchiveReader
                 continue;
             }
 
+            if (IsPathAllowed(isPathAllowed, normalizedEntryPath))
+            {
+                continue;
+            }
+
             using Stream entryStream = entry.Open();
             if (!TryReadStreamBytes(entryStream, entry.Length, maxEntryBytes, out byte[] entryContent))
             {
@@ -151,6 +160,7 @@ internal static class ArchiveReader
                 entryContent,
                 maxArchiveDepth,
                 maxEntryBytes,
+                isPathAllowed,
                 entries,
                 archiveDepth);
         }
@@ -161,6 +171,7 @@ internal static class ArchiveReader
         Stream stream,
         int maxArchiveDepth,
         long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
@@ -179,6 +190,11 @@ internal static class ArchiveReader
                 continue;
             }
 
+            if (IsPathAllowed(isPathAllowed, normalizedEntryPath))
+            {
+                continue;
+            }
+
             if (!TryReadStreamBytes(entry.DataStream, entry.Length, maxEntryBytes, out byte[] entryContent))
             {
                 continue;
@@ -189,6 +205,7 @@ internal static class ArchiveReader
                 entryContent,
                 maxArchiveDepth,
                 maxEntryBytes,
+                isPathAllowed,
                 entries,
                 archiveDepth);
         }
@@ -199,6 +216,7 @@ internal static class ArchiveReader
         Stream stream,
         int maxArchiveDepth,
         long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
@@ -212,7 +230,7 @@ internal static class ArchiveReader
         if (innerArchiveKind != ArchiveKindNone)
         {
             using var innerStream = new MemoryStream(decompressedContent, writable: false);
-            AddEntries(displayPath, innerStream, innerArchiveKind, maxArchiveDepth, maxEntryBytes, entries, archiveDepth);
+            AddEntries(displayPath, innerStream, innerArchiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, entries, archiveDepth);
             return;
         }
 
@@ -224,6 +242,7 @@ internal static class ArchiveReader
         byte[] entryContent,
         int maxArchiveDepth,
         long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
@@ -242,7 +261,7 @@ internal static class ArchiveReader
         using var innerStream = new MemoryStream(entryContent, writable: false);
         try
         {
-            AddEntries(entryDisplayPath, innerStream, archiveKind, maxArchiveDepth, maxEntryBytes, entries, archiveDepth + 1);
+            AddEntries(entryDisplayPath, innerStream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, entries, archiveDepth + 1);
         }
         catch (InvalidDataException)
         {
@@ -279,6 +298,11 @@ internal static class ArchiveReader
     private static bool IsTooLarge(long value, long? maxBytes)
     {
         return maxBytes.HasValue && value > maxBytes.Value;
+    }
+
+    private static bool IsPathAllowed(Func<string, bool>? isPathAllowed, string path)
+    {
+        return isPathAllowed is not null && isPathAllowed(path);
     }
 
     private static int IdentifyArchiveKind(ReadOnlySpan<byte> header)

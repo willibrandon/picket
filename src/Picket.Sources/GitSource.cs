@@ -257,7 +257,13 @@ public static class GitSource
         }
 
         var entries = new List<ArchiveEntry>();
-        if (!ArchiveReader.TryReadBytesEntries(blob, filePath, options.MaxArchiveDepth, options.MaxTargetBytes, entries))
+        if (!ArchiveReader.TryReadBytesEntries(
+            blob,
+            filePath,
+            options.MaxArchiveDepth,
+            options.MaxTargetBytes,
+            options.IsPathAllowed,
+            entries))
         {
             return;
         }

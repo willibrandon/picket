@@ -493,13 +493,18 @@ static int RunDirectory(string[] args)
     }
 
     long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-    IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes, followSymlinks, maxArchiveDepth));
-    GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
 
+    IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+        root,
+        maxTargetBytes,
+        followSymlinks,
+        maxArchiveDepth,
+        rules.IsGlobalPathAllowed));
+    GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
         return CompleteRun(1, diagnosticsSession);
@@ -838,7 +843,14 @@ static int RunGit(string[] args)
     IReadOnlyList<GitPatchFragment> fragments;
     try
     {
-        fragments = GitSource.Enumerate(new GitScanOptions(root, logOptions, staged, preCommit, maxArchiveDepth, maxTargetBytes));
+        fragments = GitSource.Enumerate(new GitScanOptions(
+            root,
+            logOptions,
+            staged,
+            preCommit,
+            maxArchiveDepth,
+            maxTargetBytes,
+            rules.IsGlobalPathAllowed));
     }
     catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
     {

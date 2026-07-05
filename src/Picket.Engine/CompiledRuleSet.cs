@@ -1,3 +1,4 @@
+using System.Text;
 using Picket.Rules;
 using Scout.Text.Regex;
 
@@ -20,6 +21,25 @@ public sealed class CompiledRuleSet(RuleSet rules)
         rules.Allowlists,
         rules.RegexesPrevalidated,
         "[[allowlists]]");
+
+    /// <summary>
+    /// Returns a value indicating whether a global Gitleaks path allowlist matches the supplied path.
+    /// </summary>
+    /// <param name="path">The normalized source path to test.</param>
+    /// <returns><see langword="true" /> when any global path allowlist matches the path.</returns>
+    public bool IsGlobalPathAllowed(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        byte[] pathBytes = Encoding.UTF8.GetBytes(path);
+        if (AnyPathRegexMatches(pathBytes))
+        {
+            return true;
+        }
+
+        byte[] windowsPathBytes = CreateWindowsPathBytes(path);
+        return windowsPathBytes.Length != 0 && AnyPathRegexMatches(windowsPathBytes);
+    }
 
     /// <summary>
     /// Compiles a source rule set.
@@ -78,5 +98,28 @@ public sealed class CompiledRuleSet(RuleSet rules)
         {
             throw new InvalidDataException($"{context} pattern '{pattern}': {exception.Message}", exception);
         }
+    }
+
+    private bool AnyPathRegexMatches(ReadOnlySpan<byte> pathBytes)
+    {
+        foreach (CompiledAllowlist allowlist in Allowlists)
+        {
+            foreach (ByteRegex regex in allowlist.PathRegexes)
+            {
+                if (regex.FindCaptures(pathBytes, 0) is not null)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static byte[] CreateWindowsPathBytes(string path)
+    {
+        return path.Contains('/')
+            ? Encoding.UTF8.GetBytes(path.Replace('/', '\\'))
+            : [];
     }
 }

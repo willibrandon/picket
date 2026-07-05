@@ -9,13 +9,15 @@ namespace Picket.Sources;
 /// <param name="preCommit">A value indicating whether working tree changes are scanned with <c>git diff</c>.</param>
 /// <param name="maxArchiveDepth">The maximum nested archive depth to enumerate.</param>
 /// <param name="maxTargetBytes">The maximum archive entry size to yield, or <see langword="null" /> for no cap.</param>
+/// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> for globally allowlisted archive entry paths.</param>
 public sealed class GitScanOptions(
     string root,
     string? logOptions = null,
     bool staged = false,
     bool preCommit = false,
     int maxArchiveDepth = 0,
-    long? maxTargetBytes = null)
+    long? maxTargetBytes = null,
+    Func<string, bool>? isPathAllowed = null)
 {
     /// <summary>
     /// Gets the full git repository path.
@@ -46,6 +48,8 @@ public sealed class GitScanOptions(
     /// Gets the maximum archive entry size to yield, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxTargetBytes { get; } = RequireMaxTargetBytes(maxTargetBytes);
+
+    internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
     private static string RequireRoot(string value)
     {

@@ -35,7 +35,13 @@ public sealed class DirectorySource
                 continue;
             }
 
-            AddSourceFile(sourceFiles, options, entry.FullPath, CreateDisplayPath(options.Root, entry.FullPath));
+            string displayPath = CreateDisplayPath(options.Root, entry.FullPath);
+            if (IsPathOrAncestorAllowed(options.IsPathAllowed, displayPath))
+            {
+                continue;
+            }
+
+            AddSourceFile(sourceFiles, options, entry.FullPath, displayPath);
         }
 
         return sourceFiles;
@@ -50,7 +56,12 @@ public sealed class DirectorySource
         }
 
         var sourceFiles = new List<SourceFile>();
-        AddSourceFile(sourceFiles, options, options.Root, Path.GetFileName(options.Root));
+        string displayPath = Path.GetFileName(options.Root);
+        if (!IsPathAllowed(options.IsPathAllowed, displayPath))
+        {
+            AddSourceFile(sourceFiles, options, options.Root, displayPath);
+        }
+
         return sourceFiles;
     }
 
@@ -61,7 +72,13 @@ public sealed class DirectorySource
             if (options.MaxArchiveDepth > 0)
             {
                 var entries = new List<ArchiveEntry>();
-                if (ArchiveReader.TryReadFileEntries(fullPath, displayPath, options.MaxArchiveDepth, options.MaxTargetBytes, entries))
+                if (ArchiveReader.TryReadFileEntries(
+                    fullPath,
+                    displayPath,
+                    options.MaxArchiveDepth,
+                    options.MaxTargetBytes,
+                    options.IsPathAllowed,
+                    entries))
                 {
                     foreach (ArchiveEntry entry in entries)
                     {
@@ -97,5 +114,29 @@ public sealed class DirectorySource
     {
         string relativePath = Path.GetRelativePath(root, fullPath);
         return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+    }
+
+    private static bool IsPathOrAncestorAllowed(Func<string, bool>? isPathAllowed, string displayPath)
+    {
+        if (IsPathAllowed(isPathAllowed, displayPath))
+        {
+            return true;
+        }
+
+        int separatorIndex = displayPath.Length;
+        while ((separatorIndex = displayPath.LastIndexOf('/', separatorIndex - 1)) > 0)
+        {
+            if (IsPathAllowed(isPathAllowed, displayPath[..separatorIndex]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsPathAllowed(Func<string, bool>? isPathAllowed, string displayPath)
+    {
+        return isPathAllowed is not null && isPathAllowed(displayPath);
     }
 }
