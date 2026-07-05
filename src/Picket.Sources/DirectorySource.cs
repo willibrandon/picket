@@ -57,6 +57,7 @@ public sealed class DirectorySource
         return new FileWalkerOptions
         {
             IgnoreHidden = false,
+            FollowSymbolicLinks = options.FollowSymbolicLinks,
             ReadParentIgnoreFiles = false,
             ReadIgnoreFiles = false,
             ReadGitIgnoreFiles = false,

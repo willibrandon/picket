@@ -5,7 +5,8 @@ namespace Picket.Sources;
 /// </summary>
 /// <param name="root">The directory or file path to enumerate.</param>
 /// <param name="maxTargetBytes">The maximum file size to yield, or <see langword="null" /> for no cap.</param>
-public sealed class DirectoryScanOptions(string root, long? maxTargetBytes = null)
+/// <param name="followSymbolicLinks">A value indicating whether symbolic links are followed.</param>
+public sealed class DirectoryScanOptions(string root, long? maxTargetBytes = null, bool followSymbolicLinks = false)
 {
     /// <summary>
     /// Gets the full root path to enumerate.
@@ -16,6 +17,11 @@ public sealed class DirectoryScanOptions(string root, long? maxTargetBytes = nul
     /// Gets the maximum file size to yield, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxTargetBytes { get; } = RequireMaxTargetBytes(maxTargetBytes);
+
+    /// <summary>
+    /// Gets a value indicating whether symbolic links are followed.
+    /// </summary>
+    public bool FollowSymbolicLinks { get; } = followSymbolicLinks;
 
     private static string RequireRoot(string value)
     {

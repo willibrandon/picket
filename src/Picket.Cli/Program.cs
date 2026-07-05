@@ -27,6 +27,16 @@ if (command.Equals("stdin", StringComparison.OrdinalIgnoreCase))
     return await RunStdinAsync(args[1..]).ConfigureAwait(false);
 }
 
+if (command.Equals("detect", StringComparison.OrdinalIgnoreCase))
+{
+    return await RunDetectAsync(args[1..]).ConfigureAwait(false);
+}
+
+if (command.Equals("protect", StringComparison.OrdinalIgnoreCase))
+{
+    return RunProtect(args[1..]);
+}
+
 if (command.Equals("git", StringComparison.OrdinalIgnoreCase))
 {
     return RunGit(args[1..]);
@@ -40,7 +50,7 @@ if (IsDirectoryCommand(command))
 Console.Error.WriteLine($"unknown command: {command}");
 return UnknownFlagExitCode;
 
-static async Task<int> RunStdinAsync(string[] args)
+static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin")
 {
     string? baselinePath = null;
     string? configPath = null;
@@ -133,7 +143,7 @@ static async Task<int> RunStdinAsync(string[] args)
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
-    if (!TryLoadRules(configPath, "stdin", out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, configSource, out CompiledRuleSet? rules))
     {
         return 1;
     }
@@ -167,6 +177,7 @@ static int RunDirectory(string[] args)
     string? reportFormat = null;
     string gitleaksIgnorePath = ".";
     int exitCode = 1;
+    bool followSymlinks = false;
     bool ignoreGitleaksAllow = false;
     long? maxTargetBytes = null;
     int redactionPercent = 0;
@@ -250,6 +261,16 @@ static int RunDirectory(string[] args)
             continue;
         }
 
+        if (IsFollowSymlinksFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--follow-symlinks", out followSymlinks))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (arg is "--max-target-megabytes")
         {
             if (i + 1 >= args.Length)
@@ -298,7 +319,7 @@ static int RunDirectory(string[] args)
         return UnknownFlagExitCode;
     }
 
-    IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes));
+    IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes, followSymlinks));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadRules(configPath, root, out CompiledRuleSet? rules))
     {
@@ -360,6 +381,7 @@ static int RunGit(string[] args)
     string? reportPath = null;
     string? reportFormat = null;
     string? logOptions = null;
+    string? platform = null;
     string gitleaksIgnorePath = ".";
     string root = ".";
     int exitCode = 1;
@@ -458,6 +480,16 @@ static int RunGit(string[] args)
             continue;
         }
 
+        if (IsPlatformFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--platform", out platform))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (IsPreCommitFlag(arg))
         {
             if (!TryReadBooleanFlag(arg, "--pre-commit", out preCommit))
@@ -521,6 +553,11 @@ static int RunGit(string[] args)
         rootProvided = true;
     }
 
+    if (!staged && !preCommit && !TryValidatePlatform(platform))
+    {
+        return UnknownFlagExitCode;
+    }
+
     if (!TryLoadRules(configPath, root, out CompiledRuleSet? rules))
     {
         return 1;
@@ -556,6 +593,166 @@ static int RunGit(string[] args)
     }
 
     return filteredFindings.Count == 0 ? 0 : exitCode;
+}
+
+static async Task<int> RunDetectAsync(string[] args)
+{
+    var forwardedArgs = new List<string>();
+    string? logOptions = null;
+    string? platform = null;
+    string source = ".";
+    bool followSymlinks = false;
+    bool noGit = false;
+    bool pipe = false;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsSourceFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            source = sourceValue.Length == 0 ? "." : sourceValue;
+            continue;
+        }
+
+        if (IsNoGitFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--no-git", out noGit))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsPipeFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--pipe", out pipe))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsFollowSymlinksFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--follow-symlinks", out followSymlinks))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsLogOptionsFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--log-opts", out logOptions))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsPlatformFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--platform", out platform))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        forwardedArgs.Add(arg);
+    }
+
+    if (noGit)
+    {
+        if (followSymlinks)
+        {
+            forwardedArgs.Add("--follow-symlinks");
+        }
+
+        forwardedArgs.Add(source);
+        return RunDirectory([.. forwardedArgs]);
+    }
+
+    if (pipe)
+    {
+        return await RunStdinAsync([.. forwardedArgs], source).ConfigureAwait(false);
+    }
+
+    if (!string.IsNullOrEmpty(logOptions))
+    {
+        forwardedArgs.Add("--log-opts");
+        forwardedArgs.Add(logOptions);
+    }
+
+    if (!string.IsNullOrEmpty(platform))
+    {
+        forwardedArgs.Add("--platform");
+        forwardedArgs.Add(platform);
+    }
+
+    forwardedArgs.Add(source);
+    return RunGit([.. forwardedArgs]);
+}
+
+static int RunProtect(string[] args)
+{
+    var forwardedArgs = new List<string>();
+    string source = ".";
+    bool staged = false;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsSourceFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            source = sourceValue.Length == 0 ? "." : sourceValue;
+            continue;
+        }
+
+        if (IsStagedFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--staged", out staged))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsLogOptionsFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--log-opts", out _))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        forwardedArgs.Add(arg);
+    }
+
+    forwardedArgs.Add("--pre-commit");
+    if (staged)
+    {
+        forwardedArgs.Add("--staged");
+    }
+
+    forwardedArgs.Add(source);
+    return RunGit([.. forwardedArgs]);
 }
 
 static bool IsHelp(string arg)
@@ -693,10 +890,40 @@ static bool IsReportFormatFlag(string arg)
         || arg.StartsWith("--report-format=", StringComparison.Ordinal);
 }
 
+static bool IsSourceFlag(string arg)
+{
+    return arg is "-s" or "--source"
+        || arg.StartsWith("--source=", StringComparison.Ordinal);
+}
+
+static bool IsNoGitFlag(string arg)
+{
+    return arg.Equals("--no-git", StringComparison.Ordinal)
+        || arg.StartsWith("--no-git=", StringComparison.Ordinal);
+}
+
+static bool IsPipeFlag(string arg)
+{
+    return arg.Equals("--pipe", StringComparison.Ordinal)
+        || arg.StartsWith("--pipe=", StringComparison.Ordinal);
+}
+
+static bool IsFollowSymlinksFlag(string arg)
+{
+    return arg.Equals("--follow-symlinks", StringComparison.Ordinal)
+        || arg.StartsWith("--follow-symlinks=", StringComparison.Ordinal);
+}
+
 static bool IsLogOptionsFlag(string arg)
 {
     return arg.Equals("--log-opts", StringComparison.Ordinal)
         || arg.StartsWith("--log-opts=", StringComparison.Ordinal);
+}
+
+static bool IsPlatformFlag(string arg)
+{
+    return arg.Equals("--platform", StringComparison.Ordinal)
+        || arg.StartsWith("--platform=", StringComparison.Ordinal);
 }
 
 static bool IsPreCommitFlag(string arg)
@@ -783,6 +1010,23 @@ static bool TryParseRedactionPercent(string value, out int redactionPercent)
 static bool IsValidRedactionPercent(int redactionPercent)
 {
     return redactionPercent is >= 0 and <= 100;
+}
+
+static bool TryValidatePlatform(string? platform)
+{
+    if (string.IsNullOrWhiteSpace(platform))
+    {
+        return true;
+    }
+
+    string normalizedPlatform = platform.Trim().ToLowerInvariant();
+    if (normalizedPlatform is "unknown" or "none" or "github" or "gitlab" or "azuredevops" or "gitea" or "bitbucket")
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine($"invalid scm platform value: {platform}");
+    return false;
 }
 
 static bool TryLoadRules(string? configPath, string source, [NotNullWhen(true)] out CompiledRuleSet? rules)
@@ -973,8 +1217,8 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

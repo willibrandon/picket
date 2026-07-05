@@ -249,6 +249,102 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Fingerprint\": \"secret.txt:token:1\"", result.Stdout);
     }
 
+    /// <summary>
+    /// Verifies that the deprecated detect shim maps to a git history scan by default.
+    /// </summary>
+    [TestMethod]
+    public async Task DetectShimMapsDefaultToGitScan()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
+        string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
+
+        CliResult result = await RunCliAsync("detect", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains($"\"Commit\": \"{commit}\"", result.Stdout);
+        Assert.Contains($"\"Fingerprint\": \"{commit}:secret.txt:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the deprecated detect --no-git shim maps to a directory scan.
+    /// </summary>
+    [TestMethod]
+    public async Task DetectShimNoGitMapsToDirectoryScan()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+
+        CliResult result = await RunCliAsync("detect", "--no-git", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Commit\": \"\"", result.Stdout);
+        Assert.Contains("\"Fingerprint\": \"secret.txt:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the deprecated detect --pipe shim maps to stdin scanning.
+    /// </summary>
+    [TestMethod]
+    public async Task DetectShimPipeMapsToStdinScan()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliWithInputAsync("token-12345", "detect", "--pipe", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"File\": \"stdin\"", result.Stdout);
+        Assert.Contains("\"Fingerprint\": \"stdin:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the deprecated protect shim maps to a pre-commit git diff scan.
+    /// </summary>
+    [TestMethod]
+    public async Task ProtectShimMapsToPreCommitScan()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "clean\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "seed").ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+
+        CliResult result = await RunCliAsync("protect", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Commit\": \"\"", result.Stdout);
+        Assert.Contains("\"Fingerprint\": \"secret.txt:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the Gitleaks-compatible git platform set is accepted and native auto is rejected.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanValidatesCompatiblePlatformValues()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
+
+        CliResult accepted = await RunCliAsync("git", root.Path, "-c", configPath, "--platform", "github").ConfigureAwait(false);
+        CliResult rejected = await RunCliAsync("git", root.Path, "-c", configPath, "--platform", "auto").ConfigureAwait(false);
+
+        Assert.AreEqual(1, accepted.ExitCode);
+        Assert.AreEqual(126, rejected.ExitCode);
+        Assert.Contains("invalid scm platform value: auto", rejected.Stderr);
+    }
+
     private static string WriteTokenConfig(string root)
     {
         string configPath = Path.Combine(root, "gitleaks.toml");
@@ -299,10 +395,16 @@ public sealed class CliCompatibilityTests
 
     private static async Task<CliResult> RunCliAsync(params string[] arguments)
     {
+        return await RunCliWithInputAsync(null, arguments).ConfigureAwait(false);
+    }
+
+    private static async Task<CliResult> RunCliWithInputAsync(string? standardInput, params string[] arguments)
+    {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo(GetCliExecutablePath())
         {
             RedirectStandardError = true,
+            RedirectStandardInput = standardInput is not null,
             RedirectStandardOutput = true,
             UseShellExecute = false,
             WorkingDirectory = GetRepositoryRoot(),
@@ -313,6 +415,13 @@ public sealed class CliCompatibilityTests
         }
 
         process.Start();
+        if (standardInput is not null)
+        {
+            await process.StandardInput.WriteAsync(standardInput).ConfigureAwait(false);
+            await process.StandardInput.FlushAsync().ConfigureAwait(false);
+            process.StandardInput.Close();
+        }
+
         string stdout = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
         string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
         await process.WaitForExitAsync().ConfigureAwait(false);
