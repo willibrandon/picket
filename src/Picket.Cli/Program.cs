@@ -538,6 +538,7 @@ static bool TryWriteReport(IReadOnlyList<Finding> findings, string? reportPath, 
     string report = resolvedReportFormat switch
     {
         "csv" => GitleaksCsvReportWriter.Write(findings),
+        "junit" => GitleaksJunitReportWriter.Write(findings),
         "json" => GitleaksJsonReportWriter.Write(findings),
         _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
     };
@@ -594,7 +595,7 @@ static bool TryResolveReportFormat(string? reportPath, string? reportFormat, [No
 static bool TryNormalizeReportFormat(string reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
 {
     string normalizedReportFormat = reportFormat.Trim().ToLowerInvariant();
-    if (normalizedReportFormat is "csv" or "json")
+    if (normalizedReportFormat is "csv" or "json" or "junit")
     {
         resolvedReportFormat = normalizedReportFormat;
         return true;
@@ -667,7 +668,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

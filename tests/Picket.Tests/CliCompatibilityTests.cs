@@ -95,6 +95,25 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that -f junit writes a Gitleaks-compatible JUnit report.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanWritesJunitReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "junit").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", result.Stdout);
+        Assert.Contains("<testsuite failures=\"1\" name=\"gitleaks\" tests=\"1\" time=\"\">", result.Stdout);
+        Assert.Contains("<failure message=\"token has detected a secret in file secret.txt, line 1.\" type=\"\">", result.Stdout);
+        Assert.Contains("{&#xA;&#x9;&#34;RuleID&#34;: &#34;token&#34;,", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that inline gitleaks:allow comments suppress CLI findings by default.
     /// </summary>
     [TestMethod]
