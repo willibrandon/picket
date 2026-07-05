@@ -8,7 +8,7 @@
 - **Binary name:** `picket`
 - **Root namespace:** `Picket`
 - **Primary reference:** Gitleaks. Picket intentionally follows its CLI, config model, rule semantics, reports, fingerprints, and operational defaults in compatibility mode.
-- **Scout dependencies:** `Scout.Text.Regex`, `Scout.IO.Globbing`, and selected `Scout.IO.Ignore` traversal components when their behavior matches the active scan profile.
+- **Scout dependencies:** NuGet package references to `Scout.Text.Regex`, `Scout.IO.Globbing`, and selected `Scout.IO.Ignore` APIs when their behavior matches the active scan profile. The local Scout clone is a read-only reference only.
 - **License:** MIT for the scanner, libraries, action, hooks, and bundled rules.
 
 ---
@@ -67,7 +67,7 @@ The design and differential tests are pinned to local reference snapshots. Upgra
 | Project | Local path | Role |
 |---|---|---|
 | Gitleaks | `D:\SRC\gitleaks` | Primary compatibility oracle |
-| Scout | `D:\SRC\scout` | Library reference; never modified by Picket work |
+| Scout | `D:\SRC\scout` | Read-only API/behavior reference only. Picket consumes Scout via NuGet packages, never project/source references. |
 | TruffleHog | `D:\SRC\trufflehog` | Verification, sources, and analyze reference |
 | Kingfisher | `D:\SRC\kingfisher` | Validation breadth, revocation, access-map, reporting reference |
 | Nosey Parker | `D:\SRC\noseyparker` | Historical datastore/rule-QA/performance reference |
@@ -79,6 +79,14 @@ The design and differential tests are pinned to local reference snapshots. Upgra
 ## 4. Scout Usage Principles
 
 Scout is a core advantage, but Picket only uses Scout APIs where their semantics match the scanner contract.
+
+Scout must be consumed only through NuGet package references:
+
+- `Scout.Text.Regex`
+- `Scout.IO.Globbing`
+- `Scout.IO.Ignore`
+
+Use Central Package Management (`Directory.Packages.props`) to pin Scout package versions. Do not add `ProjectReference` entries to `D:\SRC\scout`, do not include Scout source files in this repository, and do not treat the local Scout clone as part of the build. The local clone exists only for reading implementation details, docs, and tests while designing Picket behavior.
 
 ### 4.1 `Scout.Text.Regex`
 
