@@ -1138,6 +1138,32 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that rules check rejects duplicate rule IDs before scanning.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsDuplicateRuleIds()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''alpha-[0-9]+'''
+
+            [[rules]]
+            id = "token"
+            regex = '''beta-[0-9]+'''
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("duplicate rule ID: token", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that rules check discovers a source-local Gitleaks-compatible config.
     /// </summary>
     [TestMethod]

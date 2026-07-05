@@ -2023,7 +2023,20 @@ static RuleSet FilterEnabledRules(RuleSet ruleSet, IReadOnlyList<string> enabled
 
 static void ValidateRulesWithScout(RuleSet ruleSet)
 {
+    ValidateUniqueRuleIds(ruleSet.Rules);
     _ = CompiledRuleSet.Compile(new RuleSet(ruleSet.Rules, ruleSet.Allowlists));
+}
+
+static void ValidateUniqueRuleIds(IReadOnlyList<SecretRule> rules)
+{
+    var ruleIds = new HashSet<string>(StringComparer.Ordinal);
+    foreach (SecretRule rule in rules)
+    {
+        if (!ruleIds.Add(rule.Id))
+        {
+            throw new InvalidDataException($"duplicate rule ID: {rule.Id}");
+        }
+    }
 }
 
 static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out GitleaksBaseline? baseline)
