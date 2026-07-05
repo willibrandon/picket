@@ -20,9 +20,11 @@ Native commands currently use the same rule model with Picket-native environment
 4. `GITLEAKS_CONFIG`
 5. `GITLEAKS_CONFIG_TOML`
 6. `{target}/.gitleaks.toml`
-7. embedded Gitleaks compatibility rules
+7. embedded Picket default config, which extends the embedded Gitleaks compatibility rules and adds `picket-default` coverage
 
 Strict compatibility commands ignore `PICKET_CONFIG` and `PICKET_CONFIG_TOML`. Native commands also understand optional Picket metadata fields on each rule.
+
+The initial embedded `picket-default` pack adds high-confidence coverage that is intentionally outside the pinned Gitleaks compatibility pack. Current native defaults include Azure Storage connection strings with `AccountKey` values. Target-local and environment configs still replace the embedded native default; use `[extend] useDefault = true` in a custom config when you want to add local rules on top of the Gitleaks compatibility default.
 
 ## Rule Shape
 

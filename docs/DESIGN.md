@@ -390,6 +390,18 @@ Config precedence in compatibility mode is exact:
 
 `PICKET_CONFIG*` variables are ignored by strict compatibility mode unless `--profile picket` or a native command is selected.
 
+Native commands and compatibility commands selected with `--profile picket` use Picket precedence:
+
+1. `--config`
+2. `PICKET_CONFIG`
+3. `PICKET_CONFIG_TOML`
+4. `GITLEAKS_CONFIG`
+5. `GITLEAKS_CONFIG_TOML`
+6. `{target}/.gitleaks.toml`
+7. embedded Picket default config
+
+The embedded Picket default config extends the embedded Gitleaks default config and layers Picket-native rule packs on top. Explicit, environment, and target-local configs replace the embedded native default unless those configs opt into `[extend] useDefault = true`.
+
 Exit codes:
 
 - `0`: no leaks and no fatal error,
@@ -409,7 +421,7 @@ Picket implements the Gitleaks TOML schema:
 - Allowlists: global and per-rule, plural and deprecated singular forms, `condition`, `commits`, `paths`, `regexTarget`, `regexes`, `stopwords`, and `targetRules`.
 - Validation: Picket emits the same config errors Gitleaks emits for empty allowlists, mixed singular/plural allowlists, duplicate IDs, missing regex/path, invalid capture groups, and invalid extend combinations.
 
-The embedded compatibility ruleset is the pinned Gitleaks default ruleset only. Picket rules live in separate rule packs.
+The embedded compatibility ruleset is the pinned Gitleaks default ruleset only. Picket rules live in separate rule packs. The native default profile layers `picket-default` over `gitleaks`; strict compatibility loads only `gitleaks`.
 
 ### 7.4 Regex Compatibility
 
@@ -502,7 +514,7 @@ Native mode adds stricter archive-safety controls: decompressed byte caps, entry
 Picket ships separate rule packs:
 
 - `gitleaks`: exact compatibility rules,
-- `picket-default`: high-confidence modern coverage,
+- `picket-default`: high-confidence modern coverage, initially including Azure Storage connection strings with `AccountKey` values,
 - `picket-strict`: broader coverage with more aggressive heuristics,
 - `picket-experimental`: new detectors under active tuning,
 - organization-local packs.

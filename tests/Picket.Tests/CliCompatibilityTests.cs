@@ -242,6 +242,48 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the embedded Picket default rule pack when no config is supplied.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesEmbeddedPicketDefaultRulePack()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string accountKey = CreateAzureStorageAccountKeyFixture();
+        File.WriteAllText(
+            Path.Combine(root.Path, "settings.txt"),
+            $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-azure-storage-connection-string\"", result.Stdout);
+        Assert.Contains($"\"secret\":\"{accountKey}\"", result.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
+        Assert.Contains("\"provider\":\"Azure\"", result.Stdout);
+        Assert.Contains("\"documentationUrl\":\"https://learn.microsoft.com/azure/storage/common/storage-account-keys-manage\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that target-local config still takes precedence over the embedded Picket default rule pack.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanPrefersTargetLocalConfigOverEmbeddedPicketDefaultRulePack()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string accountKey = CreateAzureStorageAccountKeyFixture();
+        File.WriteAllText(Path.Combine(root.Path, ".gitleaks.toml"), CreateRuleConfig("local-rule", "local-only-secret"));
+        File.WriteAllText(
+            Path.Combine(root.Path, "settings.txt"),
+            $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.DoesNotContain("picket-azure-storage-connection-string", result.Stdout);
+        Assert.DoesNotContain("picket-default", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that --profile picket opts a compatibility directory command into native config and report behavior.
     /// </summary>
     [TestMethod]
@@ -2877,6 +2919,14 @@ public sealed class CliCompatibilityTests
             id = "{{id}}"
             regex = '''{{pattern}}'''
             """;
+    }
+
+    private static string CreateAzureStorageAccountKeyFixture()
+    {
+        return string.Concat(
+            "MDEyMzQ1Njc4OUFCQ0RFRkdISktMTU5PUFFS",
+            "U1RVVldYWVoxMjM0NTY3ODlBQkNERUZHSElK",
+            "S0xNTk9QUVJTVA==");
     }
 
     private static string CreateTomlLiteral(string value)

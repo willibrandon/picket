@@ -7,8 +7,12 @@ namespace Picket.Compat;
 /// </summary>
 public static class PicketConfigLoader
 {
+    private const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
+    private const string GitleaksConfigFileName = ".gitleaks.toml";
+    private const string GitleaksConfigTomlEnvironmentVariable = "GITLEAKS_CONFIG_TOML";
     private const string PicketConfigEnvironmentVariable = "PICKET_CONFIG";
     private const string PicketConfigTomlEnvironmentVariable = "PICKET_CONFIG_TOML";
+    private static readonly Lazy<RuleSet> s_defaultRuleSet = new(LoadEmbeddedDefaultRuleSet);
 
     /// <summary>
     /// Loads rules using Picket-native config precedence.
@@ -35,6 +39,35 @@ public static class PicketConfigLoader
             return GitleaksConfigLoader.FromToml(environmentToml, PicketConfigTomlEnvironmentVariable);
         }
 
-        return GitleaksConfigLoader.LoadRuleSet(null, source);
+        string? compatibleEnvironmentPath = Environment.GetEnvironmentVariable(GitleaksConfigEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(compatibleEnvironmentPath))
+        {
+            return GitleaksConfigLoader.LoadFile(compatibleEnvironmentPath);
+        }
+
+        string? compatibleEnvironmentToml = Environment.GetEnvironmentVariable(GitleaksConfigTomlEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(compatibleEnvironmentToml))
+        {
+            return GitleaksConfigLoader.FromToml(compatibleEnvironmentToml, GitleaksConfigTomlEnvironmentVariable);
+        }
+
+        if (Directory.Exists(source))
+        {
+            string sourceConfigPath = Path.Combine(source, GitleaksConfigFileName);
+            if (File.Exists(sourceConfigPath))
+            {
+                return GitleaksConfigLoader.LoadFile(sourceConfigPath);
+            }
+        }
+
+        return s_defaultRuleSet.Value;
+    }
+
+    private static RuleSet LoadEmbeddedDefaultRuleSet()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            EmbeddedPicketConfig.Toml,
+            $"embedded Picket config {EmbeddedPicketConfig.SourceVersion}");
+        return new RuleSet(ruleSet.Rules, ruleSet.Allowlists, regexesPrevalidated: true);
     }
 }

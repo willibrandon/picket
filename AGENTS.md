@@ -51,6 +51,7 @@ Strict Gitleaks compatibility includes:
 - Commands and aliases: `git`, `dir`/`file`/`directory`, `stdin`, hidden `detect`, hidden `protect`.
 - Config precedence: `--config`, `GITLEAKS_CONFIG`, `GITLEAKS_CONFIG_TOML`, `{target}/.gitleaks.toml`, embedded Gitleaks default config.
 - `PICKET_CONFIG*` is ignored in strict compatibility unless a native profile/command is selected.
+- Native profile precedence is `--config`, `PICKET_CONFIG`, `PICKET_CONFIG_TOML`, `GITLEAKS_CONFIG`, `GITLEAKS_CONFIG_TOML`, `{target}/.gitleaks.toml`, embedded Picket default config. The embedded native default extends the embedded Gitleaks default and adds `picket-default` rules.
 - `--platform` compatibility set is empty/unknown autodetect, `none`, `github`, `gitlab`, `azuredevops`, `gitea`, `bitbucket`. Literal `auto` is not Gitleaks-compatible.
 - Git scanning follows Gitleaks' patch model: `git log -p -U0 --full-history --all --diff-filter=tuxdb`, additions only, plus staged/pre-commit behavior.
 - Matching runs candidate rules independently, including rules with no keywords.
