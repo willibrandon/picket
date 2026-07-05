@@ -1,7 +1,7 @@
 namespace Picket.Verify;
 
 /// <summary>
-/// Describes the result of offline secret validation.
+/// Describes the result of secret validation.
 /// </summary>
 public enum SecretValidationState
 {
@@ -24,4 +24,24 @@ public enum SecretValidationState
     /// The finding failed a known offline provider structure or checksum check.
     /// </summary>
     Invalid,
+
+    /// <summary>
+    /// Live provider verification proved the credential is active.
+    /// </summary>
+    Active,
+
+    /// <summary>
+    /// Live provider verification proved the credential is inactive or revoked.
+    /// </summary>
+    Inactive,
+
+    /// <summary>
+    /// Live provider verification intentionally skipped the finding.
+    /// </summary>
+    Skipped,
+
+    /// <summary>
+    /// Live provider verification failed with a provider, network, policy, or rate-limit error.
+    /// </summary>
+    Error,
 }

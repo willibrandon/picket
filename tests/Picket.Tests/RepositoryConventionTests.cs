@@ -179,6 +179,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
+        Assert.Contains("dotnet pack src/Picket.Security/Picket.Security.csproj", workflow);
         Assert.Contains("--no-build", workflow);
         Assert.Contains("shell: pwsh", workflow);
         Assert.Contains("ubuntu-latest", workflow);
@@ -234,6 +235,7 @@ public sealed partial class RepositoryConventionTests
         AssertEmbeddablePackage("src/Picket.Rules/Picket.Rules.csproj", "Picket.Rules");
         AssertEmbeddablePackage("src/Picket.Engine/Picket.Engine.csproj", "Picket.Engine");
         AssertEmbeddablePackage("src/Picket.Report/Picket.Report.csproj", "Picket.Report");
+        AssertEmbeddablePackage("src/Picket.Security/Picket.Security.csproj", "Picket.Security");
     }
 
     /// <summary>
@@ -261,12 +263,14 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Rules", documentation);
         Assert.Contains("Picket.Engine", documentation);
         Assert.Contains("Picket.Report", documentation);
+        Assert.Contains("Picket.Security", documentation);
         Assert.Contains("net9.0", documentation);
         Assert.Contains("net10.0", documentation);
         Assert.Contains("Native AOT", documentation);
         Assert.Contains("SecretScanner.Scan", documentation);
         Assert.Contains("CompiledRuleSet.Compile", documentation);
         Assert.Contains("PicketJsonlReportWriter", documentation);
+        Assert.Contains("EndpointGuard.Evaluate", documentation);
         Assert.Contains("not public packages yet", documentation);
     }
 
@@ -323,12 +327,14 @@ public sealed partial class RepositoryConventionTests
         string rulesApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-rules.md");
         string engineApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-engine.md");
         string reportApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-report.md");
+        string securityApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-security.md");
 
         Assert.Contains("directory: \"api\"", siteConfig);
         Assert.Contains("docs:api-build", packageJson);
         Assert.Contains("Picket.Rules.csproj", packageJson);
         Assert.Contains("Picket.Engine.csproj", packageJson);
         Assert.Contains("Picket.Report.csproj", packageJson);
+        Assert.Contains("Picket.Security.csproj", packageJson);
         Assert.Contains("## Commands", cliReference);
         Assert.Contains("## Command Reference", cliReference);
         Assert.Contains("class=\"cli-command-groups\"", cliReference);
@@ -344,6 +350,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("CompiledRuleSet", engineApi);
         Assert.Contains("Picket.Report API", reportApi);
         Assert.Contains("PicketJsonlReportWriter", reportApi);
+        Assert.Contains("Picket.Security API", securityApi);
+        Assert.Contains("EndpointGuard", securityApi);
     }
 
     /// <summary>

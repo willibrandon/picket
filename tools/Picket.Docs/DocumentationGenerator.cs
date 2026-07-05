@@ -10,7 +10,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
     private readonly string _repositoryRoot = repositoryRoot;
     private readonly string _docsRoot = Path.Combine(repositoryRoot, "docs");
     private readonly string _siteDocsRoot = Path.Combine(repositoryRoot, "docs-site", "src", "content", "docs");
-    private readonly string[] _publicPackageIds = ["Picket.Rules", "Picket.Engine", "Picket.Report"];
+    private readonly string[] _publicPackageIds = ["Picket.Rules", "Picket.Engine", "Picket.Report", "Picket.Security"];
 
     internal static string FindRepositoryRoot(string startDirectory)
     {

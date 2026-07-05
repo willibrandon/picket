@@ -348,7 +348,14 @@ internal static partial class Program
 
     static bool IsSupportedValidationResult(string value)
     {
-        return value is "unknown" or "structurally-valid" or "test-credential" or "invalid";
+        return value is "unknown"
+            or "structurally-valid"
+            or "test-credential"
+            or "invalid"
+            or "active"
+            or "inactive"
+            or "skipped"
+            or "error";
     }
 
     static List<Finding> FilterValidationResults(IReadOnlyList<Finding> findings, HashSet<string> validationResults)

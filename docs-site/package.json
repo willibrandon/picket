@@ -5,7 +5,7 @@
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
-    "docs:api-build": "dotnet build ../src/Picket.Rules/Picket.Rules.csproj --configuration Release --framework net10.0 --verbosity minimal && dotnet build ../src/Picket.Engine/Picket.Engine.csproj --configuration Release --framework net10.0 --verbosity minimal && dotnet build ../src/Picket.Report/Picket.Report.csproj --configuration Release --framework net10.0 --verbosity minimal",
+    "docs:api-build": "dotnet build ../src/Picket.Rules/Picket.Rules.csproj --configuration Release --framework net10.0 --verbosity minimal && dotnet build ../src/Picket.Engine/Picket.Engine.csproj --configuration Release --framework net10.0 --verbosity minimal && dotnet build ../src/Picket.Report/Picket.Report.csproj --configuration Release --framework net10.0 --verbosity minimal && dotnet build ../src/Picket.Security/Picket.Security.csproj --configuration Release --framework net10.0 --verbosity minimal",
     "docs:generate": "pnpm docs:api-build && dotnet run --project ../tools/Picket.Docs/Picket.Docs.csproj",
     "docs:check": "pnpm docs:api-build && dotnet run --project ../tools/Picket.Docs/Picket.Docs.csproj -- --check",
     "prebuild": "pnpm docs:generate",

@@ -11,6 +11,7 @@
     <ProjectReference Include="..\..\src\Picket.Engine\Picket.Engine.csproj" />
     <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />
     <ProjectReference Include="..\..\src\Picket.Rules\Picket.Rules.csproj" />
+    <ProjectReference Include="..\..\src\Picket.Security\Picket.Security.csproj" />
     <ProjectReference Include="..\..\src\Picket.Sources\Picket.Sources.csproj" />
     <ProjectReference Include="..\..\src\Picket.Store\Picket.Store.csproj" />
     <ProjectReference Include="..\..\src\Picket.Verify\Picket.Verify.csproj" />

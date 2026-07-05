@@ -34,6 +34,10 @@ public sealed class SecretValidationResult(SecretValidationState state, string r
             SecretValidationState.StructurallyValid => "structurally-valid",
             SecretValidationState.TestCredential => "test-credential",
             SecretValidationState.Invalid => "invalid",
+            SecretValidationState.Active => "active",
+            SecretValidationState.Inactive => "inactive",
+            SecretValidationState.Skipped => "skipped",
+            SecretValidationState.Error => "error",
             _ => "unknown",
         };
     }

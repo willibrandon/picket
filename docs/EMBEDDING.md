@@ -1,10 +1,11 @@
 # Embedding Picket
 
-Picket exposes three initial AOT-safe NuGet packages for host applications:
+Picket exposes four initial AOT-safe NuGet packages for host applications:
 
 - `Picket.Rules`: rule and allowlist models, plus embedded compatibility rules.
 - `Picket.Engine`: byte-oriented scanning over caller-owned buffers.
 - `Picket.Report`: Gitleaks-compatible and Picket-native report writers.
+- `Picket.Security`: egress and endpoint safety primitives for live verification and source connectors.
 
 These packages target `net9.0` and `net10.0`, enable trim, Native AOT, and single-file analyzers, and avoid dynamic plugin or reflection-only runtime behavior. The current package surface is intentionally narrow. `Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and the CLI are implementation or workflow assemblies and are not public packages yet.
 
@@ -15,10 +16,11 @@ These packages target `net9.0` and `net10.0`, enable trim, Native AOT, and singl
   <PackageReference Include="Picket.Engine" Version="0.1.0" />
   <PackageReference Include="Picket.Report" Version="0.1.0" />
   <PackageReference Include="Picket.Rules" Version="0.1.0" />
+  <PackageReference Include="Picket.Security" Version="0.1.0" />
 </ItemGroup>
 ```
 
-`Picket.Engine` depends on `Picket.Rules`, and `Picket.Report` depends on both. Hosts can reference only the highest-level package they need.
+`Picket.Engine` depends on `Picket.Rules`, and `Picket.Report` depends on both. `Picket.Security` has no Picket package dependencies. Hosts can reference only the highest-level package they need.
 
 ## Scan a Buffer
 
@@ -75,6 +77,26 @@ Recommended defaults for embedders:
 - Use JSONL for large result streams and CI/event ingestion.
 - Use SARIF for GitHub code scanning and editor/security tooling.
 - Keep Gitleaks-compatible reports separate from Picket-native reports.
+
+## Endpoint Safety
+
+Use `EndpointGuard.Evaluate` before live verification or source-provider code contacts an endpoint that may be configured by users, rules, or environment:
+
+```csharp
+using System.Net;
+using Picket.Security;
+
+EndpointGuardResult decision = EndpointGuard.Evaluate(
+    new Uri("https://api.github.com/user"),
+    [IPAddress.Parse("140.82.112.6")]);
+
+if (!decision.IsAllowed)
+{
+    throw new InvalidOperationException(decision.Message);
+}
+```
+
+The default guard requires HTTPS and blocks loopback, private, link-local, metadata-service, reserved, multicast, and documentation addresses. Tests and local fakes can opt in to non-public endpoints with `EndpointGuardOptions.AllowNonPublicAddresses`.
 
 ## Native AOT Hosts
 

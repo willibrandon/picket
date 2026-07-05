@@ -11,6 +11,22 @@ namespace Picket.Tests;
 public sealed class OfflineSecretValidatorTests
 {
     /// <summary>
+    /// Verifies that report values include offline and live validation states.
+    /// </summary>
+    [TestMethod]
+    public void ToReportValueFormatsValidationStates()
+    {
+        Assert.AreEqual("unknown", SecretValidationResult.ToReportValue(SecretValidationState.Unknown));
+        Assert.AreEqual("structurally-valid", SecretValidationResult.ToReportValue(SecretValidationState.StructurallyValid));
+        Assert.AreEqual("test-credential", SecretValidationResult.ToReportValue(SecretValidationState.TestCredential));
+        Assert.AreEqual("invalid", SecretValidationResult.ToReportValue(SecretValidationState.Invalid));
+        Assert.AreEqual("active", SecretValidationResult.ToReportValue(SecretValidationState.Active));
+        Assert.AreEqual("inactive", SecretValidationResult.ToReportValue(SecretValidationState.Inactive));
+        Assert.AreEqual("skipped", SecretValidationResult.ToReportValue(SecretValidationState.Skipped));
+        Assert.AreEqual("error", SecretValidationResult.ToReportValue(SecretValidationState.Error));
+    }
+
+    /// <summary>
     /// Verifies that AWS access key IDs are structurally validated offline.
     /// </summary>
     [TestMethod]

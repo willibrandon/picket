@@ -33,6 +33,7 @@ Every CI run packs the public embeddable packages after build and test:
 - `Picket.Rules`
 - `Picket.Engine`
 - `Picket.Report`
+- `Picket.Security`
 
 The CI pack gate runs on Windows, Linux, and macOS so package metadata, embedded readmes, symbol packages, project-reference dependencies, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
 

@@ -57,3 +57,4 @@ jobs:
           dotnet pack src/Picket.Rules/Picket.Rules.csproj --configuration Release --no-build -o $packageOutput
           dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release --no-build -o $packageOutput
           dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release --no-build -o $packageOutput
+          dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release --no-build -o $packageOutput

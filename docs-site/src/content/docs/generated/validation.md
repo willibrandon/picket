@@ -24,6 +24,7 @@ Offline validation never sends secrets, hashes, paths, or metadata to a network 
 - `structurally-valid`: the secret has a valid local shape for the detected rule.
 - `test-credential`: the secret appears to be a dummy, example, placeholder, or repeated-character credential.
 - `invalid`: the secret fails a local structural check.
+- `active`, `inactive`, `skipped`, and `error`: reserved for opt-in live verification results.
 
 Current offline coverage includes:
 
@@ -39,7 +40,7 @@ Current offline coverage includes:
 
 ## Live Verification Model
 
-Live verification is future opt-in behavior. Before it can be enabled, each provider validator requires a threat-model entry with:
+Live verification is future opt-in behavior. The shared endpoint guard already blocks unsafe egress targets for provider validators. Before a provider can be enabled, each validator also requires a threat-model entry with:
 
 - data sent,
 - endpoint contacted,
@@ -52,7 +53,7 @@ Live verification is future opt-in behavior. Before it can be enabled, each prov
 - known provider side effects,
 - SSRF and redirect protections.
 
-Provider requests must block loopback, private, link-local, metadata-service, and non-public redirect targets by default. Responses must be size-limited and redacted before diagnostics.
+Provider requests must use `Picket.Security` endpoint checks to block loopback, private, link-local, metadata-service, reserved, and non-public redirect targets by default. Responses must be size-limited and redacted before diagnostics.
 
 ## Reporting
 
