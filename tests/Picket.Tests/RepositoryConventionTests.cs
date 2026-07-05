@@ -157,6 +157,29 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that CI packs the public NuGet libraries on every supported runner.
+    /// </summary>
+    [TestMethod]
+    public void CiWorkflowPacksPublicPackages()
+    {
+        string workflow = ReadRepositoryFile(".github/workflows/ci.yml");
+        string documentation = ReadRepositoryFile("docs/RELEASE.md");
+
+        Assert.Contains("Pack public packages", workflow);
+        Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
+        Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
+        Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
+        Assert.Contains("--no-build", workflow);
+        Assert.Contains("shell: pwsh", workflow);
+        Assert.Contains("ubuntu-latest", workflow);
+        Assert.Contains("windows-latest", workflow);
+        Assert.Contains("macos-26", workflow);
+        Assert.Contains("NuGet Package Validation", documentation);
+        Assert.Contains("Every CI run packs the public embeddable packages", documentation);
+        Assert.Contains("cross-platform MSBuild paths", documentation);
+    }
+
+    /// <summary>
     /// Verifies that shared NuGet package metadata is defined for embeddable packages.
     /// </summary>
     [TestMethod]

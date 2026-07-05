@@ -47,3 +47,13 @@ jobs:
 
       - name: Test
         run: dotnet test --solution Picket.slnx --configuration Release --no-restore
+
+      - name: Pack public packages
+        shell: pwsh
+        run: |
+          $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-packages'
+          New-Item -ItemType Directory -Force -Path $packageOutput | Out-Null
+
+          dotnet pack src/Picket.Rules/Picket.Rules.csproj --configuration Release --no-build -o $packageOutput
+          dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release --no-build -o $packageOutput
+          dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release --no-build -o $packageOutput

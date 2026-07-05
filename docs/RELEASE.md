@@ -20,6 +20,16 @@ All profiles keep unsafe BinaryFormatter serialization, UTF-7, metadata update s
 
 `release-minsize` must not change scanner findings, rule behavior, reports, validation states, or exit-code classification. It may reduce diagnostic richness only.
 
+## NuGet Package Validation
+
+Every CI run packs the public embeddable packages after build and test:
+
+- `Picket.Rules`
+- `Picket.Engine`
+- `Picket.Report`
+
+The CI pack gate runs on Windows, Linux, and macOS so package metadata, embedded readmes, symbol packages, project-reference dependencies, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
+
 ## Runtime Identifiers
 
 Use the target RID in the publish command. Common release RIDs are:
