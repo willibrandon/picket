@@ -551,6 +551,86 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native cache stats summarize entries for the active scanner key.
+    /// </summary>
+    [TestMethod]
+    public async Task CacheStatsWritesNativeCacheSummary()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
+
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult stats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(0, stats.ExitCode);
+        Assert.IsEmpty(stats.Stderr);
+        Assert.Contains("cache: ", stats.Stdout);
+        Assert.Contains("entries: 1", stats.Stdout);
+        Assert.Contains("current-key entries: 1", stats.Stdout);
+        Assert.Contains("bytes: ", stats.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that cache pruning can remove entries from inactive scanner keys.
+    /// </summary>
+    [TestMethod]
+    public async Task CachePruneDeletesInactiveScannerKeys()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
+
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        string otherConfigPath = WriteTokenConfig(root.Path, "other.toml");
+        CliResult prune = await RunCliAsync("cache", "prune", "--cache-dir", cachePath, "-c", otherConfigPath, "--source", root.Path, "--other-keys").ConfigureAwait(false);
+        CliResult stats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", otherConfigPath, "--source", root.Path).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(0, prune.ExitCode);
+        Assert.Contains("deleted: 1", prune.Stdout);
+        Assert.AreEqual(0, stats.ExitCode);
+        Assert.Contains("entries: 0", stats.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that cache pruning can remove entries older than the configured retention age.
+    /// </summary>
+    [TestMethod]
+    public async Task CachePruneDeletesExpiredEntries()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
+
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        File.SetLastWriteTimeUtc(GetSingleCacheEntryPath(cachePath), DateTime.UtcNow - TimeSpan.FromDays(2));
+        CliResult prune = await RunCliAsync("cache", "prune", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path, "--older-than-days", "1").ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(0, prune.ExitCode);
+        Assert.Contains("deleted: 1", prune.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that cache help advertises supported maintenance commands.
+    /// </summary>
+    [TestMethod]
+    public async Task CacheHelpAdvertisesStatsAndPrune()
+    {
+        CliResult result = await RunCliAsync("cache", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket cache stats", result.Stdout);
+        Assert.Contains("picket cache prune", result.Stdout);
+        Assert.Contains("--older-than-days", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans use the Picket SARIF report shape.
     /// </summary>
     [TestMethod]
@@ -2534,6 +2614,13 @@ public sealed class CliCompatibilityTests
     private static string ComputeSha256(string value)
     {
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+    }
+
+    private static string GetSingleCacheEntryPath(string cachePath)
+    {
+        string[] entries = Directory.GetFiles(Path.Combine(cachePath, "entries"), "*.cache", SearchOption.AllDirectories);
+        Assert.HasCount(1, entries);
+        return entries[0];
     }
 
     private static async Task InitializeGitRepositoryAsync(string root)

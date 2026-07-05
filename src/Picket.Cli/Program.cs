@@ -53,6 +53,11 @@ if (command.Equals("baseline", StringComparison.OrdinalIgnoreCase))
     return RunBaseline(args[1..]);
 }
 
+if (command.Equals("cache", StringComparison.OrdinalIgnoreCase))
+{
+    return RunCache(args[1..]);
+}
+
 if (command.Equals("view", StringComparison.OrdinalIgnoreCase))
 {
     return RunView(args[1..]);
@@ -375,6 +380,124 @@ static int RunScan(string[] args)
         nativeReportFormats: true,
         diagnosticsCommand: "scan",
         defaultRoot: ".");
+}
+
+static int RunCache(string[] args)
+{
+    if (args.Length == 0 || IsHelp(args[0]))
+    {
+        WriteCacheHelp();
+        return 0;
+    }
+
+    string subcommand = args[0];
+    if (subcommand.Equals("stats", StringComparison.OrdinalIgnoreCase))
+    {
+        return RunCacheStats(args[1..]);
+    }
+
+    if (subcommand.Equals("prune", StringComparison.OrdinalIgnoreCase))
+    {
+        return RunCachePrune(args[1..]);
+    }
+
+    Console.Error.WriteLine($"unknown cache command: {subcommand}");
+    return UnknownFlagExitCode;
+}
+
+static int RunCacheStats(string[] args)
+{
+    if (ContainsHelp(args))
+    {
+        WriteCacheStatsHelp();
+        return 0;
+    }
+
+    if (!TryReadCacheOptions(
+        args,
+        allowPruneOptions: false,
+        out string? cacheDir,
+        out string? configPath,
+        out string source,
+        out int maxDecodeDepth,
+        out long? maxTargetBytes,
+        out _,
+        out _))
+    {
+        return UnknownFlagExitCode;
+    }
+
+    if (string.IsNullOrWhiteSpace(cacheDir))
+    {
+        Console.Error.WriteLine("cache stats requires --cache-dir");
+        return UnknownFlagExitCode;
+    }
+
+    if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, out PicketScanCache? scanCache))
+    {
+        return 1;
+    }
+
+    PicketScanCacheStats stats = scanCache.GetStats();
+    Console.Out.WriteLine($"cache: {stats.RootPath}");
+    Console.Out.WriteLine($"entries: {stats.EntryCount.ToString(CultureInfo.InvariantCulture)}");
+    Console.Out.WriteLine($"current-key entries: {stats.CurrentKeyEntryCount.ToString(CultureInfo.InvariantCulture)}");
+    Console.Out.WriteLine($"bytes: {stats.TotalBytes.ToString(CultureInfo.InvariantCulture)}");
+    return 0;
+}
+
+static int RunCachePrune(string[] args)
+{
+    if (ContainsHelp(args))
+    {
+        WriteCachePruneHelp();
+        return 0;
+    }
+
+    if (!TryReadCacheOptions(
+        args,
+        allowPruneOptions: true,
+        out string? cacheDir,
+        out string? configPath,
+        out string source,
+        out int maxDecodeDepth,
+        out long? maxTargetBytes,
+        out bool pruneOtherKeys,
+        out int? olderThanDays))
+    {
+        return UnknownFlagExitCode;
+    }
+
+    if (string.IsNullOrWhiteSpace(cacheDir))
+    {
+        Console.Error.WriteLine("cache prune requires --cache-dir");
+        return UnknownFlagExitCode;
+    }
+
+    if (!pruneOtherKeys && !olderThanDays.HasValue)
+    {
+        Console.Error.WriteLine("cache prune requires --other-keys or --older-than-days");
+        return UnknownFlagExitCode;
+    }
+
+    if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, out PicketScanCache? scanCache))
+    {
+        return 1;
+    }
+
+    int deleted = 0;
+    if (pruneOtherKeys)
+    {
+        deleted += scanCache.PruneOtherKeys();
+    }
+
+    if (olderThanDays.HasValue)
+    {
+        deleted += scanCache.PruneOlderThan(TimeSpan.FromDays(olderThanDays.Value));
+    }
+
+    Console.Out.WriteLine($"deleted: {deleted.ToString(CultureInfo.InvariantCulture)}");
+    return 0;
 }
 
 static int RunVerify(string[] args)
@@ -2279,6 +2402,19 @@ static bool IsHelp(string arg)
     return arg is "-h" or "--help" or "help";
 }
 
+static bool ContainsHelp(string[] args)
+{
+    for (int i = 0; i < args.Length; i++)
+    {
+        if (IsHelp(args[i]))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static int RunRules(string[] args)
 {
     if (args.Length == 0 || IsHelp(args[0]))
@@ -2950,6 +3086,120 @@ static bool TryReadValidationResultsFlag(string[] args, ref int index, HashSet<s
     return false;
 }
 
+static bool TryReadCacheOptions(
+    string[] args,
+    bool allowPruneOptions,
+    out string? cacheDir,
+    out string? configPath,
+    out string source,
+    out int maxDecodeDepth,
+    out long? maxTargetBytes,
+    out bool pruneOtherKeys,
+    out int? olderThanDays)
+{
+    cacheDir = null;
+    configPath = null;
+    source = ".";
+    maxDecodeDepth = 5;
+    maxTargetBytes = null;
+    pruneOtherKeys = false;
+    olderThanDays = null;
+    bool sourceRead = false;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsCacheDirFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--cache-dir", out cacheDir))
+            {
+                return false;
+            }
+
+            continue;
+        }
+
+        if (IsConfigFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return false;
+            }
+
+            continue;
+        }
+
+        if (IsSourceFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+            {
+                return false;
+            }
+
+            source = sourceValue.Length == 0 ? "." : sourceValue;
+            sourceRead = true;
+            continue;
+        }
+
+        if (IsMaxDecodeDepthFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
+            {
+                return false;
+            }
+
+            continue;
+        }
+
+        if (IsMaxTargetMegabytesFlag(arg))
+        {
+            if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
+            {
+                return false;
+            }
+
+            continue;
+        }
+
+        if (allowPruneOptions && IsOtherKeysFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--other-keys", out pruneOtherKeys))
+            {
+                return false;
+            }
+
+            continue;
+        }
+
+        if (allowPruneOptions && IsOlderThanDaysFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--older-than-days", out int value))
+            {
+                return false;
+            }
+
+            olderThanDays = value;
+            continue;
+        }
+
+        if (arg.StartsWith('-'))
+        {
+            Console.Error.WriteLine($"unknown flag: {arg}");
+            return false;
+        }
+
+        if (sourceRead)
+        {
+            Console.Error.WriteLine($"unexpected argument: {arg}");
+            return false;
+        }
+
+        source = arg.Length == 0 ? "." : arg;
+        sourceRead = true;
+    }
+
+    return true;
+}
+
 static bool IsSupportedValidationResult(string value)
 {
     return value is "unknown" or "structurally-valid" or "test-credential" or "invalid";
@@ -2987,6 +3237,18 @@ static bool IsCacheDirFlag(string arg)
 {
     return arg.Equals("--cache-dir", StringComparison.Ordinal)
         || arg.StartsWith("--cache-dir=", StringComparison.Ordinal);
+}
+
+static bool IsOtherKeysFlag(string arg)
+{
+    return arg.Equals("--other-keys", StringComparison.Ordinal)
+        || arg.StartsWith("--other-keys=", StringComparison.Ordinal);
+}
+
+static bool IsOlderThanDaysFlag(string arg)
+{
+    return arg.Equals("--older-than-days", StringComparison.Ordinal)
+        || arg.StartsWith("--older-than-days=", StringComparison.Ordinal);
 }
 
 static bool IsRulesTestPathFlag(string arg)
@@ -3410,6 +3672,32 @@ static bool TryLoadRules(
     {
         Console.Error.WriteLine(ex.Message);
         rules = null;
+        return false;
+    }
+}
+
+static bool TryOpenNativeScanCache(
+    string cacheDir,
+    string? configPath,
+    string source,
+    int maxDecodeDepth,
+    long? maxTargetBytes,
+    [NotNullWhen(true)] out PicketScanCache? scanCache)
+{
+    scanCache = null;
+    if (!TryLoadRules(configPath, source, [], out CompiledRuleSet? rules))
+    {
+        return false;
+    }
+
+    try
+    {
+        scanCache = PicketScanCache.Open(cacheDir, ScanCacheKey.Create(rules.Fingerprint, maxDecodeDepth, maxTargetBytes));
+        return true;
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+    {
+        Console.Error.WriteLine($"failed to open cache: {ex.Message}");
         return false;
     }
 }
@@ -4097,6 +4385,8 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified]");
     Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--source path] [--cache-dir path] [--offline] [--results value]");
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -4145,6 +4435,31 @@ static void WriteBaselineCreateHelp()
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
+}
+
+static void WriteCacheHelp()
+{
+    Console.Out.WriteLine("picket cache - native scan cache maintenance");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]");
+}
+
+static void WriteCacheStatsHelp()
+{
+    Console.Out.WriteLine("picket cache stats - summarize native scan cache entries");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]");
+}
+
+static void WriteCachePruneHelp()
+{
+    Console.Out.WriteLine("picket cache prune - delete native scan cache entries");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]");
 }
 
 static void WriteViewHelp()

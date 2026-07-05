@@ -285,6 +285,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PicketScanCache.GetStats()", cache);
         Assert.Contains("PicketScanCache.PruneOtherKeys()", cache);
         Assert.Contains("PicketScanCache.PruneOlderThan", cache);
+        Assert.Contains("picket cache stats", cache);
+        Assert.Contains("picket cache prune", cache);
     }
 
     [GeneratedRegex(
