@@ -170,6 +170,23 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that compatibility directory scans reject native GitLab Code Quality reports.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeGitLabReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "gitlab").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported report format: gitlab", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scans can write Picket JSONL reports.
     /// </summary>
     [TestMethod]
@@ -185,6 +202,24 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
         Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
         Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can write GitLab Code Quality reports.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesGitLabCodeQualityReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "gitlab").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"check_name\":\"token\"", result.Stdout);
+        Assert.Contains("\"severity\":\"critical\"", result.Stdout);
+        Assert.Contains("\"location\":{\"path\":\"secret.txt\",\"lines\":{\"begin\":1}}", result.Stdout);
     }
 
     /// <summary>
@@ -221,6 +256,24 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("\"schema\":\"picket.finding.v1\"", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
+    /// Verifies that native scans infer GitLab Code Quality from report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanInfersGitLabCodeQualityReportPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "gl-code-quality-report.json");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("\"check_name\":\"token\"", File.ReadAllText(reportPath));
     }
 
     /// <summary>
