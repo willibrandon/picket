@@ -6,7 +6,7 @@ namespace Picket.Engine;
 /// Describes a byte-buffer scan request.
 /// </summary>
 /// <param name="input">The input bytes to scan.</param>
-/// <param name="fileName">The logical file name used in reports and fingerprints.</param>
+/// <param name="fileName">The logical file name used in reports and fingerprints, or an empty string for stdin compatibility.</param>
 /// <param name="ruleSet">The compiled rules used for detection.</param>
 /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
 /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
@@ -27,7 +27,7 @@ public sealed class ScanRequest(
     /// Initializes a new scan request and compiles the supplied source rules.
     /// </summary>
     /// <param name="input">The input bytes to scan.</param>
-    /// <param name="fileName">The logical file name used in reports and fingerprints.</param>
+    /// <param name="fileName">The logical file name used in reports and fingerprints, or an empty string for stdin compatibility.</param>
     /// <param name="ruleSet">The source rules used for detection.</param>
     /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
     /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
@@ -53,7 +53,7 @@ public sealed class ScanRequest(
     public ReadOnlyMemory<byte> Input { get; } = input;
 
     /// <summary>
-    /// Gets the logical file name used in reports and fingerprints.
+    /// Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
     /// </summary>
     public string FileName { get; } = RequireFileName(fileName);
 
@@ -89,7 +89,7 @@ public sealed class ScanRequest(
 
     private static string RequireFileName(string value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        ArgumentNullException.ThrowIfNull(value);
         return value;
     }
 

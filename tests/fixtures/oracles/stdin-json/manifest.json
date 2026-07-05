@@ -1,0 +1,68 @@
+{
+  "Schema": "picket.oracle.v1",
+  "Name": "stdin-json",
+  "Mode": "stdin",
+  "Formats": [
+    "json"
+  ],
+  "Upstream": {
+    "Tool": "gitleaks",
+    "Version": "version is set by build process",
+    "CloneVersion": "v8.30.0-23-g4c232b5",
+    "Commit": "4c232b5014f7618360bd992b4c489cb055881c6b",
+    "Remote": "https://github.com/gitleaks/gitleaks.git"
+  },
+  "Redaction": {
+    "MapRequired": true,
+    "EntryCount": 1
+  },
+  "Files": [
+    {
+      "Kind": "gitleaks-report",
+      "Format": "json",
+      "Path": "gitleaks.json",
+      "Sha256": "a5c35927fecc97efa024cfe5f8678930dbb65a486b9e922db98a4af774596ebe"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "json",
+      "Path": "picket.json",
+      "Sha256": "a5c35927fecc97efa024cfe5f8678930dbb65a486b9e922db98a4af774596ebe"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "json",
+      "Path": "gitleaks.json.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "json",
+      "Path": "picket.json.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "json",
+      "Path": "gitleaks.json.stderr.txt",
+      "Sha256": "856025e35674651f74904a4dd64a5679c77e797d1af8f80aa6be8ab49cb5cea4"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "json",
+      "Path": "picket.json.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "Comparisons": [
+    {
+      "Format": "json",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    }
+  ]
+}

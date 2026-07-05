@@ -1,0 +1,2 @@
+RuleID,Commit,File,SymlinkFile,Secret,Match,StartLine,EndLine,StartColumn,EndColumn,Author,Message,Date,Email,Fingerprint,Tags
+oracle-token,,source.txt,,REDACTED,REDACTED,1,1,16,34,,,,,source.txt:oracle-token:1,

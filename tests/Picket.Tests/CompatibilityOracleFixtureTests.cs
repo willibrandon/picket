@@ -10,26 +10,66 @@ namespace Picket.Tests;
 public sealed class CompatibilityOracleFixtureTests
 {
     /// <summary>
-    /// Verifies that the basic directory JSON fixture still matches the promoted Gitleaks oracle report.
+    /// Verifies that the basic directory fixture still matches promoted Gitleaks oracle reports.
     /// </summary>
     [TestMethod]
     [Timeout(30000, CooperativeCancellation = true)]
-    public async Task BasicDirectoryJsonReportMatchesPromotedGitleaksOracle()
+    public async Task BasicDirectoryReportsMatchPromotedGitleaksOracles()
     {
         string repositoryRoot = GetRepositoryRoot();
         string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "basic-dir-json");
         string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "basic-dir-json");
-        string expectedReport = NormalizeLineEndings(File.ReadAllText(Path.Combine(oracleRoot, "gitleaks.json")));
-        string promotedPicketReport = NormalizeLineEndings(File.ReadAllText(Path.Combine(oracleRoot, "picket.json")));
+
+        foreach (string format in new[] { "json", "csv", "junit", "sarif" })
+        {
+            string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", format);
+            string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", format);
+            using TempDirectory output = TempDirectory.Create();
+            string reportPath = Path.Combine(output.Path, $"report.{format}");
+
+            Assert.AreEqual(expectedReport, promotedPicketReport);
+
+            CliResult result = await RunCliFromDirectoryAsync(
+                inputRoot,
+                "dir",
+                ".",
+                "-c",
+                ".gitleaks.toml",
+                "-f",
+                format,
+                "-r",
+                reportPath,
+                "--no-banner",
+                "--no-color",
+                "--redact=100").ConfigureAwait(false);
+
+            Assert.AreEqual(1, result.ExitCode);
+            Assert.IsEmpty(result.Stdout);
+            Assert.IsEmpty(result.Stderr);
+            Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the stdin JSON fixture still matches the promoted Gitleaks oracle report.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task StdinJsonReportMatchesPromotedGitleaksOracle()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "stdin-json");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "stdin-json");
+        string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", "json");
+        string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", "json");
+        string standardInput = File.ReadAllText(Path.Combine(inputRoot, "input.txt"));
         using TempDirectory output = TempDirectory.Create();
         string reportPath = Path.Combine(output.Path, "report.json");
 
-        Assert.AreEqual(expectedReport, promotedPicketReport);
-
         CliResult result = await RunCliWithInputFromDirectoryAsync(
             inputRoot,
-            "dir",
-            ".",
+            standardInput,
+            "stdin",
             "-c",
             ".gitleaks.toml",
             "-f",
@@ -40,18 +80,25 @@ public sealed class CompatibilityOracleFixtureTests
             "--no-color",
             "--redact=100").ConfigureAwait(false);
 
+        Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.IsEmpty(result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
-    private static async Task<CliResult> RunCliWithInputFromDirectoryAsync(string workingDirectory, params string[] arguments)
+    private static async Task<CliResult> RunCliFromDirectoryAsync(string workingDirectory, params string[] arguments)
+    {
+        return await RunCliWithInputFromDirectoryAsync(workingDirectory, standardInput: null, arguments).ConfigureAwait(false);
+    }
+
+    private static async Task<CliResult> RunCliWithInputFromDirectoryAsync(string workingDirectory, string? standardInput, params string[] arguments)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo(GetCliExecutablePath())
         {
             RedirectStandardError = true,
+            RedirectStandardInput = standardInput is not null,
             RedirectStandardOutput = true,
             UseShellExecute = false,
             WorkingDirectory = workingDirectory,
@@ -68,6 +115,13 @@ public sealed class CompatibilityOracleFixtureTests
         process.StartInfo.Environment.Remove("PICKET_CONFIG_TOML");
 
         process.Start();
+        if (standardInput is not null)
+        {
+            await process.StandardInput.WriteAsync(standardInput).ConfigureAwait(false);
+            await process.StandardInput.FlushAsync().ConfigureAwait(false);
+            process.StandardInput.Close();
+        }
+
         string stdout = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
         string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
         await process.WaitForExitAsync().ConfigureAwait(false);
@@ -127,4 +181,10 @@ public sealed class CompatibilityOracleFixtureTests
     {
         return value.ReplaceLineEndings("\n");
     }
+
+    private static string ReadOracleReport(string oracleRoot, string tool, string format)
+    {
+        return NormalizeLineEndings(File.ReadAllText(Path.Combine(oracleRoot, $"{tool}.{format}")));
+    }
+
 }

@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "stdin-token",
+  "Description": "Synthetic token used for stdin oracle compatibility tests.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 16,
+  "EndColumn": 33,
+  "Match": "REDACTED",
+  "Secret": "REDACTED",
+  "File": "",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.7254806,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": ":stdin-token:1"
+ }
+]

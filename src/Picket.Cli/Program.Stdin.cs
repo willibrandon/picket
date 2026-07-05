@@ -249,7 +249,7 @@ internal static partial class Program
         }
 
         IReadOnlyList<Finding> findings = baseline.Filter(
-            gitleaksIgnore.Filter(SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes))),
+            gitleaksIgnore.Filter(SecretScanner.Scan(new ScanRequest(input, string.Empty, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes))),
             redactionPercent);
         if (nativeMode)
         {

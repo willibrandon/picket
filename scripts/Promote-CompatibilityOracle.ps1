@@ -204,6 +204,8 @@ function Normalize-Content
     )
 
     $normalized = $Content.Replace("`r`n", "`n").Replace("`r", "`n")
+    $normalized = [regex]::Replace($normalized, "(?m)^\d{1,2}:\d{2}(?:AM|PM)\s+", "<time> ")
+    $normalized = [regex]::Replace($normalized, "(?m)( scanned ~[0-9.,]+ [A-Za-z]+ \([0-9.,]+ [A-Za-z]+\) in )\S+", '${1}<duration>')
     foreach ($replacement in $PathReplacements)
     {
         if (![string]::IsNullOrEmpty($replacement.Original))

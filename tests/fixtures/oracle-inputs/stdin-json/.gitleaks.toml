@@ -1,0 +1,9 @@
+title = "picket stdin oracle"
+
+[[rules]]
+id = "stdin-token"
+description = "Synthetic token used for stdin oracle compatibility tests."
+regex = '''stdin-secret-[0-9]{5}'''
+keywords = [
+    "stdin-secret-",
+]

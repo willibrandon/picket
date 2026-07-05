@@ -462,7 +462,8 @@ Picket-native modes can add richer confidence scoring and cross-rule correlation
 Compatibility fingerprints:
 
 - Git: `{commit}:{file}:{rule-id}:{startLine}`
-- Dir/stdin: `{file}:{rule-id}:{startLine}`
+- Dir: `{file}:{rule-id}:{startLine}`
+- Stdin: `:{rule-id}:{startLine}` because pinned Gitleaks reports an empty file path for `stdin` input.
 - Paths normalize to `/`.
 - Archive provenance uses a stable inner-path separator compatible with reports and ignore parsing.
 

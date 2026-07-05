@@ -3,7 +3,10 @@
   "Name": "basic-dir-json",
   "Mode": "dir",
   "Formats": [
-    "json"
+    "json",
+    "csv",
+    "junit",
+    "sarif"
   ],
   "Upstream": {
     "Tool": "gitleaks",
@@ -45,18 +48,153 @@
       "Kind": "gitleaks-stderr",
       "Format": "json",
       "Path": "gitleaks.json.stderr.txt",
-      "Sha256": "a37841f26a090d370db6a5d46560e771d029b61991fe6fff48c38942de8215bd"
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
     },
     {
       "Kind": "picket-stderr",
       "Format": "json",
       "Path": "picket.json.stderr.txt",
       "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "csv",
+      "Path": "gitleaks.csv",
+      "Sha256": "551afefd5b2a8c81aa881800ba5190ff1f686f923f397cc8c02bf7dd26605abb"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "csv",
+      "Path": "picket.csv",
+      "Sha256": "551afefd5b2a8c81aa881800ba5190ff1f686f923f397cc8c02bf7dd26605abb"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "csv",
+      "Path": "gitleaks.csv.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "csv",
+      "Path": "picket.csv.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "csv",
+      "Path": "gitleaks.csv.stderr.txt",
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "csv",
+      "Path": "picket.csv.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "junit",
+      "Path": "gitleaks.junit",
+      "Sha256": "f65b6e58083cf5fdabf21dda65e1ea5d7f488b63e77f15ef0aeb359ec0857ac7"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "junit",
+      "Path": "picket.junit",
+      "Sha256": "f65b6e58083cf5fdabf21dda65e1ea5d7f488b63e77f15ef0aeb359ec0857ac7"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "junit",
+      "Path": "gitleaks.junit.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "junit",
+      "Path": "picket.junit.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "junit",
+      "Path": "gitleaks.junit.stderr.txt",
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "junit",
+      "Path": "picket.junit.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif",
+      "Sha256": "24e333353581ee28af304bbb5f0365763de144c7ebd0ce1205de0e0fac6ee751"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "sarif",
+      "Path": "picket.sarif",
+      "Sha256": "24e333353581ee28af304bbb5f0365763de144c7ebd0ce1205de0e0fac6ee751"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "sarif",
+      "Path": "picket.sarif.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif.stderr.txt",
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "sarif",
+      "Path": "picket.sarif.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
   "Comparisons": [
     {
       "Format": "json",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    },
+    {
+      "Format": "csv",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    },
+    {
+      "Format": "junit",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    },
+    {
+      "Format": "sarif",
       "ExitCodeEqual": true,
       "ReportBytesEqual": true,
       "StdoutBytesEqual": true,

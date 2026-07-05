@@ -2078,7 +2078,7 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
-        File.WriteAllText(Path.Combine(root.Path, ".gitleaksignore"), "stdin:token:1\n");
+        File.WriteAllText(Path.Combine(root.Path, ".gitleaksignore"), ":token:1\n");
 
         CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, "token-12345", "stdin", "-c", configPath).ConfigureAwait(false);
 
@@ -2450,8 +2450,8 @@ public sealed class CliCompatibilityTests
         CliResult result = await RunCliWithInputAsync("token-12345", "detect", "--pipe", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
-        Assert.Contains("\"File\": \"stdin\"", result.Stdout);
-        Assert.Contains("\"Fingerprint\": \"stdin:token:1\"", result.Stdout);
+        Assert.Contains("\"File\": \"\"", result.Stdout);
+        Assert.Contains("\"Fingerprint\": \":token:1\"", result.Stdout);
     }
 
     /// <summary>

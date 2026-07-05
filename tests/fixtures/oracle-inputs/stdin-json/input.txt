@@ -1,0 +1,1 @@
+stdin value = "stdin-secret-67890"
