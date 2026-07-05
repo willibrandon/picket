@@ -13,7 +13,7 @@ clone next to this repository.
 | Project | Environment variable | Default sibling clone | Role |
 |---|---|---|---|
 | Gitleaks | `PICKET_GITLEAKS_REPO` | `../gitleaks` | Primary compatibility oracle |
-| Scout | `PICKET_SCOUT_REPO` | `../scout` | Read-only API/behavior reference. Picket consumes Scout through NuGet packages only. |
+| Scout | `PICKET_SCOUT_REPO` | `../scout` | Regex, globbing, ignore, and Native AOT behavior reference |
 | TruffleHog | `PICKET_TRUFFLEHOG_REPO` | `../trufflehog` | Verification, sources, and analyze reference |
 | Nosey Parker | `PICKET_NOSEYPARKER_REPO` | `../noseyparker` | Historical datastore/rule-QA/performance reference |
 | Kingfisher | `PICKET_KINGFISHER_REPO` | `../kingfisher` | Validation breadth, revocation, access-map, and reporting reference |

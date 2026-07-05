@@ -8,23 +8,410 @@ editUrl: false
 
 This page is generated from the CLI help source so the published command reference stays aligned with the executable.
 
-## Usage
+Bootstrap secrets scanner.
+
+## Commands
+
+- [`picket scan`](#picket-scan) - Native filesystem scan.
+- [`picket verify`](#picket-verify) - Run native offline verification for detected findings.
+- [`picket analyze`](#picket-analyze) - Write offline incident-response analysis for detected findings.
+- [`picket baseline`](#picket-baseline) - Baseline workflow commands.
+- [`picket baseline create`](#picket-baseline-create) - Write a Gitleaks-compatible baseline JSON report.
+- [`picket cache`](#picket-cache) - Native scan cache maintenance.
+- [`picket cache stats`](#picket-cache-stats) - Summarize native scan cache entries.
+- [`picket cache prune`](#picket-cache-prune) - Delete native scan cache entries.
+- [`picket view`](#picket-view) - Summarize or open a local report.
+- [`picket rules`](#picket-rules) - Rule pack commands.
+- [`picket rules check`](#picket-rules-check) - Validate a resolved rule pack.
+- [`picket rules test`](#picket-rules-test) - Scan sample text with a single rule.
+- [`picket hooks`](#picket-hooks) - Install local git hooks.
+- [`picket hooks install`](#picket-hooks-install) - Write managed pre-commit, pre-push, and pre-receive hooks.
+- [`picket git`](#picket-git) - Gitleaks-compatible git history scan.
+- [`picket dir`](#picket-dir) - Gitleaks-compatible directory scan.
+- [`picket stdin`](#picket-stdin) - Gitleaks-compatible stdin scan.
+- [`picket version`](#picket-version) - Prints version information.
+
+## Command Reference
+
+### picket scan
+
+Native filesystem scan.
+
+#### Usage
 
 ```text
-picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]
-picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]
-picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]
-picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]
-picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]
-picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]
-picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]
-picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]
-picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]
-picket rules check [source] [-c path] [--profile picket] [--print-config]
-picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>
-picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]
+picket scan
+  [path]
+  [-c path]
+  [-f json|jsonl|csv|junit|html|gitlab|sarif|toon]
+  [-r path]...
+  [--profile picket]
+  [--source path]
+  [--ignore-path path]
+  [--no-ignore]
+  [--cache-dir path]
+  [--enable-rule id]
+  [--max-target-megabytes n]
+  [--max-archive-entries n]
+  [--max-archive-megabytes n]
+  [--max-archive-ratio n]
+```
+
+### picket verify
+
+Run native offline verification for detected findings.
+
+#### Usage
+
+```text
+picket verify
+  [path]
+  [-c path]
+  [-f json|jsonl|csv|junit|html|gitlab|sarif|toon]
+  [-r path]
+  [--profile picket]
+  [--source path]
+  [--cache-dir path]
+  [--offline]
+  [--results unknown|structurally-valid|test-credential|invalid]
+  [--only-verified]
+  [--max-archive-entries n]
+  [--max-archive-megabytes n]
+  [--max-archive-ratio n]
+```
+
+### picket analyze
+
+Write offline incident-response analysis for detected findings.
+
+#### Usage
+
+```text
+picket analyze
+  [path]
+  [-c path]
+  [-f json|jsonl|text]
+  [-r path]
+  [--profile picket]
+  [--source path]
+  [--cache-dir path]
+  [--offline]
+  [--results unknown|structurally-valid|test-credential|invalid]
+  [--max-archive-entries n]
+  [--max-archive-megabytes n]
+  [--max-archive-ratio n]
+```
+
+### picket baseline
+
+Baseline workflow commands.
+
+#### Usage
+
+```text
+picket baseline create
+  [path]
+  [-c path]
+  [-r path]
+  [--source path]
+  [--ignore-path path]
+  [--no-ignore]
+  [--enable-rule id]
+  [--max-target-megabytes n]
+  [--max-archive-entries n]
+  [--max-archive-megabytes n]
+  [--max-archive-ratio n]
+  [--redact[=n]]
+```
+
+### picket baseline create
+
+Write a Gitleaks-compatible baseline JSON report.
+
+#### Usage
+
+```text
+picket baseline create
+  [path]
+  [-c path]
+  [-r path]
+  [--source path]
+  [--ignore-path path]
+  [--no-ignore]
+  [--enable-rule id]
+  [--max-target-megabytes n]
+  [--max-archive-entries n]
+  [--max-archive-megabytes n]
+  [--max-archive-ratio n]
+  [--redact[=n]]
+```
+
+### picket cache
+
+Native scan cache maintenance.
+
+#### Usage
+
+```text
+picket cache stats
+  [source]
+  --cache-dir path
+  [-c path]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+
+picket cache prune
+  [source]
+  --cache-dir path
+  [-c path]
+  [--other-keys]
+  [--older-than-days n]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+```
+
+### picket cache stats
+
+Summarize native scan cache entries.
+
+#### Usage
+
+```text
+picket cache stats
+  [source]
+  --cache-dir path
+  [-c path]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+```
+
+### picket cache prune
+
+Delete native scan cache entries.
+
+#### Usage
+
+```text
+picket cache prune
+  [source]
+  --cache-dir path
+  [-c path]
+  [--other-keys]
+  [--older-than-days n]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+```
+
+### picket view
+
+Summarize or open a local report.
+
+#### Usage
+
+```text
 picket view <report> [--open]
+```
+
+#### Formats
+
+Picket JSON, Picket JSONL, Gitleaks JSON, SARIF, HTML
+
+### picket rules
+
+Rule pack commands.
+
+#### Usage
+
+```text
+picket rules check [source] [-c path] [--profile picket] [--print-config]
+
+picket rules test
+  <rule-id>
+  [-c path]
+  [-f json|jsonl|csv|junit|html|gitlab|sarif|toon]
+  [-r path]
+  [--profile picket]
+  [--source path]
+  [--path path]
+  [--print-config]
+  [--ignore-gitleaks-allow]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+  [--redact[=n]]
+  [--]
+  <input>
+```
+
+### picket rules check
+
+Validate a resolved rule pack.
+
+#### Usage
+
+```text
+picket rules check [source] [-c path] [--profile picket] [--print-config]
+```
+
+### picket rules test
+
+Scan sample text with a single rule.
+
+#### Usage
+
+```text
+picket rules test
+  <rule-id>
+  [-c path]
+  [-f json|jsonl|csv|junit|html|gitlab|sarif|toon]
+  [-r path]
+  [--profile picket]
+  [--source path]
+  [--path path]
+  [--print-config]
+  [--ignore-gitleaks-allow]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+  [--redact[=n]]
+  [--]
+  <input>
+```
+
+### picket hooks
+
+Install local git hooks.
+
+#### Usage
+
+```text
+picket hooks install
+  [pre-commit|pre-push|pre-receive|all]
+  [--repo path]
+  [--force]
+  [--command path]
+  [-c path]
+  [-b path]
+  [--max-target-megabytes n]
+  [--redact[=n]]
+```
+
+### picket hooks install
+
+Write managed pre-commit, pre-push, and pre-receive hooks.
+
+#### Usage
+
+```text
+picket hooks install
+  [pre-commit|pre-push|pre-receive|all]
+  [--repo path]
+  [--force]
+  [--command path]
+  [-c path]
+  [-b path]
+  [--max-target-megabytes n]
+  [--redact[=n]]
+```
+
+#### Defaults
+
+Installs pre-commit when no hook name is provided and uses --redact=100 in generated hooks.
+
+### picket git
+
+Gitleaks-compatible git history scan.
+
+#### Usage
+
+```text
+picket git
+  [repo]
+  [-b path]
+  [-c path]
+  [-f json|csv|junit|sarif|template]
+  [-r path]
+  [-i path]
+  [-l level]
+  [-v]
+  [--profile picket]
+  [--no-color]
+  [--no-banner]
+  [--report-template path]
+  [--enable-rule id]
+  [--exit-code n]
+  [--ignore-gitleaks-allow]
+  [--log-opts value]
+  [--platform value]
+  [--staged]
+  [--pre-commit]
+  [--max-target-megabytes n]
+  [--max-archive-entries n]
+  [--max-archive-megabytes n]
+  [--max-archive-ratio n]
+  [--redact[=n]]
+```
+
+### picket dir
+
+Gitleaks-compatible directory scan.
+
+#### Usage
+
+```text
+picket dir
+  <path>
+  [-b path]
+  [-c path]
+  [-f json|csv|junit|sarif|template]
+  [-r path]
+  [-i path]
+  [-l level]
+  [-v]
+  [--profile picket]
+  [--no-color]
+  [--no-banner]
+  [--report-template path]
+  [--enable-rule id]
+  [--exit-code n]
+  [--follow-symlinks]
+  [--ignore-gitleaks-allow]
+  [--max-target-megabytes n]
+  [--max-archive-entries n]
+  [--max-archive-megabytes n]
+  [--max-archive-ratio n]
+  [--redact[=n]]
+```
+
+### picket stdin
+
+Gitleaks-compatible stdin scan.
+
+#### Usage
+
+```text
+picket stdin
+  [-b path]
+  [-c path]
+  [-f json|csv|junit|sarif|template]
+  [-r path]
+  [-l level]
+  [-v]
+  [--profile picket]
+  [--no-color]
+  [--no-banner]
+  [--report-template path]
+  [--enable-rule id]
+  [--exit-code n]
+  [--ignore-gitleaks-allow]
+  [--max-target-megabytes n]
+  [--redact[=n]]
+```
+
+### picket version
+
+Prints version information.
+
+#### Usage
+
+```text
 picket version
-picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]
-picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]
 ```

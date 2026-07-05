@@ -83,6 +83,5 @@ The public packages are designed for Native AOT hosts:
 - No runtime code generation is required.
 - No dynamic assembly loading is required.
 - Public APIs use concrete documented shapes.
-- Scout is consumed through NuGet package dependencies, not through local source or project references.
 
 Hosts should keep trim and AOT analyzer warnings enabled. If a host publishes Native AOT, unresolved warnings from Picket packages should be treated as bugs.

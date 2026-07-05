@@ -8,7 +8,7 @@
 - **Binary name:** `picket`
 - **Root namespace:** `Picket`
 - **Primary reference:** Gitleaks. Picket intentionally follows its CLI, config model, rule semantics, reports, fingerprints, and operational defaults in compatibility mode.
-- **Scout dependencies:** NuGet package references to `Scout.Text.Regex`, `Scout.IO.Globbing`, and selected `Scout.IO.Ignore` APIs when their behavior matches the active scan profile. The local Scout clone is a read-only reference only.
+- **Scout libraries:** `Scout.Text.Regex`, `Scout.IO.Globbing`, and selected `Scout.IO.Ignore` APIs are used where their behavior matches the active scan profile.
 - **License:** MIT for the scanner, libraries, action, hooks, and bundled rules.
 
 ---
@@ -67,7 +67,7 @@ The design and differential tests are pinned to upstream reference snapshots. Up
 | Project | Environment variable | Default sibling clone | Role |
 |---|---|---|---|
 | Gitleaks | `PICKET_GITLEAKS_REPO` | `../gitleaks` | Primary compatibility oracle |
-| Scout | `PICKET_SCOUT_REPO` | `../scout` | Read-only API/behavior reference only. Picket consumes Scout via NuGet packages, never project/source references. |
+| Scout | `PICKET_SCOUT_REPO` | `../scout` | Regex, globbing, ignore, and Native AOT behavior reference |
 | TruffleHog | `PICKET_TRUFFLEHOG_REPO` | `../trufflehog` | Verification, sources, and analyze reference |
 | Kingfisher | `PICKET_KINGFISHER_REPO` | `../kingfisher` | Validation breadth, revocation, access-map, reporting reference |
 | Nosey Parker | `PICKET_NOSEYPARKER_REPO` | `../noseyparker` | Historical datastore/rule-QA/performance reference |
@@ -81,13 +81,7 @@ The design and differential tests are pinned to upstream reference snapshots. Up
 
 Scout is a core advantage, but Picket only uses Scout APIs where their semantics match the scanner contract.
 
-Scout must be consumed only through NuGet package references:
-
-- `Scout.Text.Regex`
-- `Scout.IO.Globbing`
-- `Scout.IO.Ignore`
-
-Use Central Package Management (`Directory.Packages.props`) to pin Scout package versions. Do not add `ProjectReference` entries to the Scout clone, do not include Scout source files in this repository, and do not treat the local Scout clone as part of the build. The clone resolved from `PICKET_SCOUT_REPO` or `../scout` exists only for reading implementation details, docs, and tests while designing Picket behavior.
+The relevant Scout APIs are `Scout.Text.Regex`, `Scout.IO.Globbing`, and `Scout.IO.Ignore`.
 
 ### 4.1 `Scout.Text.Regex`
 
@@ -922,7 +916,7 @@ Stretch features are not v1 blockers unless promoted by a separate design update
 
 ## 14. Documentation Deliverables
 
-Picket uses a zero-cost static documentation system. The public site is generated during CI and published to GitHub Pages at the repository Pages URL, for example `https://willibrandon.github.io/picket/`. A custom domain is optional future polish, not a release requirement. There is no custom production server, WebSocket backend, hosted scanner, hosted validator, or secret-handling service in the docs stack.
+Picket uses a static documentation system. The public site is generated during CI and published to GitHub Pages at the repository Pages URL, for example `https://willibrandon.github.io/picket/`.
 
 The ideal implementation mirrors the useful parts of Dotsider's documentation system while avoiding Dotsider's custom website server:
 

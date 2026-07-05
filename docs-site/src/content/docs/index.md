@@ -12,4 +12,3 @@ Use this site for generated project documentation, command reference, GitHub Act
 - Durable project documentation lives in `docs/`.
 - Generated site pages are produced by `tools/Picket.Docs`.
 - The published site is static and deploys to GitHub Pages.
-- No custom server, custom domain, live scanner, or hosted validator is required.

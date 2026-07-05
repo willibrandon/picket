@@ -122,4 +122,4 @@ Every required rule ID must exist, and a rule must not require itself.
 
 ## Scout Regex
 
-Picket compiles rule and allowlist patterns to Scout `ByteRegex` through NuGet package references. Unsupported patterns fail at config load with the rule ID and pattern context. Picket must not silently fall back to a different regex engine in Native AOT builds.
+Picket compiles rule and allowlist patterns to Scout `ByteRegex`. Unsupported patterns fail at config load with the rule ID and pattern context. Picket must not silently fall back to a different regex engine in Native AOT builds.

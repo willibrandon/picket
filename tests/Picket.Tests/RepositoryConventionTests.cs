@@ -268,7 +268,6 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("CompiledRuleSet.Compile", documentation);
         Assert.Contains("PicketJsonlReportWriter", documentation);
         Assert.Contains("not public packages yet", documentation);
-        Assert.Contains("Scout is consumed through NuGet", documentation);
     }
 
     /// <summary>
@@ -289,7 +288,6 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secretGroup", rules);
         Assert.Contains("targetRules", rules);
         Assert.Contains("Scout `ByteRegex`", rules);
-        Assert.Contains("NuGet package references", rules);
         Assert.Contains("Offline validation", validation);
         Assert.Contains("Live network verification is disabled by default", validation);
         Assert.Contains("SSRF", validation);
@@ -321,6 +319,7 @@ public sealed partial class RepositoryConventionTests
     {
         string siteConfig = ReadRepositoryFile("docs-site/astro.config.mjs");
         string packageJson = ReadRepositoryFile("docs-site/package.json");
+        string cliReference = ReadRepositoryFile("docs-site/src/content/docs/reference/cli.md");
         string rulesApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-rules.md");
         string engineApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-engine.md");
         string reportApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-report.md");
@@ -330,6 +329,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Rules.csproj", packageJson);
         Assert.Contains("Picket.Engine.csproj", packageJson);
         Assert.Contains("Picket.Report.csproj", packageJson);
+        Assert.Contains("## Commands", cliReference);
+        Assert.Contains("## Command Reference", cliReference);
+        Assert.Contains("[`picket scan`](#picket-scan)", cliReference);
+        Assert.Contains("### picket git", cliReference);
         Assert.Contains("Picket.Rules API", rulesApi);
         Assert.Contains("SecretRule", rulesApi);
         Assert.Contains("Picket.Engine API", engineApi);

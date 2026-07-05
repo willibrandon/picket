@@ -93,28 +93,41 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
     private void GenerateCliReference(string outputRoot)
     {
         string helpSource = File.ReadAllText(Path.Combine(_repositoryRoot, "src", "Picket.Cli", "Program.Help.cs"));
-        var usageLines = new List<string>();
-        foreach (string line in helpSource.Split('\n'))
-        {
-            string? literal = TryReadConsoleLiteral(line);
-            if (literal is not null && literal.StartsWith("  picket ", StringComparison.Ordinal))
-            {
-                usageLines.Add(literal.Trim());
-            }
-        }
+        List<List<string>> helpBlocks = ReadCliHelpBlocks(helpSource);
+        List<string> rootBlock = helpBlocks.Count == 0 ? [] : helpBlocks[0];
+        List<List<string>> commandBlocks = [.. helpBlocks.Skip(1)];
+        List<string> rootUsageLines = ReadCliHelpSection(rootBlock, "Usage");
+        Dictionary<string, string> commandSummaries = ReadCliCommandSummaries(commandBlocks);
 
         var builder = new StringBuilder();
         builder.AppendLine("This page is generated from the CLI help source so the published command reference stays aligned with the executable.");
         builder.AppendLine();
-        builder.AppendLine("## Usage");
-        builder.AppendLine();
-        builder.AppendLine("```text");
-        foreach (string usageLine in usageLines.Distinct(StringComparer.Ordinal))
+        string rootSummary = ReadCliTitleSummary(rootBlock);
+        if (rootSummary.Length != 0)
         {
-            builder.AppendLine(usageLine);
+            builder.AppendLine(EscapeMarkdownText(rootSummary));
+            builder.AppendLine();
         }
 
-        builder.AppendLine("```");
+        AppendCliCommandIndex(builder, rootUsageLines, commandBlocks, commandSummaries);
+        builder.AppendLine("## Command Reference");
+        builder.AppendLine();
+        foreach (List<string> commandBlock in commandBlocks)
+        {
+            AppendCliHelpBlock(builder, commandBlock);
+        }
+
+        HashSet<string> documentedCommands = [.. commandSummaries.Keys];
+        foreach (string usageLine in rootUsageLines)
+        {
+            string command = GetCliUsageCommandName(usageLine);
+            if (command.Length == 0 || documentedCommands.Contains(command))
+            {
+                continue;
+            }
+
+            AppendCliUsageOnlyBlock(builder, command, GetCliFallbackSummary(command), usageLine);
+        }
 
         WriteMarkdown(
             Path.Combine(outputRoot, "cli.md"),
@@ -303,6 +316,394 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         }
 
         builder.AppendLine();
+    }
+
+    private static List<List<string>> ReadCliHelpBlocks(string helpSource)
+    {
+        var helpBlocks = new List<List<string>>();
+        List<string>? currentBlock = null;
+        foreach (string line in helpSource.Split('\n'))
+        {
+            string trimmed = line.Trim();
+            if (trimmed.StartsWith("static void Write", StringComparison.Ordinal)
+                && trimmed.Contains("Help(", StringComparison.Ordinal))
+            {
+                currentBlock = [];
+                helpBlocks.Add(currentBlock);
+                continue;
+            }
+
+            if (currentBlock is null)
+            {
+                continue;
+            }
+
+            string? literal = TryReadConsoleLiteral(line);
+            if (literal is not null)
+            {
+                currentBlock.Add(literal);
+                continue;
+            }
+
+            if (trimmed.Equals("}", StringComparison.Ordinal))
+            {
+                currentBlock = null;
+            }
+        }
+
+        return helpBlocks;
+    }
+
+    private static List<string> ReadCliHelpSection(List<string> block, string sectionName)
+    {
+        var lines = new List<string>();
+        bool inSection = false;
+        string header = string.Concat(sectionName, ":");
+        foreach (string line in block)
+        {
+            if (!inSection)
+            {
+                inSection = line.Equals(header, StringComparison.Ordinal);
+                continue;
+            }
+
+            if (line.Length == 0 || IsCliHelpHeader(line))
+            {
+                break;
+            }
+
+            lines.Add(line.Trim());
+        }
+
+        return lines;
+    }
+
+    private static Dictionary<string, string> ReadCliCommandSummaries(List<List<string>> commandBlocks)
+    {
+        var summaries = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (List<string> commandBlock in commandBlocks)
+        {
+            if (!TryReadCliTitle(commandBlock, out string command, out string summary))
+            {
+                continue;
+            }
+
+            summaries[command] = summary;
+        }
+
+        return summaries;
+    }
+
+    private static void AppendCliCommandIndex(
+        StringBuilder builder,
+        List<string> rootUsageLines,
+        List<List<string>> commandBlocks,
+        Dictionary<string, string> commandSummaries)
+    {
+        builder.AppendLine("## Commands");
+        builder.AppendLine();
+        var indexedCommands = new HashSet<string>(StringComparer.Ordinal);
+        foreach (List<string> commandBlock in commandBlocks)
+        {
+            if (!TryReadCliTitle(commandBlock, out string command, out string summary))
+            {
+                continue;
+            }
+
+            AppendCliCommandIndexItem(builder, indexedCommands, command, summary);
+        }
+
+        foreach (string usageLine in rootUsageLines)
+        {
+            string command = GetCliUsageCommandName(usageLine);
+            if (command.Length == 0)
+            {
+                continue;
+            }
+
+            string summary = commandSummaries.GetValueOrDefault(command, GetCliFallbackSummary(command));
+            AppendCliCommandIndexItem(builder, indexedCommands, command, summary);
+        }
+
+        builder.AppendLine();
+    }
+
+    private static void AppendCliCommandIndexItem(
+        StringBuilder builder,
+        HashSet<string> indexedCommands,
+        string command,
+        string summary)
+    {
+        if (!indexedCommands.Add(command))
+        {
+            return;
+        }
+
+        builder.Append("- [`");
+        builder.Append(EscapeMarkdownText(command));
+        builder.Append("`](#");
+        builder.Append(Slugify(command));
+        builder.Append(')');
+        if (summary.Length != 0)
+        {
+            builder.Append(" - ");
+            builder.Append(EscapeMarkdownText(summary));
+        }
+
+        builder.AppendLine();
+    }
+
+    private static void AppendCliHelpBlock(StringBuilder builder, List<string> block)
+    {
+        if (!TryReadCliTitle(block, out string command, out string summary))
+        {
+            return;
+        }
+
+        builder.Append("### ");
+        builder.AppendLine(EscapeMarkdownText(command));
+        builder.AppendLine();
+        if (summary.Length != 0)
+        {
+            builder.AppendLine(EscapeMarkdownText(summary));
+            builder.AppendLine();
+        }
+
+        for (int i = 1; i < block.Count; i++)
+        {
+            string line = block[i];
+            if (!IsCliHelpHeader(line))
+            {
+                continue;
+            }
+
+            string sectionName = line[..^1];
+            var sectionLines = new List<string>();
+            while (++i < block.Count)
+            {
+                string sectionLine = block[i];
+                if (sectionLine.Length == 0)
+                {
+                    break;
+                }
+
+                if (IsCliHelpHeader(sectionLine))
+                {
+                    i--;
+                    break;
+                }
+
+                sectionLines.Add(sectionLine.Trim());
+            }
+
+            AppendCliHelpSection(builder, sectionName, sectionLines);
+        }
+    }
+
+    private static void AppendCliUsageOnlyBlock(StringBuilder builder, string command, string summary, string usageLine)
+    {
+        builder.Append("### ");
+        builder.AppendLine(EscapeMarkdownText(command));
+        builder.AppendLine();
+        if (summary.Length != 0)
+        {
+            builder.AppendLine(EscapeMarkdownText(summary));
+            builder.AppendLine();
+        }
+
+        AppendCliHelpSection(builder, "Usage", [usageLine]);
+    }
+
+    private static void AppendCliHelpSection(StringBuilder builder, string sectionName, List<string> sectionLines)
+    {
+        if (sectionLines.Count == 0)
+        {
+            return;
+        }
+
+        builder.Append("#### ");
+        builder.AppendLine(EscapeMarkdownText(sectionName));
+        builder.AppendLine();
+        if (sectionName.Equals("Usage", StringComparison.Ordinal))
+        {
+            builder.AppendLine("```text");
+            for (int i = 0; i < sectionLines.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.AppendLine();
+                }
+
+                foreach (string usageLine in FormatCliUsageLine(sectionLines[i]))
+                {
+                    builder.AppendLine(usageLine);
+                }
+            }
+
+            builder.AppendLine("```");
+            builder.AppendLine();
+            return;
+        }
+
+        if (sectionLines.Count == 1)
+        {
+            builder.AppendLine(EscapeMarkdownText(sectionLines[0]));
+            builder.AppendLine();
+            return;
+        }
+
+        foreach (string sectionLine in sectionLines)
+        {
+            builder.Append("- ");
+            builder.AppendLine(EscapeMarkdownText(sectionLine));
+        }
+
+        builder.AppendLine();
+    }
+
+    private static bool TryReadCliTitle(List<string> block, out string command, out string summary)
+    {
+        command = string.Empty;
+        summary = string.Empty;
+        string title = block.FirstOrDefault(line => line.Length != 0) ?? string.Empty;
+        if (title.Length == 0)
+        {
+            return false;
+        }
+
+        int separatorIndex = title.IndexOf(" - ", StringComparison.Ordinal);
+        if (separatorIndex < 0)
+        {
+            command = title;
+            return true;
+        }
+
+        command = title[..separatorIndex];
+        summary = FormatCliDescription(title[(separatorIndex + 3)..]);
+        return command.Length != 0;
+    }
+
+    private static string ReadCliTitleSummary(List<string> block)
+    {
+        return TryReadCliTitle(block, out _, out string summary) ? summary : string.Empty;
+    }
+
+    private static bool IsCliHelpHeader(string line)
+    {
+        return line.Length > 1
+            && line.EndsWith(':')
+            && !line.StartsWith(' ');
+    }
+
+    private static string GetCliUsageCommandName(string usageLine)
+    {
+        string[] tokens = usageLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var commandTokens = new List<string>(4);
+        foreach (string token in tokens)
+        {
+            if (token.StartsWith('[') || token.StartsWith('<') || token.StartsWith('-'))
+            {
+                break;
+            }
+
+            commandTokens.Add(token);
+        }
+
+        return commandTokens.Count == 0 ? string.Empty : string.Join(' ', commandTokens);
+    }
+
+    private static List<string> FormatCliUsageLine(string usageLine)
+    {
+        const int MaxSingleLineUsageLength = 100;
+        if (usageLine.Length <= MaxSingleLineUsageLength)
+        {
+            return [usageLine];
+        }
+
+        string command = GetCliUsageCommandName(usageLine);
+        if (command.Length == 0 || command.Length >= usageLine.Length)
+        {
+            return [usageLine];
+        }
+
+        List<string> arguments = SplitCliUsageArguments(usageLine[command.Length..].Trim());
+        if (arguments.Count == 0)
+        {
+            return [usageLine];
+        }
+
+        var lines = new List<string>(arguments.Count + 1)
+        {
+            command,
+        };
+        foreach (string argument in arguments)
+        {
+            lines.Add(string.Concat("  ", argument));
+        }
+
+        return lines;
+    }
+
+    private static List<string> SplitCliUsageArguments(string arguments)
+    {
+        string[] tokens = arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var groups = new List<string>(tokens.Length);
+        for (int i = 0; i < tokens.Length; i++)
+        {
+            string group = tokens[i];
+            if (group.StartsWith('[') && !group.Contains(']', StringComparison.Ordinal))
+            {
+                while (i + 1 < tokens.Length)
+                {
+                    group = string.Concat(group, " ", tokens[++i]);
+                    if (group.Contains(']', StringComparison.Ordinal))
+                    {
+                        break;
+                    }
+                }
+            }
+            else if (IsCliUsageOptionToken(group)
+                && i + 1 < tokens.Length
+                && IsCliUsageValueToken(tokens[i + 1]))
+            {
+                group = string.Concat(group, " ", tokens[++i]);
+            }
+
+            groups.Add(group);
+        }
+
+        return groups;
+    }
+
+    private static bool IsCliUsageOptionToken(string token)
+    {
+        return token.StartsWith('-') && !token.StartsWith("---", StringComparison.Ordinal);
+    }
+
+    private static bool IsCliUsageValueToken(string token)
+    {
+        return token.Length != 0
+            && !token.StartsWith('-')
+            && !token.StartsWith('[')
+            && !token.StartsWith('<');
+    }
+
+    private static string GetCliFallbackSummary(string command)
+    {
+        return command switch
+        {
+            "picket git" => "Gitleaks-compatible git history scan.",
+            "picket dir" => "Gitleaks-compatible directory scan.",
+            "picket stdin" => "Gitleaks-compatible stdin scan.",
+            "picket version" => "Prints version information.",
+            _ => string.Empty,
+        };
+    }
+
+    private static string FormatCliDescription(string value)
+    {
+        string trimmed = NormalizeDocumentationText(value).TrimEnd('.');
+        return trimmed.Length == 0 ? string.Empty : string.Concat(char.ToUpperInvariant(trimmed[0]), trimmed[1..], ".");
     }
 
     private static void AppendApiMemberGroup(StringBuilder builder, string title, List<XElement> members, string typeName)
