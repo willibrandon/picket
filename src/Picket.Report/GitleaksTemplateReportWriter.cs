@@ -426,7 +426,7 @@ public static class GitleaksTemplateReportWriter
         throw new InvalidDataException($"unsupported template expression: {expression}");
     }
 
-    private static object? EvaluatePipelineStep(
+    private static string? EvaluatePipelineStep(
         string step,
         object? input,
         object? root,
@@ -760,7 +760,7 @@ public static class GitleaksTemplateReportWriter
 
     private static void TrimTrailingWhitespace(StringBuilder builder)
     {
-        while (builder.Length > 0 && char.IsWhiteSpace(builder[builder.Length - 1]))
+        while (builder.Length > 0 && char.IsWhiteSpace(builder[^1]))
         {
             builder.Length--;
         }

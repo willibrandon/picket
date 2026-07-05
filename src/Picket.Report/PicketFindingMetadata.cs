@@ -93,9 +93,9 @@ internal static class PicketFindingMetadata
         return finding.BlobSha256;
     }
 
-    internal static IReadOnlyList<string> CreateDecodePath(Finding finding)
+    internal static List<string> CreateDecodePath(Finding finding)
     {
-        return finding.DecodePath;
+        return finding.DecodePath is List<string> decodePath ? decodePath : [.. finding.DecodePath];
     }
 
     internal static string CreateValidationState(Finding finding)

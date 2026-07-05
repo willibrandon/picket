@@ -29,7 +29,7 @@ public sealed class DirectoryScanOptions(
     bool readParentIgnoreFiles = false,
     IReadOnlyList<string>? ignoreFilePaths = null)
 {
-    private readonly IReadOnlyList<string> _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
+    private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
 
     /// <summary>
     /// Gets the full root path to enumerate.
@@ -110,7 +110,7 @@ public sealed class DirectoryScanOptions(
         return value;
     }
 
-    private static IReadOnlyList<string> RequireIgnoreFilePaths(IReadOnlyList<string>? value)
+    private static string[] RequireIgnoreFilePaths(IReadOnlyList<string>? value)
     {
         if (value is null || value.Count == 0)
         {

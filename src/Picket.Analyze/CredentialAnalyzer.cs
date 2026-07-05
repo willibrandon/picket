@@ -156,7 +156,7 @@ public static class CredentialAnalyzer
         };
     }
 
-    private static IReadOnlyList<string> CreateEvidence(Finding finding, string validationState, string secretSha256)
+    private static List<string> CreateEvidence(Finding finding, string validationState, string secretSha256)
     {
         var evidence = new List<string>
         {

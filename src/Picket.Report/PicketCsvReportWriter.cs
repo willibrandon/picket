@@ -122,9 +122,9 @@ public static class PicketCsvReportWriter
         WriteRow(builder, row);
     }
 
-    private static void WriteRow(StringBuilder builder, IReadOnlyList<string> fields)
+    private static void WriteRow(StringBuilder builder, string[] fields)
     {
-        for (int i = 0; i < fields.Count; i++)
+        for (int i = 0; i < fields.Length; i++)
         {
             if (i > 0)
             {

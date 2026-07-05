@@ -627,7 +627,7 @@ public sealed class SecretScanner
         return true;
     }
 
-    private static IReadOnlyList<string> CreateDecodeTags(DecodedEncoding encodings, int depth)
+    private static List<string> CreateDecodeTags(DecodedEncoding encodings, int depth)
     {
         var tags = new List<string>(4);
         if ((encodings & DecodedEncoding.Percent) != 0)

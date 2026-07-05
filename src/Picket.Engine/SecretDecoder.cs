@@ -70,7 +70,7 @@ internal static class SecretDecoder
         return new DecodedInput([.. output], [.. starts], [.. ends], segments);
     }
 
-    private static IReadOnlyList<string> CreateDecodePath(IReadOnlyList<string> inheritedDecodePath, DecodedEncoding encoding)
+    private static List<string> CreateDecodePath(IReadOnlyList<string> inheritedDecodePath, DecodedEncoding encoding)
     {
         var decodePath = new List<string>(inheritedDecodePath.Count + 1);
         decodePath.AddRange(inheritedDecodePath);

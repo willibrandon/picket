@@ -50,7 +50,7 @@ public sealed class SecretScannerTests
     /// Verifies that the Gitleaks generic API key rule uses a deterministic matcher instead of a pathological regex path.
     /// </summary>
     [TestMethod]
-    [Timeout(5000)]
+    [Timeout(5000, CooperativeCancellation = true)]
     public void ScanHandlesGitleaksGenericApiKeyRule()
     {
         byte[] input = Encoding.UTF8.GetBytes("picket_key = abc123def456ghi7890");

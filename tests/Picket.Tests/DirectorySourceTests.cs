@@ -177,7 +177,7 @@ public sealed class DirectorySourceTests
             IReadOnlyList<SourceFile> followedFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root, followSymbolicLinks: true));
             SourceFile? symlinkFile = followedFiles.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
 
-            Assert.IsFalse(defaultFiles.Any(file => file.SymlinkDisplayPath == "link.txt"));
+            Assert.DoesNotContain("link.txt", defaultFiles.Select(file => file.SymlinkDisplayPath));
             Assert.IsNotNull(symlinkFile);
             Assert.AreEqual("target.txt", symlinkFile.DisplayPath);
             Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);

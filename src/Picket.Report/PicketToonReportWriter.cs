@@ -309,16 +309,16 @@ public static class PicketToonReportWriter
         }
     }
 
-    private static void WriteHeader(StringBuilder builder, string name, int count, IReadOnlyList<string> fields)
+    private static void WriteHeader(StringBuilder builder, string name, int count, string[] fields)
     {
         AppendLine(builder, $"{name}[{count.ToString(CultureInfo.InvariantCulture)}]{{{string.Join(',', fields)}}}:");
     }
 
-    private static void WriteRow(StringBuilder builder, int depth, IReadOnlyList<string> values, IReadOnlyList<bool> rawValues)
+    private static void WriteRow(StringBuilder builder, int depth, string[] values, bool[] rawValues)
     {
         var row = new StringBuilder();
         row.Append(' ', depth * 2);
-        for (int i = 0; i < values.Count; i++)
+        for (int i = 0; i < values.Length; i++)
         {
             if (i > 0)
             {

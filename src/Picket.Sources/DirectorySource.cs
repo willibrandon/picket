@@ -60,7 +60,7 @@ public sealed class DirectorySource
         return sourceFiles;
     }
 
-    private static IReadOnlyList<SourceFile> EnumerateSingleFile(DirectoryScanOptions options)
+    private static List<SourceFile> EnumerateSingleFile(DirectoryScanOptions options)
     {
         FileInfo fileInfo = new(options.Root);
         if (options.MaxTargetBytes.HasValue && fileInfo.Length > options.MaxTargetBytes.Value)
