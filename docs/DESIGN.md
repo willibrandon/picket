@@ -134,6 +134,7 @@ Picket.Cli
         +-- Picket.Report      - Gitleaks-exact and Picket-native report writers
         +-- Picket.Store       - content-addressed blob store and incremental scan state
         +-- Picket.Security    - egress policy, redaction, SSRF guards, audit events
+  +-- Picket.Docs              - static documentation generator and reference-site build inputs
 ```
 
 Hot-path constraints:
@@ -904,9 +905,10 @@ Gate: remote enumeration, checkpointing, redaction, and dedup tests green.
 - Docker,
 - Homebrew/Scoop/winget/MSI,
 - GitHub Action,
-- hooks.
+- hooks,
+- generated static documentation site.
 
-Gate: release workflow produces signed/checksummed artifacts and action smoke tests pass.
+Gate: release workflow produces signed/checksummed artifacts, action smoke tests pass, and the docs site builds and deploys through GitHub Pages from the default branch.
 
 ### M8: Optional Stretch
 
@@ -920,6 +922,40 @@ Stretch features are not v1 blockers unless promoted by a separate design update
 
 ## 14. Documentation Deliverables
 
+Picket uses a zero-cost static documentation system. The public site is generated during CI and published to GitHub Pages at the repository Pages URL, for example `https://willibrandon.github.io/picket/`. A custom domain is optional future polish, not a release requirement. There is no custom production server, WebSocket backend, hosted scanner, hosted validator, or secret-handling service in the docs stack.
+
+The ideal implementation mirrors the useful parts of Dotsider's documentation system while avoiding Dotsider's custom website server:
+
+- `docs/` remains the source of truth for durable hand-written Markdown.
+- `docs-site/` contains the Astro/Starlight static site shell, styling, navigation, and GitHub Pages base-path configuration.
+- `tools/Picket.Docs/` is a .NET generator that produces deterministic Starlight-compatible Markdown and MDX into `docs-site/src/content/docs/generated/`.
+- DocFX metadata generation is used only as a build-time API metadata extractor. The generator converts DocFX YAML and XML documentation comments into Picket-styled Starlight pages.
+- `docs-site/dist/` is never committed. GitHub Actions uploads it with `actions/upload-pages-artifact` and deploys it with `actions/deploy-pages`.
+- The site build is offline except package restore. It must not require live credentials, local reference clone paths, a domain, or a server.
+- The GitHub Pages workflow runs on pushes to the default branch, on manual dispatch, and as a pull-request build check without deployment.
+
+Generated documentation includes:
+
+- API reference for public packages and embeddable APIs from XML documentation comments,
+- CLI reference generated from command metadata or stable `--help` output,
+- GitHub Action input and output reference generated from `action.yml`,
+- rule-pack catalog generated from embedded Gitleaks and Picket rule sources,
+- report-schema reference generated from report writer contracts and sample outputs,
+- config-schema reference generated from Gitleaks-compatible and Picket-native loaders,
+- validation/analyze reference generated from validator states, confidence/severity metadata, and provider threat-model metadata,
+- release-profile reference generated from publish profiles and package metadata.
+
+Documentation quality gates:
+
+- the generator is deterministic and can be run locally with one command,
+- CI fails if generated docs are stale when generated source pages are committed,
+- CI fails if the site cannot build,
+- every public API included in shipped NuGet packages has XML documentation and appears in the generated API reference unless explicitly excluded,
+- generated docs never include local filesystem paths such as reference clone paths,
+- generated examples use redacted, fake, or structurally invalid secrets,
+- links are checked for local docs and generated API references,
+- pages work under the `/picket/` GitHub Pages base path and do not assume site-root deployment.
+
 Required before v1:
 
 - `docs/PARITY.md`: compatibility ledger,
@@ -930,4 +966,7 @@ Required before v1:
 - `docs/ACTION.md`: CI action behavior and security posture,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,
 - `docs/RELEASE.md`: Native AOT publish profiles and release artifact guidance,
-- `docs/EMBEDDING.md`: library API guide.
+- `docs/EMBEDDING.md`: library API guide,
+- `docs-site/`: static site shell for GitHub Pages,
+- `tools/Picket.Docs/`: generated documentation pipeline,
+- `.github/workflows/docs.yml`: build and deploy workflow for GitHub Pages.
