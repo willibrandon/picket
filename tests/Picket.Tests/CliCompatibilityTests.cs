@@ -2625,6 +2625,69 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that rules check uses Picket-native environment precedence by default.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckUsesPicketConfigTomlEnvironmentVariable()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            environment,
+            "rules",
+            "check").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("rules ok: 1 rule", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check can print the Picket-native profile with layered rule packs.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckProfilePicketPrintsLayeredRulePacks()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult printed = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "rules",
+            "check",
+            "--profile",
+            "picket",
+            "--print-config").ConfigureAwait(false);
+
+        Assert.AreEqual(0, printed.ExitCode);
+        Assert.Contains("id = \"aws-access-token\"", printed.Stdout);
+        Assert.Contains("id = \"picket-azure-storage-connection-string\"", printed.Stdout);
+        Assert.Contains("rulePack = \"picket-default\"", printed.Stdout);
+        Assert.Contains("provider = \"Azure\"", printed.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that unsupported rules check profiles are rejected before validation.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsUnsupportedProfile()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "rules", "check", "--profile", "strict").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported profile: strict", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that rules check can print a resolved config that can be loaded again.
     /// </summary>
     [TestMethod]

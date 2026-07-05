@@ -2495,6 +2495,11 @@ static int RunRules(string[] args)
 
 static int RunRulesCheck(string[] args)
 {
+    if (!TryResolveNativeProfile(args, defaultNativeProfile: true, out bool nativeMode))
+    {
+        return UnknownFlagExitCode;
+    }
+
     string? configPath = null;
     string source = ".";
     bool printConfig = false;
@@ -2511,6 +2516,16 @@ static int RunRulesCheck(string[] args)
         if (IsConfigFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsProfileFlag(arg))
+        {
+            if (!TryReadProfileFlag(args, ref i, out _))
             {
                 return UnknownFlagExitCode;
             }
@@ -2546,7 +2561,9 @@ static int RunRulesCheck(string[] args)
 
     try
     {
-        RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, source);
+        RuleSet ruleSet = nativeMode
+            ? PicketConfigLoader.LoadRuleSet(configPath, source)
+            : GitleaksConfigLoader.LoadRuleSet(configPath, source);
         ValidateRulesWithScout(ruleSet);
         if (printConfig)
         {
@@ -4550,7 +4567,7 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
+    Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
     Console.Out.WriteLine("  picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket view <report> [--open]");
@@ -4638,16 +4655,16 @@ static void WriteRulesHelp()
     Console.Out.WriteLine("picket rules - rule pack commands");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
+    Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
 }
 
 static void WriteRulesCheckHelp()
 {
-    Console.Out.WriteLine("picket rules check - validate a Gitleaks-compatible rule pack");
+    Console.Out.WriteLine("picket rules check - validate a resolved rule pack");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
+    Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
 }
 
 static void WriteRulesTestHelp()
