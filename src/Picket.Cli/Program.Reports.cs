@@ -34,7 +34,7 @@ internal static partial class Program
         IReadOnlyList<Finding> findings,
         IReadOnlyList<SecretRule> rules,
         string? reportPath,
-        IReadOnlyList<string> reportPaths,
+        List<string> reportPaths,
         string? reportFormat,
         string? reportTemplatePath,
         bool nativeReportFormats = false)
@@ -82,7 +82,7 @@ internal static partial class Program
     static bool TryWriteAnalysisReports(
         IReadOnlyList<Finding> findings,
         string? reportPath,
-        IReadOnlyList<string> reportPaths,
+        List<string> reportPaths,
         string? reportFormat,
         string? reportTemplatePath)
     {

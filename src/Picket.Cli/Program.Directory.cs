@@ -15,7 +15,7 @@ internal static partial class Program
         string diagnosticsCommand = "dir",
         string? defaultRoot = null,
         bool allowValidationResultFilters = false,
-        Func<IReadOnlyList<Finding>, string?, IReadOnlyList<string>, string?, string?, bool>? nativeResultWriter = null)
+        Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, bool>? nativeResultWriter = null)
     {
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
         {
