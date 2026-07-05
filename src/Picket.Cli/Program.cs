@@ -6,6 +6,8 @@ using Picket.Rules;
 using Picket.Sources;
 
 const int UnknownFlagExitCode = 126;
+const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
+const string GitleaksConfigTomlEnvironmentVariable = "GITLEAKS_CONFIG_TOML";
 
 if (args.Length == 0 || IsHelp(args[0]))
 {
@@ -35,11 +37,24 @@ return UnknownFlagExitCode;
 
 static async Task<int> RunStdinAsync(string[] args)
 {
+    string? baselinePath = null;
     string? configPath = null;
     string reportFormat = "json";
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
+        if (arg is "-b" or "--baseline-path")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            baselinePath = args[++i];
+            continue;
+        }
+
         if (arg is "-c" or "--config")
         {
             if (i + 1 >= args.Length)
@@ -82,13 +97,19 @@ static async Task<int> RunStdinAsync(string[] args)
         return 1;
     }
 
-    IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+    if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
+    {
+        return 1;
+    }
+
+    IReadOnlyList<Finding> findings = baseline.Filter(SecretScanner.Scan(new ScanRequest(input, "stdin", rules)));
     Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
     return findings.Count == 0 ? 0 : 1;
 }
 
 static int RunDirectory(string[] args)
 {
+    string? baselinePath = null;
     string? configPath = null;
     string reportFormat = "json";
     string gitleaksIgnorePath = ".";
@@ -97,6 +118,18 @@ static int RunDirectory(string[] args)
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
+        if (arg is "-b" or "--baseline-path")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            baselinePath = args[++i];
+            continue;
+        }
+
         if (arg is "-c" or "--config")
         {
             if (i + 1 >= args.Length)
@@ -184,16 +217,37 @@ static int RunDirectory(string[] args)
         return 1;
     }
 
-    var findings = new List<Finding>();
-    foreach (SourceFile file in files)
+    if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
-        byte[] input = File.ReadAllBytes(file.FullPath);
-        findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
+        return 1;
     }
 
-    IReadOnlyList<Finding> filteredFindings = gitleaksIgnore.Filter(findings);
+    string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath);
+    string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
+    var findings = new List<Finding>();
+    bool hadScanError = false;
+    foreach (SourceFile file in files)
+    {
+        if (IsControlFile(file, baselineDisplayPath, configDisplayPath))
+        {
+            continue;
+        }
+
+        try
+        {
+            byte[] input = File.ReadAllBytes(file.FullPath);
+            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine(ex.Message);
+            hadScanError = true;
+        }
+    }
+
+    IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings));
     Console.Out.Write(GitleaksJsonReportWriter.Write(filteredFindings));
-    return filteredFindings.Count == 0 ? 0 : 1;
+    return filteredFindings.Count == 0 && !hadScanError ? 0 : 1;
 }
 
 static bool IsHelp(string arg)
@@ -236,6 +290,27 @@ static bool TryLoadRules(string? configPath, string source, [NotNullWhen(true)] 
     }
 }
 
+static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out GitleaksBaseline? baseline)
+{
+    if (string.IsNullOrWhiteSpace(baselinePath))
+    {
+        baseline = GitleaksBaseline.Empty;
+        return true;
+    }
+
+    try
+    {
+        baseline = GitleaksBaseline.Load(baselinePath);
+        return true;
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        baseline = null;
+        return false;
+    }
+}
+
 static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string source)
 {
     return GitleaksIgnore.LoadExisting([
@@ -245,12 +320,60 @@ static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string sourc
     ]);
 }
 
+static string? CreateControlFileDisplayPath(string root, string? path)
+{
+    if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(root))
+    {
+        return null;
+    }
+
+    string relativePath = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(path));
+    if (relativePath.Equals(".", StringComparison.Ordinal)
+        || relativePath.StartsWith("..", StringComparison.Ordinal)
+        || Path.IsPathRooted(relativePath))
+    {
+        return null;
+    }
+
+    return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+}
+
+static string? ResolveConfigControlPath(string? configPath, string source)
+{
+    if (!string.IsNullOrWhiteSpace(configPath))
+    {
+        return configPath;
+    }
+
+    string? environmentPath = Environment.GetEnvironmentVariable(GitleaksConfigEnvironmentVariable);
+    if (!string.IsNullOrWhiteSpace(environmentPath))
+    {
+        return environmentPath;
+    }
+
+    string? environmentToml = Environment.GetEnvironmentVariable(GitleaksConfigTomlEnvironmentVariable);
+    return string.IsNullOrWhiteSpace(environmentToml) ? Path.Combine(source, ".gitleaks.toml") : null;
+}
+
+static bool IsControlFile(SourceFile file, params string?[] displayPaths)
+{
+    foreach (string? displayPath in displayPaths)
+    {
+        if (displayPath is not null && file.DisplayPath.Equals(displayPath, StringComparison.Ordinal))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void WriteHelp()
 {
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-c path] [-f json] [-i path] [--max-target-megabytes n]");
-    Console.Out.WriteLine("  picket stdin [-c path] [-f json]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-i path] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json]");
     Console.Out.WriteLine("  picket version");
 }
