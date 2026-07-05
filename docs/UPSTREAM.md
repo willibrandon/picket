@@ -68,5 +68,22 @@ gitleaks dir <path> --config <config> --report-format json --report-path <out>
 gitleaks stdin --config <config> --report-format json --report-path <out>
 ```
 
+Capture pinned Gitleaks oracle outputs with:
+
+```powershell
+pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode dir -Source <fixture-path> -Config <config> -ReportFormat json,sarif
+pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode git -Source <repo> -Config <config> -ReportFormat json
+pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode stdin -StdinPath <input-file> -Config <config> -ReportFormat json
+```
+
+The script resolves the executable from `-GitleaksPath`, `PICKET_GITLEAKS_BIN`,
+or `gitleaks` on `PATH`. It resolves the pinned clone from
+`PICKET_GITLEAKS_REPO` or `../gitleaks`, then writes reports, stdout, stderr,
+and `metadata.json` under `artifacts/oracles/gitleaks` by default.
+
+Oracle reports can contain raw secrets from fixtures. Keep generated artifacts
+out of source control unless a follow-up normalization step has redacted and
+reviewed them for use as committed golden files.
+
 Picket compatibility tests should compare normalized reports, fingerprints,
 config diagnostics, exit codes, and stderr text against this pinned version.

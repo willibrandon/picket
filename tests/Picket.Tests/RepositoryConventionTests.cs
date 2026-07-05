@@ -339,17 +339,26 @@ public sealed partial class RepositoryConventionTests
     {
         string documentation = ReadRepositoryFile("docs/UPSTREAM.md");
         string script = ReadRepositoryFile("scripts/Capture-UpstreamPins.ps1");
+        string oracleScript = ReadRepositoryFile("scripts/Capture-GitleaksOracle.ps1");
 
         Assert.Contains("PICKET_GITLEAKS_REPO", documentation);
         Assert.Contains("PICKET_SCOUT_REPO", documentation);
         Assert.Contains("PICKET_DOTNET_RUNTIME_REPO", documentation);
         Assert.Contains("scripts/Capture-UpstreamPins.ps1 -Update", documentation);
+        Assert.Contains("scripts/Capture-GitleaksOracle.ps1", documentation);
+        Assert.Contains("PICKET_GITLEAKS_BIN", documentation);
+        Assert.Contains("artifacts/oracles/gitleaks", documentation);
         Assert.Contains("<!-- upstream-pins:start -->", documentation);
         Assert.Contains("<!-- upstream-pins:end -->", documentation);
         Assert.Contains("PICKET_GITLEAKS_REPO", script);
         Assert.Contains("describe", script);
         Assert.Contains("rev-parse", script);
         Assert.Contains("remote", script);
+        Assert.Contains("PICKET_GITLEAKS_REPO", oracleScript);
+        Assert.Contains("PICKET_GITLEAKS_BIN", oracleScript);
+        Assert.Contains("--report-format", oracleScript);
+        Assert.Contains("--report-path", oracleScript);
+        Assert.Contains("metadata.json", oracleScript);
     }
 
     [GeneratedRegex(
