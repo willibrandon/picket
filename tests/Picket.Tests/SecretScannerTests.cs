@@ -538,6 +538,59 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that Unicode code point encoded findings report decoded text with original source locations.
+    /// </summary>
+    [TestMethod]
+    public void ScanFindsUnicodeCodePointEncodedSecretWithOriginalLocation()
+    {
+        byte[] input = Encoding.UTF8.GetBytes(
+            "before\nencoded=U+0074 U+006f U+006b U+0065 U+006e U+002d U+0031 U+0032 U+0033 U+0034 U+0035\nafter\n");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.HasCount(1, findings);
+        Finding finding = findings[0];
+        Assert.AreEqual("token-12345", finding.Secret);
+        Assert.AreEqual("token-12345", finding.Match);
+        Assert.AreEqual(2, finding.StartLine);
+        Assert.AreEqual(
+            "encoded=U+0074 U+006f U+006b U+0065 U+006e U+002d U+0031 U+0032 U+0033 U+0034 U+0035",
+            finding.Line);
+        Assert.AreEqual("secret.txt:token:2", finding.Fingerprint);
+        Assert.Contains("decoded:unicode", finding.Tags);
+        Assert.Contains("decode-depth:1", finding.Tags);
+    }
+
+    /// <summary>
+    /// Verifies that Unicode escape encoded findings report decoded text with original source locations.
+    /// </summary>
+    [TestMethod]
+    public void ScanFindsUnicodeEscapeEncodedSecretWithOriginalLocation()
+    {
+        byte[] input = Encoding.UTF8.GetBytes(
+            """
+            before
+            encoded=\\u0074\\u006f\\u006b\\u0065\\u006e\\u002d\\u0031\\u0032\\u0033\\u0034\\u0035
+            after
+            """);
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.HasCount(1, findings);
+        Finding finding = findings[0];
+        Assert.AreEqual("token-12345", finding.Secret);
+        Assert.AreEqual("token-12345", finding.Match);
+        Assert.AreEqual(2, finding.StartLine);
+        Assert.AreEqual(
+            "encoded=\\\\u0074\\\\u006f\\\\u006b\\\\u0065\\\\u006e\\\\u002d\\\\u0031\\\\u0032\\\\u0033\\\\u0034\\\\u0035",
+            finding.Line);
+        Assert.Contains("decoded:unicode", finding.Tags);
+        Assert.Contains("decode-depth:1", finding.Tags);
+    }
+
+    /// <summary>
     /// Verifies that recursive decoding honors the configured maximum depth.
     /// </summary>
     [TestMethod]

@@ -77,6 +77,13 @@ internal static class SecretDecoder
                 continue;
             }
 
+            if (TryDecodeUnicode(input, position, out EncodingMatch unicodeMatch))
+            {
+                matches.Add(unicodeMatch);
+                position = unicodeMatch.End;
+                continue;
+            }
+
             if (IsHex(input[position]) && TryDecodeHex(input, position, out EncodingMatch hexMatch))
             {
                 matches.Add(hexMatch);
@@ -95,6 +102,74 @@ internal static class SecretDecoder
         }
 
         return matches;
+    }
+
+    private static bool TryDecodeUnicode(ReadOnlySpan<byte> input, int start, out EncodingMatch match)
+    {
+        return TryDecodeUnicodeCodePoints(input, start, out match)
+            || TryDecodeUnicodeEscapes(input, start, out match);
+    }
+
+    private static bool TryDecodeUnicodeCodePoints(ReadOnlySpan<byte> input, int start, out EncodingMatch match)
+    {
+        int end = start;
+        var decoded = new List<byte>();
+        while (TryReadUnicodeCodePoint(input, end, out int nextEnd, out int codePoint))
+        {
+            if (!TryAppendUtf8CodePoint(codePoint, decoded))
+            {
+                match = default;
+                return false;
+            }
+
+            end = nextEnd;
+            int whitespaceEnd = end;
+            while (whitespaceEnd < input.Length && IsAsciiWhiteSpace(input[whitespaceEnd]))
+            {
+                whitespaceEnd++;
+            }
+
+            if (!TryReadUnicodeCodePoint(input, whitespaceEnd, out _, out _))
+            {
+                break;
+            }
+
+            end = whitespaceEnd;
+        }
+
+        if (decoded.Count == 0)
+        {
+            match = default;
+            return false;
+        }
+
+        match = new EncodingMatch(start, end, [.. decoded], DecodedEncoding.Unicode);
+        return true;
+    }
+
+    private static bool TryDecodeUnicodeEscapes(ReadOnlySpan<byte> input, int start, out EncodingMatch match)
+    {
+        int end = start;
+        var decoded = new List<byte>();
+        while (TryReadUnicodeEscape(input, end, out int nextEnd, out int codePoint))
+        {
+            if (!TryAppendUtf8CodePoint(codePoint, decoded))
+            {
+                match = default;
+                return false;
+            }
+
+            end = nextEnd;
+        }
+
+        if (decoded.Count == 0)
+        {
+            match = default;
+            return false;
+        }
+
+        match = new EncodingMatch(start, end, [.. decoded], DecodedEncoding.Unicode);
+        return true;
     }
 
     private static bool TryDecodePercent(ReadOnlySpan<byte> input, int start, out EncodingMatch match)
@@ -301,5 +376,102 @@ internal static class SecretDecoder
     private static bool IsPrintableAscii(byte value)
     {
         return value is > 0x08 and < 0x7f;
+    }
+
+    private static bool TryReadUnicodeCodePoint(ReadOnlySpan<byte> input, int start, out int end, out int codePoint)
+    {
+        if (start + 6 > input.Length || input[start] != (byte)'U' || input[start + 1] != (byte)'+')
+        {
+            end = 0;
+            codePoint = 0;
+            return false;
+        }
+
+        if (!TryReadHexCodePoint(input, start + 2, out codePoint))
+        {
+            end = 0;
+            return false;
+        }
+
+        end = start + 6;
+        return true;
+    }
+
+    private static bool TryReadUnicodeEscape(ReadOnlySpan<byte> input, int start, out int end, out int codePoint)
+    {
+        if (start >= input.Length || input[start] != (byte)'\\')
+        {
+            end = 0;
+            codePoint = 0;
+            return false;
+        }
+
+        int prefixEnd = start + 1;
+        if (prefixEnd < input.Length && input[prefixEnd] == (byte)'\\')
+        {
+            prefixEnd++;
+        }
+
+        if (prefixEnd + 5 > input.Length || input[prefixEnd] is not ((byte)'u' or (byte)'U'))
+        {
+            end = 0;
+            codePoint = 0;
+            return false;
+        }
+
+        if (!TryReadHexCodePoint(input, prefixEnd + 1, out codePoint))
+        {
+            end = 0;
+            return false;
+        }
+
+        end = prefixEnd + 5;
+        return true;
+    }
+
+    private static bool TryReadHexCodePoint(ReadOnlySpan<byte> input, int start, out int codePoint)
+    {
+        if (start + 4 > input.Length)
+        {
+            codePoint = 0;
+            return false;
+        }
+
+        codePoint = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            int nibble = FromHex(input[start + i]);
+            if (nibble < 0)
+            {
+                codePoint = 0;
+                return false;
+            }
+
+            codePoint = (codePoint << 4) | nibble;
+        }
+
+        return true;
+    }
+
+    private static bool TryAppendUtf8CodePoint(int codePoint, List<byte> decoded)
+    {
+        if (codePoint is < 0 or > 0x10ffff or >= 0xd800 and <= 0xdfff)
+        {
+            return false;
+        }
+
+        if (codePoint <= 0x7f)
+        {
+            decoded.Add((byte)codePoint);
+            return true;
+        }
+
+        decoded.AddRange(Encoding.UTF8.GetBytes(char.ConvertFromUtf32(codePoint)));
+        return true;
+    }
+
+    private static bool IsAsciiWhiteSpace(byte value)
+    {
+        return value is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r' or 0x0b or 0x0c;
     }
 }

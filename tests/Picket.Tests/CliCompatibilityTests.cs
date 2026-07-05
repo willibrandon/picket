@@ -258,6 +258,25 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that directory scans include Unicode decoded findings.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanFindsUnicodeDecodedSecret()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(
+            Path.Combine(root.Path, "secret.txt"),
+            "encoded=\\u0074\\u006f\\u006b\\u0065\\u006e\\u002d\\u0031\\u0032\\u0033\\u0034\\u0035");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+        Assert.Contains("\"decoded:unicode\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that behavior-changing future flags fail instead of silently doing nothing.
     /// </summary>
     [TestMethod]

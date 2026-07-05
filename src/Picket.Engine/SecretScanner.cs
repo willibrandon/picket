@@ -564,6 +564,11 @@ public sealed class SecretScanner
             tags.Add("decoded:percent");
         }
 
+        if ((encodings & DecodedEncoding.Unicode) != 0)
+        {
+            tags.Add("decoded:unicode");
+        }
+
         if ((encodings & DecodedEncoding.Hex) != 0)
         {
             tags.Add("decoded:hex");

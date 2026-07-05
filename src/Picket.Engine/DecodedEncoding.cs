@@ -5,6 +5,7 @@ internal enum DecodedEncoding
 {
     None = 0,
     Percent = 1,
-    Hex = 2,
-    Base64 = 4,
+    Unicode = 2,
+    Hex = 4,
+    Base64 = 8,
 }
