@@ -40,6 +40,7 @@ static async Task<int> RunStdinAsync(string[] args)
     string? baselinePath = null;
     string? configPath = null;
     string reportFormat = "json";
+    int redactionPercent = 0;
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
@@ -79,6 +80,16 @@ static async Task<int> RunStdinAsync(string[] args)
             continue;
         }
 
+        if (IsRedactFlag(arg))
+        {
+            if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         Console.Error.WriteLine($"unknown flag: {arg}");
         return UnknownFlagExitCode;
     }
@@ -102,7 +113,14 @@ static async Task<int> RunStdinAsync(string[] args)
         return 1;
     }
 
-    IReadOnlyList<Finding> findings = baseline.Filter(SecretScanner.Scan(new ScanRequest(input, "stdin", rules)));
+    IReadOnlyList<Finding> findings = baseline.Filter(
+        SecretScanner.Scan(new ScanRequest(input, "stdin", rules)),
+        redactionPercent);
+    if (redactionPercent > 0)
+    {
+        findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
+    }
+
     Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
     return findings.Count == 0 ? 0 : 1;
 }
@@ -114,6 +132,7 @@ static int RunDirectory(string[] args)
     string reportFormat = "json";
     string gitleaksIgnorePath = ".";
     long? maxTargetBytes = null;
+    int redactionPercent = 0;
     string? root = null;
     for (int i = 0; i < args.Length; i++)
     {
@@ -183,6 +202,16 @@ static int RunDirectory(string[] args)
             continue;
         }
 
+        if (IsRedactFlag(arg))
+        {
+            if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (arg.StartsWith('-'))
         {
             Console.Error.WriteLine($"unknown flag: {arg}");
@@ -245,7 +274,12 @@ static int RunDirectory(string[] args)
         }
     }
 
-    IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings));
+    IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
+    if (redactionPercent > 0)
+    {
+        filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
+    }
+
     Console.Out.Write(GitleaksJsonReportWriter.Write(filteredFindings));
     return filteredFindings.Count == 0 && !hadScanError ? 0 : 1;
 }
@@ -272,6 +306,62 @@ static bool TryParseMegabytes(string value, out long? bytes)
 
     bytes = megabytes * 1_000_000;
     return true;
+}
+
+static bool IsRedactFlag(string arg)
+{
+    return arg.Equals("--redact", StringComparison.Ordinal)
+        || arg.StartsWith("--redact=", StringComparison.Ordinal);
+}
+
+static bool TryReadRedactionPercent(string[] args, ref int index, out int redactionPercent)
+{
+    string arg = args[index];
+    string? value = null;
+    if (arg.Equals("--redact", StringComparison.Ordinal))
+    {
+        if (index + 1 < args.Length && int.TryParse(args[index + 1], out int parsedRedactionPercent))
+        {
+            if (!IsValidRedactionPercent(parsedRedactionPercent))
+            {
+                Console.Error.WriteLine("--redact requires an integer value from 0 through 100");
+                redactionPercent = 0;
+                return false;
+            }
+
+            redactionPercent = parsedRedactionPercent;
+            index++;
+            return true;
+        }
+
+        redactionPercent = 100;
+        return true;
+    }
+
+    value = arg["--redact=".Length..];
+    if (TryParseRedactionPercent(value, out redactionPercent))
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine("--redact requires an integer value from 0 through 100");
+    return false;
+}
+
+static bool TryParseRedactionPercent(string value, out int redactionPercent)
+{
+    if (!int.TryParse(value, out redactionPercent) || !IsValidRedactionPercent(redactionPercent))
+    {
+        redactionPercent = 0;
+        return false;
+    }
+
+    return true;
+}
+
+static bool IsValidRedactionPercent(int redactionPercent)
+{
+    return redactionPercent is >= 0 and <= 100;
 }
 
 static bool TryLoadRules(string? configPath, string source, [NotNullWhen(true)] out CompiledRuleSet? rules)
@@ -373,7 +463,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-i path] [--max-target-megabytes n]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-i path] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }
