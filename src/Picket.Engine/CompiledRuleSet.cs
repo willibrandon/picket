@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using Picket.Rules;
 using Scout.Text.Regex;
@@ -10,10 +12,17 @@ namespace Picket.Engine;
 /// <param name="rules">The source rules in deterministic evaluation order.</param>
 public sealed class CompiledRuleSet(RuleSet rules)
 {
+    private const string LowerHex = "0123456789abcdef";
+
     /// <summary>
     /// Gets the source rules in deterministic evaluation order.
     /// </summary>
     public IReadOnlyList<SecretRule> Rules { get; } = RequireRules(rules).Rules;
+
+    /// <summary>
+    /// Gets a stable fingerprint for the rules, allowlists, and rule compilation inputs.
+    /// </summary>
+    public string Fingerprint { get; } = CreateFingerprint(rules);
 
     internal List<CompiledRule> CompiledRules { get; } = CompileRules(rules);
 
@@ -81,6 +90,92 @@ public sealed class CompiledRuleSet(RuleSet rules)
         }
 
         return compiledRules;
+    }
+
+    private static string CreateFingerprint(RuleSet rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+
+        var builder = new StringBuilder();
+        AppendValue(builder, "picket.ruleset.v1");
+        AppendValue(builder, rules.RegexesPrevalidated ? "prevalidated" : "compile");
+        AppendAllowlists(builder, rules.Allowlists);
+        for (int i = 0; i < rules.Rules.Count; i++)
+        {
+            SecretRule rule = rules.Rules[i];
+            AppendValue(builder, rule.Id);
+            AppendValue(builder, rule.Description);
+            AppendValue(builder, rule.Pattern);
+            AppendValue(builder, rule.SecretGroup.ToString(CultureInfo.InvariantCulture));
+            AppendValue(builder, rule.Entropy.ToString("G17", CultureInfo.InvariantCulture));
+            AppendValue(builder, rule.PathPattern);
+            AppendValues(builder, rule.Keywords);
+            AppendValues(builder, rule.Tags);
+            AppendValue(builder, rule.SkipReport ? "true" : "false");
+            AppendAllowlists(builder, rule.Allowlists);
+            AppendRequiredRules(builder, rule.RequiredRules);
+        }
+
+        return ComputeSha256Hex(builder.ToString());
+    }
+
+    private static void AppendAllowlists(StringBuilder builder, IReadOnlyList<SecretAllowlist> allowlists)
+    {
+        AppendValue(builder, allowlists.Count.ToString(CultureInfo.InvariantCulture));
+        for (int i = 0; i < allowlists.Count; i++)
+        {
+            SecretAllowlist allowlist = allowlists[i];
+            AppendValue(builder, allowlist.Description);
+            AppendValue(builder, allowlist.Condition.ToString());
+            AppendValues(builder, allowlist.Commits);
+            AppendValues(builder, allowlist.PathPatterns);
+            AppendValue(builder, allowlist.RegexTarget.ToString());
+            AppendValues(builder, allowlist.RegexPatterns);
+            AppendValues(builder, allowlist.StopWords);
+        }
+    }
+
+    private static void AppendRequiredRules(StringBuilder builder, IReadOnlyList<SecretRequiredRule> requiredRules)
+    {
+        AppendValue(builder, requiredRules.Count.ToString(CultureInfo.InvariantCulture));
+        for (int i = 0; i < requiredRules.Count; i++)
+        {
+            SecretRequiredRule requiredRule = requiredRules[i];
+            AppendValue(builder, requiredRule.Id);
+            AppendValue(builder, requiredRule.WithinLines?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+            AppendValue(builder, requiredRule.WithinColumns?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+        }
+    }
+
+    private static void AppendValues(StringBuilder builder, IReadOnlyList<string> values)
+    {
+        AppendValue(builder, values.Count.ToString(CultureInfo.InvariantCulture));
+        for (int i = 0; i < values.Count; i++)
+        {
+            AppendValue(builder, values[i]);
+        }
+    }
+
+    private static void AppendValue(StringBuilder builder, string value)
+    {
+        builder.Append(value.Length.ToString(CultureInfo.InvariantCulture));
+        builder.Append(':');
+        builder.Append(value);
+        builder.Append(';');
+    }
+
+    private static string ComputeSha256Hex(string value)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return string.Create(hash.Length * 2, hash, static (chars, bytes) =>
+        {
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                byte value = bytes[i];
+                chars[i * 2] = LowerHex[value >> 4];
+                chars[(i * 2) + 1] = LowerHex[value & 0x0F];
+            }
+        });
     }
 
     private static ByteRegex? CompileOptionalRegex(string pattern, string context)

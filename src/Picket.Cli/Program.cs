@@ -8,6 +8,7 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using Picket.Sources;
+using Picket.Store;
 using Picket.Verify;
 
 const int UnknownFlagExitCode = 126;
@@ -805,6 +806,7 @@ static int RunDirectory(
     string? defaultRoot = null)
 {
     string? baselinePath = null;
+    string? cacheDir = null;
     string? configPath = null;
     string? diagnostics = null;
     string? diagnosticsDir = null;
@@ -841,6 +843,16 @@ static int RunDirectory(
         if (IsConfigFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (nativeReportFormats && IsCacheDirFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--cache-dir", out cacheDir))
             {
                 return UnknownFlagExitCode;
             }
@@ -1074,6 +1086,20 @@ static int RunDirectory(
         return CompleteRun(1, diagnosticsSession);
     }
 
+    PicketScanCache? scanCache = null;
+    if (nativeReportFormats && !string.IsNullOrWhiteSpace(cacheDir))
+    {
+        try
+        {
+            scanCache = PicketScanCache.Open(cacheDir, ScanCacheKey.Create(rules.Fingerprint, maxDecodeDepth, maxTargetBytes));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Console.Error.WriteLine($"failed to open cache: {ex.Message}");
+            return CompleteRun(1, diagnosticsSession);
+        }
+    }
+
     if (!TryLoadPicketIgnore(root, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? picketIgnore))
     {
         return CompleteRun(1, diagnosticsSession);
@@ -1104,6 +1130,7 @@ static int RunDirectory(
     List<string?> nativeIgnoreDisplayPaths = respectNativeIgnoreFiles
         ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
         : [];
+    string? cacheDisplayPath = nativeReportFormats ? CreateControlFileDisplayPath(root, cacheDir) : null;
     var findings = new List<Finding>();
     bool hadScanError = false;
     foreach (SourceFile file in files)
@@ -1116,6 +1143,7 @@ static int RunDirectory(
         }
 
         if (IsControlFile(file, [baselineDisplayPath, configDisplayPath, .. reportDisplayPaths, .. nativeIgnoreDisplayPaths])
+            || IsControlDirectoryFile(file, cacheDisplayPath)
             || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)))
         {
             continue;
@@ -1134,14 +1162,22 @@ static int RunDirectory(
                 continue;
             }
 
-            findings.AddRange(SecretScanner.Scan(new ScanRequest(
+            if (scanCache is not null && scanCache.TryRead(input, file.DisplayPath, file.SymlinkDisplayPath, out List<Finding>? cachedFindings))
+            {
+                findings.AddRange(cachedFindings);
+                continue;
+            }
+
+            IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
                 input,
                 file.DisplayPath,
                 rules,
                 ignoreGitleaksAllow,
                 maxDecodeDepth: maxDecodeDepth,
                 maxTargetBytes: maxTargetBytes,
-                symlinkFile: file.SymlinkDisplayPath)));
+                symlinkFile: file.SymlinkDisplayPath));
+            findings.AddRange(scannedFindings);
+            scanCache?.Write(input, file.DisplayPath, scannedFindings);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -2288,6 +2324,12 @@ static bool IsConfigFlag(string arg)
         || arg.StartsWith("--config=", StringComparison.Ordinal);
 }
 
+static bool IsCacheDirFlag(string arg)
+{
+    return arg.Equals("--cache-dir", StringComparison.Ordinal)
+        || arg.StartsWith("--cache-dir=", StringComparison.Ordinal);
+}
+
 static bool IsRulesTestPathFlag(string arg)
 {
     return arg.Equals("--path", StringComparison.Ordinal)
@@ -3092,6 +3134,18 @@ static bool IsControlFile(SourceFile file, params string?[] displayPaths)
     return false;
 }
 
+static bool IsControlDirectoryFile(SourceFile file, string? displayPath)
+{
+    if (displayPath is null)
+    {
+        return false;
+    }
+
+    string prefix = displayPath.EndsWith('/') ? displayPath : string.Concat(displayPath, '/');
+    return file.DisplayPath.Equals(displayPath, StringComparison.Ordinal)
+        || file.DisplayPath.StartsWith(prefix, StringComparison.Ordinal);
+}
+
 static void WriteReportViewSummary(string reportPath, ReportSummary summary)
 {
     Console.Out.WriteLine($"report: {reportPath}");
@@ -3157,7 +3211,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -3173,7 +3227,7 @@ static void WriteScanHelp()
     Console.Out.WriteLine("picket scan - native filesystem scan");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteBaselineHelp()

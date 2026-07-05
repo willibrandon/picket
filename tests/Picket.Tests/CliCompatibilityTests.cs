@@ -356,6 +356,44 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scan cache files are not scanned as source files on later runs.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesCacheDirectoryWithoutScanningCacheFiles()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
+
+        CliResult first = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult second = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        string[] secondLines = second.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(1, first.ExitCode);
+        Assert.AreEqual(1, second.ExitCode);
+        Assert.IsTrue(Directory.Exists(cachePath));
+        Assert.HasCount(1, secondLines);
+        Assert.Contains("\"file\":\"secret.txt\"", secondLines[0]);
+        Assert.DoesNotContain(".picket/cache", second.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies strict compatibility directory scans reject native cache flags.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeCacheDirFlag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--cache-dir", Path.Combine(root.Path, ".picket", "cache")).ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("unknown flag: --cache-dir", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scans use the Picket SARIF report shape.
     /// </summary>
     [TestMethod]
@@ -2021,6 +2059,19 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "github-pat"
             regex = '''ghp_[0-9A-Za-z]{36}'''
+            """);
+        return configPath;
+    }
+
+    private static string WriteFindingWordConfig(string root)
+    {
+        string configPath = Path.Combine(root, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "word"
+            regex = '''finding'''
             """);
         return configPath;
     }
