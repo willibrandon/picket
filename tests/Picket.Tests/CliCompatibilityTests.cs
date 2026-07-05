@@ -152,6 +152,65 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that --report-template implies template output.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanWritesTemplateReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string templatePath = Path.Combine(root.Path, "report.tmpl");
+        File.WriteAllText(
+            templatePath,
+            "{{ range . -}}{{ .RuleID }}|{{ .File }}|{{ quote .Secret }}|{{ .Line }}\n{{ end -}}");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "prefix token-12345 suffix");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--report-template", templatePath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.AreEqual("token|secret.txt|\"token-12345\"|prefix token-12345 suffix\n", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that template reports can be written to a report path.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanWritesTemplateReportPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string templatePath = Path.Combine(root.Path, "report.tmpl");
+        string reportPath = Path.Combine(root.Path, "report.txt");
+        File.WriteAllText(templatePath, "findings={{ len . }}\n");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--report-template", templatePath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.AreEqual("findings=1\n", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
+    /// Verifies that --report-template rejects contradictory explicit formats.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsTemplateWithNonTemplateFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string templatePath = Path.Combine(root.Path, "report.tmpl");
+        File.WriteAllText(templatePath, "{{ len . }}\n");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--report-template", templatePath, "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("report format must be 'template' if --report-template is specified", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that inline gitleaks:allow comments suppress CLI findings by default.
     /// </summary>
     [TestMethod]

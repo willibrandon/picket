@@ -1,9 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using Picket.Sources;
-using System.Diagnostics.CodeAnalysis;
 
 const int UnknownFlagExitCode = 126;
 const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
@@ -56,6 +56,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     string? configPath = null;
     string? reportPath = null;
     string? reportFormat = null;
+    string? reportTemplatePath = null;
     List<string> enabledRuleIds = [];
     int exitCode = 1;
     bool ignoreGitleaksAllow = false;
@@ -110,6 +111,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
         if (IsReportFormatFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsReportTemplateFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--report-template", out reportTemplatePath))
             {
                 return UnknownFlagExitCode;
             }
@@ -172,7 +183,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
         findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
     }
 
-    if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat))
+    if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
     {
         return 1;
     }
@@ -186,6 +197,7 @@ static int RunDirectory(string[] args)
     string? configPath = null;
     string? reportPath = null;
     string? reportFormat = null;
+    string? reportTemplatePath = null;
     List<string> enabledRuleIds = [];
     string gitleaksIgnorePath = ".";
     int exitCode = 1;
@@ -244,6 +256,16 @@ static int RunDirectory(string[] args)
         if (IsReportFormatFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsReportTemplateFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--report-template", out reportTemplatePath))
             {
                 return UnknownFlagExitCode;
             }
@@ -383,7 +405,7 @@ static int RunDirectory(string[] args)
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat))
+    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
     {
         return 1;
     }
@@ -402,6 +424,7 @@ static int RunGit(string[] args)
     string? configPath = null;
     string? reportPath = null;
     string? reportFormat = null;
+    string? reportTemplatePath = null;
     string? logOptions = null;
     string? platform = null;
     List<string> enabledRuleIds = [];
@@ -464,6 +487,16 @@ static int RunGit(string[] args)
         if (IsReportFormatFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsReportTemplateFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--report-template", out reportTemplatePath))
             {
                 return UnknownFlagExitCode;
             }
@@ -620,7 +653,7 @@ static int RunGit(string[] args)
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat))
+    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
     {
         return 1;
     }
@@ -851,7 +884,8 @@ static Finding MapGitFinding(Finding finding, GitPatchFragment fragment)
         fragment.Date,
         fragment.Message,
         finding.Tags,
-        CreateFingerprint(fragment.Commit, finding.File, finding.RuleID, startLine));
+        CreateFingerprint(fragment.Commit, finding.File, finding.RuleID, startLine),
+        finding.Line);
 }
 
 static int MapGitLine(GitPatchFragment fragment, int line)
@@ -940,6 +974,12 @@ static bool IsReportFormatFlag(string arg)
 {
     return arg is "-f" or "--report-format"
         || arg.StartsWith("--report-format=", StringComparison.Ordinal);
+}
+
+static bool IsReportTemplateFlag(string arg)
+{
+    return arg.Equals("--report-template", StringComparison.Ordinal)
+        || arg.StartsWith("--report-template=", StringComparison.Ordinal);
 }
 
 static bool IsEnableRuleFlag(string arg)
@@ -1159,21 +1199,32 @@ static bool TryWriteReport(
     IReadOnlyList<Finding> findings,
     IReadOnlyList<SecretRule> rules,
     string? reportPath,
-    string? reportFormat)
+    string? reportFormat,
+    string? reportTemplatePath)
 {
-    if (!TryResolveReportFormat(reportPath, reportFormat, out string? resolvedReportFormat))
+    if (!TryResolveReportFormat(reportPath, reportFormat, reportTemplatePath, out string? resolvedReportFormat))
     {
         return false;
     }
 
-    string report = resolvedReportFormat switch
+    string report;
+    try
     {
-        "csv" => GitleaksCsvReportWriter.Write(findings),
-        "junit" => GitleaksJunitReportWriter.Write(findings),
-        "json" => GitleaksJsonReportWriter.Write(findings),
-        "sarif" => GitleaksSarifReportWriter.Write(findings, rules),
-        _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
-    };
+        report = resolvedReportFormat switch
+        {
+            "csv" => GitleaksCsvReportWriter.Write(findings),
+            "junit" => GitleaksJunitReportWriter.Write(findings),
+            "json" => GitleaksJsonReportWriter.Write(findings),
+            "sarif" => GitleaksSarifReportWriter.Write(findings, rules),
+            "template" => GitleaksTemplateReportWriter.Write(findings, ReadReportTemplate(reportTemplatePath)),
+            _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
+        };
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine($"invalid report template: {ex.Message}");
+        return false;
+    }
 
     if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
     {
@@ -1193,11 +1244,44 @@ static bool TryWriteReport(
     }
 }
 
-static bool TryResolveReportFormat(string? reportPath, string? reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
+static string ReadReportTemplate(string? reportTemplatePath)
+{
+    if (string.IsNullOrWhiteSpace(reportTemplatePath))
+    {
+        throw new InvalidDataException("template path cannot be empty");
+    }
+
+    return File.ReadAllText(reportTemplatePath);
+}
+
+static bool TryResolveReportFormat(
+    string? reportPath,
+    string? reportFormat,
+    string? reportTemplatePath,
+    [NotNullWhen(true)] out string? resolvedReportFormat)
 {
     if (!string.IsNullOrWhiteSpace(reportFormat))
     {
-        return TryNormalizeReportFormat(reportFormat, out resolvedReportFormat);
+        if (!TryNormalizeReportFormat(reportFormat, out resolvedReportFormat))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(reportTemplatePath)
+            && !resolvedReportFormat.Equals("template", StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine("report format must be 'template' if --report-template is specified");
+            resolvedReportFormat = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    if (!string.IsNullOrWhiteSpace(reportTemplatePath))
+    {
+        resolvedReportFormat = "template";
+        return true;
     }
 
     if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
@@ -1233,7 +1317,7 @@ static bool TryResolveReportFormat(string? reportPath, string? reportFormat, [No
 static bool TryNormalizeReportFormat(string reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
 {
     string normalizedReportFormat = reportFormat.Trim().ToLowerInvariant();
-    if (normalizedReportFormat is "csv" or "json" or "junit" or "sarif")
+    if (normalizedReportFormat is "csv" or "json" or "junit" or "sarif" or "template")
     {
         resolvedReportFormat = normalizedReportFormat;
         return true;
@@ -1306,8 +1390,8 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
+    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

@@ -21,6 +21,7 @@ public sealed class GitleaksFindingRedactorTests
 
         Assert.AreEqual("REDACTED", redacted.Secret);
         Assert.AreEqual("line containing REDACTED", redacted.Match);
+        Assert.AreEqual("line containing REDACTED", redacted.Line);
     }
 
     /// <summary>

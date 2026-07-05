@@ -1,6 +1,6 @@
+using System.Text;
 using Picket.Rules;
 using Scout.Text.Regex;
-using System.Text;
 
 namespace Picket.Engine;
 
@@ -289,6 +289,7 @@ public sealed class SecretScanner
 
             string matchText = DecodeReportText(matchBytes);
             string secretText = DecodeReportText(secretBytes);
+            string lineText = DecodeReportText(lineBytes);
             if (IsAllowed(
                 globalAllowlists,
                 compiledRule.Allowlists,
@@ -322,7 +323,8 @@ public sealed class SecretScanner
                 string.Empty,
                 string.Empty,
                 rule.Tags,
-                CreateFingerprint(commit, fileName, rule.Id, start.Line)));
+                CreateFingerprint(commit, fileName, rule.Id, start.Line),
+                lineText));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -372,6 +374,7 @@ public sealed class SecretScanner
 
             string matchText = DecodeReportText(matchBytes);
             string secretText = DecodeReportText(secretBytes);
+            string lineText = DecodeReportText(lineBytes);
             if (IsAllowed(
                 globalAllowlists,
                 compiledRule.Allowlists,
@@ -405,7 +408,8 @@ public sealed class SecretScanner
                 string.Empty,
                 string.Empty,
                 rule.Tags,
-                CreateFingerprint(commit, fileName, rule.Id, start.Line)));
+                CreateFingerprint(commit, fileName, rule.Id, start.Line),
+                lineText));
 
             offset = AdvanceAfterMatch(match, input.Length);
         }

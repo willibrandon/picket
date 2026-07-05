@@ -21,6 +21,7 @@ namespace Picket.Engine;
 /// <param name="message">The git commit message, or an empty string.</param>
 /// <param name="tags">The rule tags.</param>
 /// <param name="fingerprint">The Gitleaks-compatible fingerprint.</param>
+/// <param name="line">The full source line that contains the match.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -39,7 +40,8 @@ public sealed class Finding(
     string date,
     string message,
     IReadOnlyList<string> tags,
-    string fingerprint)
+    string fingerprint,
+    string line = "")
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -70,6 +72,11 @@ public sealed class Finding(
     /// Gets the one-based end column.
     /// </summary>
     public int EndColumn { get; } = endColumn;
+
+    /// <summary>
+    /// Gets the full source line that contains the match.
+    /// </summary>
+    public string Line { get; } = line.Length == 0 ? match : line;
 
     /// <summary>
     /// Gets the full matched text.

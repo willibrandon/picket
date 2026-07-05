@@ -1,7 +1,7 @@
+using System.Text;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Rules;
-using System.Text;
 
 namespace Picket.Tests;
 
