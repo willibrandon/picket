@@ -208,6 +208,22 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that no-config directory scans use the embedded Gitleaks default ruleset.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanUsesEmbeddedGitleaksDefaultConfig()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "picket_key = abc123def456ghi7890");
+
+        CliResult result = await RunCliAsync("dir", root.Path).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"generic-api-key\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"abc123def456ghi7890\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that required supporting rules gate normal CLI findings.
     /// </summary>
     [TestMethod]
@@ -515,6 +531,8 @@ public sealed class CliCompatibilityTests
             process.StartInfo.ArgumentList.Add(argument);
         }
 
+        process.StartInfo.Environment.Remove("GITLEAKS_CONFIG");
+        process.StartInfo.Environment.Remove("GITLEAKS_CONFIG_TOML");
         process.Start();
         if (standardInput is not null)
         {

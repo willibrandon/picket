@@ -75,7 +75,26 @@ public sealed class SecretScanner
             return findings;
         }
 
-        if (compiledRule.Regex is null)
+        if (compiledRule.UsesGenericApiKeyMatcher)
+        {
+            if (compiledRule.Prefilter.IsCandidate(input))
+            {
+                ScanGenericApiKeyRule(
+                    input,
+                    fileName,
+                    fileNameBytes,
+                    windowsFileNameBytes,
+                    globalAllowlists,
+                    ignoreGitleaksAllow,
+                    commit,
+                    compiledRule,
+                    findings);
+            }
+
+            return findings;
+        }
+
+        if (!compiledRule.HasContentPattern)
         {
             if (!IsAllowed(
                 globalAllowlists,
@@ -96,6 +115,7 @@ public sealed class SecretScanner
 
         if (compiledRule.Prefilter.IsCandidate(input))
         {
+            ByteRegex regex = compiledRule.Regex ?? throw new InvalidOperationException("Content rule regex was not compiled.");
             ScanRule(
                 input,
                 fileName,
@@ -105,7 +125,7 @@ public sealed class SecretScanner
                 ignoreGitleaksAllow,
                 commit,
                 compiledRule,
-                compiledRule.Regex,
+                regex,
                 findings);
         }
 
@@ -232,6 +252,80 @@ public sealed class SecretScanner
 
         return requiredRule.WithinColumns is not int withinColumns
             || Math.Abs(primaryFinding.StartColumn - requiredFinding.StartColumn) <= withinColumns;
+    }
+
+    private static void ScanGenericApiKeyRule(
+        ReadOnlySpan<byte> input,
+        string fileName,
+        ReadOnlySpan<byte> fileNameBytes,
+        ReadOnlySpan<byte> windowsFileNameBytes,
+        List<CompiledAllowlist> globalAllowlists,
+        bool ignoreGitleaksAllow,
+        string commit,
+        CompiledRule compiledRule,
+        List<Finding> findings)
+    {
+        SecretRule rule = compiledRule.Rule;
+        int offset = 0;
+        while (GenericApiKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
+        {
+            ReadOnlySpan<byte> secretBytes = input[secretStart..secretEnd];
+            double entropy = ShannonEntropy.Calculate(secretBytes);
+            if (rule.Entropy > 0 && entropy <= rule.Entropy)
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
+            SourcePosition start = SourcePosition.FromOffset(input, matchStart);
+            SourcePosition end = SourcePosition.FromOffset(input, matchEnd);
+            ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
+            ReadOnlySpan<byte> lineBytes = ExtractLine(input, matchStart);
+            if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
+            string matchText = DecodeReportText(matchBytes);
+            string secretText = DecodeReportText(secretBytes);
+            if (IsAllowed(
+                globalAllowlists,
+                compiledRule.Allowlists,
+                fileNameBytes,
+                windowsFileNameBytes,
+                matchBytes,
+                secretBytes,
+                lineBytes,
+                secretText,
+                commit))
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
+            findings.Add(new Finding(
+                rule.Id,
+                rule.Description,
+                start.Line,
+                end.Line,
+                start.Column,
+                end.Column,
+                matchText,
+                secretText,
+                fileName,
+                string.Empty,
+                commit,
+                entropy,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                rule.Tags,
+                CreateFingerprint(commit, fileName, rule.Id, start.Line)));
+
+            offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+        }
     }
 
     private static void ScanRule(
@@ -514,12 +608,17 @@ public sealed class SecretScanner
 
     private static int AdvanceAfterMatch(ByteRegexMatch match, int inputLength)
     {
-        if (match.Length == 0)
+        return AdvanceAfterMatch(match.Start, match.End, inputLength);
+    }
+
+    private static int AdvanceAfterMatch(int matchStart, int matchEnd, int inputLength)
+    {
+        if (matchEnd == matchStart)
         {
-            return match.End < inputLength ? match.End + 1 : inputLength + 1;
+            return matchEnd < inputLength ? matchEnd + 1 : inputLength + 1;
         }
 
-        return match.End;
+        return matchEnd;
     }
 
     private static string DecodeReportText(ReadOnlySpan<byte> bytes)

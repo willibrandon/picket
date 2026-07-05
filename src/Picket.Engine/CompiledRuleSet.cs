@@ -16,7 +16,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
 
     internal List<CompiledRule> CompiledRules { get; } = CompileRules(rules);
 
-    internal List<CompiledAllowlist> Allowlists { get; } = CompiledAllowlist.Compile(rules.Allowlists);
+    internal List<CompiledAllowlist> Allowlists { get; } = CompiledAllowlist.Compile(rules.Allowlists, rules.RegexesPrevalidated);
 
     /// <summary>
     /// Compiles a source rule set.
@@ -41,12 +41,16 @@ public sealed class CompiledRuleSet(RuleSet rules)
         var compiledRules = new List<CompiledRule>(rules.Rules.Count);
         foreach (SecretRule rule in rules.Rules)
         {
+            bool usesGenericApiKeyMatcher = GenericApiKeyMatcher.CanHandle(rule);
+            bool deferRegexCompilation = rules.RegexesPrevalidated;
             compiledRules.Add(new CompiledRule(
                 rule,
-                CompileOptionalRegex(rule.Pattern),
-                CompileOptionalRegex(rule.PathPattern),
-                CompiledAllowlist.Compile(rule.Allowlists),
-                KeywordPrefilter.Create(rule.Keywords)));
+                usesGenericApiKeyMatcher || deferRegexCompilation ? null : CompileOptionalRegex(rule.Pattern),
+                deferRegexCompilation ? null : CompileOptionalRegex(rule.PathPattern),
+                CompiledAllowlist.Compile(rule.Allowlists, deferRegexCompilation),
+                KeywordPrefilter.Create(rule.Keywords),
+                usesGenericApiKeyMatcher,
+                deferRegexCompilation));
         }
 
         return compiledRules;

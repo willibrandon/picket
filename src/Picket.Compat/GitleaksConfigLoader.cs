@@ -13,6 +13,7 @@ public static class GitleaksConfigLoader
     private const string GitleaksConfigTomlEnvironmentVariable = "GITLEAKS_CONFIG_TOML";
     private const string GitleaksConfigFileName = ".gitleaks.toml";
     private const int MaxExtendDepth = 2;
+    private static readonly Lazy<RuleSet> s_defaultRuleSet = new(LoadEmbeddedDefaultRuleSet);
 
     /// <summary>
     /// Loads rules using Gitleaks-compatible config precedence.
@@ -48,7 +49,7 @@ public static class GitleaksConfigLoader
             }
         }
 
-        return EmbeddedGitleaksRules.Bootstrap;
+        return s_defaultRuleSet.Value;
     }
 
     /// <summary>
@@ -499,7 +500,7 @@ public static class GitleaksConfigLoader
             RuleSet? extendedRuleSet = null;
             if (extendUseDefault)
             {
-                extendedRuleSet = EmbeddedGitleaksRules.Bootstrap;
+                extendedRuleSet = s_defaultRuleSet.Value;
             }
             else if (extendPath.Length != 0)
             {
@@ -959,5 +960,14 @@ public static class GitleaksConfigLoader
     private static void ThrowUnsupported(string sourceName, string feature)
     {
         throw new NotSupportedException($"{sourceName}: Gitleaks config {feature} are not supported yet");
+    }
+
+    private static RuleSet LoadEmbeddedDefaultRuleSet()
+    {
+        RuleSet ruleSet = FromToml(
+            EmbeddedGitleaksConfig.Toml,
+            $"embedded Gitleaks config {EmbeddedGitleaksConfig.SourceVersion} ({EmbeddedGitleaksConfig.SourceCommit})",
+            MaxExtendDepth);
+        return new RuleSet(ruleSet.Rules, ruleSet.Allowlists, regexesPrevalidated: true);
     }
 }

@@ -1,3 +1,4 @@
+using Picket.Compat;
 using Picket.Engine;
 using Picket.Rules;
 using System.Text;
@@ -43,6 +44,33 @@ public sealed class SecretScannerTests
         IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that the Gitleaks generic API key rule uses a deterministic matcher instead of a pathological regex path.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000)]
+    public void ScanHandlesGitleaksGenericApiKeyRule()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("picket_key = abc123def456ghi7890");
+        RuleSet sourceRules = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "generic-api-key"
+            description = "Generic API Key"
+            regex = '''(?i)[\w.-]{0,50}?(?:access|auth|(?-i:[Aa]pi|API)|credential|creds|key|passw(?:or)?d|secret|token)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([\w.=-]{10,150}|[a-z0-9][a-z0-9+/]{11,}={0,3})(?:[\x60'"\s;]|\\[nr]|$)'''
+            entropy = 3.5
+            keywords = ["key"]
+            """,
+            "memory");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("generic-api-key", findings[0].RuleID);
+        Assert.AreEqual("abc123def456ghi7890", findings[0].Secret);
     }
 
     /// <summary>

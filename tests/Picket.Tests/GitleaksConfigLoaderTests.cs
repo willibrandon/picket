@@ -129,6 +129,37 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that no-config compatibility scans fall back to the pinned embedded Gitleaks config.
+    /// </summary>
+    [TestMethod]
+    public void LoadRuleSetFallsBackToEmbeddedGitleaksDefault()
+    {
+        string root = CreateTempDirectory();
+        string? previousConfigPath = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG");
+        string? previousConfigToml = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG_TOML");
+        try
+        {
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", null);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", null);
+
+            RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(null, root);
+            List<string> ruleIds = [.. ruleSet.Rules.Select(rule => rule.Id)];
+
+            Assert.HasCount(222, ruleSet.Rules);
+            Assert.Contains("aws-access-token", ruleIds);
+            Assert.Contains("generic-api-key", ruleIds);
+            Assert.Contains("github-pat", ruleIds);
+            Assert.Contains("pypi-upload-token", ruleIds);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", previousConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", previousConfigToml);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks required-rule tables load into scanner rules.
     /// </summary>
     [TestMethod]
@@ -291,6 +322,32 @@ public sealed class GitleaksConfigLoaderTests
 
         Assert.HasCount(1, ruleSet.Rules);
         Assert.AreEqual("token", ruleSet.Rules[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that extend.useDefault inherits from the embedded Gitleaks default ruleset.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlExtendUseDefaultInheritsEmbeddedGitleaksRules()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [extend]
+            useDefault = true
+            disabledRules = ["generic-api-key"]
+
+            [[rules]]
+            id = "local-token"
+            regex = '''local-[0-9]+'''
+            """,
+            "memory");
+        List<string> ruleIds = [.. ruleSet.Rules.Select(rule => rule.Id)];
+
+        Assert.HasCount(222, ruleSet.Rules);
+        Assert.Contains("aws-access-token", ruleIds);
+        Assert.Contains("github-pat", ruleIds);
+        Assert.Contains("local-token", ruleIds);
+        Assert.DoesNotContain("generic-api-key", ruleIds);
     }
 
     /// <summary>
