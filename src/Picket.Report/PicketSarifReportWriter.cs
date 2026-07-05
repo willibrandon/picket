@@ -262,6 +262,7 @@ public static class PicketSarifReportWriter
         WriteNumberProperty(builder, 6, "entropy", finding.Entropy, comma: true);
         WriteStringProperty(builder, 6, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "matchSha256", PicketFindingMetadata.CreateMatchSha256(finding), comma: true);
+        WriteStringProperty(builder, 6, "blobSha256", PicketFindingMetadata.CreateBlobSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "validationState", PicketFindingMetadata.CreateValidationState(finding), comma: true);
         WriteStringProperty(builder, 6, "severity", PicketFindingMetadata.Severity, comma: true);
         WriteStringProperty(builder, 6, "confidence", PicketFindingMetadata.Confidence, comma: true);

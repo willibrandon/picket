@@ -35,7 +35,7 @@ Native reports can include:
 - file and symlink path,
 - line and column range,
 - match and secret text according to redaction settings,
-- secret and match SHA-256 hashes,
+- secret, match, and source blob SHA-256 hashes,
 - source line,
 - commit and author metadata when available,
 - entropy,

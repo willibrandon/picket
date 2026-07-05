@@ -10,6 +10,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class PicketJsonReportWriterTests
 {
+    private const string BlobSha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
     /// <summary>
     /// Verifies that native JSON writes schema, tool, rule, and empty finding metadata.
     /// </summary>
@@ -52,7 +54,8 @@ public sealed class PicketJsonReportWriterTests
             string.Empty,
             string.Empty,
             ["tag"],
-            "stdin:rule:1");
+            "stdin:rule:1",
+            blobSha256: BlobSha256);
 
         string json = PicketJsonReportWriter.Write([finding], [rule]);
 
@@ -60,6 +63,7 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"match\":\"x=\\\"y\\\"\\nnext\"", json);
         Assert.Contains("\"secretSha256\":\"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", json);
         Assert.Contains("\"matchSha256\":\"c67137832a0e4df13a1f667166b91ffe010134d01578d7bd6499c36def655d6b\"", json);
+        Assert.Contains($"\"blobSha256\":\"{BlobSha256}\"", json);
         Assert.Contains("\"keywords\":[\"x\"]", json);
         Assert.Contains("\"fingerprint\":\"stdin:rule:1\"", json);
         Assert.Contains("\"validationState\":\"unknown\"", json);

@@ -10,6 +10,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class PicketSarifReportWriterTests
 {
+    private const string BlobSha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
     /// <summary>
     /// Verifies the native SARIF empty report shape and Picket tool identity.
     /// </summary>
@@ -53,6 +55,7 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"entropy\": 2.5", sarif);
         Assert.Contains("\"secretSha256\": \"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", sarif);
         Assert.Contains("\"matchSha256\": \"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", sarif);
+        Assert.Contains($"\"blobSha256\": \"{BlobSha256}\"", sarif);
         Assert.Contains("\"validationState\": \"unknown\"", sarif);
         Assert.Contains("\"severity\": \"critical\"", sarif);
         Assert.Contains("\"confidence\": \"high\"", sarif);
@@ -98,6 +101,7 @@ public sealed class PicketSarifReportWriterTests
             ["tag1", "tag2"],
             fingerprint,
             "line containing secret",
-            "https://github.com/example/repo/blob/commit/auth.py#L1");
+            "https://github.com/example/repo/blob/commit/auth.py#L1",
+            blobSha256: BlobSha256);
     }
 }

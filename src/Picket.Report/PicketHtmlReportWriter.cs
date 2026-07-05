@@ -171,6 +171,7 @@ public static class PicketHtmlReportWriter
         WriteMetadata(builder, "Validation", PicketFindingMetadata.CreateValidationState(finding));
         WriteMetadata(builder, "Provenance", PicketFindingMetadata.CreateProvenanceType(finding));
         WriteMetadata(builder, "Secret SHA-256", PicketFindingMetadata.CreateSecretSha256(finding));
+        WriteMetadata(builder, "Blob SHA-256", PicketFindingMetadata.CreateBlobSha256(finding));
         builder.Append("</dl>");
     }
 

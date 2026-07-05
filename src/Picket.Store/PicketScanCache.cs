@@ -255,7 +255,7 @@ public sealed class PicketScanCache
                 return false;
             }
 
-            parsedFindings.Add(cachedFinding.ToFinding(fileName, symlinkFile));
+            parsedFindings.Add(cachedFinding.ToFinding(fileName, symlinkFile, blobHash));
         }
 
         if (expectedFindingCount.HasValue && expectedFindingCount.Value != parsedFindings.Count)

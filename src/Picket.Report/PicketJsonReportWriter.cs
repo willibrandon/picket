@@ -108,6 +108,7 @@ public static class PicketJsonReportWriter
         WriteString(builder, "secret", finding.Secret, comma: true);
         WriteString(builder, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);
         WriteString(builder, "matchSha256", PicketFindingMetadata.CreateMatchSha256(finding), comma: true);
+        WriteString(builder, "blobSha256", PicketFindingMetadata.CreateBlobSha256(finding), comma: true);
         WriteString(builder, "line", finding.Line, comma: true);
         WriteString(builder, "commit", finding.Commit, comma: true);
         WriteNumber(builder, "entropy", finding.Entropy, comma: true);

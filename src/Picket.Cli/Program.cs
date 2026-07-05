@@ -2659,7 +2659,11 @@ static Finding MapGitFinding(Finding finding, GitPatchFragment fragment, string 
         finding.Tags,
         CreateFingerprint(fragment.Commit, finding.File, finding.RuleID, startLine),
         finding.Line,
-        link);
+        link,
+        finding.SecretSha256,
+        finding.MatchSha256,
+        finding.ValidationState,
+        finding.BlobSha256);
 }
 
 static void CreateGitLinkContext(string root, bool disableLinks, string? platform, out string scmPlatform, out string remoteUrl)

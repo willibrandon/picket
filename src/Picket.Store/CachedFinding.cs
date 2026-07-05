@@ -105,7 +105,7 @@ internal sealed class CachedFinding(
         builder.Append('\n');
     }
 
-    internal Finding ToFinding(string fileName, string symlinkFile)
+    internal Finding ToFinding(string fileName, string symlinkFile, string blobSha256)
     {
         return new Finding(
             ruleId,
@@ -130,7 +130,8 @@ internal sealed class CachedFinding(
             string.Empty,
             secretSha256,
             matchSha256,
-            validationState);
+            validationState,
+            blobSha256);
     }
 
     private static void Append(StringBuilder builder, string value)

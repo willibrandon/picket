@@ -19,6 +19,7 @@ public sealed class SecretScanner
         ReadOnlySpan<byte> originalInput = request.Input.Span;
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
         byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
+        var blobIdentity = new SourceBlobIdentity(request.Input);
         var findings = new List<Finding>();
 
         ScanPass(
@@ -33,6 +34,7 @@ public sealed class SecretScanner
             request.Commit,
             request.MaxTargetBytes,
             request.SymlinkFile,
+            blobIdentity,
             findings);
 
         if (request.MaxDecodeDepth == 0 || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes))
@@ -61,6 +63,7 @@ public sealed class SecretScanner
                 request.Commit,
                 request.MaxTargetBytes,
                 request.SymlinkFile,
+                blobIdentity,
                 findings);
             if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes))
             {
@@ -85,6 +88,7 @@ public sealed class SecretScanner
         string commit,
         long? maxTargetBytes,
         string symlinkFile,
+        SourceBlobIdentity blobIdentity,
         List<Finding> findings)
     {
         foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
@@ -101,6 +105,7 @@ public sealed class SecretScanner
                 commit,
                 maxTargetBytes,
                 symlinkFile,
+                blobIdentity,
                 compiledRule,
                 includeSkipReport: false);
             if (compiledRule.Rule.RequiredRules.Count != 0)
@@ -118,6 +123,7 @@ public sealed class SecretScanner
                     commit,
                     maxTargetBytes,
                     symlinkFile,
+                    blobIdentity,
                     compiledRule);
             }
 
@@ -137,6 +143,7 @@ public sealed class SecretScanner
         string commit,
         long? maxTargetBytes,
         string symlinkFile,
+        SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         bool includeSkipReport)
     {
@@ -169,7 +176,7 @@ public sealed class SecretScanner
                 string.Empty,
                 commit))
             {
-                findings.Add(CreatePathFinding(fileName, symlinkFile, compiledRule.Rule, commit));
+                findings.Add(CreatePathFinding(fileName, symlinkFile, compiledRule.Rule, commit, blobIdentity.Sha256));
             }
 
             return findings;
@@ -195,6 +202,7 @@ public sealed class SecretScanner
                     ignoreGitleaksAllow,
                     commit,
                     symlinkFile,
+                    blobIdentity,
                     compiledRule,
                     findings);
             }
@@ -216,6 +224,7 @@ public sealed class SecretScanner
                 ignoreGitleaksAllow,
                 commit,
                 symlinkFile,
+                blobIdentity,
                 compiledRule,
                 regex,
                 findings);
@@ -237,6 +246,7 @@ public sealed class SecretScanner
         string commit,
         long? maxTargetBytes,
         string symlinkFile,
+        SourceBlobIdentity blobIdentity,
         CompiledRule primaryRule)
     {
         if (primaryFindings.Count == 0)
@@ -269,6 +279,7 @@ public sealed class SecretScanner
                         commit,
                         maxTargetBytes,
                         symlinkFile,
+                        blobIdentity,
                         compiledRequiredRule,
                         includeSkipReport: true));
         }
@@ -365,6 +376,7 @@ public sealed class SecretScanner
         bool ignoreGitleaksAllow,
         string commit,
         string symlinkFile,
+        SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         List<Finding> findings)
     {
@@ -435,7 +447,8 @@ public sealed class SecretScanner
                 string.Empty,
                 CombineTags(rule.Tags, decodeTags),
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
-                lineText));
+                lineText,
+                blobSha256: blobIdentity.Sha256));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -452,6 +465,7 @@ public sealed class SecretScanner
         bool ignoreGitleaksAllow,
         string commit,
         string symlinkFile,
+        SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         ByteRegex regex,
         List<Finding> findings)
@@ -531,7 +545,8 @@ public sealed class SecretScanner
                 string.Empty,
                 CombineTags(rule.Tags, decodeTags),
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
-                lineText));
+                lineText,
+                blobSha256: blobIdentity.Sha256));
 
             offset = AdvanceAfterMatch(match, input.Length);
         }
@@ -776,7 +791,7 @@ public sealed class SecretScanner
         return maxTargetBytes.HasValue && inputLength > maxTargetBytes.Value;
     }
 
-    private static Finding CreatePathFinding(string fileName, string symlinkFile, SecretRule rule, string commit)
+    private static Finding CreatePathFinding(string fileName, string symlinkFile, SecretRule rule, string commit, string blobSha256)
     {
         return new Finding(
             rule.Id,
@@ -796,7 +811,8 @@ public sealed class SecretScanner
             string.Empty,
             string.Empty,
             rule.Tags,
-            CreateFingerprint(commit, fileName, rule.Id, 0));
+            CreateFingerprint(commit, fileName, rule.Id, 0),
+            blobSha256: blobSha256);
     }
 
     private static string CreateFingerprint(string commit, string fileName, string ruleId, int startLine)

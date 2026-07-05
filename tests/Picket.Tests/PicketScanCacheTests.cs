@@ -42,6 +42,7 @@ public sealed class PicketScanCacheTests
         Assert.HasCount(1, cachedFindings);
         Assert.AreEqual("secret.txt", cachedFindings[0].File);
         Assert.AreEqual("secret.txt:token:1", cachedFindings[0].Fingerprint);
+        Assert.AreEqual(BlobHasher.ComputeSha256Hex(content), cachedFindings[0].BlobSha256);
     }
 
     /// <summary>
@@ -89,6 +90,7 @@ public sealed class PicketScanCacheTests
         Assert.IsNotNull(cachedFindings);
         Assert.HasCount(1, cachedFindings);
         Assert.AreEqual("token-12345", cachedFindings[0].Secret);
+        Assert.AreEqual(blobHash, cachedFindings[0].BlobSha256);
     }
 
     /// <summary>

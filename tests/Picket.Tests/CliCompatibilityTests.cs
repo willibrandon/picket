@@ -77,6 +77,7 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
         Assert.DoesNotContain("\"schema\":\"picket.report.v1\"", result.Stdout);
+        Assert.DoesNotContain("blobSha256", result.Stdout);
     }
 
     /// <summary>
@@ -237,6 +238,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
         Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
         Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+        Assert.Contains("\"blobSha256\":\"7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad\"", result.Stdout);
     }
 
     /// <summary>
@@ -252,8 +254,8 @@ public sealed class CliCompatibilityTests
         CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "csv").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
-        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", result.Stdout);
-        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,,", result.Stdout);
+        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", result.Stdout);
+        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,,", result.Stdout);
         Assert.Contains(",unknown,critical,high,filesystem,new,,", result.Stdout);
         Assert.DoesNotContain("RuleID,Commit,File,SymlinkFile", result.Stdout);
     }
@@ -315,6 +317,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("secret.txt:1:1", result.Stdout);
         Assert.Contains("secret.txt:token:1", result.Stdout);
         Assert.Contains("Secret SHA-256", result.Stdout);
+        Assert.Contains("Blob SHA-256", result.Stdout);
         Assert.DoesNotContain("<script", result.Stdout);
     }
 
@@ -334,6 +337,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"schema\":\"picket.report.v1\"", result.Stdout);
         Assert.Contains("\"rules\":[{\"id\":\"token\"", result.Stdout);
         Assert.Contains("\"findings\":[{\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"blobSha256\":\"7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad\"", result.Stdout);
         Assert.Contains("\"validationState\":\"unknown\"", result.Stdout);
         Assert.Contains("\"severity\":\"critical\"", result.Stdout);
     }
@@ -689,6 +693,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"ruleId\": \"token\"", result.Stdout);
         Assert.Contains("\"security-severity\": \"8.0\"", result.Stdout);
         Assert.Contains("\"picketFingerprint\": \"secret.txt:token:1\"", result.Stdout);
+        Assert.Contains("\"blobSha256\": \"7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad\"", result.Stdout);
         Assert.Contains("\"validationState\": \"unknown\"", result.Stdout);
     }
 
@@ -707,8 +712,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("schema: picket.report.v1", result.Stdout);
         Assert.Contains("summary:\n  findings: 1\n  rules: 1", result.Stdout);
-        Assert.Contains("findings[1]{schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,secretSha256,matchSha256,line,commit,entropy,author,email,date,message,fingerprint,validationState,severity,confidence,provenanceType,baselineStatus,ignoreReason,link}:", result.Stdout);
-        Assert.Contains("  picket.finding.v1,token,\"\",secret.txt,\"\",1,1,1,12,token-12345,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,\"\",", result.Stdout);
+        Assert.Contains("findings[1]{schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,secretSha256,matchSha256,blobSha256,line,commit,entropy,author,email,date,message,fingerprint,validationState,severity,confidence,provenanceType,baselineStatus,ignoreReason,link}:", result.Stdout);
+        Assert.Contains("  picket.finding.v1,token,\"\",secret.txt,\"\",1,1,1,12,token-12345,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,\"\",", result.Stdout);
         Assert.Contains(",unknown,critical,high,filesystem,new,\"\",\"\"", result.Stdout);
         Assert.DoesNotContain("\r\n", result.Stdout);
     }
@@ -746,7 +751,7 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,,", File.ReadAllText(reportPath));
+        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,,", File.ReadAllText(reportPath));
     }
 
     /// <summary>

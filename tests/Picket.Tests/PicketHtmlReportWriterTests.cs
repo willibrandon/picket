@@ -10,6 +10,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class PicketHtmlReportWriterTests
 {
+    private const string BlobSha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
     /// <summary>
     /// Verifies that an empty report is a complete static HTML document.
     /// </summary>
@@ -57,6 +59,8 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("finger&amp;print", html);
         Assert.Contains("Secret SHA-256", html);
         Assert.Contains("6ed417714f0de0a4685ed766cb926df89182f22cd40646f59a9072f72f41c6e0", html);
+        Assert.Contains("Blob SHA-256", html);
+        Assert.Contains(BlobSha256, html);
         Assert.Contains("<dt>Validation</dt><dd><code>unknown</code></dd>", html);
         Assert.Contains("sec&lt;ret&gt;", html);
         Assert.DoesNotContain("<script>", html);
@@ -113,6 +117,7 @@ public sealed class PicketHtmlReportWriterTests
             string.Empty,
             string.Empty,
             tags,
-            fingerprint);
+            fingerprint,
+            blobSha256: BlobSha256);
     }
 }
