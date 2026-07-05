@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -35,6 +36,11 @@ if (command.Equals("scan", StringComparison.OrdinalIgnoreCase))
 if (command.Equals("baseline", StringComparison.OrdinalIgnoreCase))
 {
     return RunBaseline(args[1..]);
+}
+
+if (command.Equals("view", StringComparison.OrdinalIgnoreCase))
+{
+    return RunView(args[1..]);
 }
 
 if (command.Equals("stdin", StringComparison.OrdinalIgnoreCase))
@@ -667,6 +673,83 @@ static int RunBaselineCreate(string[] args)
     }
 
     return CompleteRun(hadScanError ? 1 : 0, diagnosticsSession);
+}
+
+static int RunView(string[] args)
+{
+    if (args.Length == 0 || IsHelp(args[0]))
+    {
+        WriteViewHelp();
+        return 0;
+    }
+
+    bool open = false;
+    string? reportPath = null;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsHelp(arg))
+        {
+            WriteViewHelp();
+            return 0;
+        }
+
+        if (IsOpenFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--open", out open))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (arg.StartsWith('-'))
+        {
+            Console.Error.WriteLine($"unknown flag: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        if (reportPath is not null)
+        {
+            Console.Error.WriteLine($"unexpected argument: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        reportPath = arg;
+    }
+
+    if (string.IsNullOrWhiteSpace(reportPath))
+    {
+        Console.Error.WriteLine("view requires a report path");
+        return UnknownFlagExitCode;
+    }
+
+    if (IsHtmlReportPath(reportPath))
+    {
+        if (!File.Exists(reportPath))
+        {
+            Console.Error.WriteLine($"could not open {reportPath}");
+            return 1;
+        }
+
+        WriteHtmlViewSummary(reportPath);
+        return open && !TryOpenReport(reportPath) ? 1 : 0;
+    }
+
+    ReportSummary summary;
+    try
+    {
+        summary = ReportSummaryReader.Read(reportPath);
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        return 1;
+    }
+
+    WriteReportViewSummary(reportPath, summary);
+    return open && !TryOpenReport(reportPath) ? 1 : 0;
 }
 
 static int RunDirectory(
@@ -2211,6 +2294,12 @@ static bool IsSourceFlag(string arg)
         || arg.StartsWith("--source=", StringComparison.Ordinal);
 }
 
+static bool IsOpenFlag(string arg)
+{
+    return arg.Equals("--open", StringComparison.Ordinal)
+        || arg.StartsWith("--open=", StringComparison.Ordinal);
+}
+
 static bool IsNoGitFlag(string arg)
 {
     return arg.Equals("--no-git", StringComparison.Ordinal)
@@ -2778,6 +2867,13 @@ static bool IsJunitReportPath(string reportPath)
     return fileName.EndsWith(".junit.xml", StringComparison.OrdinalIgnoreCase);
 }
 
+static bool IsHtmlReportPath(string reportPath)
+{
+    string extension = Path.GetExtension(reportPath);
+    return extension.Equals(".html", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase);
+}
+
 static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string source)
 {
     return GitleaksIgnore.LoadExisting([
@@ -2852,6 +2948,66 @@ static bool IsControlFile(SourceFile file, params string?[] displayPaths)
     return false;
 }
 
+static void WriteReportViewSummary(string reportPath, ReportSummary summary)
+{
+    Console.Out.WriteLine($"report: {reportPath}");
+    Console.Out.WriteLine($"format: {summary.Format}");
+    Console.Out.WriteLine($"findings: {summary.FindingCount}");
+    Console.Out.WriteLine($"files: {summary.FileCount}");
+    if (summary.Findings.Count == 0)
+    {
+        return;
+    }
+
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("findings:");
+    int count = Math.Min(summary.Findings.Count, 10);
+    for (int i = 0; i < count; i++)
+    {
+        ReportFindingSummary finding = summary.Findings[i];
+        string location = finding.Line == 0 ? finding.Path : $"{finding.Path}:{finding.Line}";
+        if (finding.Fingerprint.Length == 0)
+        {
+            Console.Out.WriteLine($"  {finding.RuleId} {location}");
+        }
+        else
+        {
+            Console.Out.WriteLine($"  {finding.RuleId} {location} {finding.Fingerprint}");
+        }
+    }
+
+    int remaining = summary.Findings.Count - count;
+    if (remaining != 0)
+    {
+        Console.Out.WriteLine($"  ... {remaining} more");
+    }
+}
+
+static void WriteHtmlViewSummary(string reportPath)
+{
+    Console.Out.WriteLine($"report: {reportPath}");
+    Console.Out.WriteLine("format: html");
+    Console.Out.WriteLine("findings: unknown");
+    Console.Out.WriteLine("files: unknown");
+}
+
+static bool TryOpenReport(string reportPath)
+{
+    try
+    {
+        _ = Process.Start(new ProcessStartInfo(Path.GetFullPath(reportPath))
+        {
+            UseShellExecute = true,
+        });
+        return true;
+    }
+    catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or Win32Exception)
+    {
+        Console.Error.WriteLine($"failed to open report: {ex.Message}");
+        return false;
+    }
+}
+
 static void WriteHelp()
 {
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
@@ -2864,6 +3020,7 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket rules check [source] [-c path]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
+    Console.Out.WriteLine("  picket view <report> [--open]");
     Console.Out.WriteLine("  picket version");
 }
 
@@ -2889,6 +3046,17 @@ static void WriteBaselineCreateHelp()
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n] [--redact[=n]]");
+}
+
+static void WriteViewHelp()
+{
+    Console.Out.WriteLine("picket view - summarize or open a local report");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket view <report> [--open]");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Formats:");
+    Console.Out.WriteLine("  Picket JSON, Picket JSONL, Gitleaks JSON, SARIF, HTML");
 }
 
 static void WriteRulesHelp()

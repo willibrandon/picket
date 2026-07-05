@@ -626,6 +626,29 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that view summarizes a native report without printing the secret value.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewSummarizesNativeReportWithoutSecretValue()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.json");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        CliResult view = await RunCliAsync("view", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(0, view.ExitCode);
+        Assert.Contains("format: picket-json", view.Stdout);
+        Assert.Contains("findings: 1", view.Stdout);
+        Assert.Contains("files: 1", view.Stdout);
+        Assert.Contains("token secret.txt:1 secret.txt:token:1", view.Stdout);
+        Assert.DoesNotContain("token-12345", view.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that report paths ending in .sarif infer SARIF when -f is omitted.
     /// </summary>
     [TestMethod]
