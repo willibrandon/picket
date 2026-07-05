@@ -50,7 +50,7 @@ public sealed class PicketGitLabCodeQualityReportWriterTests
 
         Assert.Contains("\"description\":\"rule: desc\"", json);
         Assert.Contains("\"check_name\":\"rule\"", json);
-        Assert.Contains("\"fingerprint\":\"src/app.cs:rule:1\"", json);
+        Assert.Contains("\"fingerprint\":\"src/app.cs:rule:1:2\"", json);
         Assert.Contains("\"severity\":\"critical\"", json);
         Assert.Contains("\"location\":{\"path\":\"src/app.cs\",\"lines\":{\"begin\":1}}", json);
     }

@@ -30,7 +30,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual("picket-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
         Assert.AreEqual(1, summary.Findings[0].Line);
-        Assert.AreEqual("auth.py:picket-rule:1", summary.Findings[0].Fingerprint);
+        Assert.AreEqual("auth.py:picket-rule:1:2", summary.Findings[0].Fingerprint);
     }
 
     /// <summary>
@@ -136,7 +136,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.FindingCount);
         Assert.AreEqual("gitlab-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
-        Assert.AreEqual("auth.py:gitlab-rule:1", summary.Findings[0].Fingerprint);
+        Assert.AreEqual("auth.py:gitlab-rule:1:2", summary.Findings[0].Fingerprint);
     }
 
     /// <summary>
@@ -156,7 +156,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.FindingCount);
         Assert.AreEqual("sarif-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
-        Assert.AreEqual("auth.py:sarif-rule:1", summary.Findings[0].Fingerprint);
+        Assert.AreEqual("auth.py:sarif-rule:1:2", summary.Findings[0].Fingerprint);
     }
 
     /// <summary>

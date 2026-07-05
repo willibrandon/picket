@@ -40,7 +40,7 @@ Native reports can include:
 - commit and author metadata when available,
 - entropy,
 - tags,
-- fingerprint,
+- stable Picket fingerprint,
 - validation state,
 - severity and confidence,
 - provenance,

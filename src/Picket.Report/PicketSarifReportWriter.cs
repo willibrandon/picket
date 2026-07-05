@@ -294,11 +294,7 @@ public static class PicketSarifReportWriter
 
     private static string CreateFingerprint(Finding finding)
     {
-        return finding.Fingerprint.Length == 0
-            ? string.Create(
-                CultureInfo.InvariantCulture,
-                $"{CreateLocationUri(finding)}:{finding.RuleID}:{finding.StartLine}:{finding.StartColumn}")
-            : finding.Fingerprint;
+        return PicketFindingMetadata.CreateFingerprint(finding);
     }
 
     private static string CreateLocationUri(Finding finding)

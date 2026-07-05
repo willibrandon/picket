@@ -58,7 +58,7 @@ public static class PicketJsonlReportWriter
         WriteString(builder, "date", finding.Date, comma: true);
         WriteString(builder, "message", finding.Message, comma: true);
         WriteArray(builder, "tags", finding.Tags, comma: true);
-        WriteString(builder, "fingerprint", finding.Fingerprint, comma: true);
+        WriteString(builder, "fingerprint", PicketFindingMetadata.CreateFingerprint(finding), comma: true);
         WriteString(builder, "validationState", PicketFindingMetadata.CreateValidationState(finding), comma: true);
         WriteString(builder, "severity", PicketFindingMetadata.Severity, comma: true);
         WriteString(builder, "confidence", PicketFindingMetadata.Confidence, comma: true);

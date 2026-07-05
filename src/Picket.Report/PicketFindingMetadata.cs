@@ -56,11 +56,9 @@ internal static class PicketFindingMetadata
 
     internal static string CreateFingerprint(Finding finding)
     {
-        return finding.Fingerprint.Length == 0
-            ? string.Create(
-                CultureInfo.InvariantCulture,
-                $"{CreateLocationPath(finding)}:{finding.RuleID}:{finding.StartLine}:{finding.StartColumn}")
-            : finding.Fingerprint;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{CreateLocationPath(finding)}:{finding.RuleID}:{finding.StartLine}:{finding.StartColumn}");
     }
 
     internal static string CreateLocationPath(Finding finding)

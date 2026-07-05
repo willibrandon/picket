@@ -709,7 +709,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"informationUri\": \"https://github.com/willibrandon/picket\"", result.Stdout);
         Assert.Contains("\"ruleId\": \"token\"", result.Stdout);
         Assert.Contains("\"security-severity\": \"8.0\"", result.Stdout);
-        Assert.Contains("\"picketFingerprint\": \"secret.txt:token:1\"", result.Stdout);
+        Assert.Contains("\"picketFingerprint\": \"secret.txt:token:1:1\"", result.Stdout);
         Assert.Contains("\"blobSha256\": \"7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad\"", result.Stdout);
         Assert.Contains("\"validationState\": \"unknown\"", result.Stdout);
     }

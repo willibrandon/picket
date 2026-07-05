@@ -61,6 +61,7 @@ public sealed class PicketJsonlReportWriterTests
         Assert.Contains("\"matchSha256\":\"c67137832a0e4df13a1f667166b91ffe010134d01578d7bd6499c36def655d6b\"", jsonl);
         Assert.Contains($"\"blobSha256\":\"{BlobSha256}\"", jsonl);
         Assert.Contains("\"tags\":[\"tag1\",\"tag2\"]", jsonl);
+        Assert.Contains("\"fingerprint\":\"stdin:rule:1:1\"", jsonl);
         Assert.Contains("\"validationState\":\"unknown\"", jsonl);
         Assert.Contains("\"severity\":\"critical\"", jsonl);
         Assert.Contains("\"confidence\":\"high\"", jsonl);

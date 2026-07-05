@@ -243,11 +243,7 @@ public static class PicketHtmlReportWriter
 
     private static string CreateFingerprint(Finding finding)
     {
-        return finding.Fingerprint.Length == 0
-            ? string.Create(
-                CultureInfo.InvariantCulture,
-                $"{CreateLocationPath(finding)}:{finding.RuleID}:{finding.StartLine}:{finding.StartColumn}")
-            : finding.Fingerprint;
+        return PicketFindingMetadata.CreateFingerprint(finding);
     }
 
     private static string CreateLocationPath(Finding finding)

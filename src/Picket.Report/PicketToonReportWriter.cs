@@ -166,7 +166,7 @@ public static class PicketToonReportWriter
                 finding.Email,
                 finding.Date,
                 finding.Message,
-                finding.Fingerprint,
+                PicketFindingMetadata.CreateFingerprint(finding),
                 PicketFindingMetadata.CreateValidationState(finding),
                 PicketFindingMetadata.Severity,
                 PicketFindingMetadata.Confidence,
