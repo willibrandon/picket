@@ -146,7 +146,7 @@ static async Task<int> RunStdinAsync(string[] args)
         findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
     }
 
-    if (!TryWriteReport(findings, reportPath, reportFormat))
+    if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat))
     {
         return 1;
     }
@@ -335,7 +335,7 @@ static int RunDirectory(string[] args)
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteReport(filteredFindings, reportPath, reportFormat))
+    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat))
     {
         return 1;
     }
@@ -528,7 +528,11 @@ static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out Gitlea
     }
 }
 
-static bool TryWriteReport(IReadOnlyList<Finding> findings, string? reportPath, string? reportFormat)
+static bool TryWriteReport(
+    IReadOnlyList<Finding> findings,
+    IReadOnlyList<SecretRule> rules,
+    string? reportPath,
+    string? reportFormat)
 {
     if (!TryResolveReportFormat(reportPath, reportFormat, out string? resolvedReportFormat))
     {
@@ -540,6 +544,7 @@ static bool TryWriteReport(IReadOnlyList<Finding> findings, string? reportPath, 
         "csv" => GitleaksCsvReportWriter.Write(findings),
         "junit" => GitleaksJunitReportWriter.Write(findings),
         "json" => GitleaksJsonReportWriter.Write(findings),
+        "sarif" => GitleaksSarifReportWriter.Write(findings, rules),
         _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
     };
 
@@ -587,6 +592,12 @@ static bool TryResolveReportFormat(string? reportPath, string? reportFormat, [No
         return true;
     }
 
+    if (extension.Equals(".sarif", StringComparison.OrdinalIgnoreCase))
+    {
+        resolvedReportFormat = "sarif";
+        return true;
+    }
+
     Console.Error.WriteLine($"unknown report format for report path: {reportPath}");
     resolvedReportFormat = null;
     return false;
@@ -595,7 +606,7 @@ static bool TryResolveReportFormat(string? reportPath, string? reportFormat, [No
 static bool TryNormalizeReportFormat(string reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
 {
     string normalizedReportFormat = reportFormat.Trim().ToLowerInvariant();
-    if (normalizedReportFormat is "csv" or "json" or "junit")
+    if (normalizedReportFormat is "csv" or "json" or "junit" or "sarif")
     {
         resolvedReportFormat = normalizedReportFormat;
         return true;
@@ -668,7 +679,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

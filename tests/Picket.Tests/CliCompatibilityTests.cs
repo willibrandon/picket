@@ -114,6 +114,44 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that -f sarif writes a Gitleaks-compatible SARIF report.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanWritesSarifReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "sarif").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\"", result.Stdout);
+        Assert.Contains("\"name\": \"gitleaks\"", result.Stdout);
+        Assert.Contains("\"ruleId\": \"token\"", result.Stdout);
+        Assert.Contains("\"uri\": \"secret.txt\"", result.Stdout);
+        Assert.Contains("\"text\": \"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that report paths ending in .sarif infer SARIF when -f is omitted.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanInfersSarifReportFormatFromPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.sarif");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("\"ruleId\": \"token\"", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
     /// Verifies that inline gitleaks:allow comments suppress CLI findings by default.
     /// </summary>
     [TestMethod]
