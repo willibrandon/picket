@@ -243,6 +243,31 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that invalid secretGroup values fail during CLI config loading.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsInvalidSecretGroup()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-([0-9]+)'''
+            secretGroup = 2
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("token: invalid regex secret group 2, max regex secret group 1", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that common Gitleaks global flags and equals-value spellings are accepted.
     /// </summary>
     [TestMethod]

@@ -81,6 +81,15 @@ internal sealed class GitleaksRuleDefinition(
             throw new InvalidDataException($"{sourceName}: {Id}: both |regex| and |path| are empty");
         }
 
+        if (Pattern.Length != 0)
+        {
+            int captureGroupCount = CountCaptureGroups(Pattern);
+            if (SecretGroup > captureGroupCount)
+            {
+                throw new InvalidDataException($"{sourceName}: {Id}: invalid regex secret group {SecretGroup}, max regex secret group {captureGroupCount}");
+            }
+        }
+
         return SecretRule.Create(
             Id,
             Description,
@@ -93,6 +102,76 @@ internal sealed class GitleaksRuleDefinition(
             tags: Tags,
             skipReport: SkipReport,
             requiredRules: RequiredRules);
+    }
+
+    private static int CountCaptureGroups(string pattern)
+    {
+        int count = 0;
+        bool escaped = false;
+        bool inCharacterClass = false;
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            char c = pattern[i];
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+
+            if (inCharacterClass)
+            {
+                if (c == ']')
+                {
+                    inCharacterClass = false;
+                }
+
+                continue;
+            }
+
+            if (c == '[')
+            {
+                inCharacterClass = true;
+                continue;
+            }
+
+            if (c != '(')
+            {
+                continue;
+            }
+
+            if (i + 1 >= pattern.Length || pattern[i + 1] != '?')
+            {
+                count++;
+                continue;
+            }
+
+            if (IsNamedCapture(pattern, i + 2))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool IsNamedCapture(string pattern, int index)
+    {
+        if (index + 2 < pattern.Length
+            && pattern[index] == 'P'
+            && pattern[index + 1] == '<')
+        {
+            return true;
+        }
+
+        return index + 1 < pattern.Length
+            && pattern[index] == '<'
+            && pattern[index + 1] is not ('=' or '!');
     }
 
     internal GitleaksRuleDefinition WithAdditionalAllowlists(IReadOnlyList<SecretAllowlist> allowlists)

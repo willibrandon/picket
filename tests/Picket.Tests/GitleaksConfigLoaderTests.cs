@@ -50,6 +50,43 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that Gitleaks regex capture groups are counted for secretGroup validation.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlCountsRegexCaptureGroups()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "custom-token"
+            regex = '''(?:prefix)[(](?P<name>[A-Z]+)(?<number>[0-9]+)'''
+            secretGroup = 2
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules);
+        Assert.AreEqual(2, ruleSet.Rules[0].SecretGroup);
+    }
+
+    /// <summary>
+    /// Verifies that invalid secretGroup values are rejected like Gitleaks.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsSecretGroupBeyondRegexCaptures()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "discord-api-key"
+            regex = '''(?i)(discord[a-z0-9_ .\-,]{0,25})(=|>|:=|\|\|:|<=|=>|:).{0,5}['\"]([a-h0-9]{64})['\"]'''
+            secretGroup = 5
+            """,
+            "memory"));
+
+        Assert.Contains("discord-api-key: invalid regex secret group 5, max regex secret group 3", exception.Message);
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks skipReport rule fields load into scanner rules.
     /// </summary>
     [TestMethod]
