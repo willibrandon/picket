@@ -16,7 +16,10 @@ public sealed class CompiledRuleSet(RuleSet rules)
 
     internal List<CompiledRule> CompiledRules { get; } = CompileRules(rules);
 
-    internal List<CompiledAllowlist> Allowlists { get; } = CompiledAllowlist.Compile(rules.Allowlists, rules.RegexesPrevalidated);
+    internal List<CompiledAllowlist> Allowlists { get; } = CompiledAllowlist.Compile(
+        rules.Allowlists,
+        rules.RegexesPrevalidated,
+        "[[allowlists]]");
 
     /// <summary>
     /// Compiles a source rule set.
@@ -43,21 +46,37 @@ public sealed class CompiledRuleSet(RuleSet rules)
         {
             bool usesGenericApiKeyMatcher = GenericApiKeyMatcher.CanHandle(rule);
             bool deferRegexCompilation = rules.RegexesPrevalidated;
+            string regexContext = $"{rule.Id}: invalid regex";
+            string pathRegexContext = $"{rule.Id}: invalid path";
             compiledRules.Add(new CompiledRule(
                 rule,
-                usesGenericApiKeyMatcher || deferRegexCompilation ? null : CompileOptionalRegex(rule.Pattern),
-                deferRegexCompilation ? null : CompileOptionalRegex(rule.PathPattern),
-                CompiledAllowlist.Compile(rule.Allowlists, deferRegexCompilation),
+                usesGenericApiKeyMatcher || deferRegexCompilation ? null : CompileOptionalRegex(rule.Pattern, regexContext),
+                deferRegexCompilation ? null : CompileOptionalRegex(rule.PathPattern, pathRegexContext),
+                CompiledAllowlist.Compile(rule.Allowlists, deferRegexCompilation, $"{rule.Id}: [[rules.allowlists]]"),
                 KeywordPrefilter.Create(rule.Keywords),
                 usesGenericApiKeyMatcher,
-                deferRegexCompilation));
+                deferRegexCompilation,
+                regexContext,
+                pathRegexContext));
         }
 
         return compiledRules;
     }
 
-    private static ByteRegex? CompileOptionalRegex(string pattern)
+    private static ByteRegex? CompileOptionalRegex(string pattern, string context)
     {
-        return pattern.Length == 0 ? null : ByteRegex.Compile(pattern);
+        if (pattern.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            return ByteRegex.Compile(pattern);
+        }
+        catch (ByteRegexParseException exception)
+        {
+            throw new InvalidDataException($"{context} pattern '{pattern}': {exception.Message}", exception);
+        }
     }
 }

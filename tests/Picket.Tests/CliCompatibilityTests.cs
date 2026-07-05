@@ -292,6 +292,57 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that invalid rule regex patterns fail during CLI config loading.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsInvalidRuleRegex()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-([0-9]+'''
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("token: invalid regex pattern 'token-([0-9]+'", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that invalid allowlist regex patterns fail during CLI config loading.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsInvalidAllowlistRegex()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+
+            [[rules.allowlists]]
+            regexes = ['''(''']
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("token: [[rules.allowlists]]: invalid allowlist regex pattern '('", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that common Gitleaks global flags and equals-value spellings are accepted.
     /// </summary>
     [TestMethod]

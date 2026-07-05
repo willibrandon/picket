@@ -10,7 +10,9 @@ internal sealed class CompiledRule(
     List<CompiledAllowlist> allowlists,
     KeywordPrefilter prefilter,
     bool usesGenericApiKeyMatcher,
-    bool deferRegexCompilation)
+    bool deferRegexCompilation,
+    string regexContext,
+    string pathRegexContext)
 {
     private readonly string _pattern = rule.Pattern;
     private readonly string _pathPattern = rule.PathPattern;
@@ -20,9 +22,9 @@ internal sealed class CompiledRule(
 
     internal SecretRule Rule { get; } = rule ?? throw new ArgumentNullException(nameof(rule));
 
-    internal ByteRegex? Regex => UsesGenericApiKeyMatcher ? null : GetRegex(ref _regex, _pattern);
+    internal ByteRegex? Regex => UsesGenericApiKeyMatcher ? null : GetRegex(ref _regex, _pattern, regexContext);
 
-    internal ByteRegex? PathRegex => GetRegex(ref _pathRegex, _pathPattern);
+    internal ByteRegex? PathRegex => GetRegex(ref _pathRegex, _pathPattern, pathRegexContext);
 
     internal bool HasContentPattern => _pattern.Length != 0 || UsesGenericApiKeyMatcher;
 
@@ -32,7 +34,7 @@ internal sealed class CompiledRule(
 
     internal bool UsesGenericApiKeyMatcher { get; } = usesGenericApiKeyMatcher;
 
-    private ByteRegex? GetRegex(ref ByteRegex? regex, string pattern)
+    private ByteRegex? GetRegex(ref ByteRegex? regex, string pattern, string context)
     {
         if (pattern.Length == 0)
         {
@@ -44,7 +46,15 @@ internal sealed class CompiledRule(
             return regex;
         }
 
-        regex = ByteRegex.Compile(pattern);
+        try
+        {
+            regex = ByteRegex.Compile(pattern);
+        }
+        catch (ByteRegexParseException exception)
+        {
+            throw new InvalidDataException($"{context} pattern '{pattern}': {exception.Message}", exception);
+        }
+
         return regex;
     }
 }

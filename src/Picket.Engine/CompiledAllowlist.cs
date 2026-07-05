@@ -3,36 +3,43 @@ using Scout.Text.Regex;
 
 namespace Picket.Engine;
 
-internal sealed class CompiledAllowlist(SecretAllowlist allowlist, bool deferRegexCompilation)
+internal sealed class CompiledAllowlist(SecretAllowlist allowlist, bool deferRegexCompilation, string context)
 {
-    private List<ByteRegex>? _pathRegexes = deferRegexCompilation ? null : CompileRegexes(allowlist.PathPatterns);
-    private List<ByteRegex>? _regexes = deferRegexCompilation ? null : CompileRegexes(allowlist.RegexPatterns);
+    private List<ByteRegex>? _pathRegexes = deferRegexCompilation ? null : CompileRegexes(allowlist.PathPatterns, context, "path");
+    private List<ByteRegex>? _regexes = deferRegexCompilation ? null : CompileRegexes(allowlist.RegexPatterns, context, "regex");
 
     internal SecretAllowlist Allowlist { get; } = allowlist ?? throw new ArgumentNullException(nameof(allowlist));
 
-    internal List<ByteRegex> PathRegexes => _pathRegexes ??= CompileRegexes(Allowlist.PathPatterns);
+    internal List<ByteRegex> PathRegexes => _pathRegexes ??= CompileRegexes(Allowlist.PathPatterns, context, "path");
 
-    internal List<ByteRegex> Regexes => _regexes ??= CompileRegexes(Allowlist.RegexPatterns);
+    internal List<ByteRegex> Regexes => _regexes ??= CompileRegexes(Allowlist.RegexPatterns, context, "regex");
 
-    internal static List<CompiledAllowlist> Compile(IReadOnlyList<SecretAllowlist> allowlists, bool deferRegexCompilation)
+    internal static List<CompiledAllowlist> Compile(IReadOnlyList<SecretAllowlist> allowlists, bool deferRegexCompilation, string context)
     {
         ArgumentNullException.ThrowIfNull(allowlists);
 
         var compiled = new List<CompiledAllowlist>(allowlists.Count);
         foreach (SecretAllowlist allowlist in allowlists)
         {
-            compiled.Add(new CompiledAllowlist(allowlist, deferRegexCompilation));
+            compiled.Add(new CompiledAllowlist(allowlist, deferRegexCompilation, context));
         }
 
         return compiled;
     }
 
-    private static List<ByteRegex> CompileRegexes(IReadOnlyList<string> patterns)
+    private static List<ByteRegex> CompileRegexes(IReadOnlyList<string> patterns, string context, string kind)
     {
         var regexes = new List<ByteRegex>(patterns.Count);
         foreach (string pattern in patterns)
         {
-            regexes.Add(ByteRegex.Compile(pattern));
+            try
+            {
+                regexes.Add(ByteRegex.Compile(pattern));
+            }
+            catch (ByteRegexParseException exception)
+            {
+                throw new InvalidDataException($"{context}: invalid allowlist {kind} pattern '{pattern}': {exception.Message}", exception);
+            }
         }
 
         return regexes;
