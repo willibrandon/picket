@@ -2061,6 +2061,113 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that rules check can print a resolved config that can be loaded again.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckPrintConfigWritesRoundTrippableResolvedConfig()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string baseConfigPath = Path.Combine(root.Path, "base.toml");
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(baseConfigPath, CreateRuleConfig("base-token", "base-[0-9]+"));
+        File.WriteAllText(
+            configPath,
+            $"""
+            [extend]
+            path = '{baseConfigPath}'
+
+            [[rules]]
+            id = "local-token"
+            regex = '''local-[0-9]+'''
+            keywords = ["local"]
+            """);
+
+        CliResult printed = await RunCliAsync("rules", "check", "-c", configPath, "--print-config").ConfigureAwait(false);
+        string resolvedConfigPath = Path.Combine(root.Path, "resolved.toml");
+        File.WriteAllText(resolvedConfigPath, printed.Stdout);
+        CliResult checkedAgain = await RunCliAsync("rules", "check", "-c", resolvedConfigPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, printed.ExitCode);
+        Assert.DoesNotContain("rules ok", printed.Stdout);
+        Assert.Contains("[[rules]]", printed.Stdout);
+        Assert.Contains("id = \"base-token\"", printed.Stdout);
+        Assert.Contains("id = \"local-token\"", printed.Stdout);
+        Assert.AreEqual(0, checkedAgain.ExitCode);
+        Assert.Contains("rules ok: 2 rules", checkedAgain.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects empty keyword entries during rule QA.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsEmptyKeyword()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            keywords = [""]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("rule token: keyword entries must not be empty", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects duplicate tag entries during rule QA.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsDuplicateTag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            tags = ["credential", "credential"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("rule token: duplicate tag: credential", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects self-referential required rules during rule QA.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsSelfReferentialRequiredRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+
+              [[rules.required]]
+              id = "token"
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("rule token: required rule must not reference itself", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that rules test scans sample text with a selected rule.
     /// </summary>
     [TestMethod]

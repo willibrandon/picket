@@ -1822,6 +1822,7 @@ static int RunRulesCheck(string[] args)
 {
     string? configPath = null;
     string source = ".";
+    bool printConfig = false;
     bool sourceSet = false;
     for (int i = 0; i < args.Length; i++)
     {
@@ -1835,6 +1836,16 @@ static int RunRulesCheck(string[] args)
         if (IsConfigFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsPrintConfigFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--print-config", out printConfig))
             {
                 return UnknownFlagExitCode;
             }
@@ -1862,6 +1873,12 @@ static int RunRulesCheck(string[] args)
     {
         RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, source);
         ValidateRulesWithScout(ruleSet);
+        if (printConfig)
+        {
+            Console.Out.Write(GitleaksConfigWriter.Write(ruleSet));
+            return 0;
+        }
+
         int ruleCount = ruleSet.Rules.Count;
         string noun = ruleCount == 1 ? "rule" : "rules";
         Console.Out.WriteLine($"rules ok: {ruleCount} {noun}");
@@ -2608,6 +2625,12 @@ static bool IsOnlyVerifiedFlag(string arg)
         || arg.StartsWith("--only-verified=", StringComparison.Ordinal);
 }
 
+static bool IsPrintConfigFlag(string arg)
+{
+    return arg.Equals("--print-config", StringComparison.Ordinal)
+        || arg.StartsWith("--print-config=", StringComparison.Ordinal);
+}
+
 static bool IsSourceFlag(string arg)
 {
     return arg is "-s" or "--source"
@@ -2918,7 +2941,20 @@ static RuleSet FilterEnabledRules(RuleSet ruleSet, IReadOnlyList<string> enabled
 static void ValidateRulesWithScout(RuleSet ruleSet)
 {
     ValidateUniqueRuleIds(ruleSet.Rules);
+    ValidateRuleQuality(ruleSet);
     _ = CompiledRuleSet.Compile(new RuleSet(ruleSet.Rules, ruleSet.Allowlists));
+}
+
+static void ValidateRuleQuality(RuleSet ruleSet)
+{
+    ValidateAllowlists("global allowlist", ruleSet.Allowlists);
+    foreach (SecretRule rule in ruleSet.Rules)
+    {
+        ValidateTextEntries(rule.Id, "keyword", rule.Keywords, StringComparer.OrdinalIgnoreCase);
+        ValidateTextEntries(rule.Id, "tag", rule.Tags, StringComparer.Ordinal);
+        ValidateRequiredRules(rule);
+        ValidateAllowlists($"rule {rule.Id} allowlist", rule.Allowlists);
+    }
 }
 
 static void ValidateUniqueRuleIds(IReadOnlyList<SecretRule> rules)
@@ -2929,6 +2965,62 @@ static void ValidateUniqueRuleIds(IReadOnlyList<SecretRule> rules)
         if (!ruleIds.Add(rule.Id))
         {
             throw new InvalidDataException($"duplicate rule ID: {rule.Id}");
+        }
+    }
+}
+
+static void ValidateRequiredRules(SecretRule rule)
+{
+    var requiredRuleIds = new HashSet<string>(StringComparer.Ordinal);
+    foreach (SecretRequiredRule requiredRule in rule.RequiredRules)
+    {
+        if (requiredRule.Id.Equals(rule.Id, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"rule {rule.Id}: required rule must not reference itself");
+        }
+
+        if (!requiredRuleIds.Add(requiredRule.Id))
+        {
+            throw new InvalidDataException($"rule {rule.Id}: duplicate required rule: {requiredRule.Id}");
+        }
+    }
+}
+
+static void ValidateAllowlists(string scope, IReadOnlyList<SecretAllowlist> allowlists)
+{
+    for (int i = 0; i < allowlists.Count; i++)
+    {
+        SecretAllowlist allowlist = allowlists[i];
+        ValidatePatternEntries(scope, "path allowlist pattern", allowlist.PathPatterns);
+        ValidatePatternEntries(scope, "regex allowlist pattern", allowlist.RegexPatterns);
+    }
+}
+
+static void ValidatePatternEntries(string scope, string field, IReadOnlyList<string> values)
+{
+    for (int i = 0; i < values.Count; i++)
+    {
+        if (string.IsNullOrWhiteSpace(values[i]))
+        {
+            throw new InvalidDataException($"{scope}: {field} entries must not be empty");
+        }
+    }
+}
+
+static void ValidateTextEntries(string ruleId, string field, IReadOnlyList<string> values, StringComparer comparer)
+{
+    var seen = new HashSet<string>(comparer);
+    for (int i = 0; i < values.Count; i++)
+    {
+        string value = values[i];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidDataException($"rule {ruleId}: {field} entries must not be empty");
+        }
+
+        if (!seen.Add(value))
+        {
+            throw new InvalidDataException($"rule {ruleId}: duplicate {field}: {value}");
         }
     }
 }
@@ -3399,7 +3491,7 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket rules check [source] [-c path]");
+    Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
     Console.Out.WriteLine("  picket view <report> [--open]");
     Console.Out.WriteLine("  picket version");
@@ -3453,7 +3545,7 @@ static void WriteRulesHelp()
     Console.Out.WriteLine("picket rules - rule pack commands");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket rules check [source] [-c path]");
+    Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
 }
 
@@ -3462,7 +3554,7 @@ static void WriteRulesCheckHelp()
     Console.Out.WriteLine("picket rules check - validate a Gitleaks-compatible rule pack");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket rules check [source] [-c path]");
+    Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
 }
 
 static void WriteRulesTestHelp()
