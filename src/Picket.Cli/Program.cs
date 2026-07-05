@@ -2224,7 +2224,7 @@ static bool TryWriteReport(
             "csv" => nativeReportFormats ? PicketCsvReportWriter.Write(findings) : GitleaksCsvReportWriter.Write(findings),
             "gitlab" => PicketGitLabCodeQualityReportWriter.Write(findings),
             "html" => PicketHtmlReportWriter.Write(findings, rules),
-            "junit" => GitleaksJunitReportWriter.Write(findings),
+            "junit" => nativeReportFormats ? PicketJunitReportWriter.Write(findings) : GitleaksJunitReportWriter.Write(findings),
             "json" => nativeReportFormats ? PicketJsonReportWriter.Write(findings, rules) : GitleaksJsonReportWriter.Write(findings),
             "jsonl" => PicketJsonlReportWriter.Write(findings),
             "sarif" => nativeReportFormats ? PicketSarifReportWriter.Write(findings, rules) : GitleaksSarifReportWriter.Write(findings, rules),
@@ -2322,6 +2322,12 @@ static bool TryResolveReportFormat(
         return true;
     }
 
+    if (nativeReportFormats && IsJunitReportPath(reportPath))
+    {
+        resolvedReportFormat = "junit";
+        return true;
+    }
+
     if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
     {
         resolvedReportFormat = "json";
@@ -2377,6 +2383,12 @@ static bool IsGitLabCodeQualityReportPath(string reportPath)
     string fileName = Path.GetFileName(reportPath);
     return fileName.Equals("gl-code-quality-report.json", StringComparison.OrdinalIgnoreCase)
         || fileName.EndsWith(".gitlab-code-quality.json", StringComparison.OrdinalIgnoreCase);
+}
+
+static bool IsJunitReportPath(string reportPath)
+{
+    string fileName = Path.GetFileName(reportPath);
+    return fileName.EndsWith(".junit.xml", StringComparison.OrdinalIgnoreCase);
 }
 
 static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string source)
@@ -2441,7 +2453,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -2455,7 +2467,7 @@ static void WriteScanHelp()
     Console.Out.WriteLine("picket scan - native filesystem scan");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteRulesHelp()

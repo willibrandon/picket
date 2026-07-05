@@ -240,6 +240,26 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans can write Picket JUnit reports.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesJunitReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "junit").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("<testsuite failures=\"1\" name=\"picket\" tests=\"1\" time=\"\">", result.Stdout);
+        Assert.DoesNotContain("name=\"gitleaks\"", result.Stdout);
+        Assert.Contains("<property name=\"schema\" value=\"picket.junit.v1\"></property>", result.Stdout);
+        Assert.Contains("<failure message=\"token detected a secret in secret.txt on line 1.\" type=\"picket.finding.v1\">", result.Stdout);
+        Assert.Contains("{&#34;schema&#34;:&#34;picket.finding.v1&#34;,&#34;ruleId&#34;:&#34;token&#34;", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans can write GitLab Code Quality reports.
     /// </summary>
     [TestMethod]
@@ -351,6 +371,24 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,token-12345,token-12345,token-12345,,", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
+    /// Verifies that native scans infer JUnit from report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanInfersJunitReportFormatFromPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.junit.xml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("<testsuite failures=\"1\" name=\"picket\" tests=\"1\" time=\"\">", File.ReadAllText(reportPath));
     }
 
     /// <summary>
