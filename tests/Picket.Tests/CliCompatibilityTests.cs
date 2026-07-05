@@ -1099,6 +1099,59 @@ public sealed class CliCompatibilityTests
         Assert.Contains("invalid scm platform value: auto", rejected.Stderr);
     }
 
+    /// <summary>
+    /// Verifies that rules check accepts a valid Gitleaks-compatible config.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckAcceptsValidConfig()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("rules ok: 1 rule", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects invalid Gitleaks-compatible configs.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsInvalidConfig()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-([0-9]+'''
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("token: invalid regex pattern 'token-([0-9]+'", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check discovers a source-local Gitleaks-compatible config.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckDiscoversSourceConfig()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "rules", "check").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("rules ok: 1 rule", result.Stdout);
+    }
+
     private static string WriteTokenConfig(string root, string fileName = "gitleaks.toml")
     {
         string configPath = Path.Combine(root, fileName);

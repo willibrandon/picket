@@ -41,6 +41,11 @@ if (command.Equals("protect", StringComparison.OrdinalIgnoreCase))
     return RunProtect(args[1..]);
 }
 
+if (command.Equals("rules", StringComparison.OrdinalIgnoreCase))
+{
+    return RunRules(args[1..]);
+}
+
 if (command.Equals("git", StringComparison.OrdinalIgnoreCase))
 {
     return RunGit(args[1..]);
@@ -1087,6 +1092,80 @@ static bool IsHelp(string arg)
     return arg is "-h" or "--help" or "help";
 }
 
+static int RunRules(string[] args)
+{
+    if (args.Length == 0 || IsHelp(args[0]))
+    {
+        WriteRulesHelp();
+        return 0;
+    }
+
+    string subcommand = args[0];
+    if (subcommand.Equals("check", StringComparison.OrdinalIgnoreCase))
+    {
+        return RunRulesCheck(args[1..]);
+    }
+
+    Console.Error.WriteLine($"unknown rules command: {subcommand}");
+    return UnknownFlagExitCode;
+}
+
+static int RunRulesCheck(string[] args)
+{
+    string? configPath = null;
+    string source = ".";
+    bool sourceSet = false;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsHelp(arg))
+        {
+            WriteRulesCheckHelp();
+            return 0;
+        }
+
+        if (IsConfigFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (arg.StartsWith('-'))
+        {
+            Console.Error.WriteLine($"unknown flag: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        if (sourceSet)
+        {
+            Console.Error.WriteLine($"unexpected argument: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        source = arg;
+        sourceSet = true;
+    }
+
+    try
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, source);
+        ValidateRulesWithScout(ruleSet);
+        int ruleCount = ruleSet.Rules.Count;
+        string noun = ruleCount == 1 ? "rule" : "rules";
+        Console.Out.WriteLine($"rules ok: {ruleCount} {noun}");
+        return 0;
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or NotSupportedException or ArgumentException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        return 1;
+    }
+}
+
 static bool IsDirectoryCommand(string command)
 {
     return command.Equals("dir", StringComparison.OrdinalIgnoreCase)
@@ -1942,6 +2021,11 @@ static RuleSet FilterEnabledRules(RuleSet ruleSet, IReadOnlyList<string> enabled
     return new RuleSet(enabledRules, ruleSet.Allowlists, ruleSet.RegexesPrevalidated);
 }
 
+static void ValidateRulesWithScout(RuleSet ruleSet)
+{
+    _ = CompiledRuleSet.Compile(new RuleSet(ruleSet.Rules, ruleSet.Allowlists));
+}
+
 static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out GitleaksBaseline? baseline)
 {
     if (string.IsNullOrWhiteSpace(baselinePath))
@@ -2161,5 +2245,22 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket rules check [source] [-c path]");
     Console.Out.WriteLine("  picket version");
+}
+
+static void WriteRulesHelp()
+{
+    Console.Out.WriteLine("picket rules - rule pack commands");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket rules check [source] [-c path]");
+}
+
+static void WriteRulesCheckHelp()
+{
+    Console.Out.WriteLine("picket rules check - validate a Gitleaks-compatible rule pack");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket rules check [source] [-c path]");
 }
