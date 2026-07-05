@@ -62,6 +62,23 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that compatibility directory scans keep the Gitleaks JSON shape.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanWritesGitleaksJsonReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
+        Assert.DoesNotContain("\"schema\":\"picket.report.v1\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that -f csv writes a Gitleaks-compatible CSV report.
     /// </summary>
     [TestMethod]
@@ -168,6 +185,24 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
         Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
         Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans use the Picket rich JSON report shape.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesPicketJsonReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.report.v1\"", result.Stdout);
+        Assert.Contains("\"rules\":[{\"id\":\"token\"", result.Stdout);
+        Assert.Contains("\"findings\":[{\"schema\":\"picket.finding.v1\"", result.Stdout);
     }
 
     /// <summary>

@@ -2223,7 +2223,7 @@ static bool TryWriteReport(
         {
             "csv" => GitleaksCsvReportWriter.Write(findings),
             "junit" => GitleaksJunitReportWriter.Write(findings),
-            "json" => GitleaksJsonReportWriter.Write(findings),
+            "json" => nativeReportFormats ? PicketJsonReportWriter.Write(findings, rules) : GitleaksJsonReportWriter.Write(findings),
             "jsonl" => PicketJsonlReportWriter.Write(findings),
             "sarif" => GitleaksSarifReportWriter.Write(findings, rules),
             "template" => GitleaksTemplateReportWriter.Write(findings, ReadReportTemplate(reportTemplatePath)),
