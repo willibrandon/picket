@@ -103,6 +103,11 @@ return UnknownFlagExitCode;
 
 static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
 {
+    if (!TryResolveNativeProfile(args, defaultNativeProfile: false, out bool nativeMode))
+    {
+        return UnknownFlagExitCode;
+    }
+
     string? baselinePath = null;
     string? configPath = null;
     string? diagnostics = null;
@@ -134,6 +139,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
         if (IsConfigFlag(arg))
         {
             if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsProfileFlag(arg))
+        {
+            if (!TryReadProfileFlag(args, ref i, out _))
             {
                 return UnknownFlagExitCode;
             }
@@ -305,7 +320,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
-    if (!TryLoadRules(configPath, configSource, enabledRuleIds, nativeConfig: false, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, configSource, enabledRuleIds, nativeConfig: nativeMode, out CompiledRuleSet? rules))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -319,7 +334,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
     if (IsTimedOut(timeoutTimestamp))
     {
         Console.Error.WriteLine(TimeoutErrorMessage);
-        if (!TryWriteReport([], rules.Rules, reportPath, reportFormat, reportTemplatePath))
+        if (!TryWriteReport([], rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
         {
             return CompleteRun(1, diagnosticsSession);
         }
@@ -330,12 +345,17 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
     IReadOnlyList<Finding> findings = baseline.Filter(
         gitleaksIgnore.Filter(SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes))),
         redactionPercent);
+    if (nativeMode)
+    {
+        findings = OfflineSecretValidator.AnnotateAll(findings);
+    }
+
     if (redactionPercent > 0)
     {
         findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
     }
 
-    if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
+    if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -4457,7 +4477,7 @@ static void WriteHelp()
     Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket rules check [source] [-c path] [--print-config]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
     Console.Out.WriteLine("  picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]");

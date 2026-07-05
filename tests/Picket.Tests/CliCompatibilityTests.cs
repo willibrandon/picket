@@ -1902,6 +1902,73 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that --profile picket opts stdin scans into native config and report behavior.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinProfilePicketUsesNativeConfigAndReports()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-stdin-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            "native-only-secret",
+            environment,
+            "stdin",
+            "--profile",
+            "picket",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"native-stdin-rule\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"unknown\"", result.Stdout);
+        Assert.DoesNotContain("\"RuleID\"", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that strict compatibility stdin scans ignore PICKET_CONFIG_TOML.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanIgnoresPicketConfigTomlEnvironmentVariable()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, ".gitleaks.toml"), CreateRuleConfig("compat-rule", "compat-only-secret"));
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            "native-only-secret",
+            environment,
+            "stdin").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+        Assert.DoesNotContain("native-rule", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that unsupported stdin profiles are rejected before scanning.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanRejectsUnsupportedProfile()
+    {
+        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "--profile", "strict").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported profile: strict", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that stdin scans discover .gitleaks.toml from the current directory.
     /// </summary>
     [TestMethod]
