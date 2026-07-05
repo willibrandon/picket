@@ -191,6 +191,26 @@ public sealed class GitSourceTests
         Assert.AreEqual(string.Empty, fragment.Commit);
     }
 
+    /// <summary>
+    /// Verifies that git enumeration stops cleanly when cancellation is already requested.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task EnumerateStopsWhenCancellationIsRequested()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
+
+        IReadOnlyList<GitPatchFragment> fragments = GitSource.Enumerate(new GitScanOptions(
+            root.Path,
+            isCancellationRequested: () => true));
+
+        Assert.IsEmpty(fragments);
+    }
+
     private static async Task InitializeGitRepositoryAsync(string root)
     {
         await RunGitCommandAsync(root, "init").ConfigureAwait(false);

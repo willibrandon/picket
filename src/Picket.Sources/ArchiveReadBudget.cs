@@ -2,7 +2,12 @@ using System.Globalization;
 
 namespace Picket.Sources;
 
-internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, int maxCompressionRatio, Action<string>? warningSink)
+internal sealed class ArchiveReadBudget(
+    int maxEntries,
+    long? maxBytes,
+    int maxCompressionRatio,
+    Func<bool>? isCancellationRequested,
+    Action<string>? warningSink)
 {
     internal int MaxEntries { get; } = maxEntries;
 
@@ -20,8 +25,26 @@ internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, int maxC
 
     internal bool CompressionRatioLimitReported { get; private set; }
 
+    internal bool CancellationReported { get; private set; }
+
+    internal bool TryContinue(string archivePath)
+    {
+        if (isCancellationRequested is null || !isCancellationRequested())
+        {
+            return true;
+        }
+
+        ReportCancellation(archivePath);
+        return false;
+    }
+
     internal bool TryConsumeEntry(string archivePath)
     {
+        if (!TryContinue(archivePath))
+        {
+            return false;
+        }
+
         if (MaxEntries == 0)
         {
             return true;
@@ -49,6 +72,11 @@ internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, int maxC
 
     internal bool TryConsumeCompressionRatio(string archivePath, long compressedByteCount, long decompressedByteCount)
     {
+        if (!TryContinue(archivePath))
+        {
+            return false;
+        }
+
         if (MaxCompressionRatio == 0 || decompressedByteCount == 0)
         {
             return true;
@@ -72,6 +100,11 @@ internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, int maxC
 
     private bool TryConsumeBytesCore(string archivePath, long byteCount)
     {
+        if (!TryContinue(archivePath))
+        {
+            return false;
+        }
+
         if (MaxBytes == 0 || byteCount == 0)
         {
             return true;
@@ -137,5 +170,16 @@ internal sealed class ArchiveReadBudget(int maxEntries, long? maxBytes, int maxC
             MaxCompressionRatio.ToString(CultureInfo.InvariantCulture),
             ":1"));
         CompressionRatioLimitReported = true;
+    }
+
+    private void ReportCancellation(string archivePath)
+    {
+        if (CancellationReported)
+        {
+            return;
+        }
+
+        warningSink?.Invoke($"archive read stopped because cancellation was requested while reading {archivePath}");
+        CancellationReported = true;
     }
 }

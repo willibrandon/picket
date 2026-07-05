@@ -340,7 +340,8 @@ internal static partial class Program
             ignoreHidden: respectNativeIgnoreFiles,
             readParentIgnoreFiles: respectNativeIgnoreFiles,
             ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
-            warningSink: Console.Error.WriteLine));
+            warningSink: Console.Error.WriteLine,
+            isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
         string? reportDisplayPath = CreateControlFileDisplayPath(root, reportPath);
@@ -348,9 +349,19 @@ internal static partial class Program
             ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
             : [];
         var findings = new List<Finding>();
-        bool hadScanError = false;
+        bool hadScanError = IsTimedOut(timeoutTimestamp);
+        if (hadScanError)
+        {
+            Console.Error.WriteLine(TimeoutErrorMessage);
+        }
+
         foreach (SourceFile file in files)
         {
+            if (hadScanError)
+            {
+                break;
+            }
+
             if (IsTimedOut(timeoutTimestamp))
             {
                 Console.Error.WriteLine(TimeoutErrorMessage);

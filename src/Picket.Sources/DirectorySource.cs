@@ -16,6 +16,11 @@ public sealed class DirectorySource
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        if (IsCancellationRequested(options))
+        {
+            return [];
+        }
+
         if (File.Exists(options.Root))
         {
             return EnumerateSingleFile(options);
@@ -30,6 +35,11 @@ public sealed class DirectorySource
         var walker = new FileWalker(CreateWalkerOptions(options));
         foreach (FileWalkEntry entry in walker.Enumerate(options.Root))
         {
+            if (IsCancellationRequested(options))
+            {
+                break;
+            }
+
             if (!entry.IsFile)
             {
                 continue;
@@ -62,6 +72,11 @@ public sealed class DirectorySource
 
     private static List<SourceFile> EnumerateSingleFile(DirectoryScanOptions options)
     {
+        if (IsCancellationRequested(options))
+        {
+            return [];
+        }
+
         FileInfo fileInfo = new(options.Root);
         if (options.MaxTargetBytes.HasValue && fileInfo.Length > options.MaxTargetBytes.Value)
         {
@@ -98,6 +113,11 @@ public sealed class DirectorySource
         string displayPath,
         string symlinkDisplayPath)
     {
+        if (IsCancellationRequested(options))
+        {
+            return;
+        }
+
         if (ArchiveReader.IsArchiveFile(fullPath))
         {
             if (options.MaxArchiveDepth > 0)
@@ -113,6 +133,7 @@ public sealed class DirectorySource
                     options.MaxTargetBytes,
                     options.IsPathAllowed,
                     options.WarningSink,
+                    options.IsCancellationRequested,
                     entries))
                 {
                     foreach (ArchiveEntry entry in entries)
@@ -209,5 +230,10 @@ public sealed class DirectorySource
     private static bool IsPathAllowed(Func<string, bool>? isPathAllowed, string displayPath)
     {
         return isPathAllowed is not null && isPathAllowed(displayPath);
+    }
+
+    private static bool IsCancellationRequested(DirectoryScanOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }
 }

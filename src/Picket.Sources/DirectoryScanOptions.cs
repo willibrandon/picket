@@ -19,6 +19,7 @@ namespace Picket.Sources;
 /// <param name="maxArchiveBytes">The maximum number of decompressed archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="maxArchiveCompressionRatio">The maximum archive expansion ratio, or 0 for no cap.</param>
+/// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 public sealed class DirectoryScanOptions(
     string root,
     long? maxTargetBytes = null,
@@ -35,7 +36,8 @@ public sealed class DirectoryScanOptions(
     int maxArchiveEntries = 0,
     long? maxArchiveBytes = null,
     Action<string>? warningSink = null,
-    int maxArchiveCompressionRatio = 0)
+    int maxArchiveCompressionRatio = 0,
+    Func<bool>? isCancellationRequested = null)
 {
     private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
 
@@ -112,6 +114,8 @@ public sealed class DirectoryScanOptions(
     internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
     internal Action<string>? WarningSink { get; } = warningSink;
+
+    internal Func<bool>? IsCancellationRequested { get; } = isCancellationRequested;
 
     private static string RequireRoot(string value)
     {

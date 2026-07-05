@@ -436,6 +436,36 @@ public sealed class DirectorySourceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that archive enumeration stops when cancellation is requested.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateStopsArchiveReadWhenCancellationIsRequested()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string archivePath = Path.Combine(root, "secrets.zip");
+            WriteZipFile(archivePath, ("secret.txt", "token-12345"));
+            var warnings = new List<string>();
+            int checks = 0;
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                archivePath,
+                maxArchiveDepth: 1,
+                warningSink: warnings.Add,
+                isCancellationRequested: () => ++checks > 3));
+
+            Assert.IsEmpty(files);
+            Assert.HasCount(1, warnings);
+            Assert.Contains("archive read stopped because cancellation was requested while reading secrets.zip", warnings[0]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         string path = Path.Combine(Path.GetTempPath(), "picket-tests", Guid.NewGuid().ToString("N"));

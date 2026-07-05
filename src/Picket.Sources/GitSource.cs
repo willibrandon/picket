@@ -34,9 +34,15 @@ public static class GitSource
 
         Task<string> stderrTask = process.StandardError.ReadToEndAsync();
         List<GitPatchFragment> fragments = Parse(process.StandardOutput, options);
+        bool cancelled = IsCancellationRequested(options);
+        if (cancelled)
+        {
+            TryKill(process);
+        }
+
         process.WaitForExit();
         string stderr = stderrTask.GetAwaiter().GetResult().Trim();
-        if (process.ExitCode != 0)
+        if (!cancelled && process.ExitCode != 0)
         {
             throw new InvalidOperationException(stderr.Length == 0 ? $"git exited with code {process.ExitCode}" : stderr);
         }
@@ -113,6 +119,11 @@ public static class GitSource
         string? line;
         while ((line = reader.ReadLine()) is not null)
         {
+            if (IsCancellationRequested(options))
+            {
+                break;
+            }
+
             if (line.StartsWith("commit ", StringComparison.Ordinal))
             {
                 FlushFragment();
@@ -250,6 +261,11 @@ public static class GitSource
             return;
         }
 
+        if (IsCancellationRequested(options))
+        {
+            return;
+        }
+
         byte[]? blob = ReadGitBlob(options, commit, filePath);
         if (blob is null || !ArchiveReader.IsArchiveContent(blob))
         {
@@ -267,6 +283,7 @@ public static class GitSource
             options.MaxTargetBytes,
             options.IsPathAllowed,
             options.WarningSink,
+            options.IsCancellationRequested,
             entries))
         {
             return;
@@ -309,10 +326,27 @@ public static class GitSource
 
         Task<string> stderrTask = process.StandardError.ReadToEndAsync();
         using var stream = new MemoryStream();
-        process.StandardOutput.BaseStream.CopyTo(stream);
+        byte[] buffer = new byte[81920];
+        int read;
+        while ((read = process.StandardOutput.BaseStream.Read(buffer, 0, buffer.Length)) != 0)
+        {
+            if (IsCancellationRequested(options))
+            {
+                TryKill(process);
+                break;
+            }
+
+            stream.Write(buffer, 0, read);
+        }
+
+        if (IsCancellationRequested(options))
+        {
+            TryKill(process);
+        }
+
         process.WaitForExit();
         _ = stderrTask.GetAwaiter().GetResult();
-        return process.ExitCode == 0 ? stream.ToArray() : null;
+        return process.ExitCode == 0 && !IsCancellationRequested(options) ? stream.ToArray() : null;
     }
 
     private static Process CreateGitShowProcess(string root, string revision)
@@ -347,6 +381,25 @@ public static class GitSource
         StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         return path.Equals(normalizedRoot, comparison)
             || path.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, comparison);
+    }
+
+    private static bool IsCancellationRequested(GitScanOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static void TryKill(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        {
+        }
     }
 
     private static (string Author, string Email) ParseAuthor(string value)

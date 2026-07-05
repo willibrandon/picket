@@ -345,7 +345,8 @@ internal static partial class Program
                 maxArchiveCompressionRatio: maxArchiveCompressionRatio,
                 maxTargetBytes: maxTargetBytes,
                 isPathAllowed: rules.IsGlobalPathAllowed,
-                warningSink: nativeMode ? Console.Error.WriteLine : null));
+                warningSink: nativeMode ? Console.Error.WriteLine : null,
+                isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
         {
@@ -356,6 +357,7 @@ internal static partial class Program
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         CreateGitLinkContext(root, staged || preCommit, platform, out string scmPlatform, out string remoteUrl);
         List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth, timeoutTimestamp, scmPlatform, remoteUrl, out bool timedOut);
+        timedOut |= IsTimedOut(timeoutTimestamp);
         IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
         if (nativeMode)
         {

@@ -43,6 +43,7 @@ internal static class ArchiveReader
         long? maxEntryBytes,
         Func<string, bool>? isPathAllowed,
         Action<string>? warningSink,
+        Func<bool>? isCancellationRequested,
         List<ArchiveEntry> entries)
     {
         if (maxArchiveDepth <= 0)
@@ -62,7 +63,7 @@ internal static class ArchiveReader
             }
 
             stream.Position = 0;
-            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, warningSink);
+            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, isCancellationRequested, warningSink);
             AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth: 1);
             return true;
         }
@@ -82,6 +83,7 @@ internal static class ArchiveReader
         long? maxEntryBytes,
         Func<string, bool>? isPathAllowed,
         Action<string>? warningSink,
+        Func<bool>? isCancellationRequested,
         List<ArchiveEntry> entries)
     {
         if (maxArchiveDepth <= 0)
@@ -98,7 +100,7 @@ internal static class ArchiveReader
         try
         {
             using var stream = new MemoryStream(content, writable: false);
-            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, warningSink);
+            var budget = new ArchiveReadBudget(maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, isCancellationRequested, warningSink);
             AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth: 1);
             return true;
         }
@@ -119,6 +121,11 @@ internal static class ArchiveReader
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
+        if (!budget.TryContinue(displayPath))
+        {
+            return;
+        }
+
         switch (archiveKind)
         {
             case ArchiveKindGzip:
@@ -146,6 +153,11 @@ internal static class ArchiveReader
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
+            if (!budget.TryContinue(displayPath))
+            {
+                return;
+            }
+
             if (IsDirectoryEntry(entry) || IsTooLarge(entry.Length, maxEntryBytes))
             {
                 continue;
@@ -199,6 +211,11 @@ internal static class ArchiveReader
         TarEntry? entry;
         while ((entry = reader.GetNextEntry()) is not null)
         {
+            if (!budget.TryContinue(displayPath))
+            {
+                return;
+            }
+
             if (entry.DataStream is null || IsTooLarge(entry.Length, maxEntryBytes))
             {
                 continue;
@@ -247,6 +264,11 @@ internal static class ArchiveReader
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
+        if (!budget.TryContinue(displayPath))
+        {
+            return;
+        }
+
         long? compressedLength = TryGetRemainingLength(stream);
         using var gzipStream = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
         if (!TryReadStreamBytes(displayPath, gzipStream, length: null, compressedLength, maxEntryBytes, budget, out byte[] decompressedContent))
@@ -280,6 +302,11 @@ internal static class ArchiveReader
         List<ArchiveEntry> entries,
         int archiveDepth)
     {
+        if (!budget.TryContinue(entryDisplayPath))
+        {
+            return;
+        }
+
         int archiveKind = IdentifyArchiveKind(entryContent);
         if (archiveKind == ArchiveKindNone)
         {
@@ -342,6 +369,12 @@ internal static class ArchiveReader
             int read;
             while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
             {
+                if (!budget.TryContinue(archivePath))
+                {
+                    bytes = [];
+                    return false;
+                }
+
                 totalRead += read;
                 if (IsTooLarge(totalRead, maxBytes)
                     || (compressedLength.HasValue && !reservedKnownLength && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, totalRead))
