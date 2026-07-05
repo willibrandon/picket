@@ -40,6 +40,30 @@ public sealed class GitSourceTests
     }
 
     /// <summary>
+    /// Verifies that git history enumeration expands tar archive blobs when archive traversal is enabled.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateExpandsTarArchiveBlobWhenDepthEnabled()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllBytes(Path.Combine(root.Path, "secrets.tar"), TarTestData.CreateTarBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("token-12345"))));
+        await RunGitCommandAsync(root.Path, "add", "secrets.tar").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add tar archive").ConfigureAwait(false);
+        string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
+
+        IReadOnlyList<GitPatchFragment> disabled = GitSource.Enumerate(new GitScanOptions(root.Path));
+        IReadOnlyList<GitPatchFragment> enabled = GitSource.Enumerate(new GitScanOptions(root.Path, maxArchiveDepth: 1));
+
+        Assert.IsEmpty(disabled);
+        Assert.HasCount(1, enabled);
+        GitPatchFragment fragment = enabled[0];
+        Assert.AreEqual("secrets.tar!nested/secret.txt", fragment.FilePath);
+        Assert.AreEqual("token-12345", Encoding.UTF8.GetString(fragment.Input.Span));
+        Assert.AreEqual(commit, fragment.Commit);
+    }
+
+    /// <summary>
     /// Verifies that nested git archive traversal honors the configured archive depth.
     /// </summary>
     [TestMethod]
@@ -136,4 +160,5 @@ public sealed class GitSourceTests
 
         return stream.ToArray();
     }
+
 }

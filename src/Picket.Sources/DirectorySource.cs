@@ -56,12 +56,12 @@ public sealed class DirectorySource
 
     private static void AddSourceFile(List<SourceFile> sourceFiles, DirectoryScanOptions options, string fullPath, string displayPath)
     {
-        if (ZipArchiveReader.IsZipFile(fullPath))
+        if (ArchiveReader.IsArchiveFile(fullPath))
         {
             if (options.MaxArchiveDepth > 0)
             {
                 var entries = new List<ArchiveEntry>();
-                if (ZipArchiveReader.TryReadFileEntries(fullPath, displayPath, options.MaxArchiveDepth, options.MaxTargetBytes, entries))
+                if (ArchiveReader.TryReadFileEntries(fullPath, displayPath, options.MaxArchiveDepth, options.MaxTargetBytes, entries))
                 {
                     foreach (ArchiveEntry entry in entries)
                     {

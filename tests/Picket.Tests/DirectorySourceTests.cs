@@ -107,6 +107,83 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that tar archive entries are yielded as virtual source files when archive traversal is enabled.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateExpandsTarArchivesWhenDepthEnabled()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "secrets.tar"), TarTestData.CreateTarBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("token-12345"))));
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxArchiveDepth: 1));
+            SourceFile? file = files.FirstOrDefault(file => file.DisplayPath == "secrets.tar!nested/secret.txt");
+
+            Assert.IsNotNull(file);
+            Assert.AreEqual("token-12345", Encoding.UTF8.GetString(file.ReadAllBytes()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that gzip-compressed tar archive entries are yielded with archive provenance.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateExpandsGzipTarArchivesWhenDepthEnabled()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] tarBytes = TarTestData.CreateTarBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("token-12345")));
+            File.WriteAllBytes(Path.Combine(root, "secrets.tar.gz"), TarTestData.CreateGzipBytes(tarBytes));
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxArchiveDepth: 1));
+            SourceFile? file = files.FirstOrDefault(file => file.DisplayPath == "secrets.tar.gz!nested/secret.txt");
+
+            Assert.IsNotNull(file);
+            Assert.AreEqual("token-12345", Encoding.UTF8.GetString(file.ReadAllBytes()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that unsafe archive entry paths are skipped before they reach reports or scanners.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateSkipsUnsafeArchiveEntryPaths()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            WriteZipFile(
+                Path.Combine(root, "secrets.zip"),
+                ("../parent.txt", "parent-token"),
+                ("/absolute.txt", "absolute-token"),
+                ("C:/drive.txt", "drive-token"),
+                ("safe/secret.txt", "token-12345"));
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxArchiveDepth: 1));
+            string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
+
+            Assert.Contains("secrets.zip!safe/secret.txt", displayPaths);
+            Assert.DoesNotContain("secrets.zip!../parent.txt", displayPaths);
+            Assert.DoesNotContain("secrets.zip!absolute.txt", displayPaths);
+            Assert.DoesNotContain("secrets.zip!C:/drive.txt", displayPaths);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that nested zip archive traversal honors the configured archive depth.
     /// </summary>
     [TestMethod]
@@ -159,4 +236,5 @@ public sealed class DirectorySourceTests
 
         return stream.ToArray();
     }
+
 }

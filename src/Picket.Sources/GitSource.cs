@@ -251,13 +251,13 @@ public static class GitSource
         }
 
         byte[]? blob = ReadGitBlob(options, commit, filePath);
-        if (blob is null || !ZipArchiveReader.IsZipContent(blob))
+        if (blob is null || !ArchiveReader.IsArchiveContent(blob))
         {
             return;
         }
 
         var entries = new List<ArchiveEntry>();
-        if (!ZipArchiveReader.TryReadBytesEntries(blob, filePath, options.MaxArchiveDepth, options.MaxTargetBytes, entries))
+        if (!ArchiveReader.TryReadBytesEntries(blob, filePath, options.MaxArchiveDepth, options.MaxTargetBytes, entries))
         {
             return;
         }
