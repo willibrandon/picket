@@ -25,6 +25,11 @@ internal static class PicketFindingMetadata
         return finding.MatchSha256.Length == 0 ? CreateSha256(finding.Match) : finding.MatchSha256;
     }
 
+    internal static string CreateValidationState(Finding finding)
+    {
+        return finding.ValidationState.Length == 0 ? ValidationState : finding.ValidationState;
+    }
+
     internal static string CreateSha256(string value)
     {
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));

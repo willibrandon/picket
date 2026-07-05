@@ -25,6 +25,7 @@ namespace Picket.Engine;
 /// <param name="link">The source control link, or an empty string.</param>
 /// <param name="secretSha256">The original secret SHA-256 hash for native reports, or an empty string.</param>
 /// <param name="matchSha256">The original match SHA-256 hash for native reports, or an empty string.</param>
+/// <param name="validationState">The offline validation state for native reports, or an empty string.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -47,7 +48,8 @@ public sealed class Finding(
     string line = "",
     string link = "",
     string secretSha256 = "",
-    string matchSha256 = "")
+    string matchSha256 = "",
+    string validationState = "")
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -158,4 +160,9 @@ public sealed class Finding(
     /// Gets the original match SHA-256 hash for native reports, or an empty string.
     /// </summary>
     public string MatchSha256 { get; } = matchSha256;
+
+    /// <summary>
+    /// Gets the offline validation state for native reports, or an empty string.
+    /// </summary>
+    public string ValidationState { get; } = validationState;
 }

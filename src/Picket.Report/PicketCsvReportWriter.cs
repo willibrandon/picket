@@ -86,7 +86,7 @@ public static class PicketCsvReportWriter
             finding.Date,
             finding.Message,
             finding.Fingerprint,
-            PicketFindingMetadata.ValidationState,
+            PicketFindingMetadata.CreateValidationState(finding),
             PicketFindingMetadata.Severity,
             PicketFindingMetadata.Confidence,
             PicketFindingMetadata.CreateProvenanceType(finding),

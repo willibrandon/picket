@@ -71,4 +71,38 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"ignoreReason\":\"\"", json);
         Assert.Contains("\"remediationLinks\":[]", json);
     }
+
+    /// <summary>
+    /// Verifies native JSON honors validation states already attached to findings.
+    /// </summary>
+    [TestMethod]
+    public void WriteUsesAttachedValidationState()
+    {
+        SecretRule rule = SecretRule.Create("github-pat", string.Empty, "ghp_[0-9A-Za-z]{36}");
+        string secret = string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        var finding = new Finding(
+            "github-pat",
+            string.Empty,
+            1,
+            1,
+            1,
+            40,
+            secret,
+            secret,
+            "secret.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "secret.txt:github-pat:1",
+            validationState: "structurally-valid");
+
+        string json = PicketJsonReportWriter.Write([finding], [rule]);
+
+        Assert.Contains("\"validationState\":\"structurally-valid\"", json);
+    }
 }

@@ -8,6 +8,7 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using Picket.Sources;
+using Picket.Verify;
 
 const int UnknownFlagExitCode = 126;
 const int BinaryProbeLength = 8192;
@@ -1150,6 +1151,11 @@ static int RunDirectory(
     }
 
     IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
+    if (nativeReportFormats)
+    {
+        filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
+    }
+
     if (redactionPercent > 0)
     {
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);

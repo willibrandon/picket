@@ -6,6 +6,7 @@
     <Project Path="src/Picket.Report/Picket.Report.csproj" />
     <Project Path="src/Picket.Rules/Picket.Rules.csproj" />
     <Project Path="src/Picket.Sources/Picket.Sources.csproj" />
+    <Project Path="src/Picket.Verify/Picket.Verify.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Picket.Tests/Picket.Tests.csproj" />

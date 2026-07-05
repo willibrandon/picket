@@ -339,6 +339,23 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans attach offline validation metadata to known provider tokens.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesOfflineValidationState()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans use the Picket SARIF report shape.
     /// </summary>
     [TestMethod]
@@ -1991,6 +2008,19 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "token"
             regex = '''token-[0-9]+'''
+            """);
+        return configPath;
+    }
+
+    private static string WriteGitHubPatConfig(string root, string fileName = "gitleaks.toml")
+    {
+        string configPath = Path.Combine(root, fileName);
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "github-pat"
+            regex = '''ghp_[0-9A-Za-z]{36}'''
             """);
         return configPath;
     }

@@ -68,7 +68,8 @@ public static class GitleaksFindingRedactor
             line,
             finding.Link,
             finding.SecretSha256.Length == 0 ? PicketFindingMetadata.CreateSha256(finding.Secret) : finding.SecretSha256,
-            finding.MatchSha256.Length == 0 ? PicketFindingMetadata.CreateSha256(finding.Match) : finding.MatchSha256);
+            finding.MatchSha256.Length == 0 ? PicketFindingMetadata.CreateSha256(finding.Match) : finding.MatchSha256,
+            finding.ValidationState);
     }
 
     private static string MaskSecret(string secret, int redactionPercent)
