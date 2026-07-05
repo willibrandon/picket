@@ -614,21 +614,60 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that native scans can disable .picketignore handling.
+    /// Verifies that native scans honor .gitignore, .ignore, and hidden-file policy.
     /// </summary>
     [TestMethod]
-    public async Task NativeScanNoIgnoreDisablesPicketIgnore()
+    public async Task NativeScanHonorsScoutIgnorePolicy()
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
+        Directory.CreateDirectory(Path.Combine(root.Path, ".git"));
+        File.WriteAllText(Path.Combine(root.Path, ".gitignore"), "git-ignored.txt\ntoken-99991\n");
+        File.WriteAllText(Path.Combine(root.Path, ".ignore"), "dot-ignored.txt\ntoken-99992\n");
+        File.WriteAllText(Path.Combine(root.Path, ".hidden.txt"), "token-12345");
+        File.WriteAllText(Path.Combine(root.Path, "git-ignored.txt"), "token-23456");
+        File.WriteAllText(Path.Combine(root.Path, "dot-ignored.txt"), "token-34567");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-45678");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"keep.txt\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-45678\"", result.Stdout);
+        Assert.DoesNotContain(".hidden.txt", result.Stdout);
+        Assert.DoesNotContain("git-ignored.txt", result.Stdout);
+        Assert.DoesNotContain("dot-ignored.txt", result.Stdout);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("token-23456", result.Stdout);
+        Assert.DoesNotContain("token-34567", result.Stdout);
+        Assert.DoesNotContain("token-99991", result.Stdout);
+        Assert.DoesNotContain("token-99992", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can disable native ignore handling.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanNoIgnoreDisablesNativeIgnorePolicy()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        Directory.CreateDirectory(Path.Combine(root.Path, ".git"));
+        File.WriteAllText(Path.Combine(root.Path, ".gitignore"), "git-ignored.txt\n");
         File.WriteAllText(Path.Combine(root.Path, ".picketignore"), "ignored.txt\n");
         File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+        File.WriteAllText(Path.Combine(root.Path, "git-ignored.txt"), "token-23456");
+        File.WriteAllText(Path.Combine(root.Path, ".hidden.txt"), "token-34567");
 
         CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl", "--no-ignore").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"file\":\"ignored.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"git-ignored.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\".hidden.txt\"", result.Stdout);
         Assert.Contains("\"secret\":\"token-12345\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-23456\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-34567\"", result.Stdout);
     }
 
     /// <summary>
@@ -661,14 +700,19 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
+        Directory.CreateDirectory(Path.Combine(root.Path, ".git"));
+        File.WriteAllText(Path.Combine(root.Path, ".gitignore"), "git-ignored.txt\n");
         File.WriteAllText(Path.Combine(root.Path, ".picketignore"), "ignored.txt\n");
         File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+        File.WriteAllText(Path.Combine(root.Path, "git-ignored.txt"), "token-23456");
 
         CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"File\": \"ignored.txt\"", result.Stdout);
+        Assert.Contains("\"File\": \"git-ignored.txt\"", result.Stdout);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-23456\"", result.Stdout);
     }
 
     /// <summary>
@@ -758,6 +802,37 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Secret\": \"token-23456\"", result.Stdout);
         Assert.DoesNotContain("ignored.txt", result.Stdout);
         Assert.DoesNotContain("token-12345", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that baseline creation honors native Scout ignore policy.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateHonorsScoutIgnorePolicy()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        Directory.CreateDirectory(Path.Combine(root.Path, ".git"));
+        File.WriteAllText(Path.Combine(root.Path, ".gitignore"), "git-ignored.txt\ntoken-99991\n");
+        File.WriteAllText(Path.Combine(root.Path, ".ignore"), "dot-ignored.txt\ntoken-99992\n");
+        File.WriteAllText(Path.Combine(root.Path, ".hidden.txt"), "token-12345");
+        File.WriteAllText(Path.Combine(root.Path, "git-ignored.txt"), "token-23456");
+        File.WriteAllText(Path.Combine(root.Path, "dot-ignored.txt"), "token-34567");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-45678");
+
+        CliResult result = await RunCliAsync("baseline", "create", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"File\": \"keep.txt\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-45678\"", result.Stdout);
+        Assert.DoesNotContain(".hidden.txt", result.Stdout);
+        Assert.DoesNotContain("git-ignored.txt", result.Stdout);
+        Assert.DoesNotContain("dot-ignored.txt", result.Stdout);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("token-23456", result.Stdout);
+        Assert.DoesNotContain("token-34567", result.Stdout);
+        Assert.DoesNotContain("token-99991", result.Stdout);
+        Assert.DoesNotContain("token-99992", result.Stdout);
     }
 
     /// <summary>

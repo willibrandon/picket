@@ -9,6 +9,11 @@ namespace Picket.Sources;
 /// <param name="maxArchiveDepth">The maximum nested archive depth to enumerate.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> for globally allowlisted paths.</param>
 /// <param name="readPicketIgnoreFiles">A value indicating whether per-directory <c>.picketignore</c> files are read.</param>
+/// <param name="readIgnoreFiles">A value indicating whether Scout-supported <c>.ignore</c>, <c>.rgignore</c>, and <c>.scoutignore</c> files are read.</param>
+/// <param name="readGitIgnoreFiles">A value indicating whether Git ignore files are read.</param>
+/// <param name="readGlobalGitIgnore">A value indicating whether the configured global Git ignore file is read.</param>
+/// <param name="ignoreHidden">A value indicating whether hidden files and directories are ignored.</param>
+/// <param name="readParentIgnoreFiles">A value indicating whether ignore files from parent directories above the root are read.</param>
 /// <param name="ignoreFilePaths">Explicit ignore files to apply while traversing.</param>
 public sealed class DirectoryScanOptions(
     string root,
@@ -17,6 +22,11 @@ public sealed class DirectoryScanOptions(
     int maxArchiveDepth = 0,
     Func<string, bool>? isPathAllowed = null,
     bool readPicketIgnoreFiles = false,
+    bool readIgnoreFiles = false,
+    bool readGitIgnoreFiles = false,
+    bool readGlobalGitIgnore = false,
+    bool ignoreHidden = false,
+    bool readParentIgnoreFiles = false,
     IReadOnlyList<string>? ignoreFilePaths = null)
 {
     private readonly IReadOnlyList<string> _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
@@ -45,6 +55,31 @@ public sealed class DirectoryScanOptions(
     /// Gets a value indicating whether per-directory <c>.picketignore</c> files are read.
     /// </summary>
     public bool ReadPicketIgnoreFiles { get; } = readPicketIgnoreFiles;
+
+    /// <summary>
+    /// Gets a value indicating whether Scout-supported <c>.ignore</c>, <c>.rgignore</c>, and <c>.scoutignore</c> files are read.
+    /// </summary>
+    public bool ReadIgnoreFiles { get; } = readIgnoreFiles;
+
+    /// <summary>
+    /// Gets a value indicating whether Git ignore files are read.
+    /// </summary>
+    public bool ReadGitIgnoreFiles { get; } = readGitIgnoreFiles;
+
+    /// <summary>
+    /// Gets a value indicating whether the configured global Git ignore file is read.
+    /// </summary>
+    public bool ReadGlobalGitIgnore { get; } = readGlobalGitIgnore;
+
+    /// <summary>
+    /// Gets a value indicating whether hidden files and directories are ignored.
+    /// </summary>
+    public bool IgnoreHidden { get; } = ignoreHidden;
+
+    /// <summary>
+    /// Gets a value indicating whether ignore files from parent directories above the root are read.
+    /// </summary>
+    public bool ReadParentIgnoreFiles { get; } = readParentIgnoreFiles;
 
     /// <summary>
     /// Gets explicit ignore files applied while traversing.

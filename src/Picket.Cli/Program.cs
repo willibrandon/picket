@@ -647,8 +647,13 @@ static int RunBaselineCreate(string[] args)
         followSymlinks,
         maxArchiveDepth,
         rules.IsGlobalPathAllowed,
-        respectNativeIgnoreFiles,
-        respectNativeIgnoreFiles ? nativeIgnorePaths : []));
+        readPicketIgnoreFiles: respectNativeIgnoreFiles,
+        readIgnoreFiles: respectNativeIgnoreFiles,
+        readGitIgnoreFiles: respectNativeIgnoreFiles,
+        readGlobalGitIgnore: respectNativeIgnoreFiles,
+        ignoreHidden: respectNativeIgnoreFiles,
+        readParentIgnoreFiles: respectNativeIgnoreFiles,
+        ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : []));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
     string? reportDisplayPath = CreateControlFileDisplayPath(root, reportPath);
@@ -667,7 +672,7 @@ static int RunBaselineCreate(string[] args)
         }
 
         if (IsControlFile(file, [configDisplayPath, reportDisplayPath, .. nativeIgnoreDisplayPaths])
-            || (respectNativeIgnoreFiles && IsPicketIgnoreFile(file)))
+            || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)))
         {
             continue;
         }
@@ -1079,8 +1084,13 @@ static int RunDirectory(
         followSymlinks,
         maxArchiveDepth,
         rules.IsGlobalPathAllowed,
-        respectNativeIgnoreFiles,
-        respectNativeIgnoreFiles ? nativeIgnorePaths : []));
+        readPicketIgnoreFiles: respectNativeIgnoreFiles,
+        readIgnoreFiles: respectNativeIgnoreFiles,
+        readGitIgnoreFiles: respectNativeIgnoreFiles,
+        readGlobalGitIgnore: respectNativeIgnoreFiles,
+        ignoreHidden: respectNativeIgnoreFiles,
+        readParentIgnoreFiles: respectNativeIgnoreFiles,
+        ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : []));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
@@ -1105,7 +1115,7 @@ static int RunDirectory(
         }
 
         if (IsControlFile(file, [baselineDisplayPath, configDisplayPath, .. reportDisplayPaths, .. nativeIgnoreDisplayPaths])
-            || (respectNativeIgnoreFiles && IsPicketIgnoreFile(file)))
+            || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)))
         {
             continue;
         }
@@ -3035,10 +3045,15 @@ static string? CreateControlFileDisplayPath(string root, string? path)
     return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
 }
 
-static bool IsPicketIgnoreFile(SourceFile file)
+static bool IsNativeIgnoreFile(SourceFile file)
 {
     string fileName = Path.GetFileName(file.DisplayPath);
-    return fileName.Equals(".picketignore", StringComparison.Ordinal);
+    return fileName.Equals(".picketignore", StringComparison.Ordinal)
+        || fileName.Equals(".gitignore", StringComparison.Ordinal)
+        || fileName.Equals(".ignore", StringComparison.Ordinal)
+        || fileName.Equals(".rgignore", StringComparison.Ordinal)
+        || fileName.Equals(".scoutignore", StringComparison.Ordinal)
+        || file.DisplayPath.Equals(".git/info/exclude", StringComparison.Ordinal);
 }
 
 static string? ResolveConfigControlPath(string? configPath, string source)

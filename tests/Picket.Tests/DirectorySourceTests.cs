@@ -71,6 +71,45 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that native enumeration can apply Scout standard ignore, Git ignore, and hidden-file policy.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateCanApplyNativeScoutIgnorePolicy()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, ".git"));
+            File.WriteAllText(Path.Combine(root, ".gitignore"), "git-ignored.txt\n");
+            File.WriteAllText(Path.Combine(root, ".ignore"), "dot-ignored.txt\n");
+            File.WriteAllText(Path.Combine(root, ".hidden.txt"), "token-12345");
+            File.WriteAllText(Path.Combine(root, "git-ignored.txt"), "token-23456");
+            File.WriteAllText(Path.Combine(root, "dot-ignored.txt"), "token-34567");
+            File.WriteAllText(Path.Combine(root, "keep.txt"), "token-45678");
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                readIgnoreFiles: true,
+                readGitIgnoreFiles: true,
+                readGlobalGitIgnore: true,
+                ignoreHidden: true,
+                readParentIgnoreFiles: true));
+            string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
+
+            Assert.Contains("keep.txt", displayPaths);
+            Assert.DoesNotContain(".gitignore", displayPaths);
+            Assert.DoesNotContain(".ignore", displayPaths);
+            Assert.DoesNotContain(".hidden.txt", displayPaths);
+            Assert.DoesNotContain("git-ignored.txt", displayPaths);
+            Assert.DoesNotContain("dot-ignored.txt", displayPaths);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that native enumeration can apply explicit ignore files through Scout.
     /// </summary>
     [TestMethod]

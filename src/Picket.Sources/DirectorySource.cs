@@ -128,14 +128,14 @@ public sealed class DirectorySource
     {
         var walkerOptions = new FileWalkerOptions
         {
-            IgnoreHidden = false,
+            IgnoreHidden = options.IgnoreHidden,
             FollowSymbolicLinks = options.FollowSymbolicLinks,
-            ReadParentIgnoreFiles = false,
-            ReadIgnoreFiles = false,
-            ReadGitIgnoreFiles = false,
-            ReadGitExcludeFiles = false,
-            ReadGlobalGitIgnore = false,
-            RequireGitRepository = false,
+            ReadParentIgnoreFiles = options.ReadParentIgnoreFiles,
+            ReadIgnoreFiles = options.ReadIgnoreFiles,
+            ReadGitIgnoreFiles = options.ReadGitIgnoreFiles,
+            ReadGitExcludeFiles = options.ReadGitIgnoreFiles,
+            ReadGlobalGitIgnore = options.ReadGlobalGitIgnore,
+            RequireGitRepository = options.ReadGitIgnoreFiles,
             Sort = FileWalkSort.FullPath,
             MaxFileSize = options.MaxTargetBytes,
         };
