@@ -108,6 +108,7 @@ function Resolve-ExistingPath
 {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$PathValue,
 
         [Parameter(Mandatory = $true)]
@@ -270,15 +271,19 @@ function New-GitleaksArguments
         [string]$ReportPath,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$ResolvedSource,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$ResolvedConfig,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$ResolvedBaselinePath,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$ResolvedReportTemplate
     )
 

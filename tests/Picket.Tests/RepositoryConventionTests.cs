@@ -340,14 +340,20 @@ public sealed partial class RepositoryConventionTests
         string documentation = ReadRepositoryFile("docs/UPSTREAM.md");
         string script = ReadRepositoryFile("scripts/Capture-UpstreamPins.ps1");
         string oracleScript = ReadRepositoryFile("scripts/Capture-GitleaksOracle.ps1");
+        string compatibilityScript = ReadRepositoryFile("scripts/Capture-CompatibilityOracle.ps1");
 
         Assert.Contains("PICKET_GITLEAKS_REPO", documentation);
         Assert.Contains("PICKET_SCOUT_REPO", documentation);
         Assert.Contains("PICKET_DOTNET_RUNTIME_REPO", documentation);
         Assert.Contains("scripts/Capture-UpstreamPins.ps1 -Update", documentation);
         Assert.Contains("scripts/Capture-GitleaksOracle.ps1", documentation);
+        Assert.Contains("scripts/Capture-CompatibilityOracle.ps1", documentation);
         Assert.Contains("PICKET_GITLEAKS_BIN", documentation);
+        Assert.Contains("PICKET_BIN", documentation);
         Assert.Contains("artifacts/oracles/gitleaks", documentation);
+        Assert.Contains("artifacts/oracles/compatibility", documentation);
+        Assert.Contains("gitleaks git <repo>", documentation);
+        Assert.DoesNotContain("gitleaks git --source", documentation);
         Assert.Contains("<!-- upstream-pins:start -->", documentation);
         Assert.Contains("<!-- upstream-pins:end -->", documentation);
         Assert.Contains("PICKET_GITLEAKS_REPO", script);
@@ -359,6 +365,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--report-format", oracleScript);
         Assert.Contains("--report-path", oracleScript);
         Assert.Contains("metadata.json", oracleScript);
+        Assert.Contains("Capture-GitleaksOracle.ps1", compatibilityScript);
+        Assert.Contains("PICKET_BIN", compatibilityScript);
+        Assert.Contains("comparison.json", compatibilityScript);
+        Assert.Contains("FailOnDifference", compatibilityScript);
+        Assert.Contains("picket-$Mode", compatibilityScript);
     }
 
     [GeneratedRegex(

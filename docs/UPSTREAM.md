@@ -63,7 +63,7 @@ code default of `5`.
 Expected oracle command shapes:
 
 ```powershell
-gitleaks git --source <repo> --config <config> --report-format json --report-path <out>
+gitleaks git <repo> --config <config> --report-format json --report-path <out>
 gitleaks dir <path> --config <config> --report-format json --report-path <out>
 gitleaks stdin --config <config> --report-format json --report-path <out>
 ```
@@ -84,6 +84,17 @@ and `metadata.json` under `artifacts/oracles/gitleaks` by default.
 Oracle reports can contain raw secrets from fixtures. Keep generated artifacts
 out of source control unless a follow-up normalization step has redacted and
 reviewed them for use as committed golden files.
+
+Capture a side-by-side Gitleaks/Picket compatibility bundle with:
+
+```powershell
+pwsh ./scripts/Capture-CompatibilityOracle.ps1 -Mode dir -Source <fixture-path> -Config <config> -ReportFormat json,sarif
+```
+
+The wrapper writes `gitleaks/`, `picket/`, and `comparison.json` under
+`artifacts/oracles/compatibility` by default. Set `PICKET_BIN` or pass
+`-PicketPath` when the Release `picket` executable has not already been built
+in the repository output layout used by the test suite.
 
 Picket compatibility tests should compare normalized reports, fingerprints,
 config diagnostics, exit codes, and stderr text against this pinned version.
