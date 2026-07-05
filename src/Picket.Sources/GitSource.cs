@@ -33,7 +33,7 @@ public static class GitSource
         }
 
         Task<string> stderrTask = process.StandardError.ReadToEndAsync();
-        List<GitPatchFragment> fragments = Parse(process.StandardOutput);
+        List<GitPatchFragment> fragments = Parse(process.StandardOutput, options);
         process.WaitForExit();
         string stderr = stderrTask.GetAwaiter().GetResult().Trim();
         if (process.ExitCode != 0)
@@ -93,7 +93,7 @@ public static class GitSource
         }
     }
 
-    private static List<GitPatchFragment> Parse(TextReader reader)
+    private static List<GitPatchFragment> Parse(TextReader reader, GitScanOptions options)
     {
         var fragments = new List<GitPatchFragment>();
         string commit = string.Empty;
@@ -101,11 +101,14 @@ public static class GitSource
         string email = string.Empty;
         string date = string.Empty;
         string message = string.Empty;
+        string? diffFilePath = null;
         string? filePath = null;
         int hunkStartLine = 0;
         var messageLines = new List<string>();
         var addedLines = new List<string>();
         bool readingMessage = false;
+        bool diffBinaryProcessed = false;
+        bool diffDeleted = false;
 
         string? line;
         while ((line = reader.ReadLine()) is not null)
@@ -118,10 +121,13 @@ public static class GitSource
                 email = string.Empty;
                 date = string.Empty;
                 message = string.Empty;
+                diffFilePath = null;
                 filePath = null;
                 hunkStartLine = 0;
                 messageLines.Clear();
                 readingMessage = false;
+                diffBinaryProcessed = false;
+                diffDeleted = false;
                 continue;
             }
 
@@ -143,8 +149,17 @@ public static class GitSource
                 FlushFragment();
                 message = CreateMessage(messageLines);
                 readingMessage = false;
+                diffFilePath = ParseDiffNewFilePath(line);
                 filePath = null;
                 hunkStartLine = 0;
+                diffBinaryProcessed = false;
+                diffDeleted = false;
+                continue;
+            }
+
+            if (line.StartsWith("deleted file mode ", StringComparison.Ordinal))
+            {
+                diffDeleted = true;
                 continue;
             }
 
@@ -166,7 +181,19 @@ public static class GitSource
             {
                 FlushFragment();
                 filePath = ParseNewFilePath(line);
+                diffFilePath = filePath ?? diffFilePath;
                 hunkStartLine = 0;
+                continue;
+            }
+
+            if (IsBinaryDiffLine(line))
+            {
+                if (!diffDeleted && !diffBinaryProcessed && diffFilePath is not null)
+                {
+                    AddArchiveFragments(options, fragments, diffFilePath, commit, author, email, date, message);
+                    diffBinaryProcessed = true;
+                }
+
                 continue;
             }
 
@@ -208,6 +235,110 @@ public static class GitSource
         }
     }
 
+    private static void AddArchiveFragments(
+        GitScanOptions options,
+        List<GitPatchFragment> fragments,
+        string filePath,
+        string commit,
+        string author,
+        string email,
+        string date,
+        string message)
+    {
+        if (options.MaxArchiveDepth == 0)
+        {
+            return;
+        }
+
+        byte[]? blob = ReadGitBlob(options, commit, filePath);
+        if (blob is null || !ZipArchiveReader.IsZipContent(blob))
+        {
+            return;
+        }
+
+        var entries = new List<ArchiveEntry>();
+        if (!ZipArchiveReader.TryReadBytesEntries(blob, filePath, options.MaxArchiveDepth, options.MaxTargetBytes, entries))
+        {
+            return;
+        }
+
+        foreach (ArchiveEntry entry in entries)
+        {
+            fragments.Add(new GitPatchFragment(
+                entry.Content,
+                entry.DisplayPath,
+                1,
+                commit,
+                author,
+                email,
+                date,
+                message));
+        }
+    }
+
+    private static byte[]? ReadGitBlob(GitScanOptions options, string commit, string filePath)
+    {
+        if (commit.Length == 0 && options.PreCommit && !options.Staged)
+        {
+            return ReadWorktreeBlob(options.Root, filePath);
+        }
+
+        string revision = commit.Length == 0 ? $":{filePath}" : $"{commit}:{filePath}";
+        using Process process = CreateGitShowProcess(options.Root, revision);
+        try
+        {
+            if (!process.Start())
+            {
+                return null;
+            }
+        }
+        catch (Win32Exception)
+        {
+            return null;
+        }
+
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+        using var stream = new MemoryStream();
+        process.StandardOutput.BaseStream.CopyTo(stream);
+        process.WaitForExit();
+        _ = stderrTask.GetAwaiter().GetResult();
+        return process.ExitCode == 0 ? stream.ToArray() : null;
+    }
+
+    private static Process CreateGitShowProcess(string root, string revision)
+    {
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo("git")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+            },
+        };
+        AddArguments(process.StartInfo, "-C", root, "show", revision);
+        return process;
+    }
+
+    private static byte[]? ReadWorktreeBlob(string root, string filePath)
+    {
+        string path = Path.GetFullPath(Path.Combine(root, filePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (!IsPathWithinRoot(root, path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        return File.ReadAllBytes(path);
+    }
+
+    private static bool IsPathWithinRoot(string root, string path)
+    {
+        string normalizedRoot = Path.GetFullPath(root);
+        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        return path.Equals(normalizedRoot, comparison)
+            || path.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, comparison);
+    }
+
     private static (string Author, string Email) ParseAuthor(string value)
     {
         int emailStart = value.LastIndexOf(" <", StringComparison.Ordinal);
@@ -246,6 +377,24 @@ public static class GitSource
         }
 
         return path.StartsWith("b/", StringComparison.Ordinal) ? path[2..] : path;
+    }
+
+    private static string? ParseDiffNewFilePath(string line)
+    {
+        string text = line["diff --git ".Length..];
+        int newPathIndex = text.IndexOf(" b/", StringComparison.Ordinal);
+        if (newPathIndex < 0)
+        {
+            return null;
+        }
+
+        return text[(newPathIndex + 3)..].Trim();
+    }
+
+    private static bool IsBinaryDiffLine(string line)
+    {
+        return line.StartsWith("Binary files ", StringComparison.Ordinal)
+            || line.Equals("GIT binary patch", StringComparison.Ordinal);
     }
 
     private static int ParseNewStartLine(string line)

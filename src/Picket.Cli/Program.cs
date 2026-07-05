@@ -469,6 +469,7 @@ static int RunGit(string[] args)
     string root = ".";
     int exitCode = 1;
     bool ignoreGitleaksAllow = false;
+    int maxArchiveDepth = 0;
     int maxDecodeDepth = 5;
     bool preCommit = false;
     bool rootProvided = false;
@@ -639,6 +640,16 @@ static int RunGit(string[] args)
             continue;
         }
 
+        if (IsMaxArchiveDepthFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-depth", out maxArchiveDepth))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -683,7 +694,7 @@ static int RunGit(string[] args)
     IReadOnlyList<GitPatchFragment> fragments;
     try
     {
-        fragments = GitSource.Enumerate(new GitScanOptions(root, logOptions, staged, preCommit));
+        fragments = GitSource.Enumerate(new GitScanOptions(root, logOptions, staged, preCommit, maxArchiveDepth, maxTargetBytes));
     }
     catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
     {

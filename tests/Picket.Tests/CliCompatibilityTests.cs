@@ -299,19 +299,29 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that git archive traversal still fails explicitly until git blob archives are implemented.
+    /// Verifies that git scans find secrets inside zip archives when archive traversal is enabled.
     /// </summary>
     [TestMethod]
-    public async Task GitScanRejectsUnimplementedPositiveArchiveDepth()
+    public async Task GitScanFindsZipArchiveSecretWhenArchiveDepthEnabled()
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        WriteZipFile(Path.Combine(root.Path, "secrets.zip"), ("nested/secret.txt", "token-12345"));
+        await RunGitCommandAsync(root.Path, "add", "secrets.zip").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add archive").ConfigureAwait(false);
+        string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
 
-        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult disabled = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
-        Assert.IsEmpty(result.Stdout);
-        Assert.Contains("--max-archive-depth is not implemented yet", result.Stderr);
+        Assert.AreEqual(0, disabled.ExitCode);
+        Assert.AreEqual("[]\n", disabled.Stdout);
+        Assert.AreEqual(1, enabled.ExitCode);
+        Assert.Contains("\"File\": \"secrets.zip!nested/secret.txt\"", enabled.Stdout);
+        Assert.Contains("\"Secret\": \"token-12345\"", enabled.Stdout);
+        Assert.Contains($"\"Commit\": \"{commit}\"", enabled.Stdout);
+        Assert.Contains($"\"Fingerprint\": \"{commit}:secrets.zip!nested/secret.txt:token:1\"", enabled.Stdout);
     }
 
     /// <summary>
