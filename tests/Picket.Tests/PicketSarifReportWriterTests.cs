@@ -44,6 +44,7 @@ public sealed class PicketSarifReportWriterTests
             rulePack: "picket-strict",
             provider: "example",
             documentationUrl: "https://example.invalid/rules/test-rule");
+        string fingerprint = StableFindingFingerprint.Create(finding);
 
         string sarif = PicketSarifReportWriter.Write([finding], [rule]);
 
@@ -62,9 +63,9 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"text\": \"test-rule: A test rule detected a secret in auth.py on line 1.\"", sarif);
         Assert.Contains("\"uri\": \"auth.py\"", sarif);
         Assert.Contains("\"snippet\": {\n          \"text\": \"line containing secret\"\n         }", sarif);
-        Assert.Contains("\"picketFingerprint\": \"auth.py:test-rule:1:1\"", sarif);
+        Assert.Contains($"\"picketFingerprint\": \"{fingerprint}\"", sarif);
         Assert.Contains("\"schema\": \"picket.finding.v1\"", sarif);
-        Assert.Contains("\"fingerprint\": \"auth.py:test-rule:1:1\"", sarif);
+        Assert.Contains($"\"fingerprint\": \"{fingerprint}\"", sarif);
         Assert.Contains("\"entropy\": 2.5", sarif);
         Assert.Contains("\"secretSha256\": \"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", sarif);
         Assert.Contains("\"matchSha256\": \"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", sarif);
@@ -90,7 +91,7 @@ public sealed class PicketSarifReportWriterTests
         string sarif = PicketSarifReportWriter.Write([finding], []);
 
         Assert.Contains("\"uri\": \"link.py\"", sarif);
-        Assert.Contains("\"picketFingerprint\": \"link.py:test-rule:1:1\"", sarif);
+        Assert.Contains($"\"picketFingerprint\": \"{StableFindingFingerprint.Create(finding)}\"", sarif);
     }
 
     private static Finding CreateFinding(string symlinkFile = "", string fingerprint = "fingerprint")

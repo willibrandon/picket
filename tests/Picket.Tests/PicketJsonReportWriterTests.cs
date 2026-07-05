@@ -79,7 +79,7 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"matchSha256\":\"c67137832a0e4df13a1f667166b91ffe010134d01578d7bd6499c36def655d6b\"", json);
         Assert.Contains($"\"blobSha256\":\"{BlobSha256}\"", json);
         Assert.Contains("\"keywords\":[\"x\"]", json);
-        Assert.Contains("\"fingerprint\":\"stdin:rule:1:2\"", json);
+        Assert.Contains($"\"fingerprint\":\"{StableFindingFingerprint.Create(finding)}\"", json);
         Assert.Contains("\"validationState\":\"unknown\"", json);
         Assert.Contains("\"severity\":\"high\"", json);
         Assert.Contains("\"confidence\":\"medium\"", json);

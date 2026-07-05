@@ -50,7 +50,7 @@ public sealed class PicketGitLabCodeQualityReportWriterTests
 
         Assert.Contains("\"description\":\"rule: desc\"", json);
         Assert.Contains("\"check_name\":\"rule\"", json);
-        Assert.Contains("\"fingerprint\":\"src/app.cs:rule:1:2\"", json);
+        Assert.Contains($"\"fingerprint\":\"{StableFindingFingerprint.Create(finding)}\"", json);
         Assert.Contains("\"severity\":\"critical\"", json);
         Assert.Contains("\"location\":{\"path\":\"src/app.cs\",\"lines\":{\"begin\":1}}", json);
     }
@@ -84,7 +84,7 @@ public sealed class PicketGitLabCodeQualityReportWriterTests
         string json = PicketGitLabCodeQualityReportWriter.Write([finding]);
 
         Assert.Contains("\"description\":\"rule detected a secret in link.txt on line 3.\"", json);
-        Assert.Contains("\"fingerprint\":\"link.txt:rule:3:5\"", json);
+        Assert.Contains($"\"fingerprint\":\"{StableFindingFingerprint.Create(finding)}\"", json);
         Assert.Contains("\"location\":{\"path\":\"link.txt\",\"lines\":{\"begin\":3}}", json);
     }
 }

@@ -52,6 +52,8 @@ Native reports can include:
 - ignore reason,
 - remediation links.
 
+Native fingerprints are versioned as `picket:v1:<sha256>`. The hash input includes the normalized logical path, rule ID, secret or match hash, and decode path. It intentionally excludes line, column, commit, author, and message metadata so native triage IDs remain stable when a finding moves inside the same file or appears across multiple commits. Gitleaks-compatible reports keep Gitleaks fingerprints.
+
 ## Report Selection
 
 When `--report-format` is provided, it controls the writer. Without `--report-format`, Picket infers the writer from `--report-path`:

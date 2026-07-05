@@ -423,7 +423,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("<h1>Picket Secret Scan Report</h1>", result.Stdout);
         Assert.Contains("<span>Findings</span><strong>1</strong>", result.Stdout);
         Assert.Contains("secret.txt:1:1", result.Stdout);
-        Assert.Contains("secret.txt:token:1", result.Stdout);
+        Assert.Contains("picket:v1:", result.Stdout);
         Assert.Contains("Secret SHA-256", result.Stdout);
         Assert.Contains("Blob SHA-256", result.Stdout);
         Assert.DoesNotContain("<script", result.Stdout);
@@ -800,7 +800,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"informationUri\": \"https://github.com/willibrandon/picket\"", result.Stdout);
         Assert.Contains("\"ruleId\": \"token\"", result.Stdout);
         Assert.Contains("\"security-severity\": \"8.0\"", result.Stdout);
-        Assert.Contains("\"picketFingerprint\": \"secret.txt:token:1:1\"", result.Stdout);
+        Assert.Contains("\"picketFingerprint\": \"picket:v1:", result.Stdout);
         Assert.Contains("\"blobSha256\": \"7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad\"", result.Stdout);
         Assert.Contains("\"validationState\": \"unknown\"", result.Stdout);
     }
@@ -1317,7 +1317,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("format: picket-json", view.Stdout);
         Assert.Contains("findings: 1", view.Stdout);
         Assert.Contains("files: 1", view.Stdout);
-        Assert.Contains("token secret.txt:1 secret.txt:token:1", view.Stdout);
+        Assert.Contains("token secret.txt:1 picket:v1:", view.Stdout);
         Assert.DoesNotContain("token-12345", view.Stdout);
     }
 

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Picket.Engine;
@@ -119,9 +118,7 @@ internal static class PicketFindingMetadata
 
     internal static string CreateFingerprint(Finding finding)
     {
-        return string.Create(
-            CultureInfo.InvariantCulture,
-            $"{CreateLocationPath(finding)}:{finding.RuleID}:{finding.StartLine}:{finding.StartColumn}");
+        return StableFindingFingerprint.Create(finding);
     }
 
     internal static string CreateLocationPath(Finding finding)

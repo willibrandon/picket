@@ -33,6 +33,7 @@ public sealed class PicketJunitReportWriterTests
     public void WriteUsesPicketJunitShape()
     {
         Finding finding = CreateFinding();
+        string fingerprint = StableFindingFingerprint.Create(finding);
 
         string xml = PicketJunitReportWriter.Write([finding]);
 
@@ -44,7 +45,7 @@ public sealed class PicketJunitReportWriterTests
         Assert.Contains($"&#34;blobSha256&#34;:&#34;{BlobSha256}&#34;", xml);
         Assert.Contains("&#34;decodePath&#34;:[&#34;base64&#34;]", xml);
         Assert.Contains("&#34;validationState&#34;:&#34;unknown&#34;", xml);
-        Assert.Contains("&#34;fingerprint&#34;:&#34;auth.py:test-rule:1:1&#34;", xml);
+        Assert.Contains($"&#34;fingerprint&#34;:&#34;{fingerprint}&#34;", xml);
     }
 
     /// <summary>

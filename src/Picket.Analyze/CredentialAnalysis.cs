@@ -10,7 +10,7 @@ namespace Picket.Analyze;
 /// <param name="file">The source file path.</param>
 /// <param name="startLine">The one-based finding start line.</param>
 /// <param name="startColumn">The one-based finding start column.</param>
-/// <param name="fingerprint">The finding fingerprint.</param>
+/// <param name="fingerprint">The stable Picket-native finding fingerprint.</param>
 /// <param name="secretSha256">The SHA-256 hash of the original secret.</param>
 /// <param name="validationState">The offline validation state.</param>
 /// <param name="risk">The offline triage risk.</param>
@@ -75,7 +75,7 @@ public sealed class CredentialAnalysis(
     public int StartColumn { get; } = startColumn;
 
     /// <summary>
-    /// Gets the finding fingerprint.
+    /// Gets the stable Picket-native finding fingerprint.
     /// </summary>
     public string Fingerprint { get; } = fingerprint;
 

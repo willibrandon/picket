@@ -53,7 +53,7 @@ public static class CredentialAnalyzer
             finding.File,
             finding.StartLine,
             finding.StartColumn,
-            finding.Fingerprint,
+            StableFindingFingerprint.Create(finding),
             secretSha256,
             validationState,
             risk,
@@ -171,10 +171,7 @@ public static class CredentialAnalyzer
             $"validationState={validationState}",
         };
 
-        if (finding.Fingerprint.Length != 0)
-        {
-            evidence.Add($"fingerprint={finding.Fingerprint}");
-        }
+        evidence.Add($"fingerprint={StableFindingFingerprint.Create(finding)}");
 
         if (secretSha256.Length != 0)
         {
