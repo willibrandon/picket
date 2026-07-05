@@ -114,6 +114,7 @@ public static class GitleaksConfigLoader
         string documentationUrl = string.Empty;
         IReadOnlyList<string> examples = [];
         IReadOnlyList<string> negativeExamples = [];
+        string minVersion = string.Empty;
         string allowlistDescription = string.Empty;
         AllowlistCondition allowlistCondition = AllowlistCondition.Or;
         List<string> allowlistCommits = [];
@@ -262,6 +263,16 @@ public static class GitleaksConfigLoader
                 value = ReadMultilineValue(lines, ref lineIndex, value);
             }
 
+            if (section.Length == 0)
+            {
+                if (key.Equals("minVersion", StringComparison.Ordinal))
+                {
+                    minVersion = ParseString(value, sourceName, key);
+                }
+
+                continue;
+            }
+
             if (section.Equals("extend", StringComparison.Ordinal))
             {
                 switch (key)
@@ -400,6 +411,7 @@ public static class GitleaksConfigLoader
         AddCurrentAllowlist();
         AddCurrentRequiredRule();
         AddCurrentRule();
+        ValidateMinVersion(minVersion, sourceName);
         ResolveExtends();
         ApplyTargetedGlobalAllowlists();
         if (rules.Count == 0)
@@ -1033,6 +1045,113 @@ public static class GitleaksConfigLoader
         }
 
         return slashCount % 2 == 1;
+    }
+
+    private static void ValidateMinVersion(string value, string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        string version = value.Trim();
+        if (version.StartsWith('v') || version.StartsWith('V'))
+        {
+            version = version[1..];
+        }
+
+        if (!IsValidVersion(version))
+        {
+            throw new InvalidDataException($"{sourceName}: invalid minVersion '{value}'");
+        }
+    }
+
+    private static bool IsValidVersion(string version)
+    {
+        if (version.Length == 0)
+        {
+            return false;
+        }
+
+        int buildIndex = version.IndexOf('+', StringComparison.Ordinal);
+        string build = string.Empty;
+        if (buildIndex >= 0)
+        {
+            build = version[(buildIndex + 1)..];
+            version = version[..buildIndex];
+            if (!IsValidVersionSuffix(build))
+            {
+                return false;
+            }
+        }
+
+        int prereleaseIndex = version.IndexOf('-', StringComparison.Ordinal);
+        string prerelease = string.Empty;
+        if (prereleaseIndex >= 0)
+        {
+            prerelease = version[(prereleaseIndex + 1)..];
+            version = version[..prereleaseIndex];
+            if (!IsValidVersionSuffix(prerelease))
+            {
+                return false;
+            }
+        }
+
+        return IsValidNumericVersion(version);
+    }
+
+    private static bool IsValidNumericVersion(string version)
+    {
+        string[] parts = version.Split('.');
+        if (parts.Length == 0 || parts.Length > 4)
+        {
+            return false;
+        }
+
+        foreach (string part in parts)
+        {
+            if (part.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (char c in part)
+            {
+                if (!char.IsAsciiDigit(c))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsValidVersionSuffix(string value)
+    {
+        if (value.Length == 0)
+        {
+            return false;
+        }
+
+        string[] identifiers = value.Split('.');
+        foreach (string identifier in identifiers)
+        {
+            if (identifier.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (char c in identifier)
+            {
+                if (!char.IsAsciiLetterOrDigit(c) && c != '-')
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     private static void ThrowUnsupportedTable(string table, string sourceName)

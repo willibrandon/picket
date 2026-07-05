@@ -173,6 +173,45 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that valid top-level Gitleaks minVersion values are accepted.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesMinVersion()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            minVersion = "v8.25.0"
+
+            [[rules]]
+            id = "custom-token"
+            regex = '''token-[0-9]+'''
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules);
+        Assert.AreEqual("custom-token", ruleSet.Rules[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that invalid top-level Gitleaks minVersion values fail config loading.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsInvalidMinVersion()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            minVersion = "not a version"
+
+            [[rules]]
+            id = "custom-token"
+            regex = '''token-[0-9]+'''
+            """,
+            "memory"));
+
+        Assert.Contains("invalid minVersion 'not a version'", exception.Message);
+    }
+
+    /// <summary>
     /// Verifies that an explicit config path wins over every implicit Gitleaks config source.
     /// </summary>
     [TestMethod]
