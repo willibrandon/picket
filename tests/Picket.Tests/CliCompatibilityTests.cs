@@ -183,6 +183,72 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
     }
 
+    /// <summary>
+    /// Verifies that git history scans report committed secrets with commit metadata and fingerprints.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanReportsCommittedSecret()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
+        string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
+
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
+        Assert.Contains($"\"Commit\": \"{commit}\"", result.Stdout);
+        Assert.Contains("\"File\": \"secret.txt\"", result.Stdout);
+        Assert.Contains("\"Author\": \"Picket Test\"", result.Stdout);
+        Assert.Contains("\"Email\": \"picket@example.com\"", result.Stdout);
+        Assert.Contains("\"Message\": \"add secret\"", result.Stdout);
+        Assert.Contains($"\"Fingerprint\": \"{commit}:secret.txt:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that git scans honor Gitleaks-compatible global fingerprint ignore entries.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanHonorsGlobalGitleaksIgnoreFingerprint()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, ".gitleaksignore"), "secret.txt:token:1\n");
+
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that staged git scans report index additions without commit metadata.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanReportsStagedSecret()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--staged").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Commit\": \"\"", result.Stdout);
+        Assert.Contains("\"File\": \"secret.txt\"", result.Stdout);
+        Assert.Contains("\"Fingerprint\": \"secret.txt:token:1\"", result.Stdout);
+    }
+
     private static string WriteTokenConfig(string root)
     {
         string configPath = Path.Combine(root, "gitleaks.toml");
@@ -194,6 +260,41 @@ public sealed class CliCompatibilityTests
             regex = '''token-[0-9]+'''
             """);
         return configPath;
+    }
+
+    private static async Task InitializeGitRepositoryAsync(string root)
+    {
+        await RunGitCommandAsync(root, "init").ConfigureAwait(false);
+        await RunGitCommandAsync(root, "config", "core.autocrlf", "false").ConfigureAwait(false);
+        await RunGitCommandAsync(root, "config", "user.name", "Picket Test").ConfigureAwait(false);
+        await RunGitCommandAsync(root, "config", "user.email", "picket@example.com").ConfigureAwait(false);
+    }
+
+    private static async Task<string> RunGitCommandAsync(string workingDirectory, params string[] arguments)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo("git")
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            WorkingDirectory = workingDirectory,
+        };
+        foreach (string argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        process.Start();
+        string stdout = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+        string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
+        await process.WaitForExitAsync().ConfigureAwait(false);
+        if (process.ExitCode != 0)
+        {
+            Assert.Fail($"git {string.Join(' ', arguments)} failed with exit code {process.ExitCode}: {stderr}");
+        }
+
+        return stdout;
     }
 
     private static async Task<CliResult> RunCliAsync(params string[] arguments)

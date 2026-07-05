@@ -27,6 +27,11 @@ if (command.Equals("stdin", StringComparison.OrdinalIgnoreCase))
     return await RunStdinAsync(args[1..]).ConfigureAwait(false);
 }
 
+if (command.Equals("git", StringComparison.OrdinalIgnoreCase))
+{
+    return RunGit(args[1..]);
+}
+
 if (IsDirectoryCommand(command))
 {
     return RunDirectory(args[1..]);
@@ -348,6 +353,211 @@ static int RunDirectory(string[] args)
     return filteredFindings.Count == 0 ? 0 : exitCode;
 }
 
+static int RunGit(string[] args)
+{
+    string? baselinePath = null;
+    string? configPath = null;
+    string? reportPath = null;
+    string? reportFormat = null;
+    string? logOptions = null;
+    string gitleaksIgnorePath = ".";
+    string root = ".";
+    int exitCode = 1;
+    bool ignoreGitleaksAllow = false;
+    bool preCommit = false;
+    bool rootProvided = false;
+    bool staged = false;
+    long? maxTargetBytes = null;
+    int redactionPercent = 0;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (arg is "-b" or "--baseline-path")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            baselinePath = args[++i];
+            continue;
+        }
+
+        if (arg is "-c" or "--config")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            configPath = args[++i];
+            continue;
+        }
+
+        if (arg.Equals("--exit-code", StringComparison.Ordinal) || arg.StartsWith("--exit-code=", StringComparison.Ordinal))
+        {
+            if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsReportFormatFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (arg is "-r" or "--report-path" || arg.StartsWith("--report-path=", StringComparison.Ordinal))
+        {
+            if (!TryReadStringFlag(args, ref i, "--report-path", out reportPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (arg is "-i" or "--gitleaks-ignore-path")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            gitleaksIgnorePath = args[++i];
+            continue;
+        }
+
+        if (IsIgnoreGitleaksAllowFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsLogOptionsFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--log-opts", out logOptions))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsPreCommitFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--pre-commit", out preCommit))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsStagedFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--staged", out staged))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (arg is "--max-target-megabytes")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            if (!TryParseMegabytes(args[++i], out maxTargetBytes))
+            {
+                Console.Error.WriteLine($"{arg} requires a non-negative integer value");
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsRedactFlag(arg))
+        {
+            if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (arg.StartsWith('-'))
+        {
+            Console.Error.WriteLine($"unknown flag: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        if (rootProvided)
+        {
+            Console.Error.WriteLine($"unexpected argument: {arg}");
+            return UnknownFlagExitCode;
+        }
+
+        root = arg.Length == 0 ? "." : arg;
+        rootProvided = true;
+    }
+
+    if (!TryLoadRules(configPath, root, out CompiledRuleSet? rules))
+    {
+        return 1;
+    }
+
+    if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
+    {
+        return 1;
+    }
+
+    IReadOnlyList<GitPatchFragment> fragments;
+    try
+    {
+        fragments = GitSource.Enumerate(new GitScanOptions(root, logOptions, staged, preCommit));
+    }
+    catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        return 1;
+    }
+
+    GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
+    List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes);
+    IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
+    if (redactionPercent > 0)
+    {
+        filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
+    }
+
+    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat))
+    {
+        return 1;
+    }
+
+    return filteredFindings.Count == 0 ? 0 : exitCode;
+}
+
 static bool IsHelp(string arg)
 {
     return arg is "-h" or "--help" or "help";
@@ -358,6 +568,72 @@ static bool IsDirectoryCommand(string command)
     return command.Equals("dir", StringComparison.OrdinalIgnoreCase)
         || command.Equals("file", StringComparison.OrdinalIgnoreCase)
         || command.Equals("directory", StringComparison.OrdinalIgnoreCase);
+}
+
+static List<Finding> ScanGitFragments(
+    IReadOnlyList<GitPatchFragment> fragments,
+    CompiledRuleSet rules,
+    bool ignoreGitleaksAllow,
+    long? maxTargetBytes)
+{
+    var findings = new List<Finding>();
+    foreach (GitPatchFragment fragment in fragments)
+    {
+        if (maxTargetBytes.HasValue && fragment.Input.Length > maxTargetBytes.Value)
+        {
+            continue;
+        }
+
+        IReadOnlyList<Finding> fragmentFindings = SecretScanner.Scan(new ScanRequest(
+            fragment.Input,
+            fragment.FilePath,
+            rules,
+            ignoreGitleaksAllow,
+            fragment.Commit));
+        foreach (Finding finding in fragmentFindings)
+        {
+            findings.Add(MapGitFinding(finding, fragment));
+        }
+    }
+
+    return findings;
+}
+
+static Finding MapGitFinding(Finding finding, GitPatchFragment fragment)
+{
+    int startLine = MapGitLine(fragment, finding.StartLine);
+    int endLine = MapGitLine(fragment, finding.EndLine);
+    return new Finding(
+        finding.RuleID,
+        finding.Description,
+        startLine,
+        endLine,
+        finding.StartColumn,
+        finding.EndColumn,
+        finding.Match,
+        finding.Secret,
+        finding.File,
+        finding.SymlinkFile,
+        fragment.Commit,
+        finding.Entropy,
+        fragment.Author,
+        fragment.Email,
+        fragment.Date,
+        fragment.Message,
+        finding.Tags,
+        CreateFingerprint(fragment.Commit, finding.File, finding.RuleID, startLine));
+}
+
+static int MapGitLine(GitPatchFragment fragment, int line)
+{
+    return line == 0 ? 0 : fragment.StartLine + line - 1;
+}
+
+static string CreateFingerprint(string commit, string fileName, string ruleId, int startLine)
+{
+    return commit.Length == 0
+        ? $"{fileName}:{ruleId}:{startLine}"
+        : $"{commit}:{fileName}:{ruleId}:{startLine}";
 }
 
 static bool TryParseMegabytes(string value, out long? bytes)
@@ -415,6 +691,24 @@ static bool IsReportFormatFlag(string arg)
 {
     return arg is "-f" or "--report-format"
         || arg.StartsWith("--report-format=", StringComparison.Ordinal);
+}
+
+static bool IsLogOptionsFlag(string arg)
+{
+    return arg.Equals("--log-opts", StringComparison.Ordinal)
+        || arg.StartsWith("--log-opts=", StringComparison.Ordinal);
+}
+
+static bool IsPreCommitFlag(string arg)
+{
+    return arg.Equals("--pre-commit", StringComparison.Ordinal)
+        || arg.StartsWith("--pre-commit=", StringComparison.Ordinal);
+}
+
+static bool IsStagedFlag(string arg)
+{
+    return arg.Equals("--staged", StringComparison.Ordinal)
+        || arg.StartsWith("--staged=", StringComparison.Ordinal);
 }
 
 static bool TryReadBooleanFlag(string arg, string longName, out bool value)
@@ -679,6 +973,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");

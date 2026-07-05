@@ -39,9 +39,9 @@ public sealed class SecretScanner
                     [],
                     [],
                     string.Empty,
-                    string.Empty))
+                    request.Commit))
                 {
-                    findings.Add(CreatePathFinding(request.FileName, compiledRule.Rule));
+                    findings.Add(CreatePathFinding(request.FileName, compiledRule.Rule, request.Commit));
                 }
 
                 continue;
@@ -56,6 +56,7 @@ public sealed class SecretScanner
                     windowsFileNameBytes,
                     request.RuleSet.Allowlists,
                     request.IgnoreGitleaksAllow,
+                    request.Commit,
                     compiledRule,
                     compiledRule.Regex,
                     findings);
@@ -72,6 +73,7 @@ public sealed class SecretScanner
         ReadOnlySpan<byte> windowsFileNameBytes,
         List<CompiledAllowlist> globalAllowlists,
         bool ignoreGitleaksAllow,
+        string commit,
         CompiledRule compiledRule,
         ByteRegex regex,
         List<Finding> findings)
@@ -117,7 +119,7 @@ public sealed class SecretScanner
                 secretBytes,
                 lineBytes,
                 secretText,
-                string.Empty))
+                commit))
             {
                 offset = AdvanceAfterMatch(match, input.Length);
                 continue;
@@ -134,14 +136,14 @@ public sealed class SecretScanner
                 secretText,
                 fileName,
                 string.Empty,
-                string.Empty,
+                commit,
                 entropy,
                 string.Empty,
                 string.Empty,
                 string.Empty,
                 string.Empty,
                 rule.Tags,
-                $"{fileName}:{rule.Id}:{start.Line}"));
+                CreateFingerprint(commit, fileName, rule.Id, start.Line)));
 
             offset = AdvanceAfterMatch(match, input.Length);
         }
@@ -292,7 +294,7 @@ public sealed class SecretScanner
             && compiledRule.PathRegex.FindCaptures(windowsFileNameBytes, 0) is not null;
     }
 
-    private static Finding CreatePathFinding(string fileName, SecretRule rule)
+    private static Finding CreatePathFinding(string fileName, SecretRule rule, string commit)
     {
         return new Finding(
             rule.Id,
@@ -305,14 +307,21 @@ public sealed class SecretScanner
             string.Empty,
             fileName,
             string.Empty,
-            string.Empty,
+            commit,
             0,
             string.Empty,
             string.Empty,
             string.Empty,
             string.Empty,
             rule.Tags,
-            $"{fileName}:{rule.Id}:0");
+            CreateFingerprint(commit, fileName, rule.Id, 0));
+    }
+
+    private static string CreateFingerprint(string commit, string fileName, string ruleId, int startLine)
+    {
+        return commit.Length == 0
+            ? $"{fileName}:{ruleId}:{startLine}"
+            : $"{commit}:{fileName}:{ruleId}:{startLine}";
     }
 
     private static ByteRegexMatch ResolveSecret(ByteRegexCaptures captures, int secretGroup)
