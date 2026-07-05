@@ -341,6 +341,8 @@ public sealed partial class RepositoryConventionTests
         string script = ReadRepositoryFile("scripts/Capture-UpstreamPins.ps1");
         string oracleScript = ReadRepositoryFile("scripts/Capture-GitleaksOracle.ps1");
         string compatibilityScript = ReadRepositoryFile("scripts/Capture-CompatibilityOracle.ps1");
+        string promotionScript = ReadRepositoryFile("scripts/Promote-CompatibilityOracle.ps1");
+        string fixtureReadme = ReadRepositoryFile("tests/fixtures/oracles/README.md");
 
         Assert.Contains("PICKET_GITLEAKS_REPO", documentation);
         Assert.Contains("PICKET_SCOUT_REPO", documentation);
@@ -348,10 +350,14 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("scripts/Capture-UpstreamPins.ps1 -Update", documentation);
         Assert.Contains("scripts/Capture-GitleaksOracle.ps1", documentation);
         Assert.Contains("scripts/Capture-CompatibilityOracle.ps1", documentation);
+        Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", documentation);
         Assert.Contains("PICKET_GITLEAKS_BIN", documentation);
         Assert.Contains("PICKET_BIN", documentation);
         Assert.Contains("artifacts/oracles/gitleaks", documentation);
         Assert.Contains("artifacts/oracles/compatibility", documentation);
+        Assert.Contains("tests/fixtures/oracles", documentation);
+        Assert.Contains("RedactionMapPath", documentation);
+        Assert.Contains("AllowUnredacted", documentation);
         Assert.Contains("gitleaks git <repo>", documentation);
         Assert.DoesNotContain("gitleaks git --source", documentation);
         Assert.Contains("<!-- upstream-pins:start -->", documentation);
@@ -370,6 +376,15 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("comparison.json", compatibilityScript);
         Assert.Contains("FailOnDifference", compatibilityScript);
         Assert.Contains("picket-$Mode", compatibilityScript);
+        Assert.Contains("Refusing to promote oracle captures", promotionScript);
+        Assert.Contains("tests\\fixtures\\oracles", promotionScript);
+        Assert.Contains("manifest.json", promotionScript);
+        Assert.Contains("picket.oracle.v1", promotionScript);
+        Assert.Contains("RedactionMapPath", promotionScript);
+        Assert.Contains("AllowUnredacted", promotionScript);
+        Assert.Contains("drive-root paths", documentation);
+        Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", fixtureReadme);
+        Assert.Contains("unredacted realistic credentials", fixtureReadme);
     }
 
     [GeneratedRegex(
@@ -442,7 +457,7 @@ public sealed partial class RepositoryConventionTests
 
         return Path.GetExtension(file) switch
         {
-            ".cs" or ".md" or ".ps1" or ".yaml" or ".yml" => true,
+            ".cs" or ".json" or ".md" or ".ps1" or ".txt" or ".yaml" or ".yml" => true,
             _ => false,
         };
     }

@@ -96,5 +96,18 @@ The wrapper writes `gitleaks/`, `picket/`, and `comparison.json` under
 `-PicketPath` when the Release `picket` executable has not already been built
 in the repository output layout used by the test suite.
 
+Promote a reviewed compatibility bundle into source-controlled golden fixtures
+with:
+
+```powershell
+pwsh ./scripts/Promote-CompatibilityOracle.ps1 -Name <case-name> -RedactionMapPath <redactions.json>
+```
+
+The promotion step writes normalized files under `tests/fixtures/oracles` and a
+`manifest.json` with upstream pin metadata, file hashes, and comparison results.
+It strips known local paths, normalizes line endings, applies the redaction map,
+and fails if promoted files still contain drive-root paths or any redaction-map
+secret. `-AllowUnredacted` is only for synthetic no-secret captures.
+
 Picket compatibility tests should compare normalized reports, fingerprints,
 config diagnostics, exit codes, and stderr text against this pinned version.
