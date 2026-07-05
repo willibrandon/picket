@@ -8,7 +8,12 @@ namespace Picket.Engine;
 /// <param name="input">The input bytes to scan.</param>
 /// <param name="fileName">The logical file name used in reports and fingerprints.</param>
 /// <param name="ruleSet">The compiled rules used for detection.</param>
-public sealed class ScanRequest(ReadOnlyMemory<byte> input, string fileName, CompiledRuleSet ruleSet)
+/// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
+public sealed class ScanRequest(
+    ReadOnlyMemory<byte> input,
+    string fileName,
+    CompiledRuleSet ruleSet,
+    bool ignoreGitleaksAllow = false)
 {
     /// <summary>
     /// Initializes a new scan request and compiles the supplied source rules.
@@ -16,8 +21,9 @@ public sealed class ScanRequest(ReadOnlyMemory<byte> input, string fileName, Com
     /// <param name="input">The input bytes to scan.</param>
     /// <param name="fileName">The logical file name used in reports and fingerprints.</param>
     /// <param name="ruleSet">The source rules used for detection.</param>
-    public ScanRequest(ReadOnlyMemory<byte> input, string fileName, RuleSet ruleSet)
-        : this(input, fileName, CompiledRuleSet.Compile(ruleSet))
+    /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
+    public ScanRequest(ReadOnlyMemory<byte> input, string fileName, RuleSet ruleSet, bool ignoreGitleaksAllow = false)
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow)
     {
     }
 
@@ -35,6 +41,11 @@ public sealed class ScanRequest(ReadOnlyMemory<byte> input, string fileName, Com
     /// Gets the compiled rules used for detection.
     /// </summary>
     public CompiledRuleSet RuleSet { get; } = ruleSet ?? throw new ArgumentNullException(nameof(ruleSet));
+
+    /// <summary>
+    /// Gets a value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.
+    /// </summary>
+    public bool IgnoreGitleaksAllow { get; } = ignoreGitleaksAllow;
 
     private static string RequireFileName(string value)
     {

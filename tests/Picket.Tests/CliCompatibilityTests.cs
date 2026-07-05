@@ -58,6 +58,38 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
     }
 
+    /// <summary>
+    /// Verifies that inline gitleaks:allow comments suppress CLI findings by default.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanSuppressesInlineGitleaksAllowByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345 // gitleaks:allow");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that --ignore-gitleaks-allow reports otherwise suppressed CLI findings.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanReportsInlineGitleaksAllowWhenIgnored()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345 // gitleaks:allow");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--ignore-gitleaks-allow").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+    }
+
     private static string WriteTokenConfig(string root)
     {
         string configPath = Path.Combine(root, "gitleaks.toml");

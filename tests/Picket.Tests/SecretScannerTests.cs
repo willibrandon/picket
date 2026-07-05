@@ -269,6 +269,50 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that inline gitleaks:allow comments suppress same-line findings by default.
+    /// </summary>
+    [TestMethod]
+    public void ScanSuppressesInlineGitleaksAllowByDefault()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=token-1234 // gitleaks:allow");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that inline gitleaks:allow comments can be ignored for compatibility flags.
+    /// </summary>
+    [TestMethod]
+    public void ScanReportsInlineGitleaksAllowWhenIgnored()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=token-1234 // gitleaks:allow");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules, ignoreGitleaksAllow: true));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("token-1234", findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that gitleaks:allow on a different line does not suppress a finding.
+    /// </summary>
+    [TestMethod]
+    public void ScanDoesNotSuppressGitleaksAllowOnDifferentLine()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=token-1234\n// gitleaks:allow");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("token-1234", findings[0].Secret);
+    }
+
+    /// <summary>
     /// Verifies that per-rule regex allowlists suppress matching findings.
     /// </summary>
     [TestMethod]
@@ -366,5 +410,15 @@ public sealed class SecretScannerTests
 
         Assert.IsEmpty(allowed);
         Assert.HasCount(1, detected);
+    }
+
+    private static CompiledRuleSet CompileTokenRule()
+    {
+        return CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "token",
+                "Token",
+                "token-[0-9]+"),
+        ]));
     }
 }

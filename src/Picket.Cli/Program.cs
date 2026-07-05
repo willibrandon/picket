@@ -42,6 +42,7 @@ static async Task<int> RunStdinAsync(string[] args)
     string? reportPath = null;
     string reportFormat = "json";
     int exitCode = 1;
+    bool ignoreGitleaksAllow = false;
     int redactionPercent = 0;
     for (int i = 0; i < args.Length; i++)
     {
@@ -102,6 +103,16 @@ static async Task<int> RunStdinAsync(string[] args)
             continue;
         }
 
+        if (IsIgnoreGitleaksAllowFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (IsRedactFlag(arg))
         {
             if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
@@ -136,7 +147,7 @@ static async Task<int> RunStdinAsync(string[] args)
     }
 
     IReadOnlyList<Finding> findings = baseline.Filter(
-        SecretScanner.Scan(new ScanRequest(input, "stdin", rules)),
+        SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow)),
         redactionPercent);
     if (redactionPercent > 0)
     {
@@ -159,6 +170,7 @@ static int RunDirectory(string[] args)
     string reportFormat = "json";
     string gitleaksIgnorePath = ".";
     int exitCode = 1;
+    bool ignoreGitleaksAllow = false;
     long? maxTargetBytes = null;
     int redactionPercent = 0;
     string? root = null;
@@ -230,6 +242,16 @@ static int RunDirectory(string[] args)
             }
 
             gitleaksIgnorePath = args[++i];
+            continue;
+        }
+
+        if (IsIgnoreGitleaksAllowFlag(arg))
+        {
+            if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
+            {
+                return UnknownFlagExitCode;
+            }
+
             continue;
         }
 
@@ -314,7 +336,7 @@ static int RunDirectory(string[] args)
         try
         {
             byte[] input = File.ReadAllBytes(file.FullPath);
-            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
+            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -396,6 +418,31 @@ static bool TryReadIntFlag(string[] args, ref int index, string longName, out in
 
     Console.Error.WriteLine($"{longName} requires an integer value");
     value = 0;
+    return false;
+}
+
+static bool IsIgnoreGitleaksAllowFlag(string arg)
+{
+    return arg.Equals("--ignore-gitleaks-allow", StringComparison.Ordinal)
+        || arg.StartsWith("--ignore-gitleaks-allow=", StringComparison.Ordinal);
+}
+
+static bool TryReadBooleanFlag(string arg, string longName, out bool value)
+{
+    if (arg.Equals(longName, StringComparison.Ordinal))
+    {
+        value = true;
+        return true;
+    }
+
+    string longNameWithEquals = string.Concat(longName, "=");
+    string text = arg[longNameWithEquals.Length..];
+    if (bool.TryParse(text, out value))
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine($"{longName} requires a boolean value");
     return false;
 }
 
@@ -574,7 +621,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-r path] [-i path] [--exit-code n] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json] [-r path] [--exit-code n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

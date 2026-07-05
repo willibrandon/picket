@@ -55,6 +55,7 @@ public sealed class SecretScanner
                     fileNameBytes,
                     windowsFileNameBytes,
                     request.RuleSet.Allowlists,
+                    request.IgnoreGitleaksAllow,
                     compiledRule,
                     compiledRule.Regex,
                     findings);
@@ -70,6 +71,7 @@ public sealed class SecretScanner
         ReadOnlySpan<byte> fileNameBytes,
         ReadOnlySpan<byte> windowsFileNameBytes,
         List<CompiledAllowlist> globalAllowlists,
+        bool ignoreGitleaksAllow,
         CompiledRule compiledRule,
         ByteRegex regex,
         List<Finding> findings)
@@ -98,6 +100,12 @@ public sealed class SecretScanner
             SourcePosition end = SourcePosition.FromOffset(input, match.End);
             ReadOnlySpan<byte> matchBytes = match.Value(input);
             ReadOnlySpan<byte> lineBytes = ExtractLine(input, match.Start);
+            if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
+            {
+                offset = AdvanceAfterMatch(match, input.Length);
+                continue;
+            }
+
             string matchText = DecodeReportText(matchBytes);
             string secretText = DecodeReportText(secretBytes);
             if (IsAllowed(
@@ -261,6 +269,11 @@ public sealed class SecretScanner
         }
 
         return false;
+    }
+
+    private static bool ContainsGitleaksAllow(ReadOnlySpan<byte> lineBytes)
+    {
+        return lineBytes.IndexOf("gitleaks:allow"u8) >= 0;
     }
 
     private static bool IsPathCandidate(CompiledRule compiledRule, ReadOnlySpan<byte> fileNameBytes, ReadOnlySpan<byte> windowsFileNameBytes)
