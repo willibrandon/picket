@@ -60,6 +60,41 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that -f csv writes a Gitleaks-compatible CSV report.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanWritesCsvReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "csv").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("RuleID,Commit,File,SymlinkFile,Secret,Match,StartLine,EndLine,StartColumn,EndColumn,Author,Message,Date,Email,Fingerprint,Tags\n", result.Stdout);
+        Assert.Contains("token,,secret.txt,,token-12345,token-12345,1,1,1,12,,,,,secret.txt:token:1,\n", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that report paths ending in .csv infer CSV when -f is omitted.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanInfersCsvReportFormatFromPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.csv");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("token,,secret.txt,,token-12345,token-12345,1,1,1,12,,,,,secret.txt:token:1,\n", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
     /// Verifies that inline gitleaks:allow comments suppress CLI findings by default.
     /// </summary>
     [TestMethod]

@@ -40,7 +40,7 @@ static async Task<int> RunStdinAsync(string[] args)
     string? baselinePath = null;
     string? configPath = null;
     string? reportPath = null;
-    string reportFormat = "json";
+    string? reportFormat = null;
     int exitCode = 1;
     bool ignoreGitleaksAllow = false;
     int redactionPercent = 0;
@@ -81,15 +81,13 @@ static async Task<int> RunStdinAsync(string[] args)
             continue;
         }
 
-        if (arg is "-f" or "--report-format")
+        if (IsReportFormatFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            reportFormat = args[++i];
             continue;
         }
 
@@ -127,12 +125,6 @@ static async Task<int> RunStdinAsync(string[] args)
         return UnknownFlagExitCode;
     }
 
-    if (!reportFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.Error.WriteLine($"unsupported report format in bootstrap build: {reportFormat}");
-        return UnknownFlagExitCode;
-    }
-
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
@@ -154,7 +146,7 @@ static async Task<int> RunStdinAsync(string[] args)
         findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
     }
 
-    if (!TryWriteJsonReport(findings, reportPath))
+    if (!TryWriteReport(findings, reportPath, reportFormat))
     {
         return 1;
     }
@@ -167,7 +159,7 @@ static int RunDirectory(string[] args)
     string? baselinePath = null;
     string? configPath = null;
     string? reportPath = null;
-    string reportFormat = "json";
+    string? reportFormat = null;
     string gitleaksIgnorePath = ".";
     int exitCode = 1;
     bool ignoreGitleaksAllow = false;
@@ -211,15 +203,13 @@ static int RunDirectory(string[] args)
             continue;
         }
 
-        if (arg is "-f" or "--report-format")
+        if (IsReportFormatFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            reportFormat = args[++i];
             continue;
         }
 
@@ -297,12 +287,6 @@ static int RunDirectory(string[] args)
         root = arg;
     }
 
-    if (!reportFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.Error.WriteLine($"unsupported report format in bootstrap build: {reportFormat}");
-        return UnknownFlagExitCode;
-    }
-
     if (root is null)
     {
         Console.Error.WriteLine("dir requires a path");
@@ -351,7 +335,7 @@ static int RunDirectory(string[] args)
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteJsonReport(filteredFindings, reportPath))
+    if (!TryWriteReport(filteredFindings, reportPath, reportFormat))
     {
         return 1;
     }
@@ -425,6 +409,12 @@ static bool IsIgnoreGitleaksAllowFlag(string arg)
 {
     return arg.Equals("--ignore-gitleaks-allow", StringComparison.Ordinal)
         || arg.StartsWith("--ignore-gitleaks-allow=", StringComparison.Ordinal);
+}
+
+static bool IsReportFormatFlag(string arg)
+{
+    return arg is "-f" or "--report-format"
+        || arg.StartsWith("--report-format=", StringComparison.Ordinal);
 }
 
 static bool TryReadBooleanFlag(string arg, string longName, out bool value)
@@ -538,9 +528,20 @@ static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out Gitlea
     }
 }
 
-static bool TryWriteJsonReport(IReadOnlyList<Finding> findings, string? reportPath)
+static bool TryWriteReport(IReadOnlyList<Finding> findings, string? reportPath, string? reportFormat)
 {
-    string report = GitleaksJsonReportWriter.Write(findings);
+    if (!TryResolveReportFormat(reportPath, reportFormat, out string? resolvedReportFormat))
+    {
+        return false;
+    }
+
+    string report = resolvedReportFormat switch
+    {
+        "csv" => GitleaksCsvReportWriter.Write(findings),
+        "json" => GitleaksJsonReportWriter.Write(findings),
+        _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
+    };
+
     if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
     {
         Console.Out.Write(report);
@@ -557,6 +558,51 @@ static bool TryWriteJsonReport(IReadOnlyList<Finding> findings, string? reportPa
         Console.Error.WriteLine($"failed to write report: {ex.Message}");
         return false;
     }
+}
+
+static bool TryResolveReportFormat(string? reportPath, string? reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
+{
+    if (!string.IsNullOrWhiteSpace(reportFormat))
+    {
+        return TryNormalizeReportFormat(reportFormat, out resolvedReportFormat);
+    }
+
+    if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
+    {
+        resolvedReportFormat = "json";
+        return true;
+    }
+
+    string extension = Path.GetExtension(reportPath);
+    if (extension.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+    {
+        resolvedReportFormat = "csv";
+        return true;
+    }
+
+    if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
+    {
+        resolvedReportFormat = "json";
+        return true;
+    }
+
+    Console.Error.WriteLine($"unknown report format for report path: {reportPath}");
+    resolvedReportFormat = null;
+    return false;
+}
+
+static bool TryNormalizeReportFormat(string reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
+{
+    string normalizedReportFormat = reportFormat.Trim().ToLowerInvariant();
+    if (normalizedReportFormat is "csv" or "json")
+    {
+        resolvedReportFormat = normalizedReportFormat;
+        return true;
+    }
+
+    Console.Error.WriteLine($"unsupported report format: {reportFormat}");
+    resolvedReportFormat = null;
+    return false;
 }
 
 static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string source)
@@ -621,7 +667,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }
