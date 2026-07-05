@@ -241,6 +241,27 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the Picket SARIF report shape.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesPicketSarifReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "sarif").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"name\": \"picket\"", result.Stdout);
+        Assert.DoesNotContain("\"name\": \"gitleaks\"", result.Stdout);
+        Assert.Contains("\"informationUri\": \"https://github.com/willibrandon/picket\"", result.Stdout);
+        Assert.Contains("\"ruleId\": \"token\"", result.Stdout);
+        Assert.Contains("\"security-severity\": \"8.0\"", result.Stdout);
+        Assert.Contains("\"picketFingerprint\": \"secret.txt:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans infer JSONL from report paths.
     /// </summary>
     [TestMethod]

@@ -2226,7 +2226,7 @@ static bool TryWriteReport(
             "junit" => GitleaksJunitReportWriter.Write(findings),
             "json" => nativeReportFormats ? PicketJsonReportWriter.Write(findings, rules) : GitleaksJsonReportWriter.Write(findings),
             "jsonl" => PicketJsonlReportWriter.Write(findings),
-            "sarif" => GitleaksSarifReportWriter.Write(findings, rules),
+            "sarif" => nativeReportFormats ? PicketSarifReportWriter.Write(findings, rules) : GitleaksSarifReportWriter.Write(findings, rules),
             "template" => GitleaksTemplateReportWriter.Write(findings, ReadReportTemplate(reportTemplatePath)),
             _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
         };
