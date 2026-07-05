@@ -1,0 +1,91 @@
+using Picket.Engine;
+using Picket.Report;
+
+namespace Picket.Tests;
+
+/// <summary>
+/// Tests for <see cref="PicketJsonlReportWriter" />.
+/// </summary>
+[TestClass]
+public sealed class PicketJsonlReportWriterTests
+{
+    /// <summary>
+    /// Verifies that native JSONL writes no bytes for an empty finding set.
+    /// </summary>
+    [TestMethod]
+    public void WriteReturnsEmptyStringForNoFindings()
+    {
+        string jsonl = PicketJsonlReportWriter.Write([]);
+
+        Assert.IsEmpty(jsonl);
+    }
+
+    /// <summary>
+    /// Verifies that each finding is written as one compact JSON object line.
+    /// </summary>
+    [TestMethod]
+    public void WriteUsesOneLinePerFinding()
+    {
+        Finding first = CreateFinding("first-rule", "first.py");
+        Finding second = CreateFinding("second-rule", "second.py");
+
+        string jsonl = PicketJsonlReportWriter.Write([first, second]);
+        string[] lines = jsonl.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.HasCount(2, lines);
+        Assert.Contains("\"ruleId\":\"first-rule\"", lines[0]);
+        Assert.Contains("\"file\":\"second.py\"", lines[1]);
+    }
+
+    /// <summary>
+    /// Verifies native JSONL escaping and stable schema fields.
+    /// </summary>
+    [TestMethod]
+    public void WriteEscapesStringsAndWritesNativeFields()
+    {
+        Finding finding = CreateFinding(
+            "rule",
+            "stdin",
+            match: "x=\"y\"\nnext",
+            secret: "secret",
+            tags: ["tag1", "tag2"],
+            link: "https://github.com/example/repo/blob/commit/stdin#L1");
+
+        string jsonl = PicketJsonlReportWriter.Write([finding]);
+
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", jsonl);
+        Assert.Contains("\"match\":\"x=\\\"y\\\"\\nnext\"", jsonl);
+        Assert.Contains("\"tags\":[\"tag1\",\"tag2\"]", jsonl);
+        Assert.Contains("\"link\":\"https://github.com/example/repo/blob/commit/stdin#L1\"", jsonl);
+    }
+
+    private static Finding CreateFinding(
+        string ruleId,
+        string file,
+        string match = "line containing secret",
+        string secret = "a secret",
+        IReadOnlyList<string>? tags = null,
+        string link = "")
+    {
+        return new Finding(
+            ruleId,
+            "desc",
+            1,
+            2,
+            1,
+            2,
+            match,
+            secret,
+            file,
+            string.Empty,
+            "0000000000000000",
+            2.5,
+            "John Doe",
+            "johndoe@example.com",
+            "10-19-2003",
+            "opps",
+            tags ?? [],
+            "fingerprint",
+            link: link);
+    }
+}
