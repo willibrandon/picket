@@ -224,4 +224,47 @@ public sealed class SecretScannerTests
         Assert.HasCount(1, findings);
         Assert.AreEqual(".m2/settings.xml", findings[0].File);
     }
+
+    /// <summary>
+    /// Verifies that an unset secret group reports the first non-empty capture group.
+    /// </summary>
+    [TestMethod]
+    public void ScanUsesFirstCaptureGroupWhenSecretGroupIsUnset()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=ABCD");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "capture-default",
+                "Capture default",
+                "key=([A-Z]+)"),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("key=ABCD", findings[0].Match);
+        Assert.AreEqual("ABCD", findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that empty or nonparticipating captures are skipped when secret group is unset.
+    /// </summary>
+    [TestMethod]
+    public void ScanSkipsEmptyCaptureGroupsWhenSecretGroupIsUnset()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("bar");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "capture-default",
+                "Capture default",
+                "(foo)?(bar)"),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("bar", findings[0].Secret);
+    }
 }

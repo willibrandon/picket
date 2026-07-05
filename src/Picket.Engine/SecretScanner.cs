@@ -140,13 +140,22 @@ public sealed class SecretScanner
 
     private static ByteRegexMatch ResolveSecret(ByteRegexCaptures captures, int secretGroup)
     {
-        if (secretGroup == 0)
+        if (secretGroup > 0)
         {
-            return captures.Match;
+            ByteRegexMatch? group = captures.GetGroup(secretGroup);
+            return group ?? captures.Match;
         }
 
-        ByteRegexMatch? group = captures.GetGroup(secretGroup);
-        return group ?? captures.Match;
+        for (int groupIndex = 1; groupIndex < captures.GroupCount; groupIndex++)
+        {
+            ByteRegexMatch? group = captures.GetGroup(groupIndex);
+            if (group is { Length: > 0 })
+            {
+                return group.Value;
+            }
+        }
+
+        return captures.Match;
     }
 
     private static int AdvanceAfterMatch(ByteRegexMatch match, int inputLength)
