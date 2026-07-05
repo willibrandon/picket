@@ -224,6 +224,75 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that --enable-rule limits directory scans to requested rule IDs.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanEnableRuleFiltersConfiguredRules()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTwoRuleConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "alpha-12345\nbeta-12345\n");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--enable-rule", "alpha-token").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"alpha-token\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"alpha-12345\"", result.Stdout);
+        Assert.DoesNotContain("\"RuleID\": \"beta-token\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that comma-separated --enable-rule values select multiple rules like Gitleaks string slices.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanEnableRuleAcceptsCommaSeparatedValues()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTwoRuleConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "alpha-12345\nbeta-12345\n");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--enable-rule=alpha-token,beta-token").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"alpha-token\"", result.Stdout);
+        Assert.Contains("\"RuleID\": \"beta-token\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that --enable-rule rejects missing rule IDs during rule loading.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanEnableRuleRejectsMissingRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--enable-rule", "missing-token").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Requested rule missing-token not found in rules", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that --enable-rule applies to stdin scans.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanEnableRuleFiltersConfiguredRules()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTwoRuleConfig(root.Path);
+
+        CliResult result = await RunCliWithInputAsync("alpha-12345\nbeta-12345\n", "stdin", "-c", configPath, "--enable-rule", "beta-token").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.DoesNotContain("\"RuleID\": \"alpha-token\"", result.Stdout);
+        Assert.Contains("\"RuleID\": \"beta-token\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"beta-12345\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that required supporting rules gate normal CLI findings.
     /// </summary>
     [TestMethod]
@@ -305,6 +374,27 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Email\": \"picket@example.com\"", result.Stdout);
         Assert.Contains("\"Message\": \"add secret\"", result.Stdout);
         Assert.Contains($"\"Fingerprint\": \"{commit}:secret.txt:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that --enable-rule limits git history scans to requested rule IDs.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanEnableRuleFiltersConfiguredRules()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTwoRuleConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "alpha-12345\nbeta-12345\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secrets").ConfigureAwait(false);
+
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--enable-rule", "beta-token").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.DoesNotContain("\"RuleID\": \"alpha-token\"", result.Stdout);
+        Assert.Contains("\"RuleID\": \"beta-token\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"beta-12345\"", result.Stdout);
     }
 
     /// <summary>
@@ -452,6 +542,23 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "token"
             regex = '''token-[0-9]+'''
+            """);
+        return configPath;
+    }
+
+    private static string WriteTwoRuleConfig(string root)
+    {
+        string configPath = Path.Combine(root, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "alpha-token"
+            regex = '''alpha-[0-9]+'''
+
+            [[rules]]
+            id = "beta-token"
+            regex = '''beta-[0-9]+'''
             """);
         return configPath;
     }

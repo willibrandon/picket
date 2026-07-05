@@ -56,6 +56,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     string? configPath = null;
     string? reportPath = null;
     string? reportFormat = null;
+    List<string> enabledRuleIds = [];
     int exitCode = 1;
     bool ignoreGitleaksAllow = false;
     int redactionPercent = 0;
@@ -89,6 +90,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
         if (arg.Equals("--exit-code", StringComparison.Ordinal) || arg.StartsWith("--exit-code=", StringComparison.Ordinal))
         {
             if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsEnableRuleFlag(arg))
+        {
+            if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
             {
                 return UnknownFlagExitCode;
             }
@@ -143,7 +154,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
-    if (!TryLoadRules(configPath, configSource, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, configSource, enabledRuleIds, out CompiledRuleSet? rules))
     {
         return 1;
     }
@@ -175,6 +186,7 @@ static int RunDirectory(string[] args)
     string? configPath = null;
     string? reportPath = null;
     string? reportFormat = null;
+    List<string> enabledRuleIds = [];
     string gitleaksIgnorePath = ".";
     int exitCode = 1;
     bool followSymlinks = false;
@@ -212,6 +224,16 @@ static int RunDirectory(string[] args)
         if (arg.Equals("--exit-code", StringComparison.Ordinal) || arg.StartsWith("--exit-code=", StringComparison.Ordinal))
         {
             if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsEnableRuleFlag(arg))
+        {
+            if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
             {
                 return UnknownFlagExitCode;
             }
@@ -321,7 +343,7 @@ static int RunDirectory(string[] args)
 
     IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes, followSymlinks));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
-    if (!TryLoadRules(configPath, root, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
     {
         return 1;
     }
@@ -382,6 +404,7 @@ static int RunGit(string[] args)
     string? reportFormat = null;
     string? logOptions = null;
     string? platform = null;
+    List<string> enabledRuleIds = [];
     string gitleaksIgnorePath = ".";
     string root = ".";
     int exitCode = 1;
@@ -421,6 +444,16 @@ static int RunGit(string[] args)
         if (arg.Equals("--exit-code", StringComparison.Ordinal) || arg.StartsWith("--exit-code=", StringComparison.Ordinal))
         {
             if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsEnableRuleFlag(arg))
+        {
+            if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
             {
                 return UnknownFlagExitCode;
             }
@@ -558,7 +591,7 @@ static int RunGit(string[] args)
         return UnknownFlagExitCode;
     }
 
-    if (!TryLoadRules(configPath, root, out CompiledRuleSet? rules))
+    if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
     {
         return 1;
     }
@@ -878,6 +911,25 @@ static bool TryReadIntFlag(string[] args, ref int index, string longName, out in
     return false;
 }
 
+static bool TryReadRuleIdFlag(string[] args, ref int index, List<string> enabledRuleIds)
+{
+    if (!TryReadStringFlag(args, ref index, "--enable-rule", out string? value))
+    {
+        return false;
+    }
+
+    foreach (string ruleId in value.Split(','))
+    {
+        string trimmedRuleId = ruleId.Trim();
+        if (trimmedRuleId.Length != 0)
+        {
+            enabledRuleIds.Add(trimmedRuleId);
+        }
+    }
+
+    return true;
+}
+
 static bool IsIgnoreGitleaksAllowFlag(string arg)
 {
     return arg.Equals("--ignore-gitleaks-allow", StringComparison.Ordinal)
@@ -888,6 +940,12 @@ static bool IsReportFormatFlag(string arg)
 {
     return arg is "-f" or "--report-format"
         || arg.StartsWith("--report-format=", StringComparison.Ordinal);
+}
+
+static bool IsEnableRuleFlag(string arg)
+{
+    return arg.Equals("--enable-rule", StringComparison.Ordinal)
+        || arg.StartsWith("--enable-rule=", StringComparison.Ordinal);
 }
 
 static bool IsSourceFlag(string arg)
@@ -1029,11 +1087,16 @@ static bool TryValidatePlatform(string? platform)
     return false;
 }
 
-static bool TryLoadRules(string? configPath, string source, [NotNullWhen(true)] out CompiledRuleSet? rules)
+static bool TryLoadRules(
+    string? configPath,
+    string source,
+    IReadOnlyList<string> enabledRuleIds,
+    [NotNullWhen(true)] out CompiledRuleSet? rules)
 {
     try
     {
         RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, source);
+        ruleSet = FilterEnabledRules(ruleSet, enabledRuleIds);
         rules = CompiledRuleSet.Compile(ruleSet);
         return true;
     }
@@ -1043,6 +1106,32 @@ static bool TryLoadRules(string? configPath, string source, [NotNullWhen(true)] 
         rules = null;
         return false;
     }
+}
+
+static RuleSet FilterEnabledRules(RuleSet ruleSet, IReadOnlyList<string> enabledRuleIds)
+{
+    if (enabledRuleIds.Count == 0)
+    {
+        return ruleSet;
+    }
+
+    var requestedRuleIds = new HashSet<string>(enabledRuleIds, StringComparer.Ordinal);
+    var enabledRules = new List<SecretRule>();
+    foreach (SecretRule rule in ruleSet.Rules)
+    {
+        if (requestedRuleIds.Remove(rule.Id))
+        {
+            enabledRules.Add(rule);
+        }
+    }
+
+    if (requestedRuleIds.Count != 0)
+    {
+        string missingRuleId = requestedRuleIds.First();
+        throw new InvalidDataException($"Requested rule {missingRuleId} not found in rules");
+    }
+
+    return new RuleSet(enabledRules, ruleSet.Allowlists, ruleSet.RegexesPrevalidated);
 }
 
 static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out GitleaksBaseline? baseline)
@@ -1217,8 +1306,8 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
+    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [-i path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif] [-r path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }
