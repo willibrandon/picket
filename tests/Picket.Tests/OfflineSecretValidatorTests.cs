@@ -147,6 +147,34 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that GCP API keys are structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesGcpApiKeyShape()
+    {
+        Finding finding = CreateFinding("gcp-api-key", CreateGcpApiKey());
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that malformed GCP API keys are rejected.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsMalformedGcpApiKey()
+    {
+        Finding finding = CreateFinding("gcp-api-key", string.Concat("AIza", "too-short"));
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that GCP service account key JSON is structurally validated offline.
     /// </summary>
     [TestMethod]
@@ -254,6 +282,11 @@ public sealed class OfflineSecretValidatorTests
         return Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(
             "0123456789ABCDEFGHIJKLMNOPQRSTUV",
             "WXYZabcdefghijklmnopqrstuvwxyz01")));
+    }
+
+    private static string CreateGcpApiKey()
+    {
+        return string.Concat("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
     }
 
     private static string CreateGcpServiceAccountKeyJson(string tokenUri = "https://oauth2.googleapis.com/token")

@@ -76,6 +76,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS",
+            "gcp-api-key" => "GCP",
             "picket-gcp-service-account-key" => "GCP",
             "picket-azure-storage-connection-string" => "Azure",
             "private-key" => "Generic",
@@ -93,6 +94,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS access key ID",
+            "gcp-api-key" => "GCP API key",
             "picket-gcp-service-account-key" => "GCP service account key",
             "picket-azure-storage-connection-string" => "Azure Storage account key",
             "private-key" => "Private key",
@@ -157,6 +159,11 @@ public static class CredentialAnalyzer
                 "Rotate one Azure Storage account key, update dependent applications, then rotate the second key.",
                 "Review storage account diagnostics, access logs, SAS token issuance, and firewall/network rules.",
                 "Search application settings, deployment outputs, CI variables, and logs for the same credential hash."
+            ],
+            "GCP" when credentialType.Equals("GCP API key", StringComparison.Ordinal) => [
+                "Rotate the Google API key or delete it after dependent applications are updated.",
+                "Review and tighten API key restrictions for allowed APIs, HTTP referrers, IP addresses, Android apps, or iOS apps.",
+                "Review Google Cloud API key usage metrics and audit logs for suspicious activity."
             ],
             "GCP" => [
                 "Disable or delete the leaked service account key in Google Cloud IAM.",

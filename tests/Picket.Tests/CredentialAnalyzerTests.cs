@@ -49,6 +49,22 @@ public sealed class CredentialAnalyzerTests
         Assert.DoesNotContain(serviceAccountJson, string.Join('\n', analysis.Evidence));
     }
 
+    /// <summary>
+    /// Verifies that GCP API-key findings receive API-key-specific triage guidance.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesGcpApiKeys()
+    {
+        Finding finding = CreateGcpApiKeyFinding();
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("GCP", analysis.Provider);
+        Assert.AreEqual("GCP API key", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains("Review and tighten API key restrictions", string.Join('\n', analysis.RecommendedActions));
+    }
+
     private static Finding CreateAzureFinding(string accountKey)
     {
         string connectionString = $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net";
@@ -71,6 +87,31 @@ public sealed class CredentialAnalyzerTests
             string.Empty,
             ["picket", "azure", "storage"],
             "settings.txt:picket-azure-storage-connection-string:1",
+            validationState: "structurally-valid");
+    }
+
+    private static Finding CreateGcpApiKeyFinding()
+    {
+        const string Secret = "AIzaSyDabcdefghijklmnopqrstuvwxyz123456";
+        return new Finding(
+            "gcp-api-key",
+            "Uncovered a GCP API key, which could lead to unauthorized access to Google Cloud services and data breaches.",
+            1,
+            1,
+            1,
+            Secret.Length,
+            Secret,
+            Secret,
+            "settings.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["google"],
+            "settings.txt:gcp-api-key:1",
             validationState: "structurally-valid");
     }
 

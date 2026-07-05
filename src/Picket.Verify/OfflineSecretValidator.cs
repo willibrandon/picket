@@ -40,6 +40,7 @@ public static class OfflineSecretValidator
             "github-oauth" => ValidateGitHubClassicToken(secret, "gho_"),
             "github-pat" => ValidateGitHubClassicToken(secret, "ghp_"),
             "github-refresh-token" => ValidateGitHubClassicToken(secret, "ghr_"),
+            "gcp-api-key" => ValidateGcpApiKey(secret),
             "jwt" => ValidateJwt(secret),
             "jwt-base64" => ValidateBase64EncodedJwt(secret),
             "picket-gcp-service-account-key" => ValidateGcpServiceAccountKeyJson(secret),
@@ -171,6 +172,26 @@ public static class OfflineSecretValidator
         return StructurallyValid("valid Azure Storage connection string shape");
     }
 
+    private static SecretValidationResult ValidateGcpApiKey(string secret)
+    {
+        const string Prefix = "AIza";
+        if (secret.Length != Prefix.Length + 35
+            || !secret.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            return Invalid("invalid GCP API key shape");
+        }
+
+        for (int i = Prefix.Length; i < secret.Length; i++)
+        {
+            if (!IsGcpApiKeySuffixCharacter(secret[i]))
+            {
+                return Invalid("invalid GCP API key alphabet");
+            }
+        }
+
+        return StructurallyValid("valid GCP API key shape");
+    }
+
     private static SecretValidationResult ValidateGcpServiceAccountKeyJson(string secret)
     {
         if (!TryParseJsonObject(secret, out JsonDocument? document))
@@ -294,6 +315,11 @@ public static class OfflineSecretValidator
         }
 
         return true;
+    }
+
+    private static bool IsGcpApiKeySuffixCharacter(char value)
+    {
+        return IsAsciiAlphaNumeric(value) || value is '_' or '-';
     }
 
     private static bool TryGetConnectionStringField(
