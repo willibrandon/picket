@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
+using System.Text.Json;
 using Picket.Engine;
 
 namespace Picket.Verify;
@@ -7,6 +10,8 @@ namespace Picket.Verify;
 /// </summary>
 public static class OfflineSecretValidator
 {
+    private static readonly Encoding s_strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
     /// <summary>
     /// Validates one finding without contacting external services.
     /// </summary>
@@ -35,6 +40,8 @@ public static class OfflineSecretValidator
             "github-oauth" => ValidateGitHubClassicToken(secret, "gho_"),
             "github-pat" => ValidateGitHubClassicToken(secret, "ghp_"),
             "github-refresh-token" => ValidateGitHubClassicToken(secret, "ghr_"),
+            "jwt" => ValidateJwt(secret),
+            "jwt-base64" => ValidateBase64EncodedJwt(secret),
             "private-key" => ValidatePrivateKeyEnvelope(finding.Match),
             _ => Unknown(),
         };
@@ -138,6 +145,340 @@ public static class OfflineSecretValidator
             && match.Contains("-----END", StringComparison.Ordinal)
             ? StructurallyValid("valid private key envelope")
             : Invalid("invalid private key envelope");
+    }
+
+    private static SecretValidationResult ValidateBase64EncodedJwt(string secret)
+    {
+        string normalizedSecret = RemoveAsciiWhitespace(secret);
+        if (!TryBase64Decode(normalizedSecret, urlSafe: false, out byte[]? bytes))
+        {
+            return Invalid("invalid base64 JWT wrapper");
+        }
+
+        string decoded = DecodeUtf8(bytes);
+        if (decoded.Length == 0)
+        {
+            return Invalid("invalid base64 JWT wrapper");
+        }
+
+        SecretValidationResult result = ValidateJwt(decoded);
+        return result.State == SecretValidationState.StructurallyValid
+            ? StructurallyValid("valid base64-encoded JWT structure")
+            : result;
+    }
+
+    private static SecretValidationResult ValidateJwt(string secret)
+    {
+        ReadOnlySpan<char> token = secret.AsSpan().Trim();
+        int firstDot = token.IndexOf('.');
+        if (firstDot <= 0)
+        {
+            return Invalid("invalid JWT segment count");
+        }
+
+        ReadOnlySpan<char> remaining = token[(firstDot + 1)..];
+        int secondDotOffset = remaining.IndexOf('.');
+        if (secondDotOffset <= 0)
+        {
+            return Invalid("invalid JWT segment count");
+        }
+
+        int secondDot = firstDot + 1 + secondDotOffset;
+        if (token[(secondDot + 1)..].Contains('.'))
+        {
+            return Invalid("invalid JWT segment count");
+        }
+
+        ReadOnlySpan<char> headerSegment = token[..firstDot];
+        ReadOnlySpan<char> payloadSegment = token[(firstDot + 1)..secondDot];
+        ReadOnlySpan<char> signatureSegment = token[(secondDot + 1)..];
+        if (!TryDecodeJwtSegment(headerSegment, out byte[]? headerBytes)
+            || !TryDecodeJwtSegment(payloadSegment, out byte[]? payloadBytes))
+        {
+            return Invalid("invalid JWT base64url segment");
+        }
+
+        if (!TryReadJwtAlgorithm(headerBytes, out string? algorithm))
+        {
+            return Invalid("invalid JWT header");
+        }
+
+        if (!IsSupportedJwtAlgorithm(algorithm))
+        {
+            return Invalid("invalid JWT algorithm");
+        }
+
+        if (!IsJsonObject(payloadBytes))
+        {
+            return Invalid("invalid JWT payload");
+        }
+
+        if (!IsJwtSignatureSegmentValid(signatureSegment))
+        {
+            return Invalid("invalid JWT signature segment");
+        }
+
+        bool unsignedJwt = algorithm.Equals("none", StringComparison.OrdinalIgnoreCase);
+        if (unsignedJwt && signatureSegment.Length != 0)
+        {
+            return Invalid("JWT signature must be empty for alg none");
+        }
+
+        if (signatureSegment.Length == 0 && !unsignedJwt)
+        {
+            return Invalid("JWT signature is missing");
+        }
+
+        return StructurallyValid("valid JWT structure");
+    }
+
+    private static string RemoveAsciiWhitespace(string value)
+    {
+        int firstWhitespace = -1;
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (IsAsciiWhitespace(value[i]))
+            {
+                firstWhitespace = i;
+                break;
+            }
+        }
+
+        if (firstWhitespace < 0)
+        {
+            return value;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        builder.Append(value.AsSpan(0, firstWhitespace));
+        for (int i = firstWhitespace + 1; i < value.Length; i++)
+        {
+            if (!IsAsciiWhitespace(value[i]))
+            {
+                builder.Append(value[i]);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool TryDecodeJwtSegment(ReadOnlySpan<char> segment, [NotNullWhen(true)] out byte[]? bytes)
+    {
+        bytes = null;
+        if (segment.IsEmpty || !IsBase64UrlSegment(segment))
+        {
+            return false;
+        }
+
+        return TryBase64Decode(segment, urlSafe: true, out bytes);
+    }
+
+    private static bool TryBase64Decode(ReadOnlySpan<char> encoded, bool urlSafe, [NotNullWhen(true)] out byte[]? bytes)
+    {
+        bytes = null;
+        if (encoded.Length == 0)
+        {
+            return false;
+        }
+
+        string normalized = NormalizeBase64(encoded, urlSafe);
+        try
+        {
+            bytes = Convert.FromBase64String(normalized);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
+    private static string NormalizeBase64(ReadOnlySpan<char> encoded, bool urlSafe)
+    {
+        var builder = new StringBuilder(encoded.Length + 3);
+        for (int i = 0; i < encoded.Length; i++)
+        {
+            char value = encoded[i];
+            builder.Append(urlSafe
+                ? value switch
+                {
+                    '-' => '+',
+                    '_' => '/',
+                    _ => value,
+                }
+                : value);
+        }
+
+        int padding = builder.Length % 4;
+        if (padding != 0)
+        {
+            builder.Append('=', 4 - padding);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string DecodeUtf8(byte[] bytes)
+    {
+        try
+        {
+            return s_strictUtf8.GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static bool TryReadJwtAlgorithm(byte[] headerBytes, [NotNullWhen(true)] out string? algorithm)
+    {
+        algorithm = null;
+        var reader = new Utf8JsonReader(headerBytes);
+        if (!TryReadJsonToken(ref reader) || reader.TokenType != JsonTokenType.StartObject)
+        {
+            return false;
+        }
+
+        while (TryReadJsonToken(ref reader))
+        {
+            if (reader.TokenType == JsonTokenType.EndObject)
+            {
+                return !string.IsNullOrWhiteSpace(algorithm)
+                    && HasNoTrailingJsonToken(ref reader);
+            }
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+            {
+                return false;
+            }
+
+            bool isAlgorithmProperty = reader.ValueTextEquals("alg"u8);
+            if (!TryReadJsonToken(ref reader))
+            {
+                return false;
+            }
+
+            if (isAlgorithmProperty)
+            {
+                if (reader.TokenType != JsonTokenType.String)
+                {
+                    return false;
+                }
+
+                algorithm = reader.GetString();
+                continue;
+            }
+
+            if (!TrySkipJsonValue(ref reader))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsJsonObject(byte[] bytes)
+    {
+        var reader = new Utf8JsonReader(bytes);
+        return TryReadJsonToken(ref reader)
+            && reader.TokenType == JsonTokenType.StartObject
+            && TrySkipJsonValue(ref reader)
+            && HasNoTrailingJsonToken(ref reader);
+    }
+
+    private static bool TryReadJsonToken(ref Utf8JsonReader reader)
+    {
+        try
+        {
+            return reader.Read();
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TrySkipJsonValue(ref Utf8JsonReader reader)
+    {
+        try
+        {
+            reader.Skip();
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool HasNoTrailingJsonToken(ref Utf8JsonReader reader)
+    {
+        try
+        {
+            return !reader.Read();
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsSupportedJwtAlgorithm(string algorithm)
+    {
+        return algorithm.Equals("none", StringComparison.OrdinalIgnoreCase)
+            || algorithm.Equals("EdDSA", StringComparison.Ordinal)
+            || IsJwtAlgorithmFamily(algorithm, "HS")
+            || IsJwtAlgorithmFamily(algorithm, "RS")
+            || IsJwtAlgorithmFamily(algorithm, "ES")
+            || IsJwtAlgorithmFamily(algorithm, "PS");
+    }
+
+    private static bool IsJwtAlgorithmFamily(string algorithm, string prefix)
+    {
+        return algorithm.StartsWith(prefix, StringComparison.Ordinal)
+            && algorithm.Length > prefix.Length;
+    }
+
+    private static bool IsJwtSignatureSegmentValid(ReadOnlySpan<char> segment)
+    {
+        if (segment.IsEmpty)
+        {
+            return true;
+        }
+
+        return IsBase64UrlSegment(segment);
+    }
+
+    private static bool IsBase64UrlSegment(ReadOnlySpan<char> segment)
+    {
+        bool paddingStarted = false;
+        for (int i = 0; i < segment.Length; i++)
+        {
+            char value = segment[i];
+            if (value == '=')
+            {
+                paddingStarted = true;
+                continue;
+            }
+
+            if (paddingStarted || !IsBase64UrlCharacter(value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsBase64UrlCharacter(char value)
+    {
+        return IsAsciiAlphaNumeric(value) || value is '-' or '_';
+    }
+
+    private static bool IsAsciiWhitespace(char value)
+    {
+        return value is ' ' or '\t' or '\r' or '\n';
     }
 
     private static Finding CopyWithValidationState(Finding finding, string validationState)

@@ -1,3 +1,4 @@
+using System.Text;
 using Picket.Engine;
 using Picket.Verify;
 
@@ -65,6 +66,49 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that JWT header, payload, and signature structure is validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesJwtStructure()
+    {
+        Finding finding = CreateFinding("jwt", CreateJwt());
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that JWTs with malformed claim payloads are rejected.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsMalformedJwtPayload()
+    {
+        Finding finding = CreateFinding("jwt", string.Concat(CreateJwtHeader(), ".", "bm90LWpzb24", ".", "c2ln"));
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that Base64-wrapped JWTs are decoded and structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesBase64EncodedJwtStructure()
+    {
+        string encodedJwt = Convert.ToBase64String(Encoding.UTF8.GetBytes(CreateJwt()));
+        Finding finding = CreateFinding("jwt-base64", encodedJwt);
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that unknown rule families remain explicitly unknown.
     /// </summary>
     [TestMethod]
@@ -129,5 +173,20 @@ public sealed class OfflineSecretValidatorTests
     private static string CreateGitHubPat()
     {
         return string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    }
+
+    private static string CreateJwt()
+    {
+        return string.Concat(
+            CreateJwtHeader(),
+            ".",
+            "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkphbmUgRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ",
+            ".",
+            "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c");
+    }
+
+    private static string CreateJwtHeader()
+    {
+        return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
     }
 }

@@ -23,6 +23,7 @@ Current offline coverage includes:
 
 - AWS access key ID shape and alphabet checks.
 - GitHub classic, OAuth, refresh, app, and fine-grained token shape checks.
+- JWT and Base64-wrapped JWT segment, header, payload, algorithm, and signature-shape checks.
 - private-key envelope checks.
 - common test, dummy, fake, placeholder, and repeated-character suppression signals.
 
