@@ -3,6 +3,7 @@ using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using Picket.Verify;
 
 namespace Picket;
 
@@ -123,8 +124,22 @@ internal static partial class Program
 
     static int RunRulesTest(string[] args)
     {
+        if (!TryResolveNativeProfile(args, defaultNativeProfile: true, out bool nativeMode))
+        {
+            return UnknownFlagExitCode;
+        }
+
         string? configPath = null;
         string fileName = "rules-test.txt";
+        string? reportFormat = null;
+        string? reportPath = null;
+        var reportPaths = new List<string>();
+        string source = ".";
+        int maxDecodeDepth = 5;
+        long? maxTargetBytes = null;
+        bool ignoreGitleaksAllow = false;
+        bool printConfig = false;
+        int redactionPercent = 0;
         var positional = new List<string>(2);
         for (int i = 0; i < args.Length; i++)
         {
@@ -133,6 +148,22 @@ internal static partial class Program
             {
                 WriteRulesTestHelp();
                 return 0;
+            }
+
+            if (arg.Equals("--", StringComparison.Ordinal))
+            {
+                while (++i < args.Length)
+                {
+                    if (positional.Count == 2)
+                    {
+                        Console.Error.WriteLine($"unexpected argument: {args[i]}");
+                        return UnknownFlagExitCode;
+                    }
+
+                    positional.Add(args[i]);
+                }
+
+                break;
             }
 
             if (IsConfigFlag(arg))
@@ -145,6 +176,53 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsProfileFlag(arg))
+            {
+                if (!TryReadProfileFlag(args, ref i, out _))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsReportFormatFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (arg is "-r" or "--report-path" || arg.StartsWith("--report-path=", StringComparison.Ordinal))
+            {
+                if (!TryReadStringFlag(args, ref i, "--report-path", out string? value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                reportPath = value;
+                if (nativeMode)
+                {
+                    reportPaths.Add(value);
+                }
+
+                continue;
+            }
+
+            if (IsSourceFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                source = sourceValue.Length == 0 ? "." : sourceValue;
+                continue;
+            }
+
             if (IsRulesTestPathFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--path", out string? pathValue))
@@ -153,6 +231,56 @@ internal static partial class Program
                 }
 
                 fileName = pathValue;
+                continue;
+            }
+
+            if (IsPrintConfigFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--print-config", out printConfig))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsIgnoreGitleaksAllowFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsMaxDecodeDepthFlag(arg))
+            {
+                if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsMaxTargetMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsRedactFlag(arg))
+            {
+                if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
+                {
+                    return UnknownFlagExitCode;
+                }
+
                 continue;
             }
 
@@ -181,15 +309,40 @@ internal static partial class Program
         string input = positional[1];
         try
         {
-            RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, ".");
+            RuleSet ruleSet = nativeMode
+                ? PicketConfigLoader.LoadRuleSet(configPath, source)
+                : GitleaksConfigLoader.LoadRuleSet(configPath, source);
             ValidateRulesWithScout(ruleSet);
             RuleSet selectedRuleSet = FilterEnabledRules(ruleSet, [ruleId]);
+            if (printConfig)
+            {
+                Console.Out.Write(GitleaksConfigWriter.Write(selectedRuleSet));
+                return 0;
+            }
+
             byte[] inputBytes = Encoding.UTF8.GetBytes(input);
             IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
                 inputBytes,
                 fileName,
-                CompiledRuleSet.Compile(selectedRuleSet)));
-            Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
+                CompiledRuleSet.Compile(selectedRuleSet),
+                ignoreGitleaksAllow,
+                maxDecodeDepth: maxDecodeDepth,
+                maxTargetBytes: maxTargetBytes));
+            if (nativeMode)
+            {
+                findings = OfflineSecretValidator.AnnotateAll(findings);
+            }
+
+            if (redactionPercent > 0)
+            {
+                findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
+            }
+
+            if (!TryWriteReports(findings, selectedRuleSet.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath: null, nativeMode))
+            {
+                return 1;
+            }
+
             return 0;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or NotSupportedException or ArgumentException)

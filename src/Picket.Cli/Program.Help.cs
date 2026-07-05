@@ -17,7 +17,7 @@ internal static partial class Program
         Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
         Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
         Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
-        Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
+        Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
         Console.Out.WriteLine("  picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]");
         Console.Out.WriteLine("  picket view <report> [--open]");
         Console.Out.WriteLine("  picket version");
@@ -105,7 +105,7 @@ internal static partial class Program
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
         Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
-        Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
+        Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
     }
 
     static void WriteRulesCheckHelp()
@@ -121,7 +121,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket rules test - scan sample text with a single rule");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
+        Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
     }
 
     static void WriteHooksHelp()

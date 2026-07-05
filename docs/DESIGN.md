@@ -536,7 +536,7 @@ Each rule can carry severity, confidence, examples, negative examples, tags, val
 - duplicate or unstable rule IDs,
 - performance hazards.
 
-`picket rules test <rule> <input>` supports interactive authoring. `--print-config` emits fully resolved config after extends, profile selection, and rule-pack layering.
+`picket rules test <rule> [--] <input>` supports interactive authoring with Picket-native config precedence by default, Scout byte-regex validation, decode and target-size controls, optional redaction, report-path inference, and the same native report formats as `scan`. `--print-config` emits the resolved selected config after extends, profile selection, and rule-pack layering.
 
 ### 8.3 False-Positive Reduction
 

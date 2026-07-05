@@ -2900,9 +2900,108 @@ public sealed class CliCompatibilityTests
             "sample.txt").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
-        Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
-        Assert.Contains("\"File\": \"sample.txt\"", result.Stdout);
+        Assert.Contains("\"schema\":\"picket.report.v1\"", result.Stdout);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"sample.txt\"", result.Stdout);
+        Assert.Contains("\"fingerprint\":\"picket:v1:", result.Stdout);
+        Assert.DoesNotContain("\"RuleID\"", result.Stdout);
         Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules test writes native JSONL reports on request.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestWritesJsonlReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("rules", "test", "token", "token-12345", "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+        string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.HasCount(1, lines);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", lines[0]);
+        Assert.Contains("\"ruleId\":\"token\"", lines[0]);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules test can infer a native report format from a report path.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestWritesReportPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.jsonl");
+
+        CliResult result = await RunCliAsync("rules", "test", "token", "token-12345", "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+        string report = File.ReadAllText(reportPath);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", report);
+        Assert.Contains("\"ruleId\":\"token\"", report);
+    }
+
+    /// <summary>
+    /// Verifies that rules test uses Picket-native config environment variables by default.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestUsesPicketConfigTomlEnvironmentVariable()
+    {
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_CONFIG_TOML"] = CreateRuleConfig("native-rule", "native-only-secret"),
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(environment, "rules", "test", "native-rule", "native-only-secret", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"native-rule\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that rules test accepts dash-prefixed sample text after the option delimiter.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestAcceptsDashPrefixedInputAfterDelimiter()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "dash-secret"
+            regex = '''---secret-[0-9]+'''
+            """);
+
+        CliResult result = await RunCliAsync("rules", "test", "dash-secret", "-c", configPath, "-f", "jsonl", "--", "---secret-12345").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"dash-secret\"", result.Stdout);
+        Assert.Contains("\"secret\":\"---secret-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that rules test can print the resolved selected rule config.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesTestPrintConfigWritesSelectedRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliAsync("rules", "test", "token", "token-12345", "-c", configPath, "--print-config").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("[[rules]]", result.Stdout);
+        Assert.Contains("id = \"token\"", result.Stdout);
+        Assert.DoesNotContain("\"schema\":\"picket.report.v1\"", result.Stdout);
     }
 
     /// <summary>
@@ -2939,8 +3038,8 @@ public sealed class CliCompatibilityTests
             "--path=secret.txt").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
-        Assert.Contains("\"RuleID\": \"path-secret\"", result.Stdout);
-        Assert.Contains("\"File\": \"secret.txt\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"path-secret\"", result.Stdout);
+        Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
     }
 
     private static string WriteTokenConfig(string root, string fileName = "gitleaks.toml")
