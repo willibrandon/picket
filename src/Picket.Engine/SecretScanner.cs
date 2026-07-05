@@ -31,9 +31,10 @@ public sealed class SecretScanner
             request.RuleSet,
             request.IgnoreGitleaksAllow,
             request.Commit,
+            request.MaxTargetBytes,
             findings);
 
-        if (request.MaxDecodeDepth == 0)
+        if (request.MaxDecodeDepth == 0 || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes))
         {
             return findings;
         }
@@ -57,7 +58,13 @@ public sealed class SecretScanner
                 request.RuleSet,
                 request.IgnoreGitleaksAllow,
                 request.Commit,
+                request.MaxTargetBytes,
                 findings);
+            if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes))
+            {
+                break;
+            }
+
             current = decoded;
         }
 
@@ -74,6 +81,7 @@ public sealed class SecretScanner
         CompiledRuleSet ruleSet,
         bool ignoreGitleaksAllow,
         string commit,
+        long? maxTargetBytes,
         List<Finding> findings)
     {
         foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
@@ -88,6 +96,7 @@ public sealed class SecretScanner
                 ruleSet.Allowlists,
                 ignoreGitleaksAllow,
                 commit,
+                maxTargetBytes,
                 compiledRule,
                 includeSkipReport: false);
             if (compiledRule.Rule.RequiredRules.Count != 0)
@@ -103,6 +112,7 @@ public sealed class SecretScanner
                     ruleSet,
                     ignoreGitleaksAllow,
                     commit,
+                    maxTargetBytes,
                     compiledRule);
             }
 
@@ -120,6 +130,7 @@ public sealed class SecretScanner
         List<CompiledAllowlist> globalAllowlists,
         bool ignoreGitleaksAllow,
         string commit,
+        long? maxTargetBytes,
         CompiledRule compiledRule,
         bool includeSkipReport)
     {
@@ -131,27 +142,6 @@ public sealed class SecretScanner
 
         if (!IsPathCandidate(compiledRule, fileNameBytes, windowsFileNameBytes))
         {
-            return findings;
-        }
-
-        if (compiledRule.UsesGenericApiKeyMatcher)
-        {
-            if (compiledRule.Prefilter.IsCandidate(input))
-            {
-                ScanGenericApiKeyRule(
-                    input,
-                    originalInput,
-                    decodedInput,
-                    fileName,
-                    fileNameBytes,
-                    windowsFileNameBytes,
-                    globalAllowlists,
-                    ignoreGitleaksAllow,
-                    commit,
-                    compiledRule,
-                    findings);
-            }
-
             return findings;
         }
 
@@ -174,6 +164,32 @@ public sealed class SecretScanner
                 commit))
             {
                 findings.Add(CreatePathFinding(fileName, compiledRule.Rule, commit));
+            }
+
+            return findings;
+        }
+
+        if (IsTooLargeForContentScan(input.Length, maxTargetBytes))
+        {
+            return findings;
+        }
+
+        if (compiledRule.UsesGenericApiKeyMatcher)
+        {
+            if (compiledRule.Prefilter.IsCandidate(input))
+            {
+                ScanGenericApiKeyRule(
+                    input,
+                    originalInput,
+                    decodedInput,
+                    fileName,
+                    fileNameBytes,
+                    windowsFileNameBytes,
+                    globalAllowlists,
+                    ignoreGitleaksAllow,
+                    commit,
+                    compiledRule,
+                    findings);
             }
 
             return findings;
@@ -211,6 +227,7 @@ public sealed class SecretScanner
         CompiledRuleSet ruleSet,
         bool ignoreGitleaksAllow,
         string commit,
+        long? maxTargetBytes,
         CompiledRule primaryRule)
     {
         if (primaryFindings.Count == 0)
@@ -241,6 +258,7 @@ public sealed class SecretScanner
                         ruleSet.Allowlists,
                         ignoreGitleaksAllow,
                         commit,
+                        maxTargetBytes,
                         compiledRequiredRule,
                         includeSkipReport: true));
         }
@@ -739,6 +757,11 @@ public sealed class SecretScanner
 
         return !windowsFileNameBytes.IsEmpty
             && compiledRule.PathRegex.FindCaptures(windowsFileNameBytes, 0) is not null;
+    }
+
+    private static bool IsTooLargeForContentScan(int inputLength, long? maxTargetBytes)
+    {
+        return maxTargetBytes.HasValue && inputLength > maxTargetBytes.Value;
     }
 
     private static Finding CreatePathFinding(string fileName, SecretRule rule, string commit)

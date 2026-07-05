@@ -591,6 +591,43 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that the max-target byte cap skips content regex rules.
+    /// </summary>
+    [TestMethod]
+    public void ScanHonorsMaxTargetBytesForContentRules()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-12345");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules, maxTargetBytes: input.Length - 1));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that the max-target byte cap does not suppress path-only rules.
+    /// </summary>
+    [TestMethod]
+    public void ScanKeepsPathOnlyRulesWhenMaxTargetBytesIsExceeded()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("oversized content");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "path-secret",
+                "Path Secret",
+                string.Empty,
+                pathPattern: @"secret\.txt$"),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules, maxTargetBytes: input.Length - 1));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("path-secret", findings[0].RuleID);
+        Assert.AreEqual("file detected: secret.txt", findings[0].Match);
+    }
+
+    /// <summary>
     /// Verifies that recursive decoding honors the configured maximum depth.
     /// </summary>
     [TestMethod]

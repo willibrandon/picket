@@ -11,13 +11,15 @@ namespace Picket.Engine;
 /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
 /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
 /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
+/// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
 public sealed class ScanRequest(
     ReadOnlyMemory<byte> input,
     string fileName,
     CompiledRuleSet ruleSet,
     bool ignoreGitleaksAllow = false,
     string commit = "",
-    int maxDecodeDepth = 5)
+    int maxDecodeDepth = 5,
+    long? maxTargetBytes = null)
 {
     /// <summary>
     /// Initializes a new scan request and compiles the supplied source rules.
@@ -28,14 +30,16 @@ public sealed class ScanRequest(
     /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
     /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
     /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
+    /// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
     public ScanRequest(
         ReadOnlyMemory<byte> input,
         string fileName,
         RuleSet ruleSet,
         bool ignoreGitleaksAllow = false,
         string commit = "",
-        int maxDecodeDepth = 5)
-        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth)
+        int maxDecodeDepth = 5,
+        long? maxTargetBytes = null)
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes)
     {
     }
 
@@ -69,6 +73,11 @@ public sealed class ScanRequest(
     /// </summary>
     public int MaxDecodeDepth { get; } = RequireNonNegative(maxDecodeDepth);
 
+    /// <summary>
+    /// Gets the maximum content size to scan with content rules, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxTargetBytes { get; } = RequireNonNegative(maxTargetBytes);
+
     private static string RequireFileName(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -78,6 +87,16 @@ public sealed class ScanRequest(
     private static int RequireNonNegative(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static long? RequireNonNegative(long? value)
+    {
+        if (value.HasValue)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+        }
+
         return value;
     }
 }

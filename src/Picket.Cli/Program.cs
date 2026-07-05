@@ -68,6 +68,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     int maxDecodeDepth = 5;
     int timeoutSeconds = 0;
     bool ignoreGitleaksAllow = false;
+    long? maxTargetBytes = null;
     int redactionPercent = 0;
     for (int i = 0; i < args.Length; i++)
     {
@@ -172,6 +173,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
             continue;
         }
 
+        if (IsMaxTargetMegabytesFlag(arg))
+        {
+            if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (IsTimeoutFlag(arg))
         {
             if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
@@ -247,7 +258,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     }
 
     IReadOnlyList<Finding> findings = baseline.Filter(
-        SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth)),
+        SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes)),
         redactionPercent);
     if (redactionPercent > 0)
     {
@@ -537,7 +548,7 @@ static int RunDirectory(string[] args)
                 continue;
             }
 
-            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth)));
+            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1074,18 +1085,14 @@ static List<Finding> ScanGitFragments(
             break;
         }
 
-        if (maxTargetBytes.HasValue && fragment.Input.Length > maxTargetBytes.Value)
-        {
-            continue;
-        }
-
         IReadOnlyList<Finding> fragmentFindings = SecretScanner.Scan(new ScanRequest(
             fragment.Input,
             fragment.FilePath,
             rules,
             ignoreGitleaksAllow,
             fragment.Commit,
-            maxDecodeDepth));
+            maxDecodeDepth,
+            maxTargetBytes));
         foreach (Finding finding in fragmentFindings)
         {
             findings.Add(MapGitFinding(finding, fragment, scmPlatform, remoteUrl));
@@ -2123,6 +2130,6 @@ static void WriteHelp()
     Console.Out.WriteLine("Usage:");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

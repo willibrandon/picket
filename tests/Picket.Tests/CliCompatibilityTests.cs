@@ -726,6 +726,22 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that stdin scans honor the Gitleaks-compatible max-target flag.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanHonorsMaxTargetMegabytes()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string input = new string('x', 2_000_001) + "token-12345";
+
+        CliResult result = await RunCliWithInputAsync(input, "stdin", "-c", configPath, "--max-target-megabytes=1").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that required supporting rules gate normal CLI findings.
     /// </summary>
     [TestMethod]
@@ -807,6 +823,26 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Email\": \"picket@example.com\"", result.Stdout);
         Assert.Contains("\"Message\": \"add secret\"", result.Stdout);
         Assert.Contains($"\"Fingerprint\": \"{commit}:secret.txt:token:1\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that max-target filtering does not suppress path-only git findings.
+    /// </summary>
+    [TestMethod]
+    public async Task GitScanKeepsPathOnlyRuleWhenMaxTargetMegabytesIsExceeded()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WritePathOnlyConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), new string('x', 2_000_001));
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add oversized path secret").ConfigureAwait(false);
+
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-target-megabytes=1").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"path-secret\"", result.Stdout);
+        Assert.Contains("\"Match\": \"file detected: secret.txt\"", result.Stdout);
     }
 
     /// <summary>
@@ -1001,6 +1037,19 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "token"
             regex = '''token-[0-9]+'''
+            """);
+        return configPath;
+    }
+
+    private static string WritePathOnlyConfig(string root)
+    {
+        string configPath = Path.Combine(root, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "path-secret"
+            path = '''secret\.txt$'''
             """);
         return configPath;
     }
