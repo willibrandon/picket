@@ -197,11 +197,26 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
         AssertProjectProperty(props, "RepositoryType", "git");
         AssertProjectProperty(props, "RepositoryUrl", "https://github.com/willibrandon/picket");
+        AssertProjectProperty(props, "Copyright", "Copyright (c) 2026 Brandon Williams");
         AssertProjectProperty(props, "PackageRequireLicenseAcceptance", "false");
         AssertProjectProperty(props, "IncludeSymbols", "true");
         AssertProjectProperty(props, "SymbolPackageFormat", "snupkg");
         AssertProjectPropertyContains(props, "PackageTags", "native-aot");
         AssertProjectPropertyContains(props, "PackageTags", "secrets");
+    }
+
+    /// <summary>
+    /// Verifies that the repository carries the expected MIT license grant.
+    /// </summary>
+    [TestMethod]
+    public void RepositoryLicenseIsMit()
+    {
+        string license = ReadRepositoryFile("LICENSE");
+
+        Assert.StartsWith("MIT License", license, StringComparison.Ordinal);
+        Assert.Contains("Copyright (c) 2026 Brandon Williams", license);
+        Assert.Contains("Permission is hereby granted, free of charge", license);
+        Assert.Contains("THE SOFTWARE IS PROVIDED \"AS IS\"", license);
     }
 
     /// <summary>

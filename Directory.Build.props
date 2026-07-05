@@ -18,7 +18,7 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/willibrandon/picket</RepositoryUrl>
     <PackageTags>picket;secrets;scanner;gitleaks;security;native-aot</PackageTags>
-    <Copyright>Copyright (c) Picket contributors</Copyright>
+    <Copyright>Copyright (c) 2026 Brandon Williams</Copyright>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
