@@ -54,7 +54,7 @@ if (IsDirectoryCommand(command))
 Console.Error.WriteLine($"unknown command: {command}");
 return UnknownFlagExitCode;
 
-static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin")
+static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
 {
     string? baselinePath = null;
     string? configPath = null;
@@ -64,6 +64,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     string? reportFormat = null;
     string? reportTemplatePath = null;
     List<string> enabledRuleIds = [];
+    string gitleaksIgnorePath = ".";
     int exitCode = 1;
     int maxDecodeDepth = 5;
     int timeoutSeconds = 0;
@@ -140,6 +141,17 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
                 return UnknownFlagExitCode;
             }
 
+            continue;
+        }
+
+        if (IsGitleaksIgnorePathFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--gitleaks-ignore-path", out string? value))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            gitleaksIgnorePath = value;
             continue;
         }
 
@@ -246,6 +258,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
         return CompleteRun(1, diagnosticsSession);
     }
 
+    GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, configSource);
     if (IsTimedOut(timeoutTimestamp))
     {
         Console.Error.WriteLine(TimeoutErrorMessage);
@@ -258,7 +271,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     }
 
     IReadOnlyList<Finding> findings = baseline.Filter(
-        SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes)),
+        gitleaksIgnore.Filter(SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes))),
         redactionPercent);
     if (redactionPercent > 0)
     {

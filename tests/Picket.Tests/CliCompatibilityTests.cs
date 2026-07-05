@@ -711,6 +711,38 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that stdin scans discover .gitleaks.toml from the current directory.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanUsesCurrentDirectoryConfig()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, "token-12345", "stdin").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that stdin scans honor .gitleaksignore fingerprints.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinScanHonorsGitleaksIgnoreFingerprint()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, ".gitleaksignore"), "stdin:token:1\n");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, "token-12345", "stdin", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that stdin scans accept the Gitleaks-compatible timeout flag.
     /// </summary>
     [TestMethod]
@@ -1028,9 +1060,9 @@ public sealed class CliCompatibilityTests
         Assert.Contains("invalid scm platform value: auto", rejected.Stderr);
     }
 
-    private static string WriteTokenConfig(string root)
+    private static string WriteTokenConfig(string root, string fileName = "gitleaks.toml")
     {
-        string configPath = Path.Combine(root, "gitleaks.toml");
+        string configPath = Path.Combine(root, fileName);
         File.WriteAllText(
             configPath,
             """
@@ -1164,6 +1196,11 @@ public sealed class CliCompatibilityTests
 
     private static async Task<CliResult> RunCliWithInputAsync(string? standardInput, params string[] arguments)
     {
+        return await RunCliWithInputFromDirectoryAsync(GetRepositoryRoot(), standardInput, arguments).ConfigureAwait(false);
+    }
+
+    private static async Task<CliResult> RunCliWithInputFromDirectoryAsync(string workingDirectory, string? standardInput, params string[] arguments)
+    {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo(GetCliExecutablePath())
         {
@@ -1171,7 +1208,7 @@ public sealed class CliCompatibilityTests
             RedirectStandardInput = standardInput is not null,
             RedirectStandardOutput = true,
             UseShellExecute = false,
-            WorkingDirectory = GetRepositoryRoot(),
+            WorkingDirectory = workingDirectory,
         };
         foreach (string argument in arguments)
         {
