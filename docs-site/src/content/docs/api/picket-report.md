@@ -10,168 +10,208 @@ Generated from XML documentation for `Picket.Report`.
 
 ## Types
 
-- `Picket.Report.GitleaksCsvReportWriter` - Writes a Gitleaks-shaped CSV report with deterministic column ordering.
-- `Picket.Report.GitleaksFindingRedactor` - Applies Gitleaks-compatible finding redaction before reports are written.
-- `Picket.Report.GitleaksJsonReportWriter` - Writes a Gitleaks-shaped JSON report with deterministic field ordering.
-- `Picket.Report.GitleaksJunitReportWriter` - Writes a Gitleaks-shaped JUnit XML report.
-- `Picket.Report.GitleaksSarifReportWriter` - Writes a Gitleaks-shaped SARIF 2.1.0 report.
-- `Picket.Report.GitleaksTemplateReportWriter` - Writes Gitleaks template reports for common Go text/template report templates.
-- `Picket.Report.PicketCsvReportWriter` - Writes Picket-native CSV reports with stable finding metadata columns.
-- `Picket.Report.PicketGitLabCodeQualityReportWriter` - Writes Picket findings as a GitLab Code Quality report.
-- `Picket.Report.PicketHtmlReportWriter` - Writes self-contained Picket-native HTML reports.
-- `Picket.Report.PicketJsonReportWriter` - Writes Picket-native JSON reports with schema and rule metadata.
-- `Picket.Report.PicketJsonlReportWriter` - Writes Picket-native JSON Lines reports with one finding per line.
-- `Picket.Report.PicketJunitReportWriter` - Writes Picket-native JUnit XML reports.
-- `Picket.Report.PicketSarifReportWriter` - Writes Picket-native SARIF 2.1.0 reports for code-scanning systems.
-- `Picket.Report.PicketToonReportWriter` - Writes Picket-native TOON reports for compact LLM-oriented triage.
-- `Picket.Report.ReportFindingSummary` - Represents the non-secret fields needed to triage a report finding.
-- `Picket.Report.ReportSummary` - Represents a non-secret summary of a secrets report.
-- `Picket.Report.ReportSummaryReader` - Reads non-secret summaries from Picket, Gitleaks, and SARIF report files.
+- [GitleaksCsvReportWriter](#gitleakscsvreportwriter) - Writes a Gitleaks-shaped CSV report with deterministic column ordering.
+- [GitleaksFindingRedactor](#gitleaksfindingredactor) - Applies Gitleaks-compatible finding redaction before reports are written.
+- [GitleaksJsonReportWriter](#gitleaksjsonreportwriter) - Writes a Gitleaks-shaped JSON report with deterministic field ordering.
+- [GitleaksJunitReportWriter](#gitleaksjunitreportwriter) - Writes a Gitleaks-shaped JUnit XML report.
+- [GitleaksSarifReportWriter](#gitleakssarifreportwriter) - Writes a Gitleaks-shaped SARIF 2.1.0 report.
+- [GitleaksTemplateReportWriter](#gitleakstemplatereportwriter) - Writes Gitleaks template reports for common Go text/template report templates.
+- [PicketCsvReportWriter](#picketcsvreportwriter) - Writes Picket-native CSV reports with stable finding metadata columns.
+- [PicketGitLabCodeQualityReportWriter](#picketgitlabcodequalityreportwriter) - Writes Picket findings as a GitLab Code Quality report.
+- [PicketHtmlReportWriter](#pickethtmlreportwriter) - Writes self-contained Picket-native HTML reports.
+- [PicketJsonReportWriter](#picketjsonreportwriter) - Writes Picket-native JSON reports with schema and rule metadata.
+- [PicketJsonlReportWriter](#picketjsonlreportwriter) - Writes Picket-native JSON Lines reports with one finding per line.
+- [PicketJunitReportWriter](#picketjunitreportwriter) - Writes Picket-native JUnit XML reports.
+- [PicketSarifReportWriter](#picketsarifreportwriter) - Writes Picket-native SARIF 2.1.0 reports for code-scanning systems.
+- [PicketToonReportWriter](#pickettoonreportwriter) - Writes Picket-native TOON reports for compact LLM-oriented triage.
+- [ReportFindingSummary](#reportfindingsummary) - Represents the non-secret fields needed to triage a report finding.
+- [ReportSummary](#reportsummary) - Represents a non-secret summary of a secrets report.
+- [ReportSummaryReader](#reportsummaryreader) - Reads non-secret summaries from Picket, Gitleaks, and SARIF report files.
 
-## `Picket.Report.GitleaksCsvReportWriter`
+## GitleaksCsvReportWriter
+
+`Picket.Report.GitleaksCsvReportWriter`
 
 Writes a Gitleaks-shaped CSV report with deterministic column ordering.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding})` | Writes findings to a UTF-8 CSV string. |
+### Methods
 
-## `Picket.Report.GitleaksFindingRedactor`
+- `Write(IReadOnlyList<Finding>)` - Writes findings to a UTF-8 CSV string.
+
+## GitleaksFindingRedactor
+
+`Picket.Report.GitleaksFindingRedactor`
 
 Applies Gitleaks-compatible finding redaction before reports are written.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Redact(Picket.Engine.Finding,System.Int32)` | Redacts a finding secret using the supplied percentage. |
-| Method | `Redact(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Int32)` | Redacts secrets in each finding using the supplied percentage. |
+### Methods
 
-## `Picket.Report.GitleaksJsonReportWriter`
+- `Redact(Finding finding, int redactionPercent)` - Redacts a finding secret using the supplied percentage.
+- `Redact(IReadOnlyList<Finding> findings, int redactionPercent)` - Redacts secrets in each finding using the supplied percentage.
+
+## GitleaksJsonReportWriter
+
+`Picket.Report.GitleaksJsonReportWriter`
 
 Writes a Gitleaks-shaped JSON report with deterministic field ordering.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding})` | Writes findings to a UTF-8 JSON string. |
+### Methods
 
-## `Picket.Report.GitleaksJunitReportWriter`
+- `Write(IReadOnlyList<Finding>)` - Writes findings to a UTF-8 JSON string.
+
+## GitleaksJunitReportWriter
+
+`Picket.Report.GitleaksJunitReportWriter`
 
 Writes a Gitleaks-shaped JUnit XML report.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding})` | Writes findings to a UTF-8 JUnit XML string. |
+### Methods
 
-## `Picket.Report.GitleaksSarifReportWriter`
+- `Write(IReadOnlyList<Finding>)` - Writes findings to a UTF-8 JUnit XML string.
+
+## GitleaksSarifReportWriter
+
+`Picket.Report.GitleaksSarifReportWriter`
 
 Writes a Gitleaks-shaped SARIF 2.1.0 report.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings and ordered rules to a UTF-8 SARIF JSON string. |
+### Methods
 
-## `Picket.Report.GitleaksTemplateReportWriter`
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and ordered rules to a UTF-8 SARIF JSON string.
+
+## GitleaksTemplateReportWriter
+
+`Picket.Report.GitleaksTemplateReportWriter`
 
 Writes Gitleaks template reports for common Go text/template report templates.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.String)` | Renders findings with a Gitleaks-compatible template. |
+### Methods
 
-## `Picket.Report.PicketCsvReportWriter`
+- `Write(IReadOnlyList<Finding> findings, string templateText)` - Renders findings with a Gitleaks-compatible template.
+
+## PicketCsvReportWriter
+
+`Picket.Report.PicketCsvReportWriter`
 
 Writes Picket-native CSV reports with stable finding metadata columns.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding})` | Writes findings to a deterministic UTF-8 CSV string. |
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings to a deterministic UTF-8 CSV string with rule-derived metadata. |
+### Methods
 
-## `Picket.Report.PicketGitLabCodeQualityReportWriter`
+- `Write(IReadOnlyList<Finding> findings)` - Writes findings to a deterministic UTF-8 CSV string.
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings to a deterministic UTF-8 CSV string with rule-derived metadata.
+
+## PicketGitLabCodeQualityReportWriter
+
+`Picket.Report.PicketGitLabCodeQualityReportWriter`
 
 Writes Picket findings as a GitLab Code Quality report.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding})` | Writes findings to GitLab's Code Quality JSON array format. |
+### Methods
 
-## `Picket.Report.PicketHtmlReportWriter`
+- `Write(IReadOnlyList<Finding> findings)` - Writes findings to GitLab's Code Quality JSON array format.
+
+## PicketHtmlReportWriter
+
+`Picket.Report.PicketHtmlReportWriter`
 
 Writes self-contained Picket-native HTML reports.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings and rule metadata to a static HTML report. |
+### Methods
 
-## `Picket.Report.PicketJsonReportWriter`
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and rule metadata to a static HTML report.
+
+## PicketJsonReportWriter
+
+`Picket.Report.PicketJsonReportWriter`
 
 Writes Picket-native JSON reports with schema and rule metadata.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings and rule metadata to a deterministic JSON report. |
+### Methods
 
-## `Picket.Report.PicketJsonlReportWriter`
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and rule metadata to a deterministic JSON report.
+
+## PicketJsonlReportWriter
+
+`Picket.Report.PicketJsonlReportWriter`
 
 Writes Picket-native JSON Lines reports with one finding per line.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding})` | Writes findings to compact JSON Lines. |
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings to compact JSON Lines with rule-derived metadata. |
+### Methods
 
-## `Picket.Report.PicketJunitReportWriter`
+- `Write(IReadOnlyList<Finding> findings)` - Writes findings to compact JSON Lines.
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings to compact JSON Lines with rule-derived metadata.
+
+## PicketJunitReportWriter
+
+`Picket.Report.PicketJunitReportWriter`
 
 Writes Picket-native JUnit XML reports.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding})` | Writes findings to a deterministic UTF-8 JUnit XML string. |
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings to a deterministic UTF-8 JUnit XML string with rule-derived metadata. |
+### Methods
 
-## `Picket.Report.PicketSarifReportWriter`
+- `Write(IReadOnlyList<Finding> findings)` - Writes findings to a deterministic UTF-8 JUnit XML string.
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings to a deterministic UTF-8 JUnit XML string with rule-derived metadata.
+
+## PicketSarifReportWriter
+
+`Picket.Report.PicketSarifReportWriter`
 
 Writes Picket-native SARIF 2.1.0 reports for code-scanning systems.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings and ordered rules to a deterministic SARIF JSON string. |
+### Methods
 
-## `Picket.Report.PicketToonReportWriter`
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and ordered rules to a deterministic SARIF JSON string.
+
+## PicketToonReportWriter
+
+`Picket.Report.PicketToonReportWriter`
 
 Writes Picket-native TOON reports for compact LLM-oriented triage.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Write(System.Collections.Generic.IReadOnlyList{Picket.Engine.Finding},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule})` | Writes findings and rule metadata to a deterministic TOON report. |
+### Methods
 
-## `Picket.Report.ReportFindingSummary`
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and rule metadata to a deterministic TOON report.
+
+## ReportFindingSummary
+
+`Picket.Report.ReportFindingSummary`
 
 Represents the non-secret fields needed to triage a report finding.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `ReportFindingSummary(System.String,System.String,System.Int32,System.String)` | Represents the non-secret fields needed to triage a report finding. |
-| Property | `Fingerprint` | Gets the stable fingerprint associated with the finding, or an empty string when unavailable. |
-| Property | `Line` | Gets the one-based start line for the finding, or zero when unavailable. |
-| Property | `Path` | Gets the reported path for the finding. |
-| Property | `RuleId` | Gets the rule identifier associated with the finding. |
+### Constructors
 
-## `Picket.Report.ReportSummary`
+- `ReportFindingSummary(string ruleId, string path, int line, string fingerprint)` - Represents the non-secret fields needed to triage a report finding.
+
+### Properties
+
+- `Fingerprint` - Gets the stable fingerprint associated with the finding, or an empty string when unavailable.
+- `Line` - Gets the one-based start line for the finding, or zero when unavailable.
+- `Path` - Gets the reported path for the finding.
+- `RuleId` - Gets the rule identifier associated with the finding.
+
+## ReportSummary
+
+`Picket.Report.ReportSummary`
 
 Represents a non-secret summary of a secrets report.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `ReportSummary(System.String,System.Collections.Generic.IReadOnlyList{Picket.Report.ReportFindingSummary})` | Represents a non-secret summary of a secrets report. |
-| Property | `FileCount` | Gets the number of distinct reported files in the report. |
-| Property | `FindingCount` | Gets the number of findings in the report. |
-| Property | `Findings` | Gets the non-secret finding summaries. |
-| Property | `Format` | Gets the detected report format. |
+### Constructors
 
-## `Picket.Report.ReportSummaryReader`
+- `ReportSummary(string format, IReadOnlyList<ReportFindingSummary> findings)` - Represents a non-secret summary of a secrets report.
+
+### Properties
+
+- `FileCount` - Gets the number of distinct reported files in the report.
+- `FindingCount` - Gets the number of findings in the report.
+- `Findings` - Gets the non-secret finding summaries.
+- `Format` - Gets the detected report format.
+
+## ReportSummaryReader
+
+`Picket.Report.ReportSummaryReader`
 
 Reads non-secret summaries from Picket, Gitleaks, and SARIF report files.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Read(System.String)` | Reads a non-secret summary from a report file. |
+### Methods
+
+- `Read(string path)` - Reads a non-secret summary from a report file.

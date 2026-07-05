@@ -10,6 +10,7 @@ export default defineConfig({
     starlight({
       title: "Picket",
       description: "Gitleaks-compatible, Scout-powered .NET secrets scanner.",
+      customCss: ["./src/styles/docs.css"],
       social: [
         {
           icon: "github",

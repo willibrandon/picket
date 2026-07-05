@@ -10,102 +10,227 @@ Generated from XML documentation for `Picket.Rules`.
 
 ## Types
 
-- `Picket.Rules.AllowlistCondition` - Describes how checks inside a secret allowlist are combined.
-- `Picket.Rules.AllowlistRegexTarget` - Describes the finding field tested by allowlist regexes.
-- `Picket.Rules.EmbeddedGitleaksRules` - Small bootstrap subset of the pinned Gitleaks ruleset.
-- `Picket.Rules.RuleSet` - Immutable collection of secret detection rules.
-- `Picket.Rules.SecretAllowlist` - Describes Gitleaks-compatible allowlist checks for suppressing findings.
-- `Picket.Rules.SecretRequiredRule` - Describes a Gitleaks-compatible supporting rule required by a primary rule.
-- `Picket.Rules.SecretRule` - Describes a byte-oriented secret detection rule.
+- [AllowlistCondition](#allowlistcondition) - Describes how checks inside a secret allowlist are combined.
+- [AllowlistRegexTarget](#allowlistregextarget) - Describes the finding field tested by allowlist regexes.
+- [EmbeddedGitleaksRules](#embeddedgitleaksrules) - Small bootstrap subset of the pinned Gitleaks ruleset.
+- [RuleSet](#ruleset) - Immutable collection of secret detection rules.
+- [SecretAllowlist](#secretallowlist) - Describes Gitleaks-compatible allowlist checks for suppressing findings.
+- [SecretRequiredRule](#secretrequiredrule) - Describes a Gitleaks-compatible supporting rule required by a primary rule.
+- [SecretRule](#secretrule) - Describes a byte-oriented secret detection rule.
 
-## `Picket.Rules.AllowlistCondition`
+## AllowlistCondition
+
+`Picket.Rules.AllowlistCondition`
 
 Describes how checks inside a secret allowlist are combined.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Field | `And` | Allows a finding only when every configured check matches. |
-| Field | `Or` | Allows a finding when any configured check matches. |
+### Fields
 
-## `Picket.Rules.AllowlistRegexTarget`
+- `And` - Allows a finding only when every configured check matches.
+- `Or` - Allows a finding when any configured check matches.
+
+## AllowlistRegexTarget
+
+`Picket.Rules.AllowlistRegexTarget`
 
 Describes the finding field tested by allowlist regexes.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Field | `Line` | Tests the full source line containing the finding. |
-| Field | `Match` | Tests the full regex match. |
-| Field | `Secret` | Tests the captured secret value. |
+### Fields
 
-## `Picket.Rules.EmbeddedGitleaksRules`
+- `Line` - Tests the full source line containing the finding.
+- `Match` - Tests the full regex match.
+- `Secret` - Tests the captured secret value.
+
+## EmbeddedGitleaksRules
+
+`Picket.Rules.EmbeddedGitleaksRules`
 
 Small bootstrap subset of the pinned Gitleaks ruleset.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Property | `Bootstrap` | Gets the bootstrap compatibility rule set used until the full pinned Gitleaks config loader lands. |
+### Properties
 
-## `Picket.Rules.RuleSet`
+- `Bootstrap` - Gets the bootstrap compatibility rule set used until the full pinned Gitleaks config loader lands.
+
+## RuleSet
+
+`Picket.Rules.RuleSet`
 
 Immutable collection of secret detection rules.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `RuleSet(System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRule},System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretAllowlist},System.Boolean)` | Immutable collection of secret detection rules. |
-| Property | `Allowlists` | Gets global allowlists used to suppress findings. |
-| Property | `RegexesPrevalidated` | Gets a value indicating whether rule and allowlist regexes are already validated and can be compiled lazily. |
-| Property | `Rules` | Gets the rules in deterministic evaluation order. |
+### Constructors
 
-## `Picket.Rules.SecretAllowlist`
+#### `RuleSet(...)`
+
+```csharp
+RuleSet(
+    IReadOnlyList<SecretRule> rules,
+    IReadOnlyList<SecretAllowlist> allowlists,
+    bool regexesPrevalidated
+)
+```
+
+Immutable collection of secret detection rules.
+
+
+### Properties
+
+- `Allowlists` - Gets global allowlists used to suppress findings.
+- `RegexesPrevalidated` - Gets a value indicating whether rule and allowlist regexes are already validated and can be compiled lazily.
+- `Rules` - Gets the rules in deterministic evaluation order.
+
+## SecretAllowlist
+
+`Picket.Rules.SecretAllowlist`
 
 Describes Gitleaks-compatible allowlist checks for suppressing findings.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Create(System.String,Picket.Rules.AllowlistCondition,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},Picket.Rules.AllowlistRegexTarget,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String})` | Creates an allowlist and validates that it has at least one check. |
-| Method | `SecretAllowlist(System.String,Picket.Rules.AllowlistCondition,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},Picket.Rules.AllowlistRegexTarget,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String})` | Describes Gitleaks-compatible allowlist checks for suppressing findings. |
-| Property | `Commits` | Gets commit SHA values that are allowed. |
-| Property | `Condition` | Gets the condition used to combine configured checks. |
-| Property | `Description` | Gets the human-readable allowlist description. |
-| Property | `PathPatterns` | Gets path regex patterns that are allowed. |
-| Property | `RegexPatterns` | Gets content regex patterns that are allowed. |
-| Property | `RegexTarget` | Gets the finding field tested by regex patterns. |
-| Property | `StopWords` | Gets case-insensitive stopwords matched against the secret. |
+### Constructors
 
-## `Picket.Rules.SecretRequiredRule`
+#### `SecretAllowlist(...)`
+
+```csharp
+SecretAllowlist(
+    string description,
+    AllowlistCondition condition,
+    IReadOnlyList<string> commits,
+    IReadOnlyList<string> pathPatterns,
+    AllowlistRegexTarget regexTarget,
+    IReadOnlyList<string> regexPatterns,
+    IReadOnlyList<string> stopWords
+)
+```
+
+Describes Gitleaks-compatible allowlist checks for suppressing findings.
+
+
+### Methods
+
+#### `Create(...)`
+
+```csharp
+Create(
+    string description,
+    AllowlistCondition condition,
+    IReadOnlyList<string> commits,
+    IReadOnlyList<string> pathPatterns,
+    AllowlistRegexTarget regexTarget,
+    IReadOnlyList<string> regexPatterns,
+    IReadOnlyList<string> stopWords
+)
+```
+
+Creates an allowlist and validates that it has at least one check.
+
+
+### Properties
+
+- `Commits` - Gets commit SHA values that are allowed.
+- `Condition` - Gets the condition used to combine configured checks.
+- `Description` - Gets the human-readable allowlist description.
+- `PathPatterns` - Gets path regex patterns that are allowed.
+- `RegexPatterns` - Gets content regex patterns that are allowed.
+- `RegexTarget` - Gets the finding field tested by regex patterns.
+- `StopWords` - Gets case-insensitive stopwords matched against the secret.
+
+## SecretRequiredRule
+
+`Picket.Rules.SecretRequiredRule`
 
 Describes a Gitleaks-compatible supporting rule required by a primary rule.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `SecretRequiredRule(System.String,System.Nullable{System.Int32},System.Nullable{System.Int32})` | Describes a Gitleaks-compatible supporting rule required by a primary rule. |
-| Property | `Id` | Gets the required rule identifier. |
-| Property | `WithinColumns` | Gets the maximum column distance from the primary finding, or for no column constraint. |
-| Property | `WithinLines` | Gets the maximum line distance from the primary finding, or for no line constraint. |
+### Constructors
 
-## `Picket.Rules.SecretRule`
+- `SecretRequiredRule(string id, int? withinLines, int? withinColumns)` - Describes a Gitleaks-compatible supporting rule required by a primary rule.
+
+### Properties
+
+- `Id` - Gets the required rule identifier.
+- `WithinColumns` - Gets the maximum column distance from the primary finding, or for no column constraint.
+- `WithinLines` - Gets the maximum line distance from the primary finding, or for no line constraint.
+
+## SecretRule
+
+`Picket.Rules.SecretRule`
 
 Describes a byte-oriented secret detection rule.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Create(System.String,System.String,System.String,System.Int32,System.Double,System.String,System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretAllowlist},System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Boolean,System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRequiredRule},System.String,System.String,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String})` | Creates a rule and normalizes optional collection arguments. |
-| Method | `SecretRule(System.String,System.String,System.String,System.Int32,System.Double,System.String,System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretAllowlist},System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Boolean,System.Collections.Generic.IReadOnlyList{Picket.Rules.SecretRequiredRule},System.String,System.String,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String})` | Describes a byte-oriented secret detection rule. |
-| Property | `Allowlists` | Gets per-rule allowlists used to suppress findings. |
-| Property | `Confidence` | Gets the native confidence value for reports and triage. |
-| Property | `Description` | Gets the user-facing rule description. |
-| Property | `DocumentationUrl` | Gets the rule documentation or remediation URL. |
-| Property | `Entropy` | Gets the minimum Shannon entropy required for the secret. Zero disables entropy filtering. |
-| Property | `Examples` | Gets positive examples that must produce findings for this rule during rule QA. |
-| Property | `Id` | Gets the stable rule identifier. |
-| Property | `Keywords` | Gets case-insensitive keywords used for candidate prefiltering. |
-| Property | `NegativeExamples` | Gets negative examples that must not produce findings for this rule during rule QA. |
-| Property | `PathPattern` | Gets the optional path regex pattern in the compatibility dialect. |
-| Property | `Pattern` | Gets the content regex pattern in the compatibility dialect. Empty means path-only. |
-| Property | `Provider` | Gets the owning provider or credential family. |
-| Property | `RequiredRules` | Gets supporting rules required before a primary finding is reported. |
-| Property | `RulePack` | Gets the native rule pack that supplied the rule. |
-| Property | `SecretGroup` | Gets the capture group that contains the secret. Zero means the whole match. |
-| Property | `Severity` | Gets the native severity value for reports and triage. |
-| Property | `SkipReport` | Gets a value indicating whether normal findings for this rule are suppressed. |
-| Property | `Tags` | Gets rule classification tags. |
+### Constructors
+
+#### `SecretRule(...)`
+
+```csharp
+SecretRule(
+    string id,
+    string description,
+    string pattern,
+    int secretGroup,
+    double entropy,
+    string pathPattern,
+    IReadOnlyList<SecretAllowlist> allowlists,
+    IReadOnlyList<string> keywords,
+    IReadOnlyList<string> tags,
+    bool skipReport,
+    IReadOnlyList<SecretRequiredRule> requiredRules,
+    string severity,
+    string confidence,
+    string rulePack,
+    string provider,
+    string documentationUrl,
+    IReadOnlyList<string> examples,
+    IReadOnlyList<string> negativeExamples
+)
+```
+
+Describes a byte-oriented secret detection rule.
+
+
+### Methods
+
+#### `Create(...)`
+
+```csharp
+Create(
+    string id,
+    string description,
+    string pattern,
+    int secretGroup,
+    double entropy,
+    string pathPattern,
+    IReadOnlyList<SecretAllowlist> allowlists,
+    IReadOnlyList<string> keywords,
+    IReadOnlyList<string> tags,
+    bool skipReport,
+    IReadOnlyList<SecretRequiredRule> requiredRules,
+    string severity,
+    string confidence,
+    string rulePack,
+    string provider,
+    string documentationUrl,
+    IReadOnlyList<string> examples,
+    IReadOnlyList<string> negativeExamples
+)
+```
+
+Creates a rule and normalizes optional collection arguments.
+
+
+### Properties
+
+- `Allowlists` - Gets per-rule allowlists used to suppress findings.
+- `Confidence` - Gets the native confidence value for reports and triage.
+- `Description` - Gets the user-facing rule description.
+- `DocumentationUrl` - Gets the rule documentation or remediation URL.
+- `Entropy` - Gets the minimum Shannon entropy required for the secret. Zero disables entropy filtering.
+- `Examples` - Gets positive examples that must produce findings for this rule during rule QA.
+- `Id` - Gets the stable rule identifier.
+- `Keywords` - Gets case-insensitive keywords used for candidate prefiltering.
+- `NegativeExamples` - Gets negative examples that must not produce findings for this rule during rule QA.
+- `PathPattern` - Gets the optional path regex pattern in the compatibility dialect.
+- `Pattern` - Gets the content regex pattern in the compatibility dialect. Empty means path-only.
+- `Provider` - Gets the owning provider or credential family.
+- `RequiredRules` - Gets supporting rules required before a primary finding is reported.
+- `RulePack` - Gets the native rule pack that supplied the rule.
+- `SecretGroup` - Gets the capture group that contains the secret. Zero means the whole match.
+- `Severity` - Gets the native severity value for reports and triage.
+- `SkipReport` - Gets a value indicating whether normal findings for this rule are suppressed.
+- `Tags` - Gets rule classification tags.

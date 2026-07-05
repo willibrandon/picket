@@ -1,0 +1,8 @@
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  overflow-wrap: anywhere;
+}
+
+.sl-markdown-content :not(pre) > code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

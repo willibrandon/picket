@@ -10,112 +10,209 @@ Generated from XML documentation for `Picket.Engine`.
 
 ## Types
 
-- `Picket.Engine.CompiledRuleSet` - Represents a rule set with precompiled Scout regexes and keyword prefilters.
-- `Picket.Engine.Finding` - Represents a detected secret finding using the Gitleaks-compatible field model.
-- `Picket.Engine.ScanRequest` - Describes a byte-buffer scan request.
-- `Picket.Engine.SecretScanner` - Byte-oriented secret scanner.
-- `Picket.Engine.ShannonEntropy` - Computes Shannon entropy over byte data.
-- `Picket.Engine.SourcePosition` - Represents a Gitleaks-compatible source line and column.
-- `Picket.Engine.StableFindingFingerprint` - Creates stable Picket-native finding fingerprints.
+- [CompiledRuleSet](#compiledruleset) - Represents a rule set with precompiled Scout regexes and keyword prefilters.
+- [Finding](#finding) - Represents a detected secret finding using the Gitleaks-compatible field model.
+- [ScanRequest](#scanrequest) - Describes a byte-buffer scan request.
+- [SecretScanner](#secretscanner) - Byte-oriented secret scanner.
+- [ShannonEntropy](#shannonentropy) - Computes Shannon entropy over byte data.
+- [SourcePosition](#sourceposition) - Represents a Gitleaks-compatible source line and column.
+- [StableFindingFingerprint](#stablefindingfingerprint) - Creates stable Picket-native finding fingerprints.
 
-## `Picket.Engine.CompiledRuleSet`
+## CompiledRuleSet
+
+`Picket.Engine.CompiledRuleSet`
 
 Represents a rule set with precompiled Scout regexes and keyword prefilters.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Compile(Picket.Rules.RuleSet)` | Compiles a source rule set. |
-| Method | `CompiledRuleSet(Picket.Rules.RuleSet)` | Represents a rule set with precompiled Scout regexes and keyword prefilters. |
-| Method | `IsGlobalPathAllowed(System.String)` | Returns a value indicating whether a global Gitleaks path allowlist matches the supplied path. |
-| Property | `Fingerprint` | Gets a stable fingerprint for the rules, allowlists, and rule compilation inputs. |
-| Property | `Rules` | Gets the source rules in deterministic evaluation order. |
+### Constructors
 
-## `Picket.Engine.Finding`
+- `CompiledRuleSet(RuleSet rules)` - Represents a rule set with precompiled Scout regexes and keyword prefilters.
+
+### Methods
+
+- `Compile(RuleSet rules)` - Compiles a source rule set.
+- `IsGlobalPathAllowed(string path)` - Returns a value indicating whether a global Gitleaks path allowlist matches the supplied path.
+
+### Properties
+
+- `Fingerprint` - Gets a stable fingerprint for the rules, allowlists, and rule compilation inputs.
+- `Rules` - Gets the source rules in deterministic evaluation order.
+
+## Finding
+
+`Picket.Engine.Finding`
 
 Represents a detected secret finding using the Gitleaks-compatible field model.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Finding(System.String,System.String,System.Int32,System.Int32,System.Int32,System.Int32,System.String,System.String,System.String,System.String,System.String,System.Double,System.String,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{System.String},System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{System.String})` | Represents a detected secret finding using the Gitleaks-compatible field model. |
-| Property | `Author` | Gets the git author, or an empty string. |
-| Property | `BlobSha256` | Gets the source blob SHA-256 hash for native reports, or an empty string. |
-| Property | `Commit` | Gets the git commit SHA, or an empty string. |
-| Property | `Date` | Gets the git commit date, or an empty string. |
-| Property | `DecodePath` | Gets the decode operations that exposed the finding. |
-| Property | `Description` | Gets the rule description. |
-| Property | `Email` | Gets the git author email, or an empty string. |
-| Property | `EndColumn` | Gets the one-based end column. |
-| Property | `EndLine` | Gets the one-based end line. |
-| Property | `Entropy` | Gets the Shannon entropy of the secret. |
-| Property | `File` | Gets the logical file path. |
-| Property | `Fingerprint` | Gets the Gitleaks-compatible fingerprint. |
-| Property | `Line` | Gets the full source line that contains the match. |
-| Property | `Link` | Gets the source control link, or an empty string. |
-| Property | `Match` | Gets the full matched text. |
-| Property | `MatchSha256` | Gets the original match SHA-256 hash for native reports, or an empty string. |
-| Property | `Message` | Gets the git commit message, or an empty string. |
-| Property | `RuleID` | Gets the rule identifier. |
-| Property | `Secret` | Gets the secret text. |
-| Property | `SecretSha256` | Gets the original secret SHA-256 hash for native reports, or an empty string. |
-| Property | `StartColumn` | Gets the one-based start column. |
-| Property | `StartLine` | Gets the one-based start line. |
-| Property | `SymlinkFile` | Gets the symlink path, or an empty string. |
-| Property | `Tags` | Gets the rule tags. |
-| Property | `ValidationState` | Gets the offline validation state for native reports, or an empty string. |
+### Constructors
 
-## `Picket.Engine.ScanRequest`
+#### `Finding(...)`
+
+```csharp
+Finding(
+    string ruleID,
+    string description,
+    int startLine,
+    int endLine,
+    int startColumn,
+    int endColumn,
+    string match,
+    string secret,
+    string file,
+    string symlinkFile,
+    string commit,
+    double entropy,
+    string author,
+    string email,
+    string date,
+    string message,
+    IReadOnlyList<string> tags,
+    string fingerprint,
+    string line,
+    string link,
+    string secretSha256,
+    string matchSha256,
+    string validationState,
+    string blobSha256,
+    IReadOnlyList<string> decodePath
+)
+```
+
+Represents a detected secret finding using the Gitleaks-compatible field model.
+
+
+### Properties
+
+- `Author` - Gets the git author, or an empty string.
+- `BlobSha256` - Gets the source blob SHA-256 hash for native reports, or an empty string.
+- `Commit` - Gets the git commit SHA, or an empty string.
+- `Date` - Gets the git commit date, or an empty string.
+- `DecodePath` - Gets the decode operations that exposed the finding.
+- `Description` - Gets the rule description.
+- `Email` - Gets the git author email, or an empty string.
+- `EndColumn` - Gets the one-based end column.
+- `EndLine` - Gets the one-based end line.
+- `Entropy` - Gets the Shannon entropy of the secret.
+- `File` - Gets the logical file path.
+- `Fingerprint` - Gets the Gitleaks-compatible fingerprint.
+- `Line` - Gets the full source line that contains the match.
+- `Link` - Gets the source control link, or an empty string.
+- `Match` - Gets the full matched text.
+- `MatchSha256` - Gets the original match SHA-256 hash for native reports, or an empty string.
+- `Message` - Gets the git commit message, or an empty string.
+- `RuleID` - Gets the rule identifier.
+- `Secret` - Gets the secret text.
+- `SecretSha256` - Gets the original secret SHA-256 hash for native reports, or an empty string.
+- `StartColumn` - Gets the one-based start column.
+- `StartLine` - Gets the one-based start line.
+- `SymlinkFile` - Gets the symlink path, or an empty string.
+- `Tags` - Gets the rule tags.
+- `ValidationState` - Gets the offline validation state for native reports, or an empty string.
+
+## ScanRequest
+
+`Picket.Engine.ScanRequest`
 
 Describes a byte-buffer scan request.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `ScanRequest(System.ReadOnlyMemory{System.Byte},System.String,Picket.Engine.CompiledRuleSet,System.Boolean,System.String,System.Int32,System.Nullable{System.Int64},System.String)` | Describes a byte-buffer scan request. |
-| Method | `ScanRequest(System.ReadOnlyMemory{System.Byte},System.String,Picket.Rules.RuleSet,System.Boolean,System.String,System.Int32,System.Nullable{System.Int64},System.String)` | Initializes a new scan request and compiles the supplied source rules. |
-| Property | `Commit` | Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string. |
-| Property | `FileName` | Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility. |
-| Property | `IgnoreGitleaksAllow` | Gets a value indicating whether inline gitleaks:allow suppression comments are ignored. |
-| Property | `Input` | Gets the input bytes to scan. |
-| Property | `MaxDecodeDepth` | Gets the maximum recursive decode depth. |
-| Property | `MaxTargetBytes` | Gets the maximum content size to scan with content rules, or for no cap. |
-| Property | `RuleSet` | Gets the compiled rules used for detection. |
-| Property | `SymlinkFile` | Gets the symlink path used in reports, or an empty string. |
+### Constructors
 
-## `Picket.Engine.SecretScanner`
+#### `ScanRequest(...)`
+
+```csharp
+ScanRequest(
+    ReadOnlyMemory<byte> input,
+    string fileName,
+    CompiledRuleSet ruleSet,
+    bool ignoreGitleaksAllow,
+    string commit,
+    int maxDecodeDepth,
+    long? maxTargetBytes,
+    string symlinkFile
+)
+```
+
+Describes a byte-buffer scan request.
+
+#### `ScanRequest(...)`
+
+```csharp
+ScanRequest(
+    ReadOnlyMemory<byte> input,
+    string fileName,
+    RuleSet ruleSet,
+    bool ignoreGitleaksAllow,
+    string commit,
+    int maxDecodeDepth,
+    long? maxTargetBytes,
+    string symlinkFile
+)
+```
+
+Initializes a new scan request and compiles the supplied source rules.
+
+
+### Properties
+
+- `Commit` - Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string.
+- `FileName` - Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
+- `IgnoreGitleaksAllow` - Gets a value indicating whether inline gitleaks:allow suppression comments are ignored.
+- `Input` - Gets the input bytes to scan.
+- `MaxDecodeDepth` - Gets the maximum recursive decode depth.
+- `MaxTargetBytes` - Gets the maximum content size to scan with content rules, or for no cap.
+- `RuleSet` - Gets the compiled rules used for detection.
+- `SymlinkFile` - Gets the symlink path used in reports, or an empty string.
+
+## SecretScanner
+
+`Picket.Engine.SecretScanner`
 
 Byte-oriented secret scanner.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Scan(Picket.Engine.ScanRequest)` | Scans a byte buffer and returns findings in rule evaluation order. |
+### Methods
 
-## `Picket.Engine.ShannonEntropy`
+- `Scan(ScanRequest)` - Scans a byte buffer and returns findings in rule evaluation order.
+
+## ShannonEntropy
+
+`Picket.Engine.ShannonEntropy`
 
 Computes Shannon entropy over byte data.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Calculate(System.ReadOnlySpan{System.Byte})` | Calculates Shannon entropy for a byte span. |
+### Methods
 
-## `Picket.Engine.SourcePosition`
+- `Calculate(ReadOnlySpan<byte>)` - Calculates Shannon entropy for a byte span.
+
+## SourcePosition
+
+`Picket.Engine.SourcePosition`
 
 Represents a Gitleaks-compatible source line and column.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Equals(Picket.Engine.SourcePosition)` | Returns a value indicating whether this position equals another position. |
-| Method | `Equals(System.Object)` |  |
-| Method | `FromOffset(System.ReadOnlySpan{System.Byte},System.Int32)` | Maps a zero-based byte offset to a Gitleaks-compatible line and column. |
-| Method | `GetHashCode` |  |
-| Method | `SourcePosition(System.Int32,System.Int32)` | Represents a Gitleaks-compatible source line and column. |
-| Method | `op_Equality(Picket.Engine.SourcePosition,Picket.Engine.SourcePosition)` | Returns a value indicating whether two positions are equal. |
-| Method | `op_Inequality(Picket.Engine.SourcePosition,Picket.Engine.SourcePosition)` | Returns a value indicating whether two positions differ. |
-| Property | `Column` | Gets the one-based column. |
-| Property | `Line` | Gets the one-based line. |
+### Constructors
 
-## `Picket.Engine.StableFindingFingerprint`
+- `SourcePosition(int line, int column)` - Represents a Gitleaks-compatible source line and column.
+
+### Methods
+
+- `Equals(SourcePosition other)` - Returns a value indicating whether this position equals another position.
+- `Equals(object)`
+- `FromOffset(ReadOnlySpan<byte> input, int offset)` - Maps a zero-based byte offset to a Gitleaks-compatible line and column.
+- `GetHashCode()`
+- `operator !=(SourcePosition left, SourcePosition right)` - Returns a value indicating whether two positions differ.
+- `operator ==(SourcePosition left, SourcePosition right)` - Returns a value indicating whether two positions are equal.
+
+### Properties
+
+- `Column` - Gets the one-based column.
+- `Line` - Gets the one-based line.
+
+## StableFindingFingerprint
+
+`Picket.Engine.StableFindingFingerprint`
 
 Creates stable Picket-native finding fingerprints.
 
-| Kind | Member | Summary |
-|---|---|---|
-| Method | `Create(Picket.Engine.Finding)` | Creates a versioned stable fingerprint for a finding. |
+### Methods
+
+- `Create(Finding finding)` - Creates a versioned stable fingerprint for a finding.

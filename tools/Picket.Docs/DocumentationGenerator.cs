@@ -151,10 +151,20 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             foreach (XElement type in types)
             {
                 string typeName = GetMemberId(type)[2..];
-                builder.Append("- `");
-                builder.Append(typeName);
-                builder.Append("` - ");
-                builder.AppendLine(EscapeMarkdownText(ReadSummary(type)));
+                string shortTypeName = GetShortTypeName(typeName);
+                builder.Append("- [");
+                builder.Append(EscapeMarkdownText(shortTypeName));
+                builder.Append("](#");
+                builder.Append(Slugify(shortTypeName));
+                builder.Append(')');
+                string summary = ReadSummary(type);
+                if (summary.Length != 0)
+                {
+                    builder.Append(" - ");
+                    builder.Append(EscapeMarkdownText(summary));
+                }
+
+                builder.AppendLine();
             }
 
             foreach (XElement type in types)
@@ -162,34 +172,32 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
                 string typeName = GetMemberId(type)[2..];
                 List<XElement> typeMembers = [.. members
                     .Where(member => IsTypeMember(GetMemberId(member), typeName))
-                    .OrderBy(member => GetMemberKind(GetMemberId(member)), StringComparer.Ordinal)
-                    .ThenBy(member => GetMemberDisplayName(GetMemberId(member), typeName), StringComparer.Ordinal)];
+                    .OrderBy(member => GetApiMemberGroup(GetMemberId(member)), StringComparer.Ordinal)
+                    .ThenBy(member => GetMemberSignature(GetMemberId(member), typeName, member), StringComparer.Ordinal)];
 
                 builder.AppendLine();
-                builder.Append("## `");
+                builder.Append("## ");
+                builder.AppendLine(GetShortTypeName(typeName));
+                builder.AppendLine();
+                builder.Append('`');
                 builder.Append(typeName);
                 builder.AppendLine("`");
-                builder.AppendLine();
-                builder.AppendLine(ReadSummary(type));
+                string summary = ReadSummary(type);
+                if (summary.Length != 0)
+                {
+                    builder.AppendLine();
+                    builder.AppendLine(EscapeMarkdownText(summary));
+                }
+
                 if (typeMembers.Count == 0)
                 {
                     continue;
                 }
 
-                builder.AppendLine();
-                builder.AppendLine("| Kind | Member | Summary |");
-                builder.AppendLine("|---|---|---|");
-                foreach (XElement member in typeMembers)
-                {
-                    string memberId = GetMemberId(member);
-                    builder.Append("| ");
-                    builder.Append(GetMemberKind(memberId));
-                    builder.Append(" | `");
-                    builder.Append(EscapeTable(GetMemberDisplayName(memberId, typeName)));
-                    builder.Append("` | ");
-                    builder.Append(EscapeTable(ReadSummary(member)));
-                    builder.AppendLine(" |");
-                }
+                AppendApiMemberGroup(builder, "Constructors", typeMembers, typeName);
+                AppendApiMemberGroup(builder, "Methods", typeMembers, typeName);
+                AppendApiMemberGroup(builder, "Properties", typeMembers, typeName);
+                AppendApiMemberGroup(builder, "Fields", typeMembers, typeName);
             }
 
             WriteMarkdown(
@@ -295,6 +303,155 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         }
 
         builder.AppendLine();
+    }
+
+    private static void AppendApiMemberGroup(StringBuilder builder, string title, List<XElement> members, string typeName)
+    {
+        List<XElement> groupMembers = [.. members.Where(member => GetApiMemberGroup(GetMemberId(member)).Equals(title, StringComparison.Ordinal))];
+        if (groupMembers.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine();
+        builder.Append("### ");
+        builder.AppendLine(title);
+        builder.AppendLine();
+        foreach (XElement member in groupMembers)
+        {
+            string signature = GetMemberSignature(GetMemberId(member), typeName, member);
+            string summary = ReadSummary(member);
+            if (IsCallableApiGroup(title) && signature.Length > 100)
+            {
+                AppendCallableApiMember(builder, signature, summary);
+                continue;
+            }
+
+            AppendInlineApiMember(builder, signature, summary);
+        }
+    }
+
+    private static void AppendInlineApiMember(StringBuilder builder, string signature, string summary)
+    {
+        builder.Append("- `");
+        builder.Append(EscapeMarkdownText(signature));
+        builder.Append('`');
+        if (summary.Length != 0)
+        {
+            builder.Append(" - ");
+            builder.Append(EscapeMarkdownText(summary));
+        }
+
+        builder.AppendLine();
+    }
+
+    private static bool IsCallableApiGroup(string title)
+    {
+        return title is "Constructors" or "Methods";
+    }
+
+    private static void AppendCallableApiMember(StringBuilder builder, string signature, string summary)
+    {
+        builder.Append("#### `");
+        builder.Append(EscapeMarkdownText(GetCallableApiHeading(signature)));
+        builder.AppendLine("`");
+        builder.AppendLine();
+        builder.AppendLine("```csharp");
+        builder.AppendLine(FormatApiCodeSignature(signature));
+        builder.AppendLine("```");
+        if (summary.Length != 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine(EscapeMarkdownText(summary));
+        }
+
+        builder.AppendLine();
+    }
+
+    private static string GetCallableApiHeading(string signature)
+    {
+        if (signature.Length <= 80)
+        {
+            return signature;
+        }
+
+        int parameterIndex = signature.IndexOf('(', StringComparison.Ordinal);
+        return parameterIndex < 0 ? signature : string.Concat(signature[..parameterIndex], "(...)");
+    }
+
+    private static string FormatApiCodeSignature(string signature)
+    {
+        const int MaxSingleLineSignatureLength = 100;
+        if (signature.Length <= MaxSingleLineSignatureLength)
+        {
+            return signature;
+        }
+
+        int parameterIndex = signature.IndexOf('(', StringComparison.Ordinal);
+        if (parameterIndex < 0 || !signature.EndsWith(')'))
+        {
+            return signature;
+        }
+
+        List<string> parameters = SplitSignatureParameters(signature[(parameterIndex + 1)..^1]);
+        if (parameters.Count <= 1)
+        {
+            return signature;
+        }
+
+        var builder = new StringBuilder(signature.Length + (parameters.Count * 6));
+        builder.Append(signature[..parameterIndex]);
+        builder.AppendLine("(");
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            builder.Append("    ");
+            builder.Append(parameters[i]);
+            if (i < parameters.Count - 1)
+            {
+                builder.Append(',');
+            }
+
+            builder.AppendLine();
+        }
+
+        builder.Append(')');
+        return builder.ToString();
+    }
+
+    private static List<string> SplitSignatureParameters(string parameters)
+    {
+        var signatureParameters = new List<string>();
+        if (parameters.Length == 0)
+        {
+            return signatureParameters;
+        }
+
+        int start = 0;
+        int depth = 0;
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            char c = parameters[i];
+            if (c == '<')
+            {
+                depth++;
+                continue;
+            }
+
+            if (c == '>' && depth > 0)
+            {
+                depth--;
+                continue;
+            }
+
+            if (c == ',' && depth == 0)
+            {
+                AddParameterType(signatureParameters, parameters[start..i]);
+                start = i + 1;
+            }
+        }
+
+        AddParameterType(signatureParameters, parameters[start..]);
+        return signatureParameters;
     }
 
     private static string? TryReadConsoleLiteral(string line)
@@ -442,24 +599,30 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         return separatorIndex <= 0 ? string.Empty : memberName[..separatorIndex];
     }
 
-    private static string GetMemberKind(string memberId)
+    private static string GetApiMemberGroup(string memberId)
     {
-        if (memberId.Length < 2)
+        if (IsConstructorMember(memberId))
         {
-            return "Member";
+            return "Constructors";
         }
 
-        return memberId[0] switch
-        {
-            'F' => "Field",
-            'M' => "Method",
-            'P' => "Property",
-            'T' => "Type",
-            _ => "Member",
-        };
+        return memberId.Length == 0
+            ? "Members"
+            : memberId[0] switch
+            {
+                'F' => "Fields",
+                'M' => "Methods",
+                'P' => "Properties",
+                _ => "Members",
+            };
     }
 
-    private static string GetMemberDisplayName(string memberId, string typeName)
+    private static bool IsConstructorMember(string memberId)
+    {
+        return memberId.StartsWith("M:", StringComparison.Ordinal) && memberId.Contains(".#ctor", StringComparison.Ordinal);
+    }
+
+    private static string GetMemberSignature(string memberId, string typeName, XElement member)
     {
         if (memberId.Length <= 2)
         {
@@ -467,11 +630,11 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         }
 
         string memberName = memberId[2..];
-        string parameters = string.Empty;
+        string? parameters = null;
         int parameterIndex = memberName.IndexOf('(', StringComparison.Ordinal);
         if (parameterIndex >= 0)
         {
-            parameters = memberName[parameterIndex..];
+            parameters = memberName.EndsWith(')') ? memberName[(parameterIndex + 1)..^1] : string.Empty;
             memberName = memberName[..parameterIndex];
         }
 
@@ -486,7 +649,167 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             memberName = GetShortTypeName(typeName);
         }
 
-        return string.Concat(memberName, parameters);
+        memberName = FormatOperatorName(memberName);
+        if (memberId[0] != 'M')
+        {
+            return memberName;
+        }
+
+        string parameterList = parameters is null ? string.Empty : FormatParameterList(parameters, member);
+        return string.Concat(memberName, "(", parameterList, ")");
+    }
+
+    private static string FormatOperatorName(string memberName)
+    {
+        return memberName switch
+        {
+            "op_Equality" => "operator ==",
+            "op_Inequality" => "operator !=",
+            _ => memberName,
+        };
+    }
+
+    private static string FormatParameterList(string parameters, XElement member)
+    {
+        List<string> parameterTypes = SplitParameterTypes(parameters);
+        List<string> parameterNames = GetParameterNames(member);
+        var builder = new StringBuilder(parameters.Length);
+        for (int i = 0; i < parameterTypes.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(FormatTypeName(parameterTypes[i]));
+            if (i < parameterNames.Count)
+            {
+                builder.Append(' ');
+                builder.Append(parameterNames[i]);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static List<string> GetParameterNames(XElement member)
+    {
+        var parameterNames = new List<string>();
+        foreach (XElement parameter in member.Elements("param"))
+        {
+            string? name = parameter.Attribute("name")?.Value;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                parameterNames.Add(name);
+            }
+        }
+
+        return parameterNames;
+    }
+
+    private static List<string> SplitParameterTypes(string parameters)
+    {
+        var parameterTypes = new List<string>();
+        if (parameters.Length == 0)
+        {
+            return parameterTypes;
+        }
+
+        int start = 0;
+        int depth = 0;
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            char c = parameters[i];
+            if (c == '{')
+            {
+                depth++;
+                continue;
+            }
+
+            if (c == '}' && depth > 0)
+            {
+                depth--;
+                continue;
+            }
+
+            if (c == ',' && depth == 0)
+            {
+                AddParameterType(parameterTypes, parameters[start..i]);
+                start = i + 1;
+            }
+        }
+
+        AddParameterType(parameterTypes, parameters[start..]);
+        return parameterTypes;
+    }
+
+    private static void AddParameterType(List<string> parameterTypes, string parameterType)
+    {
+        string trimmedParameterType = parameterType.Trim();
+        if (trimmedParameterType.Length != 0)
+        {
+            parameterTypes.Add(trimmedParameterType);
+        }
+    }
+
+    private static string FormatTypeName(string typeName)
+    {
+        typeName = typeName.Trim();
+        if (typeName.EndsWith("[]", StringComparison.Ordinal))
+        {
+            return string.Concat(FormatTypeName(typeName[..^2]), "[]");
+        }
+
+        int genericIndex = typeName.IndexOf('{', StringComparison.Ordinal);
+        if (genericIndex >= 0 && typeName.EndsWith('}'))
+        {
+            string genericTypeName = typeName[..genericIndex];
+            List<string> genericArguments = SplitParameterTypes(typeName[(genericIndex + 1)..^1]);
+            if (genericTypeName.Equals("System.Nullable", StringComparison.Ordinal) && genericArguments.Count == 1)
+            {
+                return string.Concat(FormatTypeName(genericArguments[0]), "?");
+            }
+
+            return string.Concat(
+                FormatSimpleTypeName(genericTypeName),
+                "<",
+                string.Join(", ", genericArguments.Select(FormatTypeName)),
+                ">");
+        }
+
+        return FormatSimpleTypeName(typeName);
+    }
+
+    private static string FormatSimpleTypeName(string typeName)
+    {
+        string simpleTypeName = typeName switch
+        {
+            "System.Boolean" => "bool",
+            "System.Byte" => "byte",
+            "System.Char" => "char",
+            "System.Decimal" => "decimal",
+            "System.Double" => "double",
+            "System.Int16" => "short",
+            "System.Int32" => "int",
+            "System.Int64" => "long",
+            "System.Object" => "object",
+            "System.SByte" => "sbyte",
+            "System.Single" => "float",
+            "System.String" => "string",
+            "System.UInt16" => "ushort",
+            "System.UInt32" => "uint",
+            "System.UInt64" => "ulong",
+            "System.Void" => "void",
+            _ => typeName,
+        };
+
+        int arityIndex = simpleTypeName.IndexOf('`', StringComparison.Ordinal);
+        if (arityIndex >= 0)
+        {
+            simpleTypeName = simpleTypeName[..arityIndex];
+        }
+
+        return GetShortTypeName(simpleTypeName);
     }
 
     private static string GetShortTypeName(string typeName)
