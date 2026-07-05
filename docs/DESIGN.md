@@ -1,333 +1,683 @@
-# Picket — Design Document
+# Picket Design
 
-**A best-in-class secrets scanner for .NET, built on the Scout library stack — a drop-in gitleaks replacement that goes far beyond it.**
+**Picket is a new MIT-licensed secrets scanner for .NET: Gitleaks-compatible where compatibility is promised, Picket-native where the product should move beyond Gitleaks, and Scout-powered on the byte-oriented hot paths where Scout is the right engineering fit.**
 
-- **Status:** Implementation design (v0.1 — full scope)
-- **Date:** 2026-07-04
+- **Status:** Product and implementation design
+- **Date:** 2026-07-05
 - **Target runtime:** `picket` CLI on .NET 10 Native AOT (`net10.0`); reusable libraries target `net9.0` and `net10.0`
 - **Binary name:** `picket`
 - **Root namespace:** `Picket`
-- **Built on:** `Scout.Text.Regex`, `Scout.IO.Globbing`, `Scout.IO.Ignore` (this repository)
-- **License:** MIT (deliberately — see §2.3)
+- **Primary reference:** Gitleaks. Picket intentionally follows its CLI, config model, rule semantics, reports, fingerprints, and operational defaults in compatibility mode.
+- **Scout dependencies:** `Scout.Text.Regex`, `Scout.IO.Globbing`, and selected `Scout.IO.Ignore` traversal components when their behavior matches the active scan profile.
+- **License:** MIT for the scanner, libraries, action, hooks, and bundled rules.
 
 ---
 
-## 1. Name
+## 1. Product Contract
 
-**Chosen name: `Picket`.**
+Picket has two explicit surfaces. They share the same engine, but they do not share every default.
 
-A *picket* is a sentry posted ahead of the main body to keep watch and raise the alarm; a *picket line* is a guarded perimeter. That is exactly this tool: it stands watch over a codebase and warns when a secret crosses the line. It also rhymes thematically with **Scout** — reconnaissance and sentry duty are the same discipline — so the two products read as a family.
+### 1.1 Gitleaks-Compatible Surface
 
-**Collision due diligence.** The package ID `Picket` is unused on NuGet (verified: zero packages). GitHub prior art is JBoss **PicketLink**/**PicketBox**, an archived Java identity framework (double-digit stars, dormant for years), and unrelated hobby repos (a Python geofencing toy, a strike-notifier browser extension). None is a secrets scanner or a .NET security tool, so confusion in this niche is negligible. If a hard conflict ever surfaces, the rename is mechanical (namespaces, assembly/binary name, package IDs).
+The compatibility surface is for users who want to replace `gitleaks` with `picket` and keep their current automation stable.
 
-**Command name:** the only installed command is `picket`. No short alias (avoids shadowing system tools, mirroring Scout's `sc`/`sc.exe` decision).
+- Commands: `picket git`, `picket dir`, `picket stdin`, plus hidden/deprecated `detect` and `protect` shims.
+- Config: `.gitleaks.toml`, `GITLEAKS_CONFIG`, `GITLEAKS_CONFIG_TOML`, `.gitleaksignore`, baselines, rule schema, allowlists, and report formats follow Gitleaks exactly at the pinned upstream version.
+- Defaults: only Gitleaks-compatible rules and Gitleaks-compatible traversal/reporting behavior are enabled.
+- Output contract: strict compatibility report modes byte-match pinned Gitleaks fixtures, including identity fields where consumers depend on them. Native report modes identify Picket and are compared with their own golden files.
+- Deviations: every intentional difference is recorded in `docs/PARITY.md` with an oracle test.
 
----
+### 1.2 Picket-Native Surface
 
-## 2. Mission & Positioning
+The native surface is where Picket becomes a best-in-class scanner rather than a clone.
 
-### 2.1 Mission
+- Command family: `picket scan ...`, `picket verify`, `picket analyze`, `picket rules check`, `picket rules test`, `picket baseline`, `picket view`.
+- Profile: `--profile picket` enables Picket rule packs, stable fingerprints, richer ignore semantics, offline validation, richer reports, and datastore-backed dedup.
+- Live network verification remains explicit. Offline structural validation can run by default in native profiles because it does not contact providers.
+- Native output includes Picket metadata such as validation state, blob IDs, decode path, confidence, severity, rule pack, and provenance.
 
-A **feature-complete, byte-compatible gitleaks replacement** for .NET that is also the **best-in-class** open-source secrets scanner overall: it matches gitleaks flag-for-flag and config-for-config so existing users switch with zero migration, then adds the capabilities the whole field is missing — live and offline **verification**, **credential-privilege analysis**, **incremental blob-dedup scanning**, a **rule test harness**, portable **wildcard/relative ignores**, **simultaneous multi-format output**, and a genuinely **free, permissively-licensed CI action**.
-
-### 2.2 Strategic timing (why now)
-
-Gitleaks is **officially feature-frozen.** Its README states future releases are *security patches only* and the maintainer has moved to a separate successor project; the v9 wishlist issue was closed as "not working on v9." The most popular OSS secrets scanner has stopped accepting features while its GitHub Action is **proprietary and requires a paid license key for organizations** (with well-documented delivery failures: gitleaks-action #1624, #1753, #1561). TruffleHog — the other leader — is **AGPL-3.0**, a recurring enterprise-adoption blocker, and *still lacks an ignore file* (its single most-reacted open issue, #2687, 30 reactions). The lane for a **fast, MIT-licensed, drop-in-compatible, verification-capable** scanner — with a first-class .NET-native story that no incumbent has — is wide open.
-
-### 2.3 Non-negotiables (inherited from Scout's engineering culture)
-
-- **MIT license, no open-core, no paid tier for the scanner or its CI action.** This is a positioning weapon against both gitleaks-action (proprietary/paid-for-orgs) and TruffleHog (AGPL). It is a hard constraint, not a default.
-- **Native AOT, single self-contained binary**, fast cold start (a pre-commit hook and CI step must feel instant). No JIT, no runtime reflection on hot paths.
-- **Byte-oriented end to end.** Secrets live in `.env` files, PEM blobs, minified bundles, and files of unknown/broken encoding. Picket matches over `ReadOnlySpan<byte>` via `Scout.Text.Regex` and never round-trips through a lossy UTF-16 decode. This is the core reason to build on Scout and not the BCL `Regex`.
-- **Behavioral compatibility is a tested contract**, in Scout's tradition: a differential suite runs Picket and the pinned real `gitleaks` binary over a corpus and asserts matching findings, fingerprints, and report bytes (after documented identity normalization). Any intentional deviation is recorded in a `PARITY.md`-style ledger with a guarding test.
-- **One type per file; zero warning suppressions; every public API documented** — enforced by the same MSBuild/analyzer regime this repo already ships (`Scout.SourceGen` analyzers, `Directory.Build.targets` gates).
-- **No feature is stubbed or `NotImplementedException`-ed.** Full scope is delivered; internal milestones (§12) are integration gates, not shippable subsets.
-
-### 2.4 Non-goals
-
-- Not a SaaS. No mandatory account, no phone-home, no telemetry. Verification (which necessarily contacts provider APIs) is **opt-in** and there is an enforced **offline mode** default posture for privacy-sensitive users (§6.2).
-- Not bug-for-bug bound to gitleaks defects. Where gitleaks has an acknowledged flaw (unstable fingerprints, silent git-error exit-0), Picket offers a **compatible mode** that reproduces it and a **fixed mode** that corrects it, both documented.
+The rule is simple: **Gitleaks-compatible commands must not silently adopt Picket-native behavior.** New power belongs behind a native command, profile, flag, or rule pack.
 
 ---
 
-## 3. Architecture Overview
+## 2. Positioning
 
-Picket is a layered stack mirroring Scout's own crate-per-project discipline. Every project is `net9.0;net10.0` and `IsAotCompatible` except the CLI app (`net10.0`, `PublishAot`).
+Picket is heavily based on Gitleaks because Gitleaks has the clearest open-source contract for config files, ignore files, fingerprints, and CI usage. Picket treats Gitleaks as the compatibility base and then adds the capabilities developers now expect from a leading scanner:
+
+- fast byte-oriented scanning,
+- high-quality rule packs with examples and tests,
+- low false-positive defaults,
+- safe offline validation,
+- opt-in live verification,
+- credential privilege and blast-radius analysis,
+- datastore-backed dedup and incremental scans,
+- first-class ignore and baseline workflows,
+- SARIF/JSONL/HTML/TOON outputs,
+- a free MIT GitHub Action and local hooks,
+- embeddable .NET libraries.
+
+Picket is not a SaaS and does not require an account. It has no telemetry. Any feature that can send secrets or metadata to a provider API is opt-in, visibly labeled, rate limited, and covered by a documented egress model.
+
+---
+
+## 3. Reference Pins
+
+The design and differential tests are pinned to local reference snapshots. Upgrades are deliberate, reviewed changes.
+
+| Project | Local path | Role |
+|---|---|---|
+| Gitleaks | `D:\SRC\gitleaks` | Primary compatibility oracle |
+| Scout | `D:\SRC\scout` | Library reference; never modified by Picket work |
+| TruffleHog | `D:\SRC\trufflehog` | Verification, sources, and analyze reference |
+| Kingfisher | `D:\SRC\kingfisher` | Validation breadth, revocation, access-map, reporting reference |
+| Nosey Parker | `D:\SRC\noseyparker` | Historical datastore/rule-QA/performance reference |
+
+`docs/UPSTREAM.md` records exact commits, supported upstream versions, known README/code divergences, and the command lines used by oracle tests. For example, Gitleaks' current code default for `--max-decode-depth` is `5`; if upstream docs say otherwise, Picket follows the code in compatibility tests and records the discrepancy.
+
+---
+
+## 4. Scout Usage Principles
+
+Scout is a core advantage, but Picket only uses Scout APIs where their semantics match the scanner contract.
+
+### 4.1 `Scout.Text.Regex`
+
+Picket uses Scout's byte regex engine for matching rule regexes against `ReadOnlySpan<byte>` buffers. This is the main architectural reason to build Picket in this repository.
+
+Rules:
+
+- Each detector rule compiles to its own `ByteRegex` for exact per-rule matching, captures, entropy, allowlists, and overlapping behavior.
+- A keyword prefilter is built from rule keywords and required literals. It narrows the candidate rule set before regex execution.
+- `ByteRegexSet` is used only where its result model matches the need: fast prefilters, literal/required-pattern discovery, and native rule packs that do not require Gitleaks-style per-rule overlapping captures.
+- Picket does **not** assume a single `ByteRegexSet` can replace Gitleaks' independent per-rule scan loop. That would be faster on paper and wrong in practice.
+- Unsupported regex constructs fail at config load with rule ID, pattern, reason, and remediation. There is no silent fallback that changes finding behavior.
+
+### 4.2 `Scout.IO.Globbing`
+
+`Scout.IO.Globbing` powers native glob ignore entries, path include/exclude sets, stable ignore fingerprints, and native rule-pack path scopes. In Gitleaks-compatible mode, regex path allowlists remain regex path allowlists; glob behavior is only used where Gitleaks semantics already call for it or where a Picket-native feature was explicitly selected.
+
+### 4.3 `Scout.IO.Ignore`
+
+`Scout.IO.Ignore` is used carefully.
+
+- Native Picket filesystem scans may honor `.gitignore`, `.ignore`, `.picketignore`, global Git excludes, hidden-file policy, and parallel traversal.
+- Gitleaks-compatible `dir` scans must reproduce Gitleaks traversal, which does not automatically honor `.gitignore` and does not skip hidden files just because Scout's `FileWalkerOptions` defaults do.
+- Picket may reuse lower-level Scout traversal components, but compatibility mode sets options or uses a compatibility walker so the observable file set matches Gitleaks.
+
+### 4.4 Native AOT
+
+The CLI is Native AOT and single-file/self-contained per RID. Picket reuses Scout's build and packaging patterns, but it does not assume Unix raw-argv handling and Windows wide-argv handling are identical. Path/argument byte behavior is tested per platform.
+
+---
+
+## 5. Architecture
 
 ```
-Picket.Cli (picket binary; Native AOT static lib + C entry, reuses Scout's launcher shape)
-  └── Picket.Engine        — scan orchestration, finding model, fingerprints, redaction
-        ├── Picket.Rules    — rule + allowlist model, TOML config loader, gitleaks compat, RE2 translation
-        ├── Picket.Sources  — scan sources: filesystem, git history, stdin, archives, remote (GitHub/GitLab/…)
-        ├── Picket.Decoding — base64/hex/percent/unicode recursive decoder with offset remapping
-        ├── Picket.Entropy  — Shannon entropy + p(random) probabilistic scoring
-        ├── Picket.Verify   — live provider verification + offline checksum validation + analyze
-        ├── Picket.Report   — json / csv / junit / sarif / template / toon / html writers (byte-exact)
-        └── Picket.Store    — content-addressed blob datastore for dedup + incremental scans
-Consumes: Scout.Text.Regex (ByteRegex/ByteRegexSet), Scout.IO.Globbing (GlobSet), Scout.IO.Ignore (FileWalker)
+Picket.Cli
+  +-- Picket.Engine
+        +-- Picket.Compat      - Gitleaks command, config, report, and oracle contracts
+        +-- Picket.Rules       - rule model, rule packs, examples, validators, RE2/Scout translation
+        +-- Picket.Match       - keyword prefilter, ByteRegex execution, captures, entropy, allowlists
+        +-- Picket.Sources     - filesystem, git, stdin, archives, source hosts, object stores, Docker
+        +-- Picket.Decoding    - recursive decoders with original-offset remapping
+        +-- Picket.Verify      - offline validators, live validators, cache, revocation hooks
+        +-- Picket.Analyze     - credential privilege and access-map analysis
+        +-- Picket.Report      - Gitleaks-exact and Picket-native report writers
+        +-- Picket.Store       - content-addressed blob store and incremental scan state
+        +-- Picket.Security    - egress policy, redaction, SSRF guards, audit events
 ```
 
-**How the three Scout libraries carry the load:**
+Hot-path constraints:
 
-| Scout library | Role in Picket |
+- `ReadOnlySpan<byte>` first,
+- stable line/column and byte offset mapping,
+- pooled buffers,
+- no LINQ in match loops,
+- no reflection-dependent runtime behavior required for Native AOT,
+- explicit allocation and throughput tests.
+
+---
+
+## 6. Gitleaks Compatibility
+
+### 6.1 Commands
+
+| Command | Compatibility behavior |
 |---|---|
-| **`Scout.Text.Regex`** | The detection engine. Every rule regex compiles to a `ByteRegex`; the keyword prefilter and multi-rule scan compile to a single `ByteRegexSet` so N rules run in **one linear pass** over each blob (not N passes). Byte offsets returned map directly into the source buffer for match/line extraction. Linear-time guarantee means an untrusted community ruleset cannot ReDoS the scanner. |
-| **`Scout.IO.Ignore`** | The filesystem source. `FileWalker` provides gitignore-exact, parallel, symlink-aware traversal — and directly answers the field's most-requested feature (gitleaks #1195: "use .gitignore as an allowlist") for free, because that is FileWalker's native behavior. `--no-git`-style toggles map onto `FileWalkerOptions`. |
-| **`Scout.IO.Globbing`** | Path allowlists/denylists and rule `path` scoping. `GlobSet` matches a finding's path against many patterns at once; wildcard ignore fingerprints (gitleaks #1870) are implemented as globs. |
+| `picket git [repo]` | Uses the same Git patch model as Gitleaks: `git log -p -U0 --full-history --all --diff-filter=tuxdb`, additions only. `--log-opts`, `--staged`, and `--pre-commit` reproduce Gitleaks behavior, including its quoting limitations where tests depend on them. |
+| `picket dir [path]` | Filesystem scan with Gitleaks traversal semantics. Aliases: `file`, `directory`. Supports `--follow-symlinks`. |
+| `picket stdin` | Scans piped input with Gitleaks-compatible path/fingerprint/report behavior. |
+| `picket detect` | Hidden/deprecated shim. Maps to `git`, `dir`, or `stdin` the way Gitleaks does. |
+| `picket protect` | Hidden/deprecated shim. Maps to pre-commit/staged behavior. |
 
-**Native AOT + argument bytes.** Picket reuses Scout's proven native-entry shape: `Picket.Cli` publishes as an AOT static library exporting an `[UnmanagedCallersOnly]` entry, driven by the same C launcher (`scout_main.c` sibling) so raw non-UTF-8 argv/paths round-trip. This is a solved problem in this repo; Picket inherits it rather than reinventing it.
+`--platform` accepts the Gitleaks-compatible set: empty/unknown autodetect, `none`, `github`, `gitlab`, `azuredevops`, `gitea`, and `bitbucket`. Literal `auto` is Picket-native only if added; it is not part of the Gitleaks-compatible surface.
 
----
+### 6.2 Flags and Exit Codes
 
-## 4. Gitleaks Compatibility Surface (drop-in)
+Compatibility flags include:
 
-The compatibility contract is: **an existing gitleaks user points Picket at the same repo with the same `.gitleaks.toml`, `.gitleaksignore`, and flags, and gets the same findings, fingerprints, exit codes, and report bytes.** Everything in this section is in scope for v1.
+`-c/--config`, `--exit-code`, `-r/--report-path`, `-f/--report-format`, `--report-template`, `-b/--baseline-path`, `-l/--log-level`, `-v/--verbose`, `--no-color`, `--no-banner`, `--max-target-megabytes`, `--ignore-gitleaks-allow`, `--redact[=0..100]`, `--enable-rule`, `-i/--gitleaks-ignore-path`, `--max-decode-depth`, `--max-archive-depth`, `--timeout`, `--diagnostics`, and `--diagnostics-dir`.
 
-### 4.1 Commands
+Config precedence in compatibility mode is exact:
 
-| Command | Behavior | Notes |
-|---|---|---|
-| `picket git [repo]` | Scan git history. Reimplements gitleaks' `git log -p -U0 --full-history --all --diff-filter=tuxdb` pipeline; scans **additions only**. | `--log-opts`, `--staged`, `--pre-commit`, `--platform {github\|gitlab\|azuredevops\|gitea\|bitbucket\|none\|auto}` |
-| `picket dir [path]` | Filesystem scan (aliases `file`, `directory`). Built on `FileWalker`. | `--follow-symlinks` |
-| `picket stdin` | Scan piped input. | |
-| `picket detect` | **Deprecated/hidden**, functional. Maps `detect`→`git`, `detect --no-git`→`dir`, `detect --no-git --pipe`→`stdin`. | Compatibility shim |
-| `picket protect` | **Deprecated/hidden**, functional. Maps `protect`→`git --pre-commit`, `--staged`→`+--staged`. | Compatibility shim |
-| `picket version`, `picket completion`, `picket help` | Standard. | Completions for bash/zsh/fish/PowerShell via `Scout.SourceGen`-style generation. |
+1. `--config`
+2. `GITLEAKS_CONFIG`
+3. `GITLEAKS_CONFIG_TOML`
+4. `{target}/.gitleaks.toml`
+5. embedded Gitleaks default config
 
-**Picket-native additions** (§6): `picket verify`, `picket analyze`, `picket rules check`, `picket rules test`, `picket scan github|gitlab|s3|docker` (remote sources), `picket baseline`.
+`PICKET_CONFIG*` variables are ignored by strict compatibility mode unless `--profile picket` or a native command is selected.
 
-### 4.2 Global flags (gitleaks-exact)
+Exit codes:
 
-`-c/--config`, `--exit-code` (default 1), `-r/--report-path` (`-`=stdout, extension-inferred format), `-f/--report-format {json,csv,junit,sarif,template}`, `--report-template`, `-b/--baseline-path`, `-l/--log-level`, `-v/--verbose`, `--no-color`, `--no-banner`, `--max-target-megabytes` (decimal MB, `len/1_000_000`), `--ignore-gitleaks-allow`, `--redact[=0..100]` (NoOptDefVal 100), `--enable-rule` (repeatable), `-i/--gitleaks-ignore-path` (default `.`; plus auto-load `{source}/.gitleaksignore`), `--max-decode-depth` (default **5**), `--max-archive-depth` (default 0), `--timeout`, `--diagnostics`, `--diagnostics-dir`.
+- `0`: no leaks and no fatal error,
+- configured `--exit-code` value, default `1`: leaks found,
+- `1`: scan error or partial scan,
+- `126`: unknown flag.
 
-**Config precedence (exact):** `--config` → `GITLEAKS_CONFIG` (path) → `GITLEAKS_CONFIG_TOML` (content) → `{target}/.gitleaks.toml` → embedded default. Picket adds `PICKET_CONFIG*` as primary with the `GITLEAKS_*` names as compatibility fallbacks (the Scout `SCOUT_CONFIG_PATH`/`RIPGREP_CONFIG_PATH` pattern).
+Reports are written on partial scans when Gitleaks writes them.
 
-**Exit codes (exact):** `0` no leaks; `--exit-code` value (default 1) leaks found; `1` scan error/partial; `126` unknown flag. A report is still written on partial scans.
+### 6.3 Config Schema
 
-### 4.3 Config TOML schema (complete)
+Picket implements the Gitleaks TOML schema:
 
-Full parse of the gitleaks schema, validated against the same rules gitleaks enforces:
+- `[extend]`: `useDefault`, `path`, `disabledRules`, chain depth, merge ordering, conflict rules, and `minVersion`.
+- `extend.url`: parsed and ignored in strict compatibility mode because local Gitleaks has an unimplemented URL extender. Native mode may warn.
+- `[[rules]]`: `id`, `description`, `regex`, `path`, `secretGroup`, `entropy`, `keywords`, `tags`, `skipReport`, allowlists, and required/composite rules.
+- Allowlists: global and per-rule, plural and deprecated singular forms, `condition`, `commits`, `paths`, `regexTarget`, `regexes`, `stopwords`, and `targetRules`.
+- Validation: Picket emits the same config errors Gitleaks emits for empty allowlists, mixed singular/plural allowlists, duplicate IDs, missing regex/path, invalid capture groups, and invalid extend combinations.
 
-- **`[extend]`**: `useDefault`, `path` (mutually exclusive with `useDefault`, fatal if both), `disabledRules`. **Chain depth capped at 2.** Merge semantics reproduced exactly: child rule overrides `description`/`entropy`/`secretGroup`/`regex`/`path` when non-zero, **appends** `tags`/`keywords`/`allowlists`; new rules added; global allowlists appended; rules re-sorted alphabetically after extend. `extend.url` is **parsed but a no-op** (matches gitleaks, whose `extendURL()` is an empty TODO) — Picket logs a clear "extend.url is not implemented" warning rather than silently ignoring. `minVersion` honored (warn if running older; Picket maps this to its own version line).
-- **`[[rules]]`**: `id` (unique, required), `description`, `regex`, `path`, `secretGroup` (0 ⇒ first non-empty capture group; validated ≤ NumSubexp), `entropy` (Shannon, strict `>`), `keywords` (lowercased, Aho-Corasick prefilter), `tags`, `skipReport`, `[[rules.allowlists]]` (plural, v8.21+; deprecated singular `[rules.allowlist]` accepted but cannot mix — error), `[[rules.required]]` **composite rules** (`id` referencing an existing rule, `withinLines`, `withinColumns`; primary reported only if every required rule has a finding in proximity).
-- **Allowlists** (`[[rules.allowlists]]` and global `[[allowlists]]`): `description`, `condition` (`OR`/`||` default, `AND`/`&&`), `commits` (case-insensitive SHA), `paths` (regex), `regexTarget` (`secret` default / `match` / `line`), `regexes`, `stopwords` (case-insensitive substring of secret, Aho-Corasick), and global-only `targetRules` (v8.25+, validated post-extend). Empty allowlist = config error. Deprecated singular `[allowlist]` cannot coexist with plural.
-- **Embedded default config**: Picket ships the **gitleaks default ruleset** (222 rules at the pin) transcribed and pinned, plus its default global allowlist (~28 path regexes, ~13 regexes, 2 stopwords). Provenance and version recorded in an `UPSTREAM.md`, advanced only via a documented sync policy (Scout's model). Picket layers **its own additional rules** on top under a distinct namespace so the gitleaks-compatible core stays byte-identical while Picket's expanded coverage (§6.5) is additive and toggleable.
+The embedded compatibility ruleset is the pinned Gitleaks default ruleset only. Picket rules live in separate rule packs.
 
-### 4.4 The RE2 → Scout translation layer (the critical compatibility risk)
+### 6.4 Regex Compatibility
 
-Gitleaks regexes are **Go `regexp` (RE2 syntax)**. Scout's `ByteRegex` is a port of **Rust `regex-automata`** — also RE2-lineage, also linear-time, also no backreferences/lookaround. This is a **strong match** (both reject the same catastrophic constructs), but the two dialects are not identical. `Picket.Rules` includes an explicit **RE2-dialect compatibility layer** that:
+Gitleaks rules are Go `regexp` patterns. Picket compiles them to Scout `ByteRegex` through a dialect layer.
 
-1. Translates Go-specific syntax to Scout/Rust equivalents where they differ (e.g. Go `(?P<name>)` named groups — Rust accepts both `(?P<name>)` and `(?<name>)`; flag placement; `\z`/`\A` anchor spellings; Go's `(?s)`/`(?m)` semantics; POSIX class handling; Go's default-Unicode `.` vs byte mode).
-2. Compiles each rule to a `ByteRegex` with options set to mirror gitleaks' engine defaults (gitleaks runs Go `regexp` in **non-Unicode-`.`, line-oriented** mode per fragment; Picket sets `ByteRegexOptions` to match).
-3. **Reports, never silently drops.** A rule using a construct Scout cannot represent is surfaced as a hard, itemized error (rule id + reason), the same way Scout treats parity deviations. There is no quiet mismatch.
-4. Is covered by a **rule-corpus differential** (§8): every rule in the gitleaks default config, plus a corpus of community configs, is compiled and run against fixtures under both real gitleaks and Picket, and the finding sets are diffed.
+The dialect layer defines behavior for:
 
-This layer is where the majority of compatibility engineering lives, and it is the one place a naive port would fail. It gets its own conformance suite.
+- UTF-8 and invalid-byte handling,
+- `.` and newline semantics,
+- anchors and multiline flags,
+- named captures,
+- POSIX classes,
+- case-insensitive matching,
+- secret-group extraction,
+- unsupported constructs.
 
-### 4.5 Entropy (exact)
+Every default Gitleaks rule and selected community config is compiled and run through both real Gitleaks and Picket in the differential suite. The design goal is not "roughly RE2-like"; it is tested Gitleaks rule behavior.
 
-Shannon entropy over the Secret's bytes, compared with **strict `>`** against the rule threshold (gitleaks semantics). Reimplemented and pinned by unit tests against gitleaks' computed values for a fixture set.
+### 6.5 Matching Semantics
 
-### 4.6 Fingerprints, ignores, baseline (exact, plus fixes)
+Compatibility matching reproduces Gitleaks' observable algorithm:
 
-- **Fingerprint formats** (exact): git scan `{commit}:{file}:{rule-id}:{startLine}`; dir/stdin `{file}:{rule-id}:{startLine}`. Paths use `/`; backslashes normalized (gitleaks #1622); archive inner paths join with `!`.
-- **`.gitleaksignore`**: one fingerprint per line, `#` comments, blank lines; 3-part (`file:rule:line`) and 4-part (`commit:file:rule:line`) entries path-normalized. Loaded from `--gitleaks-ignore-path` **and** `{source}/.gitleaksignore`. Matching checks the **commit-less form first** even for git findings, then the commit-qualified form. Also `.picketignore` (Picket-native, read after `.gitleaksignore` so Picket rules win).
-- **Inline `gitleaks:allow`** substring suppression (any comment syntax); disabled by `--ignore-gitleaks-allow`. Picket also honors `picket:allow`.
-- **Baseline** (`--baseline-path`): a prior JSON report; a finding is suppressed on full-field match (RuleID, Description, line/column bounds, Match+Secret [skipped when redacted], File, Commit, Author, Email, Date, Message, Entropy). Fingerprint deliberately not compared — reproduced exactly.
+- keyword prefilter decides candidate rules,
+- rules with no keywords still run,
+- each candidate rule executes independently,
+- all matches for each rule are considered,
+- captures are extracted per rule,
+- `secretGroup = 0` uses the first non-empty capture group when Gitleaks does,
+- entropy uses strict `>` comparison,
+- allowlists run in the same order and against the same targets,
+- skipped rules and `skipReport` follow Gitleaks.
 
-**Documented fixes (opt-in `--stable-fingerprints`, §6.1):** portable relative-path fingerprints (#1059), wildcard ignore entries (#1870), and git-vs-dir fingerprint consistency (#2107). Default mode stays byte-compatible; the fixed mode is a clearly-labeled superset.
+Picket-native modes can add richer confidence scoring and cross-rule correlation, but compatibility mode does not.
 
-### 4.7 Report formats (byte-exact)
+### 6.6 Fingerprints, Ignores, Baselines
 
-Hand-written byte writers (Scout's JSON discipline — no `System.Text.Json` on the output path, because byte-identical escaping and field order matter for differential testing):
+Compatibility fingerprints:
 
-- **json**: array, **one-space indent**, exact PascalCase key order (`RuleID`, `Description`, `StartLine`, `EndLine`, `StartColumn`, `EndColumn`, `Match`, `Secret`, `File`, `SymlinkFile`, `Commit`, `Link` [omitempty], `Entropy`, `Author`, `Email`, `Date`, `Message`, `Tags`, `Fingerprint`), `Line` omitted, empty ⇒ `[]`.
-- **csv**: exact header incl. conditional `Link`; Tags space-joined.
-- **junit**: exact `<testsuites>/<testsuite>/<testcase>/<failure>` shape with indented-JSON body.
-- **sarif**: schema 2.1.0, `tool.driver.name = picket`, results with `partialFingerprints` (commitSha, email, author, date, commitMessage), physicalLocation regions, `snippet.text`. (gitleaks hardcodes `semanticVersion: v8.0.0`; Picket emits its own version but keeps a documented `gitleaks-compat` sarif mode if a consumer pins that string.)
-- **template**: Go `text/template`-compatible execution. This needs a **Go-template-compatible evaluator** (sprig-subset function map, minus `env`/`expandenv`/`getHostByName` as gitleaks removed them) so existing `.tmpl` files run unchanged. This is a scoped sub-project; templates are pinned by differential fixtures.
+- Git: `{commit}:{file}:{rule-id}:{startLine}`
+- Dir/stdin: `{file}:{rule-id}:{startLine}`
+- Paths normalize to `/`.
+- Archive provenance uses a stable inner-path separator compatible with reports and ignore parsing.
 
-### 4.8 Decoding & archive & binary handling (exact)
+`.gitleaksignore` behavior:
 
-- **Recursive decoder** (`Picket.Decoding`, `--max-decode-depth` default 5): `percent`, `unicode` (`U+XXXX`/`\uXXXX`), `hex` (≥32 hex chars), `base64` (≥16 chars, std+url alphabets), recursive with segment tracking; adds `decoded:<kind>` / `decode-depth:<n>` tags; **remaps match bounds back to the encoded original** (the fiddly part — pinned by tests).
-- **Archive scanning** (`--max-archive-depth`, default 0/off): zip/tar/gz/bz2/xz/zstd/… via a managed archive layer, `!` inner-path separator, full nested provenance (answers TruffleHog #1549).
-- **Binary/large-file**: dir scans chunked (100 KB with blank-line peek), MIME-sniff skip for `application/*`, empty-file skip, `--max-target-megabytes` cap. Reproduced, with an opt-in "skip binary in git scans by default" (#1118).
+- blank lines and comments ignored,
+- 3-part and 4-part fingerprints accepted,
+- paths normalized,
+- commit-less ignore checked before commit-qualified ignore for git findings.
 
----
+Inline suppression honors `gitleaks:allow` unless `--ignore-gitleaks-allow` is set.
 
-## 5. Scan Sources
+Baselines compare the same fields as Gitleaks. Fingerprint is deliberately not the baseline key.
 
-| Source | v1 scope | Backed by |
-|---|---|---|
-| Filesystem (`dir`) | Full | `Scout.IO.Ignore` `FileWalker` (gitignore-aware, parallel, symlink policy) |
-| Git history (`git`) | Full | Native git-log/diff pipeline reimplementation; additions-only; merge-commit handling (fixes #1028) |
-| Stdin | Full | Direct |
-| Staged / pre-commit diff | Full | `git diff -U0 --no-ext-diff [--staged]`; `--no-ext-diff` handling (fixes #1206) |
-| Archives | Full | `Picket.Decoding` archive layer |
-| **Remote GitHub** (org/repo/PR/issue/gist) | Full | GitHub API enumeration → blob stream |
-| **Remote GitLab / Bitbucket / Azure Repos / Gitea** | Full | Provider enumeration → blob stream |
-| **S3 / GCS / Azure Blob** | Full | Object enumeration |
-| **Docker images / filesystem** | Full | Layer enumeration |
+Native mode adds `.picketignore`, glob ignores, content-hash ignores, stale-ignore auditing, and stable fingerprints. Those features never silently affect strict Gitleaks compatibility.
 
-Remote and cloud sources put Picket at parity with TruffleHog's breadth (a capability gitleaks entirely lacks) while every source funnels into the **same blob-dedup datastore** (§7), so history and org scans scan each unique blob **once**.
+### 6.7 Reports
 
----
+Compatibility report writers are byte-oriented golden-output components, not generic serializers.
 
-## 6. Beyond Gitleaks — Best-in-Class Features
+- JSON: exact field order, escaping, indentation, omitted fields, empty-array behavior, and trailing newline behavior from the pinned Gitleaks version.
+- CSV: exact header behavior, including the no-findings case and conditional `Link` column behavior.
+- JUnit: exact XML shape, suite names, failure text, escaping, and indentation.
+- SARIF: exact Gitleaks-compatible mode for consumers that depend on `tool.driver.name`, semantic version, fingerprints, and snippets.
+- Template: Go `text/template` compatibility with the same supported safe Sprig function map as Gitleaks. Template behavior is tested with real templates.
 
-These are the differentiators, prioritized by the demand signal from the competitive research (reaction counts, comparison articles, declined-feature openings). **All are in scope.**
+Native reporters add JSONL, richer SARIF, TOON, HTML, GitLab code-quality, and simultaneous multi-output support.
 
-### 6.1 Stable, portable ignores (the loudest demand cluster)
+### 6.8 Decoding, Archives, Binary Files
 
-The single most-reacted pain across gitleaks and TruffleHog is ignore ergonomics. Picket ships:
-- **Wildcard/glob ignore entries** (gitleaks #1870) via `Scout.IO.Globbing`.
-- **Relative, CI-portable fingerprints** (#1059) — no absolute `/github/workspace/...` leakage.
-- **Content-based ignore option**: suppress a specific secret regardless of file/line (survives rebases and codegen), keyed on rule+secret hash rather than line number.
-- **`.gitignore`-as-allowlist** (#1195) — native FileWalker behavior, on by default in `dir` scans.
-- **A first-class ignore file** for the whole tool — the thing TruffleHog #2687 (30 reactions) still doesn't have.
-- **Report of suppressed/`:allow` findings** (#1246) and **stale-ignore-entry detection** (#2130) via `picket baseline --audit`.
+Compatibility mode follows Gitleaks for:
 
-### 6.2 Verification — live + offline (TruffleHog's killer feature, plus Kingfisher's)
+- recursive decoders and default depth,
+- original-offset remapping,
+- decode tags,
+- archive depth defaults,
+- binary/MIME skip behavior,
+- large-file chunking,
+- git binary blob handling,
+- decimal megabyte size caps.
 
-`Picket.Verify` gives Picket the capability gitleaks was asked for in 2022 (#1013) and never built:
-- **Live verification**: for common credential types, confirm the secret is active by calling the provider API. Results bucket as `verified` / `unverified` / `unknown` (error) with `--only-verified` and `--results` selectors (TruffleHog-compatible flag names). **Verification is opt-in and off by default** (privacy); an enforced `--offline` mode guarantees no network egress.
-- **Verification caching** (TruffleHog #2262) — a secret is verified once per run, not per chunk.
-- **Offline checksum validation** (Kingfisher's edge; gitleaks #1456): structurally validate self-checksummed tokens (modern GitHub PATs, Stripe keys, etc.) with **no network call** — a fast, private FP-killer.
-- **Validator breadth including DB/SDK** (Kingfisher's advantage over TruffleHog): HTTP, cloud-SDK (AWS/GCP/Azure), and **database connection-string validators** (Postgres/MySQL/MongoDB/JDBC/JWT), plus a **webhook validator** (POST to a user endpoint, `200`⇒verified) for custom detectors.
-
-### 6.3 Credential-privilege analysis (`picket analyze`)
-
-Port of TruffleHog's `analyze` — currently **unmatched** in the field. Given a verified credential, enumerate its permissions and reachable resources (GitHub token scopes, AWS key policy surface, etc.) so responders know blast radius, not just existence. Ships for the most-leaked credential types.
-
-### 6.4 Incremental, dedup-first performance (`Picket.Store`)
-
-Nosey Parker / Kingfisher proved the model: **content-address every blob and scan each unique blob exactly once**, persisting findings + scan state in a datastore.
-- **Blob dedup** collapses the same secret appearing across thousands of commits into one scan and grouped findings (answers gitleaks #1054 dedup).
-- **Incremental re-scans**: a second run over a repo skips unchanged blobs — turning CI scans from full-history re-reads into deltas (TruffleHog #813 / #2878).
-- Backed by the SIMD prefilters in `Scout.Text.Regex` (memchr/memmem/Teddy) and `ByteRegexSet` single-pass multi-rule matching, this targets Nosey-Parker-class throughput (GB/s) in a managed AOT binary — a claim no .NET tool can currently make.
-
-### 6.5 False-positive reduction
-
-The universal complaint. Picket layers several defenses:
-- **p(random) probabilistic scoring** (ripsecrets' idea): model whether a string is machine-generated by character distribution, not just raw Shannon entropy — fewer placeholder/variable-name hits (gitleaks #1830, #1897, #1073).
-- **Test-fixture / placeholder awareness**: built-in recognition of well-known dummy keys (AWS doc `AKIA...EXAMPLE`, `PublicKeyToken` .NET refs #1052, sealed-secrets #1728).
-- **Expanded, data-driven default rules** including the Azure gaps users cite (#539) — additive over the gitleaks-compatible core.
-- **Multi-line secret support** (gitleaks' structural gap, #283/#908/#914) — Picket's blob model scans whole blobs, so PEM keys, XML, and Jupyter secrets that span lines are matchable, not truncated at fragment boundaries.
-
-### 6.6 Rule authoring & QA (`picket rules check` / `picket rules test`)
-
-Nosey Parker's underrated feature, generalized:
-- Rules may embed **positive and negative example strings**; `picket rules check` self-tests every rule against its examples and fails on regression — a built-in rule-QA harness (leveraging this repo's own testing culture).
-- `picket rules test <rule> <input>` for interactive authoring.
-- A **`--print-config`** that emits the fully-resolved config after `extend` merging (gitleaks #983).
-
-### 6.7 Output & integration ergonomics
-
-- **Simultaneous multiple outputs** (gitleaks #1048, TruffleHog #1880): `-f json -f sarif` in one run, each to its own path or stdout.
-- **Spec-compliant JSON** stream option (TruffleHog #2164) alongside the gitleaks-exact array.
-- **SARIF, TOON, HTML** report formats (Kingfisher parity) plus **GitLab code-quality** format (#2068).
-- **Config in `pyproject.toml` / other host files** (`[tool.picket]`, gitleaks #2066) and flags expressible in the TOML (#1732).
-- **Findings context**: surrounding-line snippets for triage (gitleaks #1074/#1766), off by default.
-
-### 6.8 The free CI action & hooks (the licensing wedge)
-
-- **`picket-action`** — a genuinely **MIT-licensed, no-key, free-for-organizations** GitHub Action, the direct answer to gitleaks-action's proprietary/paid model and its broken license delivery (#1624/#1753/#1561). This is a headline adoption lever.
-- **pre-commit, pre-push, and pre-receive** hooks (ggshield is the only OSS tool with documented pre-receive — Picket matches it, locally and free).
-- **Docker images**, Homebrew/Scoop/winget, and `dotnet tool` distribution — reusing Scout's release machinery wholesale.
-
-### 6.9 Embeddable library (`Picket.Engine` as a NuGet package)
-
-Kingfisher #189 and secretlint's model show the demand for scanner-as-library. Because Picket is already a layered library stack, shipping `Picket.Engine` + `Picket.Rules` as NuGet packages (AOT-safe, `net9.0;net10.0`) lets .NET apps, analyzers, and MSBuild tasks embed secret scanning directly — a capability no competitor offers to the .NET ecosystem.
-
-### 6.10 Honeytokens (stretch, ggshield parity)
-
-`picket honeytoken create` to mint tripwire credentials. Unlike ggshield this need not be SaaS-bound: Picket can generate provider-native canaries (e.g. AWS keys in a user-controlled trap account) and a local sighting-detector. Marked stretch because it depends on external account setup, but in scope.
+Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, timeouts, path traversal protection, temp-file policy, and clear diagnostics.
 
 ---
 
-## 7. Data Model & Core Types
+## 7. Picket-Native Best-In-Class Features
 
-- **`Finding`** — the byte-exact gitleaks finding (§4.7 fields) plus Picket extensions (`VerificationStatus`, `RandomnessScore`, `BlobId`, `DecodePath`, `Validators[]`) that are **omitted in gitleaks-compat output** and present only in Picket-native formats.
-- **`Rule`** / **`Allowlist`** / **`RequiredRule`** — the config model (§4.3), immutable after load.
-- **`Fingerprint`** — value type with `git`/`dir` renderers and the compat/stable variants.
-- **`Blob`** — content-addressed unit `{Sha256, Bytes, Provenance[]}`; provenance is a list because dedup means one blob has many locations.
-- **`ScanRequest`** / **`ScanResult`** — orchestration inputs/outputs; results stream to reporters.
+### 7.1 Rule Packs
 
-Hot paths are `ReadOnlySpan<byte>`-first, pooled buffers, `ref struct` iterators, no LINQ, no allocation in the match loop — the Scout playbook, enforced by allocation tests.
+Picket ships separate rule packs:
+
+- `gitleaks`: exact compatibility rules,
+- `picket-default`: high-confidence modern coverage,
+- `picket-strict`: broader coverage with more aggressive heuristics,
+- `picket-experimental`: new detectors under active tuning,
+- organization-local packs.
+
+Each rule can carry severity, confidence, examples, negative examples, tags, validation metadata, revocation metadata, documentation URL, deprecation state, and owning provider.
+
+### 7.2 Rule QA
+
+`picket rules check` validates:
+
+- schema correctness,
+- regex compilation,
+- examples and negative examples,
+- capture group expectations,
+- entropy thresholds,
+- path scope behavior,
+- validator templates,
+- revocation templates,
+- duplicate or unstable rule IDs,
+- performance hazards.
+
+`picket rules test <rule> <input>` supports interactive authoring. `--print-config` emits fully resolved config after extends, profile selection, and rule-pack layering.
+
+### 7.3 False-Positive Reduction
+
+Native profiles combine:
+
+- provider-specific structural checks,
+- checksum validation where token formats support it,
+- known dummy/test credential suppression,
+- placeholder and fixture detection,
+- entropy plus deterministic randomness scoring,
+- dependent-rule correlation,
+- severity/confidence thresholds,
+- explicit reporting of suppressed findings when requested.
+
+`p(random)` is not a vague ML promise. It is a deterministic scoring component with documented training data, calibration fixtures, stable thresholds, and explainable fields in native reports.
+
+### 7.4 Verification
+
+Picket supports two classes of validation.
+
+Offline validation:
+
+- checksum and format validation,
+- JWT structural and cryptographic checks where public keys are already available or explicitly configured,
+- provider-specific token checks that require no network,
+- enabled by default in native profiles when it cannot exfiltrate data.
+
+Live verification:
+
+- opt-in via `--verify` or `picket verify`,
+- result states: `active`, `inactive`, `unknown`, `skipped`, `error`,
+- result filters: `--results`, `--only-verified` compatibility aliases,
+- request cache and persistent cache with rule/config/version invalidation,
+- global and per-provider rate limits,
+- retries with cache-poisoning protection,
+- proxy and endpoint override support,
+- TLS mode controls,
+- SSRF protection blocking loopback, private, link-local, metadata-service, and non-public redirect targets by default,
+- max response length and redaction,
+- audit events showing which provider endpoints were contacted.
+
+### 7.5 Revocation
+
+Where provider APIs support safe self-service revocation, Picket can emit and optionally run revocation commands. Revocation is never automatic during scan. Reports include revocation availability and exact command guidance only when redaction settings allow it.
+
+### 7.6 Credential Privilege Analysis
+
+`picket analyze` maps what an active credential can access. It is inspired by TruffleHog analyze and Kingfisher access-map work, not claimed as unique.
+
+Initial targets:
+
+- GitHub and GitHub App tokens,
+- AWS access keys,
+- GCP service account keys,
+- Azure credentials,
+- GitLab tokens,
+- database connection strings,
+- common SaaS API tokens.
+
+Analysis output is separate from scan output and optimized for incident response: identity, scopes, reachable resources, risk summary, recommended rotation/revocation steps, and evidence.
+
+### 7.7 Blob Store and Incremental Scans
+
+`Picket.Store` content-addresses every scanned blob and records provenance separately.
+
+Design requirements:
+
+- SHA-256 blob identity,
+- schema versioning and migrations,
+- rule-pack/config/version cache invalidation,
+- decode/archive-derived blob lineage,
+- concurrent CI-safe locking,
+- encrypted or secret-hash-only cache modes,
+- GC and retention policy,
+- portable cache export/import,
+- provenance-preserving reports.
+
+Dedup skips duplicate matching work but does not collapse compatibility reports. If Gitleaks would report the same blob at multiple commits/paths, compatibility mode still reports every provenance.
+
+### 7.8 Sources
+
+Native source support:
+
+- filesystem,
+- git history,
+- stdin,
+- archives,
+- GitHub repos, orgs, PRs, issues, gists, releases, and Actions artifacts,
+- GitLab groups/projects/MRs/snippets/artifacts,
+- Bitbucket, Azure Repos, and Gitea,
+- S3, GCS, Azure Blob,
+- Docker/OCI images and tarballs.
+
+Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
+
+### 7.9 Output and Triage
+
+Native outputs:
+
+- JSONL stream,
+- rich JSON with schema version,
+- SARIF tuned for GitHub code scanning,
+- TOON,
+- HTML report,
+- GitLab code-quality,
+- JUnit,
+- CSV,
+- templates.
+
+Native reports include stable rule metadata, redacted and hashed secret representations, validation state, confidence/severity, provenance, decode path, baseline status, ignore reason, and remediation links.
+
+`picket view` opens local HTML/JSON/JSONL/SARIF reports and can import compatible Gitleaks and TruffleHog reports for cross-tool triage.
+
+### 7.10 CI, Hooks, and Distribution
+
+Picket ships:
+
+- MIT `picket-action`,
+- pre-commit, pre-push, and pre-receive hooks,
+- Docker images,
+- Homebrew, Scoop, winget, MSI,
+- `dotnet tool`,
+- NuGet packages for embedding.
+
+The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, baseline handling, cache restore/save, least-privilege permissions, summary output, and explicit fail modes.
+
+Pre-receive support handles bare repositories, quarantine environment variables, old/new ref input, timeouts, concurrency, and clear rejection messages.
+
+### 7.11 Embeddable .NET API
+
+`Picket.Engine`, `Picket.Rules`, and `Picket.Report` are AOT-safe NuGet packages for analyzers, MSBuild tasks, CI systems, IDE integrations, and internal security platforms.
+
+Public APIs are documented, cancellation-aware, streaming-first, and stable across minor releases.
 
 ---
 
-## 8. Testing Strategy
+## 8. Security and Privacy Model
 
-Mirrors Scout's differential-oracle discipline. Layers:
+Security requirements:
 
-1. **Unit tests** — config parsing, entropy, fingerprints, decoder offset remapping, RE2 translation, report writers.
-2. **Gitleaks differential suite (mandatory)** — a **pinned real `gitleaks` binary** (committed per-RID, SHA-256-verified before use, exactly like Scout's `rg` oracle) is run alongside Picket over a corpus of repos × configs × flag combinations. Assert matching findings, fingerprints, exit codes, and **byte-identical report output** after documented identity normalization (banner/version/tool-name fields). Any diff is fixed or recorded in `PARITY.md`.
-3. **Rule-corpus conformance** — the gitleaks default ruleset plus gathered community configs, each rule compiled through the RE2 translation layer and run against fixtures under both tools; finding sets diffed. This gates the compatibility layer independently.
-4. **Verification tests** — recorded/mocked provider responses; live tests behind an opt-in flag with test credentials.
-5. **Fuzzing** — via `SharpFuzz` (Scout's harness): config TOML parser, RE2 translator, decoder, git-diff parser.
-6. **Performance gates** — hyperfine against gitleaks and (where fair) TruffleHog/Nosey Parker on pinned corpora (a large monorepo, a deep-history repo), with hard ratio thresholds blocking release. Picket must be **at least competitive with gitleaks** on cold scans and **faster on incremental** scans (its structural advantage).
+- default no telemetry,
+- default no live network verification unless explicitly enabled,
+- no secrets in logs by default,
+- redaction applies before reporting and diagnostics,
+- secret hashes use keyed or context-safe hashing where appropriate,
+- archive extraction is bounded,
+- validators are SSRF-hardened,
+- provider requests are rate-limited,
+- temporary files are avoided or securely managed,
+- crash diagnostics are scrubbed,
+- action logs are safe for public CI by default.
 
-Framework: **xUnit v3**, all six RIDs, **zero skipped tests** (enforced by `Scout.SourceGen`'s `NoSkippedTestsAnalyzer`).
-
----
-
-## 9. Compatibility Ledger (`PARITY.md`)
-
-Like Scout, Picket keeps an explicit ledger. **Identity surfaces** intentionally differ (tool name `picket`, banners, homepage, SARIF `tool.driver.name`, config env var names) and are pinned by golden tests. **Behavioral compatibility** with gitleaks is the contract for the gitleaks-compat core; every intentional deviation (e.g. the fixed-fingerprint mode) is a documented, opt-in, test-guarded entry. Picket-native features live outside the compat contract by definition and are pinned by their own golden tests.
-
----
-
-## 10. Distribution & Packaging
-
-Reuses this repository's release engineering end to end:
-- **`dotnet tool install -g Picket`** (RID packages + pointer package, hand-built like Scout's tool packages because they wrap native AOT binaries).
-- **NuGet libraries**: `Picket.Engine`, `Picket.Rules` (embeddable scanner, §6.9).
-- **Homebrew tap, Scoop bucket, winget, MSI (WiX)** — same automated release workflow.
-- **Docker images** (`ghcr.io`), **`picket-action`** (MIT), **pre-commit hook** manifest.
-- Deterministic, reproducible builds; SDK/runtime pinned; snapshot-pinned CI — inherited from Scout's `Directory.Build.*` and workflow set.
+Every validator has a threat-model entry: data sent, endpoint contacted, auth required, rate limits, expected success/failure codes, retry policy, cache key, revocation support, and known provider side effects.
 
 ---
 
-## 11. Competitive Position (summary)
+## 9. Testing Strategy
 
-| Capability | gitleaks | TruffleHog | Nosey Parker | Kingfisher | **Picket** |
+### 9.1 Compatibility Oracle
+
+The Gitleaks oracle suite runs the pinned real Gitleaks binary and Picket over identical fixtures.
+
+Assertions:
+
+- findings,
+- fingerprints,
+- ignore behavior,
+- baseline suppression,
+- exit codes,
+- stdout/stderr where relevant,
+- report bytes,
+- config errors,
+- timeout and partial-scan behavior.
+
+The suite includes filesystem scans, git-history scans, staged/pre-commit diffs, archives, decoders, binary files, symlinks, Windows paths, invalid UTF-8, templates, SARIF, empty reports, and partial errors.
+
+### 9.2 Rule Corpus
+
+Every bundled Gitleaks rule and selected community rules are compiled through the dialect layer and tested against fixtures under both tools. Picket-native rules require positive and negative examples before release.
+
+### 9.3 Security Tests
+
+Tests cover:
+
+- archive bombs,
+- path traversal,
+- validator SSRF attempts,
+- redirect-to-private-IP attempts,
+- redaction leaks,
+- cache poisoning,
+- malformed reports,
+- malformed TOML,
+- malformed git patches,
+- malformed UTF-8.
+
+### 9.4 Performance Tests
+
+Performance gates are scenario-specific and fair:
+
+- Gitleaks-compatible cold scans compared to Gitleaks with equivalent flags,
+- native incremental scans compared against previous Picket runs,
+- verification benchmarks separated from scan-only benchmarks,
+- retired tools such as Nosey Parker used only as historical datapoints, not live release gates.
+
+Metrics include throughput, allocations, peak memory, startup time, rule compile time, cache hit rate, and report writer throughput.
+
+### 9.5 Live Tests
+
+Live provider tests are opt-in and isolated from the default suite. Default CI uses recorded responses and local fakes. "Zero skipped tests" applies to the required offline suite, not to intentionally opt-in live credential tests.
+
+---
+
+## 10. Compatibility Ledger
+
+`docs/PARITY.md` is required before v1.
+
+Each entry includes:
+
+- upstream behavior,
+- Picket behavior,
+- mode/profile affected,
+- reason,
+- user impact,
+- test name,
+- migration guidance.
+
+Examples:
+
+- Gitleaks-compatible SARIF identity,
+- native SARIF identity,
+- stable fingerprint mode,
+- `.picketignore`,
+- `.gitignore` traversal in native mode,
+- native rule packs,
+- native validation metadata.
+
+---
+
+## 11. Competitive Baseline
+
+Picket should be judged against current local references, not stale marketing claims.
+
+| Capability | Gitleaks | TruffleHog | Nosey Parker | Kingfisher | Picket target |
 |---|:--:|:--:|:--:|:--:|:--:|
-| License | MIT (frozen) | AGPL-3.0 | Apache | Apache | **MIT** |
-| Free org CI action | ✗ (paid) | ✓ | — | — | **✓** |
-| Drop-in gitleaks config/CLI | — | ✗ | ✗ | ✗ | **✓** |
-| Live verification | ✗ | ✓ | ✗ | ✓ | **✓** |
-| Offline checksum validation | ✗ | ✗ | ✗ | ✓ | **✓** |
-| Credential privilege analysis | ✗ | ✓ | ✗ | ✗ | **✓** |
-| Blob dedup / incremental | ✗ | ✗ | ✓ | ✓ | **✓** |
-| First-class ignore file + wildcards | ◐ | ✗ | ✗ | ◐ | **✓** |
-| Rule self-test harness | ✗ | ✗ | ✓ | ◐ | **✓** |
-| Simultaneous multi-format output | ✗ | ✗ | ✗ | ✗ | **✓** |
-| SARIF | ✓ | ✗ | ◐ | ✓ | **✓** |
-| Native .NET / embeddable library | ✗ | ✗ | ✗ | ✗ | **✓** |
-| Pre-receive hook (local, free) | ◐ | ✗ | ✗ | ✗ | **✓** |
+| MIT/permissive scanner | Yes | No, AGPL | Yes | Yes | Yes, MIT |
+| Gitleaks CLI/config compatibility | Native | No | No | Partial import/report awareness | Yes |
+| Byte-oriented .NET Native AOT | No | No | No | No | Yes |
+| Live verification | No | Yes | No | Yes | Yes |
+| Offline structural validation | Limited | Limited | No | Yes | Yes |
+| Revocation support | No | Limited/varies | No | Yes | Yes where safe |
+| Privilege/access analysis | No | Yes | No | Yes | Yes |
+| Content dedup/incremental | No | Limited | Yes | Yes | Yes |
+| First-class ignore workflow | Basic `.gitleaksignore` | Inline/path controls, not first-class global ignore | Limited | Baselines/config | Yes |
+| Rule examples/self-test | Limited | Detector tests in code | Yes | Strong rule validation | Yes |
+| Rich triage viewer | No | TUI/outputs | No | Yes | Yes |
+| Native embeddable .NET API | No | No | No | No | Yes |
+| Free MIT GitHub Action | Scanner yes, action licensing varies | Yes under project license constraints | No | No | Yes |
 
-Picket is the only entry that is simultaneously **MIT**, **drop-in gitleaks-compatible**, **verification-capable**, **dedup-incremental**, and **.NET-native/embeddable**. That intersection is the product.
-
----
-
-## 12. Milestones (internal integration gates — full scope ships at v1)
-
-Following Scout's philosophy, no milestone before full parity+differentiation is described as shippable; these are integration checkpoints, not scope cuts.
-
-- **M0 — Foundation.** Repo, pins, Native AOT entry (reuse Scout launcher), finding model, config TOML loader, `FileWalker`/`GlobSet`/`ByteRegexSet` wiring, RE2 translation skeleton + conformance harness. Gate: dir scan of a fixture matches gitleaks on a rule subset.
-- **M1 — Gitleaks compat core.** All commands/flags, full TOML schema (extend, composite rules, allowlists), entropy, fingerprints, ignores, baseline, all five report formats, decoding, archives, git-history pipeline. Gate: full gitleaks differential suite green on the default ruleset + community configs.
-- **M2 — Performance & dedup.** `Picket.Store` blob dedup + incremental scans; SIMD prefilter tuning. Gate: cold-scan competitive with gitleaks, incremental scan materially faster; hyperfine gates green.
-- **M3 — Verification & analyze.** `Picket.Verify` live + offline validators (HTTP/SDK/DB/webhook), caching, `--only-verified`; `picket analyze`. Gate: verification conformance vs recorded provider responses.
-- **M4 — Remote & cloud sources.** GitHub/GitLab/Bitbucket/Azure/Gitea, S3/GCS/Azure Blob, Docker. Gate: org-scan enumeration + dedup correctness.
-- **M5 — FP reduction, rule QA, ergonomics.** p(random) scoring, fixture awareness, expanded rules, `rules check/test`, `--print-config`, simultaneous outputs, TOON/HTML/gitlab-code-quality, stable-fingerprint mode, suppressed-finding reporting.
-- **M6 — Distribution.** `dotnet tool`, NuGet libraries, Homebrew/Scoop/winget/MSI, Docker, **MIT `picket-action`**, pre-commit/pre-push/pre-receive hooks.
-- **M7 — Stretch.** Honeytokens; leak-database (HasMySecretLeaked-style) check.
-
-**v1 ships when every gitleaks differential case, every conformance suite, and every performance gate is green** — and the free MIT action is live.
+Claims of uniqueness must be narrow and testable. Picket's intended unique intersection is: **MIT, Gitleaks-compatible, Scout-powered byte scanning, Native AOT .NET, strong validation/analyze/dedup, and embeddable .NET APIs.**
 
 ---
 
-## Appendix A — Key open issues Picket resolves (traceability)
+## 12. Milestones
 
-Ignore/portability: gitleaks #1870, #1195, #1059, #1328, #1325, #1052, #1246, #2130; TruffleHog #2687. Verification/validation: gitleaks #1013, #1456; TruffleHog #2262. Analysis: TruffleHog `analyze`. Dedup/incremental: gitleaks #1054; TruffleHog #813, #2878. Output: gitleaks #1048, #983, #2066, #1732, #1074, #1312, #2068; TruffleHog #1880, #2164, #1549. Multiline/coverage: gitleaks #283, #908, #914, #539, #1118. FP: gitleaks #1830, #1897, #1073, #1728. Licensing wedge: gitleaks-action #1624, #1753, #1561, #2063. Git correctness: gitleaks #1028, #1206, #2129. Privacy: TruffleHog #1239.
+Milestones are integration gates, not marketing promises. Each gate must leave the repository with passing tests and no stubbed public feature.
+
+### M0: Foundation
+
+- project layout,
+- Native AOT CLI shell,
+- rule/config model,
+- finding model,
+- basic Gitleaks-compatible reports,
+- Scout `ByteRegex` proof of concept,
+- oracle harness skeleton.
+
+Gate: fixture `dir` scan matches pinned Gitleaks for a small rule subset.
+
+### M1: Gitleaks Compatibility Core
+
+- commands and flags,
+- config precedence,
+- Gitleaks rule schema,
+- matching semantics,
+- fingerprints,
+- `.gitleaksignore`,
+- baseline,
+- JSON/CSV/JUnit/SARIF/template reports,
+- git patch scanning through the compatibility pipeline,
+- decoders and archives.
+
+Gate: full compatibility suite green for pinned Gitleaks fixtures.
+
+### M2: Scout-Optimized Engine
+
+- keyword/literal prefilter,
+- per-rule `ByteRegex` execution,
+- regex dialect conformance,
+- allocation controls,
+- throughput gates.
+
+Gate: equal findings to M1 with materially better scan hot-path metrics.
+
+### M3: Native Rule Packs and FP Reduction
+
+- rule-pack layering,
+- examples and rule QA,
+- deterministic randomness scoring,
+- structural validators,
+- dummy/test credential suppression,
+- stable fingerprints and native ignores.
+
+Gate: native profile fixtures show lower false positives without compatibility regressions.
+
+### M4: Store and Incremental
+
+- blob store,
+- provenance model,
+- cache invalidation,
+- CI-safe locking,
+- GC,
+- incremental scan commands.
+
+Gate: second scan skips unchanged blobs while preserving compatibility report provenance.
+
+### M5: Verification, Revocation, Analyze
+
+- offline validators,
+- opt-in live validators,
+- validation cache,
+- SSRF and egress policy,
+- revocation metadata,
+- `picket analyze`.
+
+Gate: recorded provider suites green; live tests opt-in and documented.
+
+### M6: Native Sources and Triage
+
+- source-host scanners,
+- object-store scanners,
+- Docker/OCI scanners,
+- JSONL/rich JSON/TOON/HTML/GitLab reports,
+- `picket view`.
+
+Gate: remote enumeration, checkpointing, redaction, and dedup tests green.
+
+### M7: Distribution
+
+- `dotnet tool`,
+- NuGet libraries,
+- Docker,
+- Homebrew/Scoop/winget/MSI,
+- GitHub Action,
+- hooks.
+
+Gate: release workflow produces signed/checksummed artifacts and action smoke tests pass.
+
+### M8: Optional Stretch
+
+- honeytokens,
+- leak-database checks,
+- organization policy packs.
+
+Stretch features are not v1 blockers unless promoted by a separate design update.
+
+---
+
+## 13. Documentation Deliverables
+
+Required before v1:
+
+- `docs/PARITY.md`: compatibility ledger,
+- `docs/UPSTREAM.md`: reference pins and sync process,
+- `docs/RULES.md`: rule schema, examples, validator/revocation metadata,
+- `docs/VALIDATION.md`: privacy and egress model,
+- `docs/REPORTS.md`: compatibility and native schemas,
+- `docs/ACTION.md`: CI action behavior and security posture,
+- `docs/EMBEDDING.md`: library API guide.
