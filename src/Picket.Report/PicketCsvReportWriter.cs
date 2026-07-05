@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Picket.Engine;
+using Picket.Rules;
 
 namespace Picket.Report;
 
@@ -37,6 +38,9 @@ public static class PicketCsvReportWriter
         "ValidationState",
         "Severity",
         "Confidence",
+        "RulePack",
+        "Provider",
+        "DocumentationUrl",
         "ProvenanceType",
         "BaselineStatus",
         "IgnoreReason",
@@ -51,19 +55,32 @@ public static class PicketCsvReportWriter
     /// <returns>A CSV report with a header row and trailing newline.</returns>
     public static string Write(IReadOnlyList<Finding> findings)
     {
+        return Write(findings, []);
+    }
+
+    /// <summary>
+    /// Writes findings to a deterministic UTF-8 CSV string with rule-derived metadata.
+    /// </summary>
+    /// <param name="findings">The findings to write.</param>
+    /// <param name="rules">The rules used for the scan.</param>
+    /// <returns>A CSV report with a header row and trailing newline.</returns>
+    public static string Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)
+    {
         ArgumentNullException.ThrowIfNull(findings);
+        ArgumentNullException.ThrowIfNull(rules);
 
         var builder = new StringBuilder();
         WriteRow(builder, s_columns);
+        Dictionary<string, SecretRule> ruleIndex = PicketFindingMetadata.CreateRuleIndex(rules);
         for (int i = 0; i < findings.Count; i++)
         {
-            WriteFinding(builder, findings[i]);
+            WriteFinding(builder, findings[i], PicketFindingMetadata.FindRule(ruleIndex, findings[i]));
         }
 
         return builder.ToString();
     }
 
-    private static void WriteFinding(StringBuilder builder, Finding finding)
+    private static void WriteFinding(StringBuilder builder, Finding finding, SecretRule? rule)
     {
         string[] row =
         [
@@ -91,8 +108,11 @@ public static class PicketCsvReportWriter
             finding.Message,
             PicketFindingMetadata.CreateFingerprint(finding),
             PicketFindingMetadata.CreateValidationState(finding),
-            PicketFindingMetadata.Severity,
-            PicketFindingMetadata.Confidence,
+            PicketFindingMetadata.CreateSeverity(rule),
+            PicketFindingMetadata.CreateConfidence(rule),
+            PicketFindingMetadata.CreateRulePack(rule),
+            PicketFindingMetadata.CreateProvider(rule),
+            PicketFindingMetadata.CreateDocumentationUrl(rule),
             PicketFindingMetadata.CreateProvenanceType(finding),
             PicketFindingMetadata.BaselineStatus,
             PicketFindingMetadata.IgnoreReason,

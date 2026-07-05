@@ -4012,12 +4012,12 @@ static bool TryWriteReport(
     {
         report = resolvedReportFormat switch
         {
-            "csv" => nativeReportFormats ? PicketCsvReportWriter.Write(findings) : GitleaksCsvReportWriter.Write(findings),
+            "csv" => nativeReportFormats ? PicketCsvReportWriter.Write(findings, rules) : GitleaksCsvReportWriter.Write(findings),
             "gitlab" => PicketGitLabCodeQualityReportWriter.Write(findings),
             "html" => PicketHtmlReportWriter.Write(findings, rules),
-            "junit" => nativeReportFormats ? PicketJunitReportWriter.Write(findings) : GitleaksJunitReportWriter.Write(findings),
+            "junit" => nativeReportFormats ? PicketJunitReportWriter.Write(findings, rules) : GitleaksJunitReportWriter.Write(findings),
             "json" => nativeReportFormats ? PicketJsonReportWriter.Write(findings, rules) : GitleaksJsonReportWriter.Write(findings),
-            "jsonl" => PicketJsonlReportWriter.Write(findings),
+            "jsonl" => PicketJsonlReportWriter.Write(findings, rules),
             "sarif" => nativeReportFormats ? PicketSarifReportWriter.Write(findings, rules) : GitleaksSarifReportWriter.Write(findings, rules),
             "template" => GitleaksTemplateReportWriter.Write(findings, ReadReportTemplate(reportTemplatePath)),
             "toon" => PicketToonReportWriter.Write(findings, rules),

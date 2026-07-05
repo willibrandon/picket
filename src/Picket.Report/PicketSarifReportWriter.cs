@@ -14,8 +14,6 @@ public static class PicketSarifReportWriter
     private const string ToolName = "picket";
     private const string ToolFullName = "Picket secrets scanner";
     private const string ToolInformationUri = "https://github.com/willibrandon/picket";
-    private const string RuleSecuritySeverity = "8.0";
-    private const string RulePrecision = "high";
     private const string ResultLevel = "error";
 
     /// <summary>
@@ -49,7 +47,7 @@ public static class PicketSarifReportWriter
         builder.Append("{\n");
         WriteTool(builder, rules);
         builder.Append(",\n");
-        WriteResults(builder, findings);
+        WriteResults(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules));
         builder.Append('\n');
         Indent(builder, 2);
         builder.Append('}');
@@ -122,8 +120,13 @@ public static class PicketSarifReportWriter
     {
         WritePropertyName(builder, 7, "properties");
         builder.Append(" {\n");
-        WriteStringProperty(builder, 8, "precision", RulePrecision, comma: true);
-        WriteStringProperty(builder, 8, "security-severity", RuleSecuritySeverity, comma: true);
+        WriteStringProperty(builder, 8, "precision", PicketFindingMetadata.CreateConfidence(rule), comma: true);
+        WriteStringProperty(builder, 8, "security-severity", PicketFindingMetadata.CreateSecuritySeverity(rule), comma: true);
+        WriteStringProperty(builder, 8, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
+        WriteStringProperty(builder, 8, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
+        WriteStringProperty(builder, 8, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
+        WriteStringProperty(builder, 8, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
+        WriteStringProperty(builder, 8, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
         WritePropertyName(builder, 8, "tags");
         builder.Append(" [");
         WriteRuleTags(builder, rule.Tags);
@@ -168,7 +171,7 @@ public static class PicketSarifReportWriter
         return false;
     }
 
-    private static void WriteResults(StringBuilder builder, IReadOnlyList<Finding> findings)
+    private static void WriteResults(StringBuilder builder, IReadOnlyList<Finding> findings, IReadOnlyDictionary<string, SecretRule> ruleIndex)
     {
         WritePropertyName(builder, 3, "results");
         builder.Append(" [");
@@ -181,7 +184,7 @@ public static class PicketSarifReportWriter
         builder.Append('\n');
         for (int i = 0; i < findings.Count; i++)
         {
-            WriteResult(builder, findings[i]);
+            WriteResult(builder, findings[i], PicketFindingMetadata.FindRule(ruleIndex, findings[i]));
             if (i + 1 < findings.Count)
             {
                 builder.Append(',');
@@ -194,7 +197,7 @@ public static class PicketSarifReportWriter
         builder.Append(']');
     }
 
-    private static void WriteResult(StringBuilder builder, Finding finding)
+    private static void WriteResult(StringBuilder builder, Finding finding, SecretRule? rule)
     {
         Indent(builder, 4);
         builder.Append("{\n");
@@ -204,7 +207,7 @@ public static class PicketSarifReportWriter
         WriteMessageObject(builder, 5, "message", CreateResultMessage(finding), comma: true);
         WriteLocations(builder, finding, comma: true);
         WritePartialFingerprints(builder, finding, comma: true);
-        WriteResultProperties(builder, finding, comma: false);
+        WriteResultProperties(builder, finding, rule, comma: false);
         Indent(builder, 4);
         builder.Append('}');
     }
@@ -252,7 +255,7 @@ public static class PicketSarifReportWriter
         builder.Append('\n');
     }
 
-    private static void WriteResultProperties(StringBuilder builder, Finding finding, bool comma)
+    private static void WriteResultProperties(StringBuilder builder, Finding finding, SecretRule? rule, bool comma)
     {
         WritePropertyName(builder, 5, "properties");
         builder.Append(" {\n");
@@ -264,13 +267,16 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 6, "matchSha256", PicketFindingMetadata.CreateMatchSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "blobSha256", PicketFindingMetadata.CreateBlobSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "validationState", PicketFindingMetadata.CreateValidationState(finding), comma: true);
-        WriteStringProperty(builder, 6, "severity", PicketFindingMetadata.Severity, comma: true);
-        WriteStringProperty(builder, 6, "confidence", PicketFindingMetadata.Confidence, comma: true);
+        WriteStringProperty(builder, 6, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
+        WriteStringProperty(builder, 6, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
+        WriteStringProperty(builder, 6, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
+        WriteStringProperty(builder, 6, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
+        WriteStringProperty(builder, 6, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
         WriteStringProperty(builder, 6, "provenanceType", PicketFindingMetadata.CreateProvenanceType(finding), comma: true);
         WriteStringProperty(builder, 6, "baselineStatus", PicketFindingMetadata.BaselineStatus, comma: true);
         WriteStringProperty(builder, 6, "ignoreReason", PicketFindingMetadata.IgnoreReason, comma: true);
         WriteArrayProperty(builder, 6, "decodePath", PicketFindingMetadata.CreateDecodePath(finding), comma: true);
-        WriteArrayProperty(builder, 6, "remediationLinks", Array.Empty<string>(), comma: true);
+        WriteArrayProperty(builder, 6, "remediationLinks", PicketFindingMetadata.CreateRemediationLinks(rule), comma: true);
         WriteArrayProperty(builder, 6, "tags", finding.Tags, comma: true);
         WriteStringProperty(builder, 6, "link", finding.Link, comma: false);
         Indent(builder, 5);

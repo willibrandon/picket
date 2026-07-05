@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Picket.Engine;
+using Picket.Rules;
 
 namespace Picket.Report;
 
@@ -16,7 +17,19 @@ public static class PicketJsonlReportWriter
     /// <returns>A JSON Lines report, or an empty string when there are no findings.</returns>
     public static string Write(IReadOnlyList<Finding> findings)
     {
+        return Write(findings, []);
+    }
+
+    /// <summary>
+    /// Writes findings to compact JSON Lines with rule-derived metadata.
+    /// </summary>
+    /// <param name="findings">The findings to write.</param>
+    /// <param name="rules">The rules used for the scan.</param>
+    /// <returns>A JSON Lines report, or an empty string when there are no findings.</returns>
+    public static string Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)
+    {
         ArgumentNullException.ThrowIfNull(findings);
+        ArgumentNullException.ThrowIfNull(rules);
 
         if (findings.Count == 0)
         {
@@ -24,16 +37,17 @@ public static class PicketJsonlReportWriter
         }
 
         var builder = new StringBuilder();
+        Dictionary<string, SecretRule> ruleIndex = PicketFindingMetadata.CreateRuleIndex(rules);
         foreach (Finding finding in findings)
         {
-            WriteFinding(builder, finding);
+            WriteFinding(builder, finding, PicketFindingMetadata.FindRule(ruleIndex, finding));
             builder.Append('\n');
         }
 
         return builder.ToString();
     }
 
-    private static void WriteFinding(StringBuilder builder, Finding finding)
+    private static void WriteFinding(StringBuilder builder, Finding finding, SecretRule? rule)
     {
         builder.Append('{');
         WriteString(builder, "schema", "picket.finding.v1", comma: true);
@@ -60,13 +74,16 @@ public static class PicketJsonlReportWriter
         WriteArray(builder, "tags", finding.Tags, comma: true);
         WriteString(builder, "fingerprint", PicketFindingMetadata.CreateFingerprint(finding), comma: true);
         WriteString(builder, "validationState", PicketFindingMetadata.CreateValidationState(finding), comma: true);
-        WriteString(builder, "severity", PicketFindingMetadata.Severity, comma: true);
-        WriteString(builder, "confidence", PicketFindingMetadata.Confidence, comma: true);
+        WriteString(builder, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
+        WriteString(builder, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
+        WriteString(builder, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
+        WriteString(builder, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
+        WriteString(builder, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
         WriteProvenance(builder, finding, comma: true);
         WriteArray(builder, "decodePath", PicketFindingMetadata.CreateDecodePath(finding), comma: true);
         WriteString(builder, "baselineStatus", PicketFindingMetadata.BaselineStatus, comma: true);
         WriteString(builder, "ignoreReason", PicketFindingMetadata.IgnoreReason, comma: true);
-        WriteEmptyArray(builder, "remediationLinks", comma: true);
+        WriteArray(builder, "remediationLinks", PicketFindingMetadata.CreateRemediationLinks(rule), comma: true);
         WriteString(builder, "link", finding.Link, comma: false);
         builder.Append('}');
     }

@@ -14,7 +14,12 @@ internal sealed class GitleaksRuleDefinition(
     IReadOnlyList<string> keywords,
     IReadOnlyList<string> tags,
     bool skipReport,
-    IReadOnlyList<SecretRequiredRule> requiredRules)
+    IReadOnlyList<SecretRequiredRule> requiredRules,
+    string severity = "",
+    string confidence = "",
+    string rulePack = "",
+    string provider = "",
+    string documentationUrl = "")
 {
     internal string Id { get; } = id ?? string.Empty;
 
@@ -38,6 +43,16 @@ internal sealed class GitleaksRuleDefinition(
 
     internal IReadOnlyList<SecretRequiredRule> RequiredRules { get; } = requiredRules ?? [];
 
+    internal string Severity { get; } = severity ?? string.Empty;
+
+    internal string Confidence { get; } = confidence ?? string.Empty;
+
+    internal string RulePack { get; } = rulePack ?? string.Empty;
+
+    internal string Provider { get; } = provider ?? string.Empty;
+
+    internal string DocumentationUrl { get; } = documentationUrl ?? string.Empty;
+
     internal static GitleaksRuleDefinition FromRule(SecretRule rule)
     {
         return new GitleaksRuleDefinition(
@@ -51,7 +66,12 @@ internal sealed class GitleaksRuleDefinition(
             rule.Keywords,
             rule.Tags,
             rule.SkipReport,
-            rule.RequiredRules);
+            rule.RequiredRules,
+            rule.Severity,
+            rule.Confidence,
+            rule.RulePack,
+            rule.Provider,
+            rule.DocumentationUrl);
     }
 
     internal GitleaksRuleDefinition MergeWithBase(SecretRule baseRule)
@@ -67,7 +87,12 @@ internal sealed class GitleaksRuleDefinition(
             [.. baseRule.Keywords, .. Keywords],
             [.. baseRule.Tags, .. Tags],
             SkipReport || baseRule.SkipReport,
-            RequiredRules.Count != 0 ? RequiredRules : baseRule.RequiredRules);
+            RequiredRules.Count != 0 ? RequiredRules : baseRule.RequiredRules,
+            Severity.Length != 0 ? Severity : baseRule.Severity,
+            Confidence.Length != 0 ? Confidence : baseRule.Confidence,
+            RulePack.Length != 0 ? RulePack : baseRule.RulePack,
+            Provider.Length != 0 ? Provider : baseRule.Provider,
+            DocumentationUrl.Length != 0 ? DocumentationUrl : baseRule.DocumentationUrl);
     }
 
     internal SecretRule ToRule(string sourceName)
@@ -102,7 +127,12 @@ internal sealed class GitleaksRuleDefinition(
             keywords: Keywords,
             tags: Tags,
             skipReport: SkipReport,
-            requiredRules: RequiredRules);
+            requiredRules: RequiredRules,
+            severity: Severity,
+            confidence: Confidence,
+            rulePack: RulePack,
+            provider: Provider,
+            documentationUrl: DocumentationUrl);
     }
 
     internal static string CreateMissingIdMessage(string description, string pattern, string pathPattern)
@@ -212,6 +242,11 @@ internal sealed class GitleaksRuleDefinition(
             Keywords,
             Tags,
             SkipReport,
-            RequiredRules);
+            RequiredRules,
+            Severity,
+            Confidence,
+            RulePack,
+            Provider,
+            DocumentationUrl);
     }
 }

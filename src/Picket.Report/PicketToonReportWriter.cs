@@ -38,6 +38,8 @@ public static class PicketToonReportWriter
         "validationState",
         "severity",
         "confidence",
+        "rulePack",
+        "provider",
         "provenanceType",
         "baselineStatus",
         "ignoreReason",
@@ -46,36 +48,38 @@ public static class PicketToonReportWriter
 
     private static readonly bool[] s_findingRawFields =
     [
-        false,
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        true,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        true,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
+        false, // schema
+        false, // ruleId
+        false, // description
+        false, // file
+        false, // symlinkFile
+        true, // startLine
+        true, // endLine
+        true, // startColumn
+        true, // endColumn
+        false, // match
+        false, // secret
+        false, // secretSha256
+        false, // matchSha256
+        false, // blobSha256
+        false, // decodePath
+        false, // line
+        false, // commit
+        true, // entropy
+        false, // author
+        false, // email
+        false, // date
+        false, // message
+        false, // fingerprint
+        false, // validationState
+        false, // severity
+        false, // confidence
+        false, // rulePack
+        false, // provider
+        false, // provenanceType
+        false, // baselineStatus
+        false, // ignoreReason
+        false, // link
     ];
 
     private static readonly string[] s_ruleFields =
@@ -86,6 +90,11 @@ public static class PicketToonReportWriter
         "pathPattern",
         "secretGroup",
         "entropy",
+        "severity",
+        "confidence",
+        "rulePack",
+        "provider",
+        "documentationUrl",
         "skipReport",
     ];
 
@@ -97,6 +106,11 @@ public static class PicketToonReportWriter
         false,
         true,
         true,
+        false,
+        false,
+        false,
+        false,
+        false,
         true,
     ];
 
@@ -123,7 +137,8 @@ public static class PicketToonReportWriter
         AppendLine(builder, "summary:");
         AppendLine(builder, $"  findings: {findings.Count.ToString(CultureInfo.InvariantCulture)}");
         AppendLine(builder, $"  rules: {rules.Count.ToString(CultureInfo.InvariantCulture)}");
-        WriteFindings(builder, findings);
+        Dictionary<string, SecretRule> ruleIndex = PicketFindingMetadata.CreateRuleIndex(rules);
+        WriteFindings(builder, findings, ruleIndex);
         WriteFindingTags(builder, findings);
         WriteRules(builder, rules);
         WriteRuleKeywords(builder, rules);
@@ -131,7 +146,7 @@ public static class PicketToonReportWriter
         return builder.ToString();
     }
 
-    private static void WriteFindings(StringBuilder builder, IReadOnlyList<Finding> findings)
+    private static void WriteFindings(StringBuilder builder, IReadOnlyList<Finding> findings, IReadOnlyDictionary<string, SecretRule> ruleIndex)
     {
         if (findings.Count == 0)
         {
@@ -143,6 +158,7 @@ public static class PicketToonReportWriter
         for (int i = 0; i < findings.Count; i++)
         {
             Finding finding = findings[i];
+            SecretRule? rule = PicketFindingMetadata.FindRule(ruleIndex, finding);
             WriteRow(builder, 1, [
                 "picket.finding.v1",
                 finding.RuleID,
@@ -168,8 +184,10 @@ public static class PicketToonReportWriter
                 finding.Message,
                 PicketFindingMetadata.CreateFingerprint(finding),
                 PicketFindingMetadata.CreateValidationState(finding),
-                PicketFindingMetadata.Severity,
-                PicketFindingMetadata.Confidence,
+                PicketFindingMetadata.CreateSeverity(rule),
+                PicketFindingMetadata.CreateConfidence(rule),
+                PicketFindingMetadata.CreateRulePack(rule),
+                PicketFindingMetadata.CreateProvider(rule),
                 PicketFindingMetadata.CreateProvenanceType(finding),
                 PicketFindingMetadata.BaselineStatus,
                 PicketFindingMetadata.IgnoreReason,
@@ -225,6 +243,11 @@ public static class PicketToonReportWriter
                 rule.PathPattern,
                 rule.SecretGroup.ToString(CultureInfo.InvariantCulture),
                 FormatNumber(rule.Entropy),
+                PicketFindingMetadata.CreateSeverity(rule),
+                PicketFindingMetadata.CreateConfidence(rule),
+                PicketFindingMetadata.CreateRulePack(rule),
+                PicketFindingMetadata.CreateProvider(rule),
+                PicketFindingMetadata.CreateDocumentationUrl(rule),
                 rule.SkipReport ? "true" : "false",
             ], s_ruleRawFields);
         }

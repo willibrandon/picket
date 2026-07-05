@@ -14,6 +14,11 @@ namespace Picket.Rules;
 /// <param name="tags">Rule classification tags.</param>
 /// <param name="skipReport">A value indicating whether normal findings for this rule are suppressed.</param>
 /// <param name="requiredRules">Supporting rules required before a primary finding is reported.</param>
+/// <param name="severity">The native severity value for reports and triage.</param>
+/// <param name="confidence">The native confidence value for reports and triage.</param>
+/// <param name="rulePack">The native rule pack that supplied the rule.</param>
+/// <param name="provider">The owning provider or credential family.</param>
+/// <param name="documentationUrl">The rule documentation or remediation URL.</param>
 public sealed class SecretRule(
     string id,
     string description,
@@ -25,7 +30,12 @@ public sealed class SecretRule(
     IReadOnlyList<string>? keywords = null,
     IReadOnlyList<string>? tags = null,
     bool skipReport = false,
-    IReadOnlyList<SecretRequiredRule>? requiredRules = null)
+    IReadOnlyList<SecretRequiredRule>? requiredRules = null,
+    string severity = "",
+    string confidence = "",
+    string rulePack = "",
+    string provider = "",
+    string documentationUrl = "")
 {
     /// <summary>
     /// Gets the stable rule identifier.
@@ -83,6 +93,31 @@ public sealed class SecretRule(
     public IReadOnlyList<SecretRequiredRule> RequiredRules { get; } = requiredRules ?? [];
 
     /// <summary>
+    /// Gets the native severity value for reports and triage.
+    /// </summary>
+    public string Severity { get; } = string.IsNullOrWhiteSpace(severity) ? "critical" : severity;
+
+    /// <summary>
+    /// Gets the native confidence value for reports and triage.
+    /// </summary>
+    public string Confidence { get; } = string.IsNullOrWhiteSpace(confidence) ? "high" : confidence;
+
+    /// <summary>
+    /// Gets the native rule pack that supplied the rule.
+    /// </summary>
+    public string RulePack { get; } = rulePack ?? string.Empty;
+
+    /// <summary>
+    /// Gets the owning provider or credential family.
+    /// </summary>
+    public string Provider { get; } = provider ?? string.Empty;
+
+    /// <summary>
+    /// Gets the rule documentation or remediation URL.
+    /// </summary>
+    public string DocumentationUrl { get; } = documentationUrl ?? string.Empty;
+
+    /// <summary>
     /// Creates a rule and normalizes optional collection arguments.
     /// </summary>
     /// <param name="id">The stable rule identifier.</param>
@@ -96,6 +131,11 @@ public sealed class SecretRule(
     /// <param name="tags">Rule classification tags.</param>
     /// <param name="skipReport">A value indicating whether normal findings for this rule are suppressed.</param>
     /// <param name="requiredRules">Supporting rules required before a primary finding is reported.</param>
+    /// <param name="severity">The native severity value for reports and triage.</param>
+    /// <param name="confidence">The native confidence value for reports and triage.</param>
+    /// <param name="rulePack">The native rule pack that supplied the rule.</param>
+    /// <param name="provider">The owning provider or credential family.</param>
+    /// <param name="documentationUrl">The rule documentation or remediation URL.</param>
     /// <returns>The created rule.</returns>
     public static SecretRule Create(
         string id,
@@ -108,7 +148,12 @@ public sealed class SecretRule(
         IReadOnlyList<string>? keywords = null,
         IReadOnlyList<string>? tags = null,
         bool skipReport = false,
-        IReadOnlyList<SecretRequiredRule>? requiredRules = null)
+        IReadOnlyList<SecretRequiredRule>? requiredRules = null,
+        string severity = "",
+        string confidence = "",
+        string rulePack = "",
+        string provider = "",
+        string documentationUrl = "")
     {
         return new SecretRule(
             id,
@@ -121,7 +166,12 @@ public sealed class SecretRule(
             keywords ?? [],
             tags ?? [],
             skipReport,
-            requiredRules ?? []);
+            requiredRules ?? [],
+            severity,
+            confidence,
+            rulePack,
+            provider,
+            documentationUrl);
     }
 
     private static string RequireText(string value)

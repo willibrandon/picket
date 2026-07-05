@@ -26,7 +26,7 @@ public static class PicketJsonReportWriter
         WriteString(builder, "schema", "picket.report.v1", comma: true);
         WriteTool(builder, comma: true);
         WriteRules(builder, rules, comma: true);
-        WriteFindings(builder, findings, comma: false);
+        WriteFindings(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules), comma: false);
         builder.Append('}');
         builder.Append('\n');
         return builder.ToString();
@@ -68,13 +68,18 @@ public static class PicketJsonReportWriter
         WriteString(builder, "pathPattern", rule.PathPattern, comma: true);
         WriteNumber(builder, "secretGroup", rule.SecretGroup, comma: true);
         WriteNumber(builder, "entropy", rule.Entropy, comma: true);
+        WriteString(builder, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
+        WriteString(builder, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
+        WriteString(builder, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
+        WriteString(builder, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
+        WriteString(builder, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
         WriteArray(builder, "keywords", rule.Keywords, comma: true);
         WriteArray(builder, "tags", rule.Tags, comma: true);
         WriteBoolean(builder, "skipReport", rule.SkipReport, comma: false);
         builder.Append('}');
     }
 
-    private static void WriteFindings(StringBuilder builder, IReadOnlyList<Finding> findings, bool comma)
+    private static void WriteFindings(StringBuilder builder, IReadOnlyList<Finding> findings, IReadOnlyDictionary<string, SecretRule> ruleIndex, bool comma)
     {
         WritePropertyName(builder, "findings");
         builder.Append('[');
@@ -85,14 +90,14 @@ public static class PicketJsonReportWriter
                 builder.Append(',');
             }
 
-            WriteFinding(builder, findings[i]);
+            WriteFinding(builder, findings[i], PicketFindingMetadata.FindRule(ruleIndex, findings[i]));
         }
 
         builder.Append(']');
         WriteComma(builder, comma);
     }
 
-    private static void WriteFinding(StringBuilder builder, Finding finding)
+    private static void WriteFinding(StringBuilder builder, Finding finding, SecretRule? rule)
     {
         builder.Append('{');
         WriteString(builder, "schema", "picket.finding.v1", comma: true);
@@ -119,13 +124,16 @@ public static class PicketJsonReportWriter
         WriteArray(builder, "tags", finding.Tags, comma: true);
         WriteString(builder, "fingerprint", PicketFindingMetadata.CreateFingerprint(finding), comma: true);
         WriteString(builder, "validationState", PicketFindingMetadata.CreateValidationState(finding), comma: true);
-        WriteString(builder, "severity", PicketFindingMetadata.Severity, comma: true);
-        WriteString(builder, "confidence", PicketFindingMetadata.Confidence, comma: true);
+        WriteString(builder, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
+        WriteString(builder, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
+        WriteString(builder, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
+        WriteString(builder, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
+        WriteString(builder, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
         WriteProvenance(builder, finding, comma: true);
         WriteArray(builder, "decodePath", PicketFindingMetadata.CreateDecodePath(finding), comma: true);
         WriteString(builder, "baselineStatus", PicketFindingMetadata.BaselineStatus, comma: true);
         WriteString(builder, "ignoreReason", PicketFindingMetadata.IgnoreReason, comma: true);
-        WriteEmptyArray(builder, "remediationLinks", comma: true);
+        WriteArray(builder, "remediationLinks", PicketFindingMetadata.CreateRemediationLinks(rule), comma: true);
         WriteString(builder, "link", finding.Link, comma: false);
         builder.Append('}');
     }

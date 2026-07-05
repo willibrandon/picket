@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Report;
+using Picket.Rules;
 
 namespace Picket.Tests;
 
@@ -65,9 +66,39 @@ public sealed class PicketJsonlReportWriterTests
         Assert.Contains("\"validationState\":\"unknown\"", jsonl);
         Assert.Contains("\"severity\":\"critical\"", jsonl);
         Assert.Contains("\"confidence\":\"high\"", jsonl);
+        Assert.Contains("\"rulePack\":\"\"", jsonl);
+        Assert.Contains("\"provider\":\"\"", jsonl);
+        Assert.Contains("\"documentationUrl\":\"\"", jsonl);
         Assert.Contains("\"provenance\":{\"type\":\"git\",\"path\":\"stdin\",\"commit\":\"0000000000000000\"}", jsonl);
         Assert.Contains("\"decodePath\":[\"base64\"]", jsonl);
+        Assert.Contains("\"remediationLinks\":[]", jsonl);
         Assert.Contains("\"link\":\"https://github.com/example/repo/blob/commit/stdin#L1\"", jsonl);
+    }
+
+    /// <summary>
+    /// Verifies JSONL can resolve native rule metadata when rules are supplied.
+    /// </summary>
+    [TestMethod]
+    public void WriteUsesRuleMetadataWhenRulesAreSupplied()
+    {
+        Finding finding = CreateFinding("rule", "stdin");
+        SecretRule rule = SecretRule.Create(
+            "rule",
+            "desc",
+            "secret",
+            severity: "high",
+            confidence: "medium",
+            rulePack: "picket-strict",
+            provider: "example",
+            documentationUrl: "https://example.invalid/rules/rule");
+
+        string jsonl = PicketJsonlReportWriter.Write([finding], [rule]);
+
+        Assert.Contains("\"severity\":\"high\"", jsonl);
+        Assert.Contains("\"confidence\":\"medium\"", jsonl);
+        Assert.Contains("\"rulePack\":\"picket-strict\"", jsonl);
+        Assert.Contains("\"provider\":\"example\"", jsonl);
+        Assert.Contains("\"remediationLinks\":[\"https://example.invalid/rules/rule\"]", jsonl);
     }
 
     private static Finding CreateFinding(

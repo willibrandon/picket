@@ -107,6 +107,11 @@ public static class GitleaksConfigLoader
         bool skipReport = false;
         IReadOnlyList<string> keywords = [];
         IReadOnlyList<string> tags = [];
+        string severity = string.Empty;
+        string confidence = string.Empty;
+        string rulePack = string.Empty;
+        string provider = string.Empty;
+        string documentationUrl = string.Empty;
         string allowlistDescription = string.Empty;
         AllowlistCondition allowlistCondition = AllowlistCondition.Or;
         List<string> allowlistCommits = [];
@@ -152,6 +157,11 @@ public static class GitleaksConfigLoader
                     skipReport = false;
                     keywords = [];
                     tags = [];
+                    severity = string.Empty;
+                    confidence = string.Empty;
+                    rulePack = string.Empty;
+                    provider = string.Empty;
+                    documentationUrl = string.Empty;
                     continue;
                 }
 
@@ -359,6 +369,21 @@ public static class GitleaksConfigLoader
                 case "skipReport":
                     skipReport = ParseBoolean(value, sourceName, key);
                     break;
+                case "severity":
+                    severity = ParseString(value, sourceName, key);
+                    break;
+                case "confidence":
+                    confidence = ParseString(value, sourceName, key);
+                    break;
+                case "rulePack":
+                    rulePack = ParseString(value, sourceName, key);
+                    break;
+                case "provider":
+                    provider = ParseString(value, sourceName, key);
+                    break;
+                case "documentationUrl":
+                    documentationUrl = ParseString(value, sourceName, key);
+                    break;
             }
         }
 
@@ -529,7 +554,12 @@ public static class GitleaksConfigLoader
                 keywords,
                 tags,
                 skipReport,
-                ruleRequiredRules));
+                ruleRequiredRules,
+                severity,
+                confidence,
+                rulePack,
+                provider,
+                documentationUrl));
             ruleAllowlists = [];
             ruleRequiredRules = [];
             hasRule = false;

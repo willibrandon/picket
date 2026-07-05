@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Picket.Engine;
+using Picket.Rules;
 
 namespace Picket.Report;
 
@@ -10,10 +11,72 @@ internal static class PicketFindingMetadata
     internal const string BaselineStatus = "new";
     internal const string Confidence = "high";
     internal const string IgnoreReason = "";
-    internal const string Severity = "critical";
     internal const string ValidationState = "unknown";
 
+    private const string DefaultConfidence = "high";
+    private const string DefaultSeverity = "critical";
     private const string LowerHex = "0123456789abcdef";
+
+    internal static Dictionary<string, SecretRule> CreateRuleIndex(IReadOnlyList<SecretRule> rules)
+    {
+        var ruleIndex = new Dictionary<string, SecretRule>(rules.Count, StringComparer.Ordinal);
+        for (int i = 0; i < rules.Count; i++)
+        {
+            SecretRule rule = rules[i];
+            ruleIndex.TryAdd(rule.Id, rule);
+        }
+
+        return ruleIndex;
+    }
+
+    internal static SecretRule? FindRule(IReadOnlyDictionary<string, SecretRule> ruleIndex, Finding finding)
+    {
+        return ruleIndex.TryGetValue(finding.RuleID, out SecretRule? rule) ? rule : null;
+    }
+
+    internal static string CreateSeverity(SecretRule? rule)
+    {
+        return rule is null || rule.Severity.Length == 0 ? DefaultSeverity : rule.Severity;
+    }
+
+    internal static string CreateConfidence(SecretRule? rule)
+    {
+        return rule is null || rule.Confidence.Length == 0 ? DefaultConfidence : rule.Confidence;
+    }
+
+    internal static string CreateRulePack(SecretRule? rule)
+    {
+        return rule?.RulePack ?? string.Empty;
+    }
+
+    internal static string CreateProvider(SecretRule? rule)
+    {
+        return rule?.Provider ?? string.Empty;
+    }
+
+    internal static string CreateDocumentationUrl(SecretRule? rule)
+    {
+        return rule?.DocumentationUrl ?? string.Empty;
+    }
+
+    internal static IReadOnlyList<string> CreateRemediationLinks(SecretRule? rule)
+    {
+        return rule is not null && rule.DocumentationUrl.Length != 0 ? [rule.DocumentationUrl] : [];
+    }
+
+    internal static string CreateSecuritySeverity(SecretRule? rule)
+    {
+        string severity = CreateSeverity(rule);
+        return severity.ToLowerInvariant() switch
+        {
+            "critical" => "8.0",
+            "high" => "7.0",
+            "medium" => "5.0",
+            "low" => "3.0",
+            "info" or "informational" => "1.0",
+            _ => "8.0",
+        };
+    }
 
     internal static string CreateSecretSha256(Finding finding)
     {

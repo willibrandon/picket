@@ -32,7 +32,7 @@ public static class PicketHtmlReportWriter
         builder.Append("<h1>Picket Secret Scan Report</h1>\n");
         builder.Append("</header>\n");
         WriteSummary(builder, findings, rules);
-        WriteFindings(builder, findings);
+        WriteFindings(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules));
         WriteRules(builder, rules);
         builder.Append("</main>\n");
         builder.Append("</body>\n");
@@ -108,7 +108,7 @@ public static class PicketHtmlReportWriter
         return files.Count;
     }
 
-    private static void WriteFindings(StringBuilder builder, IReadOnlyList<Finding> findings)
+    private static void WriteFindings(StringBuilder builder, IReadOnlyList<Finding> findings, IReadOnlyDictionary<string, SecretRule> ruleIndex)
     {
         builder.Append("<section aria-labelledby=\"findings-heading\">\n");
         builder.Append("<h2 id=\"findings-heading\">Findings</h2>\n");
@@ -124,7 +124,7 @@ public static class PicketHtmlReportWriter
         builder.Append("<tbody>\n");
         for (int i = 0; i < findings.Count; i++)
         {
-            WriteFinding(builder, findings[i]);
+            WriteFinding(builder, findings[i], PicketFindingMetadata.FindRule(ruleIndex, findings[i]));
         }
 
         builder.Append("</tbody>\n");
@@ -132,7 +132,7 @@ public static class PicketHtmlReportWriter
         builder.Append("</section>\n");
     }
 
-    private static void WriteFinding(StringBuilder builder, Finding finding)
+    private static void WriteFinding(StringBuilder builder, Finding finding, SecretRule? rule)
     {
         builder.Append("<tr>");
         builder.Append("<td><code>");
@@ -157,17 +157,20 @@ public static class PicketHtmlReportWriter
         builder.Append("</pre></td><td><code>");
         AppendHtml(builder, CreateFingerprint(finding));
         builder.Append("</code></td><td>");
-        WriteFindingMetadata(builder, finding);
+        WriteFindingMetadata(builder, finding, rule);
         builder.Append("</td><td>");
         WriteTags(builder, finding.Tags);
         builder.Append("</td></tr>\n");
     }
 
-    private static void WriteFindingMetadata(StringBuilder builder, Finding finding)
+    private static void WriteFindingMetadata(StringBuilder builder, Finding finding, SecretRule? rule)
     {
         builder.Append("<dl class=\"metadata\">");
-        WriteMetadata(builder, "Severity", PicketFindingMetadata.Severity);
-        WriteMetadata(builder, "Confidence", PicketFindingMetadata.Confidence);
+        WriteMetadata(builder, "Severity", PicketFindingMetadata.CreateSeverity(rule));
+        WriteMetadata(builder, "Confidence", PicketFindingMetadata.CreateConfidence(rule));
+        WriteMetadata(builder, "Rule Pack", PicketFindingMetadata.CreateRulePack(rule));
+        WriteMetadata(builder, "Provider", PicketFindingMetadata.CreateProvider(rule));
+        WriteMetadata(builder, "Docs", PicketFindingMetadata.CreateDocumentationUrl(rule));
         WriteMetadata(builder, "Validation", PicketFindingMetadata.CreateValidationState(finding));
         WriteMetadata(builder, "Provenance", PicketFindingMetadata.CreateProvenanceType(finding));
         WriteMetadata(builder, "Secret SHA-256", PicketFindingMetadata.CreateSecretSha256(finding));
@@ -197,7 +200,7 @@ public static class PicketHtmlReportWriter
         }
 
         builder.Append("<table>\n");
-        builder.Append("<thead><tr><th>ID</th><th>Description</th><th>Pattern</th><th>Tags</th></tr></thead>\n");
+        builder.Append("<thead><tr><th>ID</th><th>Description</th><th>Pattern</th><th>Metadata</th><th>Tags</th></tr></thead>\n");
         builder.Append("<tbody>\n");
         for (int i = 0; i < rules.Count; i++)
         {
@@ -218,8 +221,21 @@ public static class PicketHtmlReportWriter
         builder.Append("</td><td><code>");
         AppendHtml(builder, rule.Pattern);
         builder.Append("</code></td><td>");
+        WriteRuleMetadata(builder, rule);
+        builder.Append("</td><td>");
         WriteTags(builder, rule.Tags);
         builder.Append("</td></tr>\n");
+    }
+
+    private static void WriteRuleMetadata(StringBuilder builder, SecretRule rule)
+    {
+        builder.Append("<dl class=\"metadata\">");
+        WriteMetadata(builder, "Severity", PicketFindingMetadata.CreateSeverity(rule));
+        WriteMetadata(builder, "Confidence", PicketFindingMetadata.CreateConfidence(rule));
+        WriteMetadata(builder, "Rule Pack", PicketFindingMetadata.CreateRulePack(rule));
+        WriteMetadata(builder, "Provider", PicketFindingMetadata.CreateProvider(rule));
+        WriteMetadata(builder, "Docs", PicketFindingMetadata.CreateDocumentationUrl(rule));
+        builder.Append("</dl>");
     }
 
     private static void WriteTags(StringBuilder builder, IReadOnlyList<string> tags)

@@ -1,6 +1,6 @@
 # Rule Authoring
 
-Picket's compatibility rule format is Gitleaks TOML. Native rule-pack metadata will extend this model, but strict compatibility mode must keep Gitleaks behavior stable.
+Picket's compatibility rule format is Gitleaks TOML. Native rule-pack metadata extends this model, but strict compatibility mode must keep Gitleaks behavior stable.
 
 ## Config Loading
 
@@ -22,7 +22,7 @@ Native commands currently use the same rule model with Picket-native environment
 6. `{target}/.gitleaks.toml`
 7. embedded Gitleaks compatibility rules
 
-Strict compatibility commands ignore `PICKET_CONFIG` and `PICKET_CONFIG_TOML`. Native rule packs may later extend this model behind explicit native profiles or flags.
+Strict compatibility commands ignore `PICKET_CONFIG` and `PICKET_CONFIG_TOML`. Native commands also understand optional Picket metadata fields on each rule.
 
 ## Rule Shape
 
@@ -37,6 +37,11 @@ Supported rule fields:
 - `keywords`: case-insensitive prefilter terms.
 - `tags`: classification labels.
 - `skipReport`: run supporting detection without reporting normal findings.
+- `severity`: native report severity. Defaults to `critical`.
+- `confidence`: native report confidence. Defaults to `high`.
+- `rulePack`: native rule-pack identifier such as `gitleaks`, `picket-default`, or `picket-strict`.
+- `provider`: owning provider or credential family.
+- `documentationUrl`: rule documentation or remediation URL.
 
 Example:
 
@@ -47,6 +52,11 @@ description = "Sample token"
 regex = '''token-[0-9]+'''
 keywords = ["token"]
 tags = ["example"]
+severity = "high"
+confidence = "medium"
+rulePack = "picket-default"
+provider = "example"
+documentationUrl = "https://example.invalid/rules/sample-token"
 ```
 
 ## Allowlists

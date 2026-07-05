@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Report;
+using Picket.Rules;
 
 namespace Picket.Tests;
 
@@ -19,7 +20,7 @@ public sealed class PicketCsvReportWriterTests
     {
         string csv = PicketCsvReportWriter.Write([]);
 
-        Assert.AreEqual("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
+        Assert.AreEqual("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,RulePack,Provider,DocumentationUrl,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
     }
 
     /// <summary>
@@ -32,8 +33,8 @@ public sealed class PicketCsvReportWriterTests
 
         string csv = PicketCsvReportWriter.Write([finding]);
 
-        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
-        Assert.Contains($"picket.finding.v1,rule,desc,stdin,,1,2,3,4,secret,2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b,line containing secret,307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3,{BlobSha256},base64,line containing secret,0000000000000000,2.5,John Doe,johndoe@example.com,2026-07-05,message,stdin:rule:1:3,unknown,critical,high,git,new,,tag1 tag2,https://github.com/example/repo/blob/commit/stdin#L1\n", csv);
+        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,RulePack,Provider,DocumentationUrl,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
+        Assert.Contains($"picket.finding.v1,rule,desc,stdin,,1,2,3,4,secret,2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b,line containing secret,307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3,{BlobSha256},base64,line containing secret,0000000000000000,2.5,John Doe,johndoe@example.com,2026-07-05,message,stdin:rule:1:3,unknown,critical,high,,,,git,new,,tag1 tag2,https://github.com/example/repo/blob/commit/stdin#L1\n", csv);
     }
 
     /// <summary>
@@ -53,6 +54,28 @@ public sealed class PicketCsvReportWriterTests
         Assert.Contains("1eb7c54d52831bbfe8942af0b1c56b7409523a59ed6ca99c1174fef7eb32c1b5", csv);
         Assert.Contains("\"x=\"\"y\"\"\nnext\"", csv);
         Assert.Contains("c67137832a0e4df13a1f667166b91ffe010134d01578d7bd6499c36def655d6b", csv);
+    }
+
+    /// <summary>
+    /// Verifies CSV can resolve native rule metadata when rules are supplied.
+    /// </summary>
+    [TestMethod]
+    public void WriteUsesRuleMetadataWhenRulesAreSupplied()
+    {
+        Finding finding = CreateFinding();
+        SecretRule rule = SecretRule.Create(
+            "rule",
+            "desc",
+            "secret",
+            severity: "high",
+            confidence: "medium",
+            rulePack: "picket-strict",
+            provider: "example",
+            documentationUrl: "https://example.invalid/rules/rule");
+
+        string csv = PicketCsvReportWriter.Write([finding], [rule]);
+
+        Assert.Contains(",unknown,high,medium,picket-strict,example,https://example.invalid/rules/rule,git,new,", csv);
     }
 
     private static Finding CreateFinding(

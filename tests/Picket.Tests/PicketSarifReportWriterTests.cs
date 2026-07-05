@@ -34,7 +34,16 @@ public sealed class PicketSarifReportWriterTests
     public void WriteUsesPicketSarifShape()
     {
         Finding finding = CreateFinding();
-        SecretRule rule = SecretRule.Create("test-rule", "A test rule", "secret", tags: ["credential"]);
+        SecretRule rule = SecretRule.Create(
+            "test-rule",
+            "A test rule",
+            "secret",
+            tags: ["credential"],
+            severity: "high",
+            confidence: "medium",
+            rulePack: "picket-strict",
+            provider: "example",
+            documentationUrl: "https://example.invalid/rules/test-rule");
 
         string sarif = PicketSarifReportWriter.Write([finding], [rule]);
 
@@ -42,8 +51,11 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"version\": \"2.1.0\"", sarif);
         Assert.Contains("\"id\": \"test-rule\"", sarif);
         Assert.Contains("\"level\": \"error\"", sarif);
-        Assert.Contains("\"precision\": \"high\"", sarif);
-        Assert.Contains("\"security-severity\": \"8.0\"", sarif);
+        Assert.Contains("\"precision\": \"medium\"", sarif);
+        Assert.Contains("\"security-severity\": \"7.0\"", sarif);
+        Assert.Contains("\"rulePack\": \"picket-strict\"", sarif);
+        Assert.Contains("\"provider\": \"example\"", sarif);
+        Assert.Contains("\"documentationUrl\": \"https://example.invalid/rules/test-rule\"", sarif);
         Assert.Contains("\"credential\",\n         \"security\",\n         \"secrets\"", sarif);
         Assert.Contains("\"ruleId\": \"test-rule\"", sarif);
         Assert.Contains("\"kind\": \"fail\"", sarif);
@@ -58,13 +70,13 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"matchSha256\": \"2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b\"", sarif);
         Assert.Contains($"\"blobSha256\": \"{BlobSha256}\"", sarif);
         Assert.Contains("\"validationState\": \"unknown\"", sarif);
-        Assert.Contains("\"severity\": \"critical\"", sarif);
-        Assert.Contains("\"confidence\": \"high\"", sarif);
+        Assert.Contains("\"severity\": \"high\"", sarif);
+        Assert.Contains("\"confidence\": \"medium\"", sarif);
         Assert.Contains("\"provenanceType\": \"git\"", sarif);
         Assert.Contains("\"baselineStatus\": \"new\"", sarif);
         Assert.Contains("\"decodePath\": [", sarif);
         Assert.Contains("\"base64\"", sarif);
-        Assert.Contains("\"remediationLinks\": []", sarif);
+        Assert.Contains("\"remediationLinks\": [\n       \"https://example.invalid/rules/test-rule\"\n      ]", sarif);
     }
 
     /// <summary>

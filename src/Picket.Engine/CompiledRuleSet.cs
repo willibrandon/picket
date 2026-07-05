@@ -112,6 +112,11 @@ public sealed class CompiledRuleSet(RuleSet rules)
             AppendValues(builder, rule.Keywords);
             AppendValues(builder, rule.Tags);
             AppendValue(builder, rule.SkipReport ? "true" : "false");
+            AppendValue(builder, rule.Severity);
+            AppendValue(builder, rule.Confidence);
+            AppendValue(builder, rule.RulePack);
+            AppendValue(builder, rule.Provider);
+            AppendValue(builder, rule.DocumentationUrl);
             AppendAllowlists(builder, rule.Allowlists);
             AppendRequiredRules(builder, rule.RequiredRules);
         }

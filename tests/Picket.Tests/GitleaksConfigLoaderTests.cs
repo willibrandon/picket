@@ -140,6 +140,33 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that Picket-native rule metadata fields load into scanner rules.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesNativeRuleMetadataFields()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "custom-token"
+            regex = '''token-[0-9]+'''
+            severity = "high"
+            confidence = "medium"
+            rulePack = "picket-strict"
+            provider = "custom"
+            documentationUrl = "https://example.invalid/rules/custom-token"
+            """,
+            "memory");
+
+        SecretRule rule = ruleSet.Rules[0];
+        Assert.AreEqual("high", rule.Severity);
+        Assert.AreEqual("medium", rule.Confidence);
+        Assert.AreEqual("picket-strict", rule.RulePack);
+        Assert.AreEqual("custom", rule.Provider);
+        Assert.AreEqual("https://example.invalid/rules/custom-token", rule.DocumentationUrl);
+    }
+
+    /// <summary>
     /// Verifies that an explicit config path wins over every implicit Gitleaks config source.
     /// </summary>
     [TestMethod]

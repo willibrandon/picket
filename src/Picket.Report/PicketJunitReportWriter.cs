@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Picket.Engine;
+using Picket.Rules;
 
 namespace Picket.Report;
 
@@ -16,7 +17,19 @@ public static class PicketJunitReportWriter
     /// <returns>A JUnit XML report with Picket-native finding metadata.</returns>
     public static string Write(IReadOnlyList<Finding> findings)
     {
+        return Write(findings, []);
+    }
+
+    /// <summary>
+    /// Writes findings to a deterministic UTF-8 JUnit XML string with rule-derived metadata.
+    /// </summary>
+    /// <param name="findings">The findings to write.</param>
+    /// <param name="rules">The rules used for the scan.</param>
+    /// <returns>A JUnit XML report with Picket-native finding metadata.</returns>
+    public static string Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)
+    {
         ArgumentNullException.ThrowIfNull(findings);
+        ArgumentNullException.ThrowIfNull(rules);
 
         var builder = new StringBuilder();
         builder.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -30,7 +43,7 @@ public static class PicketJunitReportWriter
         WriteProperties(builder);
         for (int i = 0; i < findings.Count; i++)
         {
-            WriteTestCase(builder, findings[i]);
+            WriteTestCase(builder, findings[i], rules);
         }
 
         builder.Append("\t</testsuite>\n");
@@ -46,7 +59,7 @@ public static class PicketJunitReportWriter
         builder.Append("\t\t</properties>\n");
     }
 
-    private static void WriteTestCase(StringBuilder builder, Finding finding)
+    private static void WriteTestCase(StringBuilder builder, Finding finding, IReadOnlyList<SecretRule> rules)
     {
         string message = CreateMessage(finding);
         builder.Append("\t\t<testcase classname=\"");
@@ -59,7 +72,7 @@ public static class PicketJunitReportWriter
         builder.Append("\t\t\t<failure message=\"");
         AppendXmlAttribute(builder, message);
         builder.Append("\" type=\"picket.finding.v1\">");
-        AppendXmlCharacterData(builder, WriteJsonFinding(finding));
+        AppendXmlCharacterData(builder, WriteJsonFinding(finding, rules));
         builder.Append("</failure>\n");
         builder.Append("\t\t</testcase>\n");
     }
@@ -77,9 +90,9 @@ public static class PicketJunitReportWriter
         return finding.SymlinkFile.Length == 0 ? finding.File : finding.SymlinkFile;
     }
 
-    private static string WriteJsonFinding(Finding finding)
+    private static string WriteJsonFinding(Finding finding, IReadOnlyList<SecretRule> rules)
     {
-        string json = PicketJsonlReportWriter.Write([finding]);
+        string json = PicketJsonlReportWriter.Write([finding], rules);
         return json.Length > 0 && json[^1] == '\n' ? json[..^1] : json;
     }
 

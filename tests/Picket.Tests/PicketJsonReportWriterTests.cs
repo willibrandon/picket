@@ -25,6 +25,9 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"schema\":\"picket.report.v1\"", json);
         Assert.Contains("\"tool\":{\"name\":\"picket\"}", json);
         Assert.Contains("\"rules\":[{\"id\":\"token\"", json);
+        Assert.Contains("\"severity\":\"critical\"", json);
+        Assert.Contains("\"confidence\":\"high\"", json);
+        Assert.Contains("\"rulePack\":\"\"", json);
         Assert.Contains("\"tags\":[\"secret\"]", json);
         Assert.Contains("\"findings\":[]", json);
     }
@@ -35,7 +38,17 @@ public sealed class PicketJsonReportWriterTests
     [TestMethod]
     public void WriteEscapesStringsAndWritesFindings()
     {
-        SecretRule rule = SecretRule.Create("rule", string.Empty, "x", keywords: ["x"], tags: ["tag"]);
+        SecretRule rule = SecretRule.Create(
+            "rule",
+            string.Empty,
+            "x",
+            keywords: ["x"],
+            tags: ["tag"],
+            severity: "high",
+            confidence: "medium",
+            rulePack: "picket-strict",
+            provider: "example",
+            documentationUrl: "https://example.invalid/rules/rule");
         var finding = new Finding(
             "rule",
             "desc",
@@ -68,13 +81,16 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"keywords\":[\"x\"]", json);
         Assert.Contains("\"fingerprint\":\"stdin:rule:1:2\"", json);
         Assert.Contains("\"validationState\":\"unknown\"", json);
-        Assert.Contains("\"severity\":\"critical\"", json);
-        Assert.Contains("\"confidence\":\"high\"", json);
+        Assert.Contains("\"severity\":\"high\"", json);
+        Assert.Contains("\"confidence\":\"medium\"", json);
+        Assert.Contains("\"rulePack\":\"picket-strict\"", json);
+        Assert.Contains("\"provider\":\"example\"", json);
+        Assert.Contains("\"documentationUrl\":\"https://example.invalid/rules/rule\"", json);
         Assert.Contains("\"provenance\":{\"type\":\"filesystem\",\"path\":\"stdin\",\"commit\":\"\"}", json);
         Assert.Contains("\"decodePath\":[\"base64\"]", json);
         Assert.Contains("\"baselineStatus\":\"new\"", json);
         Assert.Contains("\"ignoreReason\":\"\"", json);
-        Assert.Contains("\"remediationLinks\":[]", json);
+        Assert.Contains("\"remediationLinks\":[\"https://example.invalid/rules/rule\"]", json);
     }
 
     /// <summary>
