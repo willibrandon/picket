@@ -136,6 +136,75 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that compatibility directory scans reject native JSONL reports.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeJsonlReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported report format: jsonl", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can write Picket JSONL reports.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesJsonlReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans infer JSONL from report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanInfersJsonlReportFormatFromPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.jsonl");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
+    /// Verifies that native scans accept --source as the scan root.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesSourceFlag()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", "--source", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that report paths ending in .sarif infer SARIF when -f is omitted.
     /// </summary>
     [TestMethod]

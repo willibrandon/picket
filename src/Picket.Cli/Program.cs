@@ -27,6 +27,11 @@ if (command.Equals("version", StringComparison.OrdinalIgnoreCase))
     return 0;
 }
 
+if (command.Equals("scan", StringComparison.OrdinalIgnoreCase))
+{
+    return RunScan(args[1..]);
+}
+
 if (command.Equals("stdin", StringComparison.OrdinalIgnoreCase))
 {
     return await RunStdinAsync(args[1..]).ConfigureAwait(false);
@@ -302,7 +307,50 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
     return CompleteRun(findings.Count == 0 ? 0 : exitCode, diagnosticsSession);
 }
 
-static int RunDirectory(string[] args)
+static int RunScan(string[] args)
+{
+    var forwardedArgs = new List<string>();
+    string? source = null;
+    for (int i = 0; i < args.Length; i++)
+    {
+        string arg = args[i];
+        if (IsHelp(arg))
+        {
+            WriteScanHelp();
+            return 0;
+        }
+
+        if (IsSourceFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            source = sourceValue.Length == 0 ? "." : sourceValue;
+            continue;
+        }
+
+        forwardedArgs.Add(arg);
+    }
+
+    if (source is not null)
+    {
+        forwardedArgs.Add(source);
+    }
+
+    return RunDirectory(
+        [.. forwardedArgs],
+        nativeReportFormats: true,
+        diagnosticsCommand: "scan",
+        defaultRoot: ".");
+}
+
+static int RunDirectory(
+    string[] args,
+    bool nativeReportFormats = false,
+    string diagnosticsCommand = "dir",
+    string? defaultRoot = null)
 {
     string? baselinePath = null;
     string? configPath = null;
@@ -523,11 +571,16 @@ static int RunDirectory(string[] args)
 
     if (root is null)
     {
-        Console.Error.WriteLine("dir requires a path");
-        return UnknownFlagExitCode;
+        if (defaultRoot is null)
+        {
+            Console.Error.WriteLine("dir requires a path");
+            return UnknownFlagExitCode;
+        }
+
+        root = defaultRoot;
     }
 
-    if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "dir", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
+    if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, diagnosticsCommand, Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
     {
         return UnknownFlagExitCode;
     }
@@ -599,7 +652,7 @@ static int RunDirectory(string[] args)
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
+    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeReportFormats))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -2155,9 +2208,10 @@ static bool TryWriteReport(
     IReadOnlyList<SecretRule> rules,
     string? reportPath,
     string? reportFormat,
-    string? reportTemplatePath)
+    string? reportTemplatePath,
+    bool nativeReportFormats = false)
 {
-    if (!TryResolveReportFormat(reportPath, reportFormat, reportTemplatePath, out string? resolvedReportFormat))
+    if (!TryResolveReportFormat(reportPath, reportFormat, reportTemplatePath, nativeReportFormats, out string? resolvedReportFormat))
     {
         return false;
     }
@@ -2170,6 +2224,7 @@ static bool TryWriteReport(
             "csv" => GitleaksCsvReportWriter.Write(findings),
             "junit" => GitleaksJunitReportWriter.Write(findings),
             "json" => GitleaksJsonReportWriter.Write(findings),
+            "jsonl" => PicketJsonlReportWriter.Write(findings),
             "sarif" => GitleaksSarifReportWriter.Write(findings, rules),
             "template" => GitleaksTemplateReportWriter.Write(findings, ReadReportTemplate(reportTemplatePath)),
             _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
@@ -2213,11 +2268,12 @@ static bool TryResolveReportFormat(
     string? reportPath,
     string? reportFormat,
     string? reportTemplatePath,
+    bool nativeReportFormats,
     [NotNullWhen(true)] out string? resolvedReportFormat)
 {
     if (!string.IsNullOrWhiteSpace(reportFormat))
     {
-        if (!TryNormalizeReportFormat(reportFormat, out resolvedReportFormat))
+        if (!TryNormalizeReportFormat(reportFormat, nativeReportFormats, out resolvedReportFormat))
         {
             return false;
         }
@@ -2258,6 +2314,12 @@ static bool TryResolveReportFormat(
         return true;
     }
 
+    if (nativeReportFormats && extension.Equals(".jsonl", StringComparison.OrdinalIgnoreCase))
+    {
+        resolvedReportFormat = "jsonl";
+        return true;
+    }
+
     if (extension.Equals(".sarif", StringComparison.OrdinalIgnoreCase))
     {
         resolvedReportFormat = "sarif";
@@ -2269,10 +2331,11 @@ static bool TryResolveReportFormat(
     return false;
 }
 
-static bool TryNormalizeReportFormat(string reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
+static bool TryNormalizeReportFormat(string reportFormat, bool nativeReportFormats, [NotNullWhen(true)] out string? resolvedReportFormat)
 {
     string normalizedReportFormat = reportFormat.Trim().ToLowerInvariant();
-    if (normalizedReportFormat is "csv" or "json" or "junit" or "sarif" or "template")
+    if (normalizedReportFormat is "csv" or "json" or "junit" or "sarif" or "template"
+        || (nativeReportFormats && normalizedReportFormat.Equals("jsonl", StringComparison.Ordinal)))
     {
         resolvedReportFormat = normalizedReportFormat;
         return true;
@@ -2345,12 +2408,21 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket rules check [source] [-c path]");
     Console.Out.WriteLine("  picket rules test <rule-id> <input> [-c path] [--path path]");
     Console.Out.WriteLine("  picket version");
+}
+
+static void WriteScanHelp()
+{
+    Console.Out.WriteLine("picket scan - native filesystem scan");
+    Console.Out.WriteLine();
+    Console.Out.WriteLine("Usage:");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteRulesHelp()
