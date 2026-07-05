@@ -64,27 +64,23 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
-        if (arg is "-b" or "--baseline-path")
+        if (IsBaselinePathFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            baselinePath = args[++i];
             continue;
         }
 
-        if (arg is "-c" or "--config")
+        if (IsConfigFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--config", out configPath))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            configPath = args[++i];
             continue;
         }
 
@@ -155,6 +151,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
                 return UnknownFlagExitCode;
             }
 
+            continue;
+        }
+
+        if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (handledCommonFlag)
+        {
             continue;
         }
 
@@ -209,27 +215,23 @@ static int RunDirectory(string[] args)
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
-        if (arg is "-b" or "--baseline-path")
+        if (IsBaselinePathFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            baselinePath = args[++i];
             continue;
         }
 
-        if (arg is "-c" or "--config")
+        if (IsConfigFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--config", out configPath))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            configPath = args[++i];
             continue;
         }
 
@@ -283,15 +285,14 @@ static int RunDirectory(string[] args)
             continue;
         }
 
-        if (arg is "-i" or "--gitleaks-ignore-path")
+        if (IsGitleaksIgnorePathFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--gitleaks-ignore-path", out string? value))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            gitleaksIgnorePath = args[++i];
+            gitleaksIgnorePath = value;
             continue;
         }
 
@@ -315,17 +316,10 @@ static int RunDirectory(string[] args)
             continue;
         }
 
-        if (arg is "--max-target-megabytes")
+        if (IsMaxTargetMegabytesFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
-                return UnknownFlagExitCode;
-            }
-
-            if (!TryParseMegabytes(args[++i], out maxTargetBytes))
-            {
-                Console.Error.WriteLine($"{arg} requires a non-negative integer value");
                 return UnknownFlagExitCode;
             }
 
@@ -339,6 +333,16 @@ static int RunDirectory(string[] args)
                 return UnknownFlagExitCode;
             }
 
+            continue;
+        }
+
+        if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (handledCommonFlag)
+        {
             continue;
         }
 
@@ -440,27 +444,23 @@ static int RunGit(string[] args)
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
-        if (arg is "-b" or "--baseline-path")
+        if (IsBaselinePathFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            baselinePath = args[++i];
             continue;
         }
 
-        if (arg is "-c" or "--config")
+        if (IsConfigFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--config", out configPath))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            configPath = args[++i];
             continue;
         }
 
@@ -514,15 +514,14 @@ static int RunGit(string[] args)
             continue;
         }
 
-        if (arg is "-i" or "--gitleaks-ignore-path")
+        if (IsGitleaksIgnorePathFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadStringFlag(args, ref i, "--gitleaks-ignore-path", out string? value))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
                 return UnknownFlagExitCode;
             }
 
-            gitleaksIgnorePath = args[++i];
+            gitleaksIgnorePath = value;
             continue;
         }
 
@@ -576,17 +575,10 @@ static int RunGit(string[] args)
             continue;
         }
 
-        if (arg is "--max-target-megabytes")
+        if (IsMaxTargetMegabytesFlag(arg))
         {
-            if (i + 1 >= args.Length)
+            if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
             {
-                Console.Error.WriteLine($"{arg} requires a value");
-                return UnknownFlagExitCode;
-            }
-
-            if (!TryParseMegabytes(args[++i], out maxTargetBytes))
-            {
-                Console.Error.WriteLine($"{arg} requires a non-negative integer value");
                 return UnknownFlagExitCode;
             }
 
@@ -600,6 +592,16 @@ static int RunGit(string[] args)
                 return UnknownFlagExitCode;
             }
 
+            continue;
+        }
+
+        if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (handledCommonFlag)
+        {
             continue;
         }
 
@@ -908,8 +910,21 @@ static bool TryParseMegabytes(string value, out long? bytes)
         return false;
     }
 
-    bytes = megabytes * 1_000_000;
+    bytes = megabytes == 0 ? null : megabytes * 1_000_000;
     return true;
+}
+
+static bool TryReadMegabytesFlag(string[] args, ref int index, out long? maxTargetBytes)
+{
+    if (TryReadStringFlag(args, ref index, "--max-target-megabytes", out string? value)
+        && TryParseMegabytes(value, out maxTargetBytes))
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine("--max-target-megabytes requires a non-negative integer value");
+    maxTargetBytes = null;
+    return false;
 }
 
 static bool TryReadStringFlag(string[] args, ref int index, string longName, [NotNullWhen(true)] out string? value)
@@ -945,6 +960,23 @@ static bool TryReadIntFlag(string[] args, ref int index, string longName, out in
     return false;
 }
 
+static bool TryReadNonNegativeIntFlag(string[] args, ref int index, string longName, out int value)
+{
+    if (!TryReadIntFlag(args, ref index, longName, out value))
+    {
+        return false;
+    }
+
+    if (value >= 0)
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine($"{longName} requires a non-negative integer value");
+    value = 0;
+    return false;
+}
+
 static bool TryReadRuleIdFlag(string[] args, ref int index, List<string> enabledRuleIds)
 {
     if (!TryReadStringFlag(args, ref index, "--enable-rule", out string? value))
@@ -964,10 +996,34 @@ static bool TryReadRuleIdFlag(string[] args, ref int index, List<string> enabled
     return true;
 }
 
+static bool IsBaselinePathFlag(string arg)
+{
+    return arg is "-b" or "--baseline-path"
+        || arg.StartsWith("--baseline-path=", StringComparison.Ordinal);
+}
+
+static bool IsConfigFlag(string arg)
+{
+    return arg is "-c" or "--config"
+        || arg.StartsWith("--config=", StringComparison.Ordinal);
+}
+
+static bool IsGitleaksIgnorePathFlag(string arg)
+{
+    return arg is "-i" or "--gitleaks-ignore-path"
+        || arg.StartsWith("--gitleaks-ignore-path=", StringComparison.Ordinal);
+}
+
 static bool IsIgnoreGitleaksAllowFlag(string arg)
 {
     return arg.Equals("--ignore-gitleaks-allow", StringComparison.Ordinal)
         || arg.StartsWith("--ignore-gitleaks-allow=", StringComparison.Ordinal);
+}
+
+static bool IsMaxTargetMegabytesFlag(string arg)
+{
+    return arg.Equals("--max-target-megabytes", StringComparison.Ordinal)
+        || arg.StartsWith("--max-target-megabytes=", StringComparison.Ordinal);
 }
 
 static bool IsReportFormatFlag(string arg)
@@ -986,6 +1042,60 @@ static bool IsEnableRuleFlag(string arg)
 {
     return arg.Equals("--enable-rule", StringComparison.Ordinal)
         || arg.StartsWith("--enable-rule=", StringComparison.Ordinal);
+}
+
+static bool IsLogLevelFlag(string arg)
+{
+    return arg is "-l" or "--log-level"
+        || arg.StartsWith("--log-level=", StringComparison.Ordinal);
+}
+
+static bool IsVerboseFlag(string arg)
+{
+    return arg is "-v" or "--verbose"
+        || arg.StartsWith("--verbose=", StringComparison.Ordinal);
+}
+
+static bool IsNoColorFlag(string arg)
+{
+    return arg.Equals("--no-color", StringComparison.Ordinal)
+        || arg.StartsWith("--no-color=", StringComparison.Ordinal);
+}
+
+static bool IsNoBannerFlag(string arg)
+{
+    return arg.Equals("--no-banner", StringComparison.Ordinal)
+        || arg.StartsWith("--no-banner=", StringComparison.Ordinal);
+}
+
+static bool IsMaxDecodeDepthFlag(string arg)
+{
+    return arg.Equals("--max-decode-depth", StringComparison.Ordinal)
+        || arg.StartsWith("--max-decode-depth=", StringComparison.Ordinal);
+}
+
+static bool IsMaxArchiveDepthFlag(string arg)
+{
+    return arg.Equals("--max-archive-depth", StringComparison.Ordinal)
+        || arg.StartsWith("--max-archive-depth=", StringComparison.Ordinal);
+}
+
+static bool IsTimeoutFlag(string arg)
+{
+    return arg.Equals("--timeout", StringComparison.Ordinal)
+        || arg.StartsWith("--timeout=", StringComparison.Ordinal);
+}
+
+static bool IsDiagnosticsFlag(string arg)
+{
+    return arg.Equals("--diagnostics", StringComparison.Ordinal)
+        || arg.StartsWith("--diagnostics=", StringComparison.Ordinal);
+}
+
+static bool IsDiagnosticsDirFlag(string arg)
+{
+    return arg.Equals("--diagnostics-dir", StringComparison.Ordinal)
+        || arg.StartsWith("--diagnostics-dir=", StringComparison.Ordinal);
 }
 
 static bool IsSourceFlag(string arg)
@@ -1052,6 +1162,97 @@ static bool TryReadBooleanFlag(string arg, string longName, out bool value)
     }
 
     Console.Error.WriteLine($"{longName} requires a boolean value");
+    return false;
+}
+
+static bool TryReadBooleanFlagWithShort(string arg, string shortName, string longName, out bool value)
+{
+    if (arg.Equals(shortName, StringComparison.Ordinal))
+    {
+        value = true;
+        return true;
+    }
+
+    return TryReadBooleanFlag(arg, longName, out value);
+}
+
+static bool TryHandleCommonCompatibilityFlag(string[] args, ref int index, out bool handled)
+{
+    string arg = args[index];
+    handled = true;
+    if (IsLogLevelFlag(arg))
+    {
+        return TryReadStringFlag(args, ref index, "--log-level", out _);
+    }
+
+    if (IsVerboseFlag(arg))
+    {
+        return TryReadBooleanFlagWithShort(arg, "-v", "--verbose", out _);
+    }
+
+    if (IsNoColorFlag(arg))
+    {
+        return TryReadBooleanFlag(arg, "--no-color", out _);
+    }
+
+    if (IsNoBannerFlag(arg))
+    {
+        return TryReadBooleanFlag(arg, "--no-banner", out _);
+    }
+
+    if (IsMaxDecodeDepthFlag(arg))
+    {
+        return TryReadUnsupportedPositiveIntFlag(args, ref index, "--max-decode-depth");
+    }
+
+    if (IsMaxArchiveDepthFlag(arg))
+    {
+        return TryReadUnsupportedPositiveIntFlag(args, ref index, "--max-archive-depth");
+    }
+
+    if (IsTimeoutFlag(arg))
+    {
+        return TryReadUnsupportedPositiveIntFlag(args, ref index, "--timeout");
+    }
+
+    if (IsDiagnosticsFlag(arg))
+    {
+        if (!TryReadStringFlag(args, ref index, "--diagnostics", out string? diagnostics))
+        {
+            return false;
+        }
+
+        if (diagnostics.Length == 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--diagnostics is not implemented yet");
+        return false;
+    }
+
+    if (IsDiagnosticsDirFlag(arg))
+    {
+        return TryReadStringFlag(args, ref index, "--diagnostics-dir", out _);
+    }
+
+    handled = false;
+    return true;
+}
+
+static bool TryReadUnsupportedPositiveIntFlag(string[] args, ref int index, string longName)
+{
+    if (!TryReadNonNegativeIntFlag(args, ref index, longName, out int value))
+    {
+        return false;
+    }
+
+    if (value == 0)
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine($"{longName} is not implemented yet");
     return false;
 }
 
@@ -1390,8 +1591,8 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
+    Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

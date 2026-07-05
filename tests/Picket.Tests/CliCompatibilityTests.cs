@@ -211,6 +211,67 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that common Gitleaks global flags and equals-value spellings are accepted.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanAcceptsGitleaksGlobalFlagSpellings()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignoreRoot = Path.Combine(root.Path, "ignore");
+        Directory.CreateDirectory(ignoreRoot);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync(
+            "dir",
+            root.Path,
+            $"--config={configPath}",
+            $"--gitleaks-ignore-path={ignoreRoot}",
+            "--log-level=debug",
+            "-v",
+            "--no-color",
+            "--no-banner",
+            "--max-target-megabytes=0").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that behavior-changing future flags fail instead of silently doing nothing.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsUnimplementedPositiveDepthFlags()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--max-archive-depth is not implemented yet", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that diagnostics requests fail until diagnostics output is implemented.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsDiagnosticsUntilImplemented()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics", "cpu").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--diagnostics is not implemented yet", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that inline gitleaks:allow comments suppress CLI findings by default.
     /// </summary>
     [TestMethod]
