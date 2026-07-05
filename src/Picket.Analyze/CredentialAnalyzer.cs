@@ -76,6 +76,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS",
+            "picket-aws-access-key-pair" => "AWS",
             "gcp-api-key" => "GCP",
             "picket-gcp-service-account-key" => "GCP",
             "picket-azure-storage-connection-string" => "Azure",
@@ -94,6 +95,7 @@ public static class CredentialAnalyzer
         return ruleId switch
         {
             "aws-access-token" => "AWS access key ID",
+            "picket-aws-access-key-pair" => "AWS access key pair",
             "gcp-api-key" => "GCP API key",
             "picket-gcp-service-account-key" => "GCP service account key",
             "picket-azure-storage-connection-string" => "Azure Storage account key",
@@ -151,8 +153,9 @@ public static class CredentialAnalyzer
                 "Search commit history, issues, logs, artifacts, and package metadata for the same credential hash."
             ],
             "AWS" => [
-                "Identify the paired AWS secret access key before live validation or revocation.",
-                "Disable or rotate the access key in IAM when ownership is confirmed.",
+                credentialType.Equals("AWS access key pair", StringComparison.Ordinal)
+                    ? "Disable or rotate the leaked AWS access key in IAM after dependent workloads are updated."
+                    : "Identify the paired AWS secret access key before live validation or revocation.",
                 "Review CloudTrail and IAM last-used data for suspicious activity."
             ],
             "Azure" => [
@@ -199,6 +202,13 @@ public static class CredentialAnalyzer
             evidence.Add($"accountName={accountName}");
         }
 
+        if (finding.RuleID.Equals("picket-aws-access-key-pair", StringComparison.Ordinal)
+            && TryReadAwsAccessKeyId(finding.Match, out string accessKeyId))
+        {
+            evidence.Add($"accessKeyId={accessKeyId}");
+            evidence.Add($"resourceType={GetAwsResourceType(accessKeyId)}");
+        }
+
         if (finding.RuleID.Equals("picket-gcp-service-account-key", StringComparison.Ordinal)
             && TryReadGcpServiceAccountEvidence(GetFindingSecretMaterial(finding), out string projectId, out string clientEmail))
         {
@@ -212,6 +222,67 @@ public static class CredentialAnalyzer
     private static string GetFindingSecretMaterial(Finding finding)
     {
         return finding.Secret.Length == 0 ? finding.Match : finding.Secret;
+    }
+
+    private static bool TryReadAwsAccessKeyId(string value, out string accessKeyId)
+    {
+        int lastStart = value.Length - 20;
+        for (int start = 0; start <= lastStart; start++)
+        {
+            string candidate = value.Substring(start, 20);
+            if (IsAwsAccessKeyId(candidate)
+                && (start == 0 || !IsAsciiAlphaNumeric(value[start - 1]))
+                && (start + 20 == value.Length || !IsAsciiAlphaNumeric(value[start + 20])))
+            {
+                accessKeyId = candidate;
+                return true;
+            }
+        }
+
+        accessKeyId = string.Empty;
+        return false;
+    }
+
+    private static bool IsAwsAccessKeyId(string value)
+    {
+        if (value.Length != 20
+            || !HasAwsAccessKeyIdPrefix(value))
+        {
+            return false;
+        }
+
+        for (int i = 4; i < value.Length; i++)
+        {
+            if (value[i] is not (>= 'A' and <= 'Z' or >= '2' and <= '7'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasAwsAccessKeyIdPrefix(string value)
+    {
+        return value.StartsWith("AKIA", StringComparison.Ordinal)
+            || value.StartsWith("ASIA", StringComparison.Ordinal)
+            || value.StartsWith("ABIA", StringComparison.Ordinal)
+            || value.StartsWith("ACCA", StringComparison.Ordinal)
+            || (value.StartsWith("A3T", StringComparison.Ordinal)
+                && value.Length >= 4
+                && IsAsciiAlphaNumeric(value[3]));
+    }
+
+    private static string GetAwsResourceType(string accessKeyId)
+    {
+        return accessKeyId[..4] switch
+        {
+            "ABIA" => "AWS STS service bearer token",
+            "ACCA" => "context-specific credential",
+            "AKIA" => "access key",
+            "ASIA" => "temporary STS access key",
+            _ => "access key",
+        };
     }
 
     private static bool TryReadGcpServiceAccountEvidence(string json, out string projectId, out string clientEmail)
@@ -284,6 +355,13 @@ public static class CredentialAnalyzer
 
         fieldValue = string.Empty;
         return false;
+    }
+
+    private static bool IsAsciiAlphaNumeric(char value)
+    {
+        return value is >= 'A' and <= 'Z'
+            or >= 'a' and <= 'z'
+            or >= '0' and <= '9';
     }
 
     private static string ComputeSha256(string value)

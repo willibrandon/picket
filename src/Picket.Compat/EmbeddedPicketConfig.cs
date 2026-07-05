@@ -11,6 +11,19 @@ title = "picket native default config"
 useDefault = true
 
 [[rules]]
+id = "picket-aws-access-key-pair"
+description = "Detected an AWS access key ID paired with a secret access key."
+regex = '''(?i)(?:aws[_ -]?access[_ -]?key[_ -]?id|secret[_ -]?access[_ -]?key)'''
+entropy = 4.25
+keywords = ["akia", "asia", "abia", "acca", "a3t", "aws_secret_access_key", "secret_access_key", "SecretAccessKey"]
+tags = ["picket", "aws", "access-key", "secret-access-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "AWS"
+documentationUrl = "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
+
+[[rules]]
 id = "picket-azure-storage-connection-string"
 description = "Detected an Azure Storage connection string with an account key."
 regex = '''(?i)\bDefaultEndpointsProtocol=https?;AccountName=([a-z0-9]{3,24});AccountKey=([A-Za-z0-9+/]{80,}={0,2})(?:;EndpointSuffix=[a-z0-9.-]+)?\b'''

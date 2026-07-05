@@ -34,6 +34,7 @@ public static class OfflineSecretValidator
 
         return finding.RuleID switch
         {
+            "picket-aws-access-key-pair" => ValidateAwsAccessKeyPair(finding.Match, secret),
             "aws-access-token" => ValidateAwsAccessKeyId(secret),
             "github-app-token" => ValidateGitHubClassicToken(secret, "ghu_", "ghs_"),
             "github-fine-grained-pat" => ValidateGitHubFineGrainedToken(secret),
@@ -94,20 +95,88 @@ public static class OfflineSecretValidator
 
     private static SecretValidationResult ValidateAwsAccessKeyId(string secret)
     {
-        if (secret.Length != 20 || !HasAnyPrefix(secret, "AKIA", "ASIA", "ABIA", "ACCA") && !HasA3TPrefix(secret))
+        if (!IsAwsAccessKeyId(secret))
         {
             return Invalid("invalid AWS access key ID shape");
+        }
+
+        return StructurallyValid("valid AWS access key ID shape");
+    }
+
+    private static SecretValidationResult ValidateAwsAccessKeyPair(string match, string secret)
+    {
+        if (IsTestCredential(match))
+        {
+            return TestCredential("known test or placeholder marker");
+        }
+
+        if (!TryFindAwsAccessKeyId(match, out string accessKeyId)
+            || !IsAwsAccessKeyId(accessKeyId))
+        {
+            return Invalid("invalid AWS access key ID shape");
+        }
+
+        if (!IsAwsSecretAccessKey(secret))
+        {
+            return Invalid("invalid AWS secret access key shape");
+        }
+
+        return StructurallyValid("valid AWS access key pair shape");
+    }
+
+    private static bool IsAwsAccessKeyId(string secret)
+    {
+        if (secret.Length != 20 || !HasAnyPrefix(secret, "AKIA", "ASIA", "ABIA", "ACCA") && !HasA3TPrefix(secret))
+        {
+            return false;
         }
 
         for (int i = 4; i < secret.Length; i++)
         {
             if (!IsAwsAccessKeyIdSuffixCharacter(secret[i]))
             {
-                return Invalid("invalid AWS access key ID alphabet");
+                return false;
             }
         }
 
-        return StructurallyValid("valid AWS access key ID shape");
+        return true;
+    }
+
+    private static bool TryFindAwsAccessKeyId(string value, out string accessKeyId)
+    {
+        int lastStart = value.Length - 20;
+        for (int start = 0; start <= lastStart; start++)
+        {
+            string candidate = value.Substring(start, 20);
+            if (IsAwsAccessKeyId(candidate)
+                && (start == 0 || !IsAsciiAlphaNumeric(value[start - 1]))
+                && (start + 20 == value.Length || !IsAsciiAlphaNumeric(value[start + 20])))
+            {
+                accessKeyId = candidate;
+                return true;
+            }
+        }
+
+        accessKeyId = string.Empty;
+        return false;
+    }
+
+    private static bool IsAwsSecretAccessKey(string secret)
+    {
+        if (secret.Length != 40)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < secret.Length; i++)
+        {
+            if (!IsAwsSecretAccessKeyCharacter(secret[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static SecretValidationResult ValidateGitHubClassicToken(string secret, params string[] prefixes)
@@ -887,6 +956,11 @@ public static class OfflineSecretValidator
             or >= '2' and <= '7';
     }
 
+    private static bool IsAwsSecretAccessKeyCharacter(char value)
+    {
+        return IsAsciiAlphaNumeric(value) || value is '+' or '/';
+    }
+
     private static bool HasAsciiAlphaNumericSuffix(string secret, int start)
     {
         for (int i = start; i < secret.Length; i++)
@@ -937,6 +1011,11 @@ public static class OfflineSecretValidator
     private static SecretValidationResult StructurallyValid(string reason)
     {
         return new SecretValidationResult(SecretValidationState.StructurallyValid, reason);
+    }
+
+    private static SecretValidationResult TestCredential(string reason)
+    {
+        return new SecretValidationResult(SecretValidationState.TestCredential, reason);
     }
 
     private static SecretValidationResult Invalid(string reason)

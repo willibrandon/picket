@@ -30,6 +30,27 @@ public sealed class CredentialAnalyzerTests
     }
 
     /// <summary>
+    /// Verifies that native AWS access key pair findings receive AWS-specific triage guidance.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesAwsAccessKeyPairs()
+    {
+        string accessKeyId = CreateAwsAccessKeyId();
+        string secretAccessKey = CreateAwsSecretAccessKey();
+        Finding finding = CreateAwsFinding(accessKeyId, secretAccessKey);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("AWS", analysis.Provider);
+        Assert.AreEqual("AWS access key pair", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains($"accessKeyId={accessKeyId}", analysis.Evidence);
+        Assert.Contains("resourceType=access key", analysis.Evidence);
+        Assert.Contains("Disable or rotate the leaked AWS access key", string.Join('\n', analysis.RecommendedActions));
+        Assert.DoesNotContain(secretAccessKey, string.Join('\n', analysis.Evidence));
+    }
+
+    /// <summary>
     /// Verifies that GCP service account key findings receive GCP-specific triage guidance.
     /// </summary>
     [TestMethod]
@@ -90,6 +111,31 @@ public sealed class CredentialAnalyzerTests
             validationState: "structurally-valid");
     }
 
+    private static Finding CreateAwsFinding(string accessKeyId, string secretAccessKey)
+    {
+        string match = $"aws_access_key_id = {accessKeyId}\naws_secret_access_key = {secretAccessKey}";
+        return new Finding(
+            "picket-aws-access-key-pair",
+            "Detected an AWS access key ID paired with a secret access key.",
+            1,
+            2,
+            1,
+            61,
+            match,
+            secretAccessKey,
+            "credentials.ini",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["picket", "aws", "access-key"],
+            "credentials.ini:picket-aws-access-key-pair:1",
+            validationState: "structurally-valid");
+    }
+
     private static Finding CreateGcpApiKeyFinding()
     {
         const string Secret = "AIzaSyDabcdefghijklmnopqrstuvwxyz123456";
@@ -144,6 +190,16 @@ public sealed class CredentialAnalyzerTests
         return Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(
             "0123456789ABCDEFGHIJKLMNOPQRSTUV",
             "WXYZabcdefghijklmnopqrstuvwxyz01")));
+    }
+
+    private static string CreateAwsAccessKeyId()
+    {
+        return string.Concat("AKIA", "XYZDQCEN4B6JSJQI");
+    }
+
+    private static string CreateAwsSecretAccessKey()
+    {
+        return string.Concat("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
     }
 
     private static string CreateGcpServiceAccountKeyJson()

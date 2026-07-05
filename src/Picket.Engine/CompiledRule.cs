@@ -9,6 +9,7 @@ internal sealed class CompiledRule(
     ByteRegex? pathRegex,
     List<CompiledAllowlist> allowlists,
     KeywordPrefilter prefilter,
+    bool usesAwsCredentialPairMatcher,
     bool usesGenericApiKeyMatcher,
     bool usesGcpServiceAccountKeyMatcher,
     bool deferRegexCompilation,
@@ -23,15 +24,17 @@ internal sealed class CompiledRule(
 
     internal SecretRule Rule { get; } = rule ?? throw new ArgumentNullException(nameof(rule));
 
-    internal ByteRegex? Regex => UsesGenericApiKeyMatcher || UsesGcpServiceAccountKeyMatcher ? null : GetRegex(ref _regex, _pattern, regexContext);
+    internal ByteRegex? Regex => UsesAwsCredentialPairMatcher || UsesGenericApiKeyMatcher || UsesGcpServiceAccountKeyMatcher ? null : GetRegex(ref _regex, _pattern, regexContext);
 
     internal ByteRegex? PathRegex => GetRegex(ref _pathRegex, _pathPattern, pathRegexContext);
 
-    internal bool HasContentPattern => _pattern.Length != 0 || UsesGenericApiKeyMatcher || UsesGcpServiceAccountKeyMatcher;
+    internal bool HasContentPattern => _pattern.Length != 0 || UsesAwsCredentialPairMatcher || UsesGenericApiKeyMatcher || UsesGcpServiceAccountKeyMatcher;
 
     internal List<CompiledAllowlist> Allowlists { get; } = allowlists ?? throw new ArgumentNullException(nameof(allowlists));
 
     internal KeywordPrefilter Prefilter { get; } = prefilter ?? throw new ArgumentNullException(nameof(prefilter));
+
+    internal bool UsesAwsCredentialPairMatcher { get; } = usesAwsCredentialPairMatcher;
 
     internal bool UsesGenericApiKeyMatcher { get; } = usesGenericApiKeyMatcher;
 

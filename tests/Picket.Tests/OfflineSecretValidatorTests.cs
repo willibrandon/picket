@@ -25,6 +25,41 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that native AWS access key pairs are structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesAwsAccessKeyPairShape()
+    {
+        string secretAccessKey = CreateAwsSecretAccessKey();
+        Finding finding = CreateFinding(
+            "picket-aws-access-key-pair",
+            secretAccessKey,
+            $"aws_access_key_id = {CreateAwsAccessKeyId()}\naws_secret_access_key = {secretAccessKey}");
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that malformed native AWS access key pairs are rejected offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsMalformedAwsAccessKeyPair()
+    {
+        Finding finding = CreateFinding(
+            "picket-aws-access-key-pair",
+            "too-short",
+            $"aws_access_key_id = {CreateAwsAccessKeyId()}\naws_secret_access_key = too-short");
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that known placeholder markers are identified before provider-specific validation.
     /// </summary>
     [TestMethod]
@@ -265,6 +300,11 @@ public sealed class OfflineSecretValidatorTests
     private static string CreateAwsExampleAccessKeyId()
     {
         return string.Concat("AKIA", "IOSFODNN7EXAMPLE");
+    }
+
+    private static string CreateAwsSecretAccessKey()
+    {
+        return string.Concat("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
     }
 
     private static string CreateGitHubPat()

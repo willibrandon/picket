@@ -284,6 +284,30 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the embedded AWS access key pair rule.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesEmbeddedAwsAccessKeyPairRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string accessKeyId = CreateAwsAccessKeyIdFixture();
+        string secretAccessKey = CreateAwsSecretAccessKeyFixture();
+        File.WriteAllText(
+            Path.Combine(root.Path, "credentials.ini"),
+            $"aws_access_key_id = {accessKeyId}{Environment.NewLine}aws_secret_access_key = {secretAccessKey}");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-aws-access-key-pair\"", result.Stdout);
+        Assert.Contains($"\"secret\":\"{secretAccessKey}\"", result.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
+        Assert.Contains("\"provider\":\"AWS\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.Contains("\"documentationUrl\":\"https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that target-local config still takes precedence over the embedded Picket default rule pack.
     /// </summary>
     [TestMethod]
@@ -3194,6 +3218,16 @@ public sealed class CliCompatibilityTests
             "MDEyMzQ1Njc4OUFCQ0RFRkdISktMTU5PUFFS",
             "U1RVVldYWVoxMjM0NTY3ODlBQkNERUZHSElK",
             "S0xNTk9QUVJTVA==");
+    }
+
+    private static string CreateAwsAccessKeyIdFixture()
+    {
+        return string.Concat("AKIA", "XYZDQCEN4B6JSJQI");
+    }
+
+    private static string CreateAwsSecretAccessKeyFixture()
+    {
+        return string.Concat("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
     }
 
     private static string CreateGcpServiceAccountKeyJsonFixture()

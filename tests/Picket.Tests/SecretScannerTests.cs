@@ -74,6 +74,43 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that native AWS pair detection reports a nearby labeled secret access key.
+    /// </summary>
+    [TestMethod]
+    public void ScanFindsNativeAwsAccessKeyPair()
+    {
+        string accessKeyId = CreateAwsAccessKeyId();
+        string secretAccessKey = CreateAwsSecretAccessKey();
+        byte[] input = Encoding.UTF8.GetBytes($"aws_access_key_id = {accessKeyId}\naws_secret_access_key = {secretAccessKey}\n");
+        CompiledRuleSet rules = CompileAwsCredentialPairRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "credentials.ini", rules));
+
+        Assert.HasCount(1, findings);
+        Finding finding = findings[0];
+        Assert.AreEqual("picket-aws-access-key-pair", finding.RuleID);
+        Assert.Contains(accessKeyId, finding.Match);
+        Assert.AreEqual(secretAccessKey, finding.Secret);
+        Assert.AreEqual("credentials.ini:picket-aws-access-key-pair:1", finding.Fingerprint);
+    }
+
+    /// <summary>
+    /// Verifies that native AWS pair detection requires a labeled secret access key near the access key ID.
+    /// </summary>
+    [TestMethod]
+    public void ScanSkipsNativeAwsAccessKeyPairWhenSecretIsUnlabeled()
+    {
+        string accessKeyId = CreateAwsAccessKeyId();
+        string secretAccessKey = CreateAwsSecretAccessKey();
+        byte[] input = Encoding.UTF8.GetBytes($"aws_access_key_id = {accessKeyId}\nunrelated = {secretAccessKey}\n");
+        CompiledRuleSet rules = CompileAwsCredentialPairRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "credentials.ini", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that a missing keyword prevents regex execution for keyword-scoped rules.
     /// </summary>
     [TestMethod]
@@ -676,5 +713,27 @@ public sealed class SecretScannerTests
                 "Token",
                 "token-[0-9]+"),
         ]));
+    }
+
+    private static CompiledRuleSet CompileAwsCredentialPairRule()
+    {
+        return CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "picket-aws-access-key-pair",
+                "Detected an AWS access key ID paired with a secret access key.",
+                "(?i)(?:aws[_ -]?access[_ -]?key[_ -]?id|secret[_ -]?access[_ -]?key)",
+                entropy: 4.25,
+                keywords: ["akia", "aws_secret_access_key"]),
+        ]));
+    }
+
+    private static string CreateAwsAccessKeyId()
+    {
+        return string.Concat("AKIA", "XYZDQCEN4B6JSJQI");
+    }
+
+    private static string CreateAwsSecretAccessKey()
+    {
+        return string.Concat("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
     }
 }
