@@ -84,12 +84,14 @@ public sealed class GitleaksJsonReportWriterTests
 
         string json = GitleaksJsonReportWriter.Write([finding]);
 
-        Assert.Contains("""
+        string expectedTags = """
               "Tags": [
                "one",
                "two"
               ],
-            """, json);
+            """.ReplaceLineEndings("\n");
+
+        Assert.Contains(expectedTags, json);
     }
 
     /// <summary>
