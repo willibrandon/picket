@@ -18,12 +18,10 @@ public sealed class GitleaksJunitReportWriterTests
         string xml = GitleaksJunitReportWriter.Write([]);
 
         Assert.AreEqual(
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <testsuites>
-            	<testsuite failures="0" name="gitleaks" tests="0" time=""></testsuite>
-            </testsuites>
-            """,
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            + "<testsuites>\n"
+            + "\t<testsuite failures=\"0\" name=\"gitleaks\" tests=\"0\" time=\"\"></testsuite>\n"
+            + "</testsuites>",
             xml);
     }
 
