@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 
 namespace Picket.Docs;
@@ -35,6 +36,35 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         GenerateProjectDocumentation(generatedRoot);
         GenerateCliReference(referenceRoot);
         GenerateActionReference(referenceRoot);
+    }
+
+    internal string GetGeneratedDocumentationStatus()
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo("git")
+        {
+            WorkingDirectory = _repositoryRoot,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+        process.StartInfo.ArgumentList.Add("status");
+        process.StartInfo.ArgumentList.Add("--porcelain");
+        process.StartInfo.ArgumentList.Add("--");
+        process.StartInfo.ArgumentList.Add("docs-site/src/content/docs/generated");
+        process.StartInfo.ArgumentList.Add("docs-site/src/content/docs/reference");
+
+        process.Start();
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"git status failed with exit code {process.ExitCode}: {error.Trim()}");
+        }
+
+        return NormalizeLineEndings(output).Trim();
     }
 
     private void GenerateProjectDocumentation(string outputRoot)
