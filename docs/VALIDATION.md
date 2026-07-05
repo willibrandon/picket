@@ -1,0 +1,50 @@
+# Validation and Privacy
+
+Picket separates offline structural validation from live provider verification.
+
+## Defaults
+
+- No telemetry is collected.
+- Live network verification is disabled by default.
+- `picket scan` and compatibility commands do not contact provider APIs.
+- `picket verify --offline` and native scan validation use local checks only.
+- `--live` is reserved for future opt-in provider verification and currently returns an error.
+
+## Offline Validation
+
+Offline validation never sends secrets, hashes, paths, or metadata to a network endpoint. Current validators inspect local finding data and return one of these report values:
+
+- `unknown`: no validator could prove a stronger state.
+- `structurally-valid`: the secret has a valid local shape for the detected rule.
+- `test-credential`: the secret appears to be a dummy, example, placeholder, or repeated-character credential.
+- `invalid`: the secret fails a local structural check.
+
+Current offline coverage includes:
+
+- AWS access key ID shape and alphabet checks.
+- GitHub classic, OAuth, refresh, app, and fine-grained token shape checks.
+- private-key envelope checks.
+- common test, dummy, fake, placeholder, and repeated-character suppression signals.
+
+## Live Verification Model
+
+Live verification is future opt-in behavior. Before it can be enabled, each provider validator requires a threat-model entry with:
+
+- data sent,
+- endpoint contacted,
+- auth required,
+- rate limits,
+- expected success and failure codes,
+- retry policy,
+- cache key,
+- revocation support,
+- known provider side effects,
+- SSRF and redirect protections.
+
+Provider requests must block loopback, private, link-local, metadata-service, and non-public redirect targets by default. Responses must be size-limited and redacted before diagnostics.
+
+## Reporting
+
+Native report writers expose validation state in Picket JSON, JSONL, SARIF, CSV, JUnit, HTML, TOON, and GitLab code-quality outputs where the format supports it. Gitleaks-compatible report writers preserve the compatibility schema and do not add Picket-native validation fields.
+
+Secrets must be redacted before logs, action annotations, summaries, diagnostics, and crash data. Secret hashes are intended for deduplication and triage, not as proof that a credential is safe to disclose.

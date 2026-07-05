@@ -115,10 +115,14 @@ public sealed partial class RepositoryConventionTests
     [TestMethod]
     public void CliPublishProfilesMatchReleaseContract()
     {
+        XElement cliProject = ReadProjectFile("src/Picket.Cli/Picket.Cli.csproj");
         XElement speed = ReadPublishProfile("release-speed");
         XElement minSize = ReadPublishProfile("release-minsize");
         XElement diagnostics = ReadPublishProfile("release-diagnostics");
 
+        AssertProjectProperty(cliProject, "VerifyReferenceTrimCompatibility", "true");
+        AssertProjectProperty(cliProject, "VerifyReferenceAotCompatibility", "true");
+        AssertProjectProperty(cliProject, "TrimmerSingleWarn", "false");
         AssertCommonNativeAotProfile(speed);
         AssertCommonNativeAotProfile(minSize);
         AssertCommonNativeAotProfile(diagnostics);
@@ -244,6 +248,36 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PicketJsonlReportWriter", documentation);
         Assert.Contains("not public packages yet", documentation);
         Assert.Contains("Scout is consumed through NuGet", documentation);
+    }
+
+    /// <summary>
+    /// Verifies that required v1 documentation deliverables exist and cover their contracts.
+    /// </summary>
+    [TestMethod]
+    public void RequiredDocumentationDeliverablesCoverCurrentContracts()
+    {
+        string rules = ReadRepositoryFile("docs/RULES.md");
+        string validation = ReadRepositoryFile("docs/VALIDATION.md");
+        string reports = ReadRepositoryFile("docs/REPORTS.md");
+
+        Assert.Contains("picket rules check", rules);
+        Assert.Contains("picket rules test", rules);
+        Assert.Contains("secretGroup", rules);
+        Assert.Contains("targetRules", rules);
+        Assert.Contains("Scout `ByteRegex`", rules);
+        Assert.Contains("NuGet package references", rules);
+        Assert.Contains("Offline validation", validation);
+        Assert.Contains("Live network verification is disabled by default", validation);
+        Assert.Contains("SSRF", validation);
+        Assert.Contains("structurally-valid", validation);
+        Assert.Contains("test-credential", validation);
+        Assert.Contains("Picket-native validation fields", validation);
+        Assert.Contains("Gitleaks-Compatible Reports", reports);
+        Assert.Contains("Picket-Native Reports", reports);
+        Assert.Contains("picket.finding.v1", reports);
+        Assert.Contains("picket.report.v1", reports);
+        Assert.Contains("picket view", reports);
+        Assert.Contains("Report readers must not print raw secrets", reports);
     }
 
     [GeneratedRegex(

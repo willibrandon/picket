@@ -11,6 +11,9 @@
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <VerifyReferenceTrimCompatibility>true</VerifyReferenceTrimCompatibility>
+    <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
     <OptimizationPreference>Speed</OptimizationPreference>
     <StripSymbols>true</StripSymbols>
