@@ -307,6 +307,51 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket cache prune", cache);
     }
 
+    /// <summary>
+    /// Verifies that committed docs and automation do not contain machine-specific reference clone paths.
+    /// </summary>
+    [TestMethod]
+    public void RepositoryTextDoesNotContainMachineSpecificClonePaths()
+    {
+        string root = FindRepositoryRoot();
+        string windowsCloneRoot = string.Concat("D:", "\\", "SRC", "\\");
+        string normalizedCloneRoot = string.Concat("D:", "/", "SRC", "/");
+        List<string> violations = [];
+
+        foreach (string file in EnumeratePortableTextFiles(root))
+        {
+            string content = File.ReadAllText(file);
+            if (content.Contains(windowsCloneRoot, StringComparison.OrdinalIgnoreCase)
+                || content.Contains(normalizedCloneRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                violations.Add(Path.GetRelativePath(root, file));
+            }
+        }
+
+        Assert.IsEmpty(violations);
+    }
+
+    /// <summary>
+    /// Verifies that upstream oracle pins are documented through portable local clone discovery.
+    /// </summary>
+    [TestMethod]
+    public void UpstreamDocumentationCoversPortableOracleCapture()
+    {
+        string documentation = ReadRepositoryFile("docs/UPSTREAM.md");
+        string script = ReadRepositoryFile("scripts/Capture-UpstreamPins.ps1");
+
+        Assert.Contains("PICKET_GITLEAKS_REPO", documentation);
+        Assert.Contains("PICKET_SCOUT_REPO", documentation);
+        Assert.Contains("PICKET_DOTNET_RUNTIME_REPO", documentation);
+        Assert.Contains("scripts/Capture-UpstreamPins.ps1 -Update", documentation);
+        Assert.Contains("<!-- upstream-pins:start -->", documentation);
+        Assert.Contains("<!-- upstream-pins:end -->", documentation);
+        Assert.Contains("PICKET_GITLEAKS_REPO", script);
+        Assert.Contains("describe", script);
+        Assert.Contains("rev-parse", script);
+        Assert.Contains("remote", script);
+    }
+
     [GeneratedRegex(
         @"^\s*(?:(?:public|internal|private|protected|file)\s+)*(?:(?:abstract|sealed|static|partial|readonly|ref|unsafe)\s+)*(?:record\s+)?(?:class|struct|interface|enum|delegate)\s+",
         RegexOptions.Multiline | RegexOptions.CultureInvariant)]
@@ -335,6 +380,51 @@ public sealed partial class RepositoryConventionTests
         return !normalized.Equals("src/Picket.Cli/Program.cs", StringComparison.Ordinal)
             && !relative.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             && !relative.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<string> EnumeratePortableTextFiles(string root)
+    {
+        foreach (string relativePath in new[] { "AGENTS.md", "docs", "scripts", ".github", "src", "tests" })
+        {
+            string path = ResolveRepositoryPath(relativePath);
+            if (File.Exists(path))
+            {
+                yield return path;
+                continue;
+            }
+
+            if (!Directory.Exists(path))
+            {
+                continue;
+            }
+
+            foreach (string file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+            {
+                if (IsPortableTextFile(root, file))
+                {
+                    yield return file;
+                }
+            }
+        }
+    }
+
+    private static bool IsPortableTextFile(string root, string file)
+    {
+        string relative = Path.GetRelativePath(root, file);
+        string normalized = relative.Replace(Path.DirectorySeparatorChar, '/');
+        if (normalized.Contains("/bin/", StringComparison.Ordinal)
+            || normalized.Contains("/obj/", StringComparison.Ordinal)
+            || normalized.StartsWith("TestResults/", StringComparison.Ordinal)
+            || normalized.StartsWith("artifacts/", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return Path.GetExtension(file) switch
+        {
+            ".cs" or ".md" or ".ps1" or ".yaml" or ".yml" => true,
+            _ => false,
+        };
     }
 
     private static string ReadRepositoryFile(string relativePath)

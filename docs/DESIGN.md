@@ -62,17 +62,18 @@ Picket is not a SaaS and does not require an account. It has no telemetry. Any f
 
 ## 3. Reference Pins
 
-The design and differential tests are pinned to local reference snapshots. Upgrades are deliberate, reviewed changes.
+The design and differential tests are pinned to upstream reference snapshots. Upgrades are deliberate, reviewed changes. Public docs and tests do not commit machine-specific clone paths; local reference repositories are discovered through environment variables or sibling clone names.
 
-| Project | Local path | Role |
-|---|---|---|
-| Gitleaks | `D:\SRC\gitleaks` | Primary compatibility oracle |
-| Scout | `D:\SRC\scout` | Read-only API/behavior reference only. Picket consumes Scout via NuGet packages, never project/source references. |
-| TruffleHog | `D:\SRC\trufflehog` | Verification, sources, and analyze reference |
-| Kingfisher | `D:\SRC\kingfisher` | Validation breadth, revocation, access-map, reporting reference |
-| Nosey Parker | `D:\SRC\noseyparker` | Historical datastore/rule-QA/performance reference |
+| Project | Environment variable | Default sibling clone | Role |
+|---|---|---|---|
+| Gitleaks | `PICKET_GITLEAKS_REPO` | `../gitleaks` | Primary compatibility oracle |
+| Scout | `PICKET_SCOUT_REPO` | `../scout` | Read-only API/behavior reference only. Picket consumes Scout via NuGet packages, never project/source references. |
+| TruffleHog | `PICKET_TRUFFLEHOG_REPO` | `../trufflehog` | Verification, sources, and analyze reference |
+| Kingfisher | `PICKET_KINGFISHER_REPO` | `../kingfisher` | Validation breadth, revocation, access-map, reporting reference |
+| Nosey Parker | `PICKET_NOSEYPARKER_REPO` | `../noseyparker` | Historical datastore/rule-QA/performance reference |
+| .NET Runtime | `PICKET_DOTNET_RUNTIME_REPO` | `../runtime` | Native AOT/runtime implementation reference |
 
-`docs/UPSTREAM.md` records exact commits, supported upstream versions, known README/code divergences, and the command lines used by oracle tests. For example, Gitleaks' current code default for `--max-decode-depth` is `5`; if upstream docs say otherwise, Picket follows the code in compatibility tests and records the discrepancy.
+`docs/UPSTREAM.md` records exact commits, supported upstream versions, known README/code divergences, and the command lines used by oracle tests. `scripts/Capture-UpstreamPins.ps1` refreshes the pin table from local clones. For example, Gitleaks' current code default for `--max-decode-depth` is `5`; if upstream docs say otherwise, Picket follows the code in compatibility tests and records the discrepancy.
 
 ---
 
@@ -86,7 +87,7 @@ Scout must be consumed only through NuGet package references:
 - `Scout.IO.Globbing`
 - `Scout.IO.Ignore`
 
-Use Central Package Management (`Directory.Packages.props`) to pin Scout package versions. Do not add `ProjectReference` entries to `D:\SRC\scout`, do not include Scout source files in this repository, and do not treat the local Scout clone as part of the build. The local clone exists only for reading implementation details, docs, and tests while designing Picket behavior.
+Use Central Package Management (`Directory.Packages.props`) to pin Scout package versions. Do not add `ProjectReference` entries to the Scout clone, do not include Scout source files in this repository, and do not treat the local Scout clone as part of the build. The clone resolved from `PICKET_SCOUT_REPO` or `../scout` exists only for reading implementation details, docs, and tests while designing Picket behavior.
 
 ### 4.1 `Scout.Text.Regex`
 
@@ -148,7 +149,7 @@ Hot-path constraints:
 
 ## 6. Performance, Size, and AOT Strategy
 
-This section applies current Microsoft .NET deployment, trimming, Native AOT, GC, memory, SIMD, and diagnostics guidance to Picket. The local runtime clone at `D:\SRC\runtime` is a reference for implementation details and Native AOT defaults, but public behavior follows documented SDK/runtime contracts.
+This section applies current Microsoft .NET deployment, trimming, Native AOT, GC, memory, SIMD, and diagnostics guidance to Picket. The runtime clone resolved from `PICKET_DOTNET_RUNTIME_REPO` or `../runtime` is a reference for implementation details and Native AOT defaults, but public behavior follows documented SDK/runtime contracts.
 
 ### 6.1 Release Profiles
 

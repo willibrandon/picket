@@ -1,6 +1,6 @@
 # Agent Guide for Picket
 
-This repository is `D:\SRC\picket`. Picket is a new MIT-licensed .NET secrets scanner based heavily on Gitleaks, built for Native AOT, and optimized around Scout's byte-oriented libraries where their semantics fit.
+This repository is the current checkout of Picket, a new MIT-licensed .NET secrets scanner based heavily on Gitleaks, built for Native AOT, and optimized around Scout's byte-oriented libraries where their semantics fit.
 
 Read [docs/DESIGN.md](docs/DESIGN.md) before making architectural or behavioral changes. Treat it as the current product contract.
 
@@ -17,14 +17,16 @@ Do not let native features silently affect strict Gitleaks compatibility. New be
 
 These clones are read-only references unless the user explicitly says otherwise. **Never modify Scout.** In normal Picket work, do not modify any reference repo.
 
-| Project | Path | Current reference HEAD | Role |
-|---|---:|---|---|
-| Scout | `D:\SRC\scout` | `706e559` - Stabilize regex runner pool CI checks | Read-only API/behavior reference. Picket must consume Scout only through NuGet packages. |
-| Gitleaks | `D:\SRC\gitleaks` | `4c232b5` - Merge pull request #2179... | Primary compatibility oracle |
-| TruffleHog | `D:\SRC\trufflehog` | `f2cd191b9` - feat: add OpenRouter detector (#4500) | Verification, sources, analyze reference |
-| Nosey Parker | `D:\SRC\noseyparker` | `2e6e7f36` - Update README to reflect Nosey Parker retirement (#288) | Historical datastore/rule-QA/perf reference |
-| Kingfisher | `D:\SRC\kingfisher` | `78904df` - Merge pull request #412 from mongodb/development | Validation, revocation, access-map, reporting reference |
-| .NET runtime | `D:\SRC\runtime` | `fe5e47348f8` - JIT: stop treating ManagedThreadId helper as constant/pure (#130006) | Native AOT/runtime implementation reference |
+Use the environment variables below when available; otherwise local scripts and docs assume sibling clones next to this repository.
+
+| Project | Environment variable | Default sibling clone | Role |
+|---|---|---|---|
+| Scout | `PICKET_SCOUT_REPO` | `../scout` | Read-only API/behavior reference. Picket must consume Scout only through NuGet packages. |
+| Gitleaks | `PICKET_GITLEAKS_REPO` | `../gitleaks` | Primary compatibility oracle |
+| TruffleHog | `PICKET_TRUFFLEHOG_REPO` | `../trufflehog` | Verification, sources, analyze reference |
+| Nosey Parker | `PICKET_NOSEYPARKER_REPO` | `../noseyparker` | Historical datastore/rule-QA/perf reference |
+| Kingfisher | `PICKET_KINGFISHER_REPO` | `../kingfisher` | Validation, revocation, access-map, reporting reference |
+| .NET runtime | `PICKET_DOTNET_RUNTIME_REPO` | `../runtime` | Native AOT/runtime implementation reference |
 
 Use these repos to verify facts before encoding compatibility behavior. Prefer `rg` for source searches. When a behavior matters, cite the exact upstream file/line in comments, tests, or docs as appropriate.
 
@@ -34,7 +36,7 @@ Scout is a core advantage, not a blanket replacement for Gitleaks behavior.
 
 - Picket must reference Scout only through NuGet packages: `Scout.Text.Regex`, `Scout.IO.Globbing`, and `Scout.IO.Ignore`.
 - Use `PackageReference` entries with versions pinned through Central Package Management (`Directory.Packages.props`).
-- Do not add `ProjectReference` entries to `D:\SRC\scout`.
+- Do not add `ProjectReference` entries to the Scout clone.
 - Do not copy Scout source files into Picket.
 - Do not use the local Scout clone as a build input; it is for reading APIs, implementation details, docs, and tests only.
 - Use `Scout.Text.Regex.ByteRegex` for rule regexes over `ReadOnlySpan<byte>`.
@@ -154,7 +156,7 @@ Prefer precise, testable statements over marketing claims. If a competitor capab
 - Use `apply_patch` for manual edits.
 - Prefer small, coherent changes with focused tests.
 - Keep files ASCII unless there is a clear reason otherwise.
-- Follow the .NET runtime C# style baseline from `D:\SRC\runtime\docs\coding-guidelines\coding-style.md`: Allman braces, four-space indentation, System usings first with all other usings sorted alphabetically, no separated using groups, avoid `this.` unless required, constants in PascalCase, private/internal instance fields as `_camelCase`, private/internal static fields as `s_camelCase`, and primary constructor parameters in normal `camelCase`.
+- Follow the .NET runtime C# style baseline from `<runtime clone>/docs/coding-guidelines/coding-style.md` when available: Allman braces, four-space indentation, System usings first with all other usings sorted alphabetically, no separated using groups, avoid `this.` unless required, constants in PascalCase, private/internal instance fields as `_camelCase`, private/internal static fields as `s_camelCase`, and primary constructor parameters in normal `camelCase`.
 - Keep one explicit type declaration per `.cs` file. Top-level `Program.cs` is allowed for the CLI entry point.
 - All public types and members require triple-slash XML documentation.
 - Do not leave unused usings; `IDE0005` is an error.
