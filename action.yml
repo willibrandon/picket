@@ -1,0 +1,130 @@
+name: Picket
+description: Scan a repository with Picket and publish SARIF-ready results.
+author: Picket
+
+inputs:
+  path:
+    description: Repository path to scan.
+    required: false
+    default: .
+  config-path:
+    description: Optional Gitleaks-compatible config path.
+    required: false
+    default: ""
+  baseline-path:
+    description: Optional Gitleaks-compatible baseline path.
+    required: false
+    default: ""
+  cache:
+    description: Restore and save the native Picket scan cache.
+    required: false
+    default: "true"
+  cache-path:
+    description: Native Picket scan cache directory.
+    required: false
+    default: .picket/cache
+  cache-key:
+    description: Optional explicit cache key.
+    required: false
+    default: ""
+  report-directory:
+    description: Directory where SARIF and JSONL reports are written.
+    required: false
+    default: picket-results
+  fail-on:
+    description: Failure mode. Use findings, errors, or never.
+    required: false
+    default: findings
+  upload-sarif:
+    description: Upload the SARIF report through GitHub code scanning.
+    required: false
+    default: "false"
+  redact:
+    description: Redaction percentage from 0 through 100. Defaults to full redaction for public CI safety.
+    required: false
+    default: "100"
+  max-target-megabytes:
+    description: Optional maximum file size in MiB for content rules.
+    required: false
+    default: ""
+  dotnet-version:
+    description: .NET SDK version used to run the source-based action.
+    required: false
+    default: 10.0.301
+  setup-dotnet:
+    description: Install the configured .NET SDK before running Picket.
+    required: false
+    default: "true"
+
+outputs:
+  exit-code:
+    description: Raw Picket scanner exit code.
+    value: ${{ steps.run.outputs.exit-code }}
+  findings:
+    description: Number of JSONL finding records emitted by Picket.
+    value: ${{ steps.run.outputs.findings }}
+  sarif-path:
+    description: SARIF report path.
+    value: ${{ steps.run.outputs.sarif-path }}
+  jsonl-path:
+    description: JSONL report path.
+    value: ${{ steps.run.outputs.jsonl-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up .NET
+      if: ${{ inputs.setup-dotnet == 'true' }}
+      uses: actions/setup-dotnet@v5.4.0
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
+    - name: Restore Picket
+      shell: pwsh
+      run: dotnet restore "$env:GITHUB_ACTION_PATH/Picket.slnx"
+
+    - name: Restore scan cache
+      id: cache-restore
+      if: ${{ inputs.cache == 'true' }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ inputs.cache-path }}
+        key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}', runner.os, github.ref_name, github.sha) }}
+        restore-keys: |
+          ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-', runner.os, github.ref_name) }}
+          picket-${{ runner.os }}-
+
+    - name: Run Picket
+      id: run
+      shell: pwsh
+      env:
+        PICKET_PATH: ${{ inputs.path }}
+        PICKET_CONFIG_PATH: ${{ inputs.config-path }}
+        PICKET_BASELINE_PATH: ${{ inputs.baseline-path }}
+        PICKET_CACHE_ENABLED: ${{ inputs.cache }}
+        PICKET_CACHE_PATH: ${{ inputs.cache-path }}
+        PICKET_REPORT_DIRECTORY: ${{ inputs.report-directory }}
+        PICKET_FAIL_ON: ${{ inputs.fail-on }}
+        PICKET_REDACT: ${{ inputs.redact }}
+        PICKET_MAX_TARGET_MEGABYTES: ${{ inputs.max-target-megabytes }}
+      run: '& "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.ps1"'
+
+    - name: Save scan cache
+      if: ${{ inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ inputs.cache-path }}
+        key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}', runner.os, github.ref_name, github.sha) }}
+
+    - name: Upload SARIF
+      if: ${{ inputs.upload-sarif == 'true' && steps.run.outputs.sarif-path != '' }}
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: ${{ steps.run.outputs.sarif-path }}
+
+    - name: Enforce fail mode
+      if: ${{ steps.run.outputs.should-fail == 'true' }}
+      shell: pwsh
+      env:
+        PICKET_FAILURE_CODE: ${{ steps.run.outputs.failure-code }}
+      run: exit ([int]$env:PICKET_FAILURE_CODE)
