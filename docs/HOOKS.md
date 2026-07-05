@@ -1,0 +1,41 @@
+# Git Hooks
+
+Picket can install managed Git hooks that call the existing scanner workflows.
+
+```powershell
+picket hooks install pre-commit --repo .
+picket hooks install all --repo . --config .gitleaks.toml
+```
+
+When no hook name is provided, `picket hooks install` installs `pre-commit`.
+
+## Hooks
+
+| Hook | Scanner command |
+| --- | --- |
+| `pre-commit` | `picket protect --source "$repo_root"` |
+| `pre-push` | `picket git "$repo_root" --log-opts "$range"` for each pushed ref |
+| `pre-receive` | `picket git "$repo_root" --log-opts "$range"` for each received ref |
+| `all` | Installs `pre-commit`, `pre-push`, and `pre-receive`. |
+
+`pre-receive` works in normal and bare repositories. Deleted refs are ignored. New refs scan the new SHA; updated refs scan `old..new`.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--repo <path>` | Repository or bare repository where hooks should be installed. Defaults to `.`. |
+| `--force` | Overwrite an existing unmanaged hook. Managed Picket hooks can be updated without `--force`. |
+| `--command <path>` | Command written into the hook script. Defaults to `picket`. |
+| `-c, --config <path>` | Gitleaks-compatible config path to pass to hook scans. |
+| `-b, --baseline-path <path>` | Gitleaks-compatible baseline path to pass to hook scans. |
+| `--max-target-megabytes <n>` | Maximum file size in MiB for content rules. |
+| `--redact[=n]` | Redaction percentage from `0` through `100`. Installed hooks default to `100`. |
+
+Generated hooks are POSIX shell scripts under `.git/hooks` for normal repositories or `hooks` for bare repositories. They include a managed marker so Picket can update its own hooks safely.
+
+## Security Defaults
+
+Installed hooks use `--redact=100` by default so terminal output and server-side hook logs do not print raw secrets. Set `--redact=0` only for trusted local repositories where raw finding values are acceptable.
+
+Picket refuses to overwrite an existing unmanaged hook unless `--force` is supplied. If a repository already has custom hook logic, merge the generated Picket command into that hook manually or reinstall with `--force` after preserving the previous behavior.

@@ -2032,6 +2032,99 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that the native hook installer writes a managed pre-commit hook that uses the existing protect workflow.
+    /// </summary>
+    [TestMethod]
+    public async Task HooksInstallWritesManagedPreCommitHook()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+
+        CliResult result = await RunCliAsync(
+            "hooks",
+            "install",
+            "pre-commit",
+            "--repo",
+            root.Path,
+            "--config",
+            configPath,
+            "--command",
+            "picket-dev").ConfigureAwait(false);
+        string hookPath = Path.Combine(root.Path, ".git", "hooks", "pre-commit");
+        string hook = File.ReadAllText(hookPath);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("installed pre-commit:", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+        Assert.Contains("#!/bin/sh\n", hook);
+        Assert.Contains("# managed by picket hooks install", hook);
+        Assert.Contains("'picket-dev' protect --source \"$repo_root\"", hook);
+        Assert.Contains("--config", hook);
+        Assert.Contains(configPath, hook);
+        Assert.Contains("'--redact=100'", hook);
+    }
+
+    /// <summary>
+    /// Verifies that all hook installation covers pre-push and pre-receive range scans.
+    /// </summary>
+    [TestMethod]
+    public async Task HooksInstallWritesPushAndReceiveHooks()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+
+        CliResult result = await RunCliAsync("hooks", "install", "all", "--repo", root.Path).ConfigureAwait(false);
+        string prePush = File.ReadAllText(Path.Combine(root.Path, ".git", "hooks", "pre-push"));
+        string preReceive = File.ReadAllText(Path.Combine(root.Path, ".git", "hooks", "pre-receive"));
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("installed pre-commit:", result.Stdout);
+        Assert.Contains("installed pre-push:", result.Stdout);
+        Assert.Contains("installed pre-receive:", result.Stdout);
+        Assert.Contains("while read local_ref local_sha remote_ref remote_sha", prePush);
+        Assert.Contains("remote_sha..$local_sha", prePush);
+        Assert.Contains("git \"$repo_root\" --log-opts \"$range\"", prePush);
+        Assert.Contains("while read old_sha new_sha ref_name", preReceive);
+        Assert.Contains("old_sha..$new_sha", preReceive);
+        Assert.Contains("git \"$repo_root\" --log-opts \"$range\"", preReceive);
+    }
+
+    /// <summary>
+    /// Verifies that hook installation does not overwrite unmanaged hooks unless forced.
+    /// </summary>
+    [TestMethod]
+    public async Task HooksInstallRefusesUnmanagedHookWithoutForce()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        string hookPath = Path.Combine(root.Path, ".git", "hooks", "pre-commit");
+        File.WriteAllText(hookPath, "custom hook\n");
+
+        CliResult refused = await RunCliAsync("hooks", "install", "pre-commit", "--repo", root.Path).ConfigureAwait(false);
+        CliResult forced = await RunCliAsync("hooks", "install", "pre-commit", "--repo", root.Path, "--force").ConfigureAwait(false);
+        string hook = File.ReadAllText(hookPath);
+
+        Assert.AreEqual(1, refused.ExitCode);
+        Assert.Contains("use --force to overwrite it", refused.Stderr);
+        Assert.AreEqual(0, forced.ExitCode);
+        Assert.Contains("# managed by picket hooks install", hook);
+    }
+
+    /// <summary>
+    /// Verifies that hooks help advertises the installation workflow.
+    /// </summary>
+    [TestMethod]
+    public async Task HooksHelpAdvertisesInstall()
+    {
+        CliResult result = await RunCliAsync("hooks", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket hooks install", result.Stdout);
+        Assert.Contains("pre-commit|pre-push|pre-receive|all", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that the Gitleaks-compatible git platform set is accepted and native auto is rejected.
     /// </summary>
     [TestMethod]

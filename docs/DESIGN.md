@@ -904,4 +904,5 @@ Required before v1:
 - `docs/VALIDATION.md`: privacy and egress model,
 - `docs/REPORTS.md`: compatibility and native schemas,
 - `docs/ACTION.md`: CI action behavior and security posture,
+- `docs/HOOKS.md`: local and server-side Git hook behavior,
 - `docs/EMBEDDING.md`: library API guide.
