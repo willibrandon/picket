@@ -1,0 +1,9 @@
+title = "picket git oracle"
+
+[[rules]]
+id = "git-token"
+description = "Synthetic token used for git oracle compatibility tests."
+regex = '''git-secret-[0-9]{5}'''
+keywords = [
+    "git-secret-",
+]

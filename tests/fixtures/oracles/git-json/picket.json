@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "git-token",
+  "Description": "Synthetic token used for git oracle compatibility tests.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 14,
+  "EndColumn": 29,
+  "Match": "REDACTED",
+  "Secret": "REDACTED",
+  "File": "source.txt",
+  "SymlinkFile": "",
+  "Commit": "a0f75bb7be6981e97ea40bfd4402a58f0e356401",
+  "Entropy": 3.625,
+  "Author": "Picket Oracle",
+  "Email": "picket@example.com",
+  "Date": "2024-01-01T00:00:00Z",
+  "Message": "add git oracle secret",
+  "Tags": [],
+  "Fingerprint": "a0f75bb7be6981e97ea40bfd4402a58f0e356401:source.txt:git-token:1"
+ }
+]

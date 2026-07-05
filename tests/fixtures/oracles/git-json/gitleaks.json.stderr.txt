@@ -1,0 +1,3 @@
+<time> INF 1 commits scanned.
+<time> INF scanned ~31 bytes (31 bytes) in <duration>
+<time> WRN leaks found: 1

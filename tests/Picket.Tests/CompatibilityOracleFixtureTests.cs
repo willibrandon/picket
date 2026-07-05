@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Picket.Tests;
 
@@ -72,6 +73,45 @@ public sealed class CompatibilityOracleFixtureTests
             "stdin",
             "-c",
             ".gitleaks.toml",
+            "-f",
+            "json",
+            "-r",
+            reportPath,
+            "--no-banner",
+            "--no-color",
+            "--redact=100").ConfigureAwait(false);
+
+        Assert.AreEqual(expectedReport, promotedPicketReport);
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+        Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+    }
+
+    /// <summary>
+    /// Verifies that the git JSON fixture still matches the promoted Gitleaks oracle report.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task GitJsonReportMatchesPromotedGitleaksOracle()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "git-json");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "git-json");
+        string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", "json");
+        string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", "json");
+        using TempDirectory gitRepository = TempDirectory.Create();
+        using TempDirectory output = TempDirectory.Create();
+        string reportPath = Path.Combine(output.Path, "report.json");
+
+        await CreateGitOracleRepositoryAsync(inputRoot, gitRepository.Path).ConfigureAwait(false);
+
+        CliResult result = await RunCliFromDirectoryAsync(
+            gitRepository.Path,
+            "git",
+            gitRepository.Path,
+            "-c",
+            Path.Combine(inputRoot, ".gitleaks.toml"),
             "-f",
             "json",
             "-r",
@@ -177,6 +217,78 @@ public sealed class CompatibilityOracleFixtureTests
         return directory ?? throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 
+    private static async Task CreateGitOracleRepositoryAsync(string inputRoot, string repositoryPath)
+    {
+        await RunGitCommandAsync(repositoryPath, null, "init", "--object-format=sha1").ConfigureAwait(false);
+        await RunGitCommandAsync(repositoryPath, null, "config", "core.autocrlf", "false").ConfigureAwait(false);
+        await RunGitCommandAsync(repositoryPath, null, "config", "commit.gpgsign", "false").ConfigureAwait(false);
+        await RunGitCommandAsync(repositoryPath, null, "config", "i18n.commitEncoding", "utf-8").ConfigureAwait(false);
+
+        string sourceText = NormalizeLineEndings(File.ReadAllText(Path.Combine(inputRoot, "source.txt")));
+        File.WriteAllText(Path.Combine(repositoryPath, "source.txt"), sourceText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        await RunGitCommandAsync(repositoryPath, null, "add", "source.txt").ConfigureAwait(false);
+        var environment = new Dictionary<string, string?>
+        {
+            ["GIT_AUTHOR_NAME"] = "Picket Oracle",
+            ["GIT_AUTHOR_EMAIL"] = "picket@example.com",
+            ["GIT_AUTHOR_DATE"] = "1704067200 +0000",
+            ["GIT_COMMITTER_NAME"] = "Picket Oracle",
+            ["GIT_COMMITTER_EMAIL"] = "picket@example.com",
+            ["GIT_COMMITTER_DATE"] = "1704067200 +0000",
+        };
+        await RunGitCommandAsync(repositoryPath, environment, "commit", "--no-gpg-sign", "--no-verify", "-m", "add git oracle secret").ConfigureAwait(false);
+        string commit = (await RunGitCommandAsync(repositoryPath, null, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
+
+        Assert.AreEqual("a0f75bb7be6981e97ea40bfd4402a58f0e356401", commit);
+    }
+
+    private static async Task<string> RunGitCommandAsync(
+        string workingDirectory,
+        IReadOnlyDictionary<string, string?>? environment,
+        params string[] arguments)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo("git")
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            WorkingDirectory = workingDirectory,
+        };
+
+        foreach (string argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        if (environment is not null)
+        {
+            foreach (KeyValuePair<string, string?> variable in environment)
+            {
+                if (variable.Value is null)
+                {
+                    process.StartInfo.Environment.Remove(variable.Key);
+                }
+                else
+                {
+                    process.StartInfo.Environment[variable.Key] = variable.Value;
+                }
+            }
+        }
+
+        process.Start();
+        string stdout = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+        string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
+        await process.WaitForExitAsync().ConfigureAwait(false);
+        if (process.ExitCode != 0)
+        {
+            Assert.Fail($"git {string.Join(' ', arguments)} failed with exit code {process.ExitCode}: {stderr}");
+        }
+
+        return stdout;
+    }
+
     private static string NormalizeLineEndings(string value)
     {
         return value.ReplaceLineEndings("\n");
@@ -186,5 +298,4 @@ public sealed class CompatibilityOracleFixtureTests
     {
         return NormalizeLineEndings(File.ReadAllText(Path.Combine(oracleRoot, $"{tool}.{format}")));
     }
-
 }
