@@ -32,6 +32,7 @@ public sealed class SecretScanner
             request.IgnoreGitleaksAllow,
             request.Commit,
             request.MaxTargetBytes,
+            request.SymlinkFile,
             findings);
 
         if (request.MaxDecodeDepth == 0 || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes))
@@ -59,6 +60,7 @@ public sealed class SecretScanner
                 request.IgnoreGitleaksAllow,
                 request.Commit,
                 request.MaxTargetBytes,
+                request.SymlinkFile,
                 findings);
             if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes))
             {
@@ -82,6 +84,7 @@ public sealed class SecretScanner
         bool ignoreGitleaksAllow,
         string commit,
         long? maxTargetBytes,
+        string symlinkFile,
         List<Finding> findings)
     {
         foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
@@ -97,6 +100,7 @@ public sealed class SecretScanner
                 ignoreGitleaksAllow,
                 commit,
                 maxTargetBytes,
+                symlinkFile,
                 compiledRule,
                 includeSkipReport: false);
             if (compiledRule.Rule.RequiredRules.Count != 0)
@@ -113,6 +117,7 @@ public sealed class SecretScanner
                     ignoreGitleaksAllow,
                     commit,
                     maxTargetBytes,
+                    symlinkFile,
                     compiledRule);
             }
 
@@ -131,6 +136,7 @@ public sealed class SecretScanner
         bool ignoreGitleaksAllow,
         string commit,
         long? maxTargetBytes,
+        string symlinkFile,
         CompiledRule compiledRule,
         bool includeSkipReport)
     {
@@ -163,7 +169,7 @@ public sealed class SecretScanner
                 string.Empty,
                 commit))
             {
-                findings.Add(CreatePathFinding(fileName, compiledRule.Rule, commit));
+                findings.Add(CreatePathFinding(fileName, symlinkFile, compiledRule.Rule, commit));
             }
 
             return findings;
@@ -188,6 +194,7 @@ public sealed class SecretScanner
                     globalAllowlists,
                     ignoreGitleaksAllow,
                     commit,
+                    symlinkFile,
                     compiledRule,
                     findings);
             }
@@ -208,6 +215,7 @@ public sealed class SecretScanner
                 globalAllowlists,
                 ignoreGitleaksAllow,
                 commit,
+                symlinkFile,
                 compiledRule,
                 regex,
                 findings);
@@ -228,6 +236,7 @@ public sealed class SecretScanner
         bool ignoreGitleaksAllow,
         string commit,
         long? maxTargetBytes,
+        string symlinkFile,
         CompiledRule primaryRule)
     {
         if (primaryFindings.Count == 0)
@@ -259,6 +268,7 @@ public sealed class SecretScanner
                         ignoreGitleaksAllow,
                         commit,
                         maxTargetBytes,
+                        symlinkFile,
                         compiledRequiredRule,
                         includeSkipReport: true));
         }
@@ -354,6 +364,7 @@ public sealed class SecretScanner
         List<CompiledAllowlist> globalAllowlists,
         bool ignoreGitleaksAllow,
         string commit,
+        string symlinkFile,
         CompiledRule compiledRule,
         List<Finding> findings)
     {
@@ -415,7 +426,7 @@ public sealed class SecretScanner
                 matchText,
                 secretText,
                 fileName,
-                string.Empty,
+                symlinkFile,
                 commit,
                 entropy,
                 string.Empty,
@@ -440,6 +451,7 @@ public sealed class SecretScanner
         List<CompiledAllowlist> globalAllowlists,
         bool ignoreGitleaksAllow,
         string commit,
+        string symlinkFile,
         CompiledRule compiledRule,
         ByteRegex regex,
         List<Finding> findings)
@@ -510,7 +522,7 @@ public sealed class SecretScanner
                 matchText,
                 secretText,
                 fileName,
-                string.Empty,
+                symlinkFile,
                 commit,
                 entropy,
                 string.Empty,
@@ -764,7 +776,7 @@ public sealed class SecretScanner
         return maxTargetBytes.HasValue && inputLength > maxTargetBytes.Value;
     }
 
-    private static Finding CreatePathFinding(string fileName, SecretRule rule, string commit)
+    private static Finding CreatePathFinding(string fileName, string symlinkFile, SecretRule rule, string commit)
     {
         return new Finding(
             rule.Id,
@@ -776,7 +788,7 @@ public sealed class SecretScanner
             $"file detected: {fileName}",
             string.Empty,
             fileName,
-            string.Empty,
+            symlinkFile,
             commit,
             0,
             string.Empty,

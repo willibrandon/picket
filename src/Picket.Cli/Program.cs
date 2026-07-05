@@ -571,7 +571,14 @@ static int RunDirectory(string[] args)
                 continue;
             }
 
-            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes)));
+            findings.AddRange(SecretScanner.Scan(new ScanRequest(
+                input,
+                file.DisplayPath,
+                rules,
+                ignoreGitleaksAllow,
+                maxDecodeDepth: maxDecodeDepth,
+                maxTargetBytes: maxTargetBytes,
+                symlinkFile: file.SymlinkDisplayPath)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

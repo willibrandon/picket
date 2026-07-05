@@ -12,7 +12,7 @@ namespace Picket.Engine;
 /// <param name="match">The full matched text.</param>
 /// <param name="secret">The secret text.</param>
 /// <param name="file">The logical file path.</param>
-/// <param name="symlinkFile">The symlink target path, or an empty string.</param>
+/// <param name="symlinkFile">The symlink path, or an empty string.</param>
 /// <param name="commit">The git commit SHA, or an empty string.</param>
 /// <param name="entropy">The Shannon entropy of the secret.</param>
 /// <param name="author">The git author, or an empty string.</param>
@@ -96,7 +96,7 @@ public sealed class Finding(
     public string File { get; } = file;
 
     /// <summary>
-    /// Gets the symlink target path, or an empty string.
+    /// Gets the symlink path, or an empty string.
     /// </summary>
     public string SymlinkFile { get; } = symlinkFile;
 

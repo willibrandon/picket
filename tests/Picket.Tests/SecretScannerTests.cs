@@ -628,6 +628,23 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that symlink paths flow into findings without changing fingerprints.
+    /// </summary>
+    [TestMethod]
+    public void ScanIncludesSymlinkFileInFindings()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-12345");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "target.txt", rules, symlinkFile: "link.txt"));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("target.txt", findings[0].File);
+        Assert.AreEqual("link.txt", findings[0].SymlinkFile);
+        Assert.AreEqual("target.txt:token:1", findings[0].Fingerprint);
+    }
+
+    /// <summary>
     /// Verifies that recursive decoding honors the configured maximum depth.
     /// </summary>
     [TestMethod]

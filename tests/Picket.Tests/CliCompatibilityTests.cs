@@ -390,6 +390,30 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that directory scans report symlink metadata when symlink following is enabled.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanReportsSymlinkFileWhenFollowingSymlinks()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using TempDirectory targetRoot = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string targetPath = Path.Combine(targetRoot.Path, "target.txt");
+        string linkPath = Path.Combine(root.Path, "link.txt");
+        File.WriteAllText(targetPath, "token-12345");
+        File.CreateSymbolicLink(linkPath, targetPath);
+
+        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--follow-symlinks").ConfigureAwait(false);
+
+        Assert.AreEqual(0, disabled.ExitCode);
+        Assert.AreEqual("[]\n", disabled.Stdout);
+        Assert.AreEqual(1, enabled.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", enabled.Stdout);
+        Assert.Contains("\"SymlinkFile\": \"link.txt\"", enabled.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that --max-decode-depth controls recursive decoded scanning.
     /// </summary>
     [TestMethod]

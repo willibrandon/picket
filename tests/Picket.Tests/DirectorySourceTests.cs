@@ -61,6 +61,36 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that followed symlink files keep both resolved target and symlink report paths.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateReportsSymlinkFileWhenFollowingSymlinks()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string targetPath = Path.Combine(root, "target.txt");
+            string linkPath = Path.Combine(root, "link.txt");
+            File.WriteAllText(targetPath, "token-12345");
+            File.CreateSymbolicLink(linkPath, targetPath);
+
+            IReadOnlyList<SourceFile> defaultFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root));
+            IReadOnlyList<SourceFile> followedFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root, followSymbolicLinks: true));
+            SourceFile? symlinkFile = followedFiles.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
+
+            Assert.IsFalse(defaultFiles.Any(file => file.SymlinkDisplayPath == "link.txt"));
+            Assert.IsNotNull(symlinkFile);
+            Assert.AreEqual("target.txt", symlinkFile.DisplayPath);
+            Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
+            Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that archive containers are skipped when archive traversal is disabled.
     /// </summary>
     [TestMethod]

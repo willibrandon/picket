@@ -35,13 +35,26 @@ public sealed class DirectorySource
                 continue;
             }
 
+            string scanFullPath = entry.FullPath;
             string displayPath = CreateDisplayPath(options.Root, entry.FullPath);
+            string symlinkDisplayPath = string.Empty;
             if (IsPathOrAncestorAllowed(options.IsPathAllowed, displayPath))
             {
                 continue;
             }
 
-            AddSourceFile(sourceFiles, options, entry.FullPath, displayPath);
+            if (entry.IsSymbolicLink)
+            {
+                if (!TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
+                {
+                    continue;
+                }
+
+                symlinkDisplayPath = displayPath;
+                displayPath = CreateDisplayPath(options.Root, scanFullPath);
+            }
+
+            AddSourceFile(sourceFiles, options, scanFullPath, displayPath, symlinkDisplayPath);
         }
 
         return sourceFiles;
@@ -59,13 +72,31 @@ public sealed class DirectorySource
         string displayPath = Path.GetFileName(options.Root);
         if (!IsPathAllowed(options.IsPathAllowed, displayPath))
         {
-            AddSourceFile(sourceFiles, options, options.Root, displayPath);
+            string scanFullPath = options.Root;
+            string symlinkDisplayPath = string.Empty;
+            if (IsSymbolicLink(options.Root))
+            {
+                if (!options.FollowSymbolicLinks || !TryResolveSymlinkFile(options.Root, out scanFullPath))
+                {
+                    return sourceFiles;
+                }
+
+                symlinkDisplayPath = displayPath;
+                displayPath = Path.GetFileName(scanFullPath);
+            }
+
+            AddSourceFile(sourceFiles, options, scanFullPath, displayPath, symlinkDisplayPath);
         }
 
         return sourceFiles;
     }
 
-    private static void AddSourceFile(List<SourceFile> sourceFiles, DirectoryScanOptions options, string fullPath, string displayPath)
+    private static void AddSourceFile(
+        List<SourceFile> sourceFiles,
+        DirectoryScanOptions options,
+        string fullPath,
+        string displayPath,
+        string symlinkDisplayPath)
     {
         if (ArchiveReader.IsArchiveFile(fullPath))
         {
@@ -82,7 +113,7 @@ public sealed class DirectorySource
                 {
                     foreach (ArchiveEntry entry in entries)
                     {
-                        sourceFiles.Add(new SourceFile(fullPath, entry.DisplayPath, entry.Content));
+                        sourceFiles.Add(new SourceFile(fullPath, entry.DisplayPath, symlinkDisplayPath, entry.Content));
                     }
                 }
             }
@@ -90,7 +121,7 @@ public sealed class DirectorySource
             return;
         }
 
-        sourceFiles.Add(new SourceFile(fullPath, displayPath));
+        sourceFiles.Add(new SourceFile(fullPath, displayPath, symlinkDisplayPath));
     }
 
     private static FileWalkerOptions CreateWalkerOptions(DirectoryScanOptions options)
@@ -114,6 +145,30 @@ public sealed class DirectorySource
     {
         string relativePath = Path.GetRelativePath(root, fullPath);
         return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+    }
+
+    private static bool IsSymbolicLink(string path)
+    {
+        return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+    }
+
+    private static bool TryResolveSymlinkFile(string path, out string fullPath)
+    {
+        try
+        {
+            FileSystemInfo? target = new FileInfo(path).ResolveLinkTarget(returnFinalTarget: true);
+            if (target is not null && File.Exists(target.FullName))
+            {
+                fullPath = target.FullName;
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        fullPath = string.Empty;
+        return false;
     }
 
     private static bool IsPathOrAncestorAllowed(Func<string, bool>? isPathAllowed, string displayPath)

@@ -12,6 +12,7 @@ namespace Picket.Engine;
 /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
 /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
 /// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
+/// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
 public sealed class ScanRequest(
     ReadOnlyMemory<byte> input,
     string fileName,
@@ -19,7 +20,8 @@ public sealed class ScanRequest(
     bool ignoreGitleaksAllow = false,
     string commit = "",
     int maxDecodeDepth = 5,
-    long? maxTargetBytes = null)
+    long? maxTargetBytes = null,
+    string symlinkFile = "")
 {
     /// <summary>
     /// Initializes a new scan request and compiles the supplied source rules.
@@ -31,6 +33,7 @@ public sealed class ScanRequest(
     /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
     /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
     /// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
+    /// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
     public ScanRequest(
         ReadOnlyMemory<byte> input,
         string fileName,
@@ -38,8 +41,9 @@ public sealed class ScanRequest(
         bool ignoreGitleaksAllow = false,
         string commit = "",
         int maxDecodeDepth = 5,
-        long? maxTargetBytes = null)
-        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes)
+        long? maxTargetBytes = null,
+        string symlinkFile = "")
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes, symlinkFile)
     {
     }
 
@@ -77,6 +81,11 @@ public sealed class ScanRequest(
     /// Gets the maximum content size to scan with content rules, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxTargetBytes { get; } = RequireNonNegative(maxTargetBytes);
+
+    /// <summary>
+    /// Gets the symlink path used in reports, or an empty string.
+    /// </summary>
+    public string SymlinkFile { get; } = symlinkFile ?? string.Empty;
 
     private static string RequireFileName(string value)
     {
