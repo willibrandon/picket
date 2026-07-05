@@ -278,6 +278,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.finding.v1", reports);
         Assert.Contains("picket.report.v1", reports);
         Assert.Contains("picket view", reports);
+        Assert.Contains("TruffleHog JSON/JSONL", reports);
         Assert.Contains("Report readers must not print raw secrets", reports);
         Assert.Contains("strict Gitleaks-compatible commands reject `--cache-dir`", cache);
         Assert.Contains("scanner configuration fingerprint", cache);

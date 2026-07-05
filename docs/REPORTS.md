@@ -66,6 +66,6 @@ When no path or format is supplied, JSON is written to standard output.
 
 ## Triage View
 
-`picket view <report>` reads Picket JSON, Picket JSONL, Gitleaks JSON, GitLab code-quality JSON, SARIF, and HTML summaries. It prints non-secret counts and up to ten finding summaries. `--open` launches the report with the operating system shell after the summary is written.
+`picket view <report>` reads Picket JSON, Picket JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, and HTML summaries. It prints non-secret counts and up to ten finding summaries. `--open` launches the report with the operating system shell after the summary is written.
 
-Report readers must not print raw secrets. They extract rule IDs, paths, line numbers, fingerprints, counts, and format names for triage.
+Report readers must not print raw secrets. They extract rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names for triage. Imported TruffleHog reports synthesize fingerprints from the detector, path, and line when the report does not provide one, and never use `Raw`, `RawV2`, or `Redacted` in terminal output.

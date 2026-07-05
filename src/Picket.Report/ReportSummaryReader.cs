@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace Picket.Report;
@@ -40,6 +41,7 @@ public static class ReportSummaryReader
     private static ReportSummary ReadJsonLines(string path)
     {
         var findings = new List<ReportFindingSummary>();
+        string? format = null;
         try
         {
             foreach (string line in File.ReadLines(path))
@@ -50,7 +52,10 @@ public static class ReportSummaryReader
                 }
 
                 using JsonDocument document = JsonDocument.Parse(line);
-                findings.Add(ReadPicketFinding(document.RootElement));
+                format ??= IsTruffleHogFinding(document.RootElement) ? "trufflehog-jsonl" : "picket-jsonl";
+                findings.Add(format.Equals("trufflehog-jsonl", StringComparison.Ordinal)
+                    ? ReadTruffleHogFinding(document.RootElement)
+                    : ReadPicketFinding(document.RootElement));
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -58,7 +63,7 @@ public static class ReportSummaryReader
             throw new IOException($"could not open {path}", exception);
         }
 
-        return new ReportSummary("picket-jsonl", findings);
+        return new ReportSummary(format ?? "picket-jsonl", findings);
     }
 
     private static ReportSummary ReadJsonDocument(JsonElement root, string path)
@@ -85,6 +90,11 @@ public static class ReportSummaryReader
                 return ReadGitleaksJson(root);
             }
 
+            if (IsTruffleHogFinding(finding))
+            {
+                return ReadTruffleHogJson(root);
+            }
+
             if (finding.TryGetProperty("check_name", out _) || finding.TryGetProperty("location", out _))
             {
                 return ReadGitLabCodeQualityJson(root);
@@ -107,6 +117,18 @@ public static class ReportSummaryReader
         if (schema.Equals("picket.finding.v1", StringComparison.Ordinal))
         {
             return new ReportSummary("picket-json", [ReadPicketFinding(root)]);
+        }
+
+        if (IsTruffleHogFinding(root))
+        {
+            return new ReportSummary("trufflehog-json", [ReadTruffleHogFinding(root)]);
+        }
+
+        if (root.TryGetProperty("results", out JsonElement results)
+            && results.ValueKind == JsonValueKind.Array
+            && IsTruffleHogResults(results))
+        {
+            return ReadTruffleHogJson(results);
         }
 
         if (GetString(root, "version").Equals("2.1.0", StringComparison.Ordinal) && root.TryGetProperty("runs", out _))
@@ -158,6 +180,17 @@ public static class ReportSummaryReader
         return new ReportSummary("gitleaks-json", findings);
     }
 
+    private static ReportSummary ReadTruffleHogJson(JsonElement root)
+    {
+        var findings = new List<ReportFindingSummary>();
+        foreach (JsonElement finding in root.EnumerateArray())
+        {
+            findings.Add(ReadTruffleHogFinding(finding));
+        }
+
+        return new ReportSummary("trufflehog-json", findings);
+    }
+
     private static ReportSummary ReadGitLabCodeQualityJson(JsonElement root)
     {
         var findings = new List<ReportFindingSummary>();
@@ -192,6 +225,39 @@ public static class ReportSummaryReader
             GetDisplayPath(finding, "file", "symlinkFile"),
             GetInt32(finding, "startLine"),
             GetString(finding, "fingerprint"));
+    }
+
+    private static ReportFindingSummary ReadTruffleHogFinding(JsonElement finding)
+    {
+        if (finding.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException();
+        }
+
+        JsonElement sourceMetadata = finding.TryGetProperty("SourceMetadata", out JsonElement metadata)
+            || finding.TryGetProperty("sourceMetadata", out metadata)
+            ? metadata
+            : default;
+        string detectorName = GetFirstNonEmptyString(
+            GetString(finding, "DetectorName"),
+            GetString(finding, "detectorName"),
+            GetString(finding, "DetectorDescription"),
+            GetString(finding, "detectorDescription"),
+            "unknown");
+        string path = GetFirstNonEmptyString(
+            FindString(sourceMetadata, "file", "path", "filename"),
+            GetString(finding, "File"),
+            GetString(finding, "file"));
+        int line = GetFirstPositiveInt32(
+            FindInt32(sourceMetadata, "line", "line_number", "linenumber", "startline"),
+            GetOptionalInt32(finding, "Line"),
+            GetOptionalInt32(finding, "line"));
+        string fingerprint = GetFirstNonEmptyString(
+            GetString(finding, "Fingerprint"),
+            GetString(finding, "fingerprint"),
+            CreateTruffleHogFingerprint(detectorName, path, line));
+
+        return new ReportFindingSummary(detectorName, path, line, fingerprint);
     }
 
     private static ReportSummary ReadSarif(JsonElement root)
@@ -269,6 +335,44 @@ public static class ReportSummaryReader
         throw new InvalidDataException();
     }
 
+    private static bool IsTruffleHogResults(JsonElement results)
+    {
+        foreach (JsonElement result in results.EnumerateArray())
+        {
+            return IsTruffleHogFinding(result);
+        }
+
+        return false;
+    }
+
+    private static bool IsTruffleHogFinding(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        bool hasDetector = HasProperty(element, "DetectorName")
+            || HasProperty(element, "detectorName")
+            || HasProperty(element, "DetectorDescription")
+            || HasProperty(element, "detectorDescription");
+        bool hasSourceMetadata = HasProperty(element, "SourceMetadata") || HasProperty(element, "sourceMetadata");
+        bool hasSecretEvidence = HasProperty(element, "Raw")
+            || HasProperty(element, "raw")
+            || HasProperty(element, "RawV2")
+            || HasProperty(element, "rawV2")
+            || HasProperty(element, "Redacted")
+            || HasProperty(element, "redacted")
+            || HasProperty(element, "SecretParts")
+            || HasProperty(element, "secretParts");
+        return hasDetector || (hasSourceMetadata && hasSecretEvidence);
+    }
+
+    private static bool HasProperty(JsonElement element, string name)
+    {
+        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out _);
+    }
+
     private static JsonElement GetObject(JsonElement element, string name)
     {
         if (!element.TryGetProperty(name, out JsonElement property) || property.ValueKind != JsonValueKind.Object)
@@ -297,6 +401,108 @@ public static class ReportSummaryReader
         return property.GetString() ?? string.Empty;
     }
 
+    private static string FindString(JsonElement element, params string[] names)
+    {
+        return FindString(element, names, depth: 0);
+    }
+
+    private static string FindString(JsonElement element, string[] names, int depth)
+    {
+        if (depth > 16)
+        {
+            return string.Empty;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (IsNamed(property.Name, names))
+                {
+                    string value = GetScalarString(property.Value);
+                    if (value.Length != 0)
+                    {
+                        return value;
+                    }
+                }
+            }
+
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                string value = FindString(property.Value, names, depth + 1);
+                if (value.Length != 0)
+                {
+                    return value;
+                }
+            }
+        }
+
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                string value = FindString(item, names, depth + 1);
+                if (value.Length != 0)
+                {
+                    return value;
+                }
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static int FindInt32(JsonElement element, params string[] names)
+    {
+        return FindInt32(element, names, depth: 0);
+    }
+
+    private static int FindInt32(JsonElement element, string[] names, int depth)
+    {
+        if (depth > 16)
+        {
+            return 0;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (IsNamed(property.Name, names))
+                {
+                    int value = GetScalarInt32(property.Value);
+                    if (value > 0)
+                    {
+                        return value;
+                    }
+                }
+            }
+
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                int value = FindInt32(property.Value, names, depth + 1);
+                if (value > 0)
+                {
+                    return value;
+                }
+            }
+        }
+
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                int value = FindInt32(item, names, depth + 1);
+                if (value > 0)
+                {
+                    return value;
+                }
+            }
+        }
+
+        return 0;
+    }
+
     private static int GetInt32(JsonElement element, string name)
     {
         if (element.ValueKind != JsonValueKind.Object
@@ -307,6 +513,84 @@ public static class ReportSummaryReader
         }
 
         return property.GetInt32();
+    }
+
+    private static int GetOptionalInt32(JsonElement element, string name)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty(name, out JsonElement property)
+            || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return 0;
+        }
+
+        return GetScalarInt32(property);
+    }
+
+    private static string GetScalarString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString() ?? string.Empty,
+            JsonValueKind.Number => element.ToString(),
+            JsonValueKind.True => bool.TrueString,
+            JsonValueKind.False => bool.FalseString,
+            _ => string.Empty,
+        };
+    }
+
+    private static int GetScalarInt32(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Number when element.TryGetInt32(out int value) => value,
+            JsonValueKind.String when int.TryParse(element.GetString(), CultureInfo.InvariantCulture, out int value) => value,
+            _ => 0,
+        };
+    }
+
+    private static bool IsNamed(string actual, string[] names)
+    {
+        for (int i = 0; i < names.Length; i++)
+        {
+            if (actual.Equals(names[i], StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string GetFirstNonEmptyString(params string[] values)
+    {
+        for (int i = 0; i < values.Length; i++)
+        {
+            if (values[i].Length != 0)
+            {
+                return values[i];
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static int GetFirstPositiveInt32(params int[] values)
+    {
+        for (int i = 0; i < values.Length; i++)
+        {
+            if (values[i] > 0)
+            {
+                return values[i];
+            }
+        }
+
+        return 0;
+    }
+
+    private static string CreateTruffleHogFingerprint(string detectorName, string path, int line)
+    {
+        return string.Concat("trufflehog:", detectorName, ':', path, ':', line.ToString(CultureInfo.InvariantCulture));
     }
 
     private static bool IsGitLabCodeQualityReportPath(string path)

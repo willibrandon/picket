@@ -1169,6 +1169,30 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that view summarizes TruffleHog JSONL without printing secret fields.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewSummarizesTruffleHogJsonlWithoutSecretValue()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = Path.Combine(root.Path, "trufflehog.jsonl");
+        File.WriteAllText(
+            reportPath,
+            """
+            {"SourceMetadata":{"Data":{"Git":{"commit":"abc","file":"keys.txt","line":4}}},"DetectorName":"AWS","Verified":true,"Raw":"AKIASECRET","RawV2":"AKIASECRET:secret","Redacted":"AKIA********","ExtraData":{"account":"123"}}
+            """);
+
+        CliResult view = await RunCliAsync("view", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, view.ExitCode);
+        Assert.Contains("format: trufflehog-jsonl", view.Stdout);
+        Assert.Contains("findings: 1", view.Stdout);
+        Assert.Contains("AWS keys.txt:4 trufflehog:AWS:keys.txt:4", view.Stdout);
+        Assert.DoesNotContain("AKIASECRET", view.Stdout);
+        Assert.DoesNotContain("AKIA********", view.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that report paths ending in .sarif infer SARIF when -f is omitted.
     /// </summary>
     [TestMethod]

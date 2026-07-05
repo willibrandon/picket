@@ -73,6 +73,54 @@ public sealed class ReportSummaryReaderTests
     }
 
     /// <summary>
+    /// Verifies that TruffleHog JSONL reports are summarized without secret fields.
+    /// </summary>
+    [TestMethod]
+    public void ReadSummarizesTruffleHogJsonlReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "trufflehog.jsonl",
+            """
+            {"SourceMetadata":{"Data":{"Git":{"commit":"abc","file":"keys.txt","line":4}}},"DetectorName":"AWS","Verified":true,"Raw":"AKIASECRET","RawV2":"AKIASECRET:secret","Redacted":"AKIA********","ExtraData":{"account":"123"}}
+            """);
+
+        ReportSummary summary = ReportSummaryReader.Read(reportPath);
+
+        Assert.AreEqual("trufflehog-jsonl", summary.Format);
+        Assert.AreEqual(1, summary.FindingCount);
+        Assert.AreEqual("AWS", summary.Findings[0].RuleId);
+        Assert.AreEqual("keys.txt", summary.Findings[0].Path);
+        Assert.AreEqual(4, summary.Findings[0].Line);
+        Assert.AreEqual("trufflehog:AWS:keys.txt:4", summary.Findings[0].Fingerprint);
+        Assert.DoesNotContain("AKIASECRET", summary.Findings[0].Fingerprint);
+    }
+
+    /// <summary>
+    /// Verifies that TruffleHog JSON result wrappers are summarized.
+    /// </summary>
+    [TestMethod]
+    public void ReadSummarizesTruffleHogJsonResultsReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "trufflehog.json",
+            """
+            {"results":[{"SourceMetadata":{"Data":{"Filesystem":{"file":"config.env","line":9}}},"DetectorName":"Slack","Verified":false,"Redacted":"xoxb-********"}]}
+            """);
+
+        ReportSummary summary = ReportSummaryReader.Read(reportPath);
+
+        Assert.AreEqual("trufflehog-json", summary.Format);
+        Assert.AreEqual(1, summary.FindingCount);
+        Assert.AreEqual("Slack", summary.Findings[0].RuleId);
+        Assert.AreEqual("config.env", summary.Findings[0].Path);
+        Assert.AreEqual(9, summary.Findings[0].Line);
+    }
+
+    /// <summary>
     /// Verifies that GitLab Code Quality JSON reports are summarized.
     /// </summary>
     [TestMethod]
