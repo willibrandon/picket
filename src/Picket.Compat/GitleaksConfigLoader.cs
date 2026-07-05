@@ -86,6 +86,7 @@ public static class GitleaksConfigLoader
         string pathPattern = string.Empty;
         int secretGroup = 0;
         double entropy = 0;
+        bool skipReport = false;
         IReadOnlyList<string> keywords = [];
         IReadOnlyList<string> tags = [];
         string allowlistDescription = string.Empty;
@@ -121,6 +122,7 @@ public static class GitleaksConfigLoader
                     pathPattern = string.Empty;
                     secretGroup = 0;
                     entropy = 0;
+                    skipReport = false;
                     keywords = [];
                     tags = [];
                     continue;
@@ -264,7 +266,7 @@ public static class GitleaksConfigLoader
                     tags = ParseStringArray(value, sourceName, key);
                     break;
                 case "skipReport":
-                    ThrowUnsupported(sourceName, $"rule field '{key}'");
+                    skipReport = ParseBoolean(value, sourceName, key);
                     break;
             }
         }
@@ -370,7 +372,8 @@ public static class GitleaksConfigLoader
                 pathPattern: pathPattern,
                 allowlists: ruleAllowlists,
                 keywords: keywords,
-                tags: tags));
+                tags: tags,
+                skipReport: skipReport));
             ruleAllowlists = [];
             hasRule = false;
         }
@@ -649,6 +652,16 @@ public static class GitleaksConfigLoader
         return result;
     }
 
+    private static bool ParseBoolean(string value, string sourceName, string key)
+    {
+        if (!bool.TryParse(value.Trim(), out bool result))
+        {
+            throw new InvalidDataException($"{sourceName}: '{key}' must be a boolean");
+        }
+
+        return result;
+    }
+
     private static AllowlistCondition ParseAllowlistCondition(string value, string sourceName, string key)
     {
         string condition = ParseString(value, sourceName, key);
@@ -763,6 +776,7 @@ public static class GitleaksConfigLoader
             pathPattern: rule.PathPattern,
             allowlists: [.. rule.Allowlists, .. allowlists],
             keywords: rule.Keywords,
-            tags: rule.Tags);
+            tags: rule.Tags,
+            skipReport: rule.SkipReport);
     }
 }

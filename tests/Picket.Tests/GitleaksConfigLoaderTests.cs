@@ -50,6 +50,25 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that Gitleaks skipReport rule fields load into scanner rules.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesSkipReportRuleField()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "supporting-rule"
+            regex = '''token-[0-9]+'''
+            skipReport = true
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules);
+        Assert.IsTrue(ruleSet.Rules[0].SkipReport);
+    }
+
+    /// <summary>
     /// Verifies that an explicit config path wins over every implicit Gitleaks config source.
     /// </summary>
     [TestMethod]

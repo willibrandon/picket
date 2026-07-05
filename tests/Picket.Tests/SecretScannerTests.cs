@@ -205,6 +205,27 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that skipReport rules suppress normal findings.
+    /// </summary>
+    [TestMethod]
+    public void ScanSuppressesSkipReportRules()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-1234");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "supporting-rule",
+                "Supporting Rule",
+                "token-[0-9]+",
+                skipReport: true),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that rule path patterns can match Windows separators against normalized paths.
     /// </summary>
     [TestMethod]

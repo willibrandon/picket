@@ -23,6 +23,11 @@ public sealed class SecretScanner
 
         foreach (CompiledRule compiledRule in request.RuleSet.CompiledRules)
         {
+            if (compiledRule.Rule.SkipReport)
+            {
+                continue;
+            }
+
             if (!IsPathCandidate(compiledRule, fileNameBytes, windowsFileNameBytes))
             {
                 continue;

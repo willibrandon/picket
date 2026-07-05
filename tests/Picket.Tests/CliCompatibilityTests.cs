@@ -184,6 +184,30 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that skipReport rules suppress normal CLI findings.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanSuppressesSkipReportRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "supporting-rule"
+            regex = '''token-[0-9]+'''
+            skipReport = true
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual("[]\n", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that git history scans report committed secrets with commit metadata and fingerprints.
     /// </summary>
     [TestMethod]

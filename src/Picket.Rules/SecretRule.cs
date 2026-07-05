@@ -12,6 +12,7 @@ namespace Picket.Rules;
 /// <param name="allowlists">Per-rule allowlists used to suppress findings.</param>
 /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
 /// <param name="tags">Rule classification tags.</param>
+/// <param name="skipReport">A value indicating whether normal findings for this rule are suppressed.</param>
 public sealed class SecretRule(
     string id,
     string description,
@@ -21,7 +22,8 @@ public sealed class SecretRule(
     string pathPattern = "",
     IReadOnlyList<SecretAllowlist>? allowlists = null,
     IReadOnlyList<string>? keywords = null,
-    IReadOnlyList<string>? tags = null)
+    IReadOnlyList<string>? tags = null,
+    bool skipReport = false)
 {
     /// <summary>
     /// Gets the stable rule identifier.
@@ -69,6 +71,11 @@ public sealed class SecretRule(
     public IReadOnlyList<string> Tags { get; } = tags ?? [];
 
     /// <summary>
+    /// Gets a value indicating whether normal findings for this rule are suppressed.
+    /// </summary>
+    public bool SkipReport { get; } = skipReport;
+
+    /// <summary>
     /// Creates a rule and normalizes optional collection arguments.
     /// </summary>
     /// <param name="id">The stable rule identifier.</param>
@@ -80,6 +87,7 @@ public sealed class SecretRule(
     /// <param name="allowlists">Per-rule allowlists used to suppress findings.</param>
     /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
     /// <param name="tags">Rule classification tags.</param>
+    /// <param name="skipReport">A value indicating whether normal findings for this rule are suppressed.</param>
     /// <returns>The created rule.</returns>
     public static SecretRule Create(
         string id,
@@ -90,7 +98,8 @@ public sealed class SecretRule(
         string pathPattern = "",
         IReadOnlyList<SecretAllowlist>? allowlists = null,
         IReadOnlyList<string>? keywords = null,
-        IReadOnlyList<string>? tags = null)
+        IReadOnlyList<string>? tags = null,
+        bool skipReport = false)
     {
         return new SecretRule(
             id,
@@ -101,7 +110,8 @@ public sealed class SecretRule(
             pathPattern,
             allowlists ?? [],
             keywords ?? [],
-            tags ?? []);
+            tags ?? [],
+            skipReport);
     }
 
     private static string RequireText(string value)
