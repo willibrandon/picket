@@ -483,6 +483,76 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans can write multiple inferred report formats in one run.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesMultipleReportPaths()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string jsonlReportPath = Path.Combine(root.Path, "report.jsonl");
+        string sarifReportPath = Path.Combine(root.Path, "report.sarif");
+        string toonReportPath = Path.Combine(root.Path, "report.toon");
+        File.WriteAllText(jsonlReportPath, "token-99991");
+        File.WriteAllText(sarifReportPath, "token-99992");
+        File.WriteAllText(toonReportPath, "token-99993");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "-r",
+            jsonlReportPath,
+            "-r",
+            sarifReportPath,
+            "-r",
+            toonReportPath).ConfigureAwait(false);
+
+        string jsonl = File.ReadAllText(jsonlReportPath);
+        string sarif = File.ReadAllText(sarifReportPath);
+        string toon = File.ReadAllText(toonReportPath);
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", jsonl);
+        Assert.Contains("\"name\": \"picket\"", sarif);
+        Assert.Contains("summary:\n  findings: 1\n  rules: 1", toon);
+        Assert.DoesNotContain("token-99991", jsonl);
+        Assert.DoesNotContain("token-99992", sarif);
+        Assert.DoesNotContain("token-99993", toon);
+    }
+
+    /// <summary>
+    /// Verifies that explicit report format is rejected for multiple native report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRejectsReportFormatWithMultipleReportPaths()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string jsonReportPath = Path.Combine(root.Path, "report.json");
+        string sarifReportPath = Path.Combine(root.Path, "report.sarif");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "-f",
+            "json",
+            "-r",
+            jsonReportPath,
+            "-r",
+            sarifReportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("report format cannot be specified when multiple report paths are specified", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scans accept --source as the scan root.
     /// </summary>
     [TestMethod]

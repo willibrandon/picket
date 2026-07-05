@@ -359,6 +359,7 @@ static int RunDirectory(
     string? reportPath = null;
     string? reportFormat = null;
     string? reportTemplatePath = null;
+    var reportPaths = new List<string>();
     List<string> enabledRuleIds = [];
     string gitleaksIgnorePath = ".";
     int exitCode = 1;
@@ -435,9 +436,15 @@ static int RunDirectory(
 
         if (arg is "-r" or "--report-path" || arg.StartsWith("--report-path=", StringComparison.Ordinal))
         {
-            if (!TryReadStringFlag(args, ref i, "--report-path", out reportPath))
+            if (!TryReadStringFlag(args, ref i, "--report-path", out string? value))
             {
                 return UnknownFlagExitCode;
+            }
+
+            reportPath = value;
+            if (nativeReportFormats)
+            {
+                reportPaths.Add(value);
             }
 
             continue;
@@ -605,7 +612,7 @@ static int RunDirectory(
 
     string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath);
     string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
-    string? reportDisplayPath = CreateControlFileDisplayPath(root, reportPath);
+    List<string?> reportDisplayPaths = CreateControlFileDisplayPaths(root, reportPath, reportPaths);
     var findings = new List<Finding>();
     bool hadScanError = false;
     foreach (SourceFile file in files)
@@ -617,7 +624,7 @@ static int RunDirectory(
             break;
         }
 
-        if (IsControlFile(file, baselineDisplayPath, configDisplayPath, reportDisplayPath))
+        if (IsControlFile(file, [baselineDisplayPath, configDisplayPath, .. reportDisplayPaths]))
         {
             continue;
         }
@@ -652,7 +659,7 @@ static int RunDirectory(
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeReportFormats))
+    if (!TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeReportFormats))
     {
         return CompleteRun(1, diagnosticsSession);
     }
@@ -2203,6 +2210,55 @@ static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out Gitlea
     }
 }
 
+static bool TryWriteReports(
+    IReadOnlyList<Finding> findings,
+    IReadOnlyList<SecretRule> rules,
+    string? reportPath,
+    IReadOnlyList<string> reportPaths,
+    string? reportFormat,
+    string? reportTemplatePath,
+    bool nativeReportFormats = false)
+{
+    if (!nativeReportFormats || reportPaths.Count <= 1)
+    {
+        return TryWriteReport(findings, rules, reportPath, reportFormat, reportTemplatePath, nativeReportFormats);
+    }
+
+    if (!string.IsNullOrWhiteSpace(reportFormat))
+    {
+        Console.Error.WriteLine("report format cannot be specified when multiple report paths are specified");
+        return false;
+    }
+
+    if (!string.IsNullOrWhiteSpace(reportTemplatePath))
+    {
+        Console.Error.WriteLine("report template cannot be specified when multiple report paths are specified");
+        return false;
+    }
+
+    bool wroteStdout = false;
+    foreach (string path in reportPaths)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.Equals("-", StringComparison.Ordinal))
+        {
+            if (wroteStdout)
+            {
+                Console.Error.WriteLine("standard output can be specified only once when multiple report paths are specified");
+                return false;
+            }
+
+            wroteStdout = true;
+        }
+
+        if (!TryWriteReport(findings, rules, path, reportFormat: null, reportTemplatePath: null, nativeReportFormats))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool TryWriteReport(
     IReadOnlyList<Finding> findings,
     IReadOnlyList<SecretRule> rules,
@@ -2408,6 +2464,23 @@ static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string sourc
     ]);
 }
 
+static List<string?> CreateControlFileDisplayPaths(string root, string? reportPath, IReadOnlyList<string> reportPaths)
+{
+    var displayPaths = new List<string?>();
+    if (reportPaths.Count == 0)
+    {
+        displayPaths.Add(CreateControlFileDisplayPath(root, reportPath));
+        return displayPaths;
+    }
+
+    for (int i = 0; i < reportPaths.Count; i++)
+    {
+        displayPaths.Add(CreateControlFileDisplayPath(root, reportPaths[i]));
+    }
+
+    return displayPaths;
+}
+
 static string? CreateControlFileDisplayPath(string root, string? path)
 {
     if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(root))
@@ -2461,7 +2534,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--enable-rule id] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -2475,7 +2548,7 @@ static void WriteScanHelp()
     Console.Out.WriteLine("picket scan - native filesystem scan");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--source path] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteRulesHelp()
