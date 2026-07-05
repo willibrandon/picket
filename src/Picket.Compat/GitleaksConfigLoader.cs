@@ -112,6 +112,8 @@ public static class GitleaksConfigLoader
         string rulePack = string.Empty;
         string provider = string.Empty;
         string documentationUrl = string.Empty;
+        IReadOnlyList<string> examples = [];
+        IReadOnlyList<string> negativeExamples = [];
         string allowlistDescription = string.Empty;
         AllowlistCondition allowlistCondition = AllowlistCondition.Or;
         List<string> allowlistCommits = [];
@@ -162,6 +164,8 @@ public static class GitleaksConfigLoader
                     rulePack = string.Empty;
                     provider = string.Empty;
                     documentationUrl = string.Empty;
+                    examples = [];
+                    negativeExamples = [];
                     continue;
                 }
 
@@ -384,6 +388,12 @@ public static class GitleaksConfigLoader
                 case "documentationUrl":
                     documentationUrl = ParseString(value, sourceName, key);
                     break;
+                case "examples":
+                    examples = ParseStringArray(value, sourceName, key);
+                    break;
+                case "negativeExamples":
+                    negativeExamples = ParseStringArray(value, sourceName, key);
+                    break;
             }
         }
 
@@ -559,7 +569,9 @@ public static class GitleaksConfigLoader
                 confidence,
                 rulePack,
                 provider,
-                documentationUrl));
+                documentationUrl,
+                examples,
+                negativeExamples));
             ruleAllowlists = [];
             ruleRequiredRules = [];
             hasRule = false;

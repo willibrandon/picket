@@ -58,6 +58,33 @@ public static class GitleaksConfigWriter
 
             AppendStringArray(builder, "keywords", rule.Keywords);
             AppendStringArray(builder, "tags", rule.Tags);
+            if (!rule.Severity.Equals("critical", StringComparison.Ordinal))
+            {
+                AppendString(builder, "severity", rule.Severity);
+            }
+
+            if (!rule.Confidence.Equals("high", StringComparison.Ordinal))
+            {
+                AppendString(builder, "confidence", rule.Confidence);
+            }
+
+            if (rule.RulePack.Length != 0)
+            {
+                AppendString(builder, "rulePack", rule.RulePack);
+            }
+
+            if (rule.Provider.Length != 0)
+            {
+                AppendString(builder, "provider", rule.Provider);
+            }
+
+            if (rule.DocumentationUrl.Length != 0)
+            {
+                AppendString(builder, "documentationUrl", rule.DocumentationUrl);
+            }
+
+            AppendStringArray(builder, "examples", rule.Examples);
+            AppendStringArray(builder, "negativeExamples", rule.NegativeExamples);
             if (rule.SkipReport)
             {
                 builder.AppendLine("skipReport = true");

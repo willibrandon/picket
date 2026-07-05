@@ -44,6 +44,8 @@ Supported rule fields:
 - `rulePack`: native rule-pack identifier such as `gitleaks`, `picket-default`, or `picket-strict`.
 - `provider`: owning provider or credential family.
 - `documentationUrl`: rule documentation or remediation URL.
+- `examples`: positive examples that must produce findings for this rule during rule QA.
+- `negativeExamples`: negative examples that must not produce findings for this rule during rule QA.
 
 Example:
 
@@ -59,6 +61,8 @@ confidence = "medium"
 rulePack = "picket-default"
 provider = "example"
 documentationUrl = "https://example.invalid/rules/sample-token"
+examples = ["token-12345"]
+negativeExamples = ["token-value"]
 ```
 
 ## Allowlists
@@ -106,6 +110,7 @@ Every required rule ID must exist, and a rule must not require itself.
 - invalid regexes and secret capture groups.
 - empty keywords, tags, allowlist entries, and required-rule IDs.
 - required-rule references.
+- positive and negative examples without printing example contents in diagnostics.
 
 `picket rules test <rule-id> <input>` scans sample text with a single rule and writes normal scan output.
 

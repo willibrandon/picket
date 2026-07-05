@@ -3840,7 +3840,8 @@ static void ValidateRulesWithScout(RuleSet ruleSet)
 {
     ValidateUniqueRuleIds(ruleSet.Rules);
     ValidateRuleQuality(ruleSet);
-    _ = CompiledRuleSet.Compile(new RuleSet(ruleSet.Rules, ruleSet.Allowlists));
+    CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(new RuleSet(ruleSet.Rules, ruleSet.Allowlists));
+    ValidateRuleExamples(ruleSet.Rules, compiledRuleSet);
 }
 
 static void ValidateRuleQuality(RuleSet ruleSet)
@@ -3850,9 +3851,60 @@ static void ValidateRuleQuality(RuleSet ruleSet)
     {
         ValidateTextEntries(rule.Id, "keyword", rule.Keywords, StringComparer.OrdinalIgnoreCase);
         ValidateTextEntries(rule.Id, "tag", rule.Tags, StringComparer.Ordinal);
+        ValidateTextEntries(rule.Id, "example", rule.Examples, StringComparer.Ordinal);
+        ValidateTextEntries(rule.Id, "negative example", rule.NegativeExamples, StringComparer.Ordinal);
         ValidateRequiredRules(rule);
         ValidateAllowlists($"rule {rule.Id} allowlist", rule.Allowlists);
     }
+}
+
+static void ValidateRuleExamples(IReadOnlyList<SecretRule> rules, CompiledRuleSet compiledRuleSet)
+{
+    foreach (SecretRule rule in rules)
+    {
+        for (int i = 0; i < rule.Examples.Count; i++)
+        {
+            if (!RuleMatchesExample(rule, rule.Examples[i], compiledRuleSet))
+            {
+                throw new InvalidDataException($"rule {rule.Id}: example {i + 1} did not produce a finding");
+            }
+        }
+
+        for (int i = 0; i < rule.NegativeExamples.Count; i++)
+        {
+            if (RuleMatchesExample(rule, rule.NegativeExamples[i], compiledRuleSet))
+            {
+                throw new InvalidDataException($"rule {rule.Id}: negative example {i + 1} produced a finding");
+            }
+        }
+    }
+}
+
+static bool RuleMatchesExample(SecretRule rule, string example, CompiledRuleSet compiledRuleSet)
+{
+    byte[] input;
+    string fileName;
+    if (rule.Pattern.Length == 0)
+    {
+        input = [];
+        fileName = example;
+    }
+    else
+    {
+        input = Encoding.UTF8.GetBytes(example);
+        fileName = "rules-example.txt";
+    }
+
+    IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, fileName, compiledRuleSet));
+    foreach (Finding finding in findings)
+    {
+        if (finding.RuleID.Equals(rule.Id, StringComparison.Ordinal))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static void ValidateUniqueRuleIds(IReadOnlyList<SecretRule> rules)

@@ -19,7 +19,9 @@ internal sealed class GitleaksRuleDefinition(
     string confidence = "",
     string rulePack = "",
     string provider = "",
-    string documentationUrl = "")
+    string documentationUrl = "",
+    IReadOnlyList<string>? examples = null,
+    IReadOnlyList<string>? negativeExamples = null)
 {
     internal string Id { get; } = id ?? string.Empty;
 
@@ -53,6 +55,10 @@ internal sealed class GitleaksRuleDefinition(
 
     internal string DocumentationUrl { get; } = documentationUrl ?? string.Empty;
 
+    internal IReadOnlyList<string> Examples { get; } = examples ?? [];
+
+    internal IReadOnlyList<string> NegativeExamples { get; } = negativeExamples ?? [];
+
     internal static GitleaksRuleDefinition FromRule(SecretRule rule)
     {
         return new GitleaksRuleDefinition(
@@ -71,7 +77,9 @@ internal sealed class GitleaksRuleDefinition(
             rule.Confidence,
             rule.RulePack,
             rule.Provider,
-            rule.DocumentationUrl);
+            rule.DocumentationUrl,
+            rule.Examples,
+            rule.NegativeExamples);
     }
 
     internal GitleaksRuleDefinition MergeWithBase(SecretRule baseRule)
@@ -92,7 +100,9 @@ internal sealed class GitleaksRuleDefinition(
             Confidence.Length != 0 ? Confidence : baseRule.Confidence,
             RulePack.Length != 0 ? RulePack : baseRule.RulePack,
             Provider.Length != 0 ? Provider : baseRule.Provider,
-            DocumentationUrl.Length != 0 ? DocumentationUrl : baseRule.DocumentationUrl);
+            DocumentationUrl.Length != 0 ? DocumentationUrl : baseRule.DocumentationUrl,
+            Examples.Count != 0 ? Examples : baseRule.Examples,
+            NegativeExamples.Count != 0 ? NegativeExamples : baseRule.NegativeExamples);
     }
 
     internal SecretRule ToRule(string sourceName)
@@ -132,7 +142,9 @@ internal sealed class GitleaksRuleDefinition(
             confidence: Confidence,
             rulePack: RulePack,
             provider: Provider,
-            documentationUrl: DocumentationUrl);
+            documentationUrl: DocumentationUrl,
+            examples: Examples,
+            negativeExamples: NegativeExamples);
     }
 
     internal static string CreateMissingIdMessage(string description, string pattern, string pathPattern)
@@ -247,6 +259,8 @@ internal sealed class GitleaksRuleDefinition(
             Confidence,
             RulePack,
             Provider,
-            DocumentationUrl);
+            DocumentationUrl,
+            Examples,
+            NegativeExamples);
     }
 }

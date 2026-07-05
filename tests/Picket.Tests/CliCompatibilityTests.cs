@@ -2644,6 +2644,13 @@ public sealed class CliCompatibilityTests
             id = "local-token"
             regex = '''local-[0-9]+'''
             keywords = ["local"]
+            severity = "high"
+            confidence = "medium"
+            rulePack = "picket-default"
+            provider = "example"
+            documentationUrl = "https://example.invalid/rules/local-token"
+            examples = ["local-12345"]
+            negativeExamples = ["local-token"]
             """);
 
         CliResult printed = await RunCliAsync("rules", "check", "-c", configPath, "--print-config").ConfigureAwait(false);
@@ -2656,8 +2663,86 @@ public sealed class CliCompatibilityTests
         Assert.Contains("[[rules]]", printed.Stdout);
         Assert.Contains("id = \"base-token\"", printed.Stdout);
         Assert.Contains("id = \"local-token\"", printed.Stdout);
+        Assert.Contains("severity = \"high\"", printed.Stdout);
+        Assert.Contains("confidence = \"medium\"", printed.Stdout);
+        Assert.Contains("rulePack = \"picket-default\"", printed.Stdout);
+        Assert.Contains("provider = \"example\"", printed.Stdout);
+        Assert.Contains("documentationUrl = \"https://example.invalid/rules/local-token\"", printed.Stdout);
+        Assert.Contains("examples = [\"local-12345\"]", printed.Stdout);
+        Assert.Contains("negativeExamples = [\"local-token\"]", printed.Stdout);
         Assert.AreEqual(0, checkedAgain.ExitCode);
         Assert.Contains("rules ok: 2 rules", checkedAgain.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that rules check accepts rule examples that match and negative examples that do not.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckValidatesRuleExamples()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            examples = ["token-12345"]
+            negativeExamples = ["token-value"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("rules ok: 1 rule", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects positive examples that do not produce findings.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsUnmatchedRuleExample()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            examples = ["token-value"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("rule token: example 1 did not produce a finding", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects negative examples that produce findings.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsMatchedNegativeRuleExample()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            negativeExamples = ["token-12345"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("rule token: negative example 1 produced a finding", result.Stderr);
     }
 
     /// <summary>

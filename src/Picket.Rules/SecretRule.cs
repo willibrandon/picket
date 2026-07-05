@@ -19,6 +19,8 @@ namespace Picket.Rules;
 /// <param name="rulePack">The native rule pack that supplied the rule.</param>
 /// <param name="provider">The owning provider or credential family.</param>
 /// <param name="documentationUrl">The rule documentation or remediation URL.</param>
+/// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
+/// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
 public sealed class SecretRule(
     string id,
     string description,
@@ -35,7 +37,9 @@ public sealed class SecretRule(
     string confidence = "",
     string rulePack = "",
     string provider = "",
-    string documentationUrl = "")
+    string documentationUrl = "",
+    IReadOnlyList<string>? examples = null,
+    IReadOnlyList<string>? negativeExamples = null)
 {
     /// <summary>
     /// Gets the stable rule identifier.
@@ -118,6 +122,16 @@ public sealed class SecretRule(
     public string DocumentationUrl { get; } = documentationUrl ?? string.Empty;
 
     /// <summary>
+    /// Gets positive examples that must produce findings for this rule during rule QA.
+    /// </summary>
+    public IReadOnlyList<string> Examples { get; } = examples ?? [];
+
+    /// <summary>
+    /// Gets negative examples that must not produce findings for this rule during rule QA.
+    /// </summary>
+    public IReadOnlyList<string> NegativeExamples { get; } = negativeExamples ?? [];
+
+    /// <summary>
     /// Creates a rule and normalizes optional collection arguments.
     /// </summary>
     /// <param name="id">The stable rule identifier.</param>
@@ -136,6 +150,8 @@ public sealed class SecretRule(
     /// <param name="rulePack">The native rule pack that supplied the rule.</param>
     /// <param name="provider">The owning provider or credential family.</param>
     /// <param name="documentationUrl">The rule documentation or remediation URL.</param>
+    /// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
+    /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
     /// <returns>The created rule.</returns>
     public static SecretRule Create(
         string id,
@@ -153,7 +169,9 @@ public sealed class SecretRule(
         string confidence = "",
         string rulePack = "",
         string provider = "",
-        string documentationUrl = "")
+        string documentationUrl = "",
+        IReadOnlyList<string>? examples = null,
+        IReadOnlyList<string>? negativeExamples = null)
     {
         return new SecretRule(
             id,
@@ -171,7 +189,9 @@ public sealed class SecretRule(
             confidence,
             rulePack,
             provider,
-            documentationUrl);
+            documentationUrl,
+            examples ?? [],
+            negativeExamples ?? []);
     }
 
     private static string RequireText(string value)

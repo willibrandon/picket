@@ -155,6 +155,8 @@ public sealed class GitleaksConfigLoaderTests
             rulePack = "picket-strict"
             provider = "custom"
             documentationUrl = "https://example.invalid/rules/custom-token"
+            examples = ["token-12345"]
+            negativeExamples = ["token-value"]
             """,
             "memory");
 
@@ -164,6 +166,10 @@ public sealed class GitleaksConfigLoaderTests
         Assert.AreEqual("picket-strict", rule.RulePack);
         Assert.AreEqual("custom", rule.Provider);
         Assert.AreEqual("https://example.invalid/rules/custom-token", rule.DocumentationUrl);
+        Assert.HasCount(1, rule.Examples);
+        Assert.AreEqual("token-12345", rule.Examples[0]);
+        Assert.HasCount(1, rule.NegativeExamples);
+        Assert.AreEqual("token-value", rule.NegativeExamples[0]);
     }
 
     /// <summary>
