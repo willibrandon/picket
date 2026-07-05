@@ -375,20 +375,55 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that diagnostics requests fail until diagnostics output is implemented.
+    /// Verifies that diagnostics modes write scan artifacts without changing scan output.
     /// </summary>
     [TestMethod]
-    public async Task DirectoryScanRejectsDiagnosticsUntilImplemented()
+    public async Task DirectoryScanWritesDiagnosticsArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string diagnosticsDir = Path.Combine(root.Path, "diagnostics");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync(
+            "dir",
+            root.Path,
+            "-c",
+            configPath,
+            "--diagnostics",
+            "cpu,mem,trace",
+            "--diagnostics-dir",
+            diagnosticsDir).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+        string cpu = File.ReadAllText(Path.Combine(diagnosticsDir, "cpu.json"));
+        string memory = File.ReadAllText(Path.Combine(diagnosticsDir, "mem.json"));
+        string trace = File.ReadAllText(Path.Combine(diagnosticsDir, "trace.jsonl"));
+        Assert.Contains("\"diagnostic\": \"cpu\"", cpu);
+        Assert.Contains("\"command\": \"dir\"", cpu);
+        Assert.Contains("\"exitCode\": 1", cpu);
+        Assert.Contains("\"diagnostic\": \"mem\"", memory);
+        Assert.Contains("\"allocatedBytes\"", memory);
+        Assert.Contains("\"event\":\"scan.start\"", trace);
+        Assert.Contains("\"event\":\"scan.stop\"", trace);
+    }
+
+    /// <summary>
+    /// Verifies that unsupported HTTP diagnostics fail explicitly.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsHttpDiagnostics()
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics", "cpu").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics=http").ConfigureAwait(false);
 
         Assert.AreEqual(126, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.Contains("--diagnostics is not implemented yet", result.Stderr);
+        Assert.Contains("--diagnostics=http is not supported yet", result.Stderr);
     }
 
     /// <summary>

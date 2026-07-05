@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Picket;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
@@ -57,6 +58,8 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
 {
     string? baselinePath = null;
     string? configPath = null;
+    string? diagnostics = null;
+    string? diagnosticsDir = null;
     string? reportPath = null;
     string? reportFormat = null;
     string? reportTemplatePath = null;
@@ -179,6 +182,26 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
             continue;
         }
 
+        if (IsDiagnosticsFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--diagnostics", out diagnostics))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsDiagnosticsDirFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--diagnostics-dir", out diagnosticsDir))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -193,18 +216,23 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
         return UnknownFlagExitCode;
     }
 
+    if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "stdin", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
+    {
+        return UnknownFlagExitCode;
+    }
+
     long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
     if (!TryLoadRules(configPath, configSource, enabledRuleIds, out CompiledRuleSet? rules))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     if (IsTimedOut(timeoutTimestamp))
@@ -212,10 +240,10 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
         Console.Error.WriteLine(TimeoutErrorMessage);
         if (!TryWriteReport([], rules.Rules, reportPath, reportFormat, reportTemplatePath))
         {
-            return 1;
+            return CompleteRun(1, diagnosticsSession);
         }
 
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     IReadOnlyList<Finding> findings = baseline.Filter(
@@ -228,16 +256,18 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
 
     if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
-    return findings.Count == 0 ? 0 : exitCode;
+    return CompleteRun(findings.Count == 0 ? 0 : exitCode, diagnosticsSession);
 }
 
 static int RunDirectory(string[] args)
 {
     string? baselinePath = null;
     string? configPath = null;
+    string? diagnostics = null;
+    string? diagnosticsDir = null;
     string? reportPath = null;
     string? reportFormat = null;
     string? reportTemplatePath = null;
@@ -406,6 +436,26 @@ static int RunDirectory(string[] args)
             continue;
         }
 
+        if (IsDiagnosticsFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--diagnostics", out diagnostics))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsDiagnosticsDirFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--diagnostics-dir", out diagnosticsDir))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -437,17 +487,22 @@ static int RunDirectory(string[] args)
         return UnknownFlagExitCode;
     }
 
+    if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "dir", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
+    {
+        return UnknownFlagExitCode;
+    }
+
     long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
     IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes, followSymlinks, maxArchiveDepth));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
     if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath);
@@ -494,21 +549,23 @@ static int RunDirectory(string[] args)
 
     if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     if (hadScanError)
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
-    return filteredFindings.Count == 0 ? 0 : exitCode;
+    return CompleteRun(filteredFindings.Count == 0 ? 0 : exitCode, diagnosticsSession);
 }
 
 static int RunGit(string[] args)
 {
     string? baselinePath = null;
     string? configPath = null;
+    string? diagnostics = null;
+    string? diagnosticsDir = null;
     string? reportPath = null;
     string? reportFormat = null;
     string? reportTemplatePath = null;
@@ -711,6 +768,26 @@ static int RunGit(string[] args)
             continue;
         }
 
+        if (IsDiagnosticsFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--diagnostics", out diagnostics))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
+        if (IsDiagnosticsDirFlag(arg))
+        {
+            if (!TryReadStringFlag(args, ref i, "--diagnostics-dir", out diagnosticsDir))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -742,14 +819,19 @@ static int RunGit(string[] args)
         return UnknownFlagExitCode;
     }
 
+    if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "git", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
+    {
+        return UnknownFlagExitCode;
+    }
+
     if (!TryLoadRules(configPath, root, enabledRuleIds, out CompiledRuleSet? rules))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
@@ -761,7 +843,7 @@ static int RunGit(string[] args)
     catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
     {
         Console.Error.WriteLine(ex.Message);
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
@@ -775,16 +857,16 @@ static int RunGit(string[] args)
 
     if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath))
     {
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
     if (timedOut)
     {
         Console.Error.WriteLine(TimeoutErrorMessage);
-        return 1;
+        return CompleteRun(1, diagnosticsSession);
     }
 
-    return filteredFindings.Count == 0 ? 0 : exitCode;
+    return CompleteRun(filteredFindings.Count == 0 ? 0 : exitCode, diagnosticsSession);
 }
 
 static async Task<int> RunDetectAsync(string[] args)
@@ -1302,6 +1384,16 @@ static bool IsTimedOut(long timeoutTimestamp)
     return timeoutTimestamp != 0 && Stopwatch.GetTimestamp() >= timeoutTimestamp;
 }
 
+static int CompleteRun(int exitCode, CompatibilityDiagnosticsSession? diagnosticsSession)
+{
+    if (diagnosticsSession is null)
+    {
+        return exitCode;
+    }
+
+    return diagnosticsSession.TryComplete(exitCode, Console.Error) ? exitCode : 1;
+}
+
 static bool LooksBinary(ReadOnlySpan<byte> input)
 {
     int length = Math.Min(input.Length, BinaryProbeLength);
@@ -1622,27 +1714,6 @@ static bool TryHandleCommonCompatibilityFlag(string[] args, ref int index, out b
     if (IsTimeoutFlag(arg))
     {
         return TryReadUnsupportedPositiveIntFlag(args, ref index, "--timeout");
-    }
-
-    if (IsDiagnosticsFlag(arg))
-    {
-        if (!TryReadStringFlag(args, ref index, "--diagnostics", out string? diagnostics))
-        {
-            return false;
-        }
-
-        if (diagnostics.Length == 0)
-        {
-            return true;
-        }
-
-        Console.Error.WriteLine("--diagnostics is not implemented yet");
-        return false;
-    }
-
-    if (IsDiagnosticsDirFlag(arg))
-    {
-        return TryReadStringFlag(args, ref index, "--diagnostics-dir", out _);
     }
 
     handled = false;
