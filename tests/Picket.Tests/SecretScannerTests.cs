@@ -20,7 +20,7 @@ public sealed class SecretScannerTests
 
         CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
 
-        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.HasCount(1, findings);
         Finding finding = findings[0];
@@ -40,7 +40,7 @@ public sealed class SecretScannerTests
 
         CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
 
-        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.IsEmpty(findings);
     }
@@ -61,7 +61,7 @@ public sealed class SecretScannerTests
         ]);
         CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
 
-        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.IsEmpty(findings);
     }
@@ -82,7 +82,7 @@ public sealed class SecretScannerTests
         ]);
         CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
 
-        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.HasCount(1, findings);
         Assert.AreEqual("keyword-gated", findings[0].RuleID);
@@ -103,7 +103,7 @@ public sealed class SecretScannerTests
         ]);
         CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
 
-        IReadOnlyList<Finding> findings = new SecretScanner().Scan(new ScanRequest(input, "stdin", rules));
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 
         Assert.HasCount(1, findings);
         Assert.AreEqual("no-keyword", findings[0].RuleID);

@@ -26,10 +26,7 @@ public readonly struct SourcePosition(int line, int column) : IEquatable<SourceP
     public static SourcePosition FromOffset(ReadOnlySpan<byte> input, int offset)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
-        if (offset > input.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(offset));
-        }
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(offset, input.Length);
 
         int line = 1;
         int column = 1;

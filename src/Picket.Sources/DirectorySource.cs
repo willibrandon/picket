@@ -12,7 +12,7 @@ public sealed class DirectorySource
     /// </summary>
     /// <param name="options">The directory scan options.</param>
     /// <returns>The source files in deterministic order.</returns>
-    public IReadOnlyList<SourceFile> Enumerate(DirectoryScanOptions options)
+    public static IReadOnlyList<SourceFile> Enumerate(DirectoryScanOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 

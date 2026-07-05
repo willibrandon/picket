@@ -12,7 +12,7 @@ public sealed class SecretScanner
     /// <summary>
     /// Scans a byte buffer and returns findings in rule evaluation order.
     /// </summary>
-    public IReadOnlyList<Finding> Scan(ScanRequest request)
+    public static IReadOnlyList<Finding> Scan(ScanRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 

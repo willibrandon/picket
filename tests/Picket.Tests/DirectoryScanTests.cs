@@ -25,12 +25,11 @@ public sealed class DirectoryScanTests
             File.WriteAllText(Path.Combine(nested, "secret.txt"), "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF");
 
             CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
-            var scanner = new SecretScanner();
             var findings = new List<Finding>();
-            foreach (SourceFile file in new DirectorySource().Enumerate(new DirectoryScanOptions(root)))
+            foreach (SourceFile file in DirectorySource.Enumerate(new DirectoryScanOptions(root)))
             {
                 byte[] input = File.ReadAllBytes(file.FullPath);
-                findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
+                findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
             }
 
             Assert.HasCount(1, findings);
@@ -57,12 +56,11 @@ public sealed class DirectoryScanTests
 
             CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
             GitleaksIgnore ignore = GitleaksIgnore.Load(Path.Combine(root, ".gitleaksignore"));
-            var scanner = new SecretScanner();
             var findings = new List<Finding>();
-            foreach (SourceFile file in new DirectorySource().Enumerate(new DirectoryScanOptions(root)))
+            foreach (SourceFile file in DirectorySource.Enumerate(new DirectoryScanOptions(root)))
             {
                 byte[] input = File.ReadAllBytes(file.FullPath);
-                findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
+                findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
             }
 
             IReadOnlyList<Finding> filtered = ignore.Filter(findings);

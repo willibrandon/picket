@@ -26,7 +26,7 @@ public sealed partial class RepositoryConventionTests
                 continue;
             }
 
-            int typeCount = s_typeDeclarationPattern.Matches(File.ReadAllText(file)).Count;
+            int typeCount = s_typeDeclarationPattern.Count(File.ReadAllText(file));
             if (typeCount > 1)
             {
                 violations.Add(Path.GetRelativePath(root, file));

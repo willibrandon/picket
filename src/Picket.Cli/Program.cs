@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
@@ -34,10 +35,23 @@ return UnknownFlagExitCode;
 
 static async Task<int> RunStdinAsync(string[] args)
 {
+    string? configPath = null;
     string reportFormat = "json";
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
+        if (arg is "-c" or "--config")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            configPath = args[++i];
+            continue;
+        }
+
         if (arg is "-f" or "--report-format")
         {
             if (i + 1 >= args.Length)
@@ -63,15 +77,19 @@ static async Task<int> RunStdinAsync(string[] args)
     using var stream = new MemoryStream();
     await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
     byte[] input = stream.ToArray();
-    CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
-    var scanner = new SecretScanner();
-    IReadOnlyList<Finding> findings = scanner.Scan(new ScanRequest(input, "stdin", rules));
+    if (!TryLoadRules(configPath, "stdin", out CompiledRuleSet? rules))
+    {
+        return 1;
+    }
+
+    IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
     Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
     return findings.Count == 0 ? 0 : 1;
 }
 
 static int RunDirectory(string[] args)
 {
+    string? configPath = null;
     string reportFormat = "json";
     string gitleaksIgnorePath = ".";
     long? maxTargetBytes = null;
@@ -79,6 +97,18 @@ static int RunDirectory(string[] args)
     for (int i = 0; i < args.Length; i++)
     {
         string arg = args[i];
+        if (arg is "-c" or "--config")
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.Error.WriteLine($"{arg} requires a value");
+                return UnknownFlagExitCode;
+            }
+
+            configPath = args[++i];
+            continue;
+        }
+
         if (arg is "-f" or "--report-format")
         {
             if (i + 1 >= args.Length)
@@ -120,7 +150,7 @@ static int RunDirectory(string[] args)
             continue;
         }
 
-        if (arg.StartsWith("-", StringComparison.Ordinal))
+        if (arg.StartsWith('-'))
         {
             Console.Error.WriteLine($"unknown flag: {arg}");
             return UnknownFlagExitCode;
@@ -147,15 +177,18 @@ static int RunDirectory(string[] args)
         return UnknownFlagExitCode;
     }
 
-    IReadOnlyList<SourceFile> files = new DirectorySource().Enumerate(new DirectoryScanOptions(root, maxTargetBytes));
+    IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes));
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
-    CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+    if (!TryLoadRules(configPath, root, out CompiledRuleSet? rules))
+    {
+        return 1;
+    }
+
     var findings = new List<Finding>();
-    var scanner = new SecretScanner();
     foreach (SourceFile file in files)
     {
         byte[] input = File.ReadAllBytes(file.FullPath);
-        findings.AddRange(scanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
+        findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules)));
     }
 
     IReadOnlyList<Finding> filteredFindings = gitleaksIgnore.Filter(findings);
@@ -187,6 +220,22 @@ static bool TryParseMegabytes(string value, out long? bytes)
     return true;
 }
 
+static bool TryLoadRules(string? configPath, string source, [NotNullWhen(true)] out CompiledRuleSet? rules)
+{
+    try
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.LoadRuleSet(configPath, source);
+        rules = CompiledRuleSet.Compile(ruleSet);
+        return true;
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or NotSupportedException or ArgumentException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        rules = null;
+        return false;
+    }
+}
+
 static GitleaksIgnore LoadGitleaksIgnore(string gitleaksIgnorePath, string source)
 {
     return GitleaksIgnore.LoadExisting([
@@ -201,7 +250,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-f json] [-i path] [--max-target-megabytes n]");
-    Console.Out.WriteLine("  picket stdin [-f json]");
+    Console.Out.WriteLine("  picket dir <path> [-c path] [-f json] [-i path] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket stdin [-c path] [-f json]");
     Console.Out.WriteLine("  picket version");
 }

@@ -21,7 +21,7 @@ public sealed class DirectorySourceTests
             File.WriteAllText(Path.Combine(root, "ignored.txt"), "secret");
             File.WriteAllText(Path.Combine(root, ".hidden"), "hidden");
 
-            IReadOnlyList<SourceFile> files = new DirectorySource().Enumerate(new DirectoryScanOptions(root));
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root));
             string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
 
             Assert.Contains(".hidden", displayPaths);
@@ -46,7 +46,7 @@ public sealed class DirectorySourceTests
             File.WriteAllText(Path.Combine(root, "small.txt"), "123");
             File.WriteAllText(Path.Combine(root, "large.txt"), "123456");
 
-            IReadOnlyList<SourceFile> files = new DirectorySource().Enumerate(new DirectoryScanOptions(root, maxTargetBytes: 3));
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxTargetBytes: 3));
             string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
 
             Assert.Contains("small.txt", displayPaths);

@@ -25,7 +25,7 @@ public sealed class SecretRule(
     /// <summary>
     /// Gets the user-facing rule description.
     /// </summary>
-    public string Description { get; } = RequireText(description);
+    public string Description { get; } = description ?? string.Empty;
 
     /// <summary>
     /// Gets the regex pattern in the compatibility dialect.

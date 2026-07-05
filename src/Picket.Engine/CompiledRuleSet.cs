@@ -14,7 +14,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
     /// </summary>
     public IReadOnlyList<SecretRule> Rules { get; } = RequireRules(rules).Rules;
 
-    internal IReadOnlyList<CompiledRule> CompiledRules { get; } = CompileRules(rules);
+    internal List<CompiledRule> CompiledRules { get; } = CompileRules(rules);
 
     /// <summary>
     /// Compiles a source rule set.
@@ -32,7 +32,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
         return rules;
     }
 
-    private static IReadOnlyList<CompiledRule> CompileRules(RuleSet rules)
+    private static List<CompiledRule> CompileRules(RuleSet rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
 
