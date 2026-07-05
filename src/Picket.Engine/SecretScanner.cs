@@ -16,21 +16,78 @@ public sealed class SecretScanner
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        ReadOnlySpan<byte> input = request.Input.Span;
+        ReadOnlySpan<byte> originalInput = request.Input.Span;
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
         byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
         var findings = new List<Finding>();
 
-        foreach (CompiledRule compiledRule in request.RuleSet.CompiledRules)
+        ScanPass(
+            originalInput,
+            originalInput,
+            null,
+            request.FileName,
+            fileNameBytes,
+            windowsFileNameBytes,
+            request.RuleSet,
+            request.IgnoreGitleaksAllow,
+            request.Commit,
+            findings);
+
+        if (request.MaxDecodeDepth == 0)
         {
-            List<Finding> ruleFindings = ScanCompiledRule(
-                input,
+            return findings;
+        }
+
+        DecodedInput current = DecodedInput.CreateOriginal(originalInput);
+        for (int depth = 0; depth < request.MaxDecodeDepth; depth++)
+        {
+            DecodedInput? decoded = SecretDecoder.Decode(current);
+            if (decoded is null)
+            {
+                break;
+            }
+
+            ScanPass(
+                decoded.Bytes,
+                originalInput,
+                decoded,
                 request.FileName,
                 fileNameBytes,
                 windowsFileNameBytes,
-                request.RuleSet.Allowlists,
+                request.RuleSet,
                 request.IgnoreGitleaksAllow,
                 request.Commit,
+                findings);
+            current = decoded;
+        }
+
+        return findings;
+    }
+
+    private static void ScanPass(
+        ReadOnlySpan<byte> input,
+        ReadOnlySpan<byte> originalInput,
+        DecodedInput? decodedInput,
+        string fileName,
+        ReadOnlySpan<byte> fileNameBytes,
+        ReadOnlySpan<byte> windowsFileNameBytes,
+        CompiledRuleSet ruleSet,
+        bool ignoreGitleaksAllow,
+        string commit,
+        List<Finding> findings)
+    {
+        foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
+        {
+            List<Finding> ruleFindings = ScanCompiledRule(
+                input,
+                originalInput,
+                decodedInput,
+                fileName,
+                fileNameBytes,
+                windowsFileNameBytes,
+                ruleSet.Allowlists,
+                ignoreGitleaksAllow,
+                commit,
                 compiledRule,
                 includeSkipReport: false);
             if (compiledRule.Rule.RequiredRules.Count != 0)
@@ -38,23 +95,25 @@ public sealed class SecretScanner
                 ruleFindings = FilterRequiredFindings(
                     ruleFindings,
                     input,
-                    request.FileName,
+                    originalInput,
+                    decodedInput,
+                    fileName,
                     fileNameBytes,
                     windowsFileNameBytes,
-                    request.RuleSet,
-                    request.IgnoreGitleaksAllow,
-                    request.Commit,
+                    ruleSet,
+                    ignoreGitleaksAllow,
+                    commit,
                     compiledRule);
             }
 
             findings.AddRange(ruleFindings);
         }
-
-        return findings;
     }
 
     private static List<Finding> ScanCompiledRule(
         ReadOnlySpan<byte> input,
+        ReadOnlySpan<byte> originalInput,
+        DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
         ReadOnlySpan<byte> windowsFileNameBytes,
@@ -81,6 +140,8 @@ public sealed class SecretScanner
             {
                 ScanGenericApiKeyRule(
                     input,
+                    originalInput,
+                    decodedInput,
                     fileName,
                     fileNameBytes,
                     windowsFileNameBytes,
@@ -96,6 +157,11 @@ public sealed class SecretScanner
 
         if (!compiledRule.HasContentPattern)
         {
+            if (decodedInput is not null)
+            {
+                return findings;
+            }
+
             if (!IsAllowed(
                 globalAllowlists,
                 compiledRule.Allowlists,
@@ -118,6 +184,8 @@ public sealed class SecretScanner
             ByteRegex regex = compiledRule.Regex ?? throw new InvalidOperationException("Content rule regex was not compiled.");
             ScanRule(
                 input,
+                originalInput,
+                decodedInput,
                 fileName,
                 fileNameBytes,
                 windowsFileNameBytes,
@@ -135,6 +203,8 @@ public sealed class SecretScanner
     private static List<Finding> FilterRequiredFindings(
         List<Finding> primaryFindings,
         ReadOnlySpan<byte> input,
+        ReadOnlySpan<byte> originalInput,
+        DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
         ReadOnlySpan<byte> windowsFileNameBytes,
@@ -163,6 +233,8 @@ public sealed class SecretScanner
                     ? []
                     : ScanCompiledRule(
                         input,
+                        originalInput,
+                        decodedInput,
                         fileName,
                         fileNameBytes,
                         windowsFileNameBytes,
@@ -256,6 +328,8 @@ public sealed class SecretScanner
 
     private static void ScanGenericApiKeyRule(
         ReadOnlySpan<byte> input,
+        ReadOnlySpan<byte> originalInput,
+        DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
         ReadOnlySpan<byte> windowsFileNameBytes,
@@ -269,6 +343,12 @@ public sealed class SecretScanner
         int offset = 0;
         while (GenericApiKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
         {
+            if (!TryMapMatch(decodedInput, matchStart, matchEnd, out int reportStart, out int reportEnd, out IReadOnlyList<string> decodeTags))
+            {
+                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+                continue;
+            }
+
             ReadOnlySpan<byte> secretBytes = input[secretStart..secretEnd];
             double entropy = ShannonEntropy.Calculate(secretBytes);
             if (rule.Entropy > 0 && entropy <= rule.Entropy)
@@ -277,10 +357,12 @@ public sealed class SecretScanner
                 continue;
             }
 
-            SourcePosition start = SourcePosition.FromOffset(input, matchStart);
-            SourcePosition end = SourcePosition.FromOffset(input, matchEnd);
+            ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
+            SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
+            SourcePosition end = SourcePosition.FromOffset(reportInput, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
-            ReadOnlySpan<byte> lineBytes = ExtractLine(input, matchStart);
+            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
+            ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
             {
                 offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
@@ -297,7 +379,7 @@ public sealed class SecretScanner
                 windowsFileNameBytes,
                 matchBytes,
                 secretBytes,
-                lineBytes,
+                allowlistLineBytes,
                 secretText,
                 commit))
             {
@@ -322,7 +404,7 @@ public sealed class SecretScanner
                 string.Empty,
                 string.Empty,
                 string.Empty,
-                rule.Tags,
+                CombineTags(rule.Tags, decodeTags),
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText));
 
@@ -332,6 +414,8 @@ public sealed class SecretScanner
 
     private static void ScanRule(
         ReadOnlySpan<byte> input,
+        ReadOnlySpan<byte> originalInput,
+        DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
         ReadOnlySpan<byte> windowsFileNameBytes,
@@ -353,6 +437,12 @@ public sealed class SecretScanner
             }
 
             ByteRegexMatch match = captures.Match;
+            if (!TryMapMatch(decodedInput, match.Start, match.End, out int reportStart, out int reportEnd, out IReadOnlyList<string> decodeTags))
+            {
+                offset = AdvanceAfterMatch(match, input.Length);
+                continue;
+            }
+
             ByteRegexMatch secret = ResolveSecret(captures, rule.SecretGroup);
             ReadOnlySpan<byte> secretBytes = secret.Value(input);
             double entropy = ShannonEntropy.Calculate(secretBytes);
@@ -362,10 +452,12 @@ public sealed class SecretScanner
                 continue;
             }
 
-            SourcePosition start = SourcePosition.FromOffset(input, match.Start);
-            SourcePosition end = SourcePosition.FromOffset(input, match.End);
+            ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
+            SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
+            SourcePosition end = SourcePosition.FromOffset(reportInput, reportEnd);
             ReadOnlySpan<byte> matchBytes = match.Value(input);
-            ReadOnlySpan<byte> lineBytes = ExtractLine(input, match.Start);
+            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
+            ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, match.Start);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
             {
                 offset = AdvanceAfterMatch(match, input.Length);
@@ -382,7 +474,7 @@ public sealed class SecretScanner
                 windowsFileNameBytes,
                 matchBytes,
                 secretBytes,
-                lineBytes,
+                allowlistLineBytes,
                 secretText,
                 commit))
             {
@@ -407,12 +499,96 @@ public sealed class SecretScanner
                 string.Empty,
                 string.Empty,
                 string.Empty,
-                rule.Tags,
+                CombineTags(rule.Tags, decodeTags),
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText));
 
             offset = AdvanceAfterMatch(match, input.Length);
         }
+    }
+
+    private static bool TryMapMatch(
+        DecodedInput? decodedInput,
+        int matchStart,
+        int matchEnd,
+        out int reportStart,
+        out int reportEnd,
+        out IReadOnlyList<string> decodeTags)
+    {
+        if (decodedInput is null)
+        {
+            reportStart = matchStart;
+            reportEnd = matchEnd;
+            decodeTags = [];
+            return true;
+        }
+
+        bool hasOverlap = false;
+        int originalStart = int.MaxValue;
+        int originalEnd = 0;
+        int depth = 0;
+        DecodedEncoding encodings = DecodedEncoding.None;
+        foreach (DecodedSegment segment in decodedInput.Segments)
+        {
+            if (!segment.OverlapsDecoded(matchStart, matchEnd))
+            {
+                continue;
+            }
+
+            hasOverlap = true;
+            originalStart = Math.Min(originalStart, segment.OriginalStart);
+            originalEnd = Math.Max(originalEnd, segment.OriginalEnd);
+            depth = Math.Max(depth, segment.Depth);
+            encodings |= segment.Encodings;
+        }
+
+        if (!hasOverlap)
+        {
+            reportStart = 0;
+            reportEnd = 0;
+            decodeTags = [];
+            return false;
+        }
+
+        reportStart = originalStart;
+        reportEnd = originalEnd;
+        decodeTags = CreateDecodeTags(encodings, depth);
+        return true;
+    }
+
+    private static IReadOnlyList<string> CreateDecodeTags(DecodedEncoding encodings, int depth)
+    {
+        var tags = new List<string>(4);
+        if ((encodings & DecodedEncoding.Percent) != 0)
+        {
+            tags.Add("decoded:percent");
+        }
+
+        if ((encodings & DecodedEncoding.Hex) != 0)
+        {
+            tags.Add("decoded:hex");
+        }
+
+        if ((encodings & DecodedEncoding.Base64) != 0)
+        {
+            tags.Add("decoded:base64");
+        }
+
+        tags.Add($"decode-depth:{depth}");
+        return tags;
+    }
+
+    private static IReadOnlyList<string> CombineTags(IReadOnlyList<string> ruleTags, IReadOnlyList<string> decodeTags)
+    {
+        if (decodeTags.Count == 0)
+        {
+            return ruleTags;
+        }
+
+        var tags = new List<string>(ruleTags.Count + decodeTags.Count);
+        tags.AddRange(ruleTags);
+        tags.AddRange(decodeTags);
+        return tags;
     }
 
     private static bool IsAllowed(

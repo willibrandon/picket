@@ -515,6 +515,49 @@ public sealed class SecretScannerTests
         Assert.HasCount(1, detected);
     }
 
+    /// <summary>
+    /// Verifies that base64 decoded findings report decoded text with original source locations.
+    /// </summary>
+    [TestMethod]
+    public void ScanFindsBase64EncodedSecretWithOriginalLocation()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("before\nencoded=dG9rZW4tMTIzNDU=\nafter\n");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.HasCount(1, findings);
+        Finding finding = findings[0];
+        Assert.AreEqual("token-12345", finding.Secret);
+        Assert.AreEqual("token-12345", finding.Match);
+        Assert.AreEqual(2, finding.StartLine);
+        Assert.AreEqual("encoded=dG9rZW4tMTIzNDU=", finding.Line);
+        Assert.AreEqual("secret.txt:token:2", finding.Fingerprint);
+        Assert.Contains("decoded:base64", finding.Tags);
+        Assert.Contains("decode-depth:1", finding.Tags);
+    }
+
+    /// <summary>
+    /// Verifies that recursive decoding honors the configured maximum depth.
+    /// </summary>
+    [TestMethod]
+    public void ScanHonorsMaxDecodeDepth()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("encoded=%64%47%39%72%5a%57%34%74%4d%54%49%7a%4e%44%55%3d");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> shallowFindings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules, maxDecodeDepth: 1));
+        IReadOnlyList<Finding> recursiveFindings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules, maxDecodeDepth: 2));
+
+        Assert.IsEmpty(shallowFindings);
+        Assert.HasCount(1, recursiveFindings);
+        Finding finding = recursiveFindings[0];
+        Assert.AreEqual("token-12345", finding.Secret);
+        Assert.Contains("decoded:percent", finding.Tags);
+        Assert.Contains("decoded:base64", finding.Tags);
+        Assert.Contains("decode-depth:2", finding.Tags);
+    }
+
     private static CompiledRuleSet CompileTokenRule()
     {
         return CompiledRuleSet.Compile(new RuleSet([

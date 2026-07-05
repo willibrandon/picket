@@ -59,6 +59,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     string? reportTemplatePath = null;
     List<string> enabledRuleIds = [];
     int exitCode = 1;
+    int maxDecodeDepth = 5;
     bool ignoreGitleaksAllow = false;
     int redactionPercent = 0;
     for (int i = 0; i < args.Length; i++)
@@ -154,6 +155,16 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
             continue;
         }
 
+        if (IsMaxDecodeDepthFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -182,7 +193,7 @@ static async Task<int> RunStdinAsync(string[] args, string configSource = "stdin
     }
 
     IReadOnlyList<Finding> findings = baseline.Filter(
-        SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow)),
+        SecretScanner.Scan(new ScanRequest(input, "stdin", rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth)),
         redactionPercent);
     if (redactionPercent > 0)
     {
@@ -209,6 +220,7 @@ static int RunDirectory(string[] args)
     int exitCode = 1;
     bool followSymlinks = false;
     bool ignoreGitleaksAllow = false;
+    int maxDecodeDepth = 5;
     long? maxTargetBytes = null;
     int redactionPercent = 0;
     string? root = null;
@@ -336,6 +348,16 @@ static int RunDirectory(string[] args)
             continue;
         }
 
+        if (IsMaxDecodeDepthFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -394,7 +416,7 @@ static int RunDirectory(string[] args)
         try
         {
             byte[] input = File.ReadAllBytes(file.FullPath);
-            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow)));
+            findings.AddRange(SecretScanner.Scan(new ScanRequest(input, file.DisplayPath, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -436,6 +458,7 @@ static int RunGit(string[] args)
     string root = ".";
     int exitCode = 1;
     bool ignoreGitleaksAllow = false;
+    int maxDecodeDepth = 5;
     bool preCommit = false;
     bool rootProvided = false;
     bool staged = false;
@@ -595,6 +618,16 @@ static int RunGit(string[] args)
             continue;
         }
 
+        if (IsMaxDecodeDepthFlag(arg))
+        {
+            if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
         {
             return UnknownFlagExitCode;
@@ -648,7 +681,7 @@ static int RunGit(string[] args)
     }
 
     GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
-    List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes);
+    List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth);
     IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
     if (redactionPercent > 0)
     {
@@ -839,7 +872,8 @@ static List<Finding> ScanGitFragments(
     IReadOnlyList<GitPatchFragment> fragments,
     CompiledRuleSet rules,
     bool ignoreGitleaksAllow,
-    long? maxTargetBytes)
+    long? maxTargetBytes,
+    int maxDecodeDepth)
 {
     var findings = new List<Finding>();
     foreach (GitPatchFragment fragment in fragments)
@@ -854,7 +888,8 @@ static List<Finding> ScanGitFragments(
             fragment.FilePath,
             rules,
             ignoreGitleaksAllow,
-            fragment.Commit));
+            fragment.Commit,
+            maxDecodeDepth));
         foreach (Finding finding in fragmentFindings)
         {
             findings.Add(MapGitFinding(finding, fragment));
@@ -1198,11 +1233,6 @@ static bool TryHandleCommonCompatibilityFlag(string[] args, ref int index, out b
     if (IsNoBannerFlag(arg))
     {
         return TryReadBooleanFlag(arg, "--no-banner", out _);
-    }
-
-    if (IsMaxDecodeDepthFlag(arg))
-    {
-        return TryReadUnsupportedPositiveIntFlag(args, ref index, "--max-decode-depth");
     }
 
     if (IsMaxArchiveDepthFlag(arg))

@@ -10,12 +10,14 @@ namespace Picket.Engine;
 /// <param name="ruleSet">The compiled rules used for detection.</param>
 /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
 /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
+/// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
 public sealed class ScanRequest(
     ReadOnlyMemory<byte> input,
     string fileName,
     CompiledRuleSet ruleSet,
     bool ignoreGitleaksAllow = false,
-    string commit = "")
+    string commit = "",
+    int maxDecodeDepth = 5)
 {
     /// <summary>
     /// Initializes a new scan request and compiles the supplied source rules.
@@ -25,8 +27,15 @@ public sealed class ScanRequest(
     /// <param name="ruleSet">The source rules used for detection.</param>
     /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> suppression comments are ignored.</param>
     /// <param name="commit">The git commit SHA used for commit allowlists and fingerprints, or an empty string.</param>
-    public ScanRequest(ReadOnlyMemory<byte> input, string fileName, RuleSet ruleSet, bool ignoreGitleaksAllow = false, string commit = "")
-        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit)
+    /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
+    public ScanRequest(
+        ReadOnlyMemory<byte> input,
+        string fileName,
+        RuleSet ruleSet,
+        bool ignoreGitleaksAllow = false,
+        string commit = "",
+        int maxDecodeDepth = 5)
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth)
     {
     }
 
@@ -55,9 +64,20 @@ public sealed class ScanRequest(
     /// </summary>
     public string Commit { get; } = commit ?? string.Empty;
 
+    /// <summary>
+    /// Gets the maximum recursive decode depth.
+    /// </summary>
+    public int MaxDecodeDepth { get; } = RequireNonNegative(maxDecodeDepth);
+
     private static string RequireFileName(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        return value;
+    }
+
+    private static int RequireNonNegative(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 }

@@ -238,6 +238,26 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that --max-decode-depth controls recursive decoded scanning.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanHonorsMaxDecodeDepth()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "encoded=dG9rZW4tMTIzNDU=");
+
+        CliResult decoded = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-decode-depth=0").ConfigureAwait(false);
+
+        Assert.AreEqual(1, decoded.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", decoded.Stdout);
+        Assert.Contains("\"decoded:base64\"", decoded.Stdout);
+        Assert.AreEqual(0, disabled.ExitCode);
+        Assert.AreEqual("[]\n", disabled.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that behavior-changing future flags fail instead of silently doing nothing.
     /// </summary>
     [TestMethod]
