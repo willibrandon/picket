@@ -87,6 +87,40 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that missing rule IDs include the same helpful context as Gitleaks.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsMissingRuleIdWithContext()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            description = "Discord API key"
+            regex = '''(?i)(discord[a-z0-9_ .\-,]{0,25})(=|>|:=|\|\|:|<=|=>|:).{0,5}['\"]([a-h0-9]{64})['\"]'''
+            """,
+            "memory"));
+
+        Assert.Contains("rule |id| is missing or empty, description: Discord API key, regex: (?i)(discord", exception.Message);
+    }
+
+    /// <summary>
+    /// Verifies that rules without regex or path use the Gitleaks validation message.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsRuleWithoutRegexOrPath()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "discord-api-key"
+            description = "Discord API key"
+            """,
+            "memory"));
+
+        Assert.Contains("discord-api-key: both |regex| and |path| are empty, this rule will have no effect", exception.Message);
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks skipReport rule fields load into scanner rules.
     /// </summary>
     [TestMethod]

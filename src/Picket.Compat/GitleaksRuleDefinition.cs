@@ -1,3 +1,4 @@
+using System.Text;
 using Picket.Rules;
 
 namespace Picket.Compat;
@@ -73,12 +74,12 @@ internal sealed class GitleaksRuleDefinition(
     {
         if (string.IsNullOrWhiteSpace(Id))
         {
-            throw new InvalidDataException($"{sourceName}: rule |id| is missing or empty");
+            throw new InvalidDataException($"{sourceName}: {CreateMissingIdMessage(Description, Pattern, PathPattern)}");
         }
 
         if (Pattern.Length == 0 && PathPattern.Length == 0)
         {
-            throw new InvalidDataException($"{sourceName}: {Id}: both |regex| and |path| are empty");
+            throw new InvalidDataException($"{sourceName}: {Id}: both |regex| and |path| are empty, this rule will have no effect");
         }
 
         if (Pattern.Length != 0)
@@ -102,6 +103,30 @@ internal sealed class GitleaksRuleDefinition(
             tags: Tags,
             skipReport: SkipReport,
             requiredRules: RequiredRules);
+    }
+
+    internal static string CreateMissingIdMessage(string description, string pattern, string pathPattern)
+    {
+        var builder = new StringBuilder("rule |id| is missing or empty");
+        if (!string.IsNullOrEmpty(description))
+        {
+            builder.Append(", description: ");
+            builder.Append(description);
+        }
+
+        if (!string.IsNullOrEmpty(pattern))
+        {
+            builder.Append(", regex: ");
+            builder.Append(pattern);
+        }
+
+        if (!string.IsNullOrEmpty(pathPattern))
+        {
+            builder.Append(", path: ");
+            builder.Append(pathPattern);
+        }
+
+        return builder.ToString();
     }
 
     private static int CountCaptureGroups(string pattern)

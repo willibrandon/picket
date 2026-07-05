@@ -268,6 +268,30 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that rules without regex or path fail during CLI config loading.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsRuleWithoutRegexOrPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            description = "Token rule"
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("token: both |regex| and |path| are empty, this rule will have no effect", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that common Gitleaks global flags and equals-value spellings are accepted.
     /// </summary>
     [TestMethod]

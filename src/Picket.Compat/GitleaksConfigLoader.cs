@@ -515,7 +515,7 @@ public static class GitleaksConfigLoader
 
             if (string.IsNullOrWhiteSpace(id))
             {
-                throw new InvalidDataException($"{sourceName}: rule |id| is missing or empty");
+                throw new InvalidDataException($"{sourceName}: {GitleaksRuleDefinition.CreateMissingIdMessage(description, pattern, pathPattern)}");
             }
 
             rules.Add(new GitleaksRuleDefinition(
