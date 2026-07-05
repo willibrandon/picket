@@ -39,6 +39,14 @@ inputs:
     description: Upload the SARIF report through GitHub code scanning.
     required: false
     default: "false"
+  annotations:
+    description: Emit safe GitHub workflow annotations from JSONL findings.
+    required: false
+    default: "true"
+  annotation-limit:
+    description: Maximum number of workflow annotations to emit.
+    required: false
+    default: "50"
   redact:
     description: Redaction percentage from 0 through 100. Defaults to full redaction for public CI safety.
     required: false
@@ -69,6 +77,9 @@ outputs:
   jsonl-path:
     description: JSONL report path.
     value: ${{ steps.run.outputs.jsonl-path }}
+  annotations:
+    description: Number of workflow annotations emitted.
+    value: ${{ steps.run.outputs.annotations }}
 
 runs:
   using: composite
@@ -105,6 +116,8 @@ runs:
         PICKET_CACHE_PATH: ${{ inputs.cache-path }}
         PICKET_REPORT_DIRECTORY: ${{ inputs.report-directory }}
         PICKET_FAIL_ON: ${{ inputs.fail-on }}
+        PICKET_ANNOTATIONS: ${{ inputs.annotations }}
+        PICKET_ANNOTATION_LIMIT: ${{ inputs.annotation-limit }}
         PICKET_REDACT: ${{ inputs.redact }}
         PICKET_MAX_TARGET_MEGABYTES: ${{ inputs.max-target-megabytes }}
       run: '& "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.ps1"'

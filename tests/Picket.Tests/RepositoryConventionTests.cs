@@ -46,6 +46,8 @@ public sealed partial class RepositoryConventionTests
 
         Assert.Contains("upload-sarif", action);
         Assert.Contains("fail-on", action);
+        Assert.Contains("annotations", action);
+        Assert.Contains("annotation-limit", action);
         Assert.Contains("cache-path", action);
         Assert.Contains("redact", action);
         Assert.Contains("actions/cache/restore", action);
@@ -70,8 +72,16 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--redact=$redact", helper);
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--max-target-megabytes", helper);
+        Assert.Contains("ConvertFrom-Json", helper);
+        Assert.Contains("::warning", helper);
+        Assert.Contains("PICKET_ANNOTATIONS", helper);
+        Assert.Contains("PICKET_ANNOTATION_LIMIT", helper);
+        Assert.DoesNotContain("finding.secret", helper);
+        Assert.DoesNotContain("finding.match", helper);
+        Assert.DoesNotContain("finding.line", helper);
         Assert.Contains("'should-fail'", helper);
         Assert.Contains("'failure-code'", helper);
+        Assert.Contains("'annotations'", helper);
     }
 
     /// <summary>
@@ -87,6 +97,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("fail-on: findings", documentation);
         Assert.Contains("fail-on: errors", documentation);
         Assert.Contains("fail-on: never", documentation);
+        Assert.Contains("annotation-limit", documentation);
+        Assert.Contains("Annotations", documentation);
         Assert.Contains("redact: 0", documentation);
         Assert.Contains("upload-sarif", documentation);
         Assert.Contains("cache-path", documentation);

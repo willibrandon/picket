@@ -66,6 +66,98 @@ function Add-StepSummary {
     Add-Content -LiteralPath $summaryPath -Value $Lines
 }
 
+function ConvertTo-GitHubCommandProperty {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    return $Value.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A').Replace(':', '%3A').Replace(',', '%2C')
+}
+
+function ConvertTo-GitHubCommandMessage {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    return $Value.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+}
+
+function ConvertTo-PositiveInt {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Value,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    [int]$parsed = 0
+    if ([int]::TryParse($Value, [ref]$parsed) -and $parsed -ge 0) {
+        return $parsed
+    }
+
+    Write-Host "::error title=Invalid $Name::$Name must be a non-negative integer."
+    exit 1
+}
+
+function Write-FindingAnnotations {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$JsonlPath,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Limit
+    )
+
+    if ($Limit -eq 0 -or !(Test-Path -LiteralPath $JsonlPath)) {
+        return 0
+    }
+
+    $emitted = 0
+    foreach ($line in Get-Content -LiteralPath $JsonlPath) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        if ($emitted -ge $Limit) {
+            break
+        }
+
+        try {
+            $finding = $line | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            Write-Host '::warning title=Picket annotation skipped::Could not parse a JSONL finding for annotation output.'
+            continue
+        }
+
+        $ruleId = [string]$finding.ruleId
+        $file = [string]$finding.file
+        if ([string]::IsNullOrWhiteSpace($file)) {
+            continue
+        }
+
+        $lineNumber = [int]$finding.startLine
+        $columnNumber = [int]$finding.startColumn
+        if ($lineNumber -lt 1) {
+            $lineNumber = 1
+        }
+
+        if ($columnNumber -lt 1) {
+            $columnNumber = 1
+        }
+
+        $properties = "file=$(ConvertTo-GitHubCommandProperty $file),line=$lineNumber,col=$columnNumber,title=$(ConvertTo-GitHubCommandProperty "Picket secret: $ruleId")"
+        $message = ConvertTo-GitHubCommandMessage "Picket detected rule $ruleId at $file`:$lineNumber`:$columnNumber."
+        Write-Host "::warning $properties::$message"
+        $emitted++
+    }
+
+    return $emitted
+}
+
 $actionPath = [Environment]::GetEnvironmentVariable('GITHUB_ACTION_PATH')
 if ([string]::IsNullOrWhiteSpace($actionPath)) {
     $actionPath = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -78,6 +170,8 @@ $cacheEnabled = Get-ActionInput -Name 'PICKET_CACHE_ENABLED' -Default 'true'
 $cachePath = Get-ActionInput -Name 'PICKET_CACHE_PATH' -Default '.picket/cache'
 $reportDirectory = Resolve-WorkspacePath (Get-ActionInput -Name 'PICKET_REPORT_DIRECTORY' -Default 'picket-results')
 $failOn = (Get-ActionInput -Name 'PICKET_FAIL_ON' -Default 'findings').Trim().ToLowerInvariant()
+$annotationsEnabled = Get-ActionInput -Name 'PICKET_ANNOTATIONS' -Default 'true'
+$annotationLimit = ConvertTo-PositiveInt (Get-ActionInput -Name 'PICKET_ANNOTATION_LIMIT' -Default '50') 'annotation-limit'
 $redact = Get-ActionInput -Name 'PICKET_REDACT' -Default '100'
 $maxTargetMegabytes = Get-ActionInput -Name 'PICKET_MAX_TARGET_MEGABYTES'
 
@@ -142,6 +236,11 @@ if (Test-Path -LiteralPath $jsonlPath) {
     $findingCount = (Get-Content -LiteralPath $jsonlPath | Where-Object { ![string]::IsNullOrWhiteSpace($_) } | Measure-Object).Count
 }
 
+$annotationCount = 0
+if ($annotationsEnabled.Equals('true', [StringComparison]::OrdinalIgnoreCase)) {
+    $annotationCount = Write-FindingAnnotations -JsonlPath $jsonlPath -Limit $annotationLimit
+}
+
 $shouldFail = $false
 $failureCode = 0
 switch ($failOn) {
@@ -167,6 +266,7 @@ Add-ActionOutput -Name 'exit-code' -Value ([string]$scannerExitCode)
 Add-ActionOutput -Name 'findings' -Value ([string]$findingCount)
 Add-ActionOutput -Name 'sarif-path' -Value $sarifPath
 Add-ActionOutput -Name 'jsonl-path' -Value $jsonlPath
+Add-ActionOutput -Name 'annotations' -Value ([string]$annotationCount)
 Add-ActionOutput -Name 'should-fail' -Value $shouldFail.ToString().ToLowerInvariant()
 Add-ActionOutput -Name 'failure-code' -Value ([string]$failureCode)
 
@@ -177,6 +277,7 @@ Add-StepSummary -Lines @(
     '| --- | --- |',
     "| Scanner exit code | $scannerExitCode |",
     "| Findings | $findingCount |",
+    "| Annotations | $annotationCount |",
     "| Fail on | $failOn |",
     "| SARIF | $sarifPath |",
     "| JSONL | $jsonlPath |"

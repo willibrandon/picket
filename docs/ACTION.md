@@ -41,6 +41,8 @@ jobs:
 | `report-directory` | `picket-results` | Directory where `picket.sarif` and `picket.jsonl` are written. |
 | `fail-on` | `findings` | Failure policy: `findings`, `errors`, or `never`. |
 | `upload-sarif` | `false` | Upload `picket.sarif` through GitHub code scanning. |
+| `annotations` | `true` | Emit safe GitHub workflow warning annotations from JSONL findings. |
+| `annotation-limit` | `50` | Maximum number of workflow annotations to emit. Use `0` to disable without changing `annotations`. |
 | `redact` | `100` | Redaction percentage from `0` through `100`. Public CI defaults to full redaction. |
 | `max-target-megabytes` | empty | Optional maximum file size in MiB for content rules. |
 | `dotnet-version` | `10.0.301` | .NET SDK version used by the source-based action. |
@@ -54,6 +56,7 @@ jobs:
 | `findings` | Number of JSONL finding records emitted by Picket. |
 | `sarif-path` | Absolute path to `picket.sarif`. |
 | `jsonl-path` | Absolute path to `picket.jsonl`. |
+| `annotations` | Number of workflow annotations emitted. |
 
 ## Failure Modes
 
@@ -72,3 +75,7 @@ The action always writes native Picket SARIF and JSONL reports. Formats are infe
 When `cache` is `true`, `actions/cache/restore` restores `cache-path` before scanning and `actions/cache/save` saves it before SARIF upload and final failure enforcement. The same path is passed to `picket scan --cache-dir`.
 
 The job summary includes the scanner exit code, finding count, failure policy, and report paths. Secret values are not written to the summary, and findings are fully redacted by default. Set `redact: 0` only for trusted private CI where raw secret values are acceptable.
+
+## Annotations
+
+When `annotations` is `true`, the action reads `picket.jsonl` and emits GitHub workflow warning annotations for up to `annotation-limit` findings. Annotation messages include only the rule ID and source location. They do not include `match`, `secret`, source line text, commit messages, or other fields that may contain raw secrets, even when `redact: 0` is selected for report artifacts.
