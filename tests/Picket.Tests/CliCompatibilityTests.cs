@@ -204,6 +204,23 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that compatibility directory scans reject native TOON reports.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeToonReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "toon").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported report format: toon", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scans can write Picket JSONL reports.
     /// </summary>
     [TestMethod]
@@ -338,6 +355,26 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans can write Picket TOON reports.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesToonReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "toon").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("schema: picket.report.v1", result.Stdout);
+        Assert.Contains("summary:\n  findings: 1\n  rules: 1", result.Stdout);
+        Assert.Contains("findings[1]{schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,line,commit,entropy,author,email,date,message,fingerprint,link}:", result.Stdout);
+        Assert.Contains("  picket.finding.v1,token,\"\",secret.txt,\"\",1,1,1,12,token-12345,token-12345,token-12345,\"\",", result.Stdout);
+        Assert.DoesNotContain("\r\n", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans infer JSONL from report paths.
     /// </summary>
     [TestMethod]
@@ -425,6 +462,24 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("<h1>Picket Secret Scan Report</h1>", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
+    /// Verifies that native scans infer TOON from report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanInfersToonReportFormatFromPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.toon");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("schema: picket.report.v1", File.ReadAllText(reportPath));
     }
 
     /// <summary>

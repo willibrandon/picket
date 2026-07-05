@@ -2229,6 +2229,7 @@ static bool TryWriteReport(
             "jsonl" => PicketJsonlReportWriter.Write(findings),
             "sarif" => nativeReportFormats ? PicketSarifReportWriter.Write(findings, rules) : GitleaksSarifReportWriter.Write(findings, rules),
             "template" => GitleaksTemplateReportWriter.Write(findings, ReadReportTemplate(reportTemplatePath)),
+            "toon" => PicketToonReportWriter.Write(findings, rules),
             _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),
         };
     }
@@ -2346,6 +2347,12 @@ static bool TryResolveReportFormat(
         return true;
     }
 
+    if (nativeReportFormats && extension.Equals(".toon", StringComparison.OrdinalIgnoreCase))
+    {
+        resolvedReportFormat = "toon";
+        return true;
+    }
+
     Console.Error.WriteLine($"unknown report format for report path: {reportPath}");
     resolvedReportFormat = null;
     return false;
@@ -2362,7 +2369,8 @@ static bool TryNormalizeReportFormat(string reportFormat, bool nativeReportForma
 
     if (normalizedReportFormat is "csv" or "json" or "junit" or "sarif" or "template"
         || (nativeReportFormats && normalizedReportFormat.Equals("html", StringComparison.Ordinal))
-        || (nativeReportFormats && normalizedReportFormat.Equals("jsonl", StringComparison.Ordinal)))
+        || (nativeReportFormats && normalizedReportFormat.Equals("jsonl", StringComparison.Ordinal))
+        || (nativeReportFormats && normalizedReportFormat.Equals("toon", StringComparison.Ordinal)))
     {
         resolvedReportFormat = normalizedReportFormat;
         return true;
@@ -2453,7 +2461,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
     Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
     Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--redact[=n]]");
@@ -2467,7 +2475,7 @@ static void WriteScanHelp()
     Console.Out.WriteLine("picket scan - native filesystem scan");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
+    Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--source path] [--enable-rule id] [--max-target-megabytes n]");
 }
 
 static void WriteRulesHelp()
