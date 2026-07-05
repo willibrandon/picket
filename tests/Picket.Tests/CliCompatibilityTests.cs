@@ -187,6 +187,23 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that compatibility directory scans reject native HTML reports.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsNativeHtmlReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "html").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("unsupported report format: html", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scans can write Picket JSONL reports.
     /// </summary>
     [TestMethod]
@@ -220,6 +237,27 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"check_name\":\"token\"", result.Stdout);
         Assert.Contains("\"severity\":\"critical\"", result.Stdout);
         Assert.Contains("\"location\":{\"path\":\"secret.txt\",\"lines\":{\"begin\":1}}", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can write Picket HTML reports.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWritesHtmlReportFormat()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteTokenConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "html").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("<!doctype html>", result.Stdout);
+        Assert.Contains("<h1>Picket Secret Scan Report</h1>", result.Stdout);
+        Assert.Contains("<span>Findings</span><strong>1</strong>", result.Stdout);
+        Assert.Contains("secret.txt:1:1", result.Stdout);
+        Assert.Contains("secret.txt:token:1", result.Stdout);
+        Assert.DoesNotContain("<script", result.Stdout);
     }
 
     /// <summary>
@@ -295,6 +333,24 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("\"check_name\":\"token\"", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
+    /// Verifies that native scans infer HTML from report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanInfersHtmlReportFormatFromPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.html");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("<h1>Picket Secret Scan Report</h1>", File.ReadAllText(reportPath));
     }
 
     /// <summary>
