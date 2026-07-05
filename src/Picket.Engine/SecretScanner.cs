@@ -48,10 +48,18 @@ public sealed class SecretScanner
 
             ByteRegexMatch match = captures.Match;
             ByteRegexMatch secret = ResolveSecret(captures, rule.SecretGroup);
+            ReadOnlySpan<byte> secretBytes = secret.Value(input);
+            double entropy = ShannonEntropy.Calculate(secretBytes);
+            if (rule.Entropy > 0 && entropy <= rule.Entropy)
+            {
+                offset = AdvanceAfterMatch(match, input.Length);
+                continue;
+            }
+
             SourcePosition start = SourcePosition.FromOffset(input, match.Start);
             SourcePosition end = SourcePosition.FromOffset(input, match.End);
             string matchText = DecodeReportText(match.Value(input));
-            string secretText = DecodeReportText(secret.Value(input));
+            string secretText = DecodeReportText(secretBytes);
 
             findings.Add(new Finding(
                 rule.Id,
@@ -65,7 +73,7 @@ public sealed class SecretScanner
                 fileName,
                 string.Empty,
                 string.Empty,
-                ShannonEntropy.Calculate(secret.Value(input)),
+                entropy,
                 string.Empty,
                 string.Empty,
                 string.Empty,

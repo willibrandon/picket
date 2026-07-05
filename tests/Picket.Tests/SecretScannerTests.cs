@@ -108,4 +108,50 @@ public sealed class SecretScannerTests
         Assert.HasCount(1, findings);
         Assert.AreEqual("no-keyword", findings[0].RuleID);
     }
+
+    /// <summary>
+    /// Verifies that entropy uses Gitleaks' strict greater-than threshold.
+    /// </summary>
+    [TestMethod]
+    public void ScanSuppressesSecretsAtEntropyThreshold()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-abcdef12");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "entropy-gated",
+                "Entropy gated",
+                "token-([a-z0-9]+)",
+                secretGroup: 1,
+                entropy: 3),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that secrets above the configured entropy threshold are reported.
+    /// </summary>
+    [TestMethod]
+    public void ScanReportsSecretsAboveEntropyThreshold()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-abcdef12");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "entropy-gated",
+                "Entropy gated",
+                "token-([a-z0-9]+)",
+                secretGroup: 1,
+                entropy: 2.9),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("abcdef12", findings[0].Secret);
+        Assert.AreEqual(3, findings[0].Entropy);
+    }
 }

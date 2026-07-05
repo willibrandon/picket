@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Picket.Rules;
 
@@ -79,6 +80,7 @@ public static class GitleaksConfigLoader
         string pattern = string.Empty;
         string pathPattern = string.Empty;
         int secretGroup = 0;
+        double entropy = 0;
         IReadOnlyList<string> keywords = [];
         IReadOnlyList<string> tags = [];
         string[] lines = toml.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
@@ -104,6 +106,7 @@ public static class GitleaksConfigLoader
                     pattern = string.Empty;
                     pathPattern = string.Empty;
                     secretGroup = 0;
+                    entropy = 0;
                     keywords = [];
                     tags = [];
                     continue;
@@ -160,13 +163,15 @@ public static class GitleaksConfigLoader
                 case "secretGroup":
                     secretGroup = ParseNonNegativeInt(value, sourceName, key);
                     break;
+                case "entropy":
+                    entropy = ParseNonNegativeDouble(value, sourceName, key);
+                    break;
                 case "keywords":
                     keywords = ParseStringArray(value, sourceName, key);
                     break;
                 case "tags":
                     tags = ParseStringArray(value, sourceName, key);
                     break;
-                case "entropy":
                 case "skipReport":
                     ThrowUnsupported(sourceName, $"rule field '{key}'");
                     break;
@@ -201,7 +206,7 @@ public static class GitleaksConfigLoader
                 throw new InvalidDataException($"{sourceName}: {id}: {reason}");
             }
 
-            rules.Add(SecretRule.Create(id, description, pattern, secretGroup, keywords, tags));
+            rules.Add(SecretRule.Create(id, description, pattern, secretGroup, entropy, keywords, tags));
         }
     }
 
@@ -447,6 +452,18 @@ public static class GitleaksConfigLoader
         if (!int.TryParse(value.Trim(), out int result) || result < 0)
         {
             throw new InvalidDataException($"{sourceName}: '{key}' must be a non-negative integer");
+        }
+
+        return result;
+    }
+
+    private static double ParseNonNegativeDouble(string value, string sourceName, string key)
+    {
+        if (!double.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double result)
+            || result < 0
+            || !double.IsFinite(result))
+        {
+            throw new InvalidDataException($"{sourceName}: '{key}' must be a non-negative finite number");
         }
 
         return result;

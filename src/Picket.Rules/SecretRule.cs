@@ -7,6 +7,7 @@ namespace Picket.Rules;
 /// <param name="description">The user-facing rule description.</param>
 /// <param name="pattern">The regex pattern in the compatibility dialect.</param>
 /// <param name="secretGroup">The capture group that contains the secret. Zero means the whole match.</param>
+/// <param name="entropy">The minimum Shannon entropy required for the secret. Zero disables entropy filtering.</param>
 /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
 /// <param name="tags">Rule classification tags.</param>
 public sealed class SecretRule(
@@ -14,6 +15,7 @@ public sealed class SecretRule(
     string description,
     string pattern,
     int secretGroup = 0,
+    double entropy = 0,
     IReadOnlyList<string>? keywords = null,
     IReadOnlyList<string>? tags = null)
 {
@@ -38,6 +40,11 @@ public sealed class SecretRule(
     public int SecretGroup { get; } = RequireNonNegative(secretGroup);
 
     /// <summary>
+    /// Gets the minimum Shannon entropy required for the secret. Zero disables entropy filtering.
+    /// </summary>
+    public double Entropy { get; } = RequireNonNegativeFinite(entropy);
+
+    /// <summary>
     /// Gets case-insensitive keywords used for candidate prefiltering.
     /// </summary>
     public IReadOnlyList<string> Keywords { get; } = keywords ?? [];
@@ -54,6 +61,7 @@ public sealed class SecretRule(
     /// <param name="description">The user-facing rule description.</param>
     /// <param name="pattern">The regex pattern in the compatibility dialect.</param>
     /// <param name="secretGroup">The capture group that contains the secret. Zero means the whole match.</param>
+    /// <param name="entropy">The minimum Shannon entropy required for the secret. Zero disables entropy filtering.</param>
     /// <param name="keywords">Case-insensitive keywords used for candidate prefiltering.</param>
     /// <param name="tags">Rule classification tags.</param>
     /// <returns>The created rule.</returns>
@@ -62,6 +70,7 @@ public sealed class SecretRule(
         string description,
         string pattern,
         int secretGroup = 0,
+        double entropy = 0,
         IReadOnlyList<string>? keywords = null,
         IReadOnlyList<string>? tags = null)
     {
@@ -70,6 +79,7 @@ public sealed class SecretRule(
             description,
             pattern,
             secretGroup,
+            entropy,
             keywords ?? [],
             tags ?? []);
     }
@@ -83,6 +93,17 @@ public sealed class SecretRule(
     private static int RequireNonNegative(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static double RequireNonNegativeFinite(double value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        if (!double.IsFinite(value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be finite.");
+        }
+
         return value;
     }
 }

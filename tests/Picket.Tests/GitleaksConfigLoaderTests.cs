@@ -25,6 +25,7 @@ public sealed class GitleaksConfigLoaderTests
             description = ""
             regex = '''token-([A-Z]{4})'''
             secretGroup = 1
+            entropy = 3.5
             keywords = [
                 "token",
                 'TOKEN2',
@@ -39,6 +40,7 @@ public sealed class GitleaksConfigLoaderTests
         Assert.AreEqual(string.Empty, rule.Description);
         Assert.AreEqual("token-([A-Z]{4})", rule.Pattern);
         Assert.AreEqual(1, rule.SecretGroup);
+        Assert.AreEqual(3.5, rule.Entropy);
         Assert.Contains("token", rule.Keywords);
         Assert.Contains("TOKEN2", rule.Keywords);
         Assert.Contains("custom", rule.Tags);
