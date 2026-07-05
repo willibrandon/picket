@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "oracle-token",
+  "Description": "Synthetic token used for oracle compatibility tests.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 16,
+  "EndColumn": 34,
+  "Match": "REDACTED",
+  "Secret": "REDACTED",
+  "File": "source.txt",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.6818807,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "source.txt:oracle-token:1"
+ }
+]

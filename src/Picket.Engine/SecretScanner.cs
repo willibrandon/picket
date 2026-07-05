@@ -453,7 +453,7 @@ public sealed class SecretScanner
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
             SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = SourcePosition.FromOffset(reportInput, reportEnd);
+            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
@@ -493,7 +493,7 @@ public sealed class SecretScanner
                 fileName,
                 symlinkFile,
                 commit,
-                entropy,
+                ToGitleaksEntropy(entropy),
                 string.Empty,
                 string.Empty,
                 string.Empty,
@@ -550,7 +550,7 @@ public sealed class SecretScanner
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
             SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = SourcePosition.FromOffset(reportInput, reportEnd);
+            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
@@ -590,7 +590,7 @@ public sealed class SecretScanner
                 fileName,
                 symlinkFile,
                 commit,
-                entropy,
+                ToGitleaksEntropy(entropy),
                 string.Empty,
                 string.Empty,
                 string.Empty,
@@ -647,7 +647,7 @@ public sealed class SecretScanner
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
             SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = SourcePosition.FromOffset(reportInput, reportEnd);
+            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
@@ -685,7 +685,7 @@ public sealed class SecretScanner
                 fileName,
                 symlinkFile,
                 commit,
-                entropy,
+                ToGitleaksEntropy(entropy),
                 string.Empty,
                 string.Empty,
                 string.Empty,
@@ -751,7 +751,7 @@ public sealed class SecretScanner
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
             SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = SourcePosition.FromOffset(reportInput, reportEnd);
+            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = match.Value(input);
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, match.Start);
@@ -791,7 +791,7 @@ public sealed class SecretScanner
                 fileName,
                 symlinkFile,
                 commit,
-                entropy,
+                ToGitleaksEntropy(entropy),
                 string.Empty,
                 string.Empty,
                 string.Empty,
@@ -863,6 +863,16 @@ public sealed class SecretScanner
         decodeTags = CreateDecodeTags(encodings, depth);
         decodePath = bestDecodePath;
         return true;
+    }
+
+    private static SourcePosition FromExclusiveEndOffset(ReadOnlySpan<byte> input, int startOffset, int endOffset)
+    {
+        return SourcePosition.FromOffset(input, endOffset <= startOffset ? startOffset : endOffset - 1);
+    }
+
+    private static double ToGitleaksEntropy(double entropy)
+    {
+        return (float)entropy;
     }
 
     private static List<string> CreateDecodeTags(DecodedEncoding encodings, int depth)

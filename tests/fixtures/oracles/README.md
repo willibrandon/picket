@@ -9,3 +9,7 @@ capture is a synthetic no-secret fixture and `-AllowUnredacted` is intentional.
 
 Promoted fixtures must not contain machine-specific paths, executable paths, or
 unredacted realistic credentials.
+
+When a fixture is expected to report relative file paths, capture it with
+`-WorkingDirectory <fixture-root>` and relative command arguments such as
+`-Source . -Config .gitleaks.toml`.

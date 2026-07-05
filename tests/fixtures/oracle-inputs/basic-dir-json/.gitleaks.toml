@@ -1,0 +1,9 @@
+title = "picket basic directory oracle"
+
+[[rules]]
+id = "oracle-token"
+description = "Synthetic token used for oracle compatibility tests."
+regex = '''oracle-secret-[0-9]{5}'''
+keywords = [
+    "oracle-secret-",
+]

@@ -20,6 +20,8 @@ param(
 
     [string]$StdinPath = "",
 
+    [string]$WorkingDirectory = "",
+
     [string]$LogOptions = "",
 
     [string]$Platform = "",
@@ -112,7 +114,10 @@ function Resolve-ExistingPath
         [string]$PathValue,
 
         [Parameter(Mandatory = $true)]
-        [string]$Description
+        [string]$Description,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BaseDirectory
     )
 
     if ([string]::IsNullOrWhiteSpace($PathValue))
@@ -120,14 +125,35 @@ function Resolve-ExistingPath
         return ""
     }
 
+    $resolvedPathValue = $PathValue
+    if (![System.IO.Path]::IsPathFullyQualified($PathValue))
+    {
+        $resolvedPathValue = Join-Path $BaseDirectory $PathValue
+    }
+
     try
     {
-        return (Resolve-Path -LiteralPath $PathValue -ErrorAction Stop).Path
+        return (Resolve-Path -LiteralPath $resolvedPathValue -ErrorAction Stop).Path
     }
     catch
     {
         throw "$Description '$PathValue' does not exist."
     }
+}
+
+function Resolve-WorkingDirectory
+{
+    if ([string]::IsNullOrWhiteSpace($WorkingDirectory))
+    {
+        return (Get-Location).Path
+    }
+
+    if (!(Test-Path -LiteralPath $WorkingDirectory -PathType Container))
+    {
+        throw "working directory '$WorkingDirectory' does not exist."
+    }
+
+    return (Resolve-Path -LiteralPath $WorkingDirectory).Path
 }
 
 function Invoke-Git
@@ -184,6 +210,9 @@ function Invoke-ExternalProcess
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
 
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingDirectoryPath,
+
         [string]$StandardInputPath = ""
     )
 
@@ -193,6 +222,7 @@ function Invoke-ExternalProcess
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.RedirectStandardInput = ![string]::IsNullOrWhiteSpace($StandardInputPath)
+    $startInfo.WorkingDirectory = $WorkingDirectoryPath
 
     foreach ($argument in $Arguments)
     {
@@ -238,7 +268,7 @@ function Get-GitleaksVersion
         [string]$ExecutablePath
     )
 
-    $result = Invoke-ExternalProcess -FilePath $ExecutablePath -Arguments @("version")
+    $result = Invoke-ExternalProcess -FilePath $ExecutablePath -Arguments @("version") -WorkingDirectoryPath (Get-Location).Path
     if ($result.ExitCode -ne 0)
     {
         return "unknown"
@@ -272,19 +302,19 @@ function New-GitleaksArguments
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedSource,
+        [string]$CommandSource,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedConfig,
+        [string]$CommandConfig,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedBaselinePath,
+        [string]$CommandBaselinePath,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedReportTemplate
+        [string]$CommandReportTemplate
     )
 
     $arguments = [System.Collections.Generic.List[string]]::new()
@@ -294,7 +324,7 @@ function New-GitleaksArguments
     {
         "dir"
         {
-            $arguments.Add($ResolvedSource)
+            $arguments.Add($CommandSource)
             if ($FollowSymlinks)
             {
                 $arguments.Add("--follow-symlinks")
@@ -302,7 +332,7 @@ function New-GitleaksArguments
         }
         "git"
         {
-            $arguments.Add($ResolvedSource)
+            $arguments.Add($CommandSource)
             if (![string]::IsNullOrWhiteSpace($LogOptions))
             {
                 $arguments.Add("--log-opts")
@@ -330,16 +360,16 @@ function New-GitleaksArguments
         }
     }
 
-    if (![string]::IsNullOrWhiteSpace($ResolvedConfig))
+    if (![string]::IsNullOrWhiteSpace($CommandConfig))
     {
         $arguments.Add("--config")
-        $arguments.Add($ResolvedConfig)
+        $arguments.Add($CommandConfig)
     }
 
-    if (![string]::IsNullOrWhiteSpace($ResolvedBaselinePath))
+    if (![string]::IsNullOrWhiteSpace($CommandBaselinePath))
     {
         $arguments.Add("--baseline-path")
-        $arguments.Add($ResolvedBaselinePath)
+        $arguments.Add($CommandBaselinePath)
     }
 
     $arguments.Add("--report-format")
@@ -349,10 +379,10 @@ function New-GitleaksArguments
     $arguments.Add("--no-banner")
     $arguments.Add("--no-color")
 
-    if (![string]::IsNullOrWhiteSpace($ResolvedReportTemplate))
+    if (![string]::IsNullOrWhiteSpace($CommandReportTemplate))
     {
         $arguments.Add("--report-template")
-        $arguments.Add($ResolvedReportTemplate)
+        $arguments.Add($CommandReportTemplate)
     }
 
     foreach ($argument in $AdditionalArguments)
@@ -383,21 +413,22 @@ if ($ReportFormat.Contains("template") -and [string]::IsNullOrWhiteSpace($Report
 $gitleaksExecutable = Resolve-GitleaksExecutable
 $gitleaksClone = Get-GitleaksCloneMetadata
 $gitleaksVersion = Get-GitleaksVersion -ExecutablePath $gitleaksExecutable
+$resolvedWorkingDirectory = Resolve-WorkingDirectory
 $resolvedSource = ""
 $resolvedStdinPath = ""
 
 if ($Mode -eq "stdin")
 {
-    $resolvedStdinPath = Resolve-ExistingPath -PathValue $StdinPath -Description "stdin fixture"
+    $resolvedStdinPath = Resolve-ExistingPath -PathValue $StdinPath -Description "stdin fixture" -BaseDirectory $resolvedWorkingDirectory
 }
 else
 {
-    $resolvedSource = Resolve-ExistingPath -PathValue $Source -Description "source"
+    $resolvedSource = Resolve-ExistingPath -PathValue $Source -Description "source" -BaseDirectory $resolvedWorkingDirectory
 }
 
-$resolvedConfig = Resolve-ExistingPath -PathValue $Config -Description "config"
-$resolvedBaselinePath = Resolve-ExistingPath -PathValue $BaselinePath -Description "baseline"
-$resolvedReportTemplate = Resolve-ExistingPath -PathValue $ReportTemplate -Description "report template"
+$resolvedConfig = Resolve-ExistingPath -PathValue $Config -Description "config" -BaseDirectory $resolvedWorkingDirectory
+$resolvedBaselinePath = Resolve-ExistingPath -PathValue $BaselinePath -Description "baseline" -BaseDirectory $resolvedWorkingDirectory
+$resolvedReportTemplate = Resolve-ExistingPath -PathValue $ReportTemplate -Description "report template" -BaseDirectory $resolvedWorkingDirectory
 
 [void][System.IO.Directory]::CreateDirectory($OutputDirectory)
 $resolvedOutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
@@ -413,11 +444,11 @@ foreach ($format in ($ReportFormat | Select-Object -Unique))
     $arguments = New-GitleaksArguments `
         -Format $format `
         -ReportPath $reportPath `
-        -ResolvedSource $resolvedSource `
-        -ResolvedConfig $resolvedConfig `
-        -ResolvedBaselinePath $resolvedBaselinePath `
-        -ResolvedReportTemplate $resolvedReportTemplate
-    $result = Invoke-ExternalProcess -FilePath $gitleaksExecutable -Arguments $arguments -StandardInputPath $resolvedStdinPath
+        -CommandSource $Source `
+        -CommandConfig $Config `
+        -CommandBaselinePath $BaselinePath `
+        -CommandReportTemplate $ReportTemplate
+    $result = Invoke-ExternalProcess -FilePath $gitleaksExecutable -Arguments $arguments -WorkingDirectoryPath $resolvedWorkingDirectory -StandardInputPath $resolvedStdinPath
 
     [System.IO.File]::WriteAllText($stdoutPath, $result.Stdout)
     [System.IO.File]::WriteAllText($stderrPath, $result.Stderr)
@@ -444,6 +475,7 @@ $metadata = [pscustomobject]@{
     Binary = $gitleaksExecutable
     Clone = $gitleaksClone
     Mode = $Mode
+    WorkingDirectory = $resolvedWorkingDirectory
     Source = $resolvedSource
     StdinPath = $resolvedStdinPath
     Config = $resolvedConfig

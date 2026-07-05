@@ -80,6 +80,29 @@ public sealed class GitleaksBaselineTests
     }
 
     /// <summary>
+    /// Verifies that baseline entropy round-trips through Gitleaks float precision.
+    /// </summary>
+    [TestMethod]
+    public void LoadRoundsEntropyThroughGitleaksFloatPrecision()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "picket-tests", Guid.NewGuid().ToString("N"), "baseline.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        try
+        {
+            Finding finding = CreateFinding(match: "token-12345", secret: "token-12345", entropy: 3.4594316482543945);
+            File.WriteAllText(path, GitleaksJsonReportWriter.Write([finding]));
+
+            GitleaksBaseline baseline = GitleaksBaseline.Load(path);
+
+            Assert.IsFalse(baseline.IsNew(finding));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that non-JSON baseline files are rejected.
     /// </summary>
     [TestMethod]
@@ -105,7 +128,8 @@ public sealed class GitleaksBaselineTests
         string match = "token=secret",
         string secret = "secret",
         string fingerprint = "fingerprint",
-        IReadOnlyList<string>? tags = null)
+        IReadOnlyList<string>? tags = null,
+        double entropy = 3.25)
     {
         return new Finding(
             "rule",
@@ -119,7 +143,7 @@ public sealed class GitleaksBaselineTests
             "secrets.txt",
             string.Empty,
             "commit",
-            3.25,
+            entropy,
             "author",
             "author@example.com",
             "2026-07-05T00:00:00Z",

@@ -134,7 +134,7 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
             GetString(element, "File"),
             GetString(element, "SymlinkFile"),
             GetString(element, "Commit"),
-            GetDouble(element, "Entropy"),
+            GetGitleaksEntropy(element, "Entropy"),
             GetString(element, "Author"),
             GetString(element, "Email"),
             GetString(element, "Date"),
@@ -164,14 +164,14 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
         return property.GetInt32();
     }
 
-    private static double GetDouble(JsonElement element, string name)
+    private static double GetGitleaksEntropy(JsonElement element, string name)
     {
         if (!element.TryGetProperty(name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return 0;
         }
 
-        return property.GetDouble();
+        return (float)property.GetDouble();
     }
 
     private static List<string> GetStringArray(JsonElement element, string name)

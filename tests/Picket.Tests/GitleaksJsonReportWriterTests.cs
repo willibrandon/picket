@@ -57,6 +57,39 @@ public sealed class GitleaksJsonReportWriterTests
     }
 
     /// <summary>
+    /// Verifies the Gitleaks object whitespace and float32 entropy formatting.
+    /// </summary>
+    [TestMethod]
+    public void WriteUsesGitleaksObjectWhitespaceAndEntropyPrecision()
+    {
+        var finding = new Finding(
+            "rule",
+            "desc",
+            1,
+            1,
+            2,
+            8,
+            "x",
+            "secret",
+            "stdin",
+            string.Empty,
+            string.Empty,
+            3.681880802803402,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "stdin:rule:1");
+
+        string json = GitleaksJsonReportWriter.Write([finding]);
+
+        Assert.Contains("\"Entropy\": 3.6818807", json);
+        Assert.Contains("\"Fingerprint\": \"stdin:rule:1\"\n }\n]\n", json);
+        Assert.DoesNotContain("\"Fingerprint\": \"stdin:rule:1\"\n\n }", json);
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks JSON includes Link only when it is present.
     /// </summary>
     [TestMethod]

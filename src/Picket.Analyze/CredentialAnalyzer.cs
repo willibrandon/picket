@@ -187,9 +187,8 @@ public static class CredentialAnalyzer
         {
             $"location={finding.File}:{finding.StartLine}:{finding.StartColumn}",
             $"validationState={validationState}",
+            $"fingerprint={StableFindingFingerprint.Create(finding)}"
         };
-
-        evidence.Add($"fingerprint={StableFindingFingerprint.Create(finding)}");
 
         if (secretSha256.Length != 0)
         {

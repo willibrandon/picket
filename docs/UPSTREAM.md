@@ -76,6 +76,14 @@ pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode git -Source <repo> -Config <conf
 pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode stdin -StdinPath <input-file> -Config <config> -ReportFormat json
 ```
 
+For directory fixtures where report paths must stay relative, run from an
+explicit fixture working directory and pass the same relative command arguments
+that Gitleaks should see:
+
+```powershell
+pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode dir -WorkingDirectory <fixture-root> -Source . -Config .gitleaks.toml -ReportFormat json
+```
+
 The script resolves the executable from `-GitleaksPath`, `PICKET_GITLEAKS_BIN`,
 or `gitleaks` on `PATH`. It resolves the pinned clone from
 `PICKET_GITLEAKS_REPO` or `../gitleaks`, then writes reports, stdout, stderr,
@@ -89,6 +97,7 @@ Capture a side-by-side Gitleaks/Picket compatibility bundle with:
 
 ```powershell
 pwsh ./scripts/Capture-CompatibilityOracle.ps1 -Mode dir -Source <fixture-path> -Config <config> -ReportFormat json,sarif
+pwsh ./scripts/Capture-CompatibilityOracle.ps1 -Mode dir -WorkingDirectory <fixture-root> -Source . -Config .gitleaks.toml -ReportFormat json
 ```
 
 The wrapper writes `gitleaks/`, `picket/`, and `comparison.json` under

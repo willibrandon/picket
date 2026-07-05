@@ -131,7 +131,7 @@ public static class GitleaksJunitReportWriter
         builder.Append('\t');
         AppendJsonString(builder, name);
         builder.Append(": ");
-        builder.Append(value.ToString("G17", CultureInfo.InvariantCulture));
+        builder.Append(((float)value).ToString("G", CultureInfo.InvariantCulture));
         if (comma)
         {
             builder.Append(',');

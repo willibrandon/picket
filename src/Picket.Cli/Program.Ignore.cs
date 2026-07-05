@@ -43,7 +43,7 @@ internal static partial class Program
         }
     }
 
-    static List<string?> CreateControlFileDisplayPaths(string root, string? reportPath, IReadOnlyList<string> reportPaths)
+    static List<string?> CreateControlFileDisplayPaths(string root, string? reportPath, List<string> reportPaths)
     {
         var displayPaths = new List<string?>();
         if (reportPaths.Count == 0)

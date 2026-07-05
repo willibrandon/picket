@@ -73,7 +73,7 @@ The design and differential tests are pinned to upstream reference snapshots. Up
 | Nosey Parker | `PICKET_NOSEYPARKER_REPO` | `../noseyparker` | Historical datastore/rule-QA/performance reference |
 | .NET Runtime | `PICKET_DOTNET_RUNTIME_REPO` | `../runtime` | Native AOT/runtime implementation reference |
 
-`docs/UPSTREAM.md` records exact commits, supported upstream versions, known README/code divergences, and the command lines used by oracle tests. `scripts/Capture-UpstreamPins.ps1` refreshes the pin table from local clones. `scripts/Capture-GitleaksOracle.ps1` captures pinned Gitleaks reports plus stdout, stderr, command arguments, binary version, and clone metadata under ignored `artifacts/oracles/gitleaks` output. `scripts/Capture-CompatibilityOracle.ps1` captures a side-by-side Gitleaks/Picket bundle with report hashes and exit-code comparisons under ignored `artifacts/oracles/compatibility` output. `scripts/Promote-CompatibilityOracle.ps1` promotes reviewed captures into normalized, redacted golden fixtures under `tests/fixtures/oracles`. For example, Gitleaks' current code default for `--max-decode-depth` is `5`; if upstream docs say otherwise, Picket follows the code in compatibility tests and records the discrepancy.
+`docs/UPSTREAM.md` records exact commits, supported upstream versions, known README/code divergences, and the command lines used by oracle tests. `scripts/Capture-UpstreamPins.ps1` refreshes the pin table from local clones. `scripts/Capture-GitleaksOracle.ps1` captures pinned Gitleaks reports plus stdout, stderr, command arguments, working directory, binary version, and clone metadata under ignored `artifacts/oracles/gitleaks` output. `scripts/Capture-CompatibilityOracle.ps1` captures a side-by-side Gitleaks/Picket bundle with report hashes and exit-code comparisons under ignored `artifacts/oracles/compatibility` output. Oracle fixtures that depend on relative paths use `-WorkingDirectory <fixture-root>` with relative `-Source`, `-Config`, baseline, and template arguments so committed golden reports never encode a developer's local checkout path. `scripts/Promote-CompatibilityOracle.ps1` promotes reviewed captures into normalized, redacted golden fixtures under `tests/fixtures/oracles`. For example, Gitleaks' current code default for `--max-decode-depth` is `5`; if upstream docs say otherwise, Picket follows the code in compatibility tests and records the discrepancy.
 
 ---
 
@@ -708,7 +708,7 @@ Test projects use `MSTest.Sdk` with Microsoft.Testing.Platform (MTP), Microsoft'
 
 ### 10.1 Compatibility Oracle
 
-The Gitleaks oracle suite runs the pinned real Gitleaks binary and Picket over identical fixtures. Raw captures come from `scripts/Capture-GitleaksOracle.ps1`; side-by-side compatibility captures come from `scripts/Capture-CompatibilityOracle.ps1`. Committed golden files come from `scripts/Promote-CompatibilityOracle.ps1`, must be normalized, reviewed for redaction, and tied back to the upstream pin metadata.
+The Gitleaks oracle suite runs the pinned real Gitleaks binary and Picket over identical fixtures. Raw captures come from `scripts/Capture-GitleaksOracle.ps1`; side-by-side compatibility captures come from `scripts/Capture-CompatibilityOracle.ps1`. Committed golden files come from `scripts/Promote-CompatibilityOracle.ps1`, must be normalized, reviewed for redaction, tied back to the upstream pin metadata, and captured with an explicit working directory whenever relative source paths are part of the expected report contract.
 
 Assertions:
 

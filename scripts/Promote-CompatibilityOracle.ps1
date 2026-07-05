@@ -161,8 +161,15 @@ function New-PathReplacements
     )
 
     $replacements = [System.Collections.Generic.List[object]]::new()
+    $workingDirectory = ""
+    if ($Comparison.PSObject.Properties.Name -contains "WorkingDirectory")
+    {
+        $workingDirectory = [string]$Comparison.WorkingDirectory
+    }
+
     Add-PathReplacement -Replacements $replacements -PathValue $repositoryRoot -Placeholder "<repo>"
     Add-PathReplacement -Replacements $replacements -PathValue $ResolvedCaptureDirectory -Placeholder "<capture>"
+    Add-PathReplacement -Replacements $replacements -PathValue $workingDirectory -Placeholder "<working-directory>"
     Add-PathReplacement -Replacements $replacements -PathValue $Comparison.Source -Placeholder "<source>"
     Add-PathReplacement -Replacements $replacements -PathValue $Comparison.StdinPath -Placeholder "<stdin>"
     Add-PathReplacement -Replacements $replacements -PathValue $Comparison.Config -Placeholder "<config>"

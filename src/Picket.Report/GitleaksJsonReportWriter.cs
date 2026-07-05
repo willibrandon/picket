@@ -64,7 +64,6 @@ public static class GitleaksJsonReportWriter
         WriteString(builder, "Message", finding.Message, comma: true);
         WriteArray(builder, "Tags", finding.Tags, comma: true);
         WriteString(builder, "Fingerprint", finding.Fingerprint, comma: false);
-        builder.Append('\n');
         builder.Append(" }");
     }
 
@@ -101,7 +100,7 @@ public static class GitleaksJsonReportWriter
         builder.Append("  \"");
         builder.Append(name);
         builder.Append("\": ");
-        builder.Append(value.ToString("G17", CultureInfo.InvariantCulture));
+        builder.Append(((float)value).ToString("G", CultureInfo.InvariantCulture));
         if (comma)
         {
             builder.Append(',');

@@ -40,6 +40,7 @@ public sealed class GitleaksJunitReportWriterTests
         Assert.Contains("<testcase classname=\"Test Rule\" file=\"auth.py\" name=\"test-rule has detected a secret in file auth.py, line 1, at commit 0000000000000000.\" time=\"\">", xml);
         Assert.Contains("<failure message=\"test-rule has detected a secret in file auth.py, line 1, at commit 0000000000000000.\" type=\"Test Rule\">", xml);
         Assert.Contains("{&#xA;&#x9;&#34;RuleID&#34;: &#34;test-rule&#34;,", xml);
+        Assert.Contains("&#x9;&#34;Entropy&#34;: 3.6818807,", xml);
         Assert.Contains("&#x9;&#34;Tags&#34;: [],", xml);
         Assert.Contains("&#x9;&#34;Fingerprint&#34;: &#34;fingerprint&#34;&#xA;}</failure>", xml);
     }
@@ -66,7 +67,8 @@ public sealed class GitleaksJunitReportWriterTests
     private static Finding CreateFinding(
         string description = "Test Rule",
         string file = "auth.py",
-        string match = "line containing secret")
+        string match = "line containing secret",
+        double entropy = 3.681880802803402)
     {
         return new Finding(
             "test-rule",
@@ -80,7 +82,7 @@ public sealed class GitleaksJunitReportWriterTests
             file,
             string.Empty,
             "0000000000000000",
-            0,
+            entropy,
             "John Doe",
             "johndoe@gmail.com",
             "10-19-2003",

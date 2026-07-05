@@ -125,6 +125,7 @@ Add tests at the level of risk:
 - Unit tests for config parsing, entropy, fingerprints, decoder offset remapping, regex dialect translation, report writers, validators, and security boundaries.
 - Differential tests against the pinned Gitleaks binary for compatibility behavior.
 - Golden byte tests for every compatibility report format.
+- Capture committed oracle fixtures with `-WorkingDirectory <fixture-root>` and relative command arguments whenever report paths are expected to be relative.
 - Rule-corpus tests for Gitleaks default rules and selected community configs.
 - Security tests for archive bombs, path traversal, SSRF, redaction leaks, cache poisoning, malformed TOML/reports/git patches, and invalid UTF-8.
 - BenchmarkDotNet and end-to-end CLI benchmarks for performance-sensitive changes.

@@ -22,6 +22,8 @@ param(
 
     [string]$StdinPath = "",
 
+    [string]$WorkingDirectory = "",
+
     [string]$LogOptions = "",
 
     [string]$Platform = "",
@@ -113,7 +115,10 @@ function Resolve-ExistingPath
         [string]$PathValue,
 
         [Parameter(Mandatory = $true)]
-        [string]$Description
+        [string]$Description,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BaseDirectory
     )
 
     if ([string]::IsNullOrWhiteSpace($PathValue))
@@ -121,14 +126,35 @@ function Resolve-ExistingPath
         return ""
     }
 
+    $resolvedPathValue = $PathValue
+    if (![System.IO.Path]::IsPathFullyQualified($PathValue))
+    {
+        $resolvedPathValue = Join-Path $BaseDirectory $PathValue
+    }
+
     try
     {
-        return (Resolve-Path -LiteralPath $PathValue -ErrorAction Stop).Path
+        return (Resolve-Path -LiteralPath $resolvedPathValue -ErrorAction Stop).Path
     }
     catch
     {
         throw "$Description '$PathValue' does not exist."
     }
+}
+
+function Resolve-WorkingDirectory
+{
+    if ([string]::IsNullOrWhiteSpace($WorkingDirectory))
+    {
+        return (Get-Location).Path
+    }
+
+    if (!(Test-Path -LiteralPath $WorkingDirectory -PathType Container))
+    {
+        throw "working directory '$WorkingDirectory' does not exist."
+    }
+
+    return (Resolve-Path -LiteralPath $WorkingDirectory).Path
 }
 
 function Invoke-ExternalProcess
@@ -140,6 +166,9 @@ function Invoke-ExternalProcess
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
 
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingDirectoryPath,
+
         [string]$StandardInputPath = ""
     )
 
@@ -149,6 +178,7 @@ function Invoke-ExternalProcess
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.RedirectStandardInput = ![string]::IsNullOrWhiteSpace($StandardInputPath)
+    $startInfo.WorkingDirectory = $WorkingDirectoryPath
 
     foreach ($argument in $Arguments)
     {
@@ -275,6 +305,7 @@ function New-GitleaksScriptParameters
     Add-OptionalParameter -Parameters $parameters -Name "BaselinePath" -Value $BaselinePath
     Add-OptionalParameter -Parameters $parameters -Name "ReportTemplate" -Value $ReportTemplate
     Add-OptionalParameter -Parameters $parameters -Name "GitleaksPath" -Value $GitleaksPath
+    Add-OptionalParameter -Parameters $parameters -Name "WorkingDirectory" -Value $resolvedWorkingDirectory
     Add-OptionalParameter -Parameters $parameters -Name "LogOptions" -Value $LogOptions
     Add-OptionalParameter -Parameters $parameters -Name "Platform" -Value $Platform
     Add-OptionalArrayParameter -Parameters $parameters -Name "AdditionalArguments" -Value $AdditionalArguments
@@ -352,19 +383,19 @@ function New-PicketArguments
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedSource,
+        [string]$CommandSource,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedConfig,
+        [string]$CommandConfig,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedBaselinePath,
+        [string]$CommandBaselinePath,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]
-        [string]$ResolvedReportTemplate
+        [string]$CommandReportTemplate
     )
 
     $arguments = [System.Collections.Generic.List[string]]::new()
@@ -374,7 +405,7 @@ function New-PicketArguments
     {
         "dir"
         {
-            $arguments.Add($ResolvedSource)
+            $arguments.Add($CommandSource)
             if ($FollowSymlinks)
             {
                 $arguments.Add("--follow-symlinks")
@@ -382,7 +413,7 @@ function New-PicketArguments
         }
         "git"
         {
-            $arguments.Add($ResolvedSource)
+            $arguments.Add($CommandSource)
             if (![string]::IsNullOrWhiteSpace($LogOptions))
             {
                 $arguments.Add("--log-opts")
@@ -410,16 +441,16 @@ function New-PicketArguments
         }
     }
 
-    if (![string]::IsNullOrWhiteSpace($ResolvedConfig))
+    if (![string]::IsNullOrWhiteSpace($CommandConfig))
     {
         $arguments.Add("--config")
-        $arguments.Add($ResolvedConfig)
+        $arguments.Add($CommandConfig)
     }
 
-    if (![string]::IsNullOrWhiteSpace($ResolvedBaselinePath))
+    if (![string]::IsNullOrWhiteSpace($CommandBaselinePath))
     {
         $arguments.Add("--baseline-path")
-        $arguments.Add($ResolvedBaselinePath)
+        $arguments.Add($CommandBaselinePath)
     }
 
     $arguments.Add("--report-format")
@@ -429,10 +460,10 @@ function New-PicketArguments
     $arguments.Add("--no-banner")
     $arguments.Add("--no-color")
 
-    if (![string]::IsNullOrWhiteSpace($ResolvedReportTemplate))
+    if (![string]::IsNullOrWhiteSpace($CommandReportTemplate))
     {
         $arguments.Add("--report-template")
-        $arguments.Add($ResolvedReportTemplate)
+        $arguments.Add($CommandReportTemplate)
     }
 
     foreach ($argument in $AdditionalArguments)
@@ -466,6 +497,7 @@ $gitleaksOutputDirectory = Join-Path $resolvedOutputDirectory "gitleaks"
 $picketOutputDirectory = Join-Path $resolvedOutputDirectory "picket"
 [void][System.IO.Directory]::CreateDirectory($gitleaksOutputDirectory)
 [void][System.IO.Directory]::CreateDirectory($picketOutputDirectory)
+$resolvedWorkingDirectory = Resolve-WorkingDirectory
 
 $gitleaksCaptureScript = Join-Path $PSScriptRoot "Capture-GitleaksOracle.ps1"
 $gitleaksScriptParameters = New-GitleaksScriptParameters -GitleaksOutputDirectory $gitleaksOutputDirectory
@@ -477,16 +509,16 @@ $resolvedStdinPath = ""
 
 if ($Mode -eq "stdin")
 {
-    $resolvedStdinPath = Resolve-ExistingPath -PathValue $StdinPath -Description "stdin fixture"
+    $resolvedStdinPath = Resolve-ExistingPath -PathValue $StdinPath -Description "stdin fixture" -BaseDirectory $resolvedWorkingDirectory
 }
 else
 {
-    $resolvedSource = Resolve-ExistingPath -PathValue $Source -Description "source"
+    $resolvedSource = Resolve-ExistingPath -PathValue $Source -Description "source" -BaseDirectory $resolvedWorkingDirectory
 }
 
-$resolvedConfig = Resolve-ExistingPath -PathValue $Config -Description "config"
-$resolvedBaselinePath = Resolve-ExistingPath -PathValue $BaselinePath -Description "baseline"
-$resolvedReportTemplate = Resolve-ExistingPath -PathValue $ReportTemplate -Description "report template"
+$resolvedConfig = Resolve-ExistingPath -PathValue $Config -Description "config" -BaseDirectory $resolvedWorkingDirectory
+$resolvedBaselinePath = Resolve-ExistingPath -PathValue $BaselinePath -Description "baseline" -BaseDirectory $resolvedWorkingDirectory
+$resolvedReportTemplate = Resolve-ExistingPath -PathValue $ReportTemplate -Description "report template" -BaseDirectory $resolvedWorkingDirectory
 $picketResults = [System.Collections.Generic.List[object]]::new()
 
 foreach ($format in ($ReportFormat | Select-Object -Unique))
@@ -499,11 +531,11 @@ foreach ($format in ($ReportFormat | Select-Object -Unique))
     $arguments = New-PicketArguments `
         -Format $format `
         -ReportPath $reportPath `
-        -ResolvedSource $resolvedSource `
-        -ResolvedConfig $resolvedConfig `
-        -ResolvedBaselinePath $resolvedBaselinePath `
-        -ResolvedReportTemplate $resolvedReportTemplate
-    $result = Invoke-ExternalProcess -FilePath $picketExecutable -Arguments $arguments -StandardInputPath $resolvedStdinPath
+        -CommandSource $Source `
+        -CommandConfig $Config `
+        -CommandBaselinePath $BaselinePath `
+        -CommandReportTemplate $ReportTemplate
+    $result = Invoke-ExternalProcess -FilePath $picketExecutable -Arguments $arguments -WorkingDirectoryPath $resolvedWorkingDirectory -StandardInputPath $resolvedStdinPath
 
     [System.IO.File]::WriteAllText($stdoutPath, $result.Stdout)
     [System.IO.File]::WriteAllText($stderrPath, $result.Stderr)
@@ -559,6 +591,7 @@ $comparisonPath = Join-Path $resolvedOutputDirectory "comparison.json"
 $metadata = [pscustomobject]@{
     Tool = "picket-compatibility-oracle"
     Mode = $Mode
+    WorkingDirectory = $resolvedWorkingDirectory
     Source = $resolvedSource
     StdinPath = $resolvedStdinPath
     Config = $resolvedConfig
