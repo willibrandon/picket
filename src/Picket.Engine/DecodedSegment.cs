@@ -6,7 +6,8 @@ internal readonly struct DecodedSegment(
     int originalStart,
     int originalEnd,
     DecodedEncoding encodings,
-    int depth)
+    int depth,
+    IReadOnlyList<string> decodePath)
 {
     internal int DecodedStart { get; } = decodedStart;
 
@@ -19,6 +20,8 @@ internal readonly struct DecodedSegment(
     internal DecodedEncoding Encodings { get; } = encodings;
 
     internal int Depth { get; } = depth;
+
+    internal IReadOnlyList<string> DecodePath { get; } = decodePath;
 
     internal bool OverlapsDecoded(int start, int end)
     {

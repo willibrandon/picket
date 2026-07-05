@@ -51,8 +51,8 @@ public sealed class PicketToonReportWriterTests
 
         string toon = PicketToonReportWriter.Write([finding], [rule]);
 
-        Assert.Contains("findings[1]{schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,secretSha256,matchSha256,blobSha256,line,commit,entropy,author,email,date,message,fingerprint,validationState,severity,confidence,provenanceType,baselineStatus,ignoreReason,link}:", toon);
-        Assert.Contains($"  picket.finding.v1,rule,desc,stdin,\"\",1,2,3,4,line containing secret,secret,2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b,307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3,{BlobSha256},line containing secret,\"\",2.5,\"\",\"\",\"\",\"\",fingerprint,unknown,critical,high,filesystem,new,\"\",\"\"", toon);
+        Assert.Contains("findings[1]{schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,secretSha256,matchSha256,blobSha256,decodePath,line,commit,entropy,author,email,date,message,fingerprint,validationState,severity,confidence,provenanceType,baselineStatus,ignoreReason,link}:", toon);
+        Assert.Contains($"  picket.finding.v1,rule,desc,stdin,\"\",1,2,3,4,line containing secret,secret,2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b,307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3,{BlobSha256},base64,line containing secret,\"\",2.5,\"\",\"\",\"\",\"\",fingerprint,unknown,critical,high,filesystem,new,\"\",\"\"", toon);
         Assert.Contains("findingTags[2]{findingIndex,tag}:\n  0,tag1\n  0,tag2", toon);
         Assert.Contains("rules[1]{id,description,pattern,pathPattern,secretGroup,entropy,skipReport}:\n  rule,desc,\"token-[0-9]+\",src/.*,1,3.5,true", toon);
         Assert.Contains("ruleKeywords[1]{ruleIndex,keyword}:\n  0,token", toon);
@@ -106,6 +106,7 @@ public sealed class PicketToonReportWriterTests
             tags ?? [],
             "fingerprint",
             line,
-            blobSha256: BlobSha256);
+            blobSha256: BlobSha256,
+            decodePath: ["base64"]);
     }
 }

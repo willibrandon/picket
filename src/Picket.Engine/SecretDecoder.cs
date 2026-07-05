@@ -31,12 +31,17 @@ internal static class SecretDecoder
 
             DecodedEncoding inheritedEncodings = DecodedEncoding.None;
             int inheritedDepth = 0;
+            IReadOnlyList<string> inheritedDecodePath = [];
             foreach (DecodedSegment segment in input.Segments)
             {
                 if (segment.OverlapsDecoded(match.Start, match.End))
                 {
                     inheritedEncodings |= segment.Encodings;
-                    inheritedDepth = Math.Max(inheritedDepth, segment.Depth);
+                    if (segment.Depth >= inheritedDepth)
+                    {
+                        inheritedDepth = segment.Depth;
+                        inheritedDecodePath = segment.DecodePath;
+                    }
                 }
             }
 
@@ -56,12 +61,33 @@ internal static class SecretDecoder
                 originalStart,
                 originalEnd,
                 inheritedEncodings | match.Encoding,
-                inheritedDepth + 1));
+                inheritedDepth + 1,
+                CreateDecodePath(inheritedDecodePath, match.Encoding)));
             position = match.End;
         }
 
         CopyOriginal(input, position, input.Bytes.Length, output, starts, ends);
         return new DecodedInput([.. output], [.. starts], [.. ends], segments);
+    }
+
+    private static IReadOnlyList<string> CreateDecodePath(IReadOnlyList<string> inheritedDecodePath, DecodedEncoding encoding)
+    {
+        var decodePath = new List<string>(inheritedDecodePath.Count + 1);
+        decodePath.AddRange(inheritedDecodePath);
+        decodePath.Add(GetDecodeName(encoding));
+        return decodePath;
+    }
+
+    private static string GetDecodeName(DecodedEncoding encoding)
+    {
+        return encoding switch
+        {
+            DecodedEncoding.Percent => "percent",
+            DecodedEncoding.Unicode => "unicode",
+            DecodedEncoding.Hex => "hex",
+            DecodedEncoding.Base64 => "base64",
+            _ => "unknown",
+        };
     }
 
     private static List<EncodingMatch> FindMatches(ReadOnlySpan<byte> input)

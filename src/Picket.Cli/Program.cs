@@ -2663,7 +2663,8 @@ static Finding MapGitFinding(Finding finding, GitPatchFragment fragment, string 
         finding.SecretSha256,
         finding.MatchSha256,
         finding.ValidationState,
-        finding.BlobSha256);
+        finding.BlobSha256,
+        finding.DecodePath);
 }
 
 static void CreateGitLinkContext(string root, bool disableLinks, string? platform, out string scmPlatform, out string remoteUrl)

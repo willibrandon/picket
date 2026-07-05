@@ -384,7 +384,14 @@ public sealed class SecretScanner
         int offset = 0;
         while (GenericApiKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
         {
-            if (!TryMapMatch(decodedInput, matchStart, matchEnd, out int reportStart, out int reportEnd, out IReadOnlyList<string> decodeTags))
+            if (!TryMapMatch(
+                decodedInput,
+                matchStart,
+                matchEnd,
+                out int reportStart,
+                out int reportEnd,
+                out IReadOnlyList<string> decodeTags,
+                out IReadOnlyList<string> decodePath))
             {
                 offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
                 continue;
@@ -448,7 +455,8 @@ public sealed class SecretScanner
                 CombineTags(rule.Tags, decodeTags),
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText,
-                blobSha256: blobIdentity.Sha256));
+                blobSha256: blobIdentity.Sha256,
+                decodePath: decodePath));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -481,7 +489,14 @@ public sealed class SecretScanner
             }
 
             ByteRegexMatch match = captures.Match;
-            if (!TryMapMatch(decodedInput, match.Start, match.End, out int reportStart, out int reportEnd, out IReadOnlyList<string> decodeTags))
+            if (!TryMapMatch(
+                decodedInput,
+                match.Start,
+                match.End,
+                out int reportStart,
+                out int reportEnd,
+                out IReadOnlyList<string> decodeTags,
+                out IReadOnlyList<string> decodePath))
             {
                 offset = AdvanceAfterMatch(match, input.Length);
                 continue;
@@ -546,7 +561,8 @@ public sealed class SecretScanner
                 CombineTags(rule.Tags, decodeTags),
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText,
-                blobSha256: blobIdentity.Sha256));
+                blobSha256: blobIdentity.Sha256,
+                decodePath: decodePath));
 
             offset = AdvanceAfterMatch(match, input.Length);
         }
@@ -558,13 +574,15 @@ public sealed class SecretScanner
         int matchEnd,
         out int reportStart,
         out int reportEnd,
-        out IReadOnlyList<string> decodeTags)
+        out IReadOnlyList<string> decodeTags,
+        out IReadOnlyList<string> decodePath)
     {
         if (decodedInput is null)
         {
             reportStart = matchStart;
             reportEnd = matchEnd;
             decodeTags = [];
+            decodePath = [];
             return true;
         }
 
@@ -573,6 +591,7 @@ public sealed class SecretScanner
         int originalEnd = 0;
         int depth = 0;
         DecodedEncoding encodings = DecodedEncoding.None;
+        IReadOnlyList<string> bestDecodePath = [];
         foreach (DecodedSegment segment in decodedInput.Segments)
         {
             if (!segment.OverlapsDecoded(matchStart, matchEnd))
@@ -583,7 +602,12 @@ public sealed class SecretScanner
             hasOverlap = true;
             originalStart = Math.Min(originalStart, segment.OriginalStart);
             originalEnd = Math.Max(originalEnd, segment.OriginalEnd);
-            depth = Math.Max(depth, segment.Depth);
+            if (segment.Depth >= depth)
+            {
+                depth = segment.Depth;
+                bestDecodePath = segment.DecodePath;
+            }
+
             encodings |= segment.Encodings;
         }
 
@@ -592,12 +616,14 @@ public sealed class SecretScanner
             reportStart = 0;
             reportEnd = 0;
             decodeTags = [];
+            decodePath = [];
             return false;
         }
 
         reportStart = originalStart;
         reportEnd = originalEnd;
         decodeTags = CreateDecodeTags(encodings, depth);
+        decodePath = bestDecodePath;
         return true;
     }
 

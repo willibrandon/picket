@@ -42,6 +42,7 @@ public sealed class PicketJunitReportWriterTests
         Assert.Contains("{&#34;schema&#34;:&#34;picket.finding.v1&#34;,&#34;ruleId&#34;:&#34;test-rule&#34;", xml);
         Assert.Contains("&#34;secretSha256&#34;:&#34;984ca5162200734c592148f1820b71057f098573d138666b48663e4e30cd8d3a&#34;", xml);
         Assert.Contains($"&#34;blobSha256&#34;:&#34;{BlobSha256}&#34;", xml);
+        Assert.Contains("&#34;decodePath&#34;:[&#34;base64&#34;]", xml);
         Assert.Contains("&#34;validationState&#34;:&#34;unknown&#34;", xml);
         Assert.Contains("&#34;fingerprint&#34;:&#34;fingerprint&#34;", xml);
     }
@@ -104,6 +105,7 @@ public sealed class PicketJunitReportWriterTests
             "message",
             [],
             "fingerprint",
-            blobSha256: BlobSha256);
+            blobSha256: BlobSha256,
+            decodePath: ["base64"]);
     }
 }

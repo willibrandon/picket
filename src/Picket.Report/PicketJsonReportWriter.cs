@@ -122,7 +122,7 @@ public static class PicketJsonReportWriter
         WriteString(builder, "severity", PicketFindingMetadata.Severity, comma: true);
         WriteString(builder, "confidence", PicketFindingMetadata.Confidence, comma: true);
         WriteProvenance(builder, finding, comma: true);
-        WriteEmptyArray(builder, "decodePath", comma: true);
+        WriteArray(builder, "decodePath", PicketFindingMetadata.CreateDecodePath(finding), comma: true);
         WriteString(builder, "baselineStatus", PicketFindingMetadata.BaselineStatus, comma: true);
         WriteString(builder, "ignoreReason", PicketFindingMetadata.IgnoreReason, comma: true);
         WriteEmptyArray(builder, "remediationLinks", comma: true);

@@ -65,6 +65,7 @@ public sealed class PicketJsonlReportWriterTests
         Assert.Contains("\"severity\":\"critical\"", jsonl);
         Assert.Contains("\"confidence\":\"high\"", jsonl);
         Assert.Contains("\"provenance\":{\"type\":\"git\",\"path\":\"stdin\",\"commit\":\"0000000000000000\"}", jsonl);
+        Assert.Contains("\"decodePath\":[\"base64\"]", jsonl);
         Assert.Contains("\"link\":\"https://github.com/example/repo/blob/commit/stdin#L1\"", jsonl);
     }
 
@@ -96,6 +97,7 @@ public sealed class PicketJsonlReportWriterTests
             tags ?? [],
             "fingerprint",
             link: link,
-            blobSha256: BlobSha256);
+            blobSha256: BlobSha256,
+            decodePath: ["base64"]);
     }
 }

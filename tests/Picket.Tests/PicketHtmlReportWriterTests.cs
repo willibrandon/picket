@@ -61,6 +61,7 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("6ed417714f0de0a4685ed766cb926df89182f22cd40646f59a9072f72f41c6e0", html);
         Assert.Contains("Blob SHA-256", html);
         Assert.Contains(BlobSha256, html);
+        Assert.Contains("<dt>Decode Path</dt><dd><code>base64</code></dd>", html);
         Assert.Contains("<dt>Validation</dt><dd><code>unknown</code></dd>", html);
         Assert.Contains("sec&lt;ret&gt;", html);
         Assert.DoesNotContain("<script>", html);
@@ -118,6 +119,7 @@ public sealed class PicketHtmlReportWriterTests
             string.Empty,
             tags,
             fingerprint,
-            blobSha256: BlobSha256);
+            blobSha256: BlobSha256,
+            decodePath: ["base64"]);
     }
 }

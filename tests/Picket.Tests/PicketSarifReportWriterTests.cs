@@ -61,7 +61,8 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"confidence\": \"high\"", sarif);
         Assert.Contains("\"provenanceType\": \"git\"", sarif);
         Assert.Contains("\"baselineStatus\": \"new\"", sarif);
-        Assert.Contains("\"decodePath\": []", sarif);
+        Assert.Contains("\"decodePath\": [", sarif);
+        Assert.Contains("\"base64\"", sarif);
         Assert.Contains("\"remediationLinks\": []", sarif);
     }
 
@@ -102,6 +103,7 @@ public sealed class PicketSarifReportWriterTests
             fingerprint,
             "line containing secret",
             "https://github.com/example/repo/blob/commit/auth.py#L1",
-            blobSha256: BlobSha256);
+            blobSha256: BlobSha256,
+            decodePath: ["base64"]);
     }
 }

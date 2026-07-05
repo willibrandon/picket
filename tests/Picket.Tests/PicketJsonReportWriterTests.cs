@@ -55,7 +55,8 @@ public sealed class PicketJsonReportWriterTests
             string.Empty,
             ["tag"],
             "stdin:rule:1",
-            blobSha256: BlobSha256);
+            blobSha256: BlobSha256,
+            decodePath: ["base64"]);
 
         string json = PicketJsonReportWriter.Write([finding], [rule]);
 
@@ -70,7 +71,7 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"severity\":\"critical\"", json);
         Assert.Contains("\"confidence\":\"high\"", json);
         Assert.Contains("\"provenance\":{\"type\":\"filesystem\",\"path\":\"stdin\",\"commit\":\"\"}", json);
-        Assert.Contains("\"decodePath\":[]", json);
+        Assert.Contains("\"decodePath\":[\"base64\"]", json);
         Assert.Contains("\"baselineStatus\":\"new\"", json);
         Assert.Contains("\"ignoreReason\":\"\"", json);
         Assert.Contains("\"remediationLinks\":[]", json);

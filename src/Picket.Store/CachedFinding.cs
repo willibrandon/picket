@@ -19,9 +19,11 @@ internal sealed class CachedFinding(
     IReadOnlyList<string> tags,
     string secretSha256,
     string matchSha256,
-    string validationState)
+    string validationState,
+    IReadOnlyList<string> decodePath)
 {
-    private const int FieldCount = 14;
+    private const int CurrentFieldCount = 15;
+    private const int LegacyFieldCount = 14;
 
     internal static CachedFinding FromFinding(Finding finding)
     {
@@ -39,13 +41,14 @@ internal sealed class CachedFinding(
             finding.Tags,
             finding.SecretSha256,
             finding.MatchSha256,
-            finding.ValidationState);
+            finding.ValidationState,
+            finding.DecodePath);
     }
 
     internal static bool TryParse(ReadOnlySpan<string> fields, [NotNullWhen(true)] out CachedFinding? finding)
     {
         finding = null;
-        if (fields.Length != FieldCount)
+        if (fields.Length is not (CurrentFieldCount or LegacyFieldCount))
         {
             return false;
         }
@@ -75,7 +78,8 @@ internal sealed class CachedFinding(
                 TextFieldCodec.DecodeTags(fields[10]),
                 TextFieldCodec.Decode(fields[11]),
                 TextFieldCodec.Decode(fields[12]),
-                TextFieldCodec.Decode(fields[13]));
+                TextFieldCodec.Decode(fields[13]),
+                fields.Length == CurrentFieldCount ? TextFieldCodec.DecodeTags(fields[14]) : []);
             return true;
         }
         catch (FormatException)
@@ -102,6 +106,7 @@ internal sealed class CachedFinding(
         Append(builder, TextFieldCodec.Encode(secretSha256));
         Append(builder, TextFieldCodec.Encode(matchSha256));
         Append(builder, TextFieldCodec.Encode(validationState));
+        Append(builder, TextFieldCodec.EncodeTags(decodePath));
         builder.Append('\n');
     }
 
@@ -131,7 +136,8 @@ internal sealed class CachedFinding(
             secretSha256,
             matchSha256,
             validationState,
-            blobSha256);
+            blobSha256,
+            decodePath);
     }
 
     private static void Append(StringBuilder builder, string value)

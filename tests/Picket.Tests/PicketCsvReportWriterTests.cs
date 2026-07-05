@@ -19,7 +19,7 @@ public sealed class PicketCsvReportWriterTests
     {
         string csv = PicketCsvReportWriter.Write([]);
 
-        Assert.AreEqual("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
+        Assert.AreEqual("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
     }
 
     /// <summary>
@@ -32,8 +32,8 @@ public sealed class PicketCsvReportWriterTests
 
         string csv = PicketCsvReportWriter.Write([finding]);
 
-        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
-        Assert.Contains($"picket.finding.v1,rule,desc,stdin,,1,2,3,4,secret,2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b,line containing secret,307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3,{BlobSha256},line containing secret,0000000000000000,2.5,John Doe,johndoe@example.com,2026-07-05,message,fingerprint,unknown,critical,high,git,new,,tag1 tag2,https://github.com/example/repo/blob/commit/stdin#L1\n", csv);
+        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", csv);
+        Assert.Contains($"picket.finding.v1,rule,desc,stdin,,1,2,3,4,secret,2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b,line containing secret,307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3,{BlobSha256},base64,line containing secret,0000000000000000,2.5,John Doe,johndoe@example.com,2026-07-05,message,fingerprint,unknown,critical,high,git,new,,tag1 tag2,https://github.com/example/repo/blob/commit/stdin#L1\n", csv);
     }
 
     /// <summary>
@@ -81,6 +81,7 @@ public sealed class PicketCsvReportWriterTests
             "fingerprint",
             line,
             "https://github.com/example/repo/blob/commit/stdin#L1",
-            blobSha256: BlobSha256);
+            blobSha256: BlobSha256,
+            decodePath: ["base64"]);
     }
 }

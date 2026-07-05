@@ -663,6 +663,9 @@ public sealed class SecretScannerTests
         Assert.Contains("decoded:percent", finding.Tags);
         Assert.Contains("decoded:base64", finding.Tags);
         Assert.Contains("decode-depth:2", finding.Tags);
+        Assert.HasCount(2, finding.DecodePath);
+        Assert.AreEqual("percent", finding.DecodePath[0]);
+        Assert.AreEqual("base64", finding.DecodePath[1]);
     }
 
     private static CompiledRuleSet CompileTokenRule()

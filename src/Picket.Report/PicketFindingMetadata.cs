@@ -30,6 +30,11 @@ internal static class PicketFindingMetadata
         return finding.BlobSha256;
     }
 
+    internal static IReadOnlyList<string> CreateDecodePath(Finding finding)
+    {
+        return finding.DecodePath;
+    }
+
     internal static string CreateValidationState(Finding finding)
     {
         return finding.ValidationState.Length == 0 ? ValidationState : finding.ValidationState;

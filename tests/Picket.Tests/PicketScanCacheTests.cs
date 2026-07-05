@@ -43,6 +43,8 @@ public sealed class PicketScanCacheTests
         Assert.AreEqual("secret.txt", cachedFindings[0].File);
         Assert.AreEqual("secret.txt:token:1", cachedFindings[0].Fingerprint);
         Assert.AreEqual(BlobHasher.ComputeSha256Hex(content), cachedFindings[0].BlobSha256);
+        Assert.HasCount(1, cachedFindings[0].DecodePath);
+        Assert.AreEqual("base64", cachedFindings[0].DecodePath[0]);
     }
 
     /// <summary>
@@ -91,6 +93,7 @@ public sealed class PicketScanCacheTests
         Assert.HasCount(1, cachedFindings);
         Assert.AreEqual("token-12345", cachedFindings[0].Secret);
         Assert.AreEqual(blobHash, cachedFindings[0].BlobSha256);
+        Assert.IsEmpty(cachedFindings[0].DecodePath);
     }
 
     /// <summary>
@@ -199,7 +202,8 @@ public sealed class PicketScanCacheTests
             string.Empty,
             [],
             $"{file}:token:1",
-            "token-12345");
+            "token-12345",
+            decodePath: ["base64"]);
     }
 
     private static string CreateLegacyEntry(string blobHash, string keyFingerprint)

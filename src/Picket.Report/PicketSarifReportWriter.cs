@@ -269,7 +269,7 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 6, "provenanceType", PicketFindingMetadata.CreateProvenanceType(finding), comma: true);
         WriteStringProperty(builder, 6, "baselineStatus", PicketFindingMetadata.BaselineStatus, comma: true);
         WriteStringProperty(builder, 6, "ignoreReason", PicketFindingMetadata.IgnoreReason, comma: true);
-        WriteArrayProperty(builder, 6, "decodePath", Array.Empty<string>(), comma: true);
+        WriteArrayProperty(builder, 6, "decodePath", PicketFindingMetadata.CreateDecodePath(finding), comma: true);
         WriteArrayProperty(builder, 6, "remediationLinks", Array.Empty<string>(), comma: true);
         WriteArrayProperty(builder, 6, "tags", finding.Tags, comma: true);
         WriteStringProperty(builder, 6, "link", finding.Link, comma: false);
