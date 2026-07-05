@@ -156,6 +156,73 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("must not change scanner findings", documentation);
     }
 
+    /// <summary>
+    /// Verifies that shared NuGet package metadata is defined for embeddable packages.
+    /// </summary>
+    [TestMethod]
+    public void DirectoryBuildPropsDefinesPackageMetadata()
+    {
+        XElement props = ReadProjectFile("Directory.Build.props");
+
+        AssertProjectProperty(props, "VersionPrefix", "0.1.0");
+        AssertProjectProperty(props, "Authors", "Picket contributors");
+        AssertProjectProperty(props, "PackageLicenseExpression", "MIT");
+        AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
+        AssertProjectProperty(props, "RepositoryType", "git");
+        AssertProjectProperty(props, "RepositoryUrl", "https://github.com/willibrandon/picket");
+        AssertProjectProperty(props, "PackageRequireLicenseAcceptance", "false");
+        AssertProjectProperty(props, "IncludeSymbols", "true");
+        AssertProjectProperty(props, "SymbolPackageFormat", "snupkg");
+        AssertProjectPropertyContains(props, "PackageTags", "native-aot");
+        AssertProjectPropertyContains(props, "PackageTags", "secrets");
+    }
+
+    /// <summary>
+    /// Verifies that the public embeddable libraries have explicit NuGet package contracts.
+    /// </summary>
+    [TestMethod]
+    public void EmbeddableProjectsDefinePackageContract()
+    {
+        AssertEmbeddablePackage("src/Picket.Rules/Picket.Rules.csproj", "Picket.Rules");
+        AssertEmbeddablePackage("src/Picket.Engine/Picket.Engine.csproj", "Picket.Engine");
+        AssertEmbeddablePackage("src/Picket.Report/Picket.Report.csproj", "Picket.Report");
+    }
+
+    /// <summary>
+    /// Verifies that internal workflow assemblies are not accidentally packed as public APIs.
+    /// </summary>
+    [TestMethod]
+    public void InternalProjectsAreNotAccidentallyPackable()
+    {
+        AssertProjectIsNotPackable("src/Picket.Analyze/Picket.Analyze.csproj");
+        AssertProjectIsNotPackable("src/Picket.Cli/Picket.Cli.csproj");
+        AssertProjectIsNotPackable("src/Picket.Compat/Picket.Compat.csproj");
+        AssertProjectIsNotPackable("src/Picket.Sources/Picket.Sources.csproj");
+        AssertProjectIsNotPackable("src/Picket.Store/Picket.Store.csproj");
+        AssertProjectIsNotPackable("src/Picket.Verify/Picket.Verify.csproj");
+    }
+
+    /// <summary>
+    /// Verifies that embedding documentation covers the public package surface.
+    /// </summary>
+    [TestMethod]
+    public void EmbeddingDocumentationCoversPublicPackageSurface()
+    {
+        string documentation = ReadRepositoryFile("docs/EMBEDDING.md");
+
+        Assert.Contains("Picket.Rules", documentation);
+        Assert.Contains("Picket.Engine", documentation);
+        Assert.Contains("Picket.Report", documentation);
+        Assert.Contains("net9.0", documentation);
+        Assert.Contains("net10.0", documentation);
+        Assert.Contains("Native AOT", documentation);
+        Assert.Contains("SecretScanner.Scan", documentation);
+        Assert.Contains("CompiledRuleSet.Compile", documentation);
+        Assert.Contains("PicketJsonlReportWriter", documentation);
+        Assert.Contains("not public packages yet", documentation);
+        Assert.Contains("Scout is consumed through NuGet", documentation);
+    }
+
     [GeneratedRegex(
         @"^\s*(?:(?:public|internal|private|protected|file)\s+)*(?:(?:abstract|sealed|static|partial|readonly|ref|unsafe)\s+)*(?:record\s+)?(?:class|struct|interface|enum|delegate)\s+",
         RegexOptions.Multiline | RegexOptions.CultureInvariant)]
@@ -188,7 +255,12 @@ public sealed partial class RepositoryConventionTests
 
     private static string ReadRepositoryFile(string relativePath)
     {
-        return File.ReadAllText(Path.Combine(FindRepositoryRoot(), relativePath));
+        return File.ReadAllText(ResolveRepositoryPath(relativePath));
+    }
+
+    private static XElement ReadProjectFile(string relativePath)
+    {
+        return XElement.Load(ResolveRepositoryPath(relativePath));
     }
 
     private static XElement ReadPublishProfile(string name)
@@ -220,7 +292,103 @@ public sealed partial class RepositoryConventionTests
 
     private static void AssertProfileProperty(XElement profile, string name, string expected)
     {
-        string? actual = profile.Element("PropertyGroup")?.Element(name)?.Value;
-        Assert.AreEqual(expected, actual, $"Unexpected publish profile property {name}.");
+        AssertProjectProperty(profile, name, expected);
+    }
+
+    private static void AssertEmbeddablePackage(string relativePath, string packageId)
+    {
+        XElement project = ReadProjectFile(relativePath);
+
+        AssertProjectProperty(project, "TargetFrameworks", "net9.0;net10.0");
+        AssertProjectProperty(project, "IsPackable", "true");
+        AssertProjectProperty(project, "PackageId", packageId);
+        AssertProjectPropertyIsNotEmpty(project, "Description");
+        AssertProjectProperty(project, "PackageReadmeFile", "README.md");
+        AssertProjectPropertyContains(project, "PackageTags", "$(PackageTags)");
+        AssertProjectProperty(project, "IsAotCompatible", "true");
+        AssertProjectProperty(project, "EnableTrimAnalyzer", "true");
+        AssertProjectProperty(project, "EnableAotAnalyzer", "true");
+        AssertProjectProperty(project, "EnableSingleFileAnalyzer", "true");
+        AssertProjectItem(
+            project,
+            "None",
+            @"..\..\docs\EMBEDDING.md",
+            "Pack",
+            "true");
+        AssertProjectItem(
+            project,
+            "None",
+            @"..\..\docs\EMBEDDING.md",
+            "PackagePath",
+            "README.md");
+        AssertProjectItem(
+            project,
+            "None",
+            @"..\..\docs\EMBEDDING.md",
+            "Link",
+            "README.md");
+    }
+
+    private static void AssertProjectIsNotPackable(string relativePath)
+    {
+        AssertProjectProperty(ReadProjectFile(relativePath), "IsPackable", "false");
+    }
+
+    private static void AssertProjectProperty(XElement project, string name, string expected)
+    {
+        string? actual = ReadProjectProperty(project, name);
+        Assert.AreEqual(expected, actual, $"Unexpected project property {name}.");
+    }
+
+    private static void AssertProjectPropertyContains(XElement project, string name, string expected)
+    {
+        string actual = ReadRequiredProjectProperty(project, name);
+        Assert.Contains(expected, actual);
+    }
+
+    private static void AssertProjectPropertyIsNotEmpty(XElement project, string name)
+    {
+        string actual = ReadRequiredProjectProperty(project, name);
+        Assert.AreNotEqual(string.Empty, actual, $"Project property {name} must not be empty.");
+    }
+
+    private static string? ReadProjectProperty(XElement project, string name)
+    {
+        return project.Element("PropertyGroup")?.Element(name)?.Value;
+    }
+
+    private static void AssertProjectItem(
+        XElement project,
+        string itemName,
+        string include,
+        string metadataName,
+        string metadataValue)
+    {
+        foreach (XElement item in project.Elements("ItemGroup").Elements(itemName))
+        {
+            if (item.Attribute("Include")?.Value == include
+                && item.Attribute(metadataName)?.Value == metadataValue)
+            {
+                return;
+            }
+        }
+
+        Assert.Fail($"Missing project item {itemName} Include={include} {metadataName}={metadataValue}.");
+    }
+
+    private static string ReadRequiredProjectProperty(XElement project, string name)
+    {
+        string? actual = ReadProjectProperty(project, name);
+        if (actual is null)
+        {
+            Assert.Fail($"Missing project property {name}.");
+        }
+
+        return actual;
+    }
+
+    private static string ResolveRepositoryPath(string relativePath)
+    {
+        return Path.Combine(FindRepositoryRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
     }
 }

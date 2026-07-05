@@ -657,7 +657,15 @@ Pre-receive support handles bare repositories, quarantine environment variables,
 
 `Picket.Engine`, `Picket.Rules`, and `Picket.Report` are AOT-safe NuGet packages for analyzers, MSBuild tasks, CI systems, IDE integrations, and internal security platforms.
 
-Public APIs are documented, cancellation-aware, streaming-first, and stable across minor releases.
+The initial public package surface is intentionally narrow:
+
+- `Picket.Rules` contains rule, allowlist, required-rule, and embedded compatibility-rule models.
+- `Picket.Engine` contains compiled rule sets, findings, entropy helpers, scan requests, and byte-oriented scanning.
+- `Picket.Report` contains Gitleaks-compatible and Picket-native report writers.
+
+`Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and the CLI are not public NuGet packages until their contracts are explicitly designed and documented. The CLI may later ship as a `dotnet tool`, but that is a distribution artifact rather than the embedding API.
+
+Public APIs are documented, cancellation-aware where operations can block or stream, streaming-first where result volume can be large, and stable across minor releases.
 
 ---
 
