@@ -1,9 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using Picket.Sources;
+using System.Diagnostics.CodeAnalysis;
 
 const int UnknownFlagExitCode = 126;
 const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
@@ -39,7 +39,9 @@ static async Task<int> RunStdinAsync(string[] args)
 {
     string? baselinePath = null;
     string? configPath = null;
+    string? reportPath = null;
     string reportFormat = "json";
+    int exitCode = 1;
     int redactionPercent = 0;
     for (int i = 0; i < args.Length; i++)
     {
@@ -68,6 +70,16 @@ static async Task<int> RunStdinAsync(string[] args)
             continue;
         }
 
+        if (arg.Equals("--exit-code", StringComparison.Ordinal) || arg.StartsWith("--exit-code=", StringComparison.Ordinal))
+        {
+            if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (arg is "-f" or "--report-format")
         {
             if (i + 1 >= args.Length)
@@ -77,6 +89,16 @@ static async Task<int> RunStdinAsync(string[] args)
             }
 
             reportFormat = args[++i];
+            continue;
+        }
+
+        if (arg is "-r" or "--report-path" || arg.StartsWith("--report-path=", StringComparison.Ordinal))
+        {
+            if (!TryReadStringFlag(args, ref i, "--report-path", out reportPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
             continue;
         }
 
@@ -121,16 +143,22 @@ static async Task<int> RunStdinAsync(string[] args)
         findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
     }
 
-    Console.Out.Write(GitleaksJsonReportWriter.Write(findings));
-    return findings.Count == 0 ? 0 : 1;
+    if (!TryWriteJsonReport(findings, reportPath))
+    {
+        return 1;
+    }
+
+    return findings.Count == 0 ? 0 : exitCode;
 }
 
 static int RunDirectory(string[] args)
 {
     string? baselinePath = null;
     string? configPath = null;
+    string? reportPath = null;
     string reportFormat = "json";
     string gitleaksIgnorePath = ".";
+    int exitCode = 1;
     long? maxTargetBytes = null;
     int redactionPercent = 0;
     string? root = null;
@@ -161,6 +189,16 @@ static int RunDirectory(string[] args)
             continue;
         }
 
+        if (arg.Equals("--exit-code", StringComparison.Ordinal) || arg.StartsWith("--exit-code=", StringComparison.Ordinal))
+        {
+            if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
+            {
+                return UnknownFlagExitCode;
+            }
+
+            continue;
+        }
+
         if (arg is "-f" or "--report-format")
         {
             if (i + 1 >= args.Length)
@@ -170,6 +208,16 @@ static int RunDirectory(string[] args)
             }
 
             reportFormat = args[++i];
+            continue;
+        }
+
+        if (arg is "-r" or "--report-path" || arg.StartsWith("--report-path=", StringComparison.Ordinal))
+        {
+            if (!TryReadStringFlag(args, ref i, "--report-path", out reportPath))
+            {
+                return UnknownFlagExitCode;
+            }
+
             continue;
         }
 
@@ -253,11 +301,12 @@ static int RunDirectory(string[] args)
 
     string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath);
     string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
+    string? reportDisplayPath = CreateControlFileDisplayPath(root, reportPath);
     var findings = new List<Finding>();
     bool hadScanError = false;
     foreach (SourceFile file in files)
     {
-        if (IsControlFile(file, baselineDisplayPath, configDisplayPath))
+        if (IsControlFile(file, baselineDisplayPath, configDisplayPath, reportDisplayPath))
         {
             continue;
         }
@@ -280,8 +329,17 @@ static int RunDirectory(string[] args)
         filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
     }
 
-    Console.Out.Write(GitleaksJsonReportWriter.Write(filteredFindings));
-    return filteredFindings.Count == 0 && !hadScanError ? 0 : 1;
+    if (!TryWriteJsonReport(filteredFindings, reportPath))
+    {
+        return 1;
+    }
+
+    if (hadScanError)
+    {
+        return 1;
+    }
+
+    return filteredFindings.Count == 0 ? 0 : exitCode;
 }
 
 static bool IsHelp(string arg)
@@ -308,6 +366,39 @@ static bool TryParseMegabytes(string value, out long? bytes)
     return true;
 }
 
+static bool TryReadStringFlag(string[] args, ref int index, string longName, [NotNullWhen(true)] out string? value)
+{
+    string arg = args[index];
+    string longNameWithEquals = string.Concat(longName, "=");
+    if (arg.StartsWith(longNameWithEquals, StringComparison.Ordinal))
+    {
+        value = arg[longNameWithEquals.Length..];
+        return true;
+    }
+
+    if (index + 1 >= args.Length)
+    {
+        Console.Error.WriteLine($"{arg} requires a value");
+        value = null;
+        return false;
+    }
+
+    value = args[++index];
+    return true;
+}
+
+static bool TryReadIntFlag(string[] args, ref int index, string longName, out int value)
+{
+    if (TryReadStringFlag(args, ref index, longName, out string? text) && int.TryParse(text, out value))
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine($"{longName} requires an integer value");
+    value = 0;
+    return false;
+}
+
 static bool IsRedactFlag(string arg)
 {
     return arg.Equals("--redact", StringComparison.Ordinal)
@@ -317,7 +408,6 @@ static bool IsRedactFlag(string arg)
 static bool TryReadRedactionPercent(string[] args, ref int index, out int redactionPercent)
 {
     string arg = args[index];
-    string? value = null;
     if (arg.Equals("--redact", StringComparison.Ordinal))
     {
         if (index + 1 < args.Length && int.TryParse(args[index + 1], out int parsedRedactionPercent))
@@ -338,7 +428,7 @@ static bool TryReadRedactionPercent(string[] args, ref int index, out int redact
         return true;
     }
 
-    value = arg["--redact=".Length..];
+    string value = arg["--redact=".Length..];
     if (TryParseRedactionPercent(value, out redactionPercent))
     {
         return true;
@@ -397,6 +487,27 @@ static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out Gitlea
     {
         Console.Error.WriteLine(ex.Message);
         baseline = null;
+        return false;
+    }
+}
+
+static bool TryWriteJsonReport(IReadOnlyList<Finding> findings, string? reportPath)
+{
+    string report = GitleaksJsonReportWriter.Write(findings);
+    if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
+    {
+        Console.Out.Write(report);
+        return true;
+    }
+
+    try
+    {
+        File.WriteAllText(reportPath, report);
+        return true;
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine($"failed to write report: {ex.Message}");
         return false;
     }
 }
@@ -463,7 +574,7 @@ static void WriteHelp()
     Console.Out.WriteLine("picket - bootstrap secrets scanner");
     Console.Out.WriteLine();
     Console.Out.WriteLine("Usage:");
-    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-i path] [--max-target-megabytes n] [--redact[=n]]");
-    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json] [--redact[=n]]");
+    Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json] [-r path] [-i path] [--exit-code n] [--max-target-megabytes n] [--redact[=n]]");
+    Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json] [-r path] [--exit-code n] [--redact[=n]]");
     Console.Out.WriteLine("  picket version");
 }

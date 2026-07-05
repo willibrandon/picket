@@ -1,6 +1,6 @@
-using System.Text;
 using Picket.Rules;
 using Scout.Text.Regex;
+using System.Text;
 
 namespace Picket.Engine;
 
