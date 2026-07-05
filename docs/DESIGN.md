@@ -138,9 +138,219 @@ Hot-path constraints:
 
 ---
 
-## 6. Gitleaks Compatibility
+## 6. Performance, Size, and AOT Strategy
 
-### 6.1 Commands
+This section applies current Microsoft .NET deployment, trimming, Native AOT, GC, memory, SIMD, and diagnostics guidance to Picket. The local runtime clone at `D:\SRC\runtime` is a reference for implementation details and Native AOT defaults, but public behavior follows documented SDK/runtime contracts.
+
+### 6.1 Release Profiles
+
+Picket ships multiple publish profiles because "fastest" and "smallest" are not the same artifact.
+
+| Profile | Purpose | Defaults |
+|---|---|---|
+| `release-speed` | Primary CLI artifact. Fast startup and fastest scan throughput while remaining small. | `PublishAot=true`, `SelfContained=true`, RID-specific publish, `OptimizationPreference=Speed`, symbols stripped into sidecar files, invariant globalization if conformance tests pass. |
+| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | `OptimizationPreference=Size`, diagnostics disabled, stack trace support disabled, resource-key exception messages enabled, invariant globalization, no optional network/XML/HTTP3 features unless needed. |
+| `release-diagnostics` | Support artifact for bug reports and performance investigations. | Same code as `release-speed`, but keeps diagnostics, metrics/EventSource support, stack traces, and richer symbols where the runtime supports them. |
+| `framework-dev` | Developer/test artifact. | Framework-dependent build with normal JIT, tiered compilation, Dynamic PGO defaults, and full diagnostics for inner-loop debugging. Not the shipped CLI. |
+
+The default public binary is `release-speed`. `release-minsize` is never allowed to change command behavior, reports, rule results, validation behavior, or error classification; it may only reduce diagnostic richness.
+
+### 6.2 Native AOT Publish Contract
+
+The CLI project uses Native AOT as the primary deployment model:
+
+- `PublishAot=true`
+- `SelfContained=true`
+- explicit `RuntimeIdentifier` per supported platform
+- `PublishSingleFile=true` only where it adds useful SDK analysis or packaging behavior; Native AOT already produces a native executable
+- `StripSymbols=true` with debug symbols published as separate artifacts
+- no runtime JIT dependency, no dynamic code generation, no dynamic plugin loading
+- no reflection-only serializer paths
+- no dependency that emits unresolved trim, single-file, or AOT warnings
+
+Native AOT is a closed-world contract. If a feature needs dynamic assembly loading, Reflection.Emit, expression compilation, runtime serializer discovery, or unbounded reflection over arbitrary user types, that feature is either redesigned, moved out of the Native AOT CLI, or rejected.
+
+### 6.3 Trim and AOT Analyzer Gates
+
+Every Picket library that can be used by the CLI sets:
+
+- `IsAotCompatible=true`
+- `EnableTrimAnalyzer=true`
+- `EnableAotAnalyzer=true`
+- `EnableSingleFileAnalyzer=true`
+
+The CLI test app also enables reference verification:
+
+- `VerifyReferenceTrimCompatibility=true`
+- `VerifyReferenceAotCompatibility=true`
+- detailed trimmer warnings in CI (`TrimmerSingleWarn=false`)
+
+All ILLink/AOT warnings are errors in CI. Suppressions require a local comment, a tracking issue, and an oracle test proving the code path is safe. Broad suppressions around public APIs are not allowed.
+
+### 6.4 Runtime Feature Switches
+
+Picket keeps feature switches explicit so size/performance tradeoffs are reviewable.
+
+Default candidates for all release profiles:
+
+- `InvariantGlobalization=true`, if all path, regex, casing, TOML, report, and provider tests prove Picket only needs ordinal/invariant behavior.
+- `EnableUnsafeBinaryFormatterSerialization=false`
+- `EnableUnsafeUTF7Encoding=false`
+- `MetadataUpdaterSupport=false`
+- `XmlResolverIsNetworkingEnabledByDefault=false`
+- `UseSizeOptimizedLinq=true`; hot paths must not depend on LINQ throughput.
+- `Http3Support=false` unless a validator or source requires it.
+- `HttpActivityPropagationSupport=false` unless diagnostics builds require it.
+
+Profile-specific candidates:
+
+- `DebuggerSupport=false` in `release-speed` and `release-minsize`; true only for `release-diagnostics`.
+- `EventSourceSupport=false` and `MetricsSupport=false` in `release-minsize`; optional in `release-speed`; true in `release-diagnostics`.
+- `StackTraceSupport=false` in `release-minsize`; considered for `release-speed` only after bug-report ergonomics are covered by structured diagnostics.
+- `UseSystemResourceKeys=true` only in `release-minsize`, because stripped framework exception text hurts supportability.
+- `StackTraceLineNumberSupport` is a future .NET 11+ option and is not required for the .NET 10 release plan.
+
+Feature switches are tested as part of release validation. If disabling a switch changes compatibility, validation, or error behavior, the switch stays enabled for that profile.
+
+### 6.5 Serialization and Configuration
+
+Compatibility report writers remain handwritten byte writers.
+
+For native reports and internal persistence:
+
+- use source-generated `System.Text.Json` contexts only,
+- disable reflection-based JSON serialization in AOT builds,
+- declare every serialized shape explicitly,
+- avoid `object`-typed JSON payloads unless every concrete type is listed in the source-generation context,
+- keep JSONL writers streaming and allocation-bounded,
+- prefer small custom parsers for hot compatibility paths when exact bytes matter.
+
+TOML loading may use a parser library only if it is trim/AOT compatible with zero warnings. Otherwise Picket owns a small schema-focused parser for Gitleaks/Picket config.
+
+### 6.6 Memory and Buffering Rules
+
+Picket follows .NET span/memory guidance:
+
+- synchronous hot-path APIs accept `ReadOnlySpan<byte>` / `Span<byte>`,
+- async or stored buffers use `ReadOnlyMemory<byte>` / `Memory<byte>` with documented ownership,
+- `IMemoryOwner<T>` ownership is explicit and disposed exactly once,
+- pooled buffers come from `ArrayPool<byte>` or a narrow internal pool,
+- pooled arrays are returned in `finally` blocks and cleared only when they might contain secrets,
+- `stackalloc` is used only for small, bounded scratch buffers,
+- line/column extraction operates on spans and does not allocate substrings in the match loop,
+- secret redaction works over byte spans before any optional string projection.
+
+No hot path allocates a `string` unless the output contract requires it.
+
+### 6.7 File IO and Source Enumeration
+
+Filesystem scanning is tuned by measurement, not folklore.
+
+- Use `FileStreamOptions` with explicit access, share, buffer size, async mode, and sequential-scan policy.
+- Benchmark buffer sizes per platform and file-size bucket; do not assume the default 4 KiB buffer is optimal.
+- Avoid double buffering when reading a file fully into a pooled blob buffer.
+- For very large files, stream in bounded windows with overlap sufficient for multiline rules and decoder boundaries.
+- Memory mapping is optional and benchmark-gated; it must not increase address-space pressure or complicate archive/decoder offset mapping.
+- Parallelism is bounded by IO pressure, CPU pressure, and memory budget, not just processor count.
+
+### 6.8 GC and Runtime Configuration
+
+Picket does not blindly tune GC. The .NET defaults remain the baseline unless benchmarks prove a profile-specific change.
+
+- Short-lived local CLI scans default to workstation-style behavior and release memory back to the OS.
+- Long-running native source scans may use a measured high-throughput profile with server GC if it improves throughput without unacceptable memory growth.
+- `System.GC.ConserveMemory` is considered for `release-minsize` and container profiles, not for the default speed profile unless it wins benchmarks.
+- `System.GC.RetainVM` remains false for normal CLI use.
+- Container/action profiles may set heap hard limits and concurrency caps through documented runtime configuration rather than hidden code behavior.
+
+GC settings are part of benchmark matrices: throughput, startup, peak RSS, Gen0/Gen1/Gen2 counts, pause time, and allocation rate.
+
+### 6.9 SIMD and CPU-Specific Code
+
+Picket prefers Scout's SIMD-aware search and regex code over new custom intrinsics.
+
+Rules for Picket-owned SIMD:
+
+- keep scalar fallbacks,
+- use portable APIs where they are fast enough,
+- use hardware intrinsics only behind `IsSupported` checks and benchmark gates,
+- do not require AVX2/AVX-512/Arm64 AdvSimd in the default artifact,
+- consider CPU-specific artifacts only if they produce a large measured win and packaging remains understandable,
+- test Native AOT output on every supported architecture because AOT vector/intrinsic behavior is more constrained than JIT behavior.
+
+### 6.10 ReadyToRun, JIT, and Dynamic PGO
+
+ReadyToRun and Dynamic PGO are relevant only to non-Native-AOT builds.
+
+- The shipped CLI is Native AOT, so it does not rely on JIT tiering or Dynamic PGO.
+- Framework-dependent developer builds keep runtime defaults for tiered compilation and Dynamic PGO.
+- If Picket ships any non-AOT fallback tool, ReadyToRun is benchmarked separately because it improves startup by precompiling code but increases binary size.
+
+### 6.11 Compression and Post-Processing
+
+Executable compression is not a default. Microsoft's single-file guidance calls out startup cost for compression-style packaging, so Picket only uses compression when a release profile proves that the smaller download is worth the startup penalty.
+
+Post-processing is allowed for:
+
+- signing,
+- symbol splitting,
+- reproducibility metadata,
+- package-manager checksums,
+- optional external compression of archives, not the executable startup path.
+
+### 6.12 Measurement Gates
+
+Performance work is accepted only with measurements.
+
+Required gates:
+
+- cold startup time,
+- no-op scan time,
+- scan throughput by source type,
+- rule compile time,
+- allocations per MB scanned,
+- peak RSS,
+- output writer throughput,
+- binary size,
+- compressed package size,
+- first-run and warm-run CI action time,
+- Native AOT publish time,
+- profile-specific feature-switch diff.
+
+Tools:
+
+- BenchmarkDotNet for microbenchmarks and library-level comparisons,
+- `dotnet-counters`, `dotnet-trace`, EventPipe, and Visual Studio profiling for framework-dependent diagnostics builds,
+- OS-native profilers and allocation/RSS measurements for Native AOT artifacts,
+- hyperfine-style command benchmarks for end-to-end CLI comparisons.
+
+No optimization lands because it "should be faster." It lands because a benchmark, trace, or size report says it is faster or smaller for a Picket scenario.
+
+### 6.13 Microsoft Guidance References
+
+The applied guidance comes from current Microsoft Learn pages. These links are mirrored in `docs/UPSTREAM.md` with access dates and reviewed during runtime upgrades.
+
+- [Native AOT deployment overview](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
+- [Optimizing AOT deployments](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/optimizing)
+- [Trimming options](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/trimming-options)
+- [Prepare .NET libraries for trimming](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/prepare-libraries-for-trimming)
+- [Known trimming incompatibilities](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/incompatibilities)
+- [Single-file deployment](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview)
+- [.NET runtime configuration settings](https://learn.microsoft.com/en-us/dotnet/core/runtime-config/)
+- [GC configuration settings](https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector)
+- [Globalization configuration settings](https://learn.microsoft.com/en-us/dotnet/core/runtime-config/globalization)
+- [`System.Text.Json` source generation](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation)
+- [Memory-related and span types](https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/)
+- [`Memory<T>` and `Span<T>` usage guidelines](https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines)
+- [SIMD-accelerated types in .NET](https://learn.microsoft.com/en-us/dotnet/standard/simd)
+- [ReadyToRun deployment overview](https://learn.microsoft.com/en-us/dotnet/core/deploying/ready-to-run)
+- [.NET diagnostic tools overview](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/tools-overview)
+
+---
+
+## 7. Gitleaks Compatibility
+
+### 7.1 Commands
 
 | Command | Compatibility behavior |
 |---|---|
@@ -152,7 +362,7 @@ Hot-path constraints:
 
 `--platform` accepts the Gitleaks-compatible set: empty/unknown autodetect, `none`, `github`, `gitlab`, `azuredevops`, `gitea`, and `bitbucket`. Literal `auto` is Picket-native only if added; it is not part of the Gitleaks-compatible surface.
 
-### 6.2 Flags and Exit Codes
+### 7.2 Flags and Exit Codes
 
 Compatibility flags include:
 
@@ -177,7 +387,7 @@ Exit codes:
 
 Reports are written on partial scans when Gitleaks writes them.
 
-### 6.3 Config Schema
+### 7.3 Config Schema
 
 Picket implements the Gitleaks TOML schema:
 
@@ -189,7 +399,7 @@ Picket implements the Gitleaks TOML schema:
 
 The embedded compatibility ruleset is the pinned Gitleaks default ruleset only. Picket rules live in separate rule packs.
 
-### 6.4 Regex Compatibility
+### 7.4 Regex Compatibility
 
 Gitleaks rules are Go `regexp` patterns. Picket compiles them to Scout `ByteRegex` through a dialect layer.
 
@@ -206,7 +416,7 @@ The dialect layer defines behavior for:
 
 Every default Gitleaks rule and selected community config is compiled and run through both real Gitleaks and Picket in the differential suite. The design goal is not "roughly RE2-like"; it is tested Gitleaks rule behavior.
 
-### 6.5 Matching Semantics
+### 7.5 Matching Semantics
 
 Compatibility matching reproduces Gitleaks' observable algorithm:
 
@@ -222,7 +432,7 @@ Compatibility matching reproduces Gitleaks' observable algorithm:
 
 Picket-native modes can add richer confidence scoring and cross-rule correlation, but compatibility mode does not.
 
-### 6.6 Fingerprints, Ignores, Baselines
+### 7.6 Fingerprints, Ignores, Baselines
 
 Compatibility fingerprints:
 
@@ -244,7 +454,7 @@ Baselines compare the same fields as Gitleaks. Fingerprint is deliberately not t
 
 Native mode adds `.picketignore`, glob ignores, content-hash ignores, stale-ignore auditing, and stable fingerprints. Those features never silently affect strict Gitleaks compatibility.
 
-### 6.7 Reports
+### 7.7 Reports
 
 Compatibility report writers are byte-oriented golden-output components, not generic serializers.
 
@@ -256,7 +466,7 @@ Compatibility report writers are byte-oriented golden-output components, not gen
 
 Native reporters add JSONL, richer SARIF, TOON, HTML, GitLab code-quality, and simultaneous multi-output support.
 
-### 6.8 Decoding, Archives, Binary Files
+### 7.8 Decoding, Archives, Binary Files
 
 Compatibility mode follows Gitleaks for:
 
@@ -273,9 +483,9 @@ Native mode adds stricter archive-safety controls: decompressed byte caps, entry
 
 ---
 
-## 7. Picket-Native Best-In-Class Features
+## 8. Picket-Native Best-In-Class Features
 
-### 7.1 Rule Packs
+### 8.1 Rule Packs
 
 Picket ships separate rule packs:
 
@@ -287,7 +497,7 @@ Picket ships separate rule packs:
 
 Each rule can carry severity, confidence, examples, negative examples, tags, validation metadata, revocation metadata, documentation URL, deprecation state, and owning provider.
 
-### 7.2 Rule QA
+### 8.2 Rule QA
 
 `picket rules check` validates:
 
@@ -304,7 +514,7 @@ Each rule can carry severity, confidence, examples, negative examples, tags, val
 
 `picket rules test <rule> <input>` supports interactive authoring. `--print-config` emits fully resolved config after extends, profile selection, and rule-pack layering.
 
-### 7.3 False-Positive Reduction
+### 8.3 False-Positive Reduction
 
 Native profiles combine:
 
@@ -319,7 +529,7 @@ Native profiles combine:
 
 `p(random)` is not a vague ML promise. It is a deterministic scoring component with documented training data, calibration fixtures, stable thresholds, and explainable fields in native reports.
 
-### 7.4 Verification
+### 8.4 Verification
 
 Picket supports two classes of validation.
 
@@ -344,11 +554,11 @@ Live verification:
 - max response length and redaction,
 - audit events showing which provider endpoints were contacted.
 
-### 7.5 Revocation
+### 8.5 Revocation
 
 Where provider APIs support safe self-service revocation, Picket can emit and optionally run revocation commands. Revocation is never automatic during scan. Reports include revocation availability and exact command guidance only when redaction settings allow it.
 
-### 7.6 Credential Privilege Analysis
+### 8.6 Credential Privilege Analysis
 
 `picket analyze` maps what an active credential can access. It is inspired by TruffleHog analyze and Kingfisher access-map work, not claimed as unique.
 
@@ -364,7 +574,7 @@ Initial targets:
 
 Analysis output is separate from scan output and optimized for incident response: identity, scopes, reachable resources, risk summary, recommended rotation/revocation steps, and evidence.
 
-### 7.7 Blob Store and Incremental Scans
+### 8.7 Blob Store and Incremental Scans
 
 `Picket.Store` content-addresses every scanned blob and records provenance separately.
 
@@ -382,7 +592,7 @@ Design requirements:
 
 Dedup skips duplicate matching work but does not collapse compatibility reports. If Gitleaks would report the same blob at multiple commits/paths, compatibility mode still reports every provenance.
 
-### 7.8 Sources
+### 8.8 Sources
 
 Native source support:
 
@@ -398,7 +608,7 @@ Native source support:
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
 
-### 7.9 Output and Triage
+### 8.9 Output and Triage
 
 Native outputs:
 
@@ -416,7 +626,7 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 
 `picket view` opens local HTML/JSON/JSONL/SARIF reports and can import compatible Gitleaks and TruffleHog reports for cross-tool triage.
 
-### 7.10 CI, Hooks, and Distribution
+### 8.10 CI, Hooks, and Distribution
 
 Picket ships:
 
@@ -431,7 +641,7 @@ The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, base
 
 Pre-receive support handles bare repositories, quarantine environment variables, old/new ref input, timeouts, concurrency, and clear rejection messages.
 
-### 7.11 Embeddable .NET API
+### 8.11 Embeddable .NET API
 
 `Picket.Engine`, `Picket.Rules`, and `Picket.Report` are AOT-safe NuGet packages for analyzers, MSBuild tasks, CI systems, IDE integrations, and internal security platforms.
 
@@ -439,7 +649,7 @@ Public APIs are documented, cancellation-aware, streaming-first, and stable acro
 
 ---
 
-## 8. Security and Privacy Model
+## 9. Security and Privacy Model
 
 Security requirements:
 
@@ -459,9 +669,9 @@ Every validator has a threat-model entry: data sent, endpoint contacted, auth re
 
 ---
 
-## 9. Testing Strategy
+## 10. Testing Strategy
 
-### 9.1 Compatibility Oracle
+### 10.1 Compatibility Oracle
 
 The Gitleaks oracle suite runs the pinned real Gitleaks binary and Picket over identical fixtures.
 
@@ -479,11 +689,11 @@ Assertions:
 
 The suite includes filesystem scans, git-history scans, staged/pre-commit diffs, archives, decoders, binary files, symlinks, Windows paths, invalid UTF-8, templates, SARIF, empty reports, and partial errors.
 
-### 9.2 Rule Corpus
+### 10.2 Rule Corpus
 
 Every bundled Gitleaks rule and selected community rules are compiled through the dialect layer and tested against fixtures under both tools. Picket-native rules require positive and negative examples before release.
 
-### 9.3 Security Tests
+### 10.3 Security Tests
 
 Tests cover:
 
@@ -498,7 +708,7 @@ Tests cover:
 - malformed git patches,
 - malformed UTF-8.
 
-### 9.4 Performance Tests
+### 10.4 Performance Tests
 
 Performance gates are scenario-specific and fair:
 
@@ -509,13 +719,13 @@ Performance gates are scenario-specific and fair:
 
 Metrics include throughput, allocations, peak memory, startup time, rule compile time, cache hit rate, and report writer throughput.
 
-### 9.5 Live Tests
+### 10.5 Live Tests
 
 Live provider tests are opt-in and isolated from the default suite. Default CI uses recorded responses and local fakes. "Zero skipped tests" applies to the required offline suite, not to intentionally opt-in live credential tests.
 
 ---
 
-## 10. Compatibility Ledger
+## 11. Compatibility Ledger
 
 `docs/PARITY.md` is required before v1.
 
@@ -541,7 +751,7 @@ Examples:
 
 ---
 
-## 11. Competitive Baseline
+## 12. Competitive Baseline
 
 Picket should be judged against current local references, not stale marketing claims.
 
@@ -565,7 +775,7 @@ Claims of uniqueness must be narrow and testable. Picket's intended unique inter
 
 ---
 
-## 12. Milestones
+## 13. Milestones
 
 Milestones are integration gates, not marketing promises. Each gate must leave the repository with passing tests and no stubbed public feature.
 
@@ -670,7 +880,7 @@ Stretch features are not v1 blockers unless promoted by a separate design update
 
 ---
 
-## 13. Documentation Deliverables
+## 14. Documentation Deliverables
 
 Required before v1:
 
