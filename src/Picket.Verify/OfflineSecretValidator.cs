@@ -44,6 +44,7 @@ public static class OfflineSecretValidator
             "gcp-api-key" => ValidateGcpApiKey(secret),
             "jwt" => ValidateJwt(secret),
             "jwt-base64" => ValidateBase64EncodedJwt(secret),
+            "picket-google-api-key" => ValidateGcpApiKey(secret),
             "picket-gcp-service-account-key" => ValidateGcpServiceAccountKeyJson(secret),
             "picket-azure-storage-connection-string" => ValidateAzureStorageConnectionString(finding.Match, secret),
             "private-key" => ValidatePrivateKeyEnvelope(finding.Match),

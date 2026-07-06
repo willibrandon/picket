@@ -4,8 +4,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageVersion Include="Scout.Text.Regex" Version="0.4.1" />
-    <PackageVersion Include="Scout.IO.Globbing" Version="0.4.1" />
-    <PackageVersion Include="Scout.IO.Ignore" Version="0.4.1" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Scout.IO.Globbing" Version="0.4.2" />
+    <PackageVersion Include="Scout.IO.Ignore" Version="0.4.2" />
+    <PackageVersion Include="Scout.Text.Regex" Version="0.4.2" />
   </ItemGroup>
 </Project>

@@ -38,6 +38,19 @@ provider = "Azure"
 documentationUrl = "https://learn.microsoft.com/azure/storage/common/storage-account-keys-manage"
 
 [[rules]]
+id = "picket-google-api-key"
+description = "Detected a Google API key."
+regex = '''\b(AIza[\w-]{35})(?:[\x60'"\s;]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["aiza"]
+tags = ["picket", "gcp", "google", "api-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "GCP"
+documentationUrl = "https://cloud.google.com/docs/authentication/api-keys"
+
+[[rules]]
 id = "picket-gcp-service-account-key"
 description = "Detected a Google Cloud service account key JSON document."
 regex = '''"type"\s*:\s*"service_account"'''

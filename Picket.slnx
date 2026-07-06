@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Picket.Benchmarks/Picket.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Picket.Analyze/Picket.Analyze.csproj" />
     <Project Path="src/Picket.Cli/Picket.Cli.csproj" />

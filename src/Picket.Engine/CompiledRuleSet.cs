@@ -88,12 +88,18 @@ public sealed class CompiledRuleSet(RuleSet rules)
                 usesAwsCredentialPairMatcher,
                 usesGenericApiKeyMatcher,
                 usesGcpServiceAccountKeyMatcher,
+                appliesGlobalAllowlists: !IsPicketNativeRulePack(rule.RulePack),
                 deferRegexCompilation,
                 regexContext,
                 pathRegexContext));
         }
 
         return compiledRules;
+    }
+
+    private static bool IsPicketNativeRulePack(string rulePack)
+    {
+        return rulePack.StartsWith("picket-", StringComparison.Ordinal);
     }
 
     private static string CreateFingerprint(RuleSet rules)

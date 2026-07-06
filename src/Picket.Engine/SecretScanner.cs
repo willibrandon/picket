@@ -9,6 +9,8 @@ namespace Picket.Engine;
 /// </summary>
 public sealed class SecretScanner
 {
+    private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
+
     /// <summary>
     /// Scans a byte buffer and returns findings in rule evaluation order.
     /// </summary>
@@ -93,6 +95,7 @@ public sealed class SecretScanner
     {
         foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
         {
+            List<CompiledAllowlist> globalAllowlists = GetGlobalAllowlists(ruleSet, compiledRule);
             List<Finding> ruleFindings = ScanCompiledRule(
                 input,
                 originalInput,
@@ -100,7 +103,7 @@ public sealed class SecretScanner
                 fileName,
                 fileNameBytes,
                 windowsFileNameBytes,
-                ruleSet.Allowlists,
+                globalAllowlists,
                 ignoreGitleaksAllow,
                 commit,
                 maxTargetBytes,
@@ -320,7 +323,7 @@ public sealed class SecretScanner
                         fileName,
                         fileNameBytes,
                         windowsFileNameBytes,
-                        ruleSet.Allowlists,
+                        GetGlobalAllowlists(ruleSet, compiledRequiredRule),
                         ignoreGitleaksAllow,
                         commit,
                         maxTargetBytes,
@@ -392,6 +395,13 @@ public sealed class SecretScanner
         }
 
         return true;
+    }
+
+    private static List<CompiledAllowlist> GetGlobalAllowlists(CompiledRuleSet ruleSet, CompiledRule? compiledRule)
+    {
+        return compiledRule?.AppliesGlobalAllowlists == true
+            ? ruleSet.Allowlists
+            : s_emptyAllowlists;
     }
 
     private static bool IsWithinProximity(Finding primaryFinding, Finding requiredFinding, SecretRequiredRule requiredRule)

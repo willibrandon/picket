@@ -86,6 +86,22 @@ public sealed class CredentialAnalyzerTests
         Assert.Contains("Review and tighten API key restrictions", string.Join('\n', analysis.RecommendedActions));
     }
 
+    /// <summary>
+    /// Verifies that native Google API-key findings receive API-key-specific triage guidance.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesNativeGoogleApiKeys()
+    {
+        Finding finding = CreateNativeGoogleApiKeyFinding();
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("GCP", analysis.Provider);
+        Assert.AreEqual("GCP API key", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains("Review and tighten API key restrictions", string.Join('\n', analysis.RecommendedActions));
+    }
+
     private static Finding CreateAzureFinding(string accountKey)
     {
         string connectionString = $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net";
@@ -138,16 +154,16 @@ public sealed class CredentialAnalyzerTests
 
     private static Finding CreateGcpApiKeyFinding()
     {
-        const string Secret = "AIzaSyDabcdefghijklmnopqrstuvwxyz123456";
+        string secret = CreateGoogleApiKey();
         return new Finding(
             "gcp-api-key",
             "Uncovered a GCP API key, which could lead to unauthorized access to Google Cloud services and data breaches.",
             1,
             1,
             1,
-            Secret.Length,
-            Secret,
-            Secret,
+            secret.Length,
+            secret,
+            secret,
             "settings.txt",
             string.Empty,
             string.Empty,
@@ -159,6 +175,36 @@ public sealed class CredentialAnalyzerTests
             ["google"],
             "settings.txt:gcp-api-key:1",
             validationState: "structurally-valid");
+    }
+
+    private static Finding CreateNativeGoogleApiKeyFinding()
+    {
+        string secret = CreateGoogleApiKey();
+        return new Finding(
+            "picket-google-api-key",
+            "Detected a Google API key.",
+            1,
+            1,
+            1,
+            secret.Length,
+            secret,
+            secret,
+            "settings.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["picket", "google"],
+            "settings.txt:picket-google-api-key:1",
+            validationState: "structurally-valid");
+    }
+
+    private static string CreateGoogleApiKey()
+    {
+        return string.Concat("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
     }
 
     private static Finding CreateGcpFinding(string serviceAccountJson)

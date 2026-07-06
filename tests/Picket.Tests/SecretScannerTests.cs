@@ -92,6 +92,60 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that native Google API key detection is intentionally broader than the Gitleaks-compatible allowlisted rule.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanSeparatesNativeGoogleApiKeyDetectionFromGitleaksAllowlist()
+    {
+        byte[] input = File.ReadAllBytes(Path.Combine(FindRepositoryRoot(), "src", "Picket.Compat", "EmbeddedGitleaksConfig.cs"));
+        string fileName = "src/Picket.Compat/EmbeddedGitleaksConfig.cs";
+        RuleSet gitleaksRule = SelectRules(GitleaksConfigLoader.LoadRuleSet(null, "__picket-test__"), "gcp-api-key");
+        RuleSet nativeRule = SelectRules(PicketConfigLoader.LoadRuleSet(null, "__picket-test__"), "picket-google-api-key");
+
+        IReadOnlyList<Finding> gitleaksFindings = SecretScanner.Scan(new ScanRequest(
+            input,
+            fileName,
+            CompiledRuleSet.Compile(gitleaksRule),
+            maxDecodeDepth: 0));
+        IReadOnlyList<Finding> nativeFindings = SecretScanner.Scan(new ScanRequest(
+            input,
+            fileName,
+            CompiledRuleSet.Compile(nativeRule),
+            maxDecodeDepth: 0));
+
+        Assert.IsEmpty(gitleaksFindings);
+        Assert.AreEqual(16, CountFindings(nativeFindings, "picket-google-api-key"));
+    }
+
+    /// <summary>
+    /// Verifies that Gitleaks vendor assignment rules can scan rule text without stalling.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanHandlesVendorAssignmentRuleTextWithoutStalling()
+    {
+        string secret = "abc123def456ghi789jkl012mno345pq";
+        string ruleText = """
+            [[rules]]
+            id = "adafruit-api-key"
+            regex = '''(?i)[\w.-]{0,50}?(?:adafruit)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{32})(?:[\x60'"\s;]|\\[nr]|$)'''
+            keywords = ["adafruit"]
+            """;
+        RuleSet sourceRules = GitleaksConfigLoader.FromToml(ruleText, "memory");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+        byte[] negativeInput = Encoding.UTF8.GetBytes(ruleText);
+        byte[] positiveInput = Encoding.UTF8.GetBytes($"adafruit_api_key = {secret}\n");
+
+        IReadOnlyList<Finding> negativeFindings = SecretScanner.Scan(new ScanRequest(negativeInput, "rules.toml", rules, maxDecodeDepth: 0));
+        IReadOnlyList<Finding> positiveFindings = SecretScanner.Scan(new ScanRequest(positiveInput, "settings.txt", rules, maxDecodeDepth: 0));
+
+        Assert.IsEmpty(negativeFindings);
+        Assert.HasCount(1, positiveFindings);
+        Assert.AreEqual(secret, positiveFindings[0].Secret);
+    }
+
+    /// <summary>
     /// Verifies that native AWS pair detection reports a nearby labeled secret access key.
     /// </summary>
     [TestMethod]
@@ -762,6 +816,53 @@ public sealed class SecretScannerTests
                 entropy: 4.25,
                 keywords: ["akia", "aws_secret_access_key"]),
         ]));
+    }
+
+    private static RuleSet SelectRules(RuleSet ruleSet, string ruleId)
+    {
+        var rules = new List<SecretRule>(1);
+        for (int i = 0; i < ruleSet.Rules.Count; i++)
+        {
+            SecretRule rule = ruleSet.Rules[i];
+            if (rule.Id.Equals(ruleId, StringComparison.Ordinal))
+            {
+                rules.Add(rule);
+                break;
+            }
+        }
+
+        Assert.HasCount(1, rules);
+        return new RuleSet(rules, ruleSet.Allowlists, ruleSet.RegexesPrevalidated);
+    }
+
+    private static int CountFindings(IReadOnlyList<Finding> findings, string ruleId)
+    {
+        int count = 0;
+        for (int i = 0; i < findings.Count; i++)
+        {
+            if (findings[i].RuleID.Equals(ruleId, StringComparison.Ordinal))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        string? directory = AppContext.BaseDirectory;
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory, "Picket.slnx")))
+            {
+                return directory;
+            }
+
+            directory = Directory.GetParent(directory)?.FullName;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 
     private static string CreateAwsAccessKeyId()

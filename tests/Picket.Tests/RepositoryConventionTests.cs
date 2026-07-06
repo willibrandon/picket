@@ -293,6 +293,7 @@ public sealed partial class RepositoryConventionTests
         string validation = ReadRepositoryFile("docs/VALIDATION.md");
         string reports = ReadRepositoryFile("docs/REPORTS.md");
         string cache = ReadRepositoryFile("docs/CACHE.md");
+        string performance = ReadRepositoryFile("docs/PERFORMANCE.md");
 
         Assert.Contains("picket rules check", rules);
         Assert.Contains("picket rules test", rules);
@@ -326,6 +327,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PicketScanCache.PruneOlderThan", cache);
         Assert.Contains("picket cache stats", cache);
         Assert.Contains("picket cache prune", cache);
+        Assert.Contains("BenchmarkDotNet", performance);
+        Assert.Contains("benchmarks/Picket.Benchmarks", performance);
+        Assert.Contains("Capture-GitHubSecretScanningOracle.ps1", performance);
     }
 
     /// <summary>
@@ -409,6 +413,7 @@ public sealed partial class RepositoryConventionTests
         string script = ReadRepositoryFile("scripts/Capture-UpstreamPins.ps1");
         string oracleScript = ReadRepositoryFile("scripts/Capture-GitleaksOracle.ps1");
         string compatibilityScript = ReadRepositoryFile("scripts/Capture-CompatibilityOracle.ps1");
+        string githubOracleScript = ReadRepositoryFile("scripts/Capture-GitHubSecretScanningOracle.ps1");
         string promotionScript = ReadRepositoryFile("scripts/Promote-CompatibilityOracle.ps1");
         string fixtureReadme = ReadRepositoryFile("tests/fixtures/oracles/README.md");
 
@@ -418,11 +423,13 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("scripts/Capture-UpstreamPins.ps1 -Update", documentation);
         Assert.Contains("scripts/Capture-GitleaksOracle.ps1", documentation);
         Assert.Contains("scripts/Capture-CompatibilityOracle.ps1", documentation);
+        Assert.Contains("scripts/Capture-GitHubSecretScanningOracle.ps1", documentation);
         Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", documentation);
         Assert.Contains("PICKET_GITLEAKS_BIN", documentation);
         Assert.Contains("PICKET_BIN", documentation);
         Assert.Contains("artifacts/oracles/gitleaks", documentation);
         Assert.Contains("artifacts/oracles/compatibility", documentation);
+        Assert.Contains("artifacts/oracles/github-secret-scanning", documentation);
         Assert.Contains("tests/fixtures/oracles", documentation);
         Assert.Contains("RedactionMapPath", documentation);
         Assert.Contains("AllowUnredacted", documentation);
@@ -444,6 +451,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("comparison.json", compatibilityScript);
         Assert.Contains("FailOnDifference", compatibilityScript);
         Assert.Contains("picket-$Mode", compatibilityScript);
+        Assert.Contains("secret-scanning/alerts", githubOracleScript);
+        Assert.Contains("picket.github-secret-scanning-oracle.v1", githubOracleScript);
+        Assert.Contains("ConvertTo-SafeAlert", githubOracleScript);
+        Assert.Contains("SecretType", githubOracleScript);
+        Assert.DoesNotContain("RawSecret", githubOracleScript);
         Assert.Contains("Refusing to promote oracle captures", promotionScript);
         Assert.Contains("tests\\fixtures\\oracles", promotionScript);
         Assert.Contains("manifest.json", promotionScript);

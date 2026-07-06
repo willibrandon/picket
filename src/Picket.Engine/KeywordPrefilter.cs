@@ -18,7 +18,9 @@ internal sealed class KeywordPrefilter(IReadOnlyList<byte[]> keywords)
                 continue;
             }
 
-            encodedKeywords.Add(Encoding.UTF8.GetBytes(keyword));
+            byte[] encodedKeyword = Encoding.UTF8.GetBytes(keyword);
+            FoldAsciiInPlace(encodedKeyword);
+            encodedKeywords.Add(encodedKeyword);
         }
 
         return new KeywordPrefilter(encodedKeywords);
@@ -54,13 +56,31 @@ internal sealed class KeywordPrefilter(IReadOnlyList<byte[]> keywords)
             return false;
         }
 
-        int lastStart = input.Length - keyword.Length;
-        for (int start = 0; start <= lastStart; start++)
+        byte first = keyword[0];
+        byte upperFirst = ToUpperAscii(first);
+        int offset = 0;
+        while (offset <= input.Length - keyword.Length)
         {
+            int relativeIndex = first == upperFirst
+                ? input[offset..].IndexOf(first)
+                : input[offset..].IndexOfAny(first, upperFirst);
+            if (relativeIndex < 0)
+            {
+                return false;
+            }
+
+            int start = offset + relativeIndex;
+            if (start > input.Length - keyword.Length)
+            {
+                return false;
+            }
+
             if (StartsWithAsciiIgnoreCase(input[start..], keyword))
             {
                 return true;
             }
+
+            offset = start + 1;
         }
 
         return false;
@@ -83,6 +103,21 @@ internal sealed class KeywordPrefilter(IReadOnlyList<byte[]> keywords)
     {
         return value is >= (byte)'A' and <= (byte)'Z'
             ? (byte)(value + 0x20)
+            : value;
+    }
+
+    private static void FoldAsciiInPlace(byte[] value)
+    {
+        for (int index = 0; index < value.Length; index++)
+        {
+            value[index] = FoldAscii(value[index]);
+        }
+    }
+
+    private static byte ToUpperAscii(byte value)
+    {
+        return value is >= (byte)'a' and <= (byte)'z'
+            ? (byte)(value - 0x20)
             : value;
     }
 }

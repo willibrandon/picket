@@ -31,7 +31,7 @@ clone next to this repository.
 | Project | Version | Commit | Remote |
 |---|---:|---|---|
 | Gitleaks | `v8.30.0-23-g4c232b5` | `4c232b5014f7618360bd992b4c489cb055881c6b` | `https://github.com/gitleaks/gitleaks.git` |
-| Scout | `v0.4.1` | `706e5597e1ff65da239d61ba6288e92b8129b284` | `https://github.com/willibrandon/scout.git` |
+| Scout | `v0.4.2` | `823716053dcc9a7856ef31ad1b59bed2e1cab3d7` | `https://github.com/willibrandon/scout.git` |
 | TruffleHog | `v3.95.8-1-gf2cd191b9` | `f2cd191b97098913a07522227d2b5e40e57252f4` | `https://github.com/trufflesecurity/trufflehog.git` |
 | Nosey Parker | `v0.24.0-31-g2e6e7f36` | `2e6e7f36ce36619852532bbe698d8cb7a26d2da7` | `https://github.com/praetorian-inc/noseyparker.git` |
 | Kingfisher | `v1.105.0` | `78904df5ea7354a7dc3700e3c41a124524d23083` | `https://github.com/mongodb/kingfisher.git` |
@@ -127,3 +127,28 @@ promoted files still contain drive-root paths or any redaction-map secret.
 
 Picket compatibility tests should compare normalized reports, fingerprints,
 config diagnostics, exit codes, and stderr text against this pinned version.
+
+## GitHub Secret Scanning Oracle
+
+GitHub Secret Protection secret scanning is a hosted proprietary system, not a
+local Gitleaks binary. Use it as an alert oracle for repository parity, not as a
+source-code implementation reference. GitHub documents supported secret scanning
+patterns and alert scope in its public docs:
+
+- `https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns`
+- `https://docs.github.com/en/code-security/reference/secret-security/secret-scanning-scope`
+
+Capture sanitized GitHub alert metadata with:
+
+```powershell
+pwsh ./scripts/Capture-GitHubSecretScanningOracle.ps1 -Repository owner/name -State open -IncludeLocations
+```
+
+The script uses `gh api` and writes
+`artifacts/oracles/github-secret-scanning/alerts.json` by default. The output
+contains alert numbers, states, secret types, URLs, summary counts, and optional
+location metadata. It intentionally does not write GitHub's raw `secret` field.
+
+Use this oracle to compare Picket native rule coverage against GitHub alert
+classes and locations. Keep Gitleaks compatibility oracles separate because
+GitHub and Gitleaks do not have identical allowlist semantics.

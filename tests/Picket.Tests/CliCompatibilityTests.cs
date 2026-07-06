@@ -284,6 +284,27 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the embedded Google API key rule.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesEmbeddedGoogleApiKeyRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string apiKey = CreateGoogleApiKeyFixture();
+        File.WriteAllText(Path.Combine(root.Path, "settings.txt"), $"api_key = \"{apiKey}\"");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-google-api-key\"", result.Stdout);
+        Assert.Contains($"\"secret\":\"{apiKey}\"", result.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
+        Assert.Contains("\"provider\":\"GCP\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.Contains("\"documentationUrl\":\"https://cloud.google.com/docs/authentication/api-keys\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans use the embedded AWS access key pair rule.
     /// </summary>
     [TestMethod]
@@ -3550,6 +3571,11 @@ public sealed class CliCompatibilityTests
               "token_uri": "https://oauth2.googleapis.com/token"
             }
             """;
+    }
+
+    private static string CreateGoogleApiKeyFixture()
+    {
+        return string.Concat("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
     }
 
     private static string CreateTomlLiteral(string value)

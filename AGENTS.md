@@ -124,6 +124,7 @@ Add tests at the level of risk:
 
 - Unit tests for config parsing, entropy, fingerprints, decoder offset remapping, regex dialect translation, report writers, validators, and security boundaries.
 - Differential tests against the pinned Gitleaks binary for compatibility behavior.
+- Sanitized GitHub secret-scanning oracle captures for hosted-alert parity; never store GitHub API raw `secret` fields.
 - Golden byte tests for every compatibility report format.
 - Capture committed oracle fixtures with `-WorkingDirectory <fixture-root>` and relative command arguments whenever report paths are expected to be relative.
 - Rule-corpus tests for Gitleaks default rules and selected community configs.

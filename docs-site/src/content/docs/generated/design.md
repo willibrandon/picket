@@ -79,7 +79,7 @@ The design and differential tests are pinned to upstream reference snapshots. Up
 | Nosey Parker | `PICKET_NOSEYPARKER_REPO` | `../noseyparker` | Historical datastore/rule-QA/performance reference |
 | .NET Runtime | `PICKET_DOTNET_RUNTIME_REPO` | `../runtime` | Native AOT/runtime implementation reference |
 
-`docs/UPSTREAM.md` records exact commits, supported upstream versions, known README/code divergences, and the command lines used by oracle tests. `scripts/Capture-UpstreamPins.ps1` refreshes the pin table from local clones. `scripts/Capture-GitleaksOracle.ps1` captures pinned Gitleaks reports plus stdout, stderr, command arguments, working directory, binary version, and clone metadata under ignored `artifacts/oracles/gitleaks` output. `scripts/Capture-CompatibilityOracle.ps1` captures a side-by-side Gitleaks/Picket bundle with report hashes and exit-code comparisons under ignored `artifacts/oracles/compatibility` output. Oracle fixtures that depend on relative paths use `-WorkingDirectory <fixture-root>` with relative `-Source`, `-Config`, baseline, and template arguments so committed golden reports never encode a developer's local checkout path. `scripts/Promote-CompatibilityOracle.ps1` promotes reviewed captures into normalized, redacted golden fixtures under `tests/fixtures/oracles`. For example, Gitleaks' current code default for `--max-decode-depth` is `5`; if upstream docs say otherwise, Picket follows the code in compatibility tests and records the discrepancy.
+`docs/UPSTREAM.md` records exact commits, supported upstream versions, known README/code divergences, and the command lines used by oracle tests. `scripts/Capture-UpstreamPins.ps1` refreshes the pin table from local clones. `scripts/Capture-GitleaksOracle.ps1` captures pinned Gitleaks reports plus stdout, stderr, command arguments, working directory, binary version, and clone metadata under ignored `artifacts/oracles/gitleaks` output. `scripts/Capture-CompatibilityOracle.ps1` captures a side-by-side Gitleaks/Picket bundle with report hashes and exit-code comparisons under ignored `artifacts/oracles/compatibility` output. `scripts/Capture-GitHubSecretScanningOracle.ps1` captures sanitized hosted GitHub secret-scanning alert metadata, including alert type and optional location data but never raw secret values, under ignored `artifacts/oracles/github-secret-scanning` output. Oracle fixtures that depend on relative paths use `-WorkingDirectory <fixture-root>` with relative `-Source`, `-Config`, baseline, and template arguments so committed golden reports never encode a developer's local checkout path. `scripts/Promote-CompatibilityOracle.ps1` promotes reviewed captures into normalized, redacted golden fixtures under `tests/fixtures/oracles`. For example, Gitleaks' current code default for `--max-decode-depth` is `5`; if upstream docs say otherwise, Picket follows the code in compatibility tests and records the discrepancy.
 
 ---
 
@@ -334,6 +334,8 @@ Tools:
 - OS-native profilers and allocation/RSS measurements for Native AOT artifacts,
 - hyperfine-style command benchmarks for end-to-end CLI comparisons.
 
+The repository includes `benchmarks/Picket.Benchmarks` for engine-level BenchmarkDotNet scenarios. It must cover native default rules, strict Gitleaks-compatible rules, focused hot rules, rule compilation, and current GitHub-alert parity fixtures before performance changes are called complete.
+
 No optimization lands because it "should be faster." It lands because a benchmark, trace, or size report says it is faster or smaller for a Picket scenario.
 
 ### 6.13 Microsoft Guidance References
@@ -519,10 +521,12 @@ Native mode adds stricter archive-safety controls: decompressed byte caps, entry
 Picket ships separate rule packs:
 
 - `gitleaks`: exact compatibility rules,
-- `picket-default`: high-confidence modern coverage, initially including AWS access key ID plus secret access key pairs, Azure Storage connection strings with `AccountKey` values, and GCP service account key JSON,
+- `picket-default`: high-confidence modern coverage, initially including AWS access key ID plus secret access key pairs, Azure Storage connection strings with `AccountKey` values, Google API keys, and GCP service account key JSON,
 - `picket-strict`: broader coverage with more aggressive heuristics,
 - `picket-experimental`: new detectors under active tuning,
 - organization-local packs.
+
+Native `picket-*` rule packs do not inherit Gitleaks compatibility global allowlists. Compatibility rules keep those allowlists, but native hosted-scanner parity rules must not be suppressed by broad Gitleaks stopwords intended for a different contract.
 
 Each rule can carry severity, confidence, examples, negative examples, tags, validation metadata, revocation metadata, documentation URL, deprecation state, and owning provider.
 
@@ -733,11 +737,15 @@ Assertions:
 
 The suite includes filesystem scans, git-history scans, staged/pre-commit diffs, archives, decoders, binary files, symlinks, Windows paths, invalid UTF-8, templates, SARIF, empty reports, and partial errors.
 
-### 10.2 Rule Corpus
+### 10.2 GitHub Secret Scanning Oracle
+
+GitHub Secret Protection secret scanning is a hosted proprietary oracle, so Picket compares against sanitized alert metadata rather than an implementation clone. `scripts/Capture-GitHubSecretScanningOracle.ps1` captures alert numbers, states, secret types, URLs, and optional source locations through `gh api` while dropping raw secret values. Native rule-pack parity can then be compared against GitHub alert classes and locations. Strict Gitleaks compatibility remains a separate oracle because Gitleaks allowlists and GitHub hosted alerts are not the same contract.
+
+### 10.3 Rule Corpus
 
 Every bundled Gitleaks rule and selected community rules are compiled through the dialect layer and tested against fixtures under both tools. Picket-native rules require positive and negative examples before release.
 
-### 10.3 Security Tests
+### 10.4 Security Tests
 
 Tests cover:
 
@@ -752,18 +760,19 @@ Tests cover:
 - malformed git patches,
 - malformed UTF-8.
 
-### 10.4 Performance Tests
+### 10.5 Performance Tests
 
 Performance gates are scenario-specific and fair:
 
 - Gitleaks-compatible cold scans compared to Gitleaks with equivalent flags,
+- native rule-pack scans compared to sanitized GitHub secret-scanning alert metadata where the hosted alert family has a local deterministic equivalent,
 - native incremental scans compared against previous Picket runs,
 - verification benchmarks separated from scan-only benchmarks,
 - retired tools such as Nosey Parker used only as historical datapoints, not live release gates.
 
-Metrics include throughput, allocations, peak memory, startup time, rule compile time, cache hit rate, and report writer throughput.
+Metrics include throughput, allocations, peak memory, startup time, rule compile time, cache hit rate, and report writer throughput. Engine changes use `benchmarks/Picket.Benchmarks`; end-to-end comparisons use the oracle capture scripts under `scripts/`.
 
-### 10.5 Live Tests
+### 10.6 Live Tests
 
 Live provider tests are opt-in and isolated from the default suite. Default CI uses recorded responses and local fakes. "Zero skipped tests" applies to the required offline suite, not to intentionally opt-in live credential tests.
 
@@ -970,6 +979,7 @@ Required before v1:
 - `docs/REPORTS.md`: compatibility and native schemas,
 - `docs/ACTION.md`: CI action behavior and security posture,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,
+- `docs/PERFORMANCE.md`: benchmark and oracle comparison process,
 - `docs/RELEASE.md`: Native AOT publish profiles and release artifact guidance,
 - `docs/EMBEDDING.md`: library API guide,
 - `docs-site/`: static site shell for GitHub Pages,

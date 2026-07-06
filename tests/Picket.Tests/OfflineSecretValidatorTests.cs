@@ -212,6 +212,20 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that native Google API key findings are structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesNativeGoogleApiKeyShape()
+    {
+        Finding finding = CreateFinding("picket-google-api-key", CreateGcpApiKey());
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that malformed GCP API keys are rejected.
     /// </summary>
     [TestMethod]

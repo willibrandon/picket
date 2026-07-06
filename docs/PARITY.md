@@ -27,3 +27,29 @@ as deliberate.
 - **Migration guidance:** Use `--diagnostics=cpu,mem,trace` with
   `--diagnostics-dir <dir>` and collect `cpu.json`, `mem.json`, and
   `trace.jsonl`.
+
+## Native Google API Key Coverage
+
+- **Upstream behavior:** The pinned Gitleaks `gcp-api-key` rule detects Google
+  API key shapes but also carries rule allowlists for several example-looking
+  values in the embedded Gitleaks config.
+- **GitHub behavior:** GitHub Secret Protection is a hosted proprietary oracle.
+  Its secret scanning alerts classify the same credential family as
+  `google_api_key` and can flag values that Gitleaks suppresses as compatibility
+  allowlist examples.
+- **Picket behavior:** Strict Gitleaks-compatible scans keep the Gitleaks
+  allowlist behavior. Native scans include `picket-google-api-key` in the
+  `picket-default` rule pack and `picket-*` rule packs do not inherit Gitleaks
+  compatibility global allowlists.
+- **Mode/profile affected:** Picket-native `scan` and `--profile picket`.
+- **Reason:** Native coverage should track modern hosted scanner expectations
+  where that can be done locally and safely, while strict compatibility must not
+  change Gitleaks results.
+- **User impact:** Native scans may report Google API key examples that strict
+  Gitleaks-compatible scans suppress through rule-specific or global
+  compatibility allowlists. The finding uses a Picket rule ID, provider
+  metadata, and offline structural validation.
+- **Test name:** `ScanSeparatesNativeGoogleApiKeyDetectionFromGitleaksAllowlist`.
+- **Migration guidance:** Use strict compatibility commands for Gitleaks byte
+  parity. Use native `scan` when comparing to hosted GitHub secret scanning
+  alerts or when richer Picket metadata is preferred.

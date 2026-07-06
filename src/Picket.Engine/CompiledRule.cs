@@ -12,6 +12,7 @@ internal sealed class CompiledRule(
     bool usesAwsCredentialPairMatcher,
     bool usesGenericApiKeyMatcher,
     bool usesGcpServiceAccountKeyMatcher,
+    bool appliesGlobalAllowlists,
     bool deferRegexCompilation,
     string regexContext,
     string pathRegexContext)
@@ -39,6 +40,8 @@ internal sealed class CompiledRule(
     internal bool UsesGenericApiKeyMatcher { get; } = usesGenericApiKeyMatcher;
 
     internal bool UsesGcpServiceAccountKeyMatcher { get; } = usesGcpServiceAccountKeyMatcher;
+
+    internal bool AppliesGlobalAllowlists { get; } = appliesGlobalAllowlists;
 
     private ByteRegex? GetRegex(ref ByteRegex? regex, string pattern, string context)
     {
