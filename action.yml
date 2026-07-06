@@ -55,6 +55,10 @@ inputs:
     description: Optional maximum file size in decimal MB for content rules.
     required: false
     default: ""
+  timeout:
+    description: Optional scan timeout in seconds. Use 0 to disable.
+    required: false
+    default: ""
   max-archive-depth:
     description: Optional maximum nested archive traversal depth. Use 0 to disable.
     required: false
@@ -136,6 +140,7 @@ runs:
         PICKET_ANNOTATION_LIMIT: ${{ inputs.annotation-limit }}
         PICKET_REDACT: ${{ inputs.redact }}
         PICKET_MAX_TARGET_MEGABYTES: ${{ inputs.max-target-megabytes }}
+        PICKET_TIMEOUT: ${{ inputs.timeout }}
         PICKET_MAX_ARCHIVE_DEPTH: ${{ inputs.max-archive-depth }}
         PICKET_MAX_ARCHIVE_ENTRIES: ${{ inputs.max-archive-entries }}
         PICKET_MAX_ARCHIVE_MEGABYTES: ${{ inputs.max-archive-megabytes }}

@@ -1117,6 +1117,8 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "--allow-non-public-endpoints" => "Allow guarded live validation endpoints that are not public internet addresses.",
             "--cache-dir" => "Read or write scanner cache data in this directory.",
             "--command" => "Use this command path in generated hook scripts.",
+            "--diagnostics" => "Write structured diagnostics for the selected modes.",
+            "--diagnostics-dir" => "Write diagnostics artifacts to this directory.",
             "--enable-rule" => "Enable an additional rule by ID.",
             "--exit-code" => "Exit with this code when findings are present.",
             "--follow-symlinks" => "Follow symlinks while scanning directories.",
@@ -1149,6 +1151,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "--results" => "Keep findings with the selected validation result states.",
             "--source" => "Override the source label stored in findings and fingerprints.",
             "--staged" => "Scan staged changes.",
+            "--timeout" => "Stop scanning after this many seconds. Use 0 to disable.",
             _ => command.Length == 0 ? "Command option." : "Command-specific option.",
         };
     }

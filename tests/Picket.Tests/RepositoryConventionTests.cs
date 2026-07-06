@@ -51,6 +51,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("annotation-limit", action);
         Assert.Contains("cache-path", action);
         Assert.Contains("redact", action);
+        Assert.Contains("timeout", action);
         Assert.Contains("max-archive-depth", action);
         Assert.Contains("max-archive-entries", action);
         Assert.Contains("max-archive-megabytes", action);
@@ -77,6 +78,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--redact=$redact", helper);
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--max-target-megabytes", helper);
+        Assert.Contains("--timeout", helper);
         Assert.Contains("--max-archive-depth", helper);
         Assert.Contains("--max-archive-entries", helper);
         Assert.Contains("--max-archive-megabytes", helper);
@@ -111,6 +113,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("redact: 0", documentation);
         Assert.Contains("upload-sarif", documentation);
         Assert.Contains("cache-path", documentation);
+        Assert.Contains("timeout", documentation);
         Assert.Contains("max-archive-depth", documentation);
         Assert.Contains("max-archive-entries", documentation);
         Assert.Contains("max-archive-megabytes", documentation);
@@ -352,6 +355,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("class=\"cli-command-detail-header\"", cliReference);
         Assert.Contains("class=\"cli-reference-table\"", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--offline / --live</code></td>", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--timeout</code></td>", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--diagnostics</code></td>", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--diagnostics-dir</code></td>", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--max-archive-depth</code></td>", cliReference);
         Assert.Contains("href=\"#picket-scan\"", cliReference);
         Assert.Contains("### picket git", cliReference);

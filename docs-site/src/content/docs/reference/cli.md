@@ -162,7 +162,10 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
-  [--max-archive-ratio n]</code></pre>
+  [--max-archive-ratio n]
+  [--timeout n]
+  [--diagnostics mode[,mode]]
+  [--diagnostics-dir path]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -275,6 +278,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Limit archive expansion ratio.</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics</code></td>
+              <td data-label="Value"><code>mode[,mode]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write structured diagnostics for the selected modes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -323,7 +344,10 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
-  [--max-archive-ratio n]</code></pre>
+  [--max-archive-ratio n]
+  [--timeout n]
+  [--diagnostics mode[,mode]]
+  [--diagnostics-dir path]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -442,6 +466,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Limit archive expansion ratio.</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics</code></td>
+              <td data-label="Value"><code>mode[,mode]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write structured diagnostics for the selected modes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -487,7 +529,10 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
-  [--max-archive-ratio n]</code></pre>
+  [--max-archive-ratio n]
+  [--timeout n]
+  [--diagnostics mode[,mode]]
+  [--diagnostics-dir path]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -588,6 +633,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Limit archive expansion ratio.</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics</code></td>
+              <td data-label="Value"><code>mode[,mode]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write structured diagnostics for the selected modes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -625,6 +688,9 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]
+  [--timeout n]
+  [--diagnostics mode[,mode]]
+  [--diagnostics-dir path]
   [--redact[=n]]</code></pre>
     </div>
   </div>
@@ -719,6 +785,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Limit archive expansion ratio.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics</code></td>
+              <td data-label="Value"><code>mode[,mode]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write structured diagnostics for the selected modes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write diagnostics artifacts to this directory.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--redact</code></td>
@@ -961,6 +1045,9 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]
+  [--timeout n]
+  [--diagnostics mode[,mode]]
+  [--diagnostics-dir path]
   [--redact[=n]]</code></pre>
     </div>
   </div>
@@ -1129,6 +1216,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Limit archive expansion ratio.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics</code></td>
+              <td data-label="Value"><code>mode[,mode]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write structured diagnostics for the selected modes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n (optional)</code></td>
               <td data-label="Required">Optional</td>
@@ -1188,6 +1293,9 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]
+  [--timeout n]
+  [--diagnostics mode[,mode]]
+  [--diagnostics-dir path]
   [--redact[=n]]</code></pre>
     </div>
   </div>
@@ -1338,6 +1446,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Limit archive expansion ratio.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics</code></td>
+              <td data-label="Value"><code>mode[,mode]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write structured diagnostics for the selected modes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n (optional)</code></td>
               <td data-label="Required">Optional</td>
@@ -1389,7 +1515,12 @@ Use the grouped index to jump to the workflow you need.
   [--enable-rule id]
   [--exit-code n]
   [--ignore-gitleaks-allow]
+  [--max-decode-depth n]
+  [--max-archive-depth n]
   [--max-target-megabytes n]
+  [--timeout n]
+  [--diagnostics mode[,mode]]
+  [--diagnostics-dir path]
   [--redact[=n]]</code></pre>
     </div>
   </div>
@@ -1481,10 +1612,40 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Do not honor gitleaks:allow comments.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-target-megabytes</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics</code></td>
+              <td data-label="Value"><code>mode[,mode]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write structured diagnostics for the selected modes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--diagnostics-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write diagnostics artifacts to this directory.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--redact</code></td>

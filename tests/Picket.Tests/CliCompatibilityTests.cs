@@ -643,6 +643,9 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--results", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
+        Assert.Contains("--timeout", result.Stdout);
+        Assert.Contains("--diagnostics", result.Stdout);
+        Assert.Contains("--diagnostics-dir", result.Stdout);
     }
 
     /// <summary>
@@ -715,6 +718,27 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--offline", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
+        Assert.Contains("--timeout", result.Stdout);
+        Assert.Contains("--diagnostics", result.Stdout);
+        Assert.Contains("--diagnostics-dir", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that root help advertises scan limits and diagnostics controls.
+    /// </summary>
+    [TestMethod]
+    public async Task RootHelpAdvertisesOperationalScanControls()
+    {
+        CliResult result = await RunCliAsync("--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket scan", result.Stdout);
+        Assert.Contains("picket stdin", result.Stdout);
+        Assert.Contains("--max-decode-depth", result.Stdout);
+        Assert.Contains("--max-archive-depth", result.Stdout);
+        Assert.Contains("--timeout", result.Stdout);
+        Assert.Contains("--diagnostics", result.Stdout);
+        Assert.Contains("--diagnostics-dir", result.Stdout);
     }
 
     /// <summary>

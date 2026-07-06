@@ -45,6 +45,7 @@ jobs:
 | `annotation-limit` | `50` | Maximum number of workflow annotations to emit. Use `0` to disable without changing `annotations`. |
 | `redact` | `100` | Redaction percentage from `0` through `100`. Public CI defaults to full redaction. |
 | `max-target-megabytes` | empty | Optional maximum file size in decimal MB for content rules. |
+| `timeout` | empty | Optional scan timeout in seconds. Use `0` to disable. |
 | `max-archive-depth` | empty | Optional maximum nested archive traversal depth. Use `0` to disable archive traversal. |
 | `max-archive-entries` | empty | Optional maximum number of files extracted from archives. Use `0` to disable. |
 | `max-archive-megabytes` | empty | Optional maximum decompressed archive payload in decimal MB. |
