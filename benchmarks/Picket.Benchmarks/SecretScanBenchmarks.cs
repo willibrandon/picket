@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using Picket.Compat;
 using Picket.Engine;
@@ -9,12 +11,19 @@ namespace Picket.Benchmarks;
 /// Benchmarks core secret scanning scenarios.
 /// </summary>
 [MemoryDiagnoser]
-public sealed class SecretScanBenchmarks
+public class SecretScanBenchmarks
 {
+    private static readonly Dictionary<string, string[]> s_githubSecretScanningRuleIds = new(StringComparer.Ordinal)
+    {
+        ["google_api_key"] = ["picket-google-api-key"],
+    };
+
     private byte[] _credentialAnalyzerTests = [];
     private byte[] _embeddedGitleaksConfig = [];
+    private byte[] _githubSecretScanningFixture = [];
     private CompiledRuleSet _gitleaksCompatibilityRules = null!;
     private CompiledRuleSet _nativeDefaultRules = null!;
+    private CompiledRuleSet _nativeGitHubSecretScanningRules = null!;
     private CompiledRuleSet _nativeGoogleApiKeyRule = null!;
 
     /// <summary>
@@ -26,9 +35,13 @@ public sealed class SecretScanBenchmarks
         string repositoryRoot = FindRepositoryRoot();
         _embeddedGitleaksConfig = File.ReadAllBytes(Path.Combine(repositoryRoot, "src", "Picket.Compat", "EmbeddedGitleaksConfig.cs"));
         _credentialAnalyzerTests = File.ReadAllBytes(Path.Combine(repositoryRoot, "tests", "Picket.Tests", "CredentialAnalyzerTests.cs"));
+        _githubSecretScanningFixture = CreateGitHubSecretScanningFixture(repositoryRoot);
 
         RuleSet nativeRules = PicketConfigLoader.LoadRuleSet(null, "__picket-benchmark__");
         _nativeDefaultRules = CompiledRuleSet.Compile(nativeRules);
+        _nativeGitHubSecretScanningRules = CompiledRuleSet.Compile(SelectRules(
+            nativeRules,
+            ReadGitHubSecretScanningRuleIds(Path.Combine(repositoryRoot, "tests", "fixtures", "github-secret-scanning", "alerts.json"))));
         _nativeGoogleApiKeyRule = CompiledRuleSet.Compile(SelectRules(nativeRules, "picket-google-api-key"));
         _gitleaksCompatibilityRules = CompiledRuleSet.Compile(GitleaksConfigLoader.LoadRuleSet(null, "__picket-benchmark__"));
     }
@@ -70,6 +83,15 @@ public sealed class SecretScanBenchmarks
     }
 
     /// <summary>
+    /// Scans the sanitized GitHub secret-scanning oracle fixture with mapped native rules.
+    /// </summary>
+    [Benchmark]
+    public int ScanGitHubSecretScanningOracleFixtureWithMappedNativeRules()
+    {
+        return Scan(_githubSecretScanningFixture, "tests/fixtures/github-secret-scanning/source-template.txt", _nativeGitHubSecretScanningRules);
+    }
+
+    /// <summary>
     /// Compiles the native default rules.
     /// </summary>
     [Benchmark]
@@ -83,22 +105,72 @@ public sealed class SecretScanBenchmarks
         return SecretScanner.Scan(new ScanRequest(input, fileName, rules, maxDecodeDepth: 0)).Count;
     }
 
-    private static RuleSet SelectRules(RuleSet ruleSet, string ruleId)
+    private static byte[] CreateGitHubSecretScanningFixture(string repositoryRoot)
     {
-        var rules = new List<SecretRule>(1);
-        for (int i = 0; i < ruleSet.Rules.Count; i++)
+        string template = File.ReadAllText(Path.Combine(repositoryRoot, "tests", "fixtures", "github-secret-scanning", "source-template.txt"));
+        string fixture = template.Replace("{{GOOGLE_API_KEY}}", CreateGcpApiKey(), StringComparison.Ordinal);
+        return Encoding.UTF8.GetBytes(fixture);
+    }
+
+    private static string CreateGcpApiKey()
+    {
+        return string.Concat(CreateGcpApiKeyPrefix(), "SyDabcdefghijklmnopqrstuvwxyz123456");
+    }
+
+    private static string CreateGcpApiKeyPrefix()
+    {
+        return string.Concat("AI", "za");
+    }
+
+    private static string[] ReadGitHubSecretScanningRuleIds(string alertsPath)
+    {
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(alertsPath));
+        JsonElement root = document.RootElement;
+        var ruleIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement alert in root.GetProperty("Alerts").EnumerateArray())
         {
-            SecretRule rule = ruleSet.Rules[i];
-            if (rule.Id.Equals(ruleId, StringComparison.Ordinal))
+            string? secretType = alert.GetProperty("SecretType").GetString();
+            if (secretType is null || !s_githubSecretScanningRuleIds.TryGetValue(secretType, out string[]? mappedRuleIds))
             {
-                rules.Add(rule);
-                break;
+                continue;
+            }
+
+            foreach (string ruleId in mappedRuleIds)
+            {
+                ruleIds.Add(ruleId);
             }
         }
 
-        if (rules.Count == 0)
+        if (ruleIds.Count == 0)
         {
-            throw new InvalidDataException($"Could not find benchmark rule '{ruleId}'.");
+            throw new InvalidDataException($"No mapped GitHub secret-scanning alert types were found in '{alertsPath}'.");
+        }
+
+        return [.. ruleIds.Order(StringComparer.Ordinal)];
+    }
+
+    private static RuleSet SelectRules(RuleSet ruleSet, string ruleId)
+    {
+        return SelectRules(ruleSet, [ruleId]);
+    }
+
+    private static RuleSet SelectRules(RuleSet ruleSet, string[] ruleIds)
+    {
+        var selectedRuleIds = new HashSet<string>(ruleIds, StringComparer.Ordinal);
+        var rules = new List<SecretRule>(selectedRuleIds.Count);
+        for (int i = 0; i < ruleSet.Rules.Count; i++)
+        {
+            SecretRule rule = ruleSet.Rules[i];
+            if (selectedRuleIds.Contains(rule.Id))
+            {
+                rules.Add(rule);
+            }
+        }
+
+        if (rules.Count != selectedRuleIds.Count)
+        {
+            string missingRuleIds = string.Join(", ", selectedRuleIds.Except(rules.Select(rule => rule.Id), StringComparer.Ordinal));
+            throw new InvalidDataException($"Could not find benchmark rule IDs: {missingRuleIds}.");
         }
 
         return new RuleSet(rules, ruleSet.Allowlists, ruleSet.RegexesPrevalidated);

@@ -15,6 +15,8 @@ Current benchmark scenarios cover:
 - strict Gitleaks-compatible rules over the same file,
 - the focused native Google API key rule over the embedded Gitleaks config as a
   local hosted-alert parity proxy,
+- mapped native rules over the sanitized GitHub secret-scanning oracle fixture
+  in `tests/fixtures/github-secret-scanning`,
 - native default rules over credential-analyzer tests,
 - native rule compilation.
 

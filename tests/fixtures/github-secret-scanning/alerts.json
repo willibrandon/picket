@@ -1,0 +1,33 @@
+{
+  "Schema": "picket.github-secret-scanning-oracle.v1",
+  "Repository": "owner/repo",
+  "State": "open",
+  "IncludeLocations": true,
+  "CapturedUtc": "2026-07-06T00:00:00.0000000Z",
+  "AlertCount": 1,
+  "Summary": [
+    {
+      "SecretType": "google_api_key",
+      "Count": 1
+    }
+  ],
+  "Alerts": [
+    {
+      "Number": 1,
+      "State": "open",
+      "SecretType": "google_api_key",
+      "SecretTypeDisplayName": "Google API Key",
+      "Locations": [
+        {
+          "Type": "commit",
+          "Path": "tests/fixtures/github-secret-scanning/source-template.txt",
+          "StartLine": 3,
+          "EndLine": 3,
+          "StartColumn": 19,
+          "EndColumn": 57,
+          "CommitSha": "0000000000000000000000000000000000000000"
+        }
+      ]
+    }
+  ]
+}
