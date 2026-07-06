@@ -2352,7 +2352,7 @@ Use the grouped index to jump to the workflow you need.
   </div>
   <div class="cli-info-block">
     <p class="cli-section-label">Formats</p>
-    <p>Picket JSON, Picket JSONL, Gitleaks JSON, SARIF, HTML</p>
+    <p>Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML</p>
   </div>
 </div>
 

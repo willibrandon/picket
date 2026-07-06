@@ -1919,6 +1919,69 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that view help advertises every supported imported report format.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewHelpListsImportedReportFormats()
+    {
+        CliResult view = await RunCliAsync("view", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, view.ExitCode);
+        Assert.Contains("Picket JSON/JSONL", view.Stdout);
+        Assert.Contains("Gitleaks JSON", view.Stdout);
+        Assert.Contains("TruffleHog JSON/JSONL", view.Stdout);
+        Assert.Contains("GitLab code-quality JSON", view.Stdout);
+        Assert.Contains("SARIF", view.Stdout);
+        Assert.Contains("HTML", view.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that view summarizes GitLab code-quality reports without printing ignored secret-like fields.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewSummarizesGitLabCodeQualityReportWithoutSecretValue()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = Path.Combine(root.Path, "gl-code-quality-report.json");
+        File.WriteAllText(
+            reportPath,
+            """
+            [{"description":"secret token-12345","check_name":"gitlab-rule","fingerprint":"gitlab-fingerprint","severity":"critical","location":{"path":"src/secret.txt","lines":{"begin":7}}}]
+            """);
+
+        CliResult view = await RunCliAsync("view", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, view.ExitCode);
+        Assert.Contains("format: gitlab-code-quality", view.Stdout);
+        Assert.Contains("findings: 1", view.Stdout);
+        Assert.Contains("gitlab-rule src/secret.txt:7 gitlab-fingerprint", view.Stdout);
+        Assert.DoesNotContain("token-12345", view.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that view summarizes SARIF reports without printing ignored secret-like properties.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewSummarizesSarifReportWithoutSecretValue()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = Path.Combine(root.Path, "report.sarif");
+        File.WriteAllText(
+            reportPath,
+            """
+            {"version":"2.1.0","runs":[{"results":[{"ruleId":"sarif-rule","locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/secret.txt"},"region":{"startLine":9}}}],"partialFingerprints":{"picketFingerprint":"sarif-fingerprint"},"properties":{"secret":"token-12345"}}]}]}
+            """);
+
+        CliResult view = await RunCliAsync("view", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, view.ExitCode);
+        Assert.Contains("format: sarif", view.Stdout);
+        Assert.Contains("findings: 1", view.Stdout);
+        Assert.Contains("sarif-rule src/secret.txt:9 sarif-fingerprint", view.Stdout);
+        Assert.DoesNotContain("token-12345", view.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that report paths ending in .sarif infer SARIF when -f is omitted.
     /// </summary>
     [TestMethod]

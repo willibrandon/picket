@@ -116,7 +116,7 @@ internal static partial class Program
         Console.Out.WriteLine("  picket view <report> [--open]");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Formats:");
-        Console.Out.WriteLine("  Picket JSON, Picket JSONL, Gitleaks JSON, SARIF, HTML");
+        Console.Out.WriteLine("  Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML");
     }
 
     static void WriteRulesHelp()
