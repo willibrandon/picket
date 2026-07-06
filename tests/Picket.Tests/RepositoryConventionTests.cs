@@ -343,6 +343,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("## Command Reference", cliReference);
         Assert.Contains("class=\"cli-command-groups\"", cliReference);
         Assert.Contains("class=\"cli-command-detail\"", cliReference);
+        Assert.Contains("class=\"cli-command-detail-header\"", cliReference);
+        Assert.Contains("class=\"cli-reference-table\"", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--offline / --live</code></td>", cliReference);
         Assert.Contains("href=\"#picket-scan\"", cliReference);
         Assert.Contains("### picket git", cliReference);
         Assert.DoesNotContain("### picket cache\n", cliReference);

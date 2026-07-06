@@ -535,10 +535,13 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             return;
         }
 
+        List<KeyValuePair<string, List<string>>> sections = ReadCliHelpSections(block);
+        List<string> usageLines = ReadCliSectionLines(sections, "Usage");
         builder.Append("### ");
         builder.AppendLine(EscapeMarkdownText(command));
         builder.AppendLine();
         builder.AppendLine("<div class=\"cli-command-detail\">");
+        AppendCliCommandHeader(builder, command, summary, usageLines);
         if (summary.Length != 0)
         {
             builder.Append("  <p class=\"cli-command-summary\">");
@@ -546,6 +549,43 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             builder.AppendLine("</p>");
         }
 
+        foreach (KeyValuePair<string, List<string>> section in sections)
+        {
+            AppendCliHelpSection(builder, section.Key, section.Value);
+            if (section.Key.Equals("Usage", StringComparison.Ordinal))
+            {
+                AppendCliReferenceTables(builder, command, section.Value);
+            }
+        }
+
+        builder.AppendLine("</div>");
+        builder.AppendLine();
+    }
+
+    private static void AppendCliUsageOnlyBlock(StringBuilder builder, string command, string summary, string usageLine)
+    {
+        builder.Append("### ");
+        builder.AppendLine(EscapeMarkdownText(command));
+        builder.AppendLine();
+        builder.AppendLine("<div class=\"cli-command-detail\">");
+        List<string> usageLines = [usageLine];
+        AppendCliCommandHeader(builder, command, summary, usageLines);
+        if (summary.Length != 0)
+        {
+            builder.Append("  <p class=\"cli-command-summary\">");
+            builder.Append(EscapeHtmlText(summary));
+            builder.AppendLine("</p>");
+        }
+
+        AppendCliHelpSection(builder, "Usage", usageLines);
+        AppendCliReferenceTables(builder, command, usageLines);
+        builder.AppendLine("</div>");
+        builder.AppendLine();
+    }
+
+    private static List<KeyValuePair<string, List<string>>> ReadCliHelpSections(List<string> block)
+    {
+        var sections = new List<KeyValuePair<string, List<string>>>();
         for (int i = 1; i < block.Count; i++)
         {
             string line = block[i];
@@ -573,29 +613,94 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
                 sectionLines.Add(sectionLine.Trim());
             }
 
-            AppendCliHelpSection(builder, sectionName, sectionLines);
+            sections.Add(new KeyValuePair<string, List<string>>(sectionName, sectionLines));
         }
 
-        builder.AppendLine("</div>");
-        builder.AppendLine();
+        return sections;
     }
 
-    private static void AppendCliUsageOnlyBlock(StringBuilder builder, string command, string summary, string usageLine)
+    private static List<string> ReadCliSectionLines(List<KeyValuePair<string, List<string>>> sections, string sectionName)
     {
-        builder.Append("### ");
-        builder.AppendLine(EscapeMarkdownText(command));
-        builder.AppendLine();
-        builder.AppendLine("<div class=\"cli-command-detail\">");
-        if (summary.Length != 0)
+        foreach (KeyValuePair<string, List<string>> section in sections)
         {
-            builder.Append("  <p class=\"cli-command-summary\">");
-            builder.Append(EscapeHtmlText(summary));
-            builder.AppendLine("</p>");
+            if (section.Key.Equals(sectionName, StringComparison.Ordinal))
+            {
+                return section.Value;
+            }
         }
 
-        AppendCliHelpSection(builder, "Usage", [usageLine]);
-        builder.AppendLine("</div>");
-        builder.AppendLine();
+        return [];
+    }
+
+    private static void AppendCliCommandHeader(
+        StringBuilder builder,
+        string command,
+        string summary,
+        List<string> usageLines)
+    {
+        builder.AppendLine("  <div class=\"cli-command-detail-header\">");
+        builder.Append("    <code class=\"cli-command-name\">");
+        builder.Append(EscapeHtmlText(command));
+        builder.AppendLine("</code>");
+        builder.Append("    <span class=\"cli-command-badge\">");
+        builder.Append(EscapeHtmlText(GetCliCommandWorkflow(command)));
+        builder.AppendLine("</span>");
+        builder.AppendLine("  </div>");
+        AppendCliCommandFacts(builder, command, summary, usageLines);
+    }
+
+    private static void AppendCliCommandFacts(
+        StringBuilder builder,
+        string command,
+        string summary,
+        List<string> usageLines)
+    {
+        var facts = new List<(string Label, string Value)>
+        {
+            ("Input", GetCliInputSummary(command)),
+        };
+
+        string formatValues = ReadCliFormatValues(usageLines);
+        if (formatValues.Length != 0)
+        {
+            facts.Add(("Reports", formatValues));
+        }
+
+        string verificationMode = GetCliVerificationMode(command);
+        if (verificationMode.Length != 0)
+        {
+            facts.Add(("Validation", verificationMode));
+        }
+
+        if (IsCliCompatibilityCommand(command))
+        {
+            facts.Add(("Mode", "Gitleaks compatibility"));
+        }
+
+        if (summary.Length == 0 && facts.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine("  <dl class=\"cli-command-facts\">");
+        foreach ((string label, string value) in facts)
+        {
+            if (value.Length == 0)
+            {
+                continue;
+            }
+
+            builder.AppendLine("    <div>");
+            builder.Append("      <dt>");
+            builder.Append(EscapeHtmlText(label));
+            builder.AppendLine("</dt>");
+            builder.Append("      <dd>");
+            builder.Append(EscapeHtmlText(value));
+            builder.AppendLine("</dd>");
+            builder.AppendLine("    </div>");
+        }
+
+        builder.AppendLine("  </dl>");
     }
 
     private static void AppendCliHelpSection(StringBuilder builder, string sectionName, List<string> sectionLines)
@@ -647,6 +752,404 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
 
         builder.AppendLine("    </ul>");
         builder.AppendLine("  </div>");
+    }
+
+    private static void AppendCliReferenceTables(StringBuilder builder, string command, List<string> usageLines)
+    {
+        List<(string Syntax, string Requirement, string Description)> arguments = ReadCliArgumentRows(command, usageLines);
+        List<(string Option, string Value, string Requirement, string Description)> options = ReadCliOptionRows(command, usageLines);
+        if (arguments.Count == 0 && options.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine("  <div class=\"cli-reference-tables\">");
+        if (arguments.Count != 0)
+        {
+            AppendCliArgumentTable(builder, arguments);
+        }
+
+        if (options.Count != 0)
+        {
+            AppendCliOptionTable(builder, options);
+        }
+
+        builder.AppendLine("  </div>");
+    }
+
+    private static void AppendCliArgumentTable(
+        StringBuilder builder,
+        List<(string Syntax, string Requirement, string Description)> rows)
+    {
+        builder.AppendLine("    <div class=\"cli-reference-table-block\">");
+        builder.AppendLine("      <p class=\"cli-section-label\">Arguments</p>");
+        builder.AppendLine("      <div class=\"cli-reference-table-wrapper\">");
+        builder.AppendLine("        <table class=\"cli-reference-table\">");
+        builder.AppendLine("          <thead>");
+        builder.AppendLine("            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>");
+        builder.AppendLine("          </thead>");
+        builder.AppendLine("          <tbody>");
+        foreach ((string syntax, string requirement, string description) in rows)
+        {
+            builder.AppendLine("            <tr>");
+            builder.Append("              <td data-label=\"Argument\"><code>");
+            builder.Append(EscapeHtmlCode(syntax));
+            builder.AppendLine("</code></td>");
+            builder.Append("              <td data-label=\"Required\">");
+            builder.Append(EscapeHtmlText(requirement));
+            builder.AppendLine("</td>");
+            builder.Append("              <td data-label=\"Description\">");
+            builder.Append(EscapeHtmlText(description));
+            builder.AppendLine("</td>");
+            builder.AppendLine("            </tr>");
+        }
+
+        builder.AppendLine("          </tbody>");
+        builder.AppendLine("        </table>");
+        builder.AppendLine("      </div>");
+        builder.AppendLine("    </div>");
+    }
+
+    private static void AppendCliOptionTable(
+        StringBuilder builder,
+        List<(string Option, string Value, string Requirement, string Description)> rows)
+    {
+        builder.AppendLine("    <div class=\"cli-reference-table-block\">");
+        builder.AppendLine("      <p class=\"cli-section-label\">Options</p>");
+        builder.AppendLine("      <div class=\"cli-reference-table-wrapper\">");
+        builder.AppendLine("        <table class=\"cli-reference-table\">");
+        builder.AppendLine("          <thead>");
+        builder.AppendLine("            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>");
+        builder.AppendLine("          </thead>");
+        builder.AppendLine("          <tbody>");
+        foreach ((string option, string value, string requirement, string description) in rows)
+        {
+            builder.AppendLine("            <tr>");
+            builder.Append("              <td data-label=\"Option\"><code>");
+            builder.Append(EscapeHtmlCode(option));
+            builder.AppendLine("</code></td>");
+            builder.Append("              <td data-label=\"Value\"><code>");
+            builder.Append(EscapeHtmlCode(value));
+            builder.AppendLine("</code></td>");
+            builder.Append("              <td data-label=\"Required\">");
+            builder.Append(EscapeHtmlText(requirement));
+            builder.AppendLine("</td>");
+            builder.Append("              <td data-label=\"Description\">");
+            builder.Append(EscapeHtmlText(description));
+            builder.AppendLine("</td>");
+            builder.AppendLine("            </tr>");
+        }
+
+        builder.AppendLine("          </tbody>");
+        builder.AppendLine("        </table>");
+        builder.AppendLine("      </div>");
+        builder.AppendLine("    </div>");
+    }
+
+    private static List<(string Syntax, string Requirement, string Description)> ReadCliArgumentRows(
+        string command,
+        List<string> usageLines)
+    {
+        var rows = new List<(string Syntax, string Requirement, string Description)>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach ((string syntax, bool optional, bool repeatable) in ReadCliUsageTokens(usageLines))
+        {
+            if (IsCliOptionSyntax(syntax))
+            {
+                continue;
+            }
+
+            string displaySyntax = FormatCliArgumentSyntax(syntax);
+            if (displaySyntax.Length == 0 || !seen.Add(displaySyntax))
+            {
+                continue;
+            }
+
+            rows.Add((
+                displaySyntax,
+                FormatCliRequirement(optional, repeatable),
+                GetCliArgumentDescription(command, syntax)));
+        }
+
+        return rows;
+    }
+
+    private static List<(string Option, string Value, string Requirement, string Description)> ReadCliOptionRows(
+        string command,
+        List<string> usageLines)
+    {
+        var rows = new List<(string Option, string Value, string Requirement, string Description)>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach ((string syntax, bool optional, bool repeatable) in ReadCliUsageTokens(usageLines))
+        {
+            if (!IsCliOptionSyntax(syntax)
+                || !TryReadCliOptionSyntax(syntax, out string option, out string value))
+            {
+                continue;
+            }
+
+            string key = string.Concat(option, "|", value);
+            if (!seen.Add(key))
+            {
+                continue;
+            }
+
+            rows.Add((
+                option,
+                FormatCliOptionValue(value),
+                FormatCliRequirement(optional, repeatable),
+                GetCliOptionDescription(command, option)));
+        }
+
+        return rows;
+    }
+
+    private static List<(string Syntax, bool Optional, bool Repeatable)> ReadCliUsageTokens(List<string> usageLines)
+    {
+        var tokens = new List<(string Syntax, bool Optional, bool Repeatable)>();
+        foreach (string usageLine in usageLines)
+        {
+            string command = GetCliUsageCommandName(usageLine);
+            if (command.Length == 0 || command.Length >= usageLine.Length)
+            {
+                continue;
+            }
+
+            string arguments = usageLine[command.Length..].Trim();
+            foreach (string argument in SplitCliUsageArguments(arguments))
+            {
+                string syntax = NormalizeCliUsageSyntax(argument, out bool optional, out bool repeatable);
+                if (syntax.Length != 0)
+                {
+                    tokens.Add((syntax, optional, repeatable));
+                }
+            }
+        }
+
+        return tokens;
+    }
+
+    private static bool TryReadCliOptionSyntax(string syntax, out string option, out string value)
+    {
+        option = string.Empty;
+        value = string.Empty;
+        if (syntax.Equals("--", StringComparison.Ordinal))
+        {
+            option = "--";
+            value = "separator";
+            return true;
+        }
+
+        if (syntax.Contains('|', StringComparison.Ordinal))
+        {
+            string[] choices = syntax.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (choices.All(choice => choice.StartsWith("--", StringComparison.Ordinal)))
+            {
+                option = string.Join(" / ", choices);
+                value = "mode";
+                return true;
+            }
+        }
+
+        int optionalValueIndex = syntax.IndexOf("[=", StringComparison.Ordinal);
+        if (optionalValueIndex > 0 && syntax.EndsWith(']'))
+        {
+            option = syntax[..optionalValueIndex];
+            value = string.Concat(syntax[(optionalValueIndex + 2)..^1], " (optional)");
+            return option.Length != 0;
+        }
+
+        int valueSeparatorIndex = syntax.IndexOf(' ', StringComparison.Ordinal);
+        if (valueSeparatorIndex < 0)
+        {
+            option = syntax;
+            return option.Length != 0;
+        }
+
+        option = syntax[..valueSeparatorIndex];
+        value = syntax[(valueSeparatorIndex + 1)..].Trim();
+        return option.Length != 0;
+    }
+
+    private static string NormalizeCliUsageSyntax(string syntax, out bool optional, out bool repeatable)
+    {
+        string value = syntax.Trim();
+        repeatable = value.EndsWith("...", StringComparison.Ordinal);
+        if (repeatable)
+        {
+            value = value[..^3];
+        }
+
+        optional = value.StartsWith('[') && value.EndsWith(']');
+        if (optional)
+        {
+            value = value[1..^1];
+        }
+
+        return value.Trim();
+    }
+
+    private static bool IsCliOptionSyntax(string syntax)
+    {
+        return syntax.StartsWith('-');
+    }
+
+    private static string FormatCliArgumentSyntax(string syntax)
+    {
+        string value = syntax.Trim();
+        if (value.StartsWith('<') && value.EndsWith('>'))
+        {
+            value = value[1..^1];
+        }
+
+        return value.Replace("|", " | ", StringComparison.Ordinal);
+    }
+
+    private static string FormatCliOptionValue(string value)
+    {
+        return value.Length == 0 ? "flag" : value.Replace("|", " | ", StringComparison.Ordinal);
+    }
+
+    private static string FormatCliRequirement(bool optional, bool repeatable)
+    {
+        string requirement = optional ? "Optional" : "Required";
+        return repeatable ? string.Concat(requirement, ", repeatable") : requirement;
+    }
+
+    private static string GetCliCommandWorkflow(string command)
+    {
+        return command switch
+        {
+            "picket scan" or "picket verify" or "picket analyze" => "Scan and triage",
+            "picket baseline create" or "picket view" => "Reports and baselines",
+            "picket rules check" or "picket rules test" => "Rules",
+            "picket cache stats" or "picket cache prune" or "picket hooks install" => "Maintenance",
+            "picket git" or "picket dir" or "picket stdin" or "picket version" => "Compatibility",
+            _ => "Command",
+        };
+    }
+
+    private static string GetCliInputSummary(string command)
+    {
+        return command switch
+        {
+            "picket scan" => "Optional filesystem path",
+            "picket verify" => "Optional report or scan path",
+            "picket analyze" => "Optional report or scan path",
+            "picket baseline create" => "Optional filesystem path",
+            "picket cache stats" or "picket cache prune" => "Optional cache source",
+            "picket git" => "Optional git repository",
+            "picket dir" => "Required directory path",
+            "picket stdin" => "Standard input",
+            "picket rules check" => "Optional rule source",
+            "picket rules test" => "Rule ID and sample input",
+            "picket hooks install" => "Optional hook name",
+            "picket view" => "Required report path",
+            "picket version" => "None",
+            _ => "Command arguments",
+        };
+    }
+
+    private static string GetCliVerificationMode(string command)
+    {
+        return command switch
+        {
+            "picket verify" => "Offline or live",
+            "picket analyze" => "Offline",
+            _ => string.Empty,
+        };
+    }
+
+    private static bool IsCliCompatibilityCommand(string command)
+    {
+        return command is "picket git" or "picket dir" or "picket stdin";
+    }
+
+    private static string ReadCliFormatValues(List<string> usageLines)
+    {
+        foreach ((string syntax, _, _) in ReadCliUsageTokens(usageLines))
+        {
+            if (syntax.StartsWith("-f ", StringComparison.Ordinal))
+            {
+                return syntax[3..].Replace("|", ", ", StringComparison.Ordinal);
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string GetCliArgumentDescription(string command, string syntax)
+    {
+        string argument = syntax.Trim('<', '>');
+        return argument switch
+        {
+            "path" when command.Equals("picket dir", StringComparison.Ordinal) => "Directory path to scan.",
+            "path" => "Filesystem path to scan. Defaults to the current directory when omitted.",
+            "repo" => "Git repository to scan. Defaults to the current directory when omitted.",
+            "source" => "Source key or path used for cache and rule operations.",
+            "report" => "Report file to summarize or open.",
+            "rule-id" => "Rule identifier to test.",
+            "input" => "Literal sample text scanned by the selected rule.",
+            "pre-commit|pre-push|pre-receive|all" => "Hook to install. Defaults to pre-commit when omitted.",
+            _ => "Command argument.",
+        };
+    }
+
+    private static string GetCliOptionDescription(string command, string option)
+    {
+        if (option.Contains("--offline", StringComparison.Ordinal)
+            || option.Contains("--live", StringComparison.Ordinal))
+        {
+            return "Choose local validation or opt-in live provider verification.";
+        }
+
+        string key = option.Split(" / ", StringSplitOptions.None)[0];
+        return key switch
+        {
+            "--" => "End option parsing before literal input.",
+            "-b" => "Load a baseline report and suppress matching findings.",
+            "-c" => "Load a config file.",
+            "-f" => "Select report format.",
+            "-i" => "Load a Gitleaks ignore file.",
+            "-l" => "Set the log level.",
+            "-r" => "Write a report to this path.",
+            "-v" => "Enable verbose logging.",
+            "--allow-non-public-endpoints" => "Allow guarded live validation endpoints that are not public internet addresses.",
+            "--cache-dir" => "Read or write scanner cache data in this directory.",
+            "--command" => "Use this command path in generated hook scripts.",
+            "--enable-rule" => "Enable an additional rule by ID.",
+            "--exit-code" => "Exit with this code when findings are present.",
+            "--follow-symlinks" => "Follow symlinks while scanning directories.",
+            "--force" => "Overwrite existing hook files.",
+            "--github-api-endpoint" => "Override the GitHub API endpoint used by live validation.",
+            "--ignore-gitleaks-allow" => "Do not honor gitleaks:allow comments.",
+            "--ignore-path" => "Load additional ignore patterns from this file.",
+            "--log-opts" => "Pass git log options for compatibility scans.",
+            "--max-archive-entries" => "Limit files extracted from each archive.",
+            "--max-archive-megabytes" => "Limit uncompressed archive size.",
+            "--max-archive-ratio" => "Limit archive expansion ratio.",
+            "--max-decode-depth" => "Limit recursive decoding passes.",
+            "--max-target-megabytes" => "Skip files larger than this size.",
+            "--no-banner" => "Suppress the startup banner.",
+            "--no-color" => "Disable colored console output.",
+            "--no-ignore" => "Do not apply ignore files.",
+            "--older-than-days" => "Prune cache entries older than this age.",
+            "--only-verified" => "Keep only findings that validation marked as verified.",
+            "--open" => "Open an HTML report in the default browser.",
+            "--other-keys" => "Prune cache entries for config or source keys other than the selected key.",
+            "--path" => "Set the synthetic path used for sample input.",
+            "--platform" => "Set compatibility platform metadata.",
+            "--pre-commit" => "Scan the pre-commit diff range.",
+            "--print-config" => "Print the resolved config.",
+            "--profile" => "Use the named rule/profile mode.",
+            "--redact" => "Redact secret text in reports. The optional value is 0 through 100.",
+            "--repo" => "Install hook scripts into this repository.",
+            "--report-template" => "Render template reports with this template file.",
+            "--results" => "Keep findings with the selected validation result states.",
+            "--source" => "Override the source label stored in findings and fingerprints.",
+            "--staged" => "Scan staged changes.",
+            _ => command.Length == 0 ? "Command option." : "Command-specific option.",
+        };
     }
 
     private static bool TryReadCliTitle(List<string> block, out string command, out string summary)

@@ -129,6 +129,20 @@ Use the grouped index to jump to the workflow you need.
 ### picket scan
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket scan</code>
+    <span class="cli-command-badge">Scan and triage</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional filesystem path</dd>
+    </div>
+    <div>
+      <dt>Reports</dt>
+      <dd>json, jsonl, csv, junit, html, gitlab, sarif, toon</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Native filesystem scan.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -150,11 +164,138 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-ratio n]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filesystem path to scan. Defaults to the current directory when omitted.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Value"><code>json | jsonl | csv | junit | html | gitlab | sarif | toon</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select report format.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--source</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the source label stored in findings and fingerprints.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load additional ignore patterns from this file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-ignore</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not apply ignore files.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--enable-rule</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable an additional rule by ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-entries</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit files extracted from each archive.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit uncompressed archive size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-ratio</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit archive expansion ratio.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket verify
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket verify</code>
+    <span class="cli-command-badge">Scan and triage</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional report or scan path</dd>
+    </div>
+    <div>
+      <dt>Reports</dt>
+      <dd>json, jsonl, csv, junit, html, gitlab, sarif, toon</dd>
+    </div>
+    <div>
+      <dt>Validation</dt>
+      <dd>Offline or live</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Run native verification for detected findings.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -177,11 +318,144 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-ratio n]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filesystem path to scan. Defaults to the current directory when omitted.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Value"><code>json | jsonl | csv | junit | html | gitlab | sarif | toon</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select report format.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--source</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the source label stored in findings and fingerprints.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--offline / --live</code></td>
+              <td data-label="Value"><code>mode</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose local validation or opt-in live provider verification.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow guarded live validation endpoints that are not public internet addresses.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--results</code></td>
+              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid | active | inactive | skipped | error</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Keep findings with the selected validation result states.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--only-verified</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Keep only findings that validation marked as verified.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-entries</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit files extracted from each archive.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit uncompressed archive size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-ratio</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit archive expansion ratio.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket analyze
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket analyze</code>
+    <span class="cli-command-badge">Scan and triage</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional report or scan path</dd>
+    </div>
+    <div>
+      <dt>Reports</dt>
+      <dd>json, jsonl, text</dd>
+    </div>
+    <div>
+      <dt>Validation</dt>
+      <dd>Offline</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Write offline incident-response analysis for detected findings.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -201,11 +475,118 @@ Use the grouped index to jump to the workflow you need.
   [--max-archive-ratio n]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filesystem path to scan. Defaults to the current directory when omitted.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Value"><code>json | jsonl | text</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select report format.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--source</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the source label stored in findings and fingerprints.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--offline</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose local validation or opt-in live provider verification.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--results</code></td>
+              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Keep findings with the selected validation result states.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-entries</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit files extracted from each archive.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit uncompressed archive size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-ratio</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit archive expansion ratio.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket baseline create
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket baseline create</code>
+    <span class="cli-command-badge">Reports and baselines</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional filesystem path</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Write a Gitleaks-compatible baseline JSON report.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -225,11 +606,118 @@ Use the grouped index to jump to the workflow you need.
   [--redact[=n]]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filesystem path to scan. Defaults to the current directory when omitted.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--source</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the source label stored in findings and fingerprints.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load additional ignore patterns from this file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-ignore</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not apply ignore files.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--enable-rule</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable an additional rule by ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-entries</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit files extracted from each archive.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit uncompressed archive size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-ratio</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit archive expansion ratio.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--redact</code></td>
+              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket cache stats
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket cache stats</code>
+    <span class="cli-command-badge">Maintenance</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional cache source</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Summarize native scan cache entries.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -242,11 +730,76 @@ Use the grouped index to jump to the workflow you need.
   [--max-target-megabytes n]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>source</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Source key or path used for cache and rule operations.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket cache prune
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket cache prune</code>
+    <span class="cli-command-badge">Maintenance</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional cache source</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Delete native scan cache entries.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -261,11 +814,96 @@ Use the grouped index to jump to the workflow you need.
   [--max-target-megabytes n]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>source</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Source key or path used for cache and rule operations.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--other-keys</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Prune cache entries for config or source keys other than the selected key.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--older-than-days</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Prune cache entries older than this age.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket git
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket git</code>
+    <span class="cli-command-badge">Compatibility</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional git repository</dd>
+    </div>
+    <div>
+      <dt>Reports</dt>
+      <dd>json, csv, junit, sarif, template</dd>
+    </div>
+    <div>
+      <dt>Mode</dt>
+      <dd>Gitleaks compatibility</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Gitleaks-compatible git history scan.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -297,11 +935,198 @@ Use the grouped index to jump to the workflow you need.
   [--redact[=n]]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>repo</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Git repository to scan. Defaults to the current directory when omitted.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a baseline report and suppress matching findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Value"><code>json | csv | junit | sarif | template</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select report format.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-i</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a Gitleaks ignore file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--report-template</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Render template reports with this template file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--enable-rule</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable an additional rule by ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--exit-code</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Exit with this code when findings are present.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--log-opts</code></td>
+              <td data-label="Value"><code>value</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Pass git log options for compatibility scans.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--platform</code></td>
+              <td data-label="Value"><code>value</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set compatibility platform metadata.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--staged</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan staged changes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--pre-commit</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan the pre-commit diff range.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-entries</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit files extracted from each archive.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit uncompressed archive size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-ratio</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit archive expansion ratio.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--redact</code></td>
+              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket dir
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket dir</code>
+    <span class="cli-command-badge">Compatibility</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Required directory path</dd>
+    </div>
+    <div>
+      <dt>Reports</dt>
+      <dd>json, csv, junit, sarif, template</dd>
+    </div>
+    <div>
+      <dt>Mode</dt>
+      <dd>Gitleaks compatibility</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Gitleaks-compatible directory scan.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -330,11 +1155,180 @@ Use the grouped index to jump to the workflow you need.
   [--redact[=n]]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Directory path to scan.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a baseline report and suppress matching findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Value"><code>json | csv | junit | sarif | template</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select report format.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-i</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a Gitleaks ignore file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--report-template</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Render template reports with this template file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--enable-rule</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable an additional rule by ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--exit-code</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Exit with this code when findings are present.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--follow-symlinks</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Follow symlinks while scanning directories.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-entries</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit files extracted from each archive.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit uncompressed archive size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-ratio</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit archive expansion ratio.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--redact</code></td>
+              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket stdin
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket stdin</code>
+    <span class="cli-command-badge">Compatibility</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Standard input</dd>
+    </div>
+    <div>
+      <dt>Reports</dt>
+      <dd>json, csv, junit, sarif, template</dd>
+    </div>
+    <div>
+      <dt>Mode</dt>
+      <dd>Gitleaks compatibility</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Gitleaks-compatible stdin scan.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -357,11 +1351,125 @@ Use the grouped index to jump to the workflow you need.
   [--redact[=n]]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a baseline report and suppress matching findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Value"><code>json | csv | junit | sarif | template</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select report format.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--report-template</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Render template reports with this template file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--enable-rule</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable an additional rule by ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--exit-code</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Exit with this code when findings are present.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--redact</code></td>
+              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket rules check
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket rules check</code>
+    <span class="cli-command-badge">Rules</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional rule source</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Validate a resolved rule pack.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -369,11 +1477,74 @@ Use the grouped index to jump to the workflow you need.
       <pre class="cli-usage-code"><code>picket rules check [source] [-c path] [--profile picket] [--print-config]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>source</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Source key or path used for cache and rule operations.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--print-config</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Print the resolved config.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket rules test
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket rules test</code>
+    <span class="cli-command-badge">Rules</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Rule ID and sample input</dd>
+    </div>
+    <div>
+      <dt>Reports</dt>
+      <dd>json, jsonl, csv, junit, html, gitlab, sarif, toon</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Scan sample text with a single rule.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -395,11 +1566,129 @@ Use the grouped index to jump to the workflow you need.
   &lt;input&gt;</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>rule-id</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Rule identifier to test.</td>
+            </tr>
+            <tr>
+              <td data-label="Argument"><code>input</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Literal sample text scanned by the selected rule.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Value"><code>json | jsonl | csv | junit | html | gitlab | sarif | toon</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select report format.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Write a report to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--profile</code></td>
+              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--source</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the source label stored in findings and fingerprints.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the synthetic path used for sample input.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--print-config</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Print the resolved config.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--redact</code></td>
+              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--</code></td>
+              <td data-label="Value"><code>separator</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">End option parsing before literal input.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 ### picket hooks install
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket hooks install</code>
+    <span class="cli-command-badge">Maintenance</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Optional hook name</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Write managed pre-commit, pre-push, and pre-receive hooks.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
@@ -415,6 +1704,79 @@ Use the grouped index to jump to the workflow you need.
   [--redact[=n]]</code></pre>
     </div>
   </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>pre-commit | pre-push | pre-receive | all</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Hook to install. Defaults to pre-commit when omitted.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--repo</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Install hook scripts into this repository.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--force</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Overwrite existing hook files.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--command</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this command path in generated hook scripts.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a baseline report and suppress matching findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--redact</code></td>
+              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
   <div class="cli-info-block">
     <p class="cli-section-label">Defaults</p>
     <p>Installs pre-commit when no hook name is provided and uses --redact=100 in generated hooks.</p>
@@ -424,11 +1786,58 @@ Use the grouped index to jump to the workflow you need.
 ### picket view
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket view</code>
+    <span class="cli-command-badge">Reports and baselines</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Required report path</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Summarize or open a local report.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
       <pre class="cli-usage-code"><code>picket view &lt;report&gt; [--open]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>report</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Report file to summarize or open.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--open</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Open an HTML report in the default browser.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
   <div class="cli-info-block">
@@ -440,6 +1849,16 @@ Use the grouped index to jump to the workflow you need.
 ### picket version
 
 <div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket version</code>
+    <span class="cli-command-badge">Compatibility</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>None</dd>
+    </div>
+  </dl>
   <p class="cli-command-summary">Prints version information.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
