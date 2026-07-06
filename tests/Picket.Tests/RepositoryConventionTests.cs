@@ -362,6 +362,7 @@ public sealed partial class RepositoryConventionTests
         string siteConfig = ReadRepositoryFile("docs-site/astro.config.mjs");
         string packageJson = ReadRepositoryFile("docs-site/package.json");
         string cliReference = ReadRepositoryFile("docs-site/src/content/docs/reference/cli.md");
+        string reportSchemas = ReadRepositoryFile("docs-site/src/content/docs/reference/report-schemas.md");
         string rulesApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-rules.md");
         string engineApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-engine.md");
         string reportApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-report.md");
@@ -389,6 +390,18 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("### picket git", cliReference);
         Assert.DoesNotContain("### picket cache\n", cliReference);
         Assert.DoesNotContain("### picket rules\n", cliReference);
+        Assert.Contains("Report Schema Reference", reportSchemas);
+        Assert.Contains("Native JSON report object", reportSchemas);
+        Assert.Contains("Native JSONL finding object", reportSchemas);
+        Assert.Contains("Native CSV columns", reportSchemas);
+        Assert.Contains("Native TOON sections", reportSchemas);
+        Assert.Contains("Native SARIF result object", reportSchemas);
+        Assert.Contains("GitLab Code Quality object", reportSchemas);
+        Assert.Contains("Gitleaks-compatible JSON finding object", reportSchemas);
+        Assert.Contains("Gitleaks-compatible CSV columns", reportSchemas);
+        Assert.Contains("Gitleaks-compatible SARIF result object", reportSchemas);
+        Assert.Contains("secretSha256", reportSchemas);
+        Assert.Contains("RuleID", reportSchemas);
         Assert.Contains("Picket.Rules API", rulesApi);
         Assert.Contains("SecretRule", rulesApi);
         Assert.Contains("Picket.Engine API", engineApi);

@@ -5,7 +5,7 @@ using System.Xml.Linq;
 
 namespace Picket.Docs;
 
-internal sealed class DocumentationGenerator(string repositoryRoot)
+internal sealed partial class DocumentationGenerator(string repositoryRoot)
 {
     private readonly string _repositoryRoot = repositoryRoot;
     private readonly string _docsRoot = Path.Combine(repositoryRoot, "docs");
@@ -41,6 +41,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
         GenerateProjectDocumentation(generatedRoot);
         GenerateCliReference(referenceRoot);
         GenerateActionReference(referenceRoot);
+        GenerateReportSchemaReference(referenceRoot);
         GenerateApiReference(apiRoot);
     }
 

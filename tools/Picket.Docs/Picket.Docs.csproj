@@ -5,4 +5,7 @@
     <IsPackable>false</IsPackable>
     <RootNamespace>Picket.Docs</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />
+  </ItemGroup>
 </Project>
