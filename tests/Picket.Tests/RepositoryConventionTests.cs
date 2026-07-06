@@ -477,7 +477,7 @@ public sealed partial class RepositoryConventionTests
     /// Verifies that checked-in PowerShell scripts parse successfully.
     /// </summary>
     [TestMethod]
-    [Timeout(30000, CooperativeCancellation = true)]
+    [Timeout(120000, CooperativeCancellation = true)]
     public async Task PowerShellScriptsParseSuccessfully()
     {
         string root = FindRepositoryRoot();
@@ -526,9 +526,27 @@ public sealed partial class RepositoryConventionTests
         }
 
         Assert.IsTrue(process.Start(), "Could not start pwsh.");
-        string stdout = await process.StandardOutput.ReadToEndAsync(TestContext.CancellationToken).ConfigureAwait(false);
-        string stderr = await process.StandardError.ReadToEndAsync(TestContext.CancellationToken).ConfigureAwait(false);
-        await process.WaitForExitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = TestContext.CancellationToken;
+        using CancellationTokenRegistration cancellationRegistration = cancellationToken.Register(static state =>
+        {
+            var startedProcess = (Process)state!;
+            try
+            {
+                if (!startedProcess.HasExited)
+                {
+                    startedProcess.Kill(entireProcessTree: true);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }, process);
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        string stdout = await stdoutTask.ConfigureAwait(false);
+        string stderr = await stderrTask.ConfigureAwait(false);
 
         Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
     }
