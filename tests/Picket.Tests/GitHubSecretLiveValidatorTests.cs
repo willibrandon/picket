@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Security.Authentication;
 using System.Text;
 using Picket.Engine;
 using Picket.Verify;
@@ -211,6 +213,30 @@ public sealed class GitHubSecretLiveValidatorTests
     }
 
     /// <summary>
+    /// Verifies that unsupported TLS modes are rejected before an HTTP client is created.
+    /// </summary>
+    [TestMethod]
+    public void TlsModeRejectsUndefinedValue()
+    {
+        GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => options.TlsMode = (GitHubSecretLiveValidatorTlsMode)42);
+    }
+
+    /// <summary>
+    /// Verifies that strict TLS mode configures the HTTP handler for TLS 1.2 or later.
+    /// </summary>
+    [TestMethod]
+    public void TlsModeConfiguresHttpClientHandler()
+    {
+        GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
+        options.TlsMode = GitHubSecretLiveValidatorTlsMode.Tls12OrLater;
+        using HttpClientHandler handler = CreateHttpClientHandler(options);
+
+        Assert.AreEqual(SslProtocols.Tls12 | SslProtocols.Tls13, handler.SslProtocols);
+    }
+
+    /// <summary>
     /// Verifies that GitHub verification can use an explicitly configured HTTP proxy.
     /// </summary>
     [TestMethod]
@@ -243,6 +269,16 @@ public sealed class GitHubSecretLiveValidatorTests
         options.SetMessageHandlerFactory(() => handler);
         configureOptions?.Invoke(options);
         return new GitHubSecretLiveValidator(options);
+    }
+
+    private static HttpClientHandler CreateHttpClientHandler(GitHubSecretLiveValidatorOptions options)
+    {
+        MethodInfo method = typeof(GitHubSecretLiveValidatorOptions).GetMethod(
+            "CreateHttpClientHandler",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Expected GitHub options to expose an HTTP handler factory.");
+        return method.Invoke(options, null) as HttpClientHandler
+            ?? throw new InvalidOperationException("Expected GitHub options to create an HttpClientHandler.");
     }
 
     private static async Task<string> ReadProxyRequestLineAsync(TcpListener listener, CancellationToken cancellationToken)

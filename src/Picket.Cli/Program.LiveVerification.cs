@@ -43,6 +43,11 @@ internal static partial class Program
             }
         }
 
+        if (configuration.GitHubApiTlsMode.HasValue)
+        {
+            githubOptions.TlsMode = configuration.GitHubApiTlsMode.Value;
+        }
+
         var verifierOptions = SecretLiveVerifierOptions.CreateDefault();
         verifierOptions.EndpointGuardOptions = new EndpointGuardOptions
         {
@@ -71,7 +76,9 @@ internal static partial class Program
                         ";github:",
                         githubOptions.UserEndpoint,
                         ";github-proxy:",
-                        githubOptions.ProxyEndpoint?.ToString() ?? string.Empty));
+                        githubOptions.ProxyEndpoint?.ToString() ?? string.Empty,
+                        ";github-tls:",
+                        githubOptions.TlsMode.ToString()));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {

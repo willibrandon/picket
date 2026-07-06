@@ -179,6 +179,7 @@ Use the grouped index to jump to the workflow you need.
   [--verify]
   [--github-api-endpoint uri]
   [--github-api-proxy uri]
+  [--live-tls-mode system|tls12-plus]
   [--live-rate-limit-ms n]
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
@@ -297,6 +298,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--live-tls-mode</code></td>
+              <td data-label="Value"><code>system | tls12-plus</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose the TLS policy for live provider requests.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--live-rate-limit-ms</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -406,6 +413,7 @@ Use the grouped index to jump to the workflow you need.
   [--offline|--live]
   [--github-api-endpoint uri]
   [--github-api-proxy uri]
+  [--live-tls-mode system|tls12-plus]
   [--live-rate-limit-ms n]
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
@@ -505,6 +513,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-tls-mode</code></td>
+              <td data-label="Value"><code>system | tls12-plus</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose the TLS policy for live provider requests.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--live-rate-limit-ms</code></td>
@@ -622,6 +636,7 @@ Use the grouped index to jump to the workflow you need.
   [--offline|--live]
   [--github-api-endpoint uri]
   [--github-api-proxy uri]
+  [--live-tls-mode system|tls12-plus]
   [--live-rate-limit-ms n]
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
@@ -720,6 +735,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-tls-mode</code></td>
+              <td data-label="Value"><code>system | tls12-plus</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose the TLS policy for live provider requests.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--live-rate-limit-ms</code></td>

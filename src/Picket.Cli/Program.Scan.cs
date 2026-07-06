@@ -1,3 +1,5 @@
+using Picket.Verify;
+
 namespace Picket;
 
 internal static partial class Program
@@ -10,6 +12,7 @@ internal static partial class Program
         bool providerOptionSpecified = false;
         Uri? githubApiEndpoint = null;
         Uri? githubApiProxyEndpoint = null;
+        GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
         TimeSpan? minimumRequestInterval = null;
         TimeSpan? minimumRequestIntervalPerProvider = null;
         string? source = null;
@@ -66,6 +69,18 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
+                providerOptionSpecified = true;
+                continue;
+            }
+
+            if (IsLiveTlsModeFlag(arg))
+            {
+                if (!TryReadLiveTlsModeFlag(args, ref i, out GitHubSecretLiveValidatorTlsMode value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubApiTlsMode = value;
                 providerOptionSpecified = true;
                 continue;
             }
@@ -128,6 +143,7 @@ internal static partial class Program
                 ? new LiveVerificationConfiguration(
                     githubApiEndpoint,
                     githubApiProxyEndpoint,
+                    githubApiTlsMode,
                     allowNonPublicProviderEndpoints,
                     minimumRequestInterval,
                     minimumRequestIntervalPerProvider)

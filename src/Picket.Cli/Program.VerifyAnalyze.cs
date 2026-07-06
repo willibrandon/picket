@@ -1,3 +1,5 @@
+using Picket.Verify;
+
 namespace Picket;
 
 internal static partial class Program
@@ -8,6 +10,7 @@ internal static partial class Program
         bool allowNonPublicProviderEndpoints = false;
         Uri? githubApiEndpoint = null;
         Uri? githubApiProxyEndpoint = null;
+        GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
         bool liveVerification = false;
         bool providerOptionSpecified = false;
         TimeSpan? minimumRequestInterval = null;
@@ -80,6 +83,18 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsLiveTlsModeFlag(arg))
+            {
+                if (!TryReadLiveTlsModeFlag(args, ref i, out GitHubSecretLiveValidatorTlsMode value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubApiTlsMode = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsLiveRateLimitMillisecondsFlag(arg))
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-rate-limit-ms", out TimeSpan value))
@@ -139,6 +154,7 @@ internal static partial class Program
                 ? new LiveVerificationConfiguration(
                     githubApiEndpoint,
                     githubApiProxyEndpoint,
+                    githubApiTlsMode,
                     allowNonPublicProviderEndpoints,
                     minimumRequestInterval,
                     minimumRequestIntervalPerProvider)
@@ -151,6 +167,7 @@ internal static partial class Program
         bool allowNonPublicProviderEndpoints = false;
         Uri? githubApiEndpoint = null;
         Uri? githubApiProxyEndpoint = null;
+        GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
         bool liveVerification = false;
         bool providerOptionSpecified = false;
         TimeSpan? minimumRequestInterval = null;
@@ -223,6 +240,18 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsLiveTlsModeFlag(arg))
+            {
+                if (!TryReadLiveTlsModeFlag(args, ref i, out GitHubSecretLiveValidatorTlsMode value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubApiTlsMode = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsLiveRateLimitMillisecondsFlag(arg))
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-rate-limit-ms", out TimeSpan value))
@@ -282,6 +311,7 @@ internal static partial class Program
                 ? new LiveVerificationConfiguration(
                     githubApiEndpoint,
                     githubApiProxyEndpoint,
+                    githubApiTlsMode,
                     allowNonPublicProviderEndpoints,
                     minimumRequestInterval,
                     minimumRequestIntervalPerProvider)

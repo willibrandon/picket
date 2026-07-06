@@ -4,6 +4,7 @@ using Picket.Compat;
 using Picket.Engine;
 using Picket.Rules;
 using Picket.Store;
+using Picket.Verify;
 
 namespace Picket;
 
@@ -165,6 +166,32 @@ internal static partial class Program
         }
 
         Console.Error.WriteLine($"{longName} requires an absolute URI value");
+        return false;
+    }
+
+    static bool TryReadLiveTlsModeFlag(string[] args, ref int index, out GitHubSecretLiveValidatorTlsMode value)
+    {
+        if (!TryReadStringFlag(args, ref index, "--live-tls-mode", out string? text))
+        {
+            value = GitHubSecretLiveValidatorTlsMode.System;
+            return false;
+        }
+
+        string normalized = text.Trim().ToLowerInvariant();
+        if (normalized is "system" or "default")
+        {
+            value = GitHubSecretLiveValidatorTlsMode.System;
+            return true;
+        }
+
+        if (normalized is "tls12-plus" or "tls12-or-later")
+        {
+            value = GitHubSecretLiveValidatorTlsMode.Tls12OrLater;
+            return true;
+        }
+
+        Console.Error.WriteLine($"unsupported live TLS mode: {text}");
+        value = GitHubSecretLiveValidatorTlsMode.System;
         return false;
     }
 
@@ -736,6 +763,12 @@ internal static partial class Program
     {
         return arg.Equals("--github-api-proxy", StringComparison.Ordinal)
             || arg.StartsWith("--github-api-proxy=", StringComparison.Ordinal);
+    }
+
+    static bool IsLiveTlsModeFlag(string arg)
+    {
+        return arg.Equals("--live-tls-mode", StringComparison.Ordinal)
+            || arg.StartsWith("--live-tls-mode=", StringComparison.Ordinal);
     }
 
     static bool IsLiveRateLimitMillisecondsFlag(string arg)

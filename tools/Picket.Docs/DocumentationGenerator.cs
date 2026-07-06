@@ -1130,6 +1130,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "--input" => "Read a portable cache archive from this path.",
             "--live-provider-rate-limit-ms" => "Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.",
             "--live-rate-limit-ms" => "Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.",
+            "--live-tls-mode" => "Choose the TLS policy for live provider requests.",
             "--log-opts" => "Pass git log options for compatibility scans.",
             "--max-archive-depth" => "Limit nested archive traversal depth.",
             "--max-archive-entries" => "Limit files extracted from each archive.",

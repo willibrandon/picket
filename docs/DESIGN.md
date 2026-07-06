@@ -580,7 +580,7 @@ Live verification:
 - global and per-provider rate limits, including a default same-provider pacing interval and native CLI overrides in milliseconds,
 - retries with cache-poisoning protection,
 - proxy and endpoint override support,
-- TLS mode controls,
+- TLS mode controls, with platform defaults by default and a TLS 1.2-or-later provider mode but no certificate-verification bypass,
 - SSRF protection blocking loopback, private, link-local, metadata-service, and non-public redirect targets by default,
 - max response length and redaction,
 - audit events showing which provider endpoints were contacted.

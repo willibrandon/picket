@@ -59,6 +59,7 @@ The first provider validator is GitHub:
 - default endpoint: `https://api.github.com/user`,
 - endpoint override: `--github-api-endpoint <absolute-uri>`, intended for GitHub Enterprise and recorded/local test hosts,
 - proxy override: `--github-api-proxy <absolute-uri>`, intended for enterprise and CI egress environments and rejected when the URI includes user info, query, or fragment data,
+- TLS mode override: `--live-tls-mode system|tls12-plus`, where `system` uses platform defaults and `tls12-plus` restricts provider requests to TLS 1.2 or TLS 1.3; certificate validation is not bypassed,
 - rate-limit overrides: `--live-provider-rate-limit-ms <n>` changes the same-provider minimum interval and `--live-rate-limit-ms <n>` changes the global minimum interval; `0` disables the selected interval,
 - default endpoint policy: HTTPS required and non-public addresses blocked,
 - explicit non-public endpoint escape hatch: `--allow-non-public-endpoints`,

@@ -625,6 +625,34 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that scan provider TLS options require explicit live verification.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanProviderTlsModeRequiresVerify()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync("scan", root.Path, "--live-tls-mode", "tls12-plus").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("live provider options require --verify", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that live TLS mode values are validated before scanning begins.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRejectsUnsupportedLiveTlsMode()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync("scan", root.Path, "--verify", "--live-tls-mode", "legacy").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("unsupported live TLS mode: legacy", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native verification runs safe offline validators and writes native findings.
     /// </summary>
     [TestMethod]
@@ -756,6 +784,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--github-api-proxy", result.Stdout);
+        Assert.Contains("--live-tls-mode", result.Stdout);
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
         Assert.Contains("--results", result.Stdout);
@@ -859,6 +888,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--github-api-proxy", result.Stdout);
+        Assert.Contains("--live-tls-mode", result.Stdout);
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
@@ -882,6 +912,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--verify", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--github-api-proxy", result.Stdout);
+        Assert.Contains("--live-tls-mode", result.Stdout);
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
         Assert.Contains("--max-decode-depth", result.Stdout);

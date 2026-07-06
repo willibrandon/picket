@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Authentication;
 
 namespace Picket.Verify;
 
@@ -15,6 +16,7 @@ public sealed class GitHubSecretLiveValidatorOptions
     private TimeSpan _retryDelay = TimeSpan.FromMilliseconds(250);
     private TimeSpan _timeout = TimeSpan.FromSeconds(10);
     private Uri? _proxyEndpoint;
+    private GitHubSecretLiveValidatorTlsMode _tlsMode = GitHubSecretLiveValidatorTlsMode.System;
     private Uri _userEndpoint = new("https://api.github.com/user");
 
     /// <summary>
@@ -148,6 +150,24 @@ public sealed class GitHubSecretLiveValidatorOptions
     }
 
     /// <summary>
+    /// Gets or sets the TLS protocol mode used for GitHub API requests.
+    /// </summary>
+    public GitHubSecretLiveValidatorTlsMode TlsMode
+    {
+        get => _tlsMode;
+        set
+        {
+            if (value is not GitHubSecretLiveValidatorTlsMode.System
+                and not GitHubSecretLiveValidatorTlsMode.Tls12OrLater)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            _tlsMode = value;
+        }
+    }
+
+    /// <summary>
     /// Sets a custom message handler factory for tests and controlled hosts.
     /// </summary>
     /// <param name="messageHandlerFactory">The message handler factory.</param>
@@ -170,7 +190,11 @@ public sealed class GitHubSecretLiveValidatorOptions
 
     private HttpClientHandler CreateHttpClientHandler()
     {
-        var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        var handler = new HttpClientHandler
+        {
+            AllowAutoRedirect = false,
+            SslProtocols = GetSslProtocols(_tlsMode),
+        };
         if (_proxyEndpoint is not null)
         {
             handler.Proxy = new WebProxy(_proxyEndpoint);
@@ -178,5 +202,15 @@ public sealed class GitHubSecretLiveValidatorOptions
         }
 
         return handler;
+    }
+
+    private static SslProtocols GetSslProtocols(GitHubSecretLiveValidatorTlsMode tlsMode)
+    {
+        return tlsMode switch
+        {
+            GitHubSecretLiveValidatorTlsMode.System => SslProtocols.None,
+            GitHubSecretLiveValidatorTlsMode.Tls12OrLater => SslProtocols.Tls12 | SslProtocols.Tls13,
+            _ => throw new ArgumentOutOfRangeException(nameof(tlsMode)),
+        };
     }
 }
