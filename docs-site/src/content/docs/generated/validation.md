@@ -48,6 +48,7 @@ Live provider calls are opt-in behavior for `picket scan --verify`, `picket veri
 - `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, and atomic writes.
 - `SecretValidationCacheKey` is built from provider, validator version, rule ID, endpoint, and a SHA-256 secret hash. It rejects raw secret material where a hash is required.
 - Cache files store fingerprints, report states, expiration, non-secret reasons, and non-secret analysis metadata such as provider identity, scopes, resources, and evidence. They do not store raw secrets, raw matches, or endpoint query strings.
+- Transient provider failures can be request-cached for the current verifier run but are not written to the persistent cache.
 - Live results include non-secret audit evidence for the provider, normalized endpoint without query or fragment data, endpoint policy decision, whether the provider was contacted for the current verification call, and whether the result came from the request or persistent cache.
 - Findings already marked `invalid` or `test-credential` by offline validation are not sent to live providers.
 
@@ -59,6 +60,7 @@ The first provider validator is GitHub:
 - endpoint override: `--github-api-endpoint <absolute-uri>`, intended for GitHub Enterprise and recorded/local test hosts,
 - default endpoint policy: HTTPS required and non-public addresses blocked,
 - explicit non-public endpoint escape hatch: `--allow-non-public-endpoints`,
+- transient `408`, `500`, `502`, `503`, and `504` responses and transport timeouts/failures are retried once by default,
 - `200 OK` maps to `active` and can add non-secret user login, scope, reachable-resource, and evidence metadata for `picket analyze --live`,
 - `401 Unauthorized` maps to `inactive`,
 - automatic HTTP redirects are disabled; redirect responses map to `error`,

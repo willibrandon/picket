@@ -88,7 +88,9 @@ public sealed class SecretLiveVerifier(
                 endpointResult,
                 providerContacted: true);
             WriteRequestCache(cacheKey.Fingerprint, auditedResult);
-            if (_cache is not null && _options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
+            if (auditedResult.IsPersistentCacheable
+                && _cache is not null
+                && _options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
             {
                 _cache.Write(cacheKey, auditedResult, now + duration);
             }
@@ -224,7 +226,8 @@ public sealed class SecretLiveVerifier(
             result.Identity,
             Copy(result.Scopes),
             Copy(result.ReachableResources),
-            [.. evidence]);
+            [.. evidence],
+            result.IsPersistentCacheable);
     }
 
     private static string CreateEndpointPolicy(EndpointGuardResult endpointResult)

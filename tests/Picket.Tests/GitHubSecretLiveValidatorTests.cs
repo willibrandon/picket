@@ -98,6 +98,55 @@ public sealed class GitHubSecretLiveValidatorTests
     }
 
     /// <summary>
+    /// Verifies that transient GitHub responses are retried before producing an active result.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncRetriesTransientServerResponse()
+    {
+        int requestCount = 0;
+        var handler = new FakeHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"login\":\"octocat\"}"),
+            };
+        });
+        GitHubSecretLiveValidator validator = CreateValidator(handler, options => options.RetryDelay = TimeSpan.Zero);
+
+        SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), CancellationToken.None);
+
+        Assert.AreEqual(SecretValidationState.Active, result.State);
+        Assert.AreEqual("octocat", result.Identity);
+        Assert.Contains("retryAttempts=1", result.Evidence);
+        Assert.IsTrue(result.IsPersistentCacheable);
+        Assert.AreEqual(2, handler.RequestCount);
+    }
+
+    /// <summary>
+    /// Verifies that exhausted transient failures are not persistent-cacheable.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncDoesNotPersistentCacheExhaustedTransientFailure()
+    {
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        GitHubSecretLiveValidator validator = CreateValidator(handler, options => options.RetryDelay = TimeSpan.Zero);
+
+        SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), CancellationToken.None);
+
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.Contains("httpStatus=503", result.Evidence);
+        Assert.Contains("retryAttempts=1", result.Evidence);
+        Assert.IsFalse(result.IsPersistentCacheable);
+        Assert.AreEqual(2, handler.RequestCount);
+    }
+
+    /// <summary>
     /// Verifies that malformed GitHub-looking findings are not eligible for provider requests.
     /// </summary>
     [TestMethod]
@@ -142,11 +191,14 @@ public sealed class GitHubSecretLiveValidatorTests
         Assert.ThrowsExactly<ArgumentException>(() => options.UserEndpoint = new Uri("https://api.github.test/user?token=value"));
     }
 
-    private static GitHubSecretLiveValidator CreateValidator(FakeHttpMessageHandler handler)
+    private static GitHubSecretLiveValidator CreateValidator(
+        FakeHttpMessageHandler handler,
+        Action<GitHubSecretLiveValidatorOptions>? configureOptions = null)
     {
         GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
         options.UserEndpoint = new Uri("https://api.github.test/user");
         options.SetMessageHandlerFactory(() => handler);
+        configureOptions?.Invoke(options);
         return new GitHubSecretLiveValidator(options);
     }
 

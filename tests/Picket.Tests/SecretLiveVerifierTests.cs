@@ -161,6 +161,48 @@ public sealed class SecretLiveVerifierTests
     }
 
     /// <summary>
+    /// Verifies that non-cacheable live errors are not written to the persistent cache.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncDoesNotPersistNonCacheableResults()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        var firstValidator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(
+                SecretValidationState.Error,
+                "provider temporarily failed",
+                evidence: ["errorKind=transient"],
+                isPersistentCacheable: false));
+        var firstVerifier = new SecretLiveVerifier([firstValidator], cache, options);
+        Finding finding = CreateFinding();
+
+        SecretValidationResult first = await firstVerifier.VerifyAsync(finding);
+
+        var secondValidator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active, "provider accepted token"));
+        var secondVerifier = new SecretLiveVerifier([secondValidator], cache, options);
+
+        SecretValidationResult second = await secondVerifier.VerifyAsync(finding);
+
+        Assert.AreEqual(SecretValidationState.Error, first.State);
+        Assert.Contains("errorKind=transient", first.Evidence);
+        Assert.AreEqual(SecretValidationState.Active, second.State);
+        Assert.Contains("providerContacted=true", second.Evidence);
+        Assert.DoesNotContain("cacheHit=persistent", second.Evidence);
+        Assert.AreEqual(1, firstValidator.VerifyCount);
+        Assert.AreEqual(1, secondValidator.VerifyCount);
+    }
+
+    /// <summary>
     /// Verifies that the per-provider request limit is enforced before provider code runs.
     /// </summary>
     [TestMethod]

@@ -75,42 +75,45 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
             return new SecretValidationResult(SecretValidationState.Skipped, "finding has no secret material to verify");
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, _options.UserEndpoint);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", secret);
-        request.Headers.UserAgent.ParseAdd(_options.UserAgent);
-        request.Headers.Accept.ParseAdd("application/vnd.github+json");
-        if (_options.ApiVersion.Length != 0)
+        for (int attempt = 0; ; attempt++)
         {
-            request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", _options.ApiVersion);
-        }
-
-        try
-        {
-            using HttpResponseMessage response = await _client.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken).ConfigureAwait(false);
-
-            string responseBody = await ReadSmallResponseAsync(response, cancellationToken).ConfigureAwait(false);
-            return response.StatusCode switch
+            try
             {
-                HttpStatusCode.OK => CreateActiveResult(response, responseBody),
-                HttpStatusCode.Unauthorized => CreateHttpResult(SecretValidationState.Inactive, "GitHub rejected the token", response.StatusCode),
-                HttpStatusCode.Forbidden => CreateHttpResult(SecretValidationState.Error, "GitHub forbade the verification request", response.StatusCode),
-                (HttpStatusCode)429 => CreateHttpResult(SecretValidationState.Error, "GitHub rate limited the verification request", response.StatusCode),
-                _ => CreateHttpResult(
-                    SecretValidationState.Error,
-                    string.Concat("GitHub returned HTTP ", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture)),
-                    response.StatusCode),
-            };
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return new SecretValidationResult(SecretValidationState.Error, "GitHub verification timed out");
-        }
-        catch (HttpRequestException)
-        {
-            return new SecretValidationResult(SecretValidationState.Error, "GitHub verification request failed");
+                using HttpRequestMessage request = CreateRequest(secret);
+                using HttpResponseMessage response = await _client.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken).ConfigureAwait(false);
+
+                string responseBody = await ReadSmallResponseAsync(response, cancellationToken).ConfigureAwait(false);
+                if (IsRetryableStatusCode(response.StatusCode) && CanRetry(attempt))
+                {
+                    await DelayBeforeRetryAsync(cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return AddRetryEvidence(CreateResult(response, responseBody), attempt);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                if (CanRetry(attempt))
+                {
+                    await DelayBeforeRetryAsync(cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return AddRetryEvidence(CreateTransientErrorResult("GitHub verification timed out"), attempt);
+            }
+            catch (HttpRequestException)
+            {
+                if (CanRetry(attempt))
+                {
+                    await DelayBeforeRetryAsync(cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return AddRetryEvidence(CreateTransientErrorResult("GitHub verification request failed"), attempt);
+            }
         }
     }
 
@@ -120,6 +123,35 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
     public void Dispose()
     {
         _client.Dispose();
+    }
+
+    private HttpRequestMessage CreateRequest(string secret)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, _options.UserEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", secret);
+        request.Headers.UserAgent.ParseAdd(_options.UserAgent);
+        request.Headers.Accept.ParseAdd("application/vnd.github+json");
+        if (_options.ApiVersion.Length != 0)
+        {
+            request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", _options.ApiVersion);
+        }
+
+        return request;
+    }
+
+    private SecretValidationResult CreateResult(HttpResponseMessage response, string responseBody)
+    {
+        return response.StatusCode switch
+        {
+            HttpStatusCode.OK => CreateActiveResult(response, responseBody),
+            HttpStatusCode.Unauthorized => CreateHttpResult(SecretValidationState.Inactive, "GitHub rejected the token", response.StatusCode),
+            HttpStatusCode.Forbidden => CreateHttpResult(SecretValidationState.Error, "GitHub forbade the verification request", response.StatusCode),
+            (HttpStatusCode)429 => CreateHttpResult(SecretValidationState.Error, "GitHub rate limited the verification request", response.StatusCode),
+            _ => CreateHttpResult(
+                SecretValidationState.Error,
+                string.Concat("GitHub returned HTTP ", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture)),
+                response.StatusCode),
+        };
     }
 
     private SecretValidationResult CreateActiveResult(HttpResponseMessage response, string responseBody)
@@ -156,7 +188,81 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
         return new SecretValidationResult(
             state,
             reason,
-            evidence: [string.Concat("httpStatus=", ((int)statusCode).ToString(CultureInfo.InvariantCulture))]);
+            evidence: [string.Concat("httpStatus=", ((int)statusCode).ToString(CultureInfo.InvariantCulture))],
+            isPersistentCacheable: state != SecretValidationState.Error);
+    }
+
+    private static SecretValidationResult CreateTransientErrorResult(string reason)
+    {
+        return new SecretValidationResult(
+            SecretValidationState.Error,
+            reason,
+            evidence: ["errorKind=transient"],
+            isPersistentCacheable: false);
+    }
+
+    private static SecretValidationResult AddRetryEvidence(SecretValidationResult result, int retryAttempts)
+    {
+        if (retryAttempts == 0)
+        {
+            return result;
+        }
+
+        var evidence = new List<string>(result.Evidence.Count + 1);
+        for (int i = 0; i < result.Evidence.Count; i++)
+        {
+            evidence.Add(result.Evidence[i]);
+        }
+
+        evidence.Add(string.Concat("retryAttempts=", retryAttempts.ToString(CultureInfo.InvariantCulture)));
+        return new SecretValidationResult(
+            result.State,
+            result.Reason,
+            result.Identity,
+            Copy(result.Scopes),
+            Copy(result.ReachableResources),
+            [.. evidence],
+            result.IsPersistentCacheable);
+    }
+
+    private bool CanRetry(int attempt)
+    {
+        return attempt < _options.MaxRetryAttempts;
+    }
+
+    private async ValueTask DelayBeforeRetryAsync(CancellationToken cancellationToken)
+    {
+        if (_options.RetryDelay == TimeSpan.Zero)
+        {
+            return;
+        }
+
+        await Task.Delay(_options.RetryDelay, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool IsRetryableStatusCode(HttpStatusCode statusCode)
+    {
+        return statusCode is HttpStatusCode.RequestTimeout
+            or HttpStatusCode.InternalServerError
+            or HttpStatusCode.BadGateway
+            or HttpStatusCode.ServiceUnavailable
+            or HttpStatusCode.GatewayTimeout;
+    }
+
+    private static string[] Copy(IReadOnlyList<string> values)
+    {
+        if (values.Count == 0)
+        {
+            return [];
+        }
+
+        var copy = new string[values.Count];
+        for (int i = 0; i < values.Count; i++)
+        {
+            copy[i] = values[i];
+        }
+
+        return copy;
     }
 
     private async ValueTask<string> ReadSmallResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)

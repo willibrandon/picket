@@ -9,6 +9,8 @@ public sealed class GitHubSecretLiveValidatorOptions
 
     private Func<HttpMessageHandler>? _messageHandlerFactory;
     private int _maxResponseBytes = DefaultMaxResponseBytes;
+    private int _maxRetryAttempts = 1;
+    private TimeSpan _retryDelay = TimeSpan.FromMilliseconds(250);
     private TimeSpan _timeout = TimeSpan.FromSeconds(10);
     private Uri _userEndpoint = new("https://api.github.com/user");
 
@@ -77,6 +79,32 @@ public sealed class GitHubSecretLiveValidatorOptions
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
             _maxResponseBytes = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum retry attempts after the first request for transient provider failures.
+    /// </summary>
+    public int MaxRetryAttempts
+    {
+        get => _maxRetryAttempts;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 0);
+            _maxRetryAttempts = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the delay between retry attempts for transient provider failures.
+    /// </summary>
+    public TimeSpan RetryDelay
+    {
+        get => _retryDelay;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, TimeSpan.Zero);
+            _retryDelay = value;
         }
     }
 

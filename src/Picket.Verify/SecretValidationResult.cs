@@ -9,13 +9,15 @@ namespace Picket.Verify;
 /// <param name="scopes">The non-secret scopes discovered by live validation.</param>
 /// <param name="reachableResources">The non-secret resources discovered by live validation.</param>
 /// <param name="evidence">Non-secret evidence produced by validation.</param>
+/// <param name="isPersistentCacheable">A value indicating whether the result can be written to the persistent validation cache.</param>
 public sealed class SecretValidationResult(
     SecretValidationState state,
     string reason = "",
     string identity = "",
     string[]? scopes = null,
     string[]? reachableResources = null,
-    string[]? evidence = null)
+    string[]? evidence = null,
+    bool isPersistentCacheable = true)
 {
     /// <summary>
     /// Gets the validation state.
@@ -46,6 +48,11 @@ public sealed class SecretValidationResult(
     /// Gets non-secret evidence produced by validation.
     /// </summary>
     public IReadOnlyList<string> Evidence { get; } = CopyOrEmpty(evidence);
+
+    /// <summary>
+    /// Gets a value indicating whether the result can be written to the persistent validation cache.
+    /// </summary>
+    public bool IsPersistentCacheable { get; } = isPersistentCacheable;
 
     /// <summary>
     /// Gets the stable report value for the state.
