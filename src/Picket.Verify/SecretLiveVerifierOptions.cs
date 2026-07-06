@@ -7,11 +7,16 @@ namespace Picket.Verify;
 /// </summary>
 public sealed class SecretLiveVerifierOptions
 {
+    internal const int DefaultMaxConcurrentProviderRequests = 4;
+    internal const int DefaultMaxConcurrentRequestsPerProvider = 1;
+
     private EndpointGuardOptions _endpointGuardOptions = EndpointGuardOptions.CreateDefault();
     private TimeSpan _activeResultCacheDuration = TimeSpan.FromMinutes(15);
     private TimeSpan _inactiveResultCacheDuration = TimeSpan.FromHours(1);
     private TimeSpan _skippedResultCacheDuration = TimeSpan.FromMinutes(30);
     private TimeSpan _errorResultCacheDuration = TimeSpan.FromMinutes(5);
+    private int _maxConcurrentProviderRequests = DefaultMaxConcurrentProviderRequests;
+    private int _maxConcurrentRequestsPerProvider = DefaultMaxConcurrentRequestsPerProvider;
 
     /// <summary>
     /// Creates default live verifier options.
@@ -80,6 +85,32 @@ public sealed class SecretLiveVerifierOptions
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(value, TimeSpan.Zero);
             _errorResultCacheDuration = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum number of provider requests that can run at once across all providers.
+    /// </summary>
+    public int MaxConcurrentProviderRequests
+    {
+        get => _maxConcurrentProviderRequests;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _maxConcurrentProviderRequests = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum number of provider requests that can run at once for one provider.
+    /// </summary>
+    public int MaxConcurrentRequestsPerProvider
+    {
+        get => _maxConcurrentRequestsPerProvider;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _maxConcurrentRequestsPerProvider = value;
         }
     }
 

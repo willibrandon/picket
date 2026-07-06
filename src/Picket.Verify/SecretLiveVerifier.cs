@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Picket.Engine;
 using Picket.Security;
 
@@ -16,6 +17,9 @@ public sealed class SecretLiveVerifier(
 {
     private readonly SecretValidationCache? _cache = cache;
     private readonly SecretLiveVerifierOptions _options = options ?? SecretLiveVerifierOptions.CreateDefault();
+    private readonly SemaphoreSlim _globalRequestLimiter = new(options?.MaxConcurrentProviderRequests ?? SecretLiveVerifierOptions.DefaultMaxConcurrentProviderRequests);
+    private readonly object _gate = new();
+    private readonly Dictionary<string, SemaphoreSlim> _providerRequestLimiters = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SecretValidationResult> _requestCache = new(StringComparer.Ordinal);
     private readonly ISecretLiveValidator[] _validators = ValidateValidators(validators);
 
@@ -52,7 +56,7 @@ public sealed class SecretLiveVerifier(
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
             SecretValidationCacheKey cacheKey = SecretValidationCacheKey.FromFinding(validator.Provider, validator.Version, finding, validator.Endpoint);
-            if (_requestCache.TryGetValue(cacheKey.Fingerprint, out SecretValidationResult? requestCachedResult))
+            if (TryReadRequestCache(cacheKey.Fingerprint, out SecretValidationResult? requestCachedResult))
             {
                 return AddAuditEvidence(
                     requestCachedResult,
@@ -72,18 +76,18 @@ public sealed class SecretLiveVerifier(
                         endpointResult,
                         providerContacted: false,
                         cacheHit: "persistent");
-                    _requestCache[cacheKey.Fingerprint] = auditedCachedResult;
+                    WriteRequestCache(cacheKey.Fingerprint, auditedCachedResult);
                     return auditedCachedResult;
                 }
             }
 
-            SecretValidationResult result = await validator.VerifyAsync(finding, cancellationToken).ConfigureAwait(false);
+            SecretValidationResult result = await VerifyWithRateLimitsAsync(validator, finding, cancellationToken).ConfigureAwait(false);
             SecretValidationResult auditedResult = AddAuditEvidence(
                 result,
                 validator,
                 endpointResult,
                 providerContacted: true);
-            _requestCache[cacheKey.Fingerprint] = auditedResult;
+            WriteRequestCache(cacheKey.Fingerprint, auditedResult);
             if (_cache is not null && _options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
             {
                 _cache.Write(cacheKey, auditedResult, now + duration);
@@ -107,6 +111,15 @@ public sealed class SecretLiveVerifier(
                 disposable.Dispose();
             }
         }
+
+        _globalRequestLimiter.Dispose();
+        lock (_gate)
+        {
+            foreach (SemaphoreSlim limiter in _providerRequestLimiters.Values)
+            {
+                limiter.Dispose();
+            }
+        }
     }
 
     private static ISecretLiveValidator[] ValidateValidators(ISecretLiveValidator[] validators)
@@ -119,6 +132,61 @@ public sealed class SecretLiveVerifier(
         }
 
         return validators;
+    }
+
+    private async ValueTask<SecretValidationResult> VerifyWithRateLimitsAsync(
+        ISecretLiveValidator validator,
+        Finding finding,
+        CancellationToken cancellationToken)
+    {
+        SemaphoreSlim providerRequestLimiter = GetProviderRequestLimiter(validator.Provider);
+        await providerRequestLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
+        bool globalRequestLimiterAcquired = false;
+        try
+        {
+            await _globalRequestLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
+            globalRequestLimiterAcquired = true;
+            return await validator.VerifyAsync(finding, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (globalRequestLimiterAcquired)
+            {
+                _globalRequestLimiter.Release();
+            }
+
+            providerRequestLimiter.Release();
+        }
+    }
+
+    private SemaphoreSlim GetProviderRequestLimiter(string provider)
+    {
+        lock (_gate)
+        {
+            if (!_providerRequestLimiters.TryGetValue(provider, out SemaphoreSlim? limiter))
+            {
+                limiter = new SemaphoreSlim(_options.MaxConcurrentRequestsPerProvider);
+                _providerRequestLimiters.Add(provider, limiter);
+            }
+
+            return limiter;
+        }
+    }
+
+    private bool TryReadRequestCache(string fingerprint, [NotNullWhen(true)] out SecretValidationResult? result)
+    {
+        lock (_gate)
+        {
+            return _requestCache.TryGetValue(fingerprint, out result);
+        }
+    }
+
+    private void WriteRequestCache(string fingerprint, SecretValidationResult result)
+    {
+        lock (_gate)
+        {
+            _requestCache[fingerprint] = result;
+        }
     }
 
     private static SecretValidationResult AddAuditEvidence(

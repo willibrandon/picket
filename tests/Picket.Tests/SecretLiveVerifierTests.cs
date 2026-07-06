@@ -11,6 +11,11 @@ namespace Picket.Tests;
 public sealed class SecretLiveVerifierTests
 {
     /// <summary>
+    /// Gets or sets the current MSTest context.
+    /// </summary>
+    public TestContext TestContext { get; set; } = null!;
+
+    /// <summary>
     /// Verifies that unsupported findings are skipped without contacting a validator.
     /// </summary>
     [TestMethod]
@@ -155,11 +160,96 @@ public sealed class SecretLiveVerifierTests
         Assert.AreEqual(0, secondValidator.VerifyCount);
     }
 
-    private static Finding CreateFinding()
+    /// <summary>
+    /// Verifies that the per-provider request limit is enforced before provider code runs.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncLimitsConcurrentRequestsPerProvider()
     {
-        string secret = CreateGitHubPat();
+        var release = new TaskCompletionSource<SecretValidationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MaxConcurrentProviderRequests = 10;
+        options.MaxConcurrentRequestsPerProvider = 1;
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            verifyAsync: async (_, cancellationToken) => await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false));
+        var verifier = new SecretLiveVerifier([validator], options: options);
+
+        Task<SecretValidationResult> first = verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("ghp_")),
+            TestContext.CancellationToken).AsTask();
+        await WaitUntilAsync(() => validator.VerifyCount == 1, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Task<SecretValidationResult> second = verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("gho_")),
+            TestContext.CancellationToken).AsTask();
+
+        Assert.AreEqual(1, validator.VerifyCount);
+        Assert.IsFalse(second.IsCompleted);
+
+        release.SetResult(new SecretValidationResult(SecretValidationState.Active));
+        await Task.WhenAll(first, second).WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(2, validator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that the global provider request limit is enforced across providers.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncLimitsConcurrentRequestsGlobally()
+    {
+        var release = new TaskCompletionSource<SecretValidationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MaxConcurrentProviderRequests = 1;
+        options.MaxConcurrentRequestsPerProvider = 10;
+        var firstValidator = new FakeSecretLiveValidator(
+            "first",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            supports: finding => finding.RuleID.Equals("first-rule", StringComparison.Ordinal),
+            verifyAsync: async (_, cancellationToken) => await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false));
+        var secondValidator = new FakeSecretLiveValidator(
+            "second",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            supports: finding => finding.RuleID.Equals("second-rule", StringComparison.Ordinal),
+            verifyAsync: async (_, cancellationToken) => await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false));
+        var verifier = new SecretLiveVerifier([firstValidator, secondValidator], options: options);
+
+        Task<SecretValidationResult> first = verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("ghp_"), "first-rule"),
+            TestContext.CancellationToken).AsTask();
+        await WaitUntilAsync(() => firstValidator.VerifyCount == 1, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Task<SecretValidationResult> second = verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("gho_"), "second-rule"),
+            TestContext.CancellationToken).AsTask();
+
+        Assert.AreEqual(0, secondValidator.VerifyCount);
+        Assert.IsFalse(second.IsCompleted);
+
+        release.SetResult(new SecretValidationResult(SecretValidationState.Active));
+        await Task.WhenAll(first, second).WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(1, firstValidator.VerifyCount);
+        Assert.AreEqual(1, secondValidator.VerifyCount);
+    }
+
+    private static Finding CreateFinding(string? secret = null, string ruleId = "github-pat")
+    {
+        secret ??= CreateGitHubPat();
         return new Finding(
-            "github-pat",
+            ruleId,
             "GitHub token",
             1,
             1,
@@ -176,7 +266,7 @@ public sealed class SecretLiveVerifierTests
             string.Empty,
             string.Empty,
             [],
-            "secret.txt:github-pat:1");
+            string.Concat("secret.txt:", ruleId, ":1"));
     }
 
     private static string CreateGitHubPat()
@@ -201,5 +291,20 @@ public sealed class SecretLiveVerifierTests
         }
 
         return values;
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> predicate, CancellationToken cancellationToken)
+    {
+        for (int i = 0; i < 100; i++)
+        {
+            if (predicate())
+            {
+                return;
+            }
+
+            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+        }
+
+        Assert.Fail("Timed out waiting for live verifier test state.");
     }
 }
