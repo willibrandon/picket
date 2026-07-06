@@ -36,8 +36,9 @@ jobs:
 | `config-path` | empty | Optional Gitleaks-compatible configuration path. |
 | `baseline-path` | empty | Optional Gitleaks-compatible baseline report path. |
 | `cache` | `true` | Restore and save the native Picket scan cache. |
+| `cache-mode` | `secret-hash-only` | Cache storage mode. Use `secret-hash-only` for public CI safety or `raw` for exact cached report replay in trusted private jobs. |
 | `cache-path` | `.picket/cache` | Cache directory used by Picket and `actions/cache`. |
-| `cache-key` | empty | Optional explicit cache key. Empty uses an OS, branch, and commit scoped default with branch restore keys. |
+| `cache-key` | empty | Optional explicit cache key. Empty uses an OS, cache-mode, branch, and commit scoped default with mode-scoped branch restore keys. |
 | `report-directory` | `picket-results` | Directory where `picket.sarif` and `picket.jsonl` are written. |
 | `fail-on` | `findings` | Failure policy: `findings`, `errors`, or `never`. |
 | `upload-sarif` | `false` | Upload `picket.sarif` through GitHub code scanning. |
@@ -77,7 +78,9 @@ The action writes SARIF and JSONL before the final failure-enforcement step. Thi
 
 The action always writes native Picket SARIF and JSONL reports. Formats are inferred from the output extensions, so the action does not pass a global report format flag.
 
-When `cache` is `true`, `actions/cache/restore` restores `cache-path` before scanning and `actions/cache/save` saves it before SARIF upload and final failure enforcement. The same path is passed to `picket scan --cache-dir`.
+When `cache` is `true`, `actions/cache/restore` restores `cache-path` before scanning and `actions/cache/save` saves it before SARIF upload and final failure enforcement. The same path is passed to `picket scan --cache-dir`, and `cache-mode` is passed to `picket scan --cache-mode`.
+
+The default action cache mode is `secret-hash-only`, so saved cache entries keep finding hashes and provenance without raw match, secret, or line text. Set `cache-mode: raw` only for trusted private CI where exact cached report replay is more important than cache privacy.
 
 The job summary includes the scanner exit code, finding count, failure policy, and report paths. Secret values are not written to the summary, and findings are fully redacted by default. Set `redact: 0` only for trusted private CI where raw secret values are acceptable.
 

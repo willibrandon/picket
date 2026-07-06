@@ -56,6 +56,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("fail-on", action);
         Assert.Contains("annotations", action);
         Assert.Contains("annotation-limit", action);
+        Assert.Contains("cache-mode", action);
         Assert.Contains("cache-path", action);
         Assert.Contains("redact", action);
         Assert.Contains("timeout", action);
@@ -84,6 +85,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.jsonl", helper);
         Assert.Contains("--redact=$redact", helper);
         Assert.Contains("--cache-dir", helper);
+        Assert.Contains("--cache-mode", helper);
+        Assert.Contains("PICKET_CACHE_MODE", helper);
         Assert.Contains("--max-target-megabytes", helper);
         Assert.Contains("--timeout", helper);
         Assert.Contains("--max-archive-depth", helper);
@@ -116,6 +119,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("fail-on: errors", documentation);
         Assert.Contains("fail-on: never", documentation);
         Assert.Contains("annotation-limit", documentation);
+        Assert.Contains("cache-mode", documentation);
+        Assert.Contains("secret-hash-only", documentation);
         Assert.Contains("Annotations", documentation);
         Assert.Contains("redact: 0", documentation);
         Assert.Contains("upload-sarif", documentation);

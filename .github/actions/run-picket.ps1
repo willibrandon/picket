@@ -167,6 +167,7 @@ $scanPath = Resolve-WorkspacePath (Get-ActionInput -Name 'PICKET_PATH' -Default 
 $configPath = Get-ActionInput -Name 'PICKET_CONFIG_PATH'
 $baselinePath = Get-ActionInput -Name 'PICKET_BASELINE_PATH'
 $cacheEnabled = Get-ActionInput -Name 'PICKET_CACHE_ENABLED' -Default 'true'
+$cacheMode = (Get-ActionInput -Name 'PICKET_CACHE_MODE' -Default 'secret-hash-only').Trim().ToLowerInvariant()
 $cachePath = Get-ActionInput -Name 'PICKET_CACHE_PATH' -Default '.picket/cache'
 $reportDirectory = Resolve-WorkspacePath (Get-ActionInput -Name 'PICKET_REPORT_DIRECTORY' -Default 'picket-results')
 $failOn = (Get-ActionInput -Name 'PICKET_FAIL_ON' -Default 'findings').Trim().ToLowerInvariant()
@@ -182,6 +183,11 @@ $maxArchiveRatio = Get-ActionInput -Name 'PICKET_MAX_ARCHIVE_RATIO'
 
 if ($failOn -notin @('findings', 'errors', 'never')) {
     Write-Host '::error title=Invalid fail-on::fail-on must be findings, errors, or never.'
+    exit 1
+}
+
+if ($cacheMode -notin @('secret-hash-only', 'raw')) {
+    Write-Host '::error title=Invalid cache-mode::cache-mode must be secret-hash-only or raw.'
     exit 1
 }
 
@@ -218,7 +224,7 @@ if (![string]::IsNullOrWhiteSpace($baselinePath)) {
 if ($cacheEnabled.Equals('true', [StringComparison]::OrdinalIgnoreCase)) {
     $resolvedCachePath = Resolve-WorkspacePath $cachePath
     New-Item -ItemType Directory -Force -Path $resolvedCachePath | Out-Null
-    $arguments += @('--cache-dir', $resolvedCachePath)
+    $arguments += @('--cache-dir', $resolvedCachePath, '--cache-mode', $cacheMode)
 }
 
 if (![string]::IsNullOrWhiteSpace($maxTargetMegabytes)) {

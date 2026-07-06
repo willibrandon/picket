@@ -19,6 +19,10 @@ inputs:
     description: Restore and save the native Picket scan cache.
     required: false
     default: "true"
+  cache-mode:
+    description: Native scan cache storage mode. Use secret-hash-only for public CI safety or raw for exact cached report replay in trusted jobs.
+    required: false
+    default: secret-hash-only
   cache-path:
     description: Native Picket scan cache directory.
     required: false
@@ -120,10 +124,10 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: ${{ inputs.cache-path }}
-        key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}', runner.os, github.ref_name, github.sha) }}
+        key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-{3}', runner.os, inputs.cache-mode, github.ref_name, github.sha) }}
         restore-keys: |
-          ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-', runner.os, github.ref_name) }}
-          picket-${{ runner.os }}-
+          ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-', runner.os, inputs.cache-mode, github.ref_name) }}
+          picket-${{ runner.os }}-${{ inputs.cache-mode }}-
 
     - name: Run Picket
       id: run
@@ -133,6 +137,7 @@ runs:
         PICKET_CONFIG_PATH: ${{ inputs.config-path }}
         PICKET_BASELINE_PATH: ${{ inputs.baseline-path }}
         PICKET_CACHE_ENABLED: ${{ inputs.cache }}
+        PICKET_CACHE_MODE: ${{ inputs.cache-mode }}
         PICKET_CACHE_PATH: ${{ inputs.cache-path }}
         PICKET_REPORT_DIRECTORY: ${{ inputs.report-directory }}
         PICKET_FAIL_ON: ${{ inputs.fail-on }}
@@ -152,7 +157,7 @@ runs:
       uses: actions/cache/save@v4
       with:
         path: ${{ inputs.cache-path }}
-        key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}', runner.os, github.ref_name, github.sha) }}
+        key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-{3}', runner.os, inputs.cache-mode, github.ref_name, github.sha) }}
 
     - name: Upload SARIF
       if: ${{ inputs.upload-sarif == 'true' && steps.run.outputs.sarif-path != '' }}

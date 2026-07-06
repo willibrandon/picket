@@ -16,6 +16,7 @@ This page is generated from `action.yml`.
 | `config-path` | Optional Gitleaks-compatible config path. | false | `` |
 | `baseline-path` | Optional Gitleaks-compatible baseline path. | false | `` |
 | `cache` | Restore and save the native Picket scan cache. | false | `true` |
+| `cache-mode` | Native scan cache storage mode. Use secret-hash-only for public CI safety or raw for exact cached report replay in trusted jobs. | false | `secret-hash-only` |
 | `cache-path` | Native Picket scan cache directory. | false | `.picket/cache` |
 | `cache-key` | Optional explicit cache key. | false | `` |
 | `report-directory` | Directory where SARIF and JSONL reports are written. | false | `picket-results` |
