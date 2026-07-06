@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Net.Sockets;
 using System.Text;
 
 namespace Picket;
@@ -7,6 +8,7 @@ namespace Picket;
 internal sealed class CompatibilityDiagnosticsSession
 {
     private readonly string _command;
+    private readonly bool _writeHttp;
     private readonly bool _writeCpu;
     private readonly bool _writeMemory;
     private readonly bool _writeTrace;
@@ -23,13 +25,15 @@ internal sealed class CompatibilityDiagnosticsSession
     private readonly int _startGen0Collections;
     private readonly int _startGen1Collections;
     private readonly int _startGen2Collections;
+    private CompatibilityDiagnosticsHttpServer? _httpServer;
     private bool _completed;
 
-    private CompatibilityDiagnosticsSession(string command, string outputDirectory, bool writeCpu, bool writeMemory, bool writeTrace)
+    private CompatibilityDiagnosticsSession(string command, string outputDirectory, bool writeHttp, bool writeCpu, bool writeMemory, bool writeTrace)
     {
         using Process process = Process.GetCurrentProcess();
         _command = command;
         _outputDirectory = outputDirectory;
+        _writeHttp = writeHttp;
         _writeCpu = writeCpu;
         _writeMemory = writeMemory;
         _writeTrace = writeTrace;
@@ -61,6 +65,7 @@ internal sealed class CompatibilityDiagnosticsSession
         }
 
         bool writeCpu = false;
+        bool writeHttp = false;
         bool writeMemory = false;
         bool writeTrace = false;
         bool sawSupportedMode = false;
@@ -87,8 +92,9 @@ internal sealed class CompatibilityDiagnosticsSession
                     sawSupportedMode = true;
                     break;
                 case "http":
-                    error.WriteLine("--diagnostics=http is not supported yet");
-                    return false;
+                    writeHttp = true;
+                    sawSupportedMode = true;
+                    break;
                 default:
                     error.WriteLine($"Unknown diagnostics type: {mode}");
                     break;
@@ -98,6 +104,24 @@ internal sealed class CompatibilityDiagnosticsSession
         if (!sawSupportedMode)
         {
             return true;
+        }
+
+        if (writeHttp)
+        {
+            if (writeCpu || writeMemory || writeTrace)
+            {
+                error.WriteLine("other diagnostics modes should not be enabled when http mode is enabled");
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(diagnosticsDirectory))
+            {
+                error.WriteLine("the diagnostics directory should not be set in http mode");
+                return false;
+            }
+
+            session = new CompatibilityDiagnosticsSession(command, string.Empty, writeHttp, writeCpu, writeMemory, writeTrace);
+            return session.TryStartHttp(error);
         }
 
         string outputDirectory = string.IsNullOrEmpty(diagnosticsDirectory)
@@ -115,7 +139,7 @@ internal sealed class CompatibilityDiagnosticsSession
             return false;
         }
 
-        session = new CompatibilityDiagnosticsSession(command, outputDirectory, writeCpu, writeMemory, writeTrace);
+        session = new CompatibilityDiagnosticsSession(command, outputDirectory, writeHttp, writeCpu, writeMemory, writeTrace);
         return true;
     }
 
@@ -138,17 +162,17 @@ internal sealed class CompatibilityDiagnosticsSession
 
         try
         {
-            if (_writeCpu)
+            if (!_writeHttp && _writeCpu)
             {
                 WriteCpuDiagnostics(exitCode, endedAt, elapsed, processorTime, privilegedProcessorTime, userProcessorTime);
             }
 
-            if (_writeMemory)
+            if (!_writeHttp && _writeMemory)
             {
                 WriteMemoryDiagnostics(exitCode, endedAt, elapsed, allocatedBytes, managedMemoryBytes, process);
             }
 
-            if (_writeTrace)
+            if (!_writeHttp && _writeTrace)
             {
                 WriteTraceDiagnostics(exitCode, endedAt, elapsed);
             }
@@ -158,8 +182,120 @@ internal sealed class CompatibilityDiagnosticsSession
             error.WriteLine($"failed to write diagnostics: {ex.Message}");
             return false;
         }
+        finally
+        {
+            _httpServer?.Dispose();
+        }
 
         return true;
+    }
+
+    private bool TryStartHttp(TextWriter error)
+    {
+        try
+        {
+            _httpServer = CompatibilityDiagnosticsHttpServer.Start(CreateHttpDiagnosticsResponse);
+            error.WriteLine("diagnostics server started at http://localhost:6060/debug/pprof/");
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException)
+        {
+            error.WriteLine($"failed to start diagnostics http server: {ex.Message}");
+            return false;
+        }
+    }
+
+    private CompatibilityDiagnosticsHttpResponse CreateHttpDiagnosticsResponse(string path)
+    {
+        if (path.Equals("/", StringComparison.Ordinal)
+            || path.Equals("/debug/pprof", StringComparison.Ordinal)
+            || path.Equals("/debug/pprof/", StringComparison.Ordinal))
+        {
+            return new CompatibilityDiagnosticsHttpResponse("application/json; charset=utf-8", CreateHttpIndex(), 200);
+        }
+
+        if (path.Equals("/debug/pprof/profile", StringComparison.Ordinal)
+            || path.Equals("/debug/pprof/profile/", StringComparison.Ordinal))
+        {
+            return new CompatibilityDiagnosticsHttpResponse("application/json; charset=utf-8", CreateCpuSnapshot());
+        }
+
+        if (path.Equals("/debug/pprof/heap", StringComparison.Ordinal)
+            || path.Equals("/debug/pprof/heap/", StringComparison.Ordinal))
+        {
+            return new CompatibilityDiagnosticsHttpResponse("application/json; charset=utf-8", CreateMemorySnapshot());
+        }
+
+        if (path.Equals("/debug/pprof/trace", StringComparison.Ordinal)
+            || path.Equals("/debug/pprof/trace/", StringComparison.Ordinal))
+        {
+            return new CompatibilityDiagnosticsHttpResponse("application/x-ndjson; charset=utf-8", CreateTraceSnapshot());
+        }
+
+        return new CompatibilityDiagnosticsHttpResponse("text/plain; charset=utf-8", "not found\n", 404);
+    }
+
+    private string CreateHttpIndex()
+    {
+        var builder = new StringBuilder(512);
+        builder.Append("{\n");
+        AppendString(builder, "tool", "picket");
+        AppendString(builder, "profile", "gitleaks-compat");
+        AppendString(builder, "diagnostic", "http");
+        AppendString(builder, "command", _command);
+        AppendString(builder, "startedAtUtc", FormatTimestamp(_startedAt));
+        AppendString(builder, "note", "Picket serves AOT-safe JSON diagnostics here instead of Go pprof profiles.");
+        builder.Append("  \"endpoints\": [\"/debug/pprof/profile\", \"/debug/pprof/heap\", \"/debug/pprof/trace\"]\n");
+        builder.Append("}\n");
+        return builder.ToString();
+    }
+
+    private string CreateCpuSnapshot()
+    {
+        using Process process = Process.GetCurrentProcess();
+        DateTimeOffset current = DateTimeOffset.UtcNow;
+        TimeSpan elapsed = Stopwatch.GetElapsedTime(_startTimestamp);
+        TimeSpan processorTime = process.TotalProcessorTime - _startProcessorTime;
+        TimeSpan privilegedProcessorTime = process.PrivilegedProcessorTime - _startPrivilegedProcessorTime;
+        TimeSpan userProcessorTime = process.UserProcessorTime - _startUserProcessorTime;
+        var builder = new StringBuilder(384);
+        AppendObjectStart(builder, "cpu", exitCode: -1, current, elapsed);
+        AppendNumber(builder, "processorTimeMilliseconds", processorTime.TotalMilliseconds);
+        AppendNumber(builder, "userProcessorTimeMilliseconds", userProcessorTime.TotalMilliseconds);
+        AppendNumber(builder, "privilegedProcessorTimeMilliseconds", privilegedProcessorTime.TotalMilliseconds);
+        AppendObjectEnd(builder);
+        return builder.ToString();
+    }
+
+    private string CreateMemorySnapshot()
+    {
+        using Process process = Process.GetCurrentProcess();
+        DateTimeOffset current = DateTimeOffset.UtcNow;
+        TimeSpan elapsed = Stopwatch.GetElapsedTime(_startTimestamp);
+        long allocatedBytes = GC.GetTotalAllocatedBytes(precise: false) - _startAllocatedBytes;
+        long managedMemoryBytes = GC.GetTotalMemory(forceFullCollection: false);
+        var builder = new StringBuilder(512);
+        AppendObjectStart(builder, "mem", exitCode: -1, current, elapsed);
+        AppendNumber(builder, "allocatedBytes", allocatedBytes);
+        AppendNumber(builder, "startManagedMemoryBytes", _startManagedMemoryBytes);
+        AppendNumber(builder, "managedMemoryBytes", managedMemoryBytes);
+        AppendNumber(builder, "startWorkingSetBytes", _startWorkingSetBytes);
+        AppendNumber(builder, "workingSetBytes", process.WorkingSet64);
+        AppendNumber(builder, "startPrivateMemoryBytes", _startPrivateMemoryBytes);
+        AppendNumber(builder, "privateMemoryBytes", process.PrivateMemorySize64);
+        AppendNumber(builder, "gen0Collections", GC.CollectionCount(0) - _startGen0Collections);
+        AppendNumber(builder, "gen1Collections", GC.CollectionCount(1) - _startGen1Collections);
+        AppendNumber(builder, "gen2Collections", GC.CollectionCount(2) - _startGen2Collections);
+        AppendObjectEnd(builder);
+        return builder.ToString();
+    }
+
+    private string CreateTraceSnapshot()
+    {
+        var builder = new StringBuilder(384);
+        AppendTraceEvent(builder, "scan.start", _startedAt, 0, exitCode: -1);
+        AppendTraceEvent(builder, "scan.snapshot", DateTimeOffset.UtcNow, Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds, exitCode: -1);
+        return builder.ToString();
     }
 
     private void WriteCpuDiagnostics(

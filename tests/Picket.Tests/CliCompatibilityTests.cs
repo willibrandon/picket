@@ -13,6 +13,11 @@ namespace Picket.Tests;
 public sealed class CliCompatibilityTests
 {
     /// <summary>
+    /// Gets or sets the MSTest context for the current test.
+    /// </summary>
+    public TestContext TestContext { get; set; } = null!;
+
+    /// <summary>
     /// Verifies that --exit-code controls the leak exit code.
     /// </summary>
     [TestMethod]
@@ -2265,20 +2270,83 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that unsupported HTTP diagnostics fail explicitly.
+    /// Verifies that HTTP diagnostics start a loopback endpoint while stdin scans are waiting for input.
     /// </summary>
     [TestMethod]
-    public async Task DirectoryScanRejectsHttpDiagnostics()
+    public async Task StdinScanServesHttpDiagnostics()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo(GetCliExecutablePath())
+        {
+            RedirectStandardError = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            WorkingDirectory = root.Path,
+        };
+        process.StartInfo.ArgumentList.Add("stdin");
+        process.StartInfo.ArgumentList.Add("-c");
+        process.StartInfo.ArgumentList.Add(configPath);
+        process.StartInfo.ArgumentList.Add("--diagnostics=http");
+
+        process.Start();
+        string firstErrorLine = await process.StandardError.ReadLineAsync(TestContext.CancellationToken).ConfigureAwait(false) ?? string.Empty;
+        Assert.Contains("diagnostics server started at http://localhost:6060/debug/pprof/", firstErrorLine);
+
+        using var client = new HttpClient();
+        string index = await client.GetStringAsync(new Uri("http://localhost:6060/debug/pprof/"), TestContext.CancellationToken).ConfigureAwait(false);
+        string cpu = await client.GetStringAsync(new Uri("http://localhost:6060/debug/pprof/profile"), TestContext.CancellationToken).ConfigureAwait(false);
+
+        await process.StandardInput.WriteAsync("token-12345").ConfigureAwait(false);
+        await process.StandardInput.FlushAsync().ConfigureAwait(false);
+        process.StandardInput.Close();
+
+        string stdout = await process.StandardOutput.ReadToEndAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        string stderr = firstErrorLine + '\n' + await process.StandardError.ReadToEndAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        await process.WaitForExitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(1, process.ExitCode);
+        Assert.Contains("\"diagnostic\": \"http\"", index);
+        Assert.Contains("\"endpoints\"", index);
+        Assert.Contains("\"diagnostic\": \"cpu\"", cpu);
+        Assert.Contains("\"Secret\": \"token-12345\"", stdout);
+        Assert.DoesNotContain("not supported yet", stderr);
+    }
+
+    /// <summary>
+    /// Verifies that HTTP diagnostics reject diagnostics-dir like Gitleaks.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsHttpDiagnosticsDirectory()
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics=http").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics=http", "--diagnostics-dir", root.Path).ConfigureAwait(false);
 
         Assert.AreEqual(126, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.Contains("--diagnostics=http is not supported yet", result.Stderr);
+        Assert.Contains("the diagnostics directory should not be set in http mode", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that HTTP diagnostics cannot be combined with file diagnostics.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsMixedHttpDiagnostics()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics=http,cpu").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("other diagnostics modes should not be enabled when http mode is enabled", result.Stderr);
     }
 
     /// <summary>
