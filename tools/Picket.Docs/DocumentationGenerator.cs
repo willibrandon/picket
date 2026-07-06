@@ -1754,6 +1754,11 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     private static string FormatTypeName(string typeName)
     {
         typeName = typeName.Trim();
+        if (typeName.EndsWith('@'))
+        {
+            return string.Concat("out ", FormatTypeName(typeName[..^1]));
+        }
+
         if (typeName.EndsWith("[]", StringComparison.Ordinal))
         {
             return string.Concat(FormatTypeName(typeName[..^2]), "[]");

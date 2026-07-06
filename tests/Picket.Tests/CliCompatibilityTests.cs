@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Picket.Compat;
 using Picket.Engine;
+using Picket.Report;
 using Picket.Rules;
 using Picket.Verify;
 
@@ -730,6 +731,26 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native verification can validate findings from a Gitleaks JSON report.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyReadsGitleaksJsonReportInput()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = Path.Combine(root.Path, "gitleaks.json");
+        File.WriteAllText(reportPath, GitleaksJsonReportWriter.Write([CreateGitHubPatFinding(CreateGitHubPatFixture())]));
+
+        CliResult result = await RunCliAsync("verify", reportPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.DoesNotContain("gitleaks.json", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native verification can filter findings by offline validation result.
     /// </summary>
     [TestMethod]
@@ -918,6 +939,29 @@ public sealed class CliCompatibilityTests
         Assert.Contains("<github-token>", result.Stdout);
         Assert.Contains("\"revocationGuidance\"", result.Stdout);
         Assert.DoesNotContain(token, result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native analysis can analyze findings from a Picket JSON Lines report.
+    /// </summary>
+    [TestMethod]
+    public async Task AnalyzeReadsPicketJsonLinesReportInput()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string token = CreateGitHubPatFixture();
+        string reportPath = Path.Combine(root.Path, "report.jsonl");
+        File.WriteAllText(reportPath, PicketJsonlReportWriter.Write([CreateGitHubPatFinding(token)]));
+
+        CliResult result = await RunCliAsync("analyze", reportPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.analysis.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"provider\":\"GitHub\"", result.Stdout);
+        Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.DoesNotContain(token, result.Stdout);
+        Assert.DoesNotContain("report.jsonl", result.Stdout);
     }
 
     /// <summary>

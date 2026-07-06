@@ -24,6 +24,7 @@ Generated from XML documentation for `Picket.Report`.
 - [PicketJunitReportWriter](#picketjunitreportwriter) - Writes Picket-native JUnit XML reports.
 - [PicketSarifReportWriter](#picketsarifreportwriter) - Writes Picket-native SARIF 2.1.0 reports for code-scanning systems.
 - [PicketToonReportWriter](#pickettoonreportwriter) - Writes Picket-native TOON reports for compact LLM-oriented triage.
+- [ReportFindingReader](#reportfindingreader) - Reads finding records from reports that preserve raw secret material.
 - [ReportFindingSummary](#reportfindingsummary) - Represents the non-secret fields needed to triage a report finding.
 - [ReportSummary](#reportsummary) - Represents a non-secret summary of a secrets report.
 - [ReportSummaryReader](#reportsummaryreader) - Reads non-secret summaries from Picket, Gitleaks, and SARIF report files.
@@ -171,6 +172,16 @@ Writes Picket-native TOON reports for compact LLM-oriented triage.
 ### Methods
 
 - `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and rule metadata to a deterministic TOON report.
+
+## ReportFindingReader
+
+`Picket.Report.ReportFindingReader`
+
+Reads finding records from reports that preserve raw secret material.
+
+### Methods
+
+- `TryRead(string path, out List<Finding> findings)` - Attempts to read findings from a supported report file.
 
 ## ReportFindingSummary
 

@@ -73,6 +73,14 @@ When `--report-format` is provided, it controls the writer. Without `--report-fo
 
 When no path or format is supplied, JSON is written to standard output.
 
+## Report Input
+
+`picket verify <path>` and `picket analyze <path>` accept either a scan target or a supported finding report. Supported report inputs are Picket JSON, Picket JSON Lines, and Gitleaks JSON because those formats can preserve the raw `secret` field needed for offline and live validation.
+
+Report input follows the same native triage pipeline as freshly scanned findings: `.gitleaksignore`, baseline filtering, offline validation, optional live validation, validation-result filters, redaction, and report writing. Redacted reports can still be read, but validation accuracy is limited to whatever secret text remains in the report.
+
+SARIF, HTML, GitLab code-quality JSON, and third-party reports that do not carry raw secret material are summary inputs for `picket view`, not verification inputs.
+
 ## Triage View
 
 `picket view <report>` reads Picket JSON, Picket JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, and HTML summaries. It prints non-secret counts and up to ten finding summaries. `--open` launches the report with the operating system shell after the summary is written. Picket HTML reports include embedded non-secret summary metadata so `picket view` can show counts and locations without scraping visible secret or match cells. Arbitrary HTML reports keep the generic `html` fallback with unknown counts.

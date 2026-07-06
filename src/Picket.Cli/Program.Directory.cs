@@ -4,7 +4,6 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Sources;
 using Picket.Store;
-using Picket.Verify;
 
 namespace Picket;
 
@@ -17,6 +16,7 @@ internal static partial class Program
         string? defaultRoot = null,
         bool allowValidationResultFilters = false,
         LiveVerificationConfiguration? liveVerification = null,
+        bool allowReportInput = false,
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null)
     {
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
@@ -387,6 +387,37 @@ internal static partial class Program
             return CompleteRun(1, diagnosticsSession);
         }
 
+        if (allowReportInput && File.Exists(root) && ReportFindingReader.TryRead(root, out List<Finding>? reportInputFindings))
+        {
+            string reportInputRoot = Path.GetDirectoryName(Path.GetFullPath(root)) ?? ".";
+            GitleaksIgnore reportInputIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, reportInputRoot);
+            if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? reportInputBaseline))
+            {
+                return CompleteRun(1, diagnosticsSession);
+            }
+
+            diagnosticsSession?.RecordScanInput();
+            return CompleteFindingsRun(
+                reportInputFindings,
+                rules,
+                reportInputBaseline,
+                reportInputIgnore,
+                redactionPercent,
+                validationResults,
+                liveVerification,
+                cacheDir,
+                reportPath,
+                reportPaths,
+                reportFormat,
+                reportTemplatePath,
+                nativeMode,
+                timeoutTimestamp,
+                diagnosticsSession,
+                nativeResultWriter,
+                exitCode,
+                hadScanError: false);
+        }
+
         PicketScanCache? scanCache = null;
         if (nativeMode && !string.IsNullOrWhiteSpace(cacheDir))
         {
@@ -514,61 +545,24 @@ internal static partial class Program
             }
         }
 
-        IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
-        if (nativeMode)
-        {
-            filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
-        }
-
-        IReadOnlyDictionary<string, CredentialAnalysisMetadata>? analysisMetadata = null;
-        if (liveVerification is not null)
-        {
-            if (!TryCreateLiveVerifier(liveVerification, cacheDir, rules.Fingerprint, out SecretLiveVerifier? liveVerifier))
-            {
-                return CompleteRun(1, diagnosticsSession);
-            }
-
-            using (liveVerifier)
-            {
-                if (!TryApplyLiveValidation(
-                    filteredFindings,
-                    liveVerifier,
-                    timeoutTimestamp,
-                    out List<Finding>? liveFindings,
-                    out Dictionary<string, CredentialAnalysisMetadata>? liveAnalysisMetadata))
-                {
-                    return CompleteRun(1, diagnosticsSession);
-                }
-
-                filteredFindings = liveFindings;
-                analysisMetadata = liveAnalysisMetadata;
-            }
-        }
-
-        if (validationResults.Count != 0)
-        {
-            filteredFindings = FilterValidationResults(filteredFindings, validationResults);
-        }
-
-        if (redactionPercent > 0)
-        {
-            filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
-        }
-
-        diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
-        bool wroteResults = nativeResultWriter is null
-            ? TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeMode)
-            : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath, analysisMetadata);
-        if (!wroteResults)
-        {
-            return CompleteRun(1, diagnosticsSession);
-        }
-
-        if (hadScanError)
-        {
-            return CompleteRun(1, diagnosticsSession);
-        }
-
-        return CompleteRun(filteredFindings.Count == 0 ? 0 : exitCode, diagnosticsSession);
+        return CompleteFindingsRun(
+            findings,
+            rules,
+            baseline,
+            gitleaksIgnore,
+            redactionPercent,
+            validationResults,
+            liveVerification,
+            cacheDir,
+            reportPath,
+            reportPaths,
+            reportFormat,
+            reportTemplatePath,
+            nativeMode,
+            timeoutTimestamp,
+            diagnosticsSession,
+            nativeResultWriter,
+            exitCode,
+            hadScanError);
     }
 }

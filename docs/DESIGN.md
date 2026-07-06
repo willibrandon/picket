@@ -659,6 +659,8 @@ Native outputs:
 
 Native reports include stable rule metadata, redacted and hashed secret representations, validation state, confidence/severity, provenance, decode path, baseline status, ignore reason, and remediation links.
 
+`picket verify` and `picket analyze` accept Picket JSON, Picket JSONL, and Gitleaks JSON reports as finding input when those reports retain raw secret material. Report input uses the same native triage pipeline as scan output: ignore and baseline filtering, offline validation, optional live validation, validation-result filters, redaction, and report writing. Summary-only formats such as SARIF, HTML, GitLab code-quality JSON, and third-party reports without raw secrets remain `picket view` inputs rather than verification inputs.
+
 `picket view` opens local HTML/JSON/JSONL/SARIF reports and can import compatible Gitleaks and TruffleHog reports for cross-tool triage.
 
 ### 8.10 CI, Hooks, and Distribution

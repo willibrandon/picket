@@ -158,7 +158,8 @@ internal static partial class Program
                     allowNonPublicProviderEndpoints,
                     minimumRequestInterval,
                     minimumRequestIntervalPerProvider)
-                : null);
+                : null,
+            allowReportInput: true);
     }
 
     static int RunAnalyze(string[] args)
@@ -316,6 +317,7 @@ internal static partial class Program
                     minimumRequestInterval,
                     minimumRequestIntervalPerProvider)
                 : null,
+            allowReportInput: true,
             nativeResultWriter: TryWriteAnalysisReports);
     }
 }
