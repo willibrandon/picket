@@ -59,3 +59,17 @@ Use the target RID in the publish command. Common release RIDs are:
 | macOS Arm64 | `osx-arm64` |
 
 Release automation should publish, sign, checksum, and archive each RID separately.
+
+## Release Workflow
+
+Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
+
+The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT CLI archives for `linux-x64`, `win-x64`, and `osx-arm64`, packages the public NuGet libraries into a release archive, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
+
+Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
+
+```powershell
+gh attestation verify <artifact-path> -R willibrandon/picket
+```
+
+The release workflow does not push packages to NuGet. A NuGet publish job requires a repository secret such as `NUGET_API_KEY` and should be added only when package ownership and release approval policy are final.

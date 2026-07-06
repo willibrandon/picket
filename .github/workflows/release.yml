@@ -1,0 +1,309 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  validate:
+    name: Validate release source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.301
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 10.28.0
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v6.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs-site/pnpm-lock.yaml
+
+      - name: Restore
+        run: dotnet restore Picket.slnx
+
+      - name: Install docs dependencies
+        run: pnpm --dir docs-site install --frozen-lockfile
+
+      - name: Verify formatting
+        run: dotnet format Picket.slnx --verify-no-changes --verbosity minimal
+
+      - name: Build
+        run: dotnet build Picket.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --solution Picket.slnx --configuration Release --no-restore
+
+      - name: Check generated docs
+        run: pnpm --dir docs-site docs:check
+
+      - name: Smoke test GitHub Action
+        id: action-smoke
+        uses: ./
+        with:
+          path: tests/fixtures/github-secret-scanning
+          cache: "false"
+          report-directory: ${{ runner.temp }}/picket-action-smoke
+          fail-on: never
+          upload-sarif: "false"
+          annotations: "false"
+          setup-dotnet: "false"
+
+      - name: Verify GitHub Action smoke outputs
+        shell: pwsh
+        run: |
+          if ('${{ steps.action-smoke.outputs.exit-code }}' -ne '0') {
+            throw "GitHub Action smoke returned exit code ${{ steps.action-smoke.outputs.exit-code }}."
+          }
+
+          if ('${{ steps.action-smoke.outputs.findings }}' -ne '0') {
+            throw "GitHub Action smoke reported ${{ steps.action-smoke.outputs.findings }} findings."
+          }
+
+          $reportDirectory = Join-Path $env:RUNNER_TEMP 'picket-action-smoke'
+          foreach ($fileName in @('picket.sarif', 'picket.jsonl')) {
+            $path = Join-Path $reportDirectory $fileName
+            if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "GitHub Action smoke did not write $fileName."
+            }
+          }
+
+  build-cli:
+    name: Build CLI (${{ matrix.rid }})
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            archive-extension: tar.gz
+          - os: windows-latest
+            rid: win-x64
+            archive-extension: zip
+          - os: macos-26
+            rid: osx-arm64
+            archive-extension: tar.gz
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.301
+
+      - name: Restore
+        run: dotnet restore Picket.slnx
+
+      - name: Publish Native AOT CLI
+        shell: pwsh
+        run: |
+          $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}"
+          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
+
+      - name: Package CLI archive
+        id: package
+        shell: pwsh
+        run: |
+          $rid = '${{ matrix.rid }}'
+          $archiveName = "picket-$env:RELEASE_TAG-$rid.${{ matrix.archive-extension }}"
+          $payload = Join-Path $env:RUNNER_TEMP "picket-payload-$rid"
+          $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-$rid"
+          $staging = Join-Path $env:RUNNER_TEMP 'picket-release-assets'
+          $archivePath = Join-Path $staging $archiveName
+
+          New-Item -ItemType Directory -Force -Path $payload, $staging | Out-Null
+          Copy-Item -Path (Join-Path $publishOutput '*') -Destination $payload -Recurse
+          Copy-Item -LiteralPath LICENSE -Destination $payload
+
+          if ('${{ matrix.archive-extension }}' -eq 'zip') {
+            Compress-Archive -Path (Join-Path $payload '*') -DestinationPath $archivePath -Force
+          }
+          else {
+            tar -C $payload -czf $archivePath .
+          }
+
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$archivePath.sha256"
+          Set-Content -LiteralPath $checksumPath -Encoding utf8NoBOM -Value "$hash  $archiveName"
+
+          "archive-path=$archivePath" >> $env:GITHUB_OUTPUT
+          "checksum-path=$checksumPath" >> $env:GITHUB_OUTPUT
+
+      - name: Generate CLI artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.package.outputs.archive-path }}
+
+      - name: Upload CLI release assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-cli-${{ matrix.rid }}
+          path: |
+            ${{ steps.package.outputs.archive-path }}
+            ${{ steps.package.outputs.checksum-path }}
+          if-no-files-found: error
+
+  build-packages:
+    name: Build NuGet package archive
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.301
+
+      - name: Restore
+        run: dotnet restore Picket.slnx
+
+      - name: Pack public packages
+        shell: pwsh
+        run: |
+          $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-packages'
+          New-Item -ItemType Directory -Force -Path $packageOutput | Out-Null
+
+          dotnet pack src/Picket.Rules/Picket.Rules.csproj --configuration Release -o $packageOutput
+          dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release -o $packageOutput
+          dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release -o $packageOutput
+          dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release -o $packageOutput
+
+      - name: Package NuGet artifacts
+        id: package
+        shell: pwsh
+        run: |
+          $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-packages'
+          $staging = Join-Path $env:RUNNER_TEMP 'picket-release-assets'
+          $archiveName = "picket-$env:RELEASE_TAG-nuget.zip"
+          $archivePath = Join-Path $staging $archiveName
+
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+          Compress-Archive -Path (Join-Path $packageOutput '*') -DestinationPath $archivePath -Force
+
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$archivePath.sha256"
+          Set-Content -LiteralPath $checksumPath -Encoding utf8NoBOM -Value "$hash  $archiveName"
+
+          "archive-path=$archivePath" >> $env:GITHUB_OUTPUT
+          "checksum-path=$checksumPath" >> $env:GITHUB_OUTPUT
+
+      - name: Generate NuGet artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.package.outputs.archive-path }}
+
+      - name: Upload NuGet release assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-nuget
+          path: |
+            ${{ steps.package.outputs.archive-path }}
+            ${{ steps.package.outputs.checksum-path }}
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    needs:
+      - build-cli
+      - build-packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v5
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Write aggregate checksums
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem -LiteralPath dist -File |
+            Where-Object { !$_.Name.EndsWith('.sha256', [StringComparison]::Ordinal) } |
+            Sort-Object Name
+
+          $lines = foreach ($asset in $assets) {
+            $hash = (Get-FileHash -LiteralPath $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($asset.Name)"
+          }
+
+          Set-Content -LiteralPath (Join-Path 'dist' 'checksums.txt') -Encoding utf8NoBOM -Value $lines
+
+      - name: Generate checksum attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/checksums.txt
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = Get-ChildItem -LiteralPath dist -File | Sort-Object Name
+          if ($assets.Count -eq 0) {
+            throw 'No release assets were produced.'
+          }
+
+          $assetPaths = @($assets | ForEach-Object { $_.FullName })
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY >$null 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG @assetPaths --repo $env:GITHUB_REPOSITORY --clobber
+          }
+          else {
+            gh release create $env:RELEASE_TAG @assetPaths --repo $env:GITHUB_REPOSITORY --verify-tag --title "Picket $env:RELEASE_TAG" --notes "Release artifacts include SHA-256 checksums and GitHub artifact attestations."
+          }

@@ -187,6 +187,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("-r win-x64", documentation);
         Assert.Contains("Native AOT", documentation);
         Assert.Contains("must not change scanner findings", documentation);
+        Assert.Contains("Release Workflow", documentation);
+        Assert.Contains("actions/attest@v4", documentation);
+        Assert.Contains("gh attestation verify", documentation);
+        Assert.Contains("NUGET_API_KEY", documentation);
     }
 
     /// <summary>
@@ -228,6 +232,41 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("normal `dotnet build` is not enough evidence", documentation);
         Assert.Contains("GitHub Action Smoke Validation", documentation);
         Assert.Contains("both `picket.sarif` and `picket.jsonl`", documentation);
+    }
+
+    /// <summary>
+    /// Verifies that release automation creates checksummed and attested artifacts.
+    /// </summary>
+    [TestMethod]
+    public void ReleaseWorkflowCreatesChecksummedAttestedArtifacts()
+    {
+        string workflow = ReadRepositoryFile(".github/workflows/release.yml");
+        string documentation = ReadRepositoryFile("docs/RELEASE.md");
+
+        Assert.Contains("tags:", workflow);
+        Assert.Contains("\"v*.*.*\"", workflow);
+        Assert.Contains("workflow_dispatch", workflow);
+        Assert.Contains("release-speed", workflow);
+        Assert.Contains("rid: linux-x64", workflow);
+        Assert.Contains("rid: win-x64", workflow);
+        Assert.Contains("rid: osx-arm64", workflow);
+        Assert.Contains("actions/attest@v4", workflow);
+        Assert.Contains("id-token: write", workflow);
+        Assert.Contains("attestations: write", workflow);
+        Assert.Contains("actions/upload-artifact@v6", workflow);
+        Assert.Contains("actions/download-artifact@v5", workflow);
+        Assert.Contains("Smoke test GitHub Action", workflow);
+        Assert.Contains("Verify GitHub Action smoke outputs", workflow);
+        Assert.Contains("checksums.txt", workflow);
+        Assert.Contains(".sha256", workflow);
+        Assert.Contains("gh release create", workflow);
+        Assert.Contains("gh release upload", workflow);
+        Assert.Contains("Picket.Rules/Picket.Rules.csproj", workflow);
+        Assert.Contains("Picket.Engine/Picket.Engine.csproj", workflow);
+        Assert.Contains("Picket.Report/Picket.Report.csproj", workflow);
+        Assert.Contains("Picket.Security/Picket.Security.csproj", workflow);
+        Assert.Contains("SHA-256 checksums", documentation);
+        Assert.Contains("GitHub artifact attestations", documentation);
     }
 
     /// <summary>
