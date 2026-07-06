@@ -152,3 +152,17 @@ location metadata. It intentionally does not write GitHub's raw `secret` field.
 Use this oracle to compare Picket native rule coverage against GitHub alert
 classes and locations. Keep Gitleaks compatibility oracles separate because
 GitHub and Gitleaks do not have identical allowlist semantics.
+
+After running a native scan to JSONL, compare the hosted-alert oracle with:
+
+```powershell
+pwsh ./scripts/Compare-GitHubSecretScanningOracle.ps1 `
+  -OraclePath artifacts/oracles/github-secret-scanning/alerts.json `
+  -PicketReportPath artifacts/oracles/github-secret-scanning/picket-scan.jsonl `
+  -OutputPath artifacts/oracles/github-secret-scanning/comparison.json
+```
+
+The comparison output records mapped alert classes, missing mapped locations,
+unexpected mapped findings, hosted alert types without a Picket mapping, and
+Picket rule IDs that are not part of the GitHub mapping. It does not copy raw
+secret, match, or line fields from the Picket report.

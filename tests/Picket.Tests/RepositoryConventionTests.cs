@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -420,6 +421,7 @@ public sealed partial class RepositoryConventionTests
         string oracleScript = ReadRepositoryFile("scripts/Capture-GitleaksOracle.ps1");
         string compatibilityScript = ReadRepositoryFile("scripts/Capture-CompatibilityOracle.ps1");
         string githubOracleScript = ReadRepositoryFile("scripts/Capture-GitHubSecretScanningOracle.ps1");
+        string githubComparisonScript = ReadRepositoryFile("scripts/Compare-GitHubSecretScanningOracle.ps1");
         string promotionScript = ReadRepositoryFile("scripts/Promote-CompatibilityOracle.ps1");
         string fixtureReadme = ReadRepositoryFile("tests/fixtures/oracles/README.md");
 
@@ -430,6 +432,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("scripts/Capture-GitleaksOracle.ps1", documentation);
         Assert.Contains("scripts/Capture-CompatibilityOracle.ps1", documentation);
         Assert.Contains("scripts/Capture-GitHubSecretScanningOracle.ps1", documentation);
+        Assert.Contains("scripts/Compare-GitHubSecretScanningOracle.ps1", documentation);
         Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", documentation);
         Assert.Contains("PICKET_GITLEAKS_BIN", documentation);
         Assert.Contains("PICKET_BIN", documentation);
@@ -462,6 +465,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("ConvertTo-SafeAlert", githubOracleScript);
         Assert.Contains("SecretType", githubOracleScript);
         Assert.DoesNotContain("RawSecret", githubOracleScript);
+        Assert.Contains("picket.github-secret-scanning-comparison.v1", githubComparisonScript);
+        Assert.Contains("FailOnDifference", githubComparisonScript);
+        Assert.Contains("MissingLocations", githubComparisonScript);
+        Assert.DoesNotContain("RawSecret", githubComparisonScript);
         Assert.Contains("Refusing to promote oracle captures", promotionScript);
         Assert.Contains("tests\\fixtures\\oracles", promotionScript);
         Assert.Contains("manifest.json", promotionScript);
@@ -471,6 +478,107 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("drive-root paths", documentation);
         Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", fixtureReadme);
         Assert.Contains("unredacted realistic credentials", fixtureReadme);
+    }
+
+    /// <summary>
+    /// Verifies that the GitHub hosted-alert comparison script writes sanitized coverage gaps.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task GitHubSecretScanningComparisonScriptWritesSanitizedOutput()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string oraclePath = Path.Combine(temp.Path, "alerts.json");
+        string reportPath = Path.Combine(temp.Path, "picket.jsonl");
+        string outputPath = Path.Combine(temp.Path, "comparison.json");
+
+        File.WriteAllText(
+            oraclePath,
+            """
+            {
+              "Schema": "picket.github-secret-scanning-oracle.v1",
+              "Repository": "owner/repo",
+              "State": "open",
+              "IncludeLocations": true,
+              "CapturedUtc": "2026-07-06T00:00:00.0000000Z",
+              "AlertCount": 3,
+              "Summary": [
+                { "SecretType": "google_api_key", "Count": 2 },
+                { "SecretType": "unknown_hosted_type", "Count": 1 }
+              ],
+              "Alerts": [
+                {
+                  "Number": 1,
+                  "State": "open",
+                  "SecretType": "google_api_key",
+                  "SecretTypeDisplayName": "Google API Key",
+                  "Locations": [
+                    { "Type": "commit", "Path": "src/a.cs", "StartLine": 10, "EndLine": 10, "StartColumn": 5, "EndColumn": 44 }
+                  ]
+                },
+                {
+                  "Number": 2,
+                  "State": "open",
+                  "SecretType": "google_api_key",
+                  "SecretTypeDisplayName": "Google API Key",
+                  "Locations": [
+                    { "Type": "commit", "Path": "src/missing.cs", "StartLine": 20, "EndLine": 20, "StartColumn": 1, "EndColumn": 40 }
+                  ]
+                },
+                {
+                  "Number": 3,
+                  "State": "open",
+                  "SecretType": "unknown_hosted_type",
+                  "SecretTypeDisplayName": "Unknown Hosted Type",
+                  "Locations": [
+                    { "Type": "commit", "Path": "src/unknown.cs", "StartLine": 30, "EndLine": 30, "StartColumn": 1, "EndColumn": 40 }
+                  ]
+                }
+              ]
+            }
+            """);
+        File.WriteAllText(
+            reportPath,
+            """
+            {"schema":"picket.finding.v1","ruleId":"picket-google-api-key","file":"src/a.cs","startLine":10,"startColumn":5,"fingerprint":"fp1","secret":"SHOULD_NOT_APPEAR","match":"SHOULD_NOT_APPEAR","line":"SHOULD_NOT_APPEAR"}
+            {"schema":"picket.finding.v1","ruleId":"picket-google-api-key","file":"src/extra.cs","startLine":40,"startColumn":3,"fingerprint":"fp2","secret":"SHOULD_NOT_APPEAR","match":"SHOULD_NOT_APPEAR","line":"SHOULD_NOT_APPEAR"}
+            """);
+
+        using Process process = new()
+        {
+            StartInfo = new ProcessStartInfo("pwsh")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+            },
+        };
+
+        process.StartInfo.ArgumentList.Add("-NoLogo");
+        process.StartInfo.ArgumentList.Add("-NoProfile");
+        process.StartInfo.ArgumentList.Add("-NonInteractive");
+        process.StartInfo.ArgumentList.Add("-File");
+        process.StartInfo.ArgumentList.Add(ResolveRepositoryPath("scripts/Compare-GitHubSecretScanningOracle.ps1"));
+        process.StartInfo.ArgumentList.Add("-OraclePath");
+        process.StartInfo.ArgumentList.Add(oraclePath);
+        process.StartInfo.ArgumentList.Add("-PicketReportPath");
+        process.StartInfo.ArgumentList.Add(reportPath);
+        process.StartInfo.ArgumentList.Add("-OutputPath");
+        process.StartInfo.ArgumentList.Add(outputPath);
+
+        Assert.IsTrue(process.Start(), "Could not start pwsh.");
+        (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+        string comparison = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("SHOULD_NOT_APPEAR", comparison);
+
+        using JsonDocument document = JsonDocument.Parse(comparison);
+        JsonElement root = document.RootElement;
+        Assert.AreEqual("picket.github-secret-scanning-comparison.v1", root.GetProperty("Schema").GetString());
+        Assert.AreEqual(1, root.GetProperty("MissingLocationCount").GetInt32());
+        Assert.AreEqual(1, root.GetProperty("UnexpectedLocationCount").GetInt32());
+        Assert.AreEqual(1, root.GetProperty("UnmappedAlertTypeCount").GetInt32());
     }
 
     /// <summary>
@@ -526,7 +634,13 @@ public sealed partial class RepositoryConventionTests
         }
 
         Assert.IsTrue(process.Start(), "Could not start pwsh.");
-        CancellationToken cancellationToken = TestContext.CancellationToken;
+        (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+    }
+
+    private static async Task<(string StandardOutput, string StandardError)> WaitForExitAndReadOutputAsync(Process process, CancellationToken cancellationToken)
+    {
         using CancellationTokenRegistration cancellationRegistration = cancellationToken.Register(static state =>
         {
             var startedProcess = (Process)state!;
@@ -537,7 +651,7 @@ public sealed partial class RepositoryConventionTests
                     startedProcess.Kill(entireProcessTree: true);
                 }
             }
-            catch (InvalidOperationException)
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
             {
             }
         }, process);
@@ -548,7 +662,7 @@ public sealed partial class RepositoryConventionTests
         string stdout = await stdoutTask.ConfigureAwait(false);
         string stderr = await stderrTask.ConfigureAwait(false);
 
-        Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+        return (stdout, stderr);
     }
 
     [GeneratedRegex(
