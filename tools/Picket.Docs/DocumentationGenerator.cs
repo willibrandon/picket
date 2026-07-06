@@ -1056,8 +1056,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     {
         return command switch
         {
-            "picket verify" => "Offline or live",
-            "picket analyze" => "Offline",
+            "picket verify" or "picket analyze" => "Offline or live",
             _ => string.Empty,
         };
     }

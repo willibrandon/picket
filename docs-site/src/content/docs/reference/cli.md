@@ -433,6 +433,7 @@ Use the grouped index to jump to the workflow you need.
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--only-verified]
+  [--max-target-megabytes n]
   [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
@@ -565,6 +566,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Keep structurally-valid offline findings and active live-verification findings.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-archive-depth</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -631,7 +638,7 @@ Use the grouped index to jump to the workflow you need.
     </div>
     <div>
       <dt>Validation</dt>
-      <dd>Offline</dd>
+      <dd>Offline or live</dd>
     </div>
   </dl>
   <p class="cli-command-summary">Write incident-response analysis for detected findings.</p>
@@ -656,6 +663,7 @@ Use the grouped index to jump to the workflow you need.
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--only-verified]
+  [--max-target-megabytes n]
   [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
@@ -786,6 +794,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Keep structurally-valid offline findings and active live-verification findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-archive-depth</code></td>

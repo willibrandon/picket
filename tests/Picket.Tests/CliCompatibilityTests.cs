@@ -883,6 +883,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
         Assert.Contains("--results", result.Stdout);
         Assert.Contains("--only-verified", result.Stdout);
+        Assert.Contains("--max-target-megabytes", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);
         Assert.Contains("--diagnostics", result.Stdout);
@@ -989,6 +990,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--results", result.Stdout);
         Assert.Contains("--only-verified", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
+        Assert.Contains("--max-target-megabytes", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);
         Assert.Contains("--diagnostics", result.Stdout);
