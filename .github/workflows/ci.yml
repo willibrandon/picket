@@ -67,3 +67,36 @@ jobs:
           dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release --no-build -o $packageOutput
           dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release --no-build -o $packageOutput
           dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release --no-build -o $packageOutput
+
+      - name: Smoke test GitHub Action
+        id: action-smoke
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: ./
+        with:
+          path: tests/fixtures/github-secret-scanning
+          cache: "false"
+          report-directory: ${{ runner.temp }}/picket-action-smoke
+          fail-on: never
+          upload-sarif: "false"
+          annotations: "false"
+          setup-dotnet: "false"
+
+      - name: Verify GitHub Action smoke outputs
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        shell: pwsh
+        run: |
+          if ('${{ steps.action-smoke.outputs.exit-code }}' -ne '0') {
+            throw "GitHub Action smoke returned exit code ${{ steps.action-smoke.outputs.exit-code }}."
+          }
+
+          if ('${{ steps.action-smoke.outputs.findings }}' -ne '0') {
+            throw "GitHub Action smoke reported ${{ steps.action-smoke.outputs.findings }} findings."
+          }
+
+          $reportDirectory = Join-Path $env:RUNNER_TEMP 'picket-action-smoke'
+          foreach ($fileName in @('picket.sarif', 'picket.jsonl')) {
+            $path = Join-Path $reportDirectory $fileName
+            if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "GitHub Action smoke did not write $fileName."
+            }
+          }

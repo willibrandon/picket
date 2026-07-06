@@ -41,6 +41,10 @@ Every CI run also publishes the CLI with `release-speed` for the runner's native
 
 This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executable can be produced.
 
+## GitHub Action Smoke Validation
+
+CI runs the local composite action on `ubuntu-latest` against the sanitized GitHub secret-scanning fixture with cache, annotations, and SARIF upload disabled. The smoke step asserts that the action exits successfully, reports zero findings for the placeholder fixture, and writes both `picket.sarif` and `picket.jsonl`.
+
 ## Runtime Identifiers
 
 Use the target RID in the publish command. Common release RIDs are:

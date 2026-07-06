@@ -74,6 +74,10 @@ jobs:
 
 The action writes SARIF and JSONL before the final failure-enforcement step. This allows `upload-sarif: true` to publish code scanning results even when `fail-on: findings` is selected.
 
+## CI Smoke
+
+The repository CI runs the local composite action on `ubuntu-latest` against the sanitized GitHub secret-scanning fixture. The smoke path disables cache, annotations, and SARIF upload, then asserts a successful exit, zero findings, and both `picket.sarif` and `picket.jsonl` output files.
+
 ## Reports And Caching
 
 The action always writes native Picket SARIF and JSONL reports. Formats are inferred from the output extensions, so the action does not pass a global report format flag.
