@@ -47,7 +47,10 @@ public sealed class SecretScanner
         DecodedInput current = DecodedInput.CreateOriginal(originalInput);
         for (int depth = 0; depth < request.MaxDecodeDepth; depth++)
         {
-            DecodedInput? decoded = SecretDecoder.Decode(current);
+            bool enableCSharpStringConcatenation = depth == 0
+                && request.EnableCSharpStringConcatenation
+                && IsCSharpSourceFile(request.FileName);
+            DecodedInput? decoded = SecretDecoder.Decode(current, enableCSharpStringConcatenation);
             if (decoded is null)
             {
                 break;
@@ -908,8 +911,18 @@ public sealed class SecretScanner
             tags.Add("decoded:base64");
         }
 
+        if ((encodings & DecodedEncoding.CSharpStringConcat) != 0)
+        {
+            tags.Add("decoded:csharp-string-concat");
+        }
+
         tags.Add($"decode-depth:{depth}");
         return tags;
+    }
+
+    private static bool IsCSharpSourceFile(string fileName)
+    {
+        return fileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyList<string> CombineTags(IReadOnlyList<string> ruleTags, IReadOnlyList<string> decodeTags)

@@ -59,3 +59,25 @@ as deliberate.
 - **Migration guidance:** Use strict compatibility commands for Gitleaks byte
   parity. Use native `scan` when comparing to hosted GitHub secret scanning
   alerts or when richer Picket metadata is preferred.
+
+## Native C# String-Literal Concatenation
+
+- **Upstream behavior:** Gitleaks scans source bytes and does not evaluate C#
+  string-literal concatenations before matching.
+- **GitHub behavior:** GitHub Secret Protection can alert on credentials built
+  from deterministic source-code string literals.
+- **Picket behavior:** Strict Gitleaks-compatible scans keep byte-oriented
+  Gitleaks behavior. Native `.cs` scans evaluate literal-only
+  `string.Concat(...)` calls and binary `+` literal chains as derived input,
+  then attach `csharp-string-concat` decode provenance to any findings.
+- **Mode/profile affected:** Picket-native `scan`, `verify`, `analyze`, and
+  `rules test` when the logical path ends in `.cs`.
+- **Reason:** Native hosted-alert parity should catch simple split literals
+  without requiring live services, dynamic code, or a general C# compiler.
+- **User impact:** Native scans can report additional findings in C# source when
+  a credential is split across deterministic string literals. Findings point to
+  the literal construction span; hosted scanners may report a downstream call
+  site for the same secret.
+- **Test name:** `ScanFindsNativeRuleMatchInCSharpStringConcat`.
+- **Migration guidance:** Use strict compatibility commands for Gitleaks byte
+  parity. Use native `scan` when source-code literal normalization is desired.

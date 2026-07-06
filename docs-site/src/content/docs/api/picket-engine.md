@@ -128,7 +128,8 @@ ScanRequest(
     string commit,
     int maxDecodeDepth,
     long? maxTargetBytes,
-    string symlinkFile
+    string symlinkFile,
+    bool enableCSharpStringConcatenation
 )
 ```
 
@@ -145,7 +146,8 @@ ScanRequest(
     string commit,
     int maxDecodeDepth,
     long? maxTargetBytes,
-    string symlinkFile
+    string symlinkFile,
+    bool enableCSharpStringConcatenation
 )
 ```
 
@@ -155,6 +157,7 @@ Initializes a new scan request and compiles the supplied source rules.
 ### Properties
 
 - `Commit` - Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string.
+- `EnableCSharpStringConcatenation` - Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
 - `FileName` - Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
 - `IgnoreGitleaksAllow` - Gets a value indicating whether inline gitleaks:allow suppression comments are ignored.
 - `Input` - Gets the input bytes to scan.

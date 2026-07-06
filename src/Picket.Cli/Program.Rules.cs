@@ -327,7 +327,8 @@ internal static partial class Program
                 CompiledRuleSet.Compile(selectedRuleSet),
                 ignoreGitleaksAllow,
                 maxDecodeDepth: maxDecodeDepth,
-                maxTargetBytes: maxTargetBytes));
+                maxTargetBytes: maxTargetBytes,
+                enableCSharpStringConcatenation: nativeMode));
             if (nativeMode)
             {
                 findings = OfflineSecretValidator.AnnotateAll(findings);

@@ -119,6 +119,46 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that native scans detect rule matches split across deterministic C# string concatenations.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanFindsNativeRuleMatchInCSharpStringConcat()
+    {
+        byte[] input = Encoding.UTF8.GetBytes(
+            """
+            internal static string CreateToken()
+            {
+                return string.Concat("token-", "12345");
+            }
+            """);
+        var rule = new SecretRule(
+            id: "picket-test-token",
+            description: "Detected a split test token.",
+            pattern: @"\b(token-[0-9]{5})(?:;|$)",
+            keywords: ["token"],
+            secretGroup: 1,
+            rulePack: "picket-default");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([rule]));
+
+        IReadOnlyList<Finding> disabledFindings = SecretScanner.Scan(new ScanRequest(input, "CredentialAnalyzerTests.cs", rules));
+        IReadOnlyList<Finding> enabledFindings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "CredentialAnalyzerTests.cs",
+            rules,
+            enableCSharpStringConcatenation: true));
+
+        Assert.IsEmpty(disabledFindings);
+        Assert.HasCount(1, enabledFindings);
+        Finding finding = enabledFindings[0];
+        Assert.AreEqual("picket-test-token", finding.RuleID);
+        Assert.AreEqual("token-12345", finding.Secret);
+        Assert.Contains("decoded:csharp-string-concat", finding.Tags);
+        Assert.Contains("csharp-string-concat", finding.DecodePath);
+        Assert.Contains("string.Concat", finding.Line);
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks vendor assignment rules can scan rule text without stalling.
     /// </summary>
     [TestMethod]

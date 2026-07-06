@@ -8,4 +8,5 @@ internal enum DecodedEncoding
     Unicode = 2,
     Hex = 4,
     Base64 = 8,
+    CSharpStringConcat = 16,
 }

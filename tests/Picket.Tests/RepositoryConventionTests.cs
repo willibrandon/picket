@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -10,6 +11,11 @@ namespace Picket.Tests;
 public sealed partial class RepositoryConventionTests
 {
     private static readonly Regex s_typeDeclarationPattern = CreateTypeDeclarationPattern();
+
+    /// <summary>
+    /// Gets or sets the MSTest context for the current test.
+    /// </summary>
+    public TestContext TestContext { get; set; } = null!;
 
     /// <summary>
     /// Verifies that each source file declares at most one explicit type.
@@ -465,6 +471,66 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("drive-root paths", documentation);
         Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", fixtureReadme);
         Assert.Contains("unredacted realistic credentials", fixtureReadme);
+    }
+
+    /// <summary>
+    /// Verifies that checked-in PowerShell scripts parse successfully.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task PowerShellScriptsParseSuccessfully()
+    {
+        string root = FindRepositoryRoot();
+        string[] scripts = [.. Directory.EnumerateFiles(root, "*.ps1", SearchOption.AllDirectories)
+            .Where(file => IsPortableTextFile(root, file))
+            .Order(StringComparer.Ordinal)];
+        Assert.IsNotEmpty(scripts);
+
+        using Process process = new()
+        {
+            StartInfo = new ProcessStartInfo("pwsh")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+            },
+        };
+
+        process.StartInfo.ArgumentList.Add("-NoLogo");
+        process.StartInfo.ArgumentList.Add("-NoProfile");
+        process.StartInfo.ArgumentList.Add("-NonInteractive");
+        process.StartInfo.ArgumentList.Add("-Command");
+        process.StartInfo.ArgumentList.Add("""
+            $failed = $false
+            foreach ($path in $args)
+            {
+                $tokens = $null
+                $errors = $null
+                [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors) > $null
+                foreach ($errorRecord in $errors)
+                {
+                    [Console]::Error.WriteLine("${path}: $($errorRecord.Message)")
+                    $failed = $true
+                }
+            }
+
+            if ($failed)
+            {
+                exit 1
+            }
+            """);
+
+        foreach (string script in scripts)
+        {
+            process.StartInfo.ArgumentList.Add(script);
+        }
+
+        Assert.IsTrue(process.Start(), "Could not start pwsh.");
+        string stdout = await process.StandardOutput.ReadToEndAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        string stderr = await process.StandardError.ReadToEndAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        await process.WaitForExitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
     }
 
     [GeneratedRegex(

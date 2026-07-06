@@ -10,11 +10,11 @@ internal static class SecretDecoder
     private const int MinimumBase64Length = 16;
     private const int MinimumHexLength = 32;
 
-    public static DecodedInput? Decode(DecodedInput input)
+    public static DecodedInput? Decode(DecodedInput input, bool enableCSharpStringConcatenation = false)
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        List<EncodingMatch> matches = FindMatches(input.Bytes);
+        List<EncodingMatch> matches = FindMatches(input.Bytes, enableCSharpStringConcatenation);
         if (matches.Count == 0)
         {
             return null;
@@ -86,16 +86,25 @@ internal static class SecretDecoder
             DecodedEncoding.Unicode => "unicode",
             DecodedEncoding.Hex => "hex",
             DecodedEncoding.Base64 => "base64",
+            DecodedEncoding.CSharpStringConcat => "csharp-string-concat",
             _ => "unknown",
         };
     }
 
-    private static List<EncodingMatch> FindMatches(ReadOnlySpan<byte> input)
+    private static List<EncodingMatch> FindMatches(ReadOnlySpan<byte> input, bool enableCSharpStringConcatenation)
     {
         var matches = new List<EncodingMatch>();
         int position = 0;
         while (position < input.Length)
         {
+            if (enableCSharpStringConcatenation
+                && CSharpStringLiteralConcatenationDecoder.TryDecode(input, position, out EncodingMatch csharpMatch))
+            {
+                matches.Add(csharpMatch);
+                position = csharpMatch.End;
+                continue;
+            }
+
             if (input[position] == (byte)'%' && TryDecodePercent(input, position, out EncodingMatch percentMatch))
             {
                 matches.Add(percentMatch);

@@ -129,7 +129,7 @@ function ConvertTo-SafeAlert
 }
 
 $resolvedRepository = Resolve-GitHubRepository
-$stateQuery = if ($State.Equals("all", StringComparison.Ordinal)) { "" } else { "state=$State&" }
+$stateQuery = if ($State.Equals("all", [System.StringComparison]::Ordinal)) { "" } else { "state=$State&" }
 $alertsEndpoint = "repos/$resolvedRepository/secret-scanning/alerts?$($stateQuery)per_page=100"
 $rawAlerts = Get-PagedGitHubArray -Endpoint $alertsEndpoint
 $safeAlerts = [System.Collections.Generic.List[object]]::new()

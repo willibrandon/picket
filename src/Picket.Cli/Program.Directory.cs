@@ -478,7 +478,8 @@ internal static partial class Program
                     ignoreGitleaksAllow,
                     maxDecodeDepth: maxDecodeDepth,
                     maxTargetBytes: maxTargetBytes,
-                    symlinkFile: file.SymlinkDisplayPath));
+                    symlinkFile: file.SymlinkDisplayPath,
+                    enableCSharpStringConcatenation: nativeMode));
                 findings.AddRange(scannedFindings);
                 scanCache?.Write(input, file.DisplayPath, scannedFindings);
             }

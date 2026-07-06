@@ -13,6 +13,7 @@ namespace Picket.Engine;
 /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
 /// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
 /// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
+/// <param name="enableCSharpStringConcatenation">A value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.</param>
 public sealed class ScanRequest(
     ReadOnlyMemory<byte> input,
     string fileName,
@@ -21,7 +22,8 @@ public sealed class ScanRequest(
     string commit = "",
     int maxDecodeDepth = 5,
     long? maxTargetBytes = null,
-    string symlinkFile = "")
+    string symlinkFile = "",
+    bool enableCSharpStringConcatenation = false)
 {
     /// <summary>
     /// Initializes a new scan request and compiles the supplied source rules.
@@ -34,6 +36,7 @@ public sealed class ScanRequest(
     /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
     /// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
     /// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
+    /// <param name="enableCSharpStringConcatenation">A value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.</param>
     public ScanRequest(
         ReadOnlyMemory<byte> input,
         string fileName,
@@ -42,8 +45,9 @@ public sealed class ScanRequest(
         string commit = "",
         int maxDecodeDepth = 5,
         long? maxTargetBytes = null,
-        string symlinkFile = "")
-        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes, symlinkFile)
+        string symlinkFile = "",
+        bool enableCSharpStringConcatenation = false)
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes, symlinkFile, enableCSharpStringConcatenation)
     {
     }
 
@@ -86,6 +90,11 @@ public sealed class ScanRequest(
     /// Gets the symlink path used in reports, or an empty string.
     /// </summary>
     public string SymlinkFile { get; } = symlinkFile ?? string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
+    /// </summary>
+    public bool EnableCSharpStringConcatenation { get; } = enableCSharpStringConcatenation;
 
     private static string RequireFileName(string value)
     {
