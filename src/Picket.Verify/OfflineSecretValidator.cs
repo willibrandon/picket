@@ -914,7 +914,8 @@ public static class OfflineSecretValidator
             || secret.Contains("placeholder", StringComparison.OrdinalIgnoreCase)
             || secret.Contains("changeme", StringComparison.OrdinalIgnoreCase)
             || secret.Contains("changeit", StringComparison.OrdinalIgnoreCase)
-            || HasRepeatedSingleCharacter(secret);
+            || HasRepeatedSingleCharacter(secret)
+            || HasRepeatedShortPattern(secret);
     }
 
     private static bool HasRepeatedSingleCharacter(string secret)
@@ -934,6 +935,68 @@ public static class OfflineSecretValidator
         }
 
         return true;
+    }
+
+    private static bool HasRepeatedShortPattern(string secret)
+    {
+        int start = -1;
+        for (int i = 0; i <= secret.Length; i++)
+        {
+            bool inRun = i < secret.Length && IsAsciiAlphaNumeric(secret[i]);
+            if (inRun && start < 0)
+            {
+                start = i;
+                continue;
+            }
+
+            if (inRun)
+            {
+                continue;
+            }
+
+            if (start >= 0 && IsRepeatedShortPattern(secret.AsSpan(start, i - start)))
+            {
+                return true;
+            }
+
+            start = -1;
+        }
+
+        return false;
+    }
+
+    private static bool IsRepeatedShortPattern(ReadOnlySpan<char> value)
+    {
+        if (value.Length < 12)
+        {
+            return false;
+        }
+
+        int maxPatternLength = Math.Min(8, value.Length / 3);
+        for (int patternLength = 1; patternLength <= maxPatternLength; patternLength++)
+        {
+            if (value.Length % patternLength != 0)
+            {
+                continue;
+            }
+
+            bool repeated = true;
+            for (int i = patternLength; i < value.Length; i++)
+            {
+                if (value[i] != value[i % patternLength])
+                {
+                    repeated = false;
+                    break;
+                }
+            }
+
+            if (repeated)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool HasAnyPrefix(string secret, params string[] prefixes)

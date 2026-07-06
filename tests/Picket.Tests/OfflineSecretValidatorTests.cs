@@ -90,6 +90,20 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that repeated-pattern fixture credentials are identified before provider-specific validation.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesRepeatedPatternTestCredentials()
+    {
+        Finding finding = CreateFinding("github-pat", string.Concat("ghp_", "abcabcabcabcabcabcabcabcabcabcabcabc"));
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.TestCredential, result.State);
+        Assert.AreEqual("test-credential", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that GitHub classic token families are structurally validated offline.
     /// </summary>
     [TestMethod]

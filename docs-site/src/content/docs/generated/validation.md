@@ -22,7 +22,7 @@ Offline validation never sends secrets, hashes, paths, or metadata to a network 
 
 - `unknown`: no validator could prove a stronger state.
 - `structurally-valid`: the secret has a valid local shape for the detected rule.
-- `test-credential`: the secret appears to be a dummy, example, placeholder, or repeated-character credential.
+- `test-credential`: the secret appears to be a dummy, example, placeholder, repeated-character, or repeated-pattern credential.
 - `invalid`: the secret fails a local structural check.
 - `active`, `inactive`, `skipped`, and `error`: reserved for opt-in live verification results.
 
@@ -36,7 +36,7 @@ Current offline coverage includes:
 - GitHub classic, OAuth, refresh, app, and fine-grained token shape checks.
 - JWT and Base64-wrapped JWT segment, header, payload, algorithm, and signature-shape checks.
 - private-key envelope checks.
-- common test, dummy, fake, placeholder, and repeated-character suppression signals.
+- common test, dummy, fake, placeholder, repeated-character, and repeated-pattern suppression signals.
 
 ## Live Verification Model
 
