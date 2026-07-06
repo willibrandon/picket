@@ -1116,6 +1116,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "-v" => "Enable verbose logging.",
             "--allow-non-public-endpoints" => "Allow guarded live validation endpoints that are not public internet addresses.",
             "--cache-dir" => "Read or write scanner cache data in this directory.",
+            "--cache-mode" => "Choose whether scan cache entries store raw evidence or secret and match hashes only.",
             "--command" => "Use this command path in generated hook scripts.",
             "--diagnostics" => "Write structured diagnostics for the selected modes.",
             "--diagnostics-dir" => "Write diagnostics artifacts to this directory.",

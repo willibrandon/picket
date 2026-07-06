@@ -8,7 +8,11 @@ namespace Picket.Store;
 /// </summary>
 /// <param name="fingerprint">The stable scanner configuration fingerprint.</param>
 /// <param name="addressMode">The cache address mode used for blob entries.</param>
-public sealed class ScanCacheKey(string fingerprint, ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path)
+/// <param name="storageMode">The cache storage mode used for finding evidence.</param>
+public sealed class ScanCacheKey(
+    string fingerprint,
+    ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path,
+    ScanCacheStorageMode storageMode = ScanCacheStorageMode.Raw)
 {
     private const int Sha256HexLength = 64;
 
@@ -23,6 +27,11 @@ public sealed class ScanCacheKey(string fingerprint, ScanCacheAddressMode addres
     public ScanCacheAddressMode AddressMode { get; } = RequireAddressMode(addressMode);
 
     /// <summary>
+    /// Gets the cache storage mode used for finding evidence.
+    /// </summary>
+    public ScanCacheStorageMode StorageMode { get; } = RequireStorageMode(storageMode);
+
+    /// <summary>
     /// Creates a scan cache key from rule and scan-option fingerprints.
     /// </summary>
     /// <param name="ruleSetFingerprint">The compiled rule-set fingerprint.</param>
@@ -30,13 +39,15 @@ public sealed class ScanCacheKey(string fingerprint, ScanCacheAddressMode addres
     /// <param name="maxTargetBytes">The maximum content size for content rules, or <see langword="null" /> for no cap.</param>
     /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> comments are ignored.</param>
     /// <param name="addressMode">The cache address mode used for blob entries.</param>
+    /// <param name="storageMode">The cache storage mode used for finding evidence.</param>
     /// <returns>The created cache key.</returns>
     public static ScanCacheKey Create(
         string ruleSetFingerprint,
         int maxDecodeDepth,
         long? maxTargetBytes,
         bool ignoreGitleaksAllow = false,
-        ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path)
+        ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path,
+        ScanCacheStorageMode storageMode = ScanCacheStorageMode.Raw)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ruleSetFingerprint);
         ArgumentOutOfRangeException.ThrowIfNegative(maxDecodeDepth);
@@ -46,8 +57,15 @@ public sealed class ScanCacheKey(string fingerprint, ScanCacheAddressMode addres
         }
 
         ScanCacheAddressMode normalizedAddressMode = RequireAddressMode(addressMode);
-        string material = CreateFingerprintMaterial(ruleSetFingerprint, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, normalizedAddressMode);
-        return new ScanCacheKey(BlobHasher.ComputeSha256Hex(material), normalizedAddressMode);
+        ScanCacheStorageMode normalizedStorageMode = RequireStorageMode(storageMode);
+        string material = CreateFingerprintMaterial(
+            ruleSetFingerprint,
+            maxDecodeDepth,
+            maxTargetBytes,
+            ignoreGitleaksAllow,
+            normalizedAddressMode,
+            normalizedStorageMode);
+        return new ScanCacheKey(BlobHasher.ComputeSha256Hex(material), normalizedAddressMode, normalizedStorageMode);
     }
 
     private static string CreateFingerprintMaterial(
@@ -55,7 +73,8 @@ public sealed class ScanCacheKey(string fingerprint, ScanCacheAddressMode addres
         int maxDecodeDepth,
         long? maxTargetBytes,
         bool ignoreGitleaksAllow,
-        ScanCacheAddressMode addressMode)
+        ScanCacheAddressMode addressMode,
+        ScanCacheStorageMode storageMode)
     {
         var builder = new StringBuilder();
         builder.Append("picket.scan-cache-key.v1\nrules:");
@@ -70,6 +89,12 @@ public sealed class ScanCacheKey(string fingerprint, ScanCacheAddressMode addres
         {
             builder.Append("\naddress-mode:");
             builder.Append(addressMode.ToString());
+        }
+
+        if (storageMode != ScanCacheStorageMode.Raw)
+        {
+            builder.Append("\nstorage-mode:");
+            builder.Append(storageMode.ToString());
         }
 
         return builder.ToString();
@@ -91,6 +116,13 @@ public sealed class ScanCacheKey(string fingerprint, ScanCacheAddressMode addres
         return value is ScanCacheAddressMode.Path or ScanCacheAddressMode.FileExtension or ScanCacheAddressMode.Content
             ? value
             : throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be a supported cache address mode.");
+    }
+
+    private static ScanCacheStorageMode RequireStorageMode(ScanCacheStorageMode value)
+    {
+        return value is ScanCacheStorageMode.Raw or ScanCacheStorageMode.SecretHashOnly
+            ? value
+            : throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be a supported cache storage mode.");
     }
 
     private static bool IsSha256Hex(ReadOnlySpan<char> value)

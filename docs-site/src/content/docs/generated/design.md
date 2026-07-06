@@ -623,7 +623,7 @@ Design requirements:
 - rule-pack/config/version and scan-behavior cache invalidation,
 - decode/archive-derived blob lineage,
 - concurrent CI-safe locking,
-- encrypted or secret-hash-only cache modes,
+- raw and secret-hash-only cache storage modes, with the storage mode included in the cache key,
 - GC and retention policy,
 - portable cache export/import,
 - provenance-preserving reports.

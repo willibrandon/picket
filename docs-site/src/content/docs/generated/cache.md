@@ -18,7 +18,7 @@ Each entry is addressed by:
 
 The address discriminator is the narrowest safe value for the active scan behavior. Path-sensitive rule sets use the logical report path. Path-insensitive native scans that can run file-extension-specific decoders use the file extension. Scans with no path-dependent rule or decoder behavior use a content-only discriminator, so identical blobs can reuse matching work across paths while reports are rehydrated with the current path and symlink provenance.
 
-The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, maximum target size, whether `--ignore-gitleaks-allow` was enabled, and the cache address mode when it is not the legacy path mode. Changing rules or these scan options invalidates old entries without deleting them.
+The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, maximum target size, whether `--ignore-gitleaks-allow` was enabled, the cache address mode when it is not the legacy path mode, and the cache storage mode when it is not raw mode. Changing rules or these scan options invalidates old entries without deleting them.
 
 ## Entry Format
 
@@ -31,14 +31,17 @@ Current entries include:
 - blob hash,
 - creation time as Unix seconds,
 - cache address mode,
+- cache storage mode,
 - finding count,
 - cached finding rows.
 
-Older entries without creation, address-mode, and finding-count metadata remain readable. Corrupt entries are treated as misses and are not allowed to fail a scan.
+Older entries for the legacy raw/path mode without creation, address-mode, storage-mode, and finding-count metadata remain readable. Corrupt entries are treated as misses and are not allowed to fail a scan.
 
 ## Privacy
 
-The cache may contain finding match and secret fields because cached findings must preserve native report behavior. Use a workspace-local or protected cache directory. Public CI should rely on normal Picket redaction for logs and annotations and should avoid uploading raw cache contents as generic artifacts.
+The default cache mode is `raw`. Raw mode may contain finding match, secret, and line fields because cached findings preserve native report behavior. Use a workspace-local or protected cache directory. Public CI should rely on normal Picket redaction for logs and annotations and should avoid uploading raw cache contents as generic artifacts.
+
+Use `--cache-mode secret-hash-only` when the cache must not persist raw finding evidence. In this mode cache rows keep rule, location, entropy, validation, tags, decode path, blob hash, secret hash, and match hash, but omit raw match, secret, and line text. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hash fields, stable fingerprints, and provenance remain available. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
 
 ## Maintenance
 
@@ -56,6 +59,7 @@ The native CLI wraps the same APIs:
 
 ```text
 picket cache stats --cache-dir .picket/cache --source .
+picket cache stats --cache-dir .picket/cache --source . --cache-mode secret-hash-only
 picket cache stats --cache-dir .picket/cache --source . --ignore-gitleaks-allow
 picket cache prune --cache-dir .picket/cache --source . --other-keys
 picket cache prune --cache-dir .picket/cache --source . --older-than-days 14
@@ -63,6 +67,6 @@ picket cache export --cache-dir .picket/cache --source . --output .picket/cache.
 picket cache import --cache-dir .picket/cache --source . --input .picket/cache.zip
 ```
 
-`picket cache stats` reports total entries, entries for the active scanner configuration key, and total entry bytes. Pass the same rule/config and scan-behavior options that created the cache, including `--ignore-gitleaks-allow` when used, so the active-key count matches the scan behavior being inspected. `picket cache prune` requires an explicit selector: `--other-keys` deletes entries from inactive scanner keys, while `--older-than-days` applies an age-based retention policy.
+`picket cache stats` reports total entries, entries for the active scanner configuration key, and total entry bytes. Pass the same rule/config and scan-behavior options that created the cache, including `--cache-mode` and `--ignore-gitleaks-allow` when used, so the active-key count matches the scan behavior being inspected. `picket cache prune` requires an explicit selector: `--other-keys` deletes entries from inactive scanner keys, while `--older-than-days` applies an age-based retention policy.
 
-`picket cache export` and `picket cache import` move only entries for the active scanner configuration key. Pass the same `--config`, `--source`, `--max-decode-depth`, `--max-target-megabytes`, and `--ignore-gitleaks-allow` values used by the scan whose cache is being moved.
+`picket cache export` and `picket cache import` move only entries for the active scanner configuration key. Pass the same `--config`, `--source`, `--cache-mode`, `--max-decode-depth`, `--max-target-megabytes`, and `--ignore-gitleaks-allow` values used by the scan whose cache is being moved.

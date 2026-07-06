@@ -258,6 +258,7 @@ internal static partial class Program
         out int maxDecodeDepth,
         out long? maxTargetBytes,
         out bool ignoreGitleaksAllow,
+        out ScanCacheStorageMode cacheStorageMode,
         out bool pruneOtherKeys,
         out int? olderThanDays)
     {
@@ -267,6 +268,7 @@ internal static partial class Program
         maxDecodeDepth = 5;
         maxTargetBytes = null;
         ignoreGitleaksAllow = false;
+        cacheStorageMode = ScanCacheStorageMode.Raw;
         pruneOtherKeys = false;
         olderThanDays = null;
         bool sourceRead = false;
@@ -335,6 +337,16 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsCacheModeFlag(arg))
+            {
+                if (!TryReadScanCacheStorageMode(args, ref i, out cacheStorageMode))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
             if (allowPruneOptions && IsOtherKeysFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--other-keys", out pruneOtherKeys))
@@ -384,6 +396,7 @@ internal static partial class Program
         out int maxDecodeDepth,
         out long? maxTargetBytes,
         out bool ignoreGitleaksAllow,
+        out ScanCacheStorageMode cacheStorageMode,
         out string? archivePath)
     {
         cacheDir = null;
@@ -392,6 +405,7 @@ internal static partial class Program
         maxDecodeDepth = 5;
         maxTargetBytes = null;
         ignoreGitleaksAllow = false;
+        cacheStorageMode = ScanCacheStorageMode.Raw;
         archivePath = null;
         bool sourceRead = false;
         for (int i = 0; i < args.Length; i++)
@@ -452,6 +466,16 @@ internal static partial class Program
             if (IsIgnoreGitleaksAllowFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsCacheModeFlag(arg))
+            {
+                if (!TryReadScanCacheStorageMode(args, ref i, out cacheStorageMode))
                 {
                     return false;
                 }
@@ -532,6 +556,12 @@ internal static partial class Program
     {
         return arg.Equals("--cache-dir", StringComparison.Ordinal)
             || arg.StartsWith("--cache-dir=", StringComparison.Ordinal);
+    }
+
+    static bool IsCacheModeFlag(string arg)
+    {
+        return arg.Equals("--cache-mode", StringComparison.Ordinal)
+            || arg.StartsWith("--cache-mode=", StringComparison.Ordinal);
     }
 
     static bool IsOtherKeysFlag(string arg)
@@ -943,6 +973,42 @@ internal static partial class Program
         return redactionPercent is >= 0 and <= 100;
     }
 
+    static bool TryReadScanCacheStorageMode(string[] args, ref int index, out ScanCacheStorageMode mode)
+    {
+        if (!TryReadStringFlag(args, ref index, "--cache-mode", out string? value))
+        {
+            mode = ScanCacheStorageMode.Raw;
+            return false;
+        }
+
+        if (TryParseScanCacheStorageMode(value, out mode))
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("unsupported cache mode: {0}", value);
+        return false;
+    }
+
+    static bool TryParseScanCacheStorageMode(string value, out ScanCacheStorageMode mode)
+    {
+        string normalized = value.Trim().ToLowerInvariant();
+        if (normalized is "raw" or "default")
+        {
+            mode = ScanCacheStorageMode.Raw;
+            return true;
+        }
+
+        if (normalized is "secret-hash-only" or "hash-only")
+        {
+            mode = ScanCacheStorageMode.SecretHashOnly;
+            return true;
+        }
+
+        mode = ScanCacheStorageMode.Raw;
+        return false;
+    }
+
     static bool TryValidatePlatform(string? platform)
     {
         if (TryNormalizeScmPlatform(platform, out _))
@@ -1029,6 +1095,7 @@ internal static partial class Program
         int maxDecodeDepth,
         long? maxTargetBytes,
         bool ignoreGitleaksAllow,
+        ScanCacheStorageMode cacheStorageMode,
         [NotNullWhen(true)] out PicketScanCache? scanCache)
     {
         scanCache = null;
@@ -1039,7 +1106,7 @@ internal static partial class Program
 
         try
         {
-            scanCache = PicketScanCache.Open(cacheDir, CreateNativeScanCacheKey(rules, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow));
+            scanCache = PicketScanCache.Open(cacheDir, CreateNativeScanCacheKey(rules, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode));
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -1053,14 +1120,16 @@ internal static partial class Program
         CompiledRuleSet rules,
         int maxDecodeDepth,
         long? maxTargetBytes,
-        bool ignoreGitleaksAllow)
+        bool ignoreGitleaksAllow,
+        ScanCacheStorageMode cacheStorageMode)
     {
         return ScanCacheKey.Create(
             rules.Fingerprint,
             maxDecodeDepth,
             maxTargetBytes,
             ignoreGitleaksAllow,
-            CreateNativeScanCacheAddressMode(rules, maxDecodeDepth));
+            CreateNativeScanCacheAddressMode(rules, maxDecodeDepth),
+            cacheStorageMode);
     }
 
     static ScanCacheAddressMode CreateNativeScanCacheAddressMode(CompiledRuleSet rules, int maxDecodeDepth)

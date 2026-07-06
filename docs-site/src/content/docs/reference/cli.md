@@ -174,6 +174,7 @@ Use the grouped index to jump to the workflow you need.
   [--ignore-path path]
   [--no-ignore]
   [--cache-dir path]
+  [--cache-mode raw|secret-hash-only]
   [--enable-rule id]
   [--verify]
   [--github-api-endpoint uri]
@@ -261,6 +262,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-mode</code></td>
+              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--enable-rule</code></td>
@@ -374,6 +381,7 @@ Use the grouped index to jump to the workflow you need.
   [--profile picket]
   [--source path]
   [--cache-dir path]
+  [--cache-mode raw|secret-hash-only]
   [--offline|--live]
   [--github-api-endpoint uri]
   [--allow-non-public-endpoints]
@@ -449,6 +457,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-mode</code></td>
+              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--offline / --live</code></td>
@@ -562,6 +576,7 @@ Use the grouped index to jump to the workflow you need.
   [--profile picket]
   [--source path]
   [--cache-dir path]
+  [--cache-mode raw|secret-hash-only]
   [--offline|--live]
   [--github-api-endpoint uri]
   [--allow-non-public-endpoints]
@@ -636,6 +651,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-mode</code></td>
+              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--offline / --live</code></td>
@@ -890,6 +911,7 @@ Use the grouped index to jump to the workflow you need.
   [source]
   --cache-dir path
   [-c path]
+  [--cache-mode raw|secret-hash-only]
   [--max-decode-depth n]
   [--max-target-megabytes n]
   [--ignore-gitleaks-allow]</code></pre>
@@ -932,6 +954,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-mode</code></td>
+              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-decode-depth</code></td>
@@ -979,6 +1007,7 @@ Use the grouped index to jump to the workflow you need.
   [source]
   --cache-dir path
   [-c path]
+  [--cache-mode raw|secret-hash-only]
   [--other-keys]
   [--older-than-days n]
   [--max-decode-depth n]
@@ -1023,6 +1052,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-mode</code></td>
+              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--other-keys</code></td>
@@ -1083,6 +1118,7 @@ Use the grouped index to jump to the workflow you need.
   --cache-dir path
   --output path
   [-c path]
+  [--cache-mode raw|secret-hash-only]
   [--max-decode-depth n]
   [--max-target-megabytes n]
   [--ignore-gitleaks-allow]</code></pre>
@@ -1133,6 +1169,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--cache-mode</code></td>
+              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-decode-depth</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -1179,6 +1221,7 @@ Use the grouped index to jump to the workflow you need.
   --cache-dir path
   --input path
   [-c path]
+  [--cache-mode raw|secret-hash-only]
   [--max-decode-depth n]
   [--max-target-megabytes n]
   [--ignore-gitleaks-allow]</code></pre>
@@ -1227,6 +1270,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-mode</code></td>
+              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-decode-depth</code></td>

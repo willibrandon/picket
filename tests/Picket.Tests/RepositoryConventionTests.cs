@@ -331,8 +331,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Report readers must not print raw secrets", reports);
         Assert.Contains("strict Gitleaks-compatible commands reject `--cache-dir`", cache);
         Assert.Contains("scanner configuration fingerprint", cache);
+        Assert.Contains("--cache-mode", cache);
         Assert.Contains("--ignore-gitleaks-allow", cache);
-        Assert.Contains("Older entries without creation, address-mode, and finding-count metadata remain readable", cache);
+        Assert.Contains("Older entries for the legacy raw/path mode without creation, address-mode, storage-mode, and finding-count metadata remain readable", cache);
         Assert.Contains("PicketScanCache.GetStats()", cache);
         Assert.Contains("PicketScanCache.PruneOtherKeys()", cache);
         Assert.Contains("PicketScanCache.PruneOlderThan", cache);

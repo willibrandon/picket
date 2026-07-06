@@ -41,6 +41,7 @@ internal static partial class Program
         bool followSymlinks = false;
         bool ignoreGitleaksAllow = false;
         bool respectNativeIgnoreFiles = nativeMode;
+        ScanCacheStorageMode cacheStorageMode = ScanCacheStorageMode.Raw;
         int maxArchiveEntries = nativeMode ? DefaultNativeMaxArchiveEntries : 0;
         long? maxArchiveBytes = nativeMode ? DefaultNativeMaxArchiveBytes : null;
         int maxArchiveCompressionRatio = nativeMode ? DefaultNativeMaxArchiveCompressionRatio : 0;
@@ -86,6 +87,16 @@ internal static partial class Program
             if (nativeMode && IsCacheDirFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--cache-dir", out cacheDir))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (nativeMode && IsCacheModeFlag(arg))
+            {
+                if (!TryReadScanCacheStorageMode(args, ref i, out cacheStorageMode))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -380,7 +391,7 @@ internal static partial class Program
         {
             try
             {
-                scanCache = PicketScanCache.Open(cacheDir, CreateNativeScanCacheKey(rules, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow));
+                scanCache = PicketScanCache.Open(cacheDir, CreateNativeScanCacheKey(rules, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {

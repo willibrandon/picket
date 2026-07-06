@@ -21,6 +21,7 @@ public sealed class PicketScanCache
     private const string ExtensionAddressPrefix = "extension:";
     private const string FindingCountHeader = "findingCount";
     private const string LocksDirectoryName = "locks";
+    private const string StorageModeHeader = "storageMode";
 
     private readonly string _entriesPath;
     private readonly string _locksPath;
@@ -115,7 +116,7 @@ public sealed class PicketScanCache
         string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
         try
         {
-            File.WriteAllText(tempPath, CreateEntry(blobHash, Key.Fingerprint, Key.AddressMode, findings), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(tempPath, CreateEntry(blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode, findings), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             File.Move(tempPath, entryPath, overwrite: true);
         }
         finally
@@ -150,7 +151,7 @@ public sealed class PicketScanCache
                 foreach (string entryPath in EnumerateEntryFiles())
                 {
                     if (!TryCreateArchiveEntryName(entryPath, out string? entryName, out string blobHash)
-                        || !IsValidEntryFile(entryPath, blobHash, Key.Fingerprint))
+                        || !IsValidEntryFile(entryPath, blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
                     {
                         continue;
                     }
@@ -241,7 +242,7 @@ public sealed class PicketScanCache
                     input.CopyTo(output);
                 }
 
-                if (!IsValidEntryFile(tempPath, blobHash, Key.Fingerprint))
+                if (!IsValidEntryFile(tempPath, blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
                 {
                     throw new FormatException($"Invalid cache archive entry content: {archiveEntry.FullName}");
                 }
@@ -324,6 +325,7 @@ public sealed class PicketScanCache
         string blobHash,
         string keyFingerprint,
         ScanCacheAddressMode addressMode,
+        ScanCacheStorageMode storageMode,
         IReadOnlyList<Finding> findings)
     {
         var builder = new StringBuilder();
@@ -343,13 +345,17 @@ public sealed class PicketScanCache
         builder.Append('\t');
         builder.Append(addressMode.ToString());
         builder.Append('\n');
+        builder.Append(StorageModeHeader);
+        builder.Append('\t');
+        builder.Append(storageMode.ToString());
+        builder.Append('\n');
         builder.Append(FindingCountHeader);
         builder.Append('\t');
         builder.Append(findings.Count.ToString(CultureInfo.InvariantCulture));
         builder.Append('\n');
         for (int i = 0; i < findings.Count; i++)
         {
-            CachedFinding.FromFinding(findings[i]).Write(builder);
+            CachedFinding.FromFinding(findings[i], storageMode).Write(builder);
         }
 
         return builder.ToString();
@@ -377,6 +383,8 @@ public sealed class PicketScanCache
             return false;
         }
 
+        ScanCacheAddressMode? entryAddressMode = null;
+        ScanCacheStorageMode? entryStorageMode = null;
         int? expectedFindingCount = null;
         bool findingSectionStarted = false;
         var parsedFindings = new List<Finding>(Math.Max(0, lines.Length - 3));
@@ -395,7 +403,7 @@ public sealed class PicketScanCache
 
             if (!fields[0].Equals("finding", StringComparison.Ordinal))
             {
-                if (findingSectionStarted || !TryReadMetadata(fields, ref expectedFindingCount))
+                if (findingSectionStarted || !TryReadMetadata(fields, ref entryAddressMode, ref entryStorageMode, ref expectedFindingCount))
                 {
                     return false;
                 }
@@ -412,6 +420,12 @@ public sealed class PicketScanCache
             parsedFindings.Add(cachedFinding.ToFinding(fileName, symlinkFile, blobHash));
         }
 
+        if ((entryAddressMode ?? ScanCacheAddressMode.Path) != Key.AddressMode
+            || (entryStorageMode ?? ScanCacheStorageMode.Raw) != Key.StorageMode)
+        {
+            return false;
+        }
+
         if (expectedFindingCount.HasValue && expectedFindingCount.Value != parsedFindings.Count)
         {
             return false;
@@ -421,7 +435,11 @@ public sealed class PicketScanCache
         return true;
     }
 
-    private static bool TryReadMetadata(string[] fields, ref int? expectedFindingCount)
+    private static bool TryReadMetadata(
+        string[] fields,
+        ref ScanCacheAddressMode? entryAddressMode,
+        ref ScanCacheStorageMode? entryStorageMode,
+        ref int? expectedFindingCount)
     {
         if (fields.Length != 2)
         {
@@ -435,8 +453,26 @@ public sealed class PicketScanCache
 
         if (fields[0].Equals(AddressModeHeader, StringComparison.Ordinal))
         {
-            return Enum.TryParse(fields[1], ignoreCase: false, out ScanCacheAddressMode value)
-                && value is ScanCacheAddressMode.Path or ScanCacheAddressMode.FileExtension or ScanCacheAddressMode.Content;
+            if (!Enum.TryParse(fields[1], ignoreCase: false, out ScanCacheAddressMode value)
+                || value is not (ScanCacheAddressMode.Path or ScanCacheAddressMode.FileExtension or ScanCacheAddressMode.Content))
+            {
+                return false;
+            }
+
+            entryAddressMode = value;
+            return true;
+        }
+
+        if (fields[0].Equals(StorageModeHeader, StringComparison.Ordinal))
+        {
+            if (!Enum.TryParse(fields[1], ignoreCase: false, out ScanCacheStorageMode value)
+                || value is not (ScanCacheStorageMode.Raw or ScanCacheStorageMode.SecretHashOnly))
+            {
+                return false;
+            }
+
+            entryStorageMode = value;
+            return true;
         }
 
         if (fields[0].Equals(FindingCountHeader, StringComparison.Ordinal))
@@ -634,7 +670,12 @@ public sealed class PicketScanCache
         return IsSha256Hex(blobHash) && IsSha256Hex(addressHash) && IsSha256Hex(keyFingerprint);
     }
 
-    private static bool IsValidEntryFile(string entryPath, string blobHash, string keyFingerprint)
+    private static bool IsValidEntryFile(
+        string entryPath,
+        string blobHash,
+        string keyFingerprint,
+        ScanCacheAddressMode addressMode,
+        ScanCacheStorageMode storageMode)
     {
         try
         {
@@ -649,6 +690,8 @@ public sealed class PicketScanCache
                 return false;
             }
 
+            ScanCacheAddressMode? entryAddressMode = null;
+            ScanCacheStorageMode? entryStorageMode = null;
             int? expectedFindingCount = null;
             bool findingSectionStarted = false;
             int parsedFindingCount = 0;
@@ -662,7 +705,7 @@ public sealed class PicketScanCache
                 string[] fields = lines[i].Split('\t');
                 if (!fields[0].Equals("finding", StringComparison.Ordinal))
                 {
-                    if (findingSectionStarted || !TryReadMetadata(fields, ref expectedFindingCount))
+                    if (findingSectionStarted || !TryReadMetadata(fields, ref entryAddressMode, ref entryStorageMode, ref expectedFindingCount))
                     {
                         return false;
                     }
@@ -679,7 +722,9 @@ public sealed class PicketScanCache
                 parsedFindingCount++;
             }
 
-            return !expectedFindingCount.HasValue || expectedFindingCount.Value == parsedFindingCount;
+            return (entryAddressMode ?? ScanCacheAddressMode.Path) == addressMode
+                && (entryStorageMode ?? ScanCacheStorageMode.Raw) == storageMode
+                && (!expectedFindingCount.HasValue || expectedFindingCount.Value == parsedFindingCount);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or FormatException)
         {

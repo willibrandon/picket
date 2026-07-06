@@ -25,8 +25,29 @@ internal sealed class CachedFinding(
     private const int CurrentFieldCount = 15;
     private const int LegacyFieldCount = 14;
 
-    internal static CachedFinding FromFinding(Finding finding)
+    internal static CachedFinding FromFinding(Finding finding, ScanCacheStorageMode storageMode)
     {
+        ArgumentNullException.ThrowIfNull(finding);
+        if (storageMode == ScanCacheStorageMode.SecretHashOnly)
+        {
+            return new CachedFinding(
+                finding.RuleID,
+                finding.Description,
+                finding.StartLine,
+                finding.EndLine,
+                finding.StartColumn,
+                finding.EndColumn,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                finding.Entropy,
+                finding.Tags,
+                CreateSecretSha256(finding),
+                CreateMatchSha256(finding),
+                finding.ValidationState,
+                finding.DecodePath);
+        }
+
         return new CachedFinding(
             finding.RuleID,
             finding.Description,
@@ -151,5 +172,15 @@ internal sealed class CachedFinding(
         return string.Create(
             CultureInfo.InvariantCulture,
             $"{fileName}:{ruleId}:{startLine}");
+    }
+
+    private static string CreateSecretSha256(Finding finding)
+    {
+        return finding.SecretSha256.Length == 0 ? BlobHasher.ComputeSha256Hex(finding.Secret) : finding.SecretSha256;
+    }
+
+    private static string CreateMatchSha256(Finding finding)
+    {
+        return finding.MatchSha256.Length == 0 ? BlobHasher.ComputeSha256Hex(finding.Match) : finding.MatchSha256;
     }
 }

@@ -72,6 +72,7 @@ public sealed class PicketScanCacheTests
         string entry = File.ReadAllText(GetSingleEntryPath(root.Path));
         PicketScanCacheStats stats = cache.GetStats();
         Assert.Contains("createdUnixTimeSeconds\t", entry);
+        Assert.Contains("storageMode\tRaw", entry);
         Assert.Contains("findingCount\t1", entry);
         Assert.AreEqual(root.Path, stats.RootPath);
         Assert.AreEqual(1, stats.EntryCount);
@@ -107,6 +108,29 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies secret-hash-only cache keys reject legacy entries that lack storage metadata.
+    /// </summary>
+    [TestMethod]
+    public void TryReadSecretHashOnlyRejectsLegacyEntryWithoutStorageMode()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        string blobHash = BlobHasher.ComputeSha256Hex(content);
+        string pathHash = BlobHasher.ComputeSha256Hex("secret.txt");
+        string entryDirectory = Path.Combine(root.Path, "entries", blobHash[..2]);
+        Directory.CreateDirectory(entryDirectory);
+        File.WriteAllText(
+            Path.Combine(entryDirectory, $"{blobHash}-{pathHash}-{cache.Key.Fingerprint}.cache"),
+            CreateLegacyEntry(blobHash, cache.Key.Fingerprint));
+
+        bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
     /// Verifies path-sensitive cache keys do not reuse findings across logical paths.
     /// </summary>
     [TestMethod]
@@ -119,6 +143,57 @@ public sealed class PicketScanCacheTests
         cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
 
         bool hit = cache.TryRead(content, "other.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
+    /// Verifies secret-hash-only cache entries do not persist raw finding evidence.
+    /// </summary>
+    [TestMethod]
+    public void TryReadSecretHashOnlyEntryReturnsHashesWithoutRawEvidence()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+
+        string entryText = File.ReadAllText(GetSingleEntryPath(root.Path));
+        bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsTrue(hit);
+        Assert.IsNotNull(cachedFindings);
+        Assert.HasCount(1, cachedFindings);
+        Assert.IsEmpty(cachedFindings[0].Match);
+        Assert.IsEmpty(cachedFindings[0].Secret);
+        Assert.IsEmpty(cachedFindings[0].Line);
+        Assert.AreEqual(BlobHasher.ComputeSha256Hex("token-12345"), cachedFindings[0].SecretSha256);
+        Assert.AreEqual(BlobHasher.ComputeSha256Hex("token-12345"), cachedFindings[0].MatchSha256);
+        Assert.Contains("storageMode\tSecretHashOnly", entryText);
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes("token-12345")), entryText);
+    }
+
+    /// <summary>
+    /// Verifies cache reads reject entries whose storage metadata does not match the active key.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsMismatchedStorageModeMetadata()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        string entryPath = GetSingleEntryPath(root.Path);
+        string entryText = File.ReadAllText(entryPath).Replace(
+            "storageMode\tSecretHashOnly",
+            "storageMode\tRaw",
+            StringComparison.Ordinal);
+        File.WriteAllText(entryPath, entryText);
+
+        bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
 
         Assert.IsFalse(hit);
         Assert.IsNull(cachedFindings);
@@ -200,6 +275,25 @@ public sealed class PicketScanCacheTests
         firstCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
 
         bool hit = secondCache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
+    /// Verifies storage modes participate in scan-cache keys.
+    /// </summary>
+    [TestMethod]
+    public void TryReadMissesForDifferentStorageMode()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache rawCache = CreateCache(root.Path);
+        PicketScanCache hashOnlyCache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+
+        rawCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+
+        bool hit = hashOnlyCache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
 
         Assert.IsFalse(hit);
         Assert.IsNull(cachedFindings);
@@ -355,11 +449,12 @@ public sealed class PicketScanCacheTests
         string root,
         string pattern = "token-[0-9]+",
         bool ignoreGitleaksAllow = false,
-        ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path)
+        ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path,
+        ScanCacheStorageMode storageMode = ScanCacheStorageMode.Raw)
     {
         var ruleSet = new RuleSet([SecretRule.Create("token", string.Empty, pattern)]);
         CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(ruleSet);
-        return PicketScanCache.Open(root, ScanCacheKey.Create(compiledRuleSet.Fingerprint, maxDecodeDepth: 5, maxTargetBytes: null, ignoreGitleaksAllow, addressMode));
+        return PicketScanCache.Open(root, ScanCacheKey.Create(compiledRuleSet.Fingerprint, maxDecodeDepth: 5, maxTargetBytes: null, ignoreGitleaksAllow, addressMode, storageMode));
     }
 
     private static Finding CreateFinding(string file)

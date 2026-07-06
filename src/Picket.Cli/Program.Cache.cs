@@ -55,6 +55,7 @@ internal static partial class Program
             out int maxDecodeDepth,
             out long? maxTargetBytes,
             out bool ignoreGitleaksAllow,
+            out ScanCacheStorageMode cacheStorageMode,
             out _,
             out _))
         {
@@ -67,7 +68,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }
@@ -97,6 +98,7 @@ internal static partial class Program
             out int maxDecodeDepth,
             out long? maxTargetBytes,
             out bool ignoreGitleaksAllow,
+            out ScanCacheStorageMode cacheStorageMode,
             out bool pruneOtherKeys,
             out int? olderThanDays))
         {
@@ -115,7 +117,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }
@@ -152,6 +154,7 @@ internal static partial class Program
             out int maxDecodeDepth,
             out long? maxTargetBytes,
             out bool ignoreGitleaksAllow,
+            out ScanCacheStorageMode cacheStorageMode,
             out string? outputPath))
         {
             return UnknownFlagExitCode;
@@ -169,7 +172,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }
@@ -204,6 +207,7 @@ internal static partial class Program
             out int maxDecodeDepth,
             out long? maxTargetBytes,
             out bool ignoreGitleaksAllow,
+            out ScanCacheStorageMode cacheStorageMode,
             out string? inputPath))
         {
             return UnknownFlagExitCode;
@@ -221,7 +225,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }

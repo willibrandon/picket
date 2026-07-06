@@ -732,6 +732,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--timeout", result.Stdout);
         Assert.Contains("--diagnostics", result.Stdout);
         Assert.Contains("--diagnostics-dir", result.Stdout);
+        Assert.Contains("--cache-mode", result.Stdout);
     }
 
     /// <summary>
@@ -928,6 +929,40 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(0, stats.ExitCode);
         Assert.Contains("entries: 2", stats.Stdout);
         Assert.Contains("current-key entries: 2", stats.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that secret-hash-only native scan cache entries avoid persisted raw evidence.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCacheSupportsSecretHashOnlyMode()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
+
+        CliResult first = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "--cache-mode", "secret-hash-only", "-f", "jsonl").ConfigureAwait(false);
+        CliResult second = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "--cache-mode", "secret-hash-only", "-f", "jsonl").ConfigureAwait(false);
+        CliResult rawStats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path).ConfigureAwait(false);
+        CliResult hashOnlyStats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path, "--cache-mode", "secret-hash-only").ConfigureAwait(false);
+        string cacheEntry = File.ReadAllText(GetSingleCacheEntryPath(cachePath));
+        string expectedHash = ComputeSha256("finding").ToLowerInvariant();
+
+        Assert.AreEqual(1, first.ExitCode);
+        Assert.Contains("\"secret\":\"finding\"", first.Stdout);
+        Assert.AreEqual(1, second.ExitCode);
+        Assert.Contains("\"match\":\"\"", second.Stdout);
+        Assert.Contains("\"secret\":\"\"", second.Stdout);
+        Assert.Contains($"\"secretSha256\":\"{expectedHash}\"", second.Stdout);
+        Assert.Contains($"\"matchSha256\":\"{expectedHash}\"", second.Stdout);
+        Assert.Contains("\"line\":\"\"", second.Stdout);
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes("finding")), cacheEntry);
+        Assert.Contains("storageMode\tSecretHashOnly", cacheEntry);
+        Assert.AreEqual(0, rawStats.ExitCode);
+        Assert.Contains("current-key entries: 0", rawStats.Stdout);
+        Assert.AreEqual(0, hashOnlyStats.ExitCode);
+        Assert.Contains("current-key entries: 1", hashOnlyStats.Stdout);
     }
 
     /// <summary>
@@ -1317,6 +1352,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("picket cache import", result.Stdout);
         Assert.Contains("--older-than-days", result.Stdout);
         Assert.Contains("--ignore-gitleaks-allow", result.Stdout);
+        Assert.Contains("--cache-mode", result.Stdout);
     }
 
     /// <summary>
