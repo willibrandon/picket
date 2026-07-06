@@ -504,7 +504,7 @@ public sealed class PicketScanCache
 
     private static bool IsDirectoryArchiveEntry(ZipArchiveEntry archiveEntry)
     {
-        return archiveEntry.FullName.EndsWith("/", StringComparison.Ordinal);
+        return archiveEntry.FullName.EndsWith('/');
     }
 
     private bool TryParseArchiveEntryName(

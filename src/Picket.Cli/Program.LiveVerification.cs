@@ -120,7 +120,7 @@ internal static partial class Program
                     continue;
                 }
 
-                SecretValidationResult result = liveVerifier.VerifyAsync(findings[i], cancellationToken).GetAwaiter().GetResult();
+                SecretValidationResult result = VerifyLiveFinding(liveVerifier, findings[i], cancellationToken);
                 Finding annotatedFinding = CopyWithValidationState(findings[i], result.ReportValue);
                 annotated.Add(annotatedFinding);
                 metadata[StableFindingFingerprint.Create(annotatedFinding)] = CreateAnalysisMetadata(result);
@@ -140,6 +140,17 @@ internal static partial class Program
     private static bool IsOfflineTerminalValidationState(string validationState)
     {
         return validationState is "invalid" or "test-credential";
+    }
+
+    private static SecretValidationResult VerifyLiveFinding(
+        SecretLiveVerifier liveVerifier,
+        Finding finding,
+        CancellationToken cancellationToken)
+    {
+        ValueTask<SecretValidationResult> result = liveVerifier.VerifyAsync(finding, cancellationToken);
+        return result.IsCompletedSuccessfully
+            ? result.Result
+            : result.AsTask().GetAwaiter().GetResult();
     }
 
     private static CancellationTokenSource? CreateLiveCancellation(long timeoutTimestamp)

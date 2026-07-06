@@ -181,11 +181,12 @@ public sealed class GitHubSecretLiveValidatorOptions
         HttpMessageHandler handler = _messageHandlerFactory is null
             ? CreateHttpClientHandler()
             : _messageHandlerFactory();
-        HttpClient client = new(
+        return new HttpClient(
             handler,
-            disposeHandler: true);
-        client.Timeout = Timeout;
-        return client;
+            disposeHandler: true)
+        {
+            Timeout = Timeout,
+        };
     }
 
     private HttpClientHandler CreateHttpClientHandler()

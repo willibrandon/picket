@@ -95,7 +95,7 @@ public class SecretScanBenchmarks
     /// Compiles the native default rules.
     /// </summary>
     [Benchmark]
-    public string CompileNativeDefaultRules()
+    public static string CompileNativeDefaultRules()
     {
         return CompiledRuleSet.Compile(PicketConfigLoader.LoadRuleSet(null, "__picket-benchmark__")).Fingerprint;
     }

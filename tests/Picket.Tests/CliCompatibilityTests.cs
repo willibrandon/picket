@@ -2731,8 +2731,8 @@ public sealed class CliCompatibilityTests
         string index = await client.GetStringAsync(new Uri("http://localhost:6060/debug/pprof/"), TestContext.CancellationToken).ConfigureAwait(false);
         string cpu = await client.GetStringAsync(new Uri("http://localhost:6060/debug/pprof/profile"), TestContext.CancellationToken).ConfigureAwait(false);
 
-        await process.StandardInput.WriteAsync("token-12345").ConfigureAwait(false);
-        await process.StandardInput.FlushAsync().ConfigureAwait(false);
+        await process.StandardInput.WriteAsync("token-12345".AsMemory(), TestContext.CancellationToken).ConfigureAwait(false);
+        await process.StandardInput.FlushAsync(TestContext.CancellationToken).ConfigureAwait(false);
         process.StandardInput.Close();
 
         string stdout = await process.StandardOutput.ReadToEndAsync(TestContext.CancellationToken).ConfigureAwait(false);

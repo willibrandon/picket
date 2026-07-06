@@ -10,7 +10,7 @@ namespace Picket.Docs;
 
 internal sealed partial class DocumentationGenerator
 {
-    private void GenerateReportSchemaReference(string outputRoot)
+    private static void GenerateReportSchemaReference(string outputRoot)
     {
         SecretRule rule = CreateSampleReportRule();
         Finding finding = CreateSampleReportFinding();

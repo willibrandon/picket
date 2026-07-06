@@ -1074,10 +1074,9 @@ public static class GitleaksConfigLoader
         }
 
         int buildIndex = version.IndexOf('+', StringComparison.Ordinal);
-        string build = string.Empty;
         if (buildIndex >= 0)
         {
-            build = version[(buildIndex + 1)..];
+            string build = version[(buildIndex + 1)..];
             version = version[..buildIndex];
             if (!IsValidVersionSuffix(build))
             {
@@ -1086,10 +1085,9 @@ public static class GitleaksConfigLoader
         }
 
         int prereleaseIndex = version.IndexOf('-', StringComparison.Ordinal);
-        string prerelease = string.Empty;
         if (prereleaseIndex >= 0)
         {
-            prerelease = version[(prereleaseIndex + 1)..];
+            string prerelease = version[(prereleaseIndex + 1)..];
             version = version[..prereleaseIndex];
             if (!IsValidVersionSuffix(prerelease))
             {

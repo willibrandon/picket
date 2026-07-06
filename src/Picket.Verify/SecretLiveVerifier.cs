@@ -19,7 +19,7 @@ public sealed class SecretLiveVerifier(
     private readonly SecretLiveVerifierOptions _options = options ?? SecretLiveVerifierOptions.CreateDefault();
     private readonly SemaphoreSlim _globalRequestLimiter = new(options?.MaxConcurrentProviderRequests ?? SecretLiveVerifierOptions.DefaultMaxConcurrentProviderRequests);
     private readonly SecretLiveRequestPacer _globalRequestPacer = CreateRequestPacer(options, perProvider: false);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, SecretLiveRequestPacer> _providerRequestPacers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SemaphoreSlim> _providerRequestLimiters = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SecretValidationResult> _requestCache = new(StringComparer.Ordinal);

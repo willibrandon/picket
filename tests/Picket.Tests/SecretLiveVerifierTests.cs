@@ -29,7 +29,7 @@ public sealed class SecretLiveVerifierTests
             _ => false);
         var verifier = new SecretLiveVerifier([validator]);
 
-        SecretValidationResult result = await verifier.VerifyAsync(CreateFinding());
+        SecretValidationResult result = await verifier.VerifyAsync(CreateFinding(), TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(SecretValidationState.Skipped, result.State);
         Assert.AreEqual(0, validator.VerifyCount);
@@ -48,7 +48,7 @@ public sealed class SecretLiveVerifierTests
             new SecretValidationResult(SecretValidationState.Active));
         var verifier = new SecretLiveVerifier([validator]);
 
-        SecretValidationResult result = await verifier.VerifyAsync(CreateFinding());
+        SecretValidationResult result = await verifier.VerifyAsync(CreateFinding(), TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(SecretValidationState.Error, result.State);
         Assert.Contains("MetadataHost", result.Reason);
@@ -79,7 +79,7 @@ public sealed class SecretLiveVerifierTests
                 evidence: ["provider=fake", "endpoint=https://other.example/user", "custom=value"]));
         var verifier = new SecretLiveVerifier([validator], options: options);
 
-        SecretValidationResult result = await verifier.VerifyAsync(CreateFinding());
+        SecretValidationResult result = await verifier.VerifyAsync(CreateFinding(), TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(SecretValidationState.Active, result.State);
         Assert.Contains("provider=fake", result.Evidence);
@@ -111,8 +111,8 @@ public sealed class SecretLiveVerifierTests
         var verifier = new SecretLiveVerifier([validator], cache, options);
         Finding finding = CreateFinding();
 
-        SecretValidationResult first = await verifier.VerifyAsync(finding);
-        SecretValidationResult second = await verifier.VerifyAsync(finding);
+        SecretValidationResult first = await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult second = await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(SecretValidationState.Active, first.State);
         Assert.AreEqual(SecretValidationState.Active, second.State);
@@ -140,7 +140,7 @@ public sealed class SecretLiveVerifierTests
         var firstVerifier = new SecretLiveVerifier([firstValidator], cache, options);
         Finding finding = CreateFinding();
 
-        SecretValidationResult first = await firstVerifier.VerifyAsync(finding);
+        SecretValidationResult first = await firstVerifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
 
         var secondValidator = new FakeSecretLiveValidator(
             "fake",
@@ -149,7 +149,7 @@ public sealed class SecretLiveVerifierTests
             new SecretValidationResult(SecretValidationState.Inactive, "provider rejected token"));
         var secondVerifier = new SecretLiveVerifier([secondValidator], cache, options);
 
-        SecretValidationResult second = await secondVerifier.VerifyAsync(finding);
+        SecretValidationResult second = await secondVerifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(SecretValidationState.Active, first.State);
         Assert.AreEqual(SecretValidationState.Active, second.State);
@@ -182,7 +182,7 @@ public sealed class SecretLiveVerifierTests
         var firstVerifier = new SecretLiveVerifier([firstValidator], cache, options);
         Finding finding = CreateFinding();
 
-        SecretValidationResult first = await firstVerifier.VerifyAsync(finding);
+        SecretValidationResult first = await firstVerifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
 
         var secondValidator = new FakeSecretLiveValidator(
             "fake",
@@ -191,7 +191,7 @@ public sealed class SecretLiveVerifierTests
             new SecretValidationResult(SecretValidationState.Active, "provider accepted token"));
         var secondVerifier = new SecretLiveVerifier([secondValidator], cache, options);
 
-        SecretValidationResult second = await secondVerifier.VerifyAsync(finding);
+        SecretValidationResult second = await secondVerifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(SecretValidationState.Error, first.State);
         Assert.Contains("errorKind=transient", first.Evidence);
