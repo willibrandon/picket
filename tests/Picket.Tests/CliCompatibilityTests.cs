@@ -848,6 +848,30 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scan cache entries are invalidated by inline allow behavior.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCacheSeparatesGitleaksAllowBehavior()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345 # gitleaks:allow");
+
+        CliResult honoringAllow = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult ignoringAllow = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "--ignore-gitleaks-allow", "-f", "jsonl").ConfigureAwait(false);
+        CliResult stats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path, "--ignore-gitleaks-allow").ConfigureAwait(false);
+
+        Assert.AreEqual(0, honoringAllow.ExitCode);
+        Assert.IsEmpty(honoringAllow.Stdout);
+        Assert.AreEqual(1, ignoringAllow.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", ignoringAllow.Stdout);
+        Assert.AreEqual(0, stats.ExitCode);
+        Assert.Contains("entries: 2", stats.Stdout);
+        Assert.Contains("current-key entries: 1", stats.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans can load config from PICKET_CONFIG_TOML.
     /// </summary>
     [TestMethod]
@@ -1156,6 +1180,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("picket cache stats", result.Stdout);
         Assert.Contains("picket cache prune", result.Stdout);
         Assert.Contains("--older-than-days", result.Stdout);
+        Assert.Contains("--ignore-gitleaks-allow", result.Stdout);
     }
 
     /// <summary>

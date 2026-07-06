@@ -10,7 +10,7 @@ Each entry is addressed by:
 - SHA-256 of the logical report path,
 - scanner configuration fingerprint.
 
-The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, and maximum target size. Changing rules or these scan options invalidates old entries without deleting them.
+The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, maximum target size, and whether `--ignore-gitleaks-allow` was enabled. Changing rules or these scan options invalidates old entries without deleting them.
 
 ## Entry Format
 
@@ -43,8 +43,9 @@ The native CLI wraps the same APIs:
 
 ```text
 picket cache stats --cache-dir .picket/cache --source .
+picket cache stats --cache-dir .picket/cache --source . --ignore-gitleaks-allow
 picket cache prune --cache-dir .picket/cache --source . --other-keys
 picket cache prune --cache-dir .picket/cache --source . --older-than-days 14
 ```
 
-`picket cache stats` reports total entries, entries for the active scanner configuration key, and total entry bytes. `picket cache prune` requires an explicit selector: `--other-keys` deletes entries from inactive scanner keys, while `--older-than-days` applies an age-based retention policy.
+`picket cache stats` reports total entries, entries for the active scanner configuration key, and total entry bytes. Pass the same rule/config and scan-behavior options that created the cache, including `--ignore-gitleaks-allow` when used, so the active-key count matches the scan behavior being inspected. `picket cache prune` requires an explicit selector: `--other-keys` deletes entries from inactive scanner keys, while `--older-than-days` applies an age-based retention policy.

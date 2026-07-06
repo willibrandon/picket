@@ -19,8 +19,9 @@ public sealed class ScanCacheKey(string fingerprint)
     /// <param name="ruleSetFingerprint">The compiled rule-set fingerprint.</param>
     /// <param name="maxDecodeDepth">The maximum recursive decode depth.</param>
     /// <param name="maxTargetBytes">The maximum content size for content rules, or <see langword="null" /> for no cap.</param>
+    /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> comments are ignored.</param>
     /// <returns>The created cache key.</returns>
-    public static ScanCacheKey Create(string ruleSetFingerprint, int maxDecodeDepth, long? maxTargetBytes)
+    public static ScanCacheKey Create(string ruleSetFingerprint, int maxDecodeDepth, long? maxTargetBytes, bool ignoreGitleaksAllow = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ruleSetFingerprint);
         ArgumentOutOfRangeException.ThrowIfNegative(maxDecodeDepth);
@@ -35,7 +36,9 @@ public sealed class ScanCacheKey(string fingerprint)
             "\ndecode:",
             maxDecodeDepth.ToString(CultureInfo.InvariantCulture),
             "\ntarget:",
-            maxTargetBytes.HasValue ? maxTargetBytes.Value.ToString(CultureInfo.InvariantCulture) : "none");
+            maxTargetBytes.HasValue ? maxTargetBytes.Value.ToString(CultureInfo.InvariantCulture) : "none",
+            "\nignore-gitleaks-allow:",
+            ignoreGitleaksAllow ? "true" : "false");
         return new ScanCacheKey(BlobHasher.ComputeSha256Hex(material));
     }
 

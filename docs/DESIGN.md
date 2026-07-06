@@ -613,7 +613,7 @@ Design requirements:
 
 - SHA-256 blob identity,
 - schema versioning and migrations,
-- rule-pack/config/version cache invalidation,
+- rule-pack/config/version and scan-behavior cache invalidation,
 - decode/archive-derived blob lineage,
 - concurrent CI-safe locking,
 - encrypted or secret-hash-only cache modes,

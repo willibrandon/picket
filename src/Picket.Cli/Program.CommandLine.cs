@@ -257,6 +257,7 @@ internal static partial class Program
         out string source,
         out int maxDecodeDepth,
         out long? maxTargetBytes,
+        out bool ignoreGitleaksAllow,
         out bool pruneOtherKeys,
         out int? olderThanDays)
     {
@@ -265,6 +266,7 @@ internal static partial class Program
         source = ".";
         maxDecodeDepth = 5;
         maxTargetBytes = null;
+        ignoreGitleaksAllow = false;
         pruneOtherKeys = false;
         olderThanDays = null;
         bool sourceRead = false;
@@ -316,6 +318,16 @@ internal static partial class Program
             if (IsMaxTargetMegabytesFlag(arg))
             {
                 if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsIgnoreGitleaksAllowFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
                 {
                     return false;
                 }
@@ -897,6 +909,7 @@ internal static partial class Program
         string source,
         int maxDecodeDepth,
         long? maxTargetBytes,
+        bool ignoreGitleaksAllow,
         [NotNullWhen(true)] out PicketScanCache? scanCache)
     {
         scanCache = null;
@@ -907,7 +920,7 @@ internal static partial class Program
 
         try
         {
-            scanCache = PicketScanCache.Open(cacheDir, ScanCacheKey.Create(rules.Fingerprint, maxDecodeDepth, maxTargetBytes));
+            scanCache = PicketScanCache.Open(cacheDir, ScanCacheKey.Create(rules.Fingerprint, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow));
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

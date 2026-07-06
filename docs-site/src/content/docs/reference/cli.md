@@ -860,7 +860,8 @@ Use the grouped index to jump to the workflow you need.
   --cache-dir path
   [-c path]
   [--max-decode-depth n]
-  [--max-target-megabytes n]</code></pre>
+  [--max-target-megabytes n]
+  [--ignore-gitleaks-allow]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -913,6 +914,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Skip files larger than this size.</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -944,7 +951,8 @@ Use the grouped index to jump to the workflow you need.
   [--other-keys]
   [--older-than-days n]
   [--max-decode-depth n]
-  [--max-target-megabytes n]</code></pre>
+  [--max-target-megabytes n]
+  [--ignore-gitleaks-allow]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1008,6 +1016,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
             </tr>
           </tbody>
         </table>

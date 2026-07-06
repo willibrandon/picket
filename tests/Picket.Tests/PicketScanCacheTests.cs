@@ -134,6 +134,25 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies inline allow behavior participates in scan-cache keys.
+    /// </summary>
+    [TestMethod]
+    public void TryReadMissesForDifferentGitleaksAllowBehavior()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345 # gitleaks:allow");
+        PicketScanCache honoringAllowCache = CreateCache(root.Path, ignoreGitleaksAllow: false);
+        PicketScanCache ignoringAllowCache = CreateCache(root.Path, ignoreGitleaksAllow: true);
+
+        honoringAllowCache.Write(content, "secret.txt", []);
+
+        bool hit = ignoringAllowCache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
     /// Verifies old scanner configuration entries can be pruned.
     /// </summary>
     [TestMethod]
@@ -174,11 +193,11 @@ public sealed class PicketScanCacheTests
         Assert.AreEqual(0, cache.GetStats().EntryCount);
     }
 
-    private static PicketScanCache CreateCache(string root, string pattern = "token-[0-9]+")
+    private static PicketScanCache CreateCache(string root, string pattern = "token-[0-9]+", bool ignoreGitleaksAllow = false)
     {
         var ruleSet = new RuleSet([SecretRule.Create("token", string.Empty, pattern)]);
         CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(ruleSet);
-        return PicketScanCache.Open(root, ScanCacheKey.Create(compiledRuleSet.Fingerprint, maxDecodeDepth: 5, maxTargetBytes: null));
+        return PicketScanCache.Open(root, ScanCacheKey.Create(compiledRuleSet.Fingerprint, maxDecodeDepth: 5, maxTargetBytes: null, ignoreGitleaksAllow));
     }
 
     private static Finding CreateFinding(string file)
