@@ -4,6 +4,7 @@ internal static partial class Program
 {
     private const int UnknownFlagExitCode = 126;
     private const int BinaryProbeLength = 8192;
+    private const int DefaultNativeMaxArchiveDepth = 1;
     private const int DefaultNativeMaxArchiveEntries = 4096;
     private const long DefaultNativeMaxArchiveBytes = 512_000_000;
     private const int DefaultNativeMaxArchiveCompressionRatio = 1000;

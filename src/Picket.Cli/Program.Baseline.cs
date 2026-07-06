@@ -40,7 +40,7 @@ internal static partial class Program
         int maxArchiveEntries = DefaultNativeMaxArchiveEntries;
         long? maxArchiveBytes = DefaultNativeMaxArchiveBytes;
         int maxArchiveCompressionRatio = DefaultNativeMaxArchiveCompressionRatio;
-        int maxArchiveDepth = 0;
+        int maxArchiveDepth = DefaultNativeMaxArchiveDepth;
         int maxDecodeDepth = 5;
         long? maxTargetBytes = null;
         int redactionPercent = 0;

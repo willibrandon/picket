@@ -159,6 +159,7 @@ Use the grouped index to jump to the workflow you need.
   [--cache-dir path]
   [--enable-rule id]
   [--max-target-megabytes n]
+  [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]</code></pre>
@@ -251,6 +252,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Skip files larger than this size.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-archive-entries</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -313,6 +320,7 @@ Use the grouped index to jump to the workflow you need.
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--only-verified]
+  [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]</code></pre>
@@ -411,6 +419,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Keep only findings that validation marked as verified.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-archive-entries</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -470,6 +484,7 @@ Use the grouped index to jump to the workflow you need.
   [--cache-dir path]
   [--offline]
   [--results unknown|structurally-valid|test-credential|invalid]
+  [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]</code></pre>
@@ -550,6 +565,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Keep findings with the selected validation result states.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-archive-entries</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -600,6 +621,7 @@ Use the grouped index to jump to the workflow you need.
   [--no-ignore]
   [--enable-rule id]
   [--max-target-megabytes n]
+  [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]
@@ -673,6 +695,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-archive-entries</code></td>
@@ -929,6 +957,7 @@ Use the grouped index to jump to the workflow you need.
   [--staged]
   [--pre-commit]
   [--max-target-megabytes n]
+  [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]
@@ -1076,6 +1105,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Skip files larger than this size.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-archive-entries</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -1149,6 +1184,7 @@ Use the grouped index to jump to the workflow you need.
   [--follow-symlinks]
   [--ignore-gitleaks-allow]
   [--max-target-megabytes n]
+  [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
   [--max-archive-ratio n]
@@ -1276,6 +1312,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-archive-entries</code></td>

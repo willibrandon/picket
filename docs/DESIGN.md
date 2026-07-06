@@ -502,7 +502,7 @@ Compatibility mode follows Gitleaks for:
 
 Native decoding treats percent, Unicode, hex, and base64 data as bounded candidate tokens with original-offset remapping. Hex and base64 candidates are probed once per maximal token; failed long tokens are skipped as a unit so attacker-controlled encoded-looking text cannot force quadratic decoder retries.
 
-Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, cooperative timeouts during source enumeration and archive reads, path traversal protection, temp-file policy, and clear diagnostics. Native directory, git, verify, analyze, and baseline workflows cap archive enumeration at 4096 entries, 512 decimal MB of decompressed archive payload, and a 1000:1 archive expansion ratio by default; `--max-archive-entries 0`, `--max-archive-megabytes 0`, and `--max-archive-ratio 0` disable those caps for trusted inputs.
+Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, cooperative timeouts during source enumeration and archive reads, path traversal protection, temp-file policy, and clear diagnostics. Native directory, git, verify, analyze, and baseline workflows scan first-level archives by default and cap archive enumeration at depth 1, 4096 entries, 512 decimal MB of decompressed archive payload, and a 1000:1 archive expansion ratio; `--max-archive-depth 0` disables archive traversal, and `--max-archive-entries 0`, `--max-archive-megabytes 0`, and `--max-archive-ratio 0` disable those caps for trusted inputs.
 
 ---
 

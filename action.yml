@@ -55,6 +55,14 @@ inputs:
     description: Optional maximum file size in decimal MB for content rules.
     required: false
     default: ""
+  max-archive-depth:
+    description: Optional maximum nested archive traversal depth. Use 0 to disable.
+    required: false
+    default: ""
+  max-archive-entries:
+    description: Optional maximum number of files extracted from archives. Use 0 to disable.
+    required: false
+    default: ""
   max-archive-megabytes:
     description: Optional maximum decompressed archive payload in decimal MB.
     required: false
@@ -128,6 +136,8 @@ runs:
         PICKET_ANNOTATION_LIMIT: ${{ inputs.annotation-limit }}
         PICKET_REDACT: ${{ inputs.redact }}
         PICKET_MAX_TARGET_MEGABYTES: ${{ inputs.max-target-megabytes }}
+        PICKET_MAX_ARCHIVE_DEPTH: ${{ inputs.max-archive-depth }}
+        PICKET_MAX_ARCHIVE_ENTRIES: ${{ inputs.max-archive-entries }}
         PICKET_MAX_ARCHIVE_MEGABYTES: ${{ inputs.max-archive-megabytes }}
         PICKET_MAX_ARCHIVE_RATIO: ${{ inputs.max-archive-ratio }}
       run: '& "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.ps1"'

@@ -25,6 +25,8 @@ This page is generated from `action.yml`.
 | `annotation-limit` | Maximum number of workflow annotations to emit. | false | `50` |
 | `redact` | Redaction percentage from 0 through 100. Defaults to full redaction for public CI safety. | false | `100` |
 | `max-target-megabytes` | Optional maximum file size in decimal MB for content rules. | false | `` |
+| `max-archive-depth` | Optional maximum nested archive traversal depth. Use 0 to disable. | false | `` |
+| `max-archive-entries` | Optional maximum number of files extracted from archives. Use 0 to disable. | false | `` |
 | `max-archive-megabytes` | Optional maximum decompressed archive payload in decimal MB. | false | `` |
 | `max-archive-ratio` | Optional maximum archive expansion ratio. Use 0 to disable. | false | `` |
 | `dotnet-version` | .NET SDK version used to run the source-based action. | false | `10.0.301` |

@@ -642,6 +642,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--results", result.Stdout);
+        Assert.Contains("--max-archive-depth", result.Stdout);
     }
 
     /// <summary>
@@ -713,6 +714,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("picket analyze", result.Stdout);
         Assert.Contains("--offline", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
+        Assert.Contains("--max-archive-depth", result.Stdout);
     }
 
     /// <summary>
@@ -867,6 +869,46 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"file\":\"secrets.zip!first.txt\"", result.Stdout);
         Assert.DoesNotContain("secrets.zip!second.txt", result.Stdout);
         Assert.Contains("archive entry limit reached after 1 entries while reading secrets.zip", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies native scans include first-level archives by default with bounded archive traversal.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanFindsZipArchiveSecretByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        WriteZipFile(Path.Combine(root.Path, "secrets.zip"), ("nested/secret.txt", "token-12345"));
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"secrets.zip!nested/secret.txt\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies native scans can explicitly disable archive traversal.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCanDisableArchiveTraversal()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        WriteZipFile(Path.Combine(root.Path, "secrets.zip"), ("nested/secret.txt", "token-12345"));
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--max-archive-depth=0",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
     }
 
     /// <summary>

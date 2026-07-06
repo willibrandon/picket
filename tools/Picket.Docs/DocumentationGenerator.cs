@@ -1125,6 +1125,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "--ignore-gitleaks-allow" => "Do not honor gitleaks:allow comments.",
             "--ignore-path" => "Load additional ignore patterns from this file.",
             "--log-opts" => "Pass git log options for compatibility scans.",
+            "--max-archive-depth" => "Limit nested archive traversal depth.",
             "--max-archive-entries" => "Limit files extracted from each archive.",
             "--max-archive-megabytes" => "Limit uncompressed archive size.",
             "--max-archive-ratio" => "Limit archive expansion ratio.",

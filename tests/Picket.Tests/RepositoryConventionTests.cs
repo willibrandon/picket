@@ -51,6 +51,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("annotation-limit", action);
         Assert.Contains("cache-path", action);
         Assert.Contains("redact", action);
+        Assert.Contains("max-archive-depth", action);
+        Assert.Contains("max-archive-entries", action);
         Assert.Contains("max-archive-megabytes", action);
         Assert.Contains("max-archive-ratio", action);
         Assert.Contains("actions/cache/restore", action);
@@ -75,6 +77,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--redact=$redact", helper);
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--max-target-megabytes", helper);
+        Assert.Contains("--max-archive-depth", helper);
+        Assert.Contains("--max-archive-entries", helper);
         Assert.Contains("--max-archive-megabytes", helper);
         Assert.Contains("--max-archive-ratio", helper);
         Assert.Contains("ConvertFrom-Json", helper);
@@ -107,6 +111,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("redact: 0", documentation);
         Assert.Contains("upload-sarif", documentation);
         Assert.Contains("cache-path", documentation);
+        Assert.Contains("max-archive-depth", documentation);
+        Assert.Contains("max-archive-entries", documentation);
         Assert.Contains("max-archive-megabytes", documentation);
         Assert.Contains("max-archive-ratio", documentation);
         Assert.Contains("actions/cache/restore", documentation);
@@ -346,6 +352,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("class=\"cli-command-detail-header\"", cliReference);
         Assert.Contains("class=\"cli-reference-table\"", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--offline / --live</code></td>", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--max-archive-depth</code></td>", cliReference);
         Assert.Contains("href=\"#picket-scan\"", cliReference);
         Assert.Contains("### picket git", cliReference);
         Assert.DoesNotContain("### picket cache\n", cliReference);

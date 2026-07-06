@@ -45,6 +45,8 @@ jobs:
 | `annotation-limit` | `50` | Maximum number of workflow annotations to emit. Use `0` to disable without changing `annotations`. |
 | `redact` | `100` | Redaction percentage from `0` through `100`. Public CI defaults to full redaction. |
 | `max-target-megabytes` | empty | Optional maximum file size in decimal MB for content rules. |
+| `max-archive-depth` | empty | Optional maximum nested archive traversal depth. Use `0` to disable archive traversal. |
+| `max-archive-entries` | empty | Optional maximum number of files extracted from archives. Use `0` to disable. |
 | `max-archive-megabytes` | empty | Optional maximum decompressed archive payload in decimal MB. |
 | `max-archive-ratio` | empty | Optional maximum archive expansion ratio. Use `0` to disable. |
 | `dotnet-version` | `10.0.301` | .NET SDK version used by the source-based action. |
