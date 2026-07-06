@@ -41,6 +41,7 @@ Live provider calls are opt-in behavior for `picket scan --verify`, `picket veri
 - `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, and atomic writes.
 - `SecretValidationCacheKey` is built from provider, validator version, rule ID, endpoint, and a SHA-256 secret hash. It rejects raw secret material where a hash is required.
 - Cache files store fingerprints, report states, expiration, non-secret reasons, and non-secret analysis metadata such as provider identity, scopes, resources, and evidence. They do not store raw secrets, raw matches, or endpoint query strings.
+- Live results include non-secret audit evidence for the provider, normalized endpoint without query or fragment data, endpoint policy decision, whether the provider was contacted for the current verification call, and whether the result came from the request or persistent cache.
 - Findings already marked `invalid` or `test-credential` by offline validation are not sent to live providers.
 
 The first provider validator is GitHub:

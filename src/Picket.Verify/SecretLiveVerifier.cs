@@ -41,35 +41,55 @@ public sealed class SecretLiveVerifier(
             EndpointGuardResult endpointResult = EndpointGuard.Evaluate(validator.Endpoint, _options.EndpointGuardOptions);
             if (!endpointResult.IsAllowed)
             {
-                return new SecretValidationResult(
-                    SecretValidationState.Error,
-                    string.Concat("endpoint blocked: ", endpointResult.BlockReason.ToString()));
+                return AddAuditEvidence(
+                    new SecretValidationResult(
+                        SecretValidationState.Error,
+                        string.Concat("endpoint blocked: ", endpointResult.BlockReason.ToString())),
+                    validator,
+                    endpointResult,
+                    providerContacted: false);
             }
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
             SecretValidationCacheKey cacheKey = SecretValidationCacheKey.FromFinding(validator.Provider, validator.Version, finding, validator.Endpoint);
             if (_requestCache.TryGetValue(cacheKey.Fingerprint, out SecretValidationResult? requestCachedResult))
             {
-                return requestCachedResult;
+                return AddAuditEvidence(
+                    requestCachedResult,
+                    validator,
+                    endpointResult,
+                    providerContacted: false,
+                    cacheHit: "request");
             }
 
             if (_cache is not null)
             {
                 if (_cache.TryRead(cacheKey, now, out SecretValidationResult? cachedResult))
                 {
-                    _requestCache[cacheKey.Fingerprint] = cachedResult;
-                    return cachedResult;
+                    SecretValidationResult auditedCachedResult = AddAuditEvidence(
+                        cachedResult,
+                        validator,
+                        endpointResult,
+                        providerContacted: false,
+                        cacheHit: "persistent");
+                    _requestCache[cacheKey.Fingerprint] = auditedCachedResult;
+                    return auditedCachedResult;
                 }
             }
 
             SecretValidationResult result = await validator.VerifyAsync(finding, cancellationToken).ConfigureAwait(false);
-            _requestCache[cacheKey.Fingerprint] = result;
-            if (_cache is not null && _options.TryGetCacheDuration(result.State, out TimeSpan duration))
+            SecretValidationResult auditedResult = AddAuditEvidence(
+                result,
+                validator,
+                endpointResult,
+                providerContacted: true);
+            _requestCache[cacheKey.Fingerprint] = auditedResult;
+            if (_cache is not null && _options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
             {
-                _cache.Write(cacheKey, result, now + duration);
+                _cache.Write(cacheKey, auditedResult, now + duration);
             }
 
-            return result;
+            return auditedResult;
         }
 
         return new SecretValidationResult(SecretValidationState.Skipped, "no live validator supports the finding");
@@ -99,5 +119,80 @@ public sealed class SecretLiveVerifier(
         }
 
         return validators;
+    }
+
+    private static SecretValidationResult AddAuditEvidence(
+        SecretValidationResult result,
+        ISecretLiveValidator validator,
+        EndpointGuardResult endpointResult,
+        bool providerContacted,
+        string cacheHit = "")
+    {
+        var evidence = new List<string>(result.Evidence.Count + 5)
+        {
+            string.Concat("provider=", validator.Provider),
+            string.Concat("endpoint=", NormalizeEndpoint(validator.Endpoint)),
+            string.Concat("endpointPolicy=", CreateEndpointPolicy(endpointResult)),
+            string.Concat("providerContacted=", providerContacted ? "true" : "false"),
+        };
+
+        if (cacheHit.Length != 0)
+        {
+            evidence.Add(string.Concat("cacheHit=", cacheHit));
+        }
+
+        for (int i = 0; i < result.Evidence.Count; i++)
+        {
+            string value = result.Evidence[i];
+            if (!IsVerifierAuditEvidence(value) && !evidence.Contains(value, StringComparer.Ordinal))
+            {
+                evidence.Add(value);
+            }
+        }
+
+        return new SecretValidationResult(
+            result.State,
+            result.Reason,
+            result.Identity,
+            Copy(result.Scopes),
+            Copy(result.ReachableResources),
+            [.. evidence]);
+    }
+
+    private static string CreateEndpointPolicy(EndpointGuardResult endpointResult)
+    {
+        return endpointResult.IsAllowed
+            ? "allowed"
+            : string.Concat("blocked:", endpointResult.BlockReason.ToString());
+    }
+
+    private static string NormalizeEndpoint(Uri endpoint)
+    {
+        return endpoint.GetComponents(UriComponents.SchemeAndServer | UriComponents.Path, UriFormat.UriEscaped);
+    }
+
+    private static bool IsVerifierAuditEvidence(string value)
+    {
+        return value.StartsWith("provider=", StringComparison.Ordinal)
+            || value.StartsWith("endpoint=", StringComparison.Ordinal)
+            || value.StartsWith("endpointPolicy=", StringComparison.Ordinal)
+            || value.StartsWith("providerContacted=", StringComparison.Ordinal)
+            || value.StartsWith("cacheHit=", StringComparison.Ordinal);
+    }
+
+    private static string[] Copy(IReadOnlyList<string> values)
+    {
+        if (values.Count == 0)
+        {
+            return [];
+        }
+
+        var copy = new string[values.Count];
+        for (int i = 0; i < values.Count; i++)
+        {
+            copy[i] = values[i];
+        }
+
+        return copy;
     }
 }
