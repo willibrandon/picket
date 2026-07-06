@@ -14,8 +14,11 @@ public sealed class PicketScanCache
     private const int Sha256HexLength = 64;
     private const string CacheEntryExtension = ".cache";
     private const string SchemaLine = "picket.scan-cache.v1";
+    private const string AddressModeHeader = "addressMode";
+    private const string ContentAddressDiscriminator = "content";
     private const string CreatedUnixTimeSecondsHeader = "createdUnixTimeSeconds";
     private const string EntriesDirectoryName = "entries";
+    private const string ExtensionAddressPrefix = "extension:";
     private const string FindingCountHeader = "findingCount";
     private const string LocksDirectoryName = "locks";
 
@@ -68,8 +71,8 @@ public sealed class PicketScanCache
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
         string blobHash = BlobHasher.ComputeSha256Hex(content);
-        string pathHash = BlobHasher.ComputeSha256Hex(fileName);
-        string entryPath = CreateEntryPath(blobHash, pathHash);
+        string addressHash = CreateAddressHash(fileName);
+        string entryPath = CreateEntryPath(blobHash, addressHash);
         findings = null;
         if (!File.Exists(entryPath))
         {
@@ -99,20 +102,20 @@ public sealed class PicketScanCache
         ArgumentNullException.ThrowIfNull(findings);
 
         string blobHash = BlobHasher.ComputeSha256Hex(content);
-        string pathHash = BlobHasher.ComputeSha256Hex(fileName);
-        string entryPath = CreateEntryPath(blobHash, pathHash);
+        string addressHash = CreateAddressHash(fileName);
+        string entryPath = CreateEntryPath(blobHash, addressHash);
         string? entryDirectory = Path.GetDirectoryName(entryPath);
         if (entryDirectory is not null)
         {
             Directory.CreateDirectory(entryDirectory);
         }
 
-        string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", pathHash, ".lock"));
+        string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
         using FileStream _ = OpenLock(lockPath);
         string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
         try
         {
-            File.WriteAllText(tempPath, CreateEntry(blobHash, Key.Fingerprint, findings), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(tempPath, CreateEntry(blobHash, Key.Fingerprint, Key.AddressMode, findings), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             File.Move(tempPath, entryPath, overwrite: true);
         }
         finally
@@ -202,7 +205,7 @@ public sealed class PicketScanCache
             if (!TryParseArchiveEntryName(
                 archiveEntry.FullName,
                 out string blobHash,
-                out string pathHash,
+                out string addressHash,
                 out string shard,
                 out bool isCurrentKey))
             {
@@ -214,7 +217,7 @@ public sealed class PicketScanCache
                 continue;
             }
 
-            string entryPath = Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, pathHash, Key.Fingerprint));
+            string entryPath = Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, addressHash, Key.Fingerprint));
             string fullEntryPath = Path.GetFullPath(entryPath);
             if (!IsWithinDirectory(fullEntryPath, _entriesPath))
             {
@@ -227,7 +230,7 @@ public sealed class PicketScanCache
                 Directory.CreateDirectory(entryDirectory);
             }
 
-            string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", pathHash, ".lock"));
+            string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
             using FileStream _ = OpenLock(lockPath);
             string tempPath = CreateTempPath(fullEntryPath);
             try
@@ -317,7 +320,11 @@ public sealed class PicketScanCache
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 81920, FileOptions.SequentialScan);
     }
 
-    private static string CreateEntry(string blobHash, string keyFingerprint, IReadOnlyList<Finding> findings)
+    private static string CreateEntry(
+        string blobHash,
+        string keyFingerprint,
+        ScanCacheAddressMode addressMode,
+        IReadOnlyList<Finding> findings)
     {
         var builder = new StringBuilder();
         builder.Append(SchemaLine);
@@ -331,6 +338,10 @@ public sealed class PicketScanCache
         builder.Append(CreatedUnixTimeSecondsHeader);
         builder.Append('\t');
         builder.Append(DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
+        builder.Append('\n');
+        builder.Append(AddressModeHeader);
+        builder.Append('\t');
+        builder.Append(addressMode.ToString());
         builder.Append('\n');
         builder.Append(FindingCountHeader);
         builder.Append('\t');
@@ -422,6 +433,12 @@ public sealed class PicketScanCache
             return long.TryParse(fields[1], CultureInfo.InvariantCulture, out long value) && value >= 0;
         }
 
+        if (fields[0].Equals(AddressModeHeader, StringComparison.Ordinal))
+        {
+            return Enum.TryParse(fields[1], ignoreCase: false, out ScanCacheAddressMode value)
+                && value is ScanCacheAddressMode.Path or ScanCacheAddressMode.FileExtension or ScanCacheAddressMode.Content;
+        }
+
         if (fields[0].Equals(FindingCountHeader, StringComparison.Ordinal))
         {
             if (!int.TryParse(fields[1], CultureInfo.InvariantCulture, out int value) || value < 0)
@@ -457,12 +474,12 @@ public sealed class PicketScanCache
     private bool TryParseArchiveEntryName(
         string entryName,
         out string blobHash,
-        out string pathHash,
+        out string addressHash,
         out string shard,
         out bool isCurrentKey)
     {
         blobHash = string.Empty;
-        pathHash = string.Empty;
+        addressHash = string.Empty;
         shard = string.Empty;
         isCurrentKey = false;
 
@@ -478,7 +495,7 @@ public sealed class PicketScanCache
         if (segments.Length != 3
             || !segments[0].Equals(EntriesDirectoryName, StringComparison.Ordinal)
             || segments[1].Length != 2
-            || !TryParseEntryFileName(segments[2], out blobHash, out pathHash, out string keyFingerprint)
+            || !TryParseEntryFileName(segments[2], out blobHash, out addressHash, out string keyFingerprint)
             || !segments[1].Equals(blobHash[..2], StringComparison.Ordinal))
         {
             return false;
@@ -489,10 +506,26 @@ public sealed class PicketScanCache
         return true;
     }
 
-    private string CreateEntryPath(string blobHash, string pathHash)
+    private string CreateEntryPath(string blobHash, string addressHash)
     {
         string shard = blobHash[..2];
-        return Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, pathHash, Key.Fingerprint));
+        return Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, addressHash, Key.Fingerprint));
+    }
+
+    private string CreateAddressHash(string fileName)
+    {
+        return Key.AddressMode switch
+        {
+            ScanCacheAddressMode.Path => BlobHasher.ComputeSha256Hex(fileName),
+            ScanCacheAddressMode.FileExtension => BlobHasher.ComputeSha256Hex(CreateExtensionAddress(fileName)),
+            ScanCacheAddressMode.Content => BlobHasher.ComputeSha256Hex(ContentAddressDiscriminator),
+            _ => throw new InvalidOperationException($"Unsupported cache address mode: {Key.AddressMode}."),
+        };
+    }
+
+    private static string CreateExtensionAddress(string fileName)
+    {
+        return string.Concat(ExtensionAddressPrefix, Path.GetExtension(fileName).ToLowerInvariant());
     }
 
     private IEnumerable<string> EnumerateEntryFiles()
@@ -562,9 +595,9 @@ public sealed class PicketScanCache
         return true;
     }
 
-    private static string CreateEntryFileName(string blobHash, string pathHash, string keyFingerprint)
+    private static string CreateEntryFileName(string blobHash, string addressHash, string keyFingerprint)
     {
-        return string.Concat(blobHash, "-", pathHash, "-", keyFingerprint, CacheEntryExtension);
+        return string.Concat(blobHash, "-", addressHash, "-", keyFingerprint, CacheEntryExtension);
     }
 
     private static string CreateTempPath(string path)
@@ -581,11 +614,11 @@ public sealed class PicketScanCache
     private static bool TryParseEntryFileName(
         string fileName,
         out string blobHash,
-        out string pathHash,
+        out string addressHash,
         out string keyFingerprint)
     {
         blobHash = string.Empty;
-        pathHash = string.Empty;
+        addressHash = string.Empty;
         keyFingerprint = string.Empty;
         if (!fileName.EndsWith(CacheEntryExtension, StringComparison.Ordinal)
             || fileName.Length != Sha256HexLength + 1 + Sha256HexLength + 1 + Sha256HexLength + CacheEntryExtension.Length
@@ -596,9 +629,9 @@ public sealed class PicketScanCache
         }
 
         blobHash = fileName[..Sha256HexLength];
-        pathHash = fileName.Substring(Sha256HexLength + 1, Sha256HexLength);
+        addressHash = fileName.Substring(Sha256HexLength + 1, Sha256HexLength);
         keyFingerprint = fileName.Substring(Sha256HexLength + 1 + Sha256HexLength + 1, Sha256HexLength);
-        return IsSha256Hex(blobHash) && IsSha256Hex(pathHash) && IsSha256Hex(keyFingerprint);
+        return IsSha256Hex(blobHash) && IsSha256Hex(addressHash) && IsSha256Hex(keyFingerprint);
     }
 
     private static bool IsValidEntryFile(string entryPath, string blobHash, string keyFingerprint)

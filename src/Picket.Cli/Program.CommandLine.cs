@@ -1039,7 +1039,7 @@ internal static partial class Program
 
         try
         {
-            scanCache = PicketScanCache.Open(cacheDir, ScanCacheKey.Create(rules.Fingerprint, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow));
+            scanCache = PicketScanCache.Open(cacheDir, CreateNativeScanCacheKey(rules, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow));
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -1047,5 +1047,30 @@ internal static partial class Program
             Console.Error.WriteLine($"failed to open cache: {ex.Message}");
             return false;
         }
+    }
+
+    static ScanCacheKey CreateNativeScanCacheKey(
+        CompiledRuleSet rules,
+        int maxDecodeDepth,
+        long? maxTargetBytes,
+        bool ignoreGitleaksAllow)
+    {
+        return ScanCacheKey.Create(
+            rules.Fingerprint,
+            maxDecodeDepth,
+            maxTargetBytes,
+            ignoreGitleaksAllow,
+            CreateNativeScanCacheAddressMode(rules, maxDecodeDepth));
+    }
+
+    static ScanCacheAddressMode CreateNativeScanCacheAddressMode(CompiledRuleSet rules, int maxDecodeDepth)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+        if (rules.UsesPathSensitiveMatching)
+        {
+            return ScanCacheAddressMode.Path;
+        }
+
+        return maxDecodeDepth > 0 ? ScanCacheAddressMode.FileExtension : ScanCacheAddressMode.Content;
     }
 }

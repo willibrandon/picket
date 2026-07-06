@@ -13,10 +13,12 @@ Picket's native `--cache-dir` stores scan results for unchanged filesystem blobs
 Each entry is addressed by:
 
 - SHA-256 of the source content,
-- SHA-256 of the logical report path,
+- an address discriminator,
 - scanner configuration fingerprint.
 
-The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, maximum target size, and whether `--ignore-gitleaks-allow` was enabled. Changing rules or these scan options invalidates old entries without deleting them.
+The address discriminator is the narrowest safe value for the active scan behavior. Path-sensitive rule sets use the logical report path. Path-insensitive native scans that can run file-extension-specific decoders use the file extension. Scans with no path-dependent rule or decoder behavior use a content-only discriminator, so identical blobs can reuse matching work across paths while reports are rehydrated with the current path and symlink provenance.
+
+The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, maximum target size, whether `--ignore-gitleaks-allow` was enabled, and the cache address mode when it is not the legacy path mode. Changing rules or these scan options invalidates old entries without deleting them.
 
 ## Entry Format
 
@@ -28,10 +30,11 @@ Current entries include:
 - scanner key fingerprint,
 - blob hash,
 - creation time as Unix seconds,
+- cache address mode,
 - finding count,
 - cached finding rows.
 
-Older entries without creation and finding-count metadata remain readable. Corrupt entries are treated as misses and are not allowed to fail a scan.
+Older entries without creation, address-mode, and finding-count metadata remain readable. Corrupt entries are treated as misses and are not allowed to fail a scan.
 
 ## Privacy
 

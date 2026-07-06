@@ -24,6 +24,11 @@ public sealed class CompiledRuleSet(RuleSet rules)
     /// </summary>
     public string Fingerprint { get; } = CreateFingerprint(rules);
 
+    /// <summary>
+    /// Gets a value indicating whether rule evaluation can depend on the logical source path.
+    /// </summary>
+    public bool UsesPathSensitiveMatching { get; } = CreateUsesPathSensitiveMatching(rules);
+
     internal List<CompiledRule> CompiledRules { get; } = CompileRules(rules);
 
     internal List<CompiledAllowlist> Allowlists { get; } = CompiledAllowlist.Compile(
@@ -100,6 +105,37 @@ public sealed class CompiledRuleSet(RuleSet rules)
     private static bool IsPicketNativeRulePack(string rulePack)
     {
         return rulePack.StartsWith("picket-", StringComparison.Ordinal);
+    }
+
+    private static bool CreateUsesPathSensitiveMatching(RuleSet rules)
+    {
+        if (HasPathAllowlist(rules.Allowlists))
+        {
+            return true;
+        }
+
+        foreach (SecretRule rule in rules.Rules)
+        {
+            if (rule.PathPattern.Length != 0 || HasPathAllowlist(rule.Allowlists))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasPathAllowlist(IReadOnlyList<SecretAllowlist> allowlists)
+    {
+        foreach (SecretAllowlist allowlist in allowlists)
+        {
+            if (allowlist.PathPatterns.Count != 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string CreateFingerprint(RuleSet rules)

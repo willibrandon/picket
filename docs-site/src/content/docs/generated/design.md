@@ -618,6 +618,7 @@ Analysis output is separate from scan output and optimized for incident response
 Design requirements:
 
 - SHA-256 blob identity,
+- cache entries use the narrowest safe address discriminator: content-only for path-independent scans, file extension when extension-specific native decoders can run, and full logical path for path-sensitive rules or path allowlists,
 - schema versioning and migrations,
 - rule-pack/config/version and scan-behavior cache invalidation,
 - decode/archive-derived blob lineage,
@@ -627,7 +628,7 @@ Design requirements:
 - portable cache export/import,
 - provenance-preserving reports.
 
-Dedup skips duplicate matching work but does not collapse compatibility reports. If Gitleaks would report the same blob at multiple commits/paths, compatibility mode still reports every provenance.
+Dedup skips duplicate matching work where rule and decoder semantics make it safe, but it does not collapse compatibility reports. If Gitleaks would report the same blob at multiple commits/paths, compatibility mode still reports every provenance.
 
 ### 8.8 Sources
 

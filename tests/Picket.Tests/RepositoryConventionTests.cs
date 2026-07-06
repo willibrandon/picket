@@ -332,7 +332,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("strict Gitleaks-compatible commands reject `--cache-dir`", cache);
         Assert.Contains("scanner configuration fingerprint", cache);
         Assert.Contains("--ignore-gitleaks-allow", cache);
-        Assert.Contains("Older entries without creation and finding-count metadata remain readable", cache);
+        Assert.Contains("Older entries without creation, address-mode, and finding-count metadata remain readable", cache);
         Assert.Contains("PicketScanCache.GetStats()", cache);
         Assert.Contains("PicketScanCache.PruneOtherKeys()", cache);
         Assert.Contains("PicketScanCache.PruneOlderThan", cache);

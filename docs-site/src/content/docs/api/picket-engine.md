@@ -37,6 +37,7 @@ Represents a rule set with precompiled Scout regexes and keyword prefilters.
 
 - `Fingerprint` - Gets a stable fingerprint for the rules, allowlists, and rule compilation inputs.
 - `Rules` - Gets the source rules in deterministic evaluation order.
+- `UsesPathSensitiveMatching` - Gets a value indicating whether rule evaluation can depend on the logical source path.
 
 ## Finding
 

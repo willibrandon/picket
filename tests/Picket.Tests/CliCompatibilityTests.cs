@@ -877,6 +877,60 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scan caching deduplicates identical same-extension blobs.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCacheDeduplicatesSameExtensionBlobs()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "first.txt"), "finding");
+        File.WriteAllText(Path.Combine(root.Path, "second.txt"), "finding");
+
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult stats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.Contains("\"file\":\"first.txt\"", scan.Stdout);
+        Assert.Contains("\"file\":\"second.txt\"", scan.Stdout);
+        Assert.AreEqual(0, stats.ExitCode);
+        Assert.Contains("entries: 1", stats.Stdout);
+        Assert.Contains("current-key entries: 1", stats.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scan caching keeps path-sensitive rule results separate.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCacheKeepsPathSensitiveRulesSeparate()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "word"
+            regex = '''finding'''
+            path = '''first\.txt$'''
+            """);
+        File.WriteAllText(Path.Combine(root.Path, "first.txt"), "finding");
+        File.WriteAllText(Path.Combine(root.Path, "second.txt"), "finding");
+
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult stats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.Contains("\"file\":\"first.txt\"", scan.Stdout);
+        Assert.DoesNotContain("\"file\":\"second.txt\"", scan.Stdout);
+        Assert.AreEqual(0, stats.ExitCode);
+        Assert.Contains("entries: 2", stats.Stdout);
+        Assert.Contains("current-key entries: 2", stats.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scan cache entries are invalidated by inline allow behavior.
     /// </summary>
     [TestMethod]

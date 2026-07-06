@@ -125,6 +125,68 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies content-addressed cache entries are reused across logical paths.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRehydratesContentAddressedFindingsForDifferentPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, addressMode: ScanCacheAddressMode.Content);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "first.txt", [CreateFinding("first.txt")]);
+
+        bool hit = cache.TryRead(content, "second.txt", "link.txt", out List<Finding>? cachedFindings);
+
+        Assert.IsTrue(hit);
+        Assert.IsNotNull(cachedFindings);
+        Assert.HasCount(1, cachedFindings);
+        Assert.AreEqual("second.txt", cachedFindings[0].File);
+        Assert.AreEqual("link.txt", cachedFindings[0].SymlinkFile);
+        Assert.AreEqual("second.txt:token:1", cachedFindings[0].Fingerprint);
+    }
+
+    /// <summary>
+    /// Verifies extension-addressed cache entries reuse same-extension paths only.
+    /// </summary>
+    [TestMethod]
+    public void TryReadReusesFileExtensionAddressedFindingsForSameExtension()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, addressMode: ScanCacheAddressMode.FileExtension);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "first.cs", [CreateFinding("first.cs")]);
+
+        bool sameExtensionHit = cache.TryRead(content, "second.cs", string.Empty, out List<Finding>? sameExtensionFindings);
+        bool differentExtensionHit = cache.TryRead(content, "second.txt", string.Empty, out List<Finding>? differentExtensionFindings);
+
+        Assert.IsTrue(sameExtensionHit);
+        Assert.IsNotNull(sameExtensionFindings);
+        Assert.HasCount(1, sameExtensionFindings);
+        Assert.AreEqual("second.cs", sameExtensionFindings[0].File);
+        Assert.IsFalse(differentExtensionHit);
+        Assert.IsNull(differentExtensionFindings);
+    }
+
+    /// <summary>
+    /// Verifies compiled rule sets report whether matching can depend on source paths.
+    /// </summary>
+    [TestMethod]
+    public void CompiledRuleSetReportsPathSensitiveMatching()
+    {
+        var contentOnlyRules = new RuleSet([SecretRule.Create("token", string.Empty, "token-[0-9]+")]);
+        var pathScopedRules = new RuleSet([SecretRule.Create("token", string.Empty, "token-[0-9]+", pathPattern: "secrets/")]);
+        var pathAllowlistRules = new RuleSet(
+            [SecretRule.Create("token", string.Empty, "token-[0-9]+")],
+            allowlists: [SecretAllowlist.Create(pathPatterns: ["ignored/"])]);
+
+        Assert.IsFalse(CompiledRuleSet.Compile(contentOnlyRules).UsesPathSensitiveMatching);
+        Assert.IsTrue(CompiledRuleSet.Compile(pathScopedRules).UsesPathSensitiveMatching);
+        Assert.IsTrue(CompiledRuleSet.Compile(pathAllowlistRules).UsesPathSensitiveMatching);
+    }
+
+    /// <summary>
     /// Verifies rule-set fingerprints invalidate old cache entries.
     /// </summary>
     [TestMethod]
@@ -289,11 +351,15 @@ public sealed class PicketScanCacheTests
         Assert.IsFalse(File.Exists(Path.Combine(root.Path, "evil.cache")));
     }
 
-    private static PicketScanCache CreateCache(string root, string pattern = "token-[0-9]+", bool ignoreGitleaksAllow = false)
+    private static PicketScanCache CreateCache(
+        string root,
+        string pattern = "token-[0-9]+",
+        bool ignoreGitleaksAllow = false,
+        ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path)
     {
         var ruleSet = new RuleSet([SecretRule.Create("token", string.Empty, pattern)]);
         CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(ruleSet);
-        return PicketScanCache.Open(root, ScanCacheKey.Create(compiledRuleSet.Fingerprint, maxDecodeDepth: 5, maxTargetBytes: null, ignoreGitleaksAllow));
+        return PicketScanCache.Open(root, ScanCacheKey.Create(compiledRuleSet.Fingerprint, maxDecodeDepth: 5, maxTargetBytes: null, ignoreGitleaksAllow, addressMode));
     }
 
     private static Finding CreateFinding(string file)
