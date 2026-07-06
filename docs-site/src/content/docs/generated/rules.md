@@ -116,6 +116,7 @@ Every required rule ID must exist, and a rule must not require itself.
 - invalid regexes and secret capture groups.
 - empty keywords, tags, allowlist entries, and required-rule IDs.
 - required-rule references.
+- required positive and negative examples for Picket-native rules.
 - positive and negative examples without printing example contents in diagnostics.
 
 `picket rules test <rule-id> <input>` scans sample text with one selected rule using Picket-native config precedence by default. It accepts `--source` for target-local `.gitleaks.toml` discovery, `--path` for path-only rules and report location metadata, `--max-decode-depth`, `--max-target-megabytes`, `--ignore-gitleaks-allow`, `--redact[=n]`, and the native report formats `json`, `jsonl`, `csv`, `junit`, `html`, `gitlab`, `sarif`, and `toon`. Use `--` before `<input>` when the sample starts with `-`. The default output is Picket JSON with schema, rule metadata, stable fingerprints, hashes, decode provenance, and offline validation state. Use `--print-config` to emit the resolved selected rule config.

@@ -4,7 +4,31 @@ internal static class EmbeddedPicketConfig
 {
     internal const string SourceVersion = "picket-2026-07-06";
 
-    internal const string Toml = """
+    internal static string Toml { get; } = CreateToml();
+
+    private static string CreateToml()
+    {
+        string awsAccessKeyId = CreateExample("A3T0", "EXAMPLEEXAMPLE22");
+        string awsSecretAccessKey = CreateExample("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
+        string azureStorageAccountKey = CreateExample(
+            "MDEyMzQ1Njc4OUFCQ0RFRkdISktMTU5PUFFS",
+            "U1RVVldYWVoxMjM0NTY3ODlBQkNERUZHSElK",
+            "S0xNTk9QUVJTVA==");
+        string googleApiKey = CreateExample("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
+        string gcpServiceAccountExample = CreateExample(
+            "{\"type\":\"",
+            "service_account",
+            "\",\"client_email\":\"scanner-sa@picket-prod-123.iam.gserviceaccount.com\"}");
+        string gcpServiceAccountNegativeExample = "{\"type\":\"user\",\"project_id\":\"picket-prod-123\"}";
+        string githubClassicTokenSuffix = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        string githubFineGrainedToken = CreateExample(
+            "github",
+            "_pat_",
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "0123456789");
+
+        return $$"""
 title = "picket native default config"
 
 [extend]
@@ -29,6 +53,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "AWS"
 documentationUrl = "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
+examples = ["aws_access_key_id = {{awsAccessKeyId}}\naws_secret_access_key = {{awsSecretAccessKey}}"]
+negativeExamples = ["aws_access_key_id = {{awsAccessKeyId}}"]
 
 [[rules]]
 id = "picket-azure-storage-connection-string"
@@ -43,6 +69,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "Azure"
 documentationUrl = "https://learn.microsoft.com/azure/storage/common/storage-account-keys-manage"
+examples = ["DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={{azureStorageAccountKey}};EndpointSuffix=core.windows.net"]
+negativeExamples = ["DefaultEndpointsProtocol=https;AccountName=picketstorage;EndpointSuffix=core.windows.net"]
 
 [[rules]]
 id = "picket-google-api-key"
@@ -56,6 +84,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GCP"
 documentationUrl = "https://cloud.google.com/docs/authentication/api-keys"
+examples = ["api_key = \"{{googleApiKey}}\""]
+negativeExamples = ["api_key = \"AIza-not-long-enough\""]
 
 [[rules]]
 id = "picket-gcp-service-account-key"
@@ -68,6 +98,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GCP"
 documentationUrl = "https://cloud.google.com/iam/docs/keys-create-delete"
+examples = ['''{{gcpServiceAccountExample}}''']
+negativeExamples = ['''{{gcpServiceAccountNegativeExample}}''']
 
 [[rules]]
 id = "picket-github-app-token"
@@ -82,6 +114,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app"
+examples = ["ghs_{{githubClassicTokenSuffix}}"]
+negativeExamples = ["ghs_invalid"]
 
 [[rules]]
 id = "picket-github-fine-grained-personal-access-token"
@@ -96,6 +130,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+examples = ["{{githubFineGrainedToken}}"]
+negativeExamples = ["github_pat_invalid"]
 
 [[rules]]
 id = "picket-github-oauth-token"
@@ -110,6 +146,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/apps/oauth-apps/maintaining-oauth-apps/authorizing-oauth-apps"
+examples = ["gho_{{githubClassicTokenSuffix}}"]
+negativeExamples = ["gho_invalid"]
 
 [[rules]]
 id = "picket-github-personal-access-token"
@@ -124,6 +162,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+examples = ["ghp_{{githubClassicTokenSuffix}}"]
+negativeExamples = ["ghp_invalid"]
 
 [[rules]]
 id = "picket-github-refresh-token"
@@ -138,5 +178,13 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/apps/oauth-apps/building-oauth-apps/refreshing-user-to-server-access-tokens"
+examples = ["ghr_{{githubClassicTokenSuffix}}"]
+negativeExamples = ["ghr_invalid"]
 """;
+    }
+
+    private static string CreateExample(params string[] parts)
+    {
+        return string.Concat(parts);
+    }
 }

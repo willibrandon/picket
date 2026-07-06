@@ -396,9 +396,34 @@ internal static partial class Program
             ValidateTextEntries(rule.Id, "tag", rule.Tags, StringComparer.Ordinal);
             ValidateTextEntries(rule.Id, "example", rule.Examples, StringComparer.Ordinal);
             ValidateTextEntries(rule.Id, "negative example", rule.NegativeExamples, StringComparer.Ordinal);
+            ValidateNativeRuleExamples(rule);
             ValidateRequiredRules(rule);
             ValidateAllowlists($"rule {rule.Id} allowlist", rule.Allowlists);
         }
+    }
+
+    static void ValidateNativeRuleExamples(SecretRule rule)
+    {
+        if (!IsPicketNativeRule(rule))
+        {
+            return;
+        }
+
+        if (rule.Examples.Count == 0)
+        {
+            throw new InvalidDataException($"rule {rule.Id}: native rules require at least one positive example");
+        }
+
+        if (rule.NegativeExamples.Count == 0)
+        {
+            throw new InvalidDataException($"rule {rule.Id}: native rules require at least one negative example");
+        }
+    }
+
+    static bool IsPicketNativeRule(SecretRule rule)
+    {
+        return rule.Id.StartsWith("picket-", StringComparison.Ordinal)
+            || rule.RulePack.StartsWith("picket-", StringComparison.Ordinal);
     }
 
     static void ValidateRuleExamples(IReadOnlyList<SecretRule> rules, CompiledRuleSet compiledRuleSet)

@@ -3438,6 +3438,8 @@ public sealed class CliCompatibilityTests
         Assert.Contains("id = \"picket-azure-storage-connection-string\"", printed.Stdout);
         Assert.Contains("rulePack = \"picket-default\"", printed.Stdout);
         Assert.Contains("provider = \"Azure\"", printed.Stdout);
+        Assert.Contains("examples = [", printed.Stdout);
+        Assert.Contains("negativeExamples = [", printed.Stdout);
     }
 
     /// <summary>
@@ -3574,6 +3576,54 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("rule token: negative example 1 produced a finding", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check requires positive examples for Picket-native rules.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsNativeRuleWithoutPositiveExample()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "picket-custom-token"
+            regex = '''picket-[0-9]+'''
+            rulePack = "picket-default"
+            negativeExamples = ["picket-token"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("rule picket-custom-token: native rules require at least one positive example", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check requires negative examples for Picket-native rules.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsNativeRuleWithoutNegativeExample()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "custom-token"
+            regex = '''picket-[0-9]+'''
+            rulePack = "picket-default"
+            examples = ["picket-12345"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("rule custom-token: native rules require at least one negative example", result.Stderr);
     }
 
     /// <summary>
