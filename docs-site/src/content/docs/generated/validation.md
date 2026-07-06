@@ -62,6 +62,7 @@ The first provider validator is GitHub:
 - `401 Unauthorized` maps to `inactive`,
 - automatic HTTP redirects are disabled; redirect responses map to `error`,
 - `403 Forbidden`, `429 Too Many Requests`, other unexpected statuses, request failures, and endpoint-policy failures map to `error`.
+- HTTP responses include non-secret `httpStatus` evidence for audit and troubleshooting.
 
 Before additional providers can be enabled in the CLI, each validator also requires a threat-model entry with:
 

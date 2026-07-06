@@ -95,10 +95,13 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
             return response.StatusCode switch
             {
                 HttpStatusCode.OK => CreateActiveResult(response, responseBody),
-                HttpStatusCode.Unauthorized => new SecretValidationResult(SecretValidationState.Inactive, "GitHub rejected the token"),
-                HttpStatusCode.Forbidden => new SecretValidationResult(SecretValidationState.Error, "GitHub forbade the verification request"),
-                (HttpStatusCode)429 => new SecretValidationResult(SecretValidationState.Error, "GitHub rate limited the verification request"),
-                _ => new SecretValidationResult(SecretValidationState.Error, string.Concat("GitHub returned HTTP ", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture))),
+                HttpStatusCode.Unauthorized => CreateHttpResult(SecretValidationState.Inactive, "GitHub rejected the token", response.StatusCode),
+                HttpStatusCode.Forbidden => CreateHttpResult(SecretValidationState.Error, "GitHub forbade the verification request", response.StatusCode),
+                (HttpStatusCode)429 => CreateHttpResult(SecretValidationState.Error, "GitHub rate limited the verification request", response.StatusCode),
+                _ => CreateHttpResult(
+                    SecretValidationState.Error,
+                    string.Concat("GitHub returned HTTP ", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture)),
+                    response.StatusCode),
             };
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -146,6 +149,14 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
             scopes,
             ["github:user"],
             [.. evidence]);
+    }
+
+    private static SecretValidationResult CreateHttpResult(SecretValidationState state, string reason, HttpStatusCode statusCode)
+    {
+        return new SecretValidationResult(
+            state,
+            reason,
+            evidence: [string.Concat("httpStatus=", ((int)statusCode).ToString(CultureInfo.InvariantCulture))]);
     }
 
     private async ValueTask<string> ReadSmallResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)

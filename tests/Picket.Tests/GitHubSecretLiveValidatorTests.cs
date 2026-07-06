@@ -54,6 +54,7 @@ public sealed class GitHubSecretLiveValidatorTests
         SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), CancellationToken.None);
 
         Assert.AreEqual(SecretValidationState.Inactive, result.State);
+        Assert.Contains("httpStatus=401", result.Evidence);
         Assert.AreEqual(1, handler.RequestCount);
     }
 
@@ -75,6 +76,24 @@ public sealed class GitHubSecretLiveValidatorTests
 
         Assert.AreEqual(SecretValidationState.Error, result.State);
         Assert.Contains("HTTP 302", result.Reason);
+        Assert.Contains("httpStatus=302", result.Evidence);
+        Assert.AreEqual(1, handler.RequestCount);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub rate-limit responses produce auditable error results.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncReturnsErrorForRateLimitedResponse()
+    {
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage((HttpStatusCode)429));
+        GitHubSecretLiveValidator validator = CreateValidator(handler);
+
+        SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), CancellationToken.None);
+
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.Contains("rate limited", result.Reason);
+        Assert.Contains("httpStatus=429", result.Evidence);
         Assert.AreEqual(1, handler.RequestCount);
     }
 
