@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO.Compression;
 using System.Text;
 using Picket.Engine;
 
@@ -10,6 +11,8 @@ namespace Picket.Store;
 /// </summary>
 public sealed class PicketScanCache
 {
+    private const int Sha256HexLength = 64;
+    private const string CacheEntryExtension = ".cache";
     private const string SchemaLine = "picket.scan-cache.v1";
     private const string CreatedUnixTimeSecondsHeader = "createdUnixTimeSeconds";
     private const string EntriesDirectoryName = "entries";
@@ -119,6 +122,141 @@ public sealed class PicketScanCache
     }
 
     /// <summary>
+    /// Exports current scanner-key cache entries to a portable zip archive.
+    /// </summary>
+    /// <param name="archivePath">The destination archive path.</param>
+    /// <returns>The number of exported entries.</returns>
+    public int Export(string archivePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(archivePath);
+
+        string fullArchivePath = Path.GetFullPath(archivePath);
+        string? archiveDirectory = Path.GetDirectoryName(fullArchivePath);
+        if (!string.IsNullOrEmpty(archiveDirectory))
+        {
+            Directory.CreateDirectory(archiveDirectory);
+        }
+
+        int exported = 0;
+        string tempPath = CreateTempPath(fullArchivePath);
+        try
+        {
+            using (var archiveStream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            using (var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create))
+            {
+                foreach (string entryPath in EnumerateEntryFiles())
+                {
+                    if (!TryCreateArchiveEntryName(entryPath, out string? entryName, out string blobHash)
+                        || !IsValidEntryFile(entryPath, blobHash, Key.Fingerprint))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        DateTime lastWriteTimeUtc = File.GetLastWriteTimeUtc(entryPath);
+                        using FileStream input = OpenSequentialRead(entryPath);
+                        ZipArchiveEntry archiveEntry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
+                        archiveEntry.LastWriteTime = new DateTimeOffset(lastWriteTimeUtc, TimeSpan.Zero);
+                        using Stream output = archiveEntry.Open();
+                        input.CopyTo(output);
+                        exported++;
+                    }
+                    catch (IOException)
+                    {
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                    }
+                }
+            }
+
+            File.Move(tempPath, fullArchivePath, overwrite: true);
+            return exported;
+        }
+        finally
+        {
+            TryDelete(tempPath);
+        }
+    }
+
+    /// <summary>
+    /// Imports current scanner-key cache entries from a portable zip archive.
+    /// </summary>
+    /// <param name="archivePath">The source archive path.</param>
+    /// <returns>The number of imported entries.</returns>
+    public int Import(string archivePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(archivePath);
+
+        int imported = 0;
+        using var archiveStream = new FileStream(Path.GetFullPath(archivePath), FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
+        foreach (ZipArchiveEntry archiveEntry in archive.Entries)
+        {
+            if (IsDirectoryArchiveEntry(archiveEntry))
+            {
+                continue;
+            }
+
+            if (!TryParseArchiveEntryName(
+                archiveEntry.FullName,
+                out string blobHash,
+                out string pathHash,
+                out string shard,
+                out bool isCurrentKey))
+            {
+                throw new FormatException($"Invalid cache archive entry path: {archiveEntry.FullName}");
+            }
+
+            if (!isCurrentKey)
+            {
+                continue;
+            }
+
+            string entryPath = Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, pathHash, Key.Fingerprint));
+            string fullEntryPath = Path.GetFullPath(entryPath);
+            if (!IsWithinDirectory(fullEntryPath, _entriesPath))
+            {
+                throw new FormatException($"Invalid cache archive entry path: {archiveEntry.FullName}");
+            }
+
+            string? entryDirectory = Path.GetDirectoryName(fullEntryPath);
+            if (entryDirectory is not null)
+            {
+                Directory.CreateDirectory(entryDirectory);
+            }
+
+            string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", pathHash, ".lock"));
+            using FileStream _ = OpenLock(lockPath);
+            string tempPath = CreateTempPath(fullEntryPath);
+            try
+            {
+                using (Stream input = archiveEntry.Open())
+                using (var output = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    input.CopyTo(output);
+                }
+
+                if (!IsValidEntryFile(tempPath, blobHash, Key.Fingerprint))
+                {
+                    throw new FormatException($"Invalid cache archive entry content: {archiveEntry.FullName}");
+                }
+
+                File.Move(tempPath, fullEntryPath, overwrite: true);
+                TrySetLastWriteTimeUtc(fullEntryPath, archiveEntry);
+                imported++;
+            }
+            finally
+            {
+                TryDelete(tempPath);
+            }
+        }
+
+        return imported;
+    }
+
+    /// <summary>
     /// Returns summary statistics for the cache entries currently on disk.
     /// </summary>
     /// <returns>The cache statistics.</returns>
@@ -172,6 +310,11 @@ public sealed class PicketScanCache
     private static FileStream OpenLock(string lockPath)
     {
         return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+    }
+
+    private static FileStream OpenSequentialRead(string path)
+    {
+        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 81920, FileOptions.SequentialScan);
     }
 
     private static string CreateEntry(string blobHash, string keyFingerprint, IReadOnlyList<Finding> findings)
@@ -306,10 +449,50 @@ public sealed class PicketScanCache
         return true;
     }
 
+    private static bool IsDirectoryArchiveEntry(ZipArchiveEntry archiveEntry)
+    {
+        return archiveEntry.FullName.EndsWith("/", StringComparison.Ordinal);
+    }
+
+    private bool TryParseArchiveEntryName(
+        string entryName,
+        out string blobHash,
+        out string pathHash,
+        out string shard,
+        out bool isCurrentKey)
+    {
+        blobHash = string.Empty;
+        pathHash = string.Empty;
+        shard = string.Empty;
+        isCurrentKey = false;
+
+        string normalizedEntryName = entryName.Replace('\\', '/');
+        if (normalizedEntryName.Length == 0
+            || normalizedEntryName.StartsWith('/')
+            || normalizedEntryName.Contains(':'))
+        {
+            return false;
+        }
+
+        string[] segments = normalizedEntryName.Split('/');
+        if (segments.Length != 3
+            || !segments[0].Equals(EntriesDirectoryName, StringComparison.Ordinal)
+            || segments[1].Length != 2
+            || !TryParseEntryFileName(segments[2], out blobHash, out pathHash, out string keyFingerprint)
+            || !segments[1].Equals(blobHash[..2], StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        shard = segments[1];
+        isCurrentKey = keyFingerprint.Equals(Key.Fingerprint, StringComparison.Ordinal);
+        return true;
+    }
+
     private string CreateEntryPath(string blobHash, string pathHash)
     {
         string shard = blobHash[..2];
-        return Path.Combine(_entriesPath, shard, string.Concat(blobHash, "-", pathHash, "-", Key.Fingerprint, ".cache"));
+        return Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, pathHash, Key.Fingerprint));
     }
 
     private IEnumerable<string> EnumerateEntryFiles()
@@ -322,7 +505,7 @@ public sealed class PicketScanCache
     private bool IsCurrentKeyEntryPath(string entryPath)
     {
         string fileName = Path.GetFileName(entryPath);
-        return fileName.EndsWith(string.Concat("-", Key.Fingerprint, ".cache"), StringComparison.Ordinal);
+        return fileName.EndsWith(string.Concat("-", Key.Fingerprint, CacheEntryExtension), StringComparison.Ordinal);
     }
 
     private int Prune(Func<string, bool> shouldDelete)
@@ -346,6 +529,182 @@ public sealed class PicketScanCache
         }
 
         return deleted;
+    }
+
+    private bool TryCreateArchiveEntryName(
+        string entryPath,
+        [NotNullWhen(true)] out string? entryName,
+        out string blobHash)
+    {
+        entryName = null;
+        blobHash = string.Empty;
+        if (!IsCurrentKeyEntryPath(entryPath))
+        {
+            return false;
+        }
+
+        string? entryDirectory = Path.GetDirectoryName(entryPath);
+        if (entryDirectory is null)
+        {
+            return false;
+        }
+
+        string shard = Path.GetFileName(entryDirectory);
+        string fileName = Path.GetFileName(entryPath);
+        if (!TryParseEntryFileName(fileName, out blobHash, out _, out string keyFingerprint)
+            || !keyFingerprint.Equals(Key.Fingerprint, StringComparison.Ordinal)
+            || !shard.Equals(blobHash[..2], StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        entryName = string.Concat(EntriesDirectoryName, "/", shard, "/", fileName);
+        return true;
+    }
+
+    private static string CreateEntryFileName(string blobHash, string pathHash, string keyFingerprint)
+    {
+        return string.Concat(blobHash, "-", pathHash, "-", keyFingerprint, CacheEntryExtension);
+    }
+
+    private static string CreateTempPath(string path)
+    {
+        return string.Concat(
+            path,
+            ".",
+            Environment.ProcessId.ToString(CultureInfo.InvariantCulture),
+            ".",
+            Guid.NewGuid().ToString("N"),
+            ".tmp");
+    }
+
+    private static bool TryParseEntryFileName(
+        string fileName,
+        out string blobHash,
+        out string pathHash,
+        out string keyFingerprint)
+    {
+        blobHash = string.Empty;
+        pathHash = string.Empty;
+        keyFingerprint = string.Empty;
+        if (!fileName.EndsWith(CacheEntryExtension, StringComparison.Ordinal)
+            || fileName.Length != Sha256HexLength + 1 + Sha256HexLength + 1 + Sha256HexLength + CacheEntryExtension.Length
+            || fileName[Sha256HexLength] != '-'
+            || fileName[Sha256HexLength + 1 + Sha256HexLength] != '-')
+        {
+            return false;
+        }
+
+        blobHash = fileName[..Sha256HexLength];
+        pathHash = fileName.Substring(Sha256HexLength + 1, Sha256HexLength);
+        keyFingerprint = fileName.Substring(Sha256HexLength + 1 + Sha256HexLength + 1, Sha256HexLength);
+        return IsSha256Hex(blobHash) && IsSha256Hex(pathHash) && IsSha256Hex(keyFingerprint);
+    }
+
+    private static bool IsValidEntryFile(string entryPath, string blobHash, string keyFingerprint)
+    {
+        try
+        {
+            string[] lines = File.ReadAllLines(entryPath);
+            if (lines.Length < 3
+                || !lines[0].Equals(SchemaLine, StringComparison.Ordinal)
+                || !TryReadHeader(lines[1], "key", out string storedKeyFingerprint)
+                || !storedKeyFingerprint.Equals(keyFingerprint, StringComparison.Ordinal)
+                || !TryReadHeader(lines[2], "blob", out string storedBlobHash)
+                || !storedBlobHash.Equals(blobHash, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            int? expectedFindingCount = null;
+            bool findingSectionStarted = false;
+            int parsedFindingCount = 0;
+            for (int i = 3; i < lines.Length; i++)
+            {
+                if (lines[i].Length == 0)
+                {
+                    continue;
+                }
+
+                string[] fields = lines[i].Split('\t');
+                if (!fields[0].Equals("finding", StringComparison.Ordinal))
+                {
+                    if (findingSectionStarted || !TryReadMetadata(fields, ref expectedFindingCount))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                findingSectionStarted = true;
+                if (!CachedFinding.TryParse(fields.AsSpan(1), out _))
+                {
+                    return false;
+                }
+
+                parsedFindingCount++;
+            }
+
+            return !expectedFindingCount.HasValue || expectedFindingCount.Value == parsedFindingCount;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or FormatException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsSha256Hex(ReadOnlySpan<char> value)
+    {
+        if (value.Length != Sha256HexLength)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            char ch = value[i];
+            if (ch is not (>= '0' and <= '9') and not (>= 'a' and <= 'f'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsWithinDirectory(string path, string directory)
+    {
+        string fullDirectory = EnsureTrailingDirectorySeparator(Path.GetFullPath(directory));
+        return path.StartsWith(fullDirectory, PathComparison);
+    }
+
+    private static string EnsureTrailingDirectorySeparator(string path)
+    {
+        return Path.EndsInDirectorySeparator(path)
+            ? path
+            : string.Concat(path, Path.DirectorySeparatorChar);
+    }
+
+    private static StringComparison PathComparison => OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+
+    private static void TrySetLastWriteTimeUtc(string path, ZipArchiveEntry archiveEntry)
+    {
+        try
+        {
+            File.SetLastWriteTimeUtc(path, archiveEntry.LastWriteTime.UtcDateTime);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private static bool TryDelete(string path)

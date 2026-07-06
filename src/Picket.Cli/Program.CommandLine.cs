@@ -375,6 +375,119 @@ internal static partial class Program
         return true;
     }
 
+    static bool TryReadCacheTransferOptions(
+        string[] args,
+        string archiveFlag,
+        out string? cacheDir,
+        out string? configPath,
+        out string source,
+        out int maxDecodeDepth,
+        out long? maxTargetBytes,
+        out bool ignoreGitleaksAllow,
+        out string? archivePath)
+    {
+        cacheDir = null;
+        configPath = null;
+        source = ".";
+        maxDecodeDepth = 5;
+        maxTargetBytes = null;
+        ignoreGitleaksAllow = false;
+        archivePath = null;
+        bool sourceRead = false;
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            if (IsCacheDirFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--cache-dir", out cacheDir))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsConfigFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsSourceFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
+                {
+                    return false;
+                }
+
+                source = sourceValue.Length == 0 ? "." : sourceValue;
+                sourceRead = true;
+                continue;
+            }
+
+            if (IsMaxDecodeDepthFlag(arg))
+            {
+                if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsMaxTargetMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsIgnoreGitleaksAllowFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsCacheArchiveFlag(arg, archiveFlag))
+            {
+                if (!TryReadStringFlag(args, ref i, archiveFlag, out archivePath))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (arg.StartsWith('-'))
+            {
+                Console.Error.WriteLine($"unknown flag: {arg}");
+                return false;
+            }
+
+            if (sourceRead)
+            {
+                Console.Error.WriteLine($"unexpected argument: {arg}");
+                return false;
+            }
+
+            source = arg.Length == 0 ? "." : arg;
+            sourceRead = true;
+        }
+
+        return true;
+    }
+
     static bool IsSupportedValidationResult(string value)
     {
         return value is "unknown"
@@ -431,6 +544,12 @@ internal static partial class Program
     {
         return arg.Equals("--older-than-days", StringComparison.Ordinal)
             || arg.StartsWith("--older-than-days=", StringComparison.Ordinal);
+    }
+
+    static bool IsCacheArchiveFlag(string arg, string longName)
+    {
+        return arg.Equals(longName, StringComparison.Ordinal)
+            || arg.StartsWith(string.Concat(longName, "="), StringComparison.Ordinal);
     }
 
     static bool IsRulesTestPathFlag(string arg)

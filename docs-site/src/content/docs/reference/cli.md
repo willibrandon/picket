@@ -122,6 +122,23 @@ Use the grouped index to jump to the workflow you need.
       </li>
     </ul>
   </section>
+  <section class="cli-command-group">
+    <p class="cli-command-group-title">Other</p>
+    <ul class="cli-command-list">
+      <li>
+        <a class="cli-command-link" href="#picket-cache-export">
+          <code>picket cache export</code>
+          <span>Write active native scan cache entries to a portable archive.</span>
+        </a>
+      </li>
+      <li>
+        <a class="cli-command-link" href="#picket-cache-import">
+          <code>picket cache import</code>
+          <span>Restore active native scan cache entries from a portable archive.</span>
+        </a>
+      </li>
+    </ul>
+  </section>
 </div>
 
 ## Command Reference
@@ -1004,6 +1021,198 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Prune cache entries older than this age.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+### picket cache export
+
+<div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket cache export</code>
+    <span class="cli-command-badge">Command</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Command arguments</dd>
+    </div>
+  </dl>
+  <p class="cli-command-summary">Write active native scan cache entries to a portable archive.</p>
+  <div class="cli-usage-list">
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage</p>
+      <pre class="cli-usage-code"><code>picket cache export
+  [source]
+  --cache-dir path
+  --output path
+  [-c path]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+  [--ignore-gitleaks-allow]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>source</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Source key or path used for cache and rule operations.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--output</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Write a portable cache archive to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+### picket cache import
+
+<div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket cache import</code>
+    <span class="cli-command-badge">Command</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Command arguments</dd>
+    </div>
+  </dl>
+  <p class="cli-command-summary">Restore active native scan cache entries from a portable archive.</p>
+  <div class="cli-usage-list">
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage</p>
+      <pre class="cli-usage-code"><code>picket cache import
+  [source]
+  --cache-dir path
+  --input path
+  [-c path]
+  [--max-decode-depth n]
+  [--max-target-megabytes n]
+  [--ignore-gitleaks-allow]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>source</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Source key or path used for cache and rule operations.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Read or write scanner cache data in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--input</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Read a portable cache archive from this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-decode-depth</code></td>

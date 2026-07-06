@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 using Picket.Engine;
 using Picket.Rules;
@@ -20,6 +21,15 @@ public sealed class PicketScanCacheTests
         string hash = BlobHasher.ComputeSha256Hex("abc");
 
         Assert.AreEqual("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", hash);
+    }
+
+    /// <summary>
+    /// Verifies scan cache keys require path-safe SHA-256 fingerprints.
+    /// </summary>
+    [TestMethod]
+    public void ScanCacheKeyRejectsUnsafeFingerprint()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => new ScanCacheKey("../unsafe"));
     }
 
     /// <summary>
@@ -193,6 +203,92 @@ public sealed class PicketScanCacheTests
         Assert.AreEqual(0, cache.GetStats().EntryCount);
     }
 
+    /// <summary>
+    /// Verifies cache export writes only entries for the active scanner key.
+    /// </summary>
+    [TestMethod]
+    public void ExportWritesOnlyCurrentScannerKeyEntries()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache firstCache = CreateCache(root.Path, "token-[0-9]+");
+        PicketScanCache secondCache = CreateCache(root.Path, "token-[A-Z]+");
+        string archivePath = Path.Combine(root.Path, "cache.zip");
+
+        firstCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        secondCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+
+        int exported = firstCache.Export(archivePath);
+
+        Assert.AreEqual(1, exported);
+        using var archive = ZipFile.OpenRead(archivePath);
+        Assert.HasCount(1, archive.Entries);
+        Assert.Contains(firstCache.Key.Fingerprint, archive.Entries[0].FullName);
+        Assert.DoesNotContain(secondCache.Key.Fingerprint, archive.Entries[0].FullName);
+    }
+
+    /// <summary>
+    /// Verifies cache export skips corrupt entries because normal scans treat them as misses.
+    /// </summary>
+    [TestMethod]
+    public void ExportSkipsCorruptEntries()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache cache = CreateCache(root.Path);
+        string archivePath = Path.Combine(root.Path, "cache.zip");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        File.WriteAllText(GetSingleEntryPath(root.Path), "not a cache entry");
+
+        int exported = cache.Export(archivePath);
+
+        Assert.AreEqual(0, exported);
+        using var archive = ZipFile.OpenRead(archivePath);
+        Assert.IsEmpty(archive.Entries);
+    }
+
+    /// <summary>
+    /// Verifies cache import restores usable current-key entries.
+    /// </summary>
+    [TestMethod]
+    public void ImportRestoresExportedEntries()
+    {
+        using TempDirectory sourceRoot = TempDirectory.Create();
+        using TempDirectory destinationRoot = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache sourceCache = CreateCache(sourceRoot.Path);
+        PicketScanCache destinationCache = CreateCache(destinationRoot.Path);
+        string archivePath = Path.Combine(sourceRoot.Path, "cache.zip");
+
+        sourceCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        int exported = sourceCache.Export(archivePath);
+        int imported = destinationCache.Import(archivePath);
+        bool hit = destinationCache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.AreEqual(1, exported);
+        Assert.AreEqual(1, imported);
+        Assert.IsTrue(hit);
+        Assert.IsNotNull(cachedFindings);
+        Assert.HasCount(1, cachedFindings);
+        Assert.AreEqual("token-12345", cachedFindings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies cache import rejects archive paths that could escape the cache root.
+    /// </summary>
+    [TestMethod]
+    public void ImportRejectsPathTraversalArchiveEntries()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path);
+        string archivePath = Path.Combine(root.Path, "cache.zip");
+        WriteZipEntry(archivePath, "../evil.cache", "not a cache entry");
+
+        Assert.ThrowsExactly<FormatException>(() => cache.Import(archivePath));
+        Assert.IsFalse(File.Exists(Path.Combine(root.Path, "evil.cache")));
+    }
+
     private static PicketScanCache CreateCache(string root, string pattern = "token-[0-9]+", bool ignoreGitleaksAllow = false)
     {
         var ruleSet = new RuleSet([SecretRule.Create("token", string.Empty, pattern)]);
@@ -259,6 +355,15 @@ public sealed class PicketScanCacheTests
         string[] entries = Directory.GetFiles(Path.Combine(root, "entries"), "*.cache", SearchOption.AllDirectories);
         Assert.HasCount(1, entries);
         return entries[0];
+    }
+
+    private static void WriteZipEntry(string archivePath, string entryName, string content)
+    {
+        using FileStream archiveStream = File.Create(archivePath);
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create);
+        ZipArchiveEntry entry = archive.CreateEntry(entryName);
+        using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.Write(content);
     }
 
     private static void Append(StringBuilder builder, string value)

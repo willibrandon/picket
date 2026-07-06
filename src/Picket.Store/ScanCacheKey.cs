@@ -8,6 +8,8 @@ namespace Picket.Store;
 /// <param name="fingerprint">The stable scanner configuration fingerprint.</param>
 public sealed class ScanCacheKey(string fingerprint)
 {
+    private const int Sha256HexLength = 64;
+
     /// <summary>
     /// Gets the stable scanner configuration fingerprint.
     /// </summary>
@@ -45,6 +47,30 @@ public sealed class ScanCacheKey(string fingerprint)
     private static string RequireFingerprint(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (!IsSha256Hex(value))
+        {
+            throw new ArgumentException("Fingerprint must be a 64-character lowercase SHA-256 hex value.", nameof(value));
+        }
+
         return value;
+    }
+
+    private static bool IsSha256Hex(ReadOnlySpan<char> value)
+    {
+        if (value.Length != Sha256HexLength)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            char ch = value[i];
+            if (ch is not (>= '0' and <= '9') and not (>= 'a' and <= 'f'))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

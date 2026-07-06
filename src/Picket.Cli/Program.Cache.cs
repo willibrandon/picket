@@ -24,6 +24,16 @@ internal static partial class Program
             return RunCachePrune(args[1..]);
         }
 
+        if (subcommand.Equals("export", StringComparison.OrdinalIgnoreCase))
+        {
+            return RunCacheExport(args[1..]);
+        }
+
+        if (subcommand.Equals("import", StringComparison.OrdinalIgnoreCase))
+        {
+            return RunCacheImport(args[1..]);
+        }
+
         Console.Error.WriteLine($"unknown cache command: {subcommand}");
         return UnknownFlagExitCode;
     }
@@ -123,5 +133,109 @@ internal static partial class Program
 
         Console.Out.WriteLine($"deleted: {deleted.ToString(CultureInfo.InvariantCulture)}");
         return 0;
+    }
+
+    static int RunCacheExport(string[] args)
+    {
+        if (ContainsHelp(args))
+        {
+            WriteCacheExportHelp();
+            return 0;
+        }
+
+        if (!TryReadCacheTransferOptions(
+            args,
+            "--output",
+            out string? cacheDir,
+            out string? configPath,
+            out string source,
+            out int maxDecodeDepth,
+            out long? maxTargetBytes,
+            out bool ignoreGitleaksAllow,
+            out string? outputPath))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (string.IsNullOrWhiteSpace(cacheDir))
+        {
+            Console.Error.WriteLine("cache export requires --cache-dir");
+            return UnknownFlagExitCode;
+        }
+
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            Console.Error.WriteLine("cache export requires --output");
+            return UnknownFlagExitCode;
+        }
+
+        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, out PicketScanCache? scanCache))
+        {
+            return 1;
+        }
+
+        try
+        {
+            int exported = scanCache.Export(outputPath);
+            Console.Out.WriteLine($"exported: {exported.ToString(CultureInfo.InvariantCulture)}");
+            return 0;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            Console.Error.WriteLine($"failed to export cache: {exception.Message}");
+            return 1;
+        }
+    }
+
+    static int RunCacheImport(string[] args)
+    {
+        if (ContainsHelp(args))
+        {
+            WriteCacheImportHelp();
+            return 0;
+        }
+
+        if (!TryReadCacheTransferOptions(
+            args,
+            "--input",
+            out string? cacheDir,
+            out string? configPath,
+            out string source,
+            out int maxDecodeDepth,
+            out long? maxTargetBytes,
+            out bool ignoreGitleaksAllow,
+            out string? inputPath))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (string.IsNullOrWhiteSpace(cacheDir))
+        {
+            Console.Error.WriteLine("cache import requires --cache-dir");
+            return UnknownFlagExitCode;
+        }
+
+        if (string.IsNullOrWhiteSpace(inputPath))
+        {
+            Console.Error.WriteLine("cache import requires --input");
+            return UnknownFlagExitCode;
+        }
+
+        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, out PicketScanCache? scanCache))
+        {
+            return 1;
+        }
+
+        try
+        {
+            int imported = scanCache.Import(inputPath);
+            Console.Out.WriteLine($"imported: {imported.ToString(CultureInfo.InvariantCulture)}");
+            return 0;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException or FormatException)
+        {
+            Console.Error.WriteLine($"failed to import cache: {exception.Message}");
+            return 1;
+        }
     }
 }

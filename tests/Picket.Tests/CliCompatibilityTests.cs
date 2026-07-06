@@ -1169,6 +1169,57 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that cache export and import move active scanner-key entries between cache roots.
+    /// </summary>
+    [TestMethod]
+    public async Task CacheExportImportRoundTripsActiveScannerKeyEntries()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string sourcePath = Path.Combine(root.Path, "source");
+        string destinationPath = Path.Combine(root.Path, "destination");
+        Directory.CreateDirectory(sourcePath);
+        Directory.CreateDirectory(destinationPath);
+        string configPath = WriteFindingWordConfig(root.Path);
+        string sourceCachePath = Path.Combine(root.Path, ".picket", "source-cache");
+        string destinationCachePath = Path.Combine(root.Path, ".picket", "destination-cache");
+        string archivePath = Path.Combine(root.Path, "cache.zip");
+        File.WriteAllText(Path.Combine(sourcePath, "secret.txt"), "finding");
+        File.WriteAllText(Path.Combine(destinationPath, "secret.txt"), "finding");
+
+        CliResult scan = await RunCliAsync("scan", sourcePath, "-c", configPath, "--cache-dir", sourceCachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult export = await RunCliAsync("cache", "export", "--cache-dir", sourceCachePath, "-c", configPath, "--source", sourcePath, "--output", archivePath).ConfigureAwait(false);
+        CliResult import = await RunCliAsync("cache", "import", "--cache-dir", destinationCachePath, "-c", configPath, "--source", destinationPath, "--input", archivePath).ConfigureAwait(false);
+        CliResult stats = await RunCliAsync("cache", "stats", "--cache-dir", destinationCachePath, "-c", configPath, "--source", destinationPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(0, export.ExitCode);
+        Assert.Contains("exported: 1", export.Stdout);
+        Assert.AreEqual(0, import.ExitCode);
+        Assert.Contains("imported: 1", import.Stdout);
+        Assert.AreEqual(0, stats.ExitCode);
+        Assert.Contains("current-key entries: 1", stats.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that cache import rejects malformed portable archives.
+    /// </summary>
+    [TestMethod]
+    public async Task CacheImportRejectsMalformedArchive()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        string archivePath = Path.Combine(root.Path, "cache.zip");
+        WriteCompressedZipFile(archivePath, ("../evil.cache", "not a cache entry"));
+
+        CliResult import = await RunCliAsync("cache", "import", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path, "--input", archivePath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, import.ExitCode);
+        Assert.Contains("failed to import cache: Invalid cache archive entry path", import.Stderr);
+        Assert.IsFalse(File.Exists(Path.Combine(root.Path, "evil.cache")));
+    }
+
+    /// <summary>
     /// Verifies that cache help advertises supported maintenance commands.
     /// </summary>
     [TestMethod]
@@ -1179,6 +1230,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(0, result.ExitCode);
         Assert.Contains("picket cache stats", result.Stdout);
         Assert.Contains("picket cache prune", result.Stdout);
+        Assert.Contains("picket cache export", result.Stdout);
+        Assert.Contains("picket cache import", result.Stdout);
         Assert.Contains("--older-than-days", result.Stdout);
         Assert.Contains("--ignore-gitleaks-allow", result.Stdout);
     }
