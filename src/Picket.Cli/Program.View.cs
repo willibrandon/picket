@@ -62,7 +62,21 @@ internal static partial class Program
                 return 1;
             }
 
-            WriteHtmlViewSummary(reportPath);
+            try
+            {
+                ReportSummary htmlSummary = ReportSummaryReader.Read(reportPath);
+                WriteReportViewSummary(reportPath, htmlSummary);
+            }
+            catch (InvalidDataException)
+            {
+                WriteHtmlViewSummary(reportPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return 1;
+            }
+
             return open && !TryOpenReport(reportPath) ? 1 : 0;
         }
 

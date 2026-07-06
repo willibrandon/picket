@@ -24,6 +24,11 @@ public static class ReportSummaryReader
                 return ReadJsonLines(path);
             }
 
+            if (IsHtmlReportPath(path))
+            {
+                return ReadHtml(path);
+            }
+
             using FileStream stream = File.OpenRead(path);
             using JsonDocument document = JsonDocument.Parse(stream);
             return ReadJsonDocument(document.RootElement, path);
@@ -64,6 +69,77 @@ public static class ReportSummaryReader
         }
 
         return new ReportSummary(format ?? "picket-jsonl", findings);
+    }
+
+    private static ReportSummary ReadHtml(string path)
+    {
+        string html = File.ReadAllText(path);
+        string json = ExtractPicketHtmlSummaryJson(html);
+        using JsonDocument document = JsonDocument.Parse(json);
+        return ReadPicketHtmlSummary(document.RootElement);
+    }
+
+    private static ReportSummary ReadPicketHtmlSummary(JsonElement root)
+    {
+        if (!GetString(root, "schema").Equals("picket.html-summary.v1", StringComparison.Ordinal)
+            || !root.TryGetProperty("findings", out JsonElement findingsElement)
+            || findingsElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException();
+        }
+
+        var findings = new List<ReportFindingSummary>();
+        foreach (JsonElement finding in findingsElement.EnumerateArray())
+        {
+            if (finding.ValueKind != JsonValueKind.Object)
+            {
+                throw new InvalidDataException();
+            }
+
+            findings.Add(new ReportFindingSummary(
+                GetString(finding, "ruleId"),
+                GetString(finding, "path"),
+                GetInt32(finding, "line"),
+                GetString(finding, "fingerprint")));
+        }
+
+        return new ReportSummary("picket-html", findings);
+    }
+
+    private static string ExtractPicketHtmlSummaryJson(string html)
+    {
+        const string summaryId = "id=\"picket-report-summary\"";
+        int searchIndex = 0;
+        while (searchIndex < html.Length)
+        {
+            int templateStart = html.IndexOf("<template", searchIndex, StringComparison.OrdinalIgnoreCase);
+            if (templateStart < 0)
+            {
+                break;
+            }
+
+            int tagEnd = html.IndexOf('>', templateStart);
+            if (tagEnd < 0)
+            {
+                throw new InvalidDataException();
+            }
+
+            ReadOnlySpan<char> tag = html.AsSpan(templateStart, tagEnd - templateStart + 1);
+            if (tag.IndexOf(summaryId, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                int templateEnd = html.IndexOf("</template>", tagEnd + 1, StringComparison.OrdinalIgnoreCase);
+                if (templateEnd < 0)
+                {
+                    throw new InvalidDataException();
+                }
+
+                return html[(tagEnd + 1)..templateEnd];
+            }
+
+            searchIndex = tagEnd + 1;
+        }
+
+        throw new InvalidDataException();
     }
 
     private static ReportSummary ReadJsonDocument(JsonElement root, string path)
@@ -598,5 +674,12 @@ public static class ReportSummaryReader
         string fileName = Path.GetFileName(path);
         return fileName.Equals("gl-code-quality-report.json", StringComparison.OrdinalIgnoreCase)
             || fileName.EndsWith(".gitlab-code-quality.json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHtmlReportPath(string path)
+    {
+        string extension = Path.GetExtension(path);
+        return extension.Equals(".html", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase);
     }
 }

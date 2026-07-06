@@ -1982,6 +1982,47 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that view summarizes a native HTML report without printing the secret value.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewSummarizesNativeHtmlReportWithoutSecretValue()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.html");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+
+        CliResult view = await RunCliAsync("view", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(0, view.ExitCode);
+        Assert.Contains("format: picket-html", view.Stdout);
+        Assert.Contains("findings: 1", view.Stdout);
+        Assert.Contains("files: 1", view.Stdout);
+        Assert.Contains("token secret.txt:1 picket:v1:", view.Stdout);
+        Assert.DoesNotContain("token-12345", view.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that view preserves the generic HTML fallback for non-Picket reports.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewSummarizesGenericHtmlReportWithUnknownCounts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = Path.Combine(root.Path, "report.html");
+        File.WriteAllText(reportPath, "<!doctype html><title>External report</title>");
+
+        CliResult view = await RunCliAsync("view", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, view.ExitCode);
+        Assert.Contains("format: html", view.Stdout);
+        Assert.Contains("findings: unknown", view.Stdout);
+        Assert.Contains("files: unknown", view.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that view summarizes TruffleHog JSONL without printing secret fields.
     /// </summary>
     [TestMethod]

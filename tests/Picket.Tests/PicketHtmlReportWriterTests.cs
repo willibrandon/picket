@@ -25,6 +25,7 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("Content-Security-Policy", html);
         Assert.Contains("<h1>Picket Secret Scan Report</h1>", html);
         Assert.Contains("<span>Findings</span><strong>0</strong>", html);
+        Assert.Contains("<template id=\"picket-report-summary\" data-type=\"application/json\">", html);
         Assert.Contains("<p class=\"empty\">No findings.</p>", html);
         Assert.Contains("<p class=\"empty\">No rules were loaded.</p>", html);
         Assert.DoesNotContain("<script", html);

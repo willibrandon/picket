@@ -32,6 +32,7 @@ public static class PicketHtmlReportWriter
         builder.Append("<h1>Picket Secret Scan Report</h1>\n");
         builder.Append("</header>\n");
         WriteSummary(builder, findings, rules);
+        WriteEmbeddedSummary(builder, findings);
         WriteFindings(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules));
         WriteRules(builder, rules);
         builder.Append("</main>\n");
@@ -86,6 +87,37 @@ public static class PicketHtmlReportWriter
         WriteMetric(builder, "Files", CountDistinctFindingFiles(findings));
         builder.Append("</div>\n");
         builder.Append("</section>\n");
+    }
+
+    private static void WriteEmbeddedSummary(StringBuilder builder, IReadOnlyList<Finding> findings)
+    {
+        builder.Append("<template id=\"picket-report-summary\" data-type=\"application/json\">");
+        builder.Append('{');
+        WriteJsonString(builder, "schema", "picket.html-summary.v1", comma: true);
+        WriteJsonString(builder, "format", "picket-html", comma: true);
+        builder.Append("\"findings\":[");
+        for (int i = 0; i < findings.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(',');
+            }
+
+            WriteEmbeddedFindingSummary(builder, findings[i]);
+        }
+
+        builder.Append("]}");
+        builder.Append("</template>\n");
+    }
+
+    private static void WriteEmbeddedFindingSummary(StringBuilder builder, Finding finding)
+    {
+        builder.Append('{');
+        WriteJsonString(builder, "ruleId", finding.RuleID, comma: true);
+        WriteJsonString(builder, "path", CreateLocationPath(finding), comma: true);
+        WriteJsonNumber(builder, "line", finding.StartLine, comma: true);
+        WriteJsonString(builder, "fingerprint", CreateFingerprint(finding), comma: false);
+        builder.Append('}');
     }
 
     private static void WriteMetric(StringBuilder builder, string label, int value)
@@ -255,6 +287,85 @@ public static class PicketHtmlReportWriter
         }
 
         builder.Append("</span>");
+    }
+
+    private static void WriteJsonString(StringBuilder builder, string name, string value, bool comma)
+    {
+        AppendJsonString(builder, name);
+        builder.Append(':');
+        AppendJsonString(builder, value);
+        WriteJsonComma(builder, comma);
+    }
+
+    private static void WriteJsonNumber(StringBuilder builder, string name, int value, bool comma)
+    {
+        AppendJsonString(builder, name);
+        builder.Append(':');
+        builder.Append(value.ToString(CultureInfo.InvariantCulture));
+        WriteJsonComma(builder, comma);
+    }
+
+    private static void WriteJsonComma(StringBuilder builder, bool comma)
+    {
+        if (comma)
+        {
+            builder.Append(',');
+        }
+    }
+
+    private static void AppendJsonString(StringBuilder builder, string value)
+    {
+        builder.Append('"');
+        foreach (char ch in value)
+        {
+            switch (ch)
+            {
+                case '"':
+                    builder.Append("\\\"");
+                    break;
+                case '\\':
+                    builder.Append("\\\\");
+                    break;
+                case '\b':
+                    builder.Append("\\b");
+                    break;
+                case '\f':
+                    builder.Append("\\f");
+                    break;
+                case '\n':
+                    builder.Append("\\n");
+                    break;
+                case '\r':
+                    builder.Append("\\r");
+                    break;
+                case '\t':
+                    builder.Append("\\t");
+                    break;
+                case '<':
+                    builder.Append("\\u003c");
+                    break;
+                case '>':
+                    builder.Append("\\u003e");
+                    break;
+                case '&':
+                    builder.Append("\\u0026");
+                    break;
+                default:
+                    if (ch < ' ')
+                    {
+                        builder.Append("\\u");
+                        builder.Append(((int)ch).ToString("x4", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        builder.Append(ch);
+                    }
+
+                    break;
+            }
+        }
+
+        builder.Append('"');
     }
 
     private static string CreateFingerprint(Finding finding)

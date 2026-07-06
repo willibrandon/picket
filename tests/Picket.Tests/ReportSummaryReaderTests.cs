@@ -34,6 +34,33 @@ public sealed class ReportSummaryReaderTests
     }
 
     /// <summary>
+    /// Verifies that Picket HTML reports are summarized from embedded non-secret metadata.
+    /// </summary>
+    [TestMethod]
+    public void ReadSummarizesPicketHtmlReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        Finding finding = CreateFinding("picket-html-rule", "auth.py", "auth.py:picket-html-rule:1");
+        SecretRule rule = SecretRule.Create("picket-html-rule", "desc", "secret");
+        string reportPath = WriteReport(root.Path, "report.html", PicketHtmlReportWriter.Write([finding], [rule]));
+
+        ReportSummary summary = ReportSummaryReader.Read(reportPath);
+
+        Assert.AreEqual("picket-html", summary.Format);
+        Assert.AreEqual(1, summary.FindingCount);
+        Assert.AreEqual(1, summary.FileCount);
+        Assert.HasCount(1, summary.Findings);
+        Assert.AreEqual("picket-html-rule", summary.Findings[0].RuleId);
+        Assert.AreEqual("auth.py", summary.Findings[0].Path);
+        Assert.AreEqual(1, summary.Findings[0].Line);
+        Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        Assert.DoesNotContain("secret-value", string.Concat(
+            summary.Findings[0].RuleId,
+            summary.Findings[0].Path,
+            summary.Findings[0].Fingerprint));
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks JSON reports are summarized.
     /// </summary>
     [TestMethod]
