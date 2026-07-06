@@ -78,16 +78,16 @@ public sealed class SecretLiveVerifierTests
 
     private static Finding CreateFinding()
     {
-        const string Secret = "ghp_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        string secret = CreateGitHubPat();
         return new Finding(
             "github-pat",
             "GitHub token",
             1,
             1,
             1,
-            Secret.Length,
-            Secret,
-            Secret,
+            secret.Length,
+            secret,
+            secret,
             "secret.txt",
             string.Empty,
             string.Empty,
@@ -98,5 +98,15 @@ public sealed class SecretLiveVerifierTests
             string.Empty,
             [],
             "secret.txt:github-pat:1");
+    }
+
+    private static string CreateGitHubPat()
+    {
+        return CreateGitHubClassicToken("ghp_");
+    }
+
+    private static string CreateGitHubClassicToken(string prefix)
+    {
+        return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     }
 }

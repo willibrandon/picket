@@ -119,6 +119,31 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that native GitHub token coverage uses Picket-owned rule IDs rather than inherited compatibility IDs.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanUsesNativeGitHubPersonalAccessTokenRule()
+    {
+        byte[] input = Encoding.UTF8.GetBytes(CreateGitHubPat());
+        var rule = new SecretRule(
+            id: "picket-github-personal-access-token",
+            description: "Detected a GitHub personal access token.",
+            pattern: @"\b(ghp_[0-9A-Za-z]{36})\b",
+            secretGroup: 1,
+            entropy: 3,
+            keywords: ["ghp_"],
+            rulePack: "picket-default");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([rule]));
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules, maxDecodeDepth: 0));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("picket-github-personal-access-token", findings[0].RuleID);
+        Assert.AreEqual(CreateGitHubPat(), findings[0].Secret);
+    }
+
+    /// <summary>
     /// Verifies that native scans detect rule matches split across deterministic C# string concatenations.
     /// </summary>
     [TestMethod]
@@ -913,5 +938,15 @@ public sealed class SecretScannerTests
     private static string CreateAwsSecretAccessKey()
     {
         return string.Concat("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
+    }
+
+    private static string CreateGitHubPat()
+    {
+        return CreateGitHubClassicToken("ghp_");
+    }
+
+    private static string CreateGitHubClassicToken(string prefix)
+    {
+        return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     }
 }

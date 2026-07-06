@@ -100,7 +100,7 @@ public sealed class PicketJsonReportWriterTests
     public void WriteUsesAttachedValidationState()
     {
         SecretRule rule = SecretRule.Create("github-pat", string.Empty, "ghp_[0-9A-Za-z]{36}");
-        string secret = string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        string secret = CreateGitHubPat();
         var finding = new Finding(
             "github-pat",
             string.Empty,
@@ -125,5 +125,15 @@ public sealed class PicketJsonReportWriterTests
         string json = PicketJsonReportWriter.Write([finding], [rule]);
 
         Assert.Contains("\"validationState\":\"structurally-valid\"", json);
+    }
+
+    private static string CreateGitHubPat()
+    {
+        return CreateGitHubClassicToken("ghp_");
+    }
+
+    private static string CreateGitHubClassicToken(string prefix)
+    {
+        return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     }
 }

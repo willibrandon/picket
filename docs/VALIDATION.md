@@ -45,7 +45,8 @@ Live provider calls are opt-in behavior for `picket scan --verify` and `picket v
 
 The first provider validator is GitHub:
 
-- supported rule IDs: `github-pat`, `github-oauth`, `github-refresh-token`, `github-app-token`, and `github-fine-grained-pat`,
+- supported compatibility rule IDs: `github-pat`, `github-oauth`, `github-refresh-token`, `github-app-token`, and `github-fine-grained-pat`,
+- supported native rule IDs: `picket-github-personal-access-token`, `picket-github-oauth-token`, `picket-github-refresh-token`, `picket-github-app-token`, and `picket-github-fine-grained-personal-access-token`,
 - default endpoint: `https://api.github.com/user`,
 - endpoint override: `--github-api-endpoint <absolute-uri>`, intended for GitHub Enterprise and recorded/local test hosts,
 - default endpoint policy: HTTPS required and non-public addresses blocked,

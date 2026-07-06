@@ -102,6 +102,24 @@ public sealed class CredentialAnalyzerTests
         Assert.Contains("Review and tighten API key restrictions", string.Join('\n', analysis.RecommendedActions));
     }
 
+    /// <summary>
+    /// Verifies that native GitHub token findings receive GitHub-specific triage guidance.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesNativeGitHubPersonalAccessTokens()
+    {
+        string token = CreateGitHubPat();
+        Finding finding = CreateNativeGitHubPatFinding(token);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("GitHub", analysis.Provider);
+        Assert.AreEqual("GitHub personal access token", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains("Rotate or revoke the GitHub token", string.Join('\n', analysis.RecommendedActions));
+        Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));
+    }
+
     private static Finding CreateAzureFinding(string accountKey)
     {
         string connectionString = $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net";
@@ -202,9 +220,43 @@ public sealed class CredentialAnalyzerTests
             validationState: "structurally-valid");
     }
 
+    private static Finding CreateNativeGitHubPatFinding(string token)
+    {
+        return new Finding(
+            "picket-github-personal-access-token",
+            "Detected a GitHub personal access token.",
+            1,
+            1,
+            1,
+            token.Length,
+            token,
+            token,
+            "settings.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["picket", "github"],
+            "settings.txt:picket-github-personal-access-token:1",
+            validationState: "structurally-valid");
+    }
+
     private static string CreateGoogleApiKey()
     {
         return string.Concat("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
+    }
+
+    private static string CreateGitHubPat()
+    {
+        return CreateGitHubClassicToken("ghp_");
+    }
+
+    private static string CreateGitHubClassicToken(string prefix)
+    {
+        return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     }
 
     private static Finding CreateGcpFinding(string serviceAccountJson)

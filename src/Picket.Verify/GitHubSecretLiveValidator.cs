@@ -47,6 +47,11 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
             "github-oauth" => IsClassicGitHubToken(secret, "gho_"),
             "github-pat" => IsClassicGitHubToken(secret, "ghp_"),
             "github-refresh-token" => IsClassicGitHubToken(secret, "ghr_"),
+            "picket-github-app-token" => IsClassicGitHubToken(secret, "ghu_") || IsClassicGitHubToken(secret, "ghs_"),
+            "picket-github-fine-grained-personal-access-token" => IsFineGrainedGitHubToken(secret),
+            "picket-github-oauth-token" => IsClassicGitHubToken(secret, "gho_"),
+            "picket-github-personal-access-token" => IsClassicGitHubToken(secret, "ghp_"),
+            "picket-github-refresh-token" => IsClassicGitHubToken(secret, "ghr_"),
             _ => false,
         };
     }

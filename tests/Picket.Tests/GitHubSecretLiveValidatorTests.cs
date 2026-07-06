@@ -61,6 +61,27 @@ public sealed class GitHubSecretLiveValidatorTests
     }
 
     /// <summary>
+    /// Verifies that native GitHub token rule IDs are eligible for guarded live verification.
+    /// </summary>
+    [TestMethod]
+    public void SupportsRecognizesNativeGitHubTokens()
+    {
+        GitHubSecretLiveValidator validator = CreateValidator(new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        (string RuleId, string Secret)[] cases = [
+            ("picket-github-app-token", CreateGitHubClassicToken("ghu_")),
+            ("picket-github-fine-grained-personal-access-token", CreateGitHubFineGrainedPat()),
+            ("picket-github-oauth-token", CreateGitHubClassicToken("gho_")),
+            ("picket-github-personal-access-token", CreateGitHubPat()),
+            ("picket-github-refresh-token", CreateGitHubClassicToken("ghr_")),
+        ];
+
+        for (int i = 0; i < cases.Length; i++)
+        {
+            Assert.IsTrue(validator.Supports(CreateFinding(cases[i].Secret, cases[i].RuleId)));
+        }
+    }
+
+    /// <summary>
     /// Verifies that endpoint overrides cannot include query strings.
     /// </summary>
     [TestMethod]
@@ -79,11 +100,11 @@ public sealed class GitHubSecretLiveValidatorTests
         return new GitHubSecretLiveValidator(options);
     }
 
-    private static Finding CreateFinding(string? secret = null)
+    private static Finding CreateFinding(string? secret = null, string ruleId = "github-pat")
     {
         secret ??= CreateGitHubPat();
         return new Finding(
-            "github-pat",
+            ruleId,
             "GitHub token",
             1,
             1,
@@ -100,11 +121,30 @@ public sealed class GitHubSecretLiveValidatorTests
             string.Empty,
             string.Empty,
             [],
-            "secret.txt:github-pat:1");
+            string.Concat("secret.txt:", ruleId, ":1"));
     }
 
     private static string CreateGitHubPat()
     {
-        return string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        return CreateGitHubClassicToken("ghp_");
+    }
+
+    private static string CreateGitHubClassicToken(string prefix)
+    {
+        return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    }
+
+    private static string CreateGitHubFineGrainedPat()
+    {
+        return CreateGitHubFineGrainedPat("github_pat_");
+    }
+
+    private static string CreateGitHubFineGrainedPat(string prefix)
+    {
+        return string.Concat(
+            prefix,
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "0123456789");
     }
 }

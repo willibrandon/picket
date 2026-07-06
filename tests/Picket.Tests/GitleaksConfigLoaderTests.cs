@@ -409,6 +409,44 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that the embedded native default replaces inherited Gitleaks GitHub token rules with Picket-owned rules.
+    /// </summary>
+    [TestMethod]
+    public void PicketConfigLoaderEmbeddedDefaultUsesNativeGitHubRules()
+    {
+        string root = CreateTempDirectory();
+        string? previousPicketConfigPath = Environment.GetEnvironmentVariable("PICKET_CONFIG");
+        string? previousPicketConfigToml = Environment.GetEnvironmentVariable("PICKET_CONFIG_TOML");
+        string? previousGitleaksConfigPath = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG");
+        string? previousGitleaksConfigToml = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG_TOML");
+        try
+        {
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", null);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", null);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", null);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", null);
+
+            RuleSet ruleSet = PicketConfigLoader.LoadRuleSet(null, root);
+            List<string> ruleIds = [.. ruleSet.Rules.Select(rule => rule.Id)];
+
+            Assert.Contains("aws-access-token", ruleIds);
+            Assert.Contains("picket-github-personal-access-token", ruleIds);
+            Assert.Contains("picket-github-fine-grained-personal-access-token", ruleIds);
+            Assert.Contains("picket-google-api-key", ruleIds);
+            Assert.DoesNotContain("github-pat", ruleIds);
+            Assert.DoesNotContain("github-fine-grained-pat", ruleIds);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", previousPicketConfigPath);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", previousPicketConfigToml);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", previousGitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", previousGitleaksConfigToml);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks required-rule tables load into scanner rules.
     /// </summary>
     [TestMethod]

@@ -305,6 +305,28 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the embedded GitHub personal access token rule.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesEmbeddedGitHubPersonalAccessTokenRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string token = CreateGitHubPatFixture();
+        File.WriteAllText(Path.Combine(root.Path, "settings.txt"), token);
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-github-personal-access-token\"", result.Stdout);
+        Assert.Contains($"\"secret\":\"{token}\"", result.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
+        Assert.Contains("\"provider\":\"GitHub\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.Contains("\"documentationUrl\":\"https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens\"", result.Stdout);
+        Assert.DoesNotContain("\"ruleId\":\"github-pat\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans use the embedded AWS access key pair rule.
     /// </summary>
     [TestMethod]
@@ -522,7 +544,7 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
-        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), CreateGitHubPatFixture());
 
         CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "json").ConfigureAwait(false);
 
@@ -539,7 +561,7 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
-        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), CreateGitHubPatFixture());
 
         CliResult result = await RunCliAsync(
             "scan",
@@ -577,7 +599,7 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
-        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), CreateGitHubPatFixture());
 
         CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "verify", "--offline", "-f", "jsonl").ConfigureAwait(false);
 
@@ -617,7 +639,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteVerificationFilterConfig(root.Path);
         File.WriteAllText(
             Path.Combine(root.Path, "secret.txt"),
-            string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", Environment.NewLine, "custom-12345"));
+            string.Concat(CreateGitHubPatFixture(), Environment.NewLine, "custom-12345"));
 
         CliResult result = await RunCliAsync("verify", root.Path, "-c", configPath, "-f", "jsonl", "--only-verified").ConfigureAwait(false);
         string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -637,7 +659,7 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
-        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), CreateGitHubPatFixture());
 
         CliResult result = await RunCliWithInputFromDirectoryAsync(
             root.Path,
@@ -715,7 +737,7 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
-        string token = string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        string token = CreateGitHubPatFixture();
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), token);
 
         CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "analyze", "--offline", "-f", "json").ConfigureAwait(false);
@@ -3576,6 +3598,16 @@ public sealed class CliCompatibilityTests
     private static string CreateGoogleApiKeyFixture()
     {
         return string.Concat("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
+    }
+
+    private static string CreateGitHubPatFixture()
+    {
+        return CreateGitHubClassicTokenFixture("ghp_");
+    }
+
+    private static string CreateGitHubClassicTokenFixture(string prefix)
+    {
+        return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     }
 
     private static string CreateTomlLiteral(string value)

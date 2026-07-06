@@ -68,7 +68,7 @@ public static class CredentialAnalyzer
 
     private static string InferProvider(string ruleId)
     {
-        if (ruleId.StartsWith("github-", StringComparison.Ordinal))
+        if (IsGitHubRuleId(ruleId))
         {
             return "GitHub";
         }
@@ -88,6 +88,31 @@ public static class CredentialAnalyzer
 
     private static string InferCredentialType(string ruleId, string provider)
     {
+        if (ruleId.Equals("picket-github-app-token", StringComparison.Ordinal))
+        {
+            return "GitHub App token";
+        }
+
+        if (ruleId.Equals("picket-github-fine-grained-personal-access-token", StringComparison.Ordinal))
+        {
+            return "GitHub fine-grained personal access token";
+        }
+
+        if (ruleId.Equals("picket-github-oauth-token", StringComparison.Ordinal))
+        {
+            return "GitHub OAuth token";
+        }
+
+        if (ruleId.Equals("picket-github-personal-access-token", StringComparison.Ordinal))
+        {
+            return "GitHub personal access token";
+        }
+
+        if (ruleId.Equals("picket-github-refresh-token", StringComparison.Ordinal))
+        {
+            return "GitHub refresh token";
+        }
+
         if (provider.Equals("GitHub", StringComparison.Ordinal))
         {
             return "GitHub token";
@@ -104,6 +129,12 @@ public static class CredentialAnalyzer
             "private-key" => "Private key",
             _ => "Secret",
         };
+    }
+
+    private static bool IsGitHubRuleId(string ruleId)
+    {
+        return ruleId.StartsWith("github-", StringComparison.Ordinal)
+            || ruleId.StartsWith("picket-github-", StringComparison.Ordinal);
     }
 
     private static string GetRisk(string validationState)

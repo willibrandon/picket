@@ -60,6 +60,32 @@ as deliberate.
   parity. Use native `scan` when comparing to hosted GitHub secret scanning
   alerts or when richer Picket metadata is preferred.
 
+## Native GitHub Token Coverage
+
+- **Upstream behavior:** The pinned Gitleaks default config includes GitHub App,
+  OAuth, refresh, fine-grained PAT, and classic PAT rules under `github-*` rule
+  IDs, with Gitleaks metadata and selected compatibility allowlists.
+- **Picket behavior:** Strict Gitleaks-compatible scans keep those upstream
+  `github-*` rules unchanged. The embedded native default disables the inherited
+  GitHub token rules and replaces them with `picket-github-*` rules in
+  `picket-default`, including Picket provider metadata, remediation links, and
+  offline/live validation support.
+- **Mode/profile affected:** Picket-native `scan`, `verify`, and `analyze`
+  when no target-local or environment config replaces the embedded native
+  default.
+- **Reason:** Native findings should be stable Picket records with Picket-owned
+  rule IDs and metadata, while strict compatibility must continue to report the
+  pinned Gitleaks IDs.
+- **User impact:** Native default scans report GitHub token findings once under
+  `picket-github-*` IDs instead of duplicating them under both native and
+  compatibility IDs. Custom configs that explicitly define `github-*` rules are
+  still validated and verified.
+- **Test name:** `PicketConfigLoaderEmbeddedDefaultUsesNativeGitHubRules`,
+  `NativeScanUsesEmbeddedGitHubPersonalAccessTokenRule`.
+- **Migration guidance:** Use strict compatibility commands for exact Gitleaks
+  rule identity. Use native `scan`, `verify`, or `analyze` for Picket metadata,
+  validation states, and stable native rule IDs.
+
 ## Native C# String-Literal Concatenation
 
 - **Upstream behavior:** Gitleaks scans source bytes and does not evaluate C#

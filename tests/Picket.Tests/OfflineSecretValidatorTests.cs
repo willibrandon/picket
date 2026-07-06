@@ -103,6 +103,31 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that native GitHub token families are structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesNativeGitHubTokenShapes()
+    {
+        (string RuleId, string Secret)[] cases = [
+            ("picket-github-app-token", CreateGitHubClassicToken("ghs_")),
+            ("picket-github-fine-grained-personal-access-token", CreateGitHubFineGrainedPat()),
+            ("picket-github-oauth-token", CreateGitHubClassicToken("gho_")),
+            ("picket-github-personal-access-token", CreateGitHubPat()),
+            ("picket-github-refresh-token", CreateGitHubClassicToken("ghr_")),
+        ];
+
+        for (int i = 0; i < cases.Length; i++)
+        {
+            Finding finding = CreateFinding(cases[i].RuleId, cases[i].Secret);
+
+            SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+            Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+            Assert.AreEqual("structurally-valid", result.ReportValue);
+        }
+    }
+
+    /// <summary>
     /// Verifies that known provider tokens that fail structural checks are marked invalid.
     /// </summary>
     [TestMethod]
@@ -339,7 +364,26 @@ public sealed class OfflineSecretValidatorTests
 
     private static string CreateGitHubPat()
     {
-        return string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        return CreateGitHubClassicToken("ghp_");
+    }
+
+    private static string CreateGitHubClassicToken(string prefix)
+    {
+        return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    }
+
+    private static string CreateGitHubFineGrainedPat()
+    {
+        return CreateGitHubFineGrainedPat("github_pat_");
+    }
+
+    private static string CreateGitHubFineGrainedPat(string prefix)
+    {
+        return string.Concat(
+            prefix,
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "0123456789");
     }
 
     private static string CreateAzureStorageConnectionString(string accountKey)

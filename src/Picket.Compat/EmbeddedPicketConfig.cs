@@ -2,13 +2,20 @@ namespace Picket.Compat;
 
 internal static class EmbeddedPicketConfig
 {
-    internal const string SourceVersion = "picket-2026-07-05";
+    internal const string SourceVersion = "picket-2026-07-06";
 
     internal const string Toml = """
 title = "picket native default config"
 
 [extend]
 useDefault = true
+disabledRules = [
+    "github-app-token",
+    "github-fine-grained-pat",
+    "github-oauth",
+    "github-pat",
+    "github-refresh-token",
+]
 
 [[rules]]
 id = "picket-aws-access-key-pair"
@@ -61,5 +68,75 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GCP"
 documentationUrl = "https://cloud.google.com/iam/docs/keys-create-delete"
+
+[[rules]]
+id = "picket-github-app-token"
+description = "Detected a GitHub App user or server token."
+regex = '''\b((?:ghu|ghs)_[0-9A-Za-z]{36})\b'''
+secretGroup = 1
+entropy = 3
+keywords = ["ghu_", "ghs_"]
+tags = ["picket", "github", "github-app", "token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "GitHub"
+documentationUrl = "https://docs.github.com/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app"
+
+[[rules]]
+id = "picket-github-fine-grained-personal-access-token"
+description = "Detected a GitHub fine-grained personal access token."
+regex = '''\b(github_pat_[0-9A-Za-z_]{82})\b'''
+secretGroup = 1
+entropy = 3
+keywords = ["github_pat_"]
+tags = ["picket", "github", "personal-access-token", "fine-grained"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "GitHub"
+documentationUrl = "https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+
+[[rules]]
+id = "picket-github-oauth-token"
+description = "Detected a GitHub OAuth access token."
+regex = '''\b(gho_[0-9A-Za-z]{36})\b'''
+secretGroup = 1
+entropy = 3
+keywords = ["gho_"]
+tags = ["picket", "github", "oauth", "token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "GitHub"
+documentationUrl = "https://docs.github.com/apps/oauth-apps/maintaining-oauth-apps/authorizing-oauth-apps"
+
+[[rules]]
+id = "picket-github-personal-access-token"
+description = "Detected a GitHub personal access token."
+regex = '''\b(ghp_[0-9A-Za-z]{36})\b'''
+secretGroup = 1
+entropy = 3
+keywords = ["ghp_"]
+tags = ["picket", "github", "personal-access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "GitHub"
+documentationUrl = "https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+
+[[rules]]
+id = "picket-github-refresh-token"
+description = "Detected a GitHub refresh token."
+regex = '''\b(ghr_[0-9A-Za-z]{36})\b'''
+secretGroup = 1
+entropy = 3
+keywords = ["ghr_"]
+tags = ["picket", "github", "refresh-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "GitHub"
+documentationUrl = "https://docs.github.com/apps/oauth-apps/building-oauth-apps/refreshing-user-to-server-access-tokens"
 """;
 }
