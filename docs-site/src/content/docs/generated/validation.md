@@ -58,6 +58,7 @@ The first provider validator is GitHub:
 - supported native rule IDs: `picket-github-personal-access-token`, `picket-github-oauth-token`, `picket-github-refresh-token`, `picket-github-app-token`, and `picket-github-fine-grained-personal-access-token`,
 - default endpoint: `https://api.github.com/user`,
 - endpoint override: `--github-api-endpoint <absolute-uri>`, intended for GitHub Enterprise and recorded/local test hosts,
+- proxy override: `--github-api-proxy <absolute-uri>`, intended for enterprise and CI egress environments and rejected when the URI includes user info, query, or fragment data,
 - default endpoint policy: HTTPS required and non-public addresses blocked,
 - explicit non-public endpoint escape hatch: `--allow-non-public-endpoints`,
 - transient `408`, `500`, `502`, `503`, and `504` responses and transport timeouts/failures are retried once by default,

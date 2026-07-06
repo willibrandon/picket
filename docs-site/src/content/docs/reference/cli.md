@@ -178,6 +178,7 @@ Use the grouped index to jump to the workflow you need.
   [--enable-rule id]
   [--verify]
   [--github-api-endpoint uri]
+  [--github-api-proxy uri]
   [--allow-non-public-endpoints]
   [--max-target-megabytes n]
   [--max-archive-depth n]
@@ -288,6 +289,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--github-api-proxy</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Command-specific option.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
@@ -384,6 +391,7 @@ Use the grouped index to jump to the workflow you need.
   [--cache-mode raw|secret-hash-only]
   [--offline|--live]
   [--github-api-endpoint uri]
+  [--github-api-proxy uri]
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--only-verified]
@@ -475,6 +483,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-proxy</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Command-specific option.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
@@ -579,6 +593,7 @@ Use the grouped index to jump to the workflow you need.
   [--cache-mode raw|secret-hash-only]
   [--offline|--live]
   [--github-api-endpoint uri]
+  [--github-api-proxy uri]
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--max-archive-depth n]
@@ -669,6 +684,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-proxy</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Command-specific option.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>

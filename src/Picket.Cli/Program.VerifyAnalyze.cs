@@ -7,7 +7,9 @@ internal static partial class Program
         var forwardedArgs = new List<string>();
         bool allowNonPublicProviderEndpoints = false;
         Uri? githubApiEndpoint = null;
+        Uri? githubApiProxyEndpoint = null;
         bool liveVerification = false;
+        bool providerOptionSpecified = false;
         string? source = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -61,6 +63,18 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
+                providerOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubApiProxyFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--github-api-proxy", out githubApiProxyEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                providerOptionSpecified = true;
                 continue;
             }
 
@@ -71,10 +85,17 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
+                providerOptionSpecified = true;
                 continue;
             }
 
             forwardedArgs.Add(arg);
+        }
+
+        if (providerOptionSpecified && !liveVerification)
+        {
+            Console.Error.WriteLine("--github-api-endpoint, --github-api-proxy, and --allow-non-public-endpoints require --live");
+            return UnknownFlagExitCode;
         }
 
         if (source is not null)
@@ -89,7 +110,7 @@ internal static partial class Program
             defaultRoot: ".",
             allowValidationResultFilters: true,
             liveVerification: liveVerification
-                ? new LiveVerificationConfiguration(githubApiEndpoint, allowNonPublicProviderEndpoints)
+                ? new LiveVerificationConfiguration(githubApiEndpoint, githubApiProxyEndpoint, allowNonPublicProviderEndpoints)
                 : null);
     }
 
@@ -98,6 +119,7 @@ internal static partial class Program
         var forwardedArgs = new List<string>();
         bool allowNonPublicProviderEndpoints = false;
         Uri? githubApiEndpoint = null;
+        Uri? githubApiProxyEndpoint = null;
         bool liveVerification = false;
         bool providerOptionSpecified = false;
         string? source = null;
@@ -157,6 +179,17 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsGitHubApiProxyFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--github-api-proxy", out githubApiProxyEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicProviderEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
@@ -173,7 +206,7 @@ internal static partial class Program
 
         if (providerOptionSpecified && !liveVerification)
         {
-            Console.Error.WriteLine("--github-api-endpoint and --allow-non-public-endpoints require --live");
+            Console.Error.WriteLine("--github-api-endpoint, --github-api-proxy, and --allow-non-public-endpoints require --live");
             return UnknownFlagExitCode;
         }
 
@@ -189,7 +222,7 @@ internal static partial class Program
             defaultRoot: ".",
             allowValidationResultFilters: true,
             liveVerification: liveVerification
-                ? new LiveVerificationConfiguration(githubApiEndpoint, allowNonPublicProviderEndpoints)
+                ? new LiveVerificationConfiguration(githubApiEndpoint, githubApiProxyEndpoint, allowNonPublicProviderEndpoints)
                 : null,
             nativeResultWriter: TryWriteAnalysisReports);
     }

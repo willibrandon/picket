@@ -9,6 +9,7 @@ internal static partial class Program
         bool liveVerification = false;
         bool providerOptionSpecified = false;
         Uri? githubApiEndpoint = null;
+        Uri? githubApiProxyEndpoint = null;
         string? source = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -56,6 +57,17 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsGitHubApiProxyFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--github-api-proxy", out githubApiProxyEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicProviderEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
@@ -72,7 +84,7 @@ internal static partial class Program
 
         if (providerOptionSpecified && !liveVerification)
         {
-            Console.Error.WriteLine("--github-api-endpoint and --allow-non-public-endpoints require --verify");
+            Console.Error.WriteLine("--github-api-endpoint, --github-api-proxy, and --allow-non-public-endpoints require --verify");
             return UnknownFlagExitCode;
         }
 
@@ -87,7 +99,7 @@ internal static partial class Program
             diagnosticsCommand: "scan",
             defaultRoot: ".",
             liveVerification: liveVerification
-                ? new LiveVerificationConfiguration(githubApiEndpoint, allowNonPublicProviderEndpoints)
+                ? new LiveVerificationConfiguration(githubApiEndpoint, githubApiProxyEndpoint, allowNonPublicProviderEndpoints)
                 : null);
     }
 }

@@ -593,7 +593,21 @@ public sealed class CliCompatibilityTests
         CliResult result = await RunCliAsync("scan", root.Path, "--github-api-endpoint", "https://api.github.com/user").ConfigureAwait(false);
 
         Assert.AreEqual(126, result.ExitCode);
-        Assert.Contains("--github-api-endpoint and --allow-non-public-endpoints require --verify", result.Stderr);
+        Assert.Contains("--github-api-endpoint, --github-api-proxy, and --allow-non-public-endpoints require --verify", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that scan provider proxy options require explicit live verification.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanProviderProxyRequiresVerify()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync("scan", root.Path, "--github-api-proxy", "http://127.0.0.1:8080").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("--github-api-endpoint, --github-api-proxy, and --allow-non-public-endpoints require --verify", result.Stderr);
     }
 
     /// <summary>
@@ -727,6 +741,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--offline", result.Stdout);
         Assert.Contains("--live", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
+        Assert.Contains("--github-api-proxy", result.Stdout);
         Assert.Contains("--results", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);
@@ -827,6 +842,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--offline", result.Stdout);
         Assert.Contains("--live", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
+        Assert.Contains("--github-api-proxy", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);
@@ -847,6 +863,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("picket stdin", result.Stdout);
         Assert.Contains("--verify", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
+        Assert.Contains("--github-api-proxy", result.Stdout);
         Assert.Contains("--max-decode-depth", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);

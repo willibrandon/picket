@@ -30,6 +30,19 @@ internal static partial class Program
             }
         }
 
+        if (configuration.GitHubApiProxyEndpoint is not null)
+        {
+            try
+            {
+                githubOptions.ProxyEndpoint = configuration.GitHubApiProxyEndpoint;
+            }
+            catch (ArgumentException ex)
+            {
+                Console.Error.WriteLine($"invalid GitHub API proxy: {ex.Message}");
+                return false;
+            }
+        }
+
         var verifierOptions = SecretLiveVerifierOptions.CreateDefault();
         verifierOptions.EndpointGuardOptions = new EndpointGuardOptions
         {
@@ -43,7 +56,13 @@ internal static partial class Program
             {
                 validationCache = SecretValidationCache.Open(
                     Path.Combine(cacheDir, "validation"),
-                    string.Concat("rules:", ruleFingerprint, ";github:", githubOptions.UserEndpoint));
+                    string.Concat(
+                        "rules:",
+                        ruleFingerprint,
+                        ";github:",
+                        githubOptions.UserEndpoint,
+                        ";github-proxy:",
+                        githubOptions.ProxyEndpoint?.ToString() ?? string.Empty));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {

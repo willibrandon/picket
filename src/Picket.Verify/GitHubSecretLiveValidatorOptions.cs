@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace Picket.Verify;
 
 /// <summary>
@@ -12,6 +14,7 @@ public sealed class GitHubSecretLiveValidatorOptions
     private int _maxRetryAttempts = 1;
     private TimeSpan _retryDelay = TimeSpan.FromMilliseconds(250);
     private TimeSpan _timeout = TimeSpan.FromSeconds(10);
+    private Uri? _proxyEndpoint;
     private Uri _userEndpoint = new("https://api.github.com/user");
 
     /// <summary>
@@ -109,6 +112,42 @@ public sealed class GitHubSecretLiveValidatorOptions
     }
 
     /// <summary>
+    /// Gets or sets the optional HTTP proxy endpoint used for GitHub API requests.
+    /// </summary>
+    public Uri? ProxyEndpoint
+    {
+        get => _proxyEndpoint;
+        set
+        {
+            if (value is null)
+            {
+                _proxyEndpoint = null;
+                return;
+            }
+
+            if (!value.IsAbsoluteUri)
+            {
+                throw new ArgumentException("Proxy URI must be absolute.", nameof(value));
+            }
+
+            if (!value.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                && !value.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Proxy URI must use HTTP or HTTPS.", nameof(value));
+            }
+
+            if (!string.IsNullOrEmpty(value.UserInfo)
+                || !string.IsNullOrEmpty(value.Query)
+                || !string.IsNullOrEmpty(value.Fragment))
+            {
+                throw new ArgumentException("Proxy URI must not include user info, a query string, or a fragment.", nameof(value));
+            }
+
+            _proxyEndpoint = value;
+        }
+    }
+
+    /// <summary>
     /// Sets a custom message handler factory for tests and controlled hosts.
     /// </summary>
     /// <param name="messageHandlerFactory">The message handler factory.</param>
@@ -119,12 +158,25 @@ public sealed class GitHubSecretLiveValidatorOptions
 
     internal HttpClient CreateHttpClient()
     {
+        HttpMessageHandler handler = _messageHandlerFactory is null
+            ? CreateHttpClientHandler()
+            : _messageHandlerFactory();
         HttpClient client = new(
-            _messageHandlerFactory is null
-                ? new HttpClientHandler { AllowAutoRedirect = false }
-                : _messageHandlerFactory(),
+            handler,
             disposeHandler: true);
         client.Timeout = Timeout;
         return client;
+    }
+
+    private HttpClientHandler CreateHttpClientHandler()
+    {
+        var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        if (_proxyEndpoint is not null)
+        {
+            handler.Proxy = new WebProxy(_proxyEndpoint);
+            handler.UseProxy = true;
+        }
+
+        return handler;
     }
 }

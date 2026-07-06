@@ -720,6 +720,12 @@ internal static partial class Program
             || arg.StartsWith("--github-api-endpoint=", StringComparison.Ordinal);
     }
 
+    static bool IsGitHubApiProxyFlag(string arg)
+    {
+        return arg.Equals("--github-api-proxy", StringComparison.Ordinal)
+            || arg.StartsWith("--github-api-proxy=", StringComparison.Ordinal);
+    }
+
     static bool IsAllowNonPublicProviderEndpointsFlag(string arg)
     {
         return arg.Equals("--allow-non-public-endpoints", StringComparison.Ordinal)
