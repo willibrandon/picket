@@ -1097,8 +1097,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
 
     private static string GetCliOptionDescription(string command, string option)
     {
-        if (option.Contains("--offline", StringComparison.Ordinal)
-            || option.Contains("--live", StringComparison.Ordinal))
+        if (option.Equals("--offline / --live", StringComparison.Ordinal))
         {
             return "Choose local validation or opt-in live provider verification.";
         }
@@ -1125,9 +1124,12 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "--follow-symlinks" => "Follow symlinks while scanning directories.",
             "--force" => "Overwrite existing hook files.",
             "--github-api-endpoint" => "Override the GitHub API endpoint used by live validation.",
+            "--github-api-proxy" => "Use this HTTP or HTTPS proxy for live GitHub API requests.",
             "--ignore-gitleaks-allow" => "Do not honor gitleaks:allow comments.",
             "--ignore-path" => "Load additional ignore patterns from this file.",
             "--input" => "Read a portable cache archive from this path.",
+            "--live-provider-rate-limit-ms" => "Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.",
+            "--live-rate-limit-ms" => "Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.",
             "--log-opts" => "Pass git log options for compatibility scans.",
             "--max-archive-depth" => "Limit nested archive traversal depth.",
             "--max-archive-entries" => "Limit files extracted from each archive.",

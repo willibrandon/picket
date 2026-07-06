@@ -577,7 +577,7 @@ Live verification:
 - the live verifier evaluates endpoint policy before any provider callback, returns `skipped` for unsupported findings, and never treats cached results as a bypass for current endpoint policy,
 - persistent validation cache keys use provider, validator version, rule ID, normalized endpoint, and SHA-256 secret hash; cache files never store raw secrets, raw matches, or endpoint query strings,
 - initial GitHub validator checks supported GitHub token rules against the REST `/user` endpoint, supports explicit endpoint override for enterprise hosts, maps accepted/rejected/rate-limited provider responses to native validation states, and exposes non-secret identity/scope/resource metadata for analysis when GitHub returns it,
-- global and per-provider rate limits,
+- global and per-provider rate limits, including a default same-provider pacing interval and native CLI overrides in milliseconds,
 - retries with cache-poisoning protection,
 - proxy and endpoint override support,
 - TLS mode controls,

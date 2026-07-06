@@ -48,6 +48,15 @@ internal static partial class Program
         {
             AllowNonPublicAddresses = configuration.AllowNonPublicProviderEndpoints,
         };
+        if (configuration.MinimumRequestInterval.HasValue)
+        {
+            verifierOptions.MinimumRequestInterval = configuration.MinimumRequestInterval.Value;
+        }
+
+        if (configuration.MinimumRequestIntervalPerProvider.HasValue)
+        {
+            verifierOptions.MinimumRequestIntervalPerProvider = configuration.MinimumRequestIntervalPerProvider.Value;
+        }
 
         SecretValidationCache? validationCache = null;
         if (!string.IsNullOrWhiteSpace(cacheDir))

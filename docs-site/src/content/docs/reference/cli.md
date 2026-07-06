@@ -179,6 +179,8 @@ Use the grouped index to jump to the workflow you need.
   [--verify]
   [--github-api-endpoint uri]
   [--github-api-proxy uri]
+  [--live-rate-limit-ms n]
+  [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
   [--max-target-megabytes n]
   [--max-archive-depth n]
@@ -292,7 +294,19 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-proxy</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Command-specific option.</td>
+              <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-provider-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
@@ -392,6 +406,8 @@ Use the grouped index to jump to the workflow you need.
   [--offline|--live]
   [--github-api-endpoint uri]
   [--github-api-proxy uri]
+  [--live-rate-limit-ms n]
+  [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--only-verified]
@@ -488,7 +504,19 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-proxy</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Command-specific option.</td>
+              <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-provider-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
@@ -594,6 +622,8 @@ Use the grouped index to jump to the workflow you need.
   [--offline|--live]
   [--github-api-endpoint uri]
   [--github-api-proxy uri]
+  [--live-rate-limit-ms n]
+  [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--max-archive-depth n]
@@ -689,7 +719,19 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-proxy</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Command-specific option.</td>
+              <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-provider-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>

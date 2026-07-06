@@ -15,8 +15,11 @@ public sealed class SecretLiveVerifierOptions
     private TimeSpan _inactiveResultCacheDuration = TimeSpan.FromHours(1);
     private TimeSpan _skippedResultCacheDuration = TimeSpan.FromMinutes(30);
     private TimeSpan _errorResultCacheDuration = TimeSpan.FromMinutes(5);
+    private TimeSpan _minimumRequestInterval = TimeSpan.Zero;
+    private TimeSpan _minimumRequestIntervalPerProvider = TimeSpan.FromSeconds(1);
     private int _maxConcurrentProviderRequests = DefaultMaxConcurrentProviderRequests;
     private int _maxConcurrentRequestsPerProvider = DefaultMaxConcurrentRequestsPerProvider;
+    private TimeProvider _timeProvider = TimeProvider.System;
 
     /// <summary>
     /// Creates default live verifier options.
@@ -112,6 +115,41 @@ public sealed class SecretLiveVerifierOptions
             ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
             _maxConcurrentRequestsPerProvider = value;
         }
+    }
+
+    /// <summary>
+    /// Gets or sets the minimum interval between provider requests across all providers.
+    /// </summary>
+    public TimeSpan MinimumRequestInterval
+    {
+        get => _minimumRequestInterval;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, TimeSpan.Zero);
+            _minimumRequestInterval = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the minimum interval between provider requests for the same provider.
+    /// </summary>
+    public TimeSpan MinimumRequestIntervalPerProvider
+    {
+        get => _minimumRequestIntervalPerProvider;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, TimeSpan.Zero);
+            _minimumRequestIntervalPerProvider = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the clock used for request-rate pacing.
+    /// </summary>
+    public TimeProvider TimeProvider
+    {
+        get => _timeProvider;
+        set => _timeProvider = value ?? throw new ArgumentNullException(nameof(value));
     }
 
     internal bool TryGetCacheDuration(SecretValidationState state, out TimeSpan duration)

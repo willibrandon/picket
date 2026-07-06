@@ -197,6 +197,18 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadNonNegativeMillisecondsFlag(string[] args, ref int index, string longName, out TimeSpan value)
+    {
+        if (TryReadNonNegativeIntFlag(args, ref index, longName, out int milliseconds))
+        {
+            value = TimeSpan.FromMilliseconds(milliseconds);
+            return true;
+        }
+
+        value = TimeSpan.Zero;
+        return false;
+    }
+
     static bool TryReadRuleIdFlag(string[] args, ref int index, List<string> enabledRuleIds)
     {
         if (!TryReadStringFlag(args, ref index, "--enable-rule", out string? value))
@@ -724,6 +736,18 @@ internal static partial class Program
     {
         return arg.Equals("--github-api-proxy", StringComparison.Ordinal)
             || arg.StartsWith("--github-api-proxy=", StringComparison.Ordinal);
+    }
+
+    static bool IsLiveRateLimitMillisecondsFlag(string arg)
+    {
+        return arg.Equals("--live-rate-limit-ms", StringComparison.Ordinal)
+            || arg.StartsWith("--live-rate-limit-ms=", StringComparison.Ordinal);
+    }
+
+    static bool IsLiveProviderRateLimitMillisecondsFlag(string arg)
+    {
+        return arg.Equals("--live-provider-rate-limit-ms", StringComparison.Ordinal)
+            || arg.StartsWith("--live-provider-rate-limit-ms=", StringComparison.Ordinal);
     }
 
     static bool IsAllowNonPublicProviderEndpointsFlag(string arg)

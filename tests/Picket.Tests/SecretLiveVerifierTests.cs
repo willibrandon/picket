@@ -287,6 +287,90 @@ public sealed class SecretLiveVerifierTests
         Assert.AreEqual(1, secondValidator.VerifyCount);
     }
 
+    /// <summary>
+    /// Verifies that the per-provider request interval is enforced before provider code runs.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncAppliesRequestIntervalPerProvider()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MinimumRequestInterval = TimeSpan.Zero;
+        options.MinimumRequestIntervalPerProvider = TimeSpan.FromHours(1);
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active));
+        var verifier = new SecretLiveVerifier([validator], options: options);
+
+        await verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("ghp_")),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
+        try
+        {
+            await verifier.VerifyAsync(
+                CreateFinding(CreateGitHubClassicToken("gho_")),
+                cancellation.Token).ConfigureAwait(false);
+            Assert.Fail("Expected the second request to wait for the per-provider interval.");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        Assert.AreEqual(1, validator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that the global request interval is enforced before provider code runs.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncAppliesRequestIntervalGlobally()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MinimumRequestInterval = TimeSpan.FromHours(1);
+        options.MinimumRequestIntervalPerProvider = TimeSpan.Zero;
+        var firstValidator = new FakeSecretLiveValidator(
+            "first",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            supports: finding => finding.RuleID.Equals("first-rule", StringComparison.Ordinal));
+        var secondValidator = new FakeSecretLiveValidator(
+            "second",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            supports: finding => finding.RuleID.Equals("second-rule", StringComparison.Ordinal));
+        var verifier = new SecretLiveVerifier([firstValidator, secondValidator], options: options);
+
+        await verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("ghp_"), "first-rule"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
+        try
+        {
+            await verifier.VerifyAsync(
+                CreateFinding(CreateGitHubClassicToken("gho_"), "second-rule"),
+                cancellation.Token).ConfigureAwait(false);
+            Assert.Fail("Expected the second request to wait for the global interval.");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        Assert.AreEqual(1, firstValidator.VerifyCount);
+        Assert.AreEqual(0, secondValidator.VerifyCount);
+    }
+
     private static Finding CreateFinding(string? secret = null, string ruleId = "github-pat")
     {
         secret ??= CreateGitHubPat();

@@ -18,7 +18,9 @@ public sealed class SecretLiveVerifier(
     private readonly SecretValidationCache? _cache = cache;
     private readonly SecretLiveVerifierOptions _options = options ?? SecretLiveVerifierOptions.CreateDefault();
     private readonly SemaphoreSlim _globalRequestLimiter = new(options?.MaxConcurrentProviderRequests ?? SecretLiveVerifierOptions.DefaultMaxConcurrentProviderRequests);
+    private readonly SecretLiveRequestPacer _globalRequestPacer = CreateRequestPacer(options, perProvider: false);
     private readonly object _gate = new();
+    private readonly Dictionary<string, SecretLiveRequestPacer> _providerRequestPacers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SemaphoreSlim> _providerRequestLimiters = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SecretValidationResult> _requestCache = new(StringComparer.Ordinal);
     private readonly ISecretLiveValidator[] _validators = ValidateValidators(validators);
@@ -115,13 +117,27 @@ public sealed class SecretLiveVerifier(
         }
 
         _globalRequestLimiter.Dispose();
+        _globalRequestPacer.Dispose();
         lock (_gate)
         {
             foreach (SemaphoreSlim limiter in _providerRequestLimiters.Values)
             {
                 limiter.Dispose();
             }
+
+            foreach (SecretLiveRequestPacer pacer in _providerRequestPacers.Values)
+            {
+                pacer.Dispose();
+            }
         }
+    }
+
+    private static SecretLiveRequestPacer CreateRequestPacer(SecretLiveVerifierOptions? options, bool perProvider)
+    {
+        SecretLiveVerifierOptions resolvedOptions = options ?? SecretLiveVerifierOptions.CreateDefault();
+        return new SecretLiveRequestPacer(
+            perProvider ? resolvedOptions.MinimumRequestIntervalPerProvider : resolvedOptions.MinimumRequestInterval,
+            resolvedOptions.TimeProvider);
     }
 
     private static ISecretLiveValidator[] ValidateValidators(ISecretLiveValidator[] validators)
@@ -142,12 +158,15 @@ public sealed class SecretLiveVerifier(
         CancellationToken cancellationToken)
     {
         SemaphoreSlim providerRequestLimiter = GetProviderRequestLimiter(validator.Provider);
+        SecretLiveRequestPacer providerRequestPacer = GetProviderRequestPacer(validator.Provider);
         await providerRequestLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
         bool globalRequestLimiterAcquired = false;
         try
         {
             await _globalRequestLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
             globalRequestLimiterAcquired = true;
+            await _globalRequestPacer.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await providerRequestPacer.WaitAsync(cancellationToken).ConfigureAwait(false);
             return await validator.VerifyAsync(finding, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -158,6 +177,20 @@ public sealed class SecretLiveVerifier(
             }
 
             providerRequestLimiter.Release();
+        }
+    }
+
+    private SecretLiveRequestPacer GetProviderRequestPacer(string provider)
+    {
+        lock (_gate)
+        {
+            if (!_providerRequestPacers.TryGetValue(provider, out SecretLiveRequestPacer? pacer))
+            {
+                pacer = new SecretLiveRequestPacer(_options.MinimumRequestIntervalPerProvider, _options.TimeProvider);
+                _providerRequestPacers.Add(provider, pacer);
+            }
+
+            return pacer;
         }
     }
 

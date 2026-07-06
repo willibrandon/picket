@@ -10,6 +10,8 @@ internal static partial class Program
         Uri? githubApiProxyEndpoint = null;
         bool liveVerification = false;
         bool providerOptionSpecified = false;
+        TimeSpan? minimumRequestInterval = null;
+        TimeSpan? minimumRequestIntervalPerProvider = null;
         string? source = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -78,6 +80,30 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsLiveRateLimitMillisecondsFlag(arg))
+            {
+                if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-rate-limit-ms", out TimeSpan value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                minimumRequestInterval = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
+            if (IsLiveProviderRateLimitMillisecondsFlag(arg))
+            {
+                if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-provider-rate-limit-ms", out TimeSpan value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                minimumRequestIntervalPerProvider = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicProviderEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
@@ -94,7 +120,7 @@ internal static partial class Program
 
         if (providerOptionSpecified && !liveVerification)
         {
-            Console.Error.WriteLine("--github-api-endpoint, --github-api-proxy, and --allow-non-public-endpoints require --live");
+            Console.Error.WriteLine("live provider options require --live");
             return UnknownFlagExitCode;
         }
 
@@ -110,7 +136,12 @@ internal static partial class Program
             defaultRoot: ".",
             allowValidationResultFilters: true,
             liveVerification: liveVerification
-                ? new LiveVerificationConfiguration(githubApiEndpoint, githubApiProxyEndpoint, allowNonPublicProviderEndpoints)
+                ? new LiveVerificationConfiguration(
+                    githubApiEndpoint,
+                    githubApiProxyEndpoint,
+                    allowNonPublicProviderEndpoints,
+                    minimumRequestInterval,
+                    minimumRequestIntervalPerProvider)
                 : null);
     }
 
@@ -122,6 +153,8 @@ internal static partial class Program
         Uri? githubApiProxyEndpoint = null;
         bool liveVerification = false;
         bool providerOptionSpecified = false;
+        TimeSpan? minimumRequestInterval = null;
+        TimeSpan? minimumRequestIntervalPerProvider = null;
         string? source = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -190,6 +223,30 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsLiveRateLimitMillisecondsFlag(arg))
+            {
+                if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-rate-limit-ms", out TimeSpan value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                minimumRequestInterval = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
+            if (IsLiveProviderRateLimitMillisecondsFlag(arg))
+            {
+                if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-provider-rate-limit-ms", out TimeSpan value))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                minimumRequestIntervalPerProvider = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicProviderEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
@@ -206,7 +263,7 @@ internal static partial class Program
 
         if (providerOptionSpecified && !liveVerification)
         {
-            Console.Error.WriteLine("--github-api-endpoint, --github-api-proxy, and --allow-non-public-endpoints require --live");
+            Console.Error.WriteLine("live provider options require --live");
             return UnknownFlagExitCode;
         }
 
@@ -222,7 +279,12 @@ internal static partial class Program
             defaultRoot: ".",
             allowValidationResultFilters: true,
             liveVerification: liveVerification
-                ? new LiveVerificationConfiguration(githubApiEndpoint, githubApiProxyEndpoint, allowNonPublicProviderEndpoints)
+                ? new LiveVerificationConfiguration(
+                    githubApiEndpoint,
+                    githubApiProxyEndpoint,
+                    allowNonPublicProviderEndpoints,
+                    minimumRequestInterval,
+                    minimumRequestIntervalPerProvider)
                 : null,
             nativeResultWriter: TryWriteAnalysisReports);
     }
