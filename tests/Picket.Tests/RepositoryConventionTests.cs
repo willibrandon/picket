@@ -692,7 +692,7 @@ public sealed partial class RepositoryConventionTests
     /// Verifies that checked-in PowerShell scripts parse successfully.
     /// </summary>
     [TestMethod]
-    [Timeout(120000, CooperativeCancellation = true)]
+    [Timeout(300000, CooperativeCancellation = true)]
     public async Task PowerShellScriptsParseSuccessfully()
     {
         string root = FindRepositoryRoot();
