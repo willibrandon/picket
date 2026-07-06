@@ -511,6 +511,44 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans can explicitly opt into guarded live provider verification.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanVerifyBlocksUnsafeProviderEndpoint()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "--verify",
+            "--github-api-endpoint",
+            "https://metadata.google.internal/user",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"error\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that scan provider endpoint options require explicit live verification.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanProviderEndpointRequiresVerify()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync("scan", root.Path, "--github-api-endpoint", "https://api.github.com/user").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("--github-api-endpoint and --allow-non-public-endpoints require --verify", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native verification runs safe offline validators and writes native findings.
     /// </summary>
     [TestMethod]
@@ -734,6 +772,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(0, result.ExitCode);
         Assert.Contains("picket scan", result.Stdout);
         Assert.Contains("picket stdin", result.Stdout);
+        Assert.Contains("--verify", result.Stdout);
+        Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--max-decode-depth", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);

@@ -547,6 +547,12 @@ internal static partial class Program
             || arg.StartsWith("--live=", StringComparison.Ordinal);
     }
 
+    static bool IsVerifyFlag(string arg)
+    {
+        return arg.Equals("--verify", StringComparison.Ordinal)
+            || arg.StartsWith("--verify=", StringComparison.Ordinal);
+    }
+
     static bool IsGitHubApiEndpointFlag(string arg)
     {
         return arg.Equals("--github-api-endpoint", StringComparison.Ordinal)

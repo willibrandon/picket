@@ -355,6 +355,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("class=\"cli-command-detail-header\"", cliReference);
         Assert.Contains("class=\"cli-reference-table\"", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--offline / --live</code></td>", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--verify</code></td>", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--timeout</code></td>", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--diagnostics</code></td>", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--diagnostics-dir</code></td>", cliReference);

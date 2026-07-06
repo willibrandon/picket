@@ -7,7 +7,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket - bootstrap secrets scanner");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
+        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--verify] [--github-api-endpoint uri] [--allow-non-public-endpoints] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
         Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline|--live] [--github-api-endpoint uri] [--allow-non-public-endpoints] [--results value] [--only-verified] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
         Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
         Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
@@ -28,7 +28,7 @@ internal static partial class Program
         Console.Out.WriteLine("picket scan - native filesystem scan");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
+        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--verify] [--github-api-endpoint uri] [--allow-non-public-endpoints] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
     }
 
     static void WriteVerifyHelp()

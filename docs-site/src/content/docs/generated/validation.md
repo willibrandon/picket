@@ -12,9 +12,9 @@ Picket separates offline structural validation from live provider verification.
 
 - No telemetry is collected.
 - Live network verification is disabled by default.
-- `picket scan` and compatibility commands do not contact provider APIs.
+- Plain `picket scan` and compatibility commands do not contact provider APIs.
 - `picket verify --offline` and native scan validation use local checks only.
-- `picket verify --live` is explicit opt-in provider verification. The initial live provider is GitHub token validation.
+- `picket scan --verify` and `picket verify --live` are explicit opt-in provider verification. The initial live provider is GitHub token validation.
 
 ## Offline Validation
 
@@ -40,7 +40,7 @@ Current offline coverage includes:
 
 ## Live Verification Model
 
-Live provider calls are opt-in behavior for `picket verify --live`. The reusable verification layer defines the provider contract and safety envelope that provider validators must use:
+Live provider calls are opt-in behavior for `picket scan --verify` and `picket verify --live`. The reusable verification layer defines the provider contract and safety envelope that provider validators must use:
 
 - `ISecretLiveValidator` describes one provider validator, its endpoint, provider ID, version, and support check.
 - `SecretLiveVerifier` chooses the first supporting validator, evaluates the endpoint guard before the validator runs, honors cancellation, and returns `skipped` when no validator supports a finding.

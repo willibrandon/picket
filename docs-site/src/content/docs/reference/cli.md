@@ -158,6 +158,9 @@ Use the grouped index to jump to the workflow you need.
   [--no-ignore]
   [--cache-dir path]
   [--enable-rule id]
+  [--verify]
+  [--github-api-endpoint uri]
+  [--allow-non-public-endpoints]
   [--max-target-megabytes n]
   [--max-archive-depth n]
   [--max-archive-entries n]
@@ -247,6 +250,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>id</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Enable an additional rule by ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--verify</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Run opt-in live provider verification for supported findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow guarded live validation endpoints that are not public internet addresses.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-target-megabytes</code></td>

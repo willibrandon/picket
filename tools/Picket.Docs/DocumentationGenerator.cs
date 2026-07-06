@@ -1152,6 +1152,7 @@ internal sealed class DocumentationGenerator(string repositoryRoot)
             "--source" => "Override the source label stored in findings and fingerprints.",
             "--staged" => "Scan staged changes.",
             "--timeout" => "Stop scanning after this many seconds. Use 0 to disable.",
+            "--verify" => "Run opt-in live provider verification for supported findings.",
             _ => command.Length == 0 ? "Command option." : "Command-specific option.",
         };
     }
