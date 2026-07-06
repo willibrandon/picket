@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
@@ -10,6 +12,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class GitleaksBaselineTests
 {
+    private const string LowerHex = "0123456789abcdef";
+
     /// <summary>
     /// Verifies that baseline suppression ignores fingerprints and tags like Gitleaks.
     /// </summary>
@@ -51,6 +55,25 @@ public sealed class GitleaksBaselineTests
         var baseline = new GitleaksBaseline([baselineFinding]);
 
         IReadOnlyList<Finding> filtered = baseline.Filter([finding], redactionPercent: 100);
+
+        Assert.IsEmpty(filtered);
+    }
+
+    /// <summary>
+    /// Verifies that hash-only cached findings can still be suppressed by raw baselines.
+    /// </summary>
+    [TestMethod]
+    public void FilterSuppressesHashOnlyFindingWithMatchingEvidenceHashes()
+    {
+        Finding baselineFinding = CreateFinding(match: "token=secret", secret: "secret");
+        Finding finding = CreateFinding(
+            match: string.Empty,
+            secret: string.Empty,
+            secretSha256: CreateSha256("secret"),
+            matchSha256: CreateSha256("token=secret"));
+        var baseline = new GitleaksBaseline([baselineFinding]);
+
+        IReadOnlyList<Finding> filtered = baseline.Filter([finding]);
 
         Assert.IsEmpty(filtered);
     }
@@ -127,6 +150,8 @@ public sealed class GitleaksBaselineTests
     private static Finding CreateFinding(
         string match = "token=secret",
         string secret = "secret",
+        string secretSha256 = "",
+        string matchSha256 = "",
         string fingerprint = "fingerprint",
         IReadOnlyList<string>? tags = null,
         double entropy = 3.25)
@@ -149,6 +174,22 @@ public sealed class GitleaksBaselineTests
             "2026-07-05T00:00:00Z",
             "message",
             tags ?? [],
-            fingerprint);
+            fingerprint,
+            secretSha256: secretSha256,
+            matchSha256: matchSha256);
+    }
+
+    private static string CreateSha256(string value)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return string.Create(hash.Length * 2, hash, static (chars, bytes) =>
+        {
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                byte value = bytes[i];
+                chars[i * 2] = LowerHex[value >> 4];
+                chars[(i * 2) + 1] = LowerHex[value & 0x0F];
+            }
+        });
     }
 }

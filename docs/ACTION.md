@@ -86,6 +86,8 @@ When `cache` is `true`, `actions/cache/restore` restores `cache-path` before sca
 
 The default action cache mode is `secret-hash-only`, so saved cache entries keep finding hashes and provenance without raw match, secret, or line text. Set `cache-mode: raw` only for trusted private CI where exact cached report replay is more important than cache privacy.
 
+When `baseline-path` is supplied, baseline suppression is applied after cache hits and works with the default `secret-hash-only` cache mode by comparing cached evidence hashes to the baseline evidence.
+
 The job summary includes the scanner exit code, finding count, failure policy, report paths, and capped finding breakdowns by rule and by file. Secret values are not written to the summary, and findings are fully redacted by default. Set `redact: 0` only for trusted private CI where raw secret values are acceptable.
 
 ## Annotations

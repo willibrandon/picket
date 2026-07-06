@@ -37,6 +37,8 @@ The default cache mode is `raw`. Raw mode may contain finding match, secret, and
 
 Use `--cache-mode secret-hash-only` when the cache must not persist raw finding evidence. In this mode cache rows keep rule, location, entropy, validation, tags, decode path, blob hash, secret hash, and match hash, but omit raw match, secret, and line text. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hash fields, stable fingerprints, and provenance remain available. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
 
+Baseline suppression still works with secret-hash-only cache hits. Picket compares the cached match and secret hashes to hashes of the baseline evidence rather than requiring raw cached match or secret text.
+
 ## Maintenance
 
 `PicketScanCache.GetStats()` reports entry count, active-key entry count, and total entry bytes.

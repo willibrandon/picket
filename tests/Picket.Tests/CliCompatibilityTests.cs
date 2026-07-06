@@ -1854,6 +1854,53 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that secret-hash-only cache entries do not bypass baseline suppression.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanAppliesBaselineToSecretHashOnlyCacheHits()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string baselinePath = Path.Combine(root.Path, "baseline.json");
+        string cachePath = Path.Combine(root.Path, ".picket-cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult create = await RunCliAsync("baseline", "create", root.Path, "-c", configPath, "-r", baselinePath).ConfigureAwait(false);
+        CliResult firstScan = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--baseline-path",
+            baselinePath,
+            "--cache-dir",
+            cachePath,
+            "--cache-mode",
+            "secret-hash-only",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+        CliResult secondScan = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--baseline-path",
+            baselinePath,
+            "--cache-dir",
+            cachePath,
+            "--cache-mode",
+            "secret-hash-only",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, create.ExitCode);
+        Assert.AreEqual(0, firstScan.ExitCode);
+        Assert.AreEqual(0, secondScan.ExitCode);
+        Assert.IsEmpty(firstScan.Stdout);
+        Assert.IsEmpty(secondScan.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that baseline creation can scan a --source path and write to standard output.
     /// </summary>
     [TestMethod]

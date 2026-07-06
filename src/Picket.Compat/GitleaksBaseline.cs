@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Picket.Engine;
 
@@ -9,6 +11,8 @@ namespace Picket.Compat;
 /// <param name="findings">Findings loaded from an existing Gitleaks JSON report.</param>
 public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
 {
+    private const string LowerHex = "0123456789abcdef";
+
     private readonly IReadOnlyList<Finding> _findings = findings ?? throw new ArgumentNullException(nameof(findings));
 
     /// <summary>
@@ -203,7 +207,7 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
             && finding.EndLine == baselineFinding.EndLine
             && finding.StartColumn == baselineFinding.StartColumn
             && finding.EndColumn == baselineFinding.EndColumn
-            && (redactionPercent > 0 || (finding.Match == baselineFinding.Match && finding.Secret == baselineFinding.Secret))
+            && (redactionPercent > 0 || HasMatchingEvidence(finding, baselineFinding))
             && finding.File == baselineFinding.File
             && finding.Commit == baselineFinding.Commit
             && finding.Author == baselineFinding.Author
@@ -211,6 +215,35 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
             && finding.Date == baselineFinding.Date
             && finding.Message == baselineFinding.Message
             && finding.Entropy == baselineFinding.Entropy;
+    }
+
+    private static bool HasMatchingEvidence(Finding finding, Finding baselineFinding)
+    {
+        if (finding.Match == baselineFinding.Match && finding.Secret == baselineFinding.Secret)
+        {
+            return true;
+        }
+
+        return finding.Match.Length == 0
+            && finding.Secret.Length == 0
+            && finding.MatchSha256.Length != 0
+            && finding.SecretSha256.Length != 0
+            && finding.MatchSha256 == CreateSha256(baselineFinding.Match)
+            && finding.SecretSha256 == CreateSha256(baselineFinding.Secret);
+    }
+
+    private static string CreateSha256(string value)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return string.Create(hash.Length * 2, hash, static (chars, bytes) =>
+        {
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                byte value = bytes[i];
+                chars[i * 2] = LowerHex[value >> 4];
+                chars[(i * 2) + 1] = LowerHex[value & 0x0F];
+            }
+        });
     }
 
     private static void ValidateRedactionPercent(int redactionPercent)
