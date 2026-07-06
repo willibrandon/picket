@@ -1,0 +1,341 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace Picket.Verify;
+
+/// <summary>
+/// Stores live validation results without storing raw secrets.
+/// </summary>
+public sealed class SecretValidationCache
+{
+    private const string CacheFingerprintHeader = "cacheFingerprint";
+    private const string EntriesDirectoryName = "entries";
+    private const string ExpiresUnixTimeSecondsHeader = "expiresUnixTimeSeconds";
+    private const string KeyHeader = "key";
+    private const string LocksDirectoryName = "locks";
+    private const string LowerHex = "0123456789abcdef";
+    private const string ReasonHeader = "reason";
+    private const string SchemaLine = "picket.validation-cache.v1";
+    private const string StateHeader = "state";
+
+    private readonly string _entriesPath;
+    private readonly string _locksPath;
+
+    private SecretValidationCache(string rootPath, string cacheFingerprint)
+    {
+        RootPath = Path.GetFullPath(rootPath);
+        CacheFingerprintSha256 = ComputeSha256Hex(cacheFingerprint);
+        _entriesPath = Path.Combine(RootPath, EntriesDirectoryName);
+        _locksPath = Path.Combine(RootPath, LocksDirectoryName);
+        Directory.CreateDirectory(_entriesPath);
+        Directory.CreateDirectory(_locksPath);
+    }
+
+    /// <summary>
+    /// Gets the cache root path.
+    /// </summary>
+    public string RootPath { get; }
+
+    /// <summary>
+    /// Gets the SHA-256 hash of the caller-supplied cache fingerprint.
+    /// </summary>
+    public string CacheFingerprintSha256 { get; }
+
+    /// <summary>
+    /// Opens a validation cache at the supplied root directory.
+    /// </summary>
+    /// <param name="rootPath">The cache root directory.</param>
+    /// <param name="cacheFingerprint">The non-secret rule, provider, and configuration fingerprint for invalidation.</param>
+    /// <returns>The opened validation cache.</returns>
+    public static SecretValidationCache Open(string rootPath, string cacheFingerprint)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheFingerprint);
+
+        return new SecretValidationCache(rootPath, cacheFingerprint);
+    }
+
+    /// <summary>
+    /// Reads a cached validation result when the entry exists, matches the active fingerprint, and has not expired.
+    /// </summary>
+    /// <param name="key">The validation cache key.</param>
+    /// <param name="now">The current time used for expiration checks.</param>
+    /// <param name="result">The cached result when the method returns <see langword="true" />.</param>
+    /// <returns><see langword="true" /> when a valid cached result was read; otherwise <see langword="false" />.</returns>
+    public bool TryRead(SecretValidationCacheKey key, DateTimeOffset now, [NotNullWhen(true)] out SecretValidationResult? result)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        result = null;
+        string entryPath = CreateEntryPath(key);
+        if (!File.Exists(entryPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            return TryReadEntry(entryPath, key, now, out result);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or FormatException or ArgumentException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Writes a validation result to the cache.
+    /// </summary>
+    /// <param name="key">The validation cache key.</param>
+    /// <param name="result">The result to cache.</param>
+    /// <param name="expiresAtUtc">The UTC time when the cached result expires.</param>
+    public void Write(SecretValidationCacheKey key, SecretValidationResult result, DateTimeOffset expiresAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(result);
+
+        string entryPath = CreateEntryPath(key);
+        string? entryDirectory = Path.GetDirectoryName(entryPath);
+        if (entryDirectory is not null)
+        {
+            Directory.CreateDirectory(entryDirectory);
+        }
+
+        string lockPath = Path.Combine(_locksPath, string.Concat(key.Fingerprint, ".lock"));
+        using FileStream _ = OpenLock(lockPath);
+        string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
+        try
+        {
+            File.WriteAllText(tempPath, CreateEntry(key, result, expiresAtUtc), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.Move(tempPath, entryPath, overwrite: true);
+        }
+        finally
+        {
+            TryDelete(tempPath);
+        }
+    }
+
+    /// <summary>
+    /// Deletes expired cache entries for the active cache fingerprint.
+    /// </summary>
+    /// <param name="now">The current time used for expiration checks.</param>
+    /// <returns>The number of deleted entries.</returns>
+    public int PruneExpired(DateTimeOffset now)
+    {
+        int deleted = 0;
+        foreach (string entryPath in EnumerateEntryFiles())
+        {
+            try
+            {
+                if (IsExpiredCurrentFingerprintEntry(entryPath, now) && TryDelete(entryPath))
+                {
+                    deleted++;
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+            catch (FormatException)
+            {
+            }
+            catch (ArgumentException)
+            {
+            }
+        }
+
+        return deleted;
+    }
+
+    private static FileStream OpenLock(string lockPath)
+    {
+        return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+    }
+
+    private string CreateEntry(SecretValidationCacheKey key, SecretValidationResult result, DateTimeOffset expiresAtUtc)
+    {
+        var builder = new StringBuilder();
+        builder.Append(SchemaLine);
+        builder.Append('\n');
+        AppendHeader(builder, CacheFingerprintHeader, CacheFingerprintSha256);
+        AppendHeader(builder, KeyHeader, key.Fingerprint);
+        AppendHeader(builder, ExpiresUnixTimeSecondsHeader, expiresAtUtc.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
+        AppendHeader(builder, StateHeader, SecretValidationResult.ToReportValue(result.State));
+        AppendHeader(builder, ReasonHeader, Encode(result.Reason));
+        return builder.ToString();
+    }
+
+    private static void AppendHeader(StringBuilder builder, string name, string value)
+    {
+        builder.Append(name);
+        builder.Append('\t');
+        builder.Append(value);
+        builder.Append('\n');
+    }
+
+    private static bool TryParseState(string value, out SecretValidationState state)
+    {
+        state = value switch
+        {
+            "active" => SecretValidationState.Active,
+            "inactive" => SecretValidationState.Inactive,
+            "skipped" => SecretValidationState.Skipped,
+            "error" => SecretValidationState.Error,
+            "structurally-valid" => SecretValidationState.StructurallyValid,
+            "test-credential" => SecretValidationState.TestCredential,
+            "invalid" => SecretValidationState.Invalid,
+            "unknown" => SecretValidationState.Unknown,
+            _ => SecretValidationState.Unknown,
+        };
+
+        return value is "active"
+            or "inactive"
+            or "skipped"
+            or "error"
+            or "structurally-valid"
+            or "test-credential"
+            or "invalid"
+            or "unknown";
+    }
+
+    private static string Encode(string value)
+    {
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+    }
+
+    private static string Decode(string value)
+    {
+        return Encoding.UTF8.GetString(Convert.FromBase64String(value));
+    }
+
+    private static string ComputeSha256Hex(string value)
+    {
+        return ComputeSha256Hex(Encoding.UTF8.GetBytes(value));
+    }
+
+    private static string ComputeSha256Hex(ReadOnlySpan<byte> content)
+    {
+        byte[] hash = SHA256.HashData(content);
+        return string.Create(hash.Length * 2, hash, static (chars, bytes) =>
+        {
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                byte value = bytes[i];
+                chars[i * 2] = LowerHex[value >> 4];
+                chars[(i * 2) + 1] = LowerHex[value & 0x0F];
+            }
+        });
+    }
+
+    private bool TryReadEntry(
+        string entryPath,
+        SecretValidationCacheKey key,
+        DateTimeOffset now,
+        [NotNullWhen(true)] out SecretValidationResult? result)
+    {
+        result = null;
+        string[] lines = File.ReadAllLines(entryPath);
+        if (!TryReadHeaders(lines, out Dictionary<string, string>? headers)
+            || !headers.TryGetValue(CacheFingerprintHeader, out string? cacheFingerprint)
+            || !cacheFingerprint.Equals(CacheFingerprintSha256, StringComparison.Ordinal)
+            || !headers.TryGetValue(KeyHeader, out string? storedKey)
+            || !storedKey.Equals(key.Fingerprint, StringComparison.Ordinal)
+            || !TryReadExpiration(headers, now)
+            || !headers.TryGetValue(StateHeader, out string? stateValue)
+            || !TryParseState(stateValue, out SecretValidationState state))
+        {
+            return false;
+        }
+
+        string reason = headers.TryGetValue(ReasonHeader, out string? encodedReason)
+            ? Decode(encodedReason)
+            : string.Empty;
+        result = new SecretValidationResult(state, reason);
+        return true;
+    }
+
+    private static bool TryReadHeaders(string[] lines, [NotNullWhen(true)] out Dictionary<string, string>? headers)
+    {
+        headers = null;
+        if (lines.Length < 2 || !lines[0].Equals(SchemaLine, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var parsed = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (int i = 1; i < lines.Length; i++)
+        {
+            if (lines[i].Length == 0)
+            {
+                continue;
+            }
+
+            string[] fields = lines[i].Split('\t');
+            if (fields.Length != 2)
+            {
+                return false;
+            }
+
+            parsed[fields[0]] = fields[1];
+        }
+
+        headers = parsed;
+        return true;
+    }
+
+    private static bool TryReadExpiration(Dictionary<string, string> headers, DateTimeOffset now)
+    {
+        return headers.TryGetValue(ExpiresUnixTimeSecondsHeader, out string? expiresValue)
+            && long.TryParse(expiresValue, CultureInfo.InvariantCulture, out long expiresUnixTimeSeconds)
+            && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) > now;
+    }
+
+    private bool IsExpiredCurrentFingerprintEntry(string entryPath, DateTimeOffset now)
+    {
+        string[] lines = File.ReadAllLines(entryPath);
+        return TryReadHeaders(lines, out Dictionary<string, string>? headers)
+            && headers.TryGetValue(CacheFingerprintHeader, out string? cacheFingerprint)
+            && cacheFingerprint.Equals(CacheFingerprintSha256, StringComparison.Ordinal)
+            && headers.TryGetValue(ExpiresUnixTimeSecondsHeader, out string? expiresValue)
+            && long.TryParse(expiresValue, CultureInfo.InvariantCulture, out long expiresUnixTimeSeconds)
+            && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) <= now;
+    }
+
+    private string CreateEntryPath(SecretValidationCacheKey key)
+    {
+        string shard = key.Fingerprint[..2];
+        return Path.Combine(_entriesPath, shard, string.Concat(key.Fingerprint, "-", CacheFingerprintSha256, ".cache"));
+    }
+
+    private IEnumerable<string> EnumerateEntryFiles()
+    {
+        return Directory.Exists(_entriesPath)
+            ? Directory.EnumerateFiles(_entriesPath, "*.cache", SearchOption.AllDirectories)
+            : [];
+    }
+
+    private static bool TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        return false;
+    }
+}

@@ -14,7 +14,7 @@ Picket separates offline structural validation from live provider verification.
 - Live network verification is disabled by default.
 - `picket scan` and compatibility commands do not contact provider APIs.
 - `picket verify --offline` and native scan validation use local checks only.
-- `--live` is reserved for future opt-in provider verification and currently returns an error.
+- `--live` is reserved for opt-in provider verification and currently returns an error until provider validators are enabled.
 
 ## Offline Validation
 
@@ -40,7 +40,15 @@ Current offline coverage includes:
 
 ## Live Verification Model
 
-Live verification is future opt-in behavior. The shared endpoint guard already blocks unsafe egress targets for provider validators. Before a provider can be enabled, each validator also requires a threat-model entry with:
+Live provider calls are future opt-in behavior for the CLI. The reusable verification layer already defines the provider contract and safety envelope that provider validators must use:
+
+- `ISecretLiveValidator` describes one provider validator, its endpoint, provider ID, version, and support check.
+- `SecretLiveVerifier` chooses the first supporting validator, evaluates the endpoint guard before the validator runs, honors cancellation, and returns `skipped` when no validator supports a finding.
+- `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, and atomic writes.
+- `SecretValidationCacheKey` is built from provider, validator version, rule ID, endpoint, and a SHA-256 secret hash. It rejects raw secret material where a hash is required.
+- Cache files store fingerprints, report states, expiration, and non-secret reasons. They do not store raw secrets, raw matches, or endpoint query strings.
+
+Before a provider can be enabled in the CLI, each validator also requires a threat-model entry with:
 
 - data sent,
 - endpoint contacted,
@@ -53,7 +61,7 @@ Live verification is future opt-in behavior. The shared endpoint guard already b
 - known provider side effects,
 - SSRF and redirect protections.
 
-Provider requests must use `Picket.Security` endpoint checks to block loopback, private, link-local, metadata-service, reserved, and non-public redirect targets by default. Responses must be size-limited and redacted before diagnostics.
+Provider requests must use `Picket.Security` endpoint checks to block loopback, private, link-local, metadata-service, reserved, and non-public redirect targets by default. Redirect targets must be re-checked before following. Responses must be size-limited and redacted before diagnostics.
 
 ## Reporting
 
