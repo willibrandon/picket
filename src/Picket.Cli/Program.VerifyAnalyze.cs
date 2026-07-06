@@ -5,6 +5,9 @@ internal static partial class Program
     static int RunVerify(string[] args)
     {
         var forwardedArgs = new List<string>();
+        bool allowNonPublicProviderEndpoints = false;
+        Uri? githubApiEndpoint = null;
+        bool liveVerification = false;
         string? source = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -45,8 +48,27 @@ internal static partial class Program
 
                 if (live)
                 {
-                    Console.Error.WriteLine("live verification is not implemented yet; use --offline");
-                    return 1;
+                    liveVerification = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitHubApiEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--github-api-endpoint", out githubApiEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsAllowNonPublicProviderEndpointsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
+                {
+                    return UnknownFlagExitCode;
                 }
 
                 continue;
@@ -65,7 +87,10 @@ internal static partial class Program
             nativeReportFormats: true,
             diagnosticsCommand: "verify",
             defaultRoot: ".",
-            allowValidationResultFilters: true);
+            allowValidationResultFilters: true,
+            liveVerification: liveVerification
+                ? new LiveVerificationConfiguration(githubApiEndpoint, allowNonPublicProviderEndpoints)
+                : null);
     }
 
     static int RunAnalyze(string[] args)

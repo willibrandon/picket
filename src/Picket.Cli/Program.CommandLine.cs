@@ -151,6 +151,23 @@ internal static partial class Program
         return true;
     }
 
+    static bool TryReadUriFlag(string[] args, ref int index, string longName, [NotNullWhen(true)] out Uri? value)
+    {
+        value = null;
+        if (!TryReadStringFlag(args, ref index, longName, out string? text))
+        {
+            return false;
+        }
+
+        if (Uri.TryCreate(text, UriKind.Absolute, out value))
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine($"{longName} requires an absolute URI value");
+        return false;
+    }
+
     static bool TryReadIntFlag(string[] args, ref int index, string longName, out int value)
     {
         if (TryReadStringFlag(args, ref index, longName, out string? text) && int.TryParse(text, out value))
@@ -528,6 +545,18 @@ internal static partial class Program
     {
         return arg.Equals("--live", StringComparison.Ordinal)
             || arg.StartsWith("--live=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitHubApiEndpointFlag(string arg)
+    {
+        return arg.Equals("--github-api-endpoint", StringComparison.Ordinal)
+            || arg.StartsWith("--github-api-endpoint=", StringComparison.Ordinal);
+    }
+
+    static bool IsAllowNonPublicProviderEndpointsFlag(string arg)
+    {
+        return arg.Equals("--allow-non-public-endpoints", StringComparison.Ordinal)
+            || arg.StartsWith("--allow-non-public-endpoints=", StringComparison.Ordinal);
     }
 
     static bool IsValidationResultsFlag(string arg)

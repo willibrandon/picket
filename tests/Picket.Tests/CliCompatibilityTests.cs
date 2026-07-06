@@ -571,15 +571,61 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that live verification does not silently run before the provider safety model exists.
+    /// Verifies that live verification blocks unsafe provider endpoints before network verification can run.
     /// </summary>
     [TestMethod]
-    public async Task VerifyRejectsLiveVerification()
+    public async Task VerifyLiveBlocksUnsafeProviderEndpoint()
     {
-        CliResult result = await RunCliAsync("verify", "--live").ConfigureAwait(false);
+        using TempDirectory root = TempDirectory.Create();
+        WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "verify",
+            "--live",
+            "--github-api-endpoint",
+            "https://metadata.google.internal/user",
+            "--results",
+            "error",
+            "-f",
+            "jsonl").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
-        Assert.Contains("live verification is not implemented yet", result.Stderr);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"error\"", result.Stdout);
+        Assert.DoesNotContain("live verification is not implemented yet", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that live verification does not contact providers for offline-invalid findings.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyLiveKeepsOfflineInvalidFindingsLocal()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteVerificationFilterConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_invalid"));
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "verify",
+            "-c",
+            configPath,
+            "--live",
+            "--github-api-endpoint",
+            "https://metadata.google.internal/user",
+            "--results",
+            "invalid",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"invalid\"", result.Stdout);
+        Assert.DoesNotContain("\"validationState\":\"error\"", result.Stdout);
     }
 
     /// <summary>
@@ -593,6 +639,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(0, result.ExitCode);
         Assert.Contains("picket verify", result.Stdout);
         Assert.Contains("--offline", result.Stdout);
+        Assert.Contains("--live", result.Stdout);
+        Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--results", result.Stdout);
     }
 

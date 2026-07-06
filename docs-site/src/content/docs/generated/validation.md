@@ -14,7 +14,7 @@ Picket separates offline structural validation from live provider verification.
 - Live network verification is disabled by default.
 - `picket scan` and compatibility commands do not contact provider APIs.
 - `picket verify --offline` and native scan validation use local checks only.
-- `--live` is reserved for opt-in provider verification and currently returns an error until provider validators are enabled.
+- `picket verify --live` is explicit opt-in provider verification. The initial live provider is GitHub token validation.
 
 ## Offline Validation
 
@@ -40,15 +40,27 @@ Current offline coverage includes:
 
 ## Live Verification Model
 
-Live provider calls are future opt-in behavior for the CLI. The reusable verification layer already defines the provider contract and safety envelope that provider validators must use:
+Live provider calls are opt-in behavior for `picket verify --live`. The reusable verification layer defines the provider contract and safety envelope that provider validators must use:
 
 - `ISecretLiveValidator` describes one provider validator, its endpoint, provider ID, version, and support check.
 - `SecretLiveVerifier` chooses the first supporting validator, evaluates the endpoint guard before the validator runs, honors cancellation, and returns `skipped` when no validator supports a finding.
 - `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, and atomic writes.
 - `SecretValidationCacheKey` is built from provider, validator version, rule ID, endpoint, and a SHA-256 secret hash. It rejects raw secret material where a hash is required.
 - Cache files store fingerprints, report states, expiration, and non-secret reasons. They do not store raw secrets, raw matches, or endpoint query strings.
+- Findings already marked `invalid` or `test-credential` by offline validation are not sent to live providers.
 
-Before a provider can be enabled in the CLI, each validator also requires a threat-model entry with:
+The first provider validator is GitHub:
+
+- supported rule IDs: `github-pat`, `github-oauth`, `github-refresh-token`, `github-app-token`, and `github-fine-grained-pat`,
+- default endpoint: `https://api.github.com/user`,
+- endpoint override: `--github-api-endpoint <absolute-uri>`, intended for GitHub Enterprise and recorded/local test hosts,
+- default endpoint policy: HTTPS required and non-public addresses blocked,
+- explicit non-public endpoint escape hatch: `--allow-non-public-endpoints`,
+- `200 OK` maps to `active`,
+- `401 Unauthorized` maps to `inactive`,
+- `403 Forbidden`, `429 Too Many Requests`, other unexpected statuses, request failures, and endpoint-policy failures map to `error`.
+
+Before additional providers can be enabled in the CLI, each validator also requires a threat-model entry with:
 
 - data sent,
 - endpoint contacted,

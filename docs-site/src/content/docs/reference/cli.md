@@ -25,7 +25,7 @@ Use the grouped index to jump to the workflow you need.
       <li>
         <a class="cli-command-link" href="#picket-verify">
           <code>picket verify</code>
-          <span>Run native offline verification for detected findings.</span>
+          <span>Run native verification for detected findings.</span>
         </a>
       </li>
       <li>
@@ -155,7 +155,7 @@ Use the grouped index to jump to the workflow you need.
 ### picket verify
 
 <div class="cli-command-detail">
-  <p class="cli-command-summary">Run native offline verification for detected findings.</p>
+  <p class="cli-command-summary">Run native verification for detected findings.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
@@ -167,8 +167,10 @@ Use the grouped index to jump to the workflow you need.
   [--profile picket]
   [--source path]
   [--cache-dir path]
-  [--offline]
-  [--results unknown|structurally-valid|test-credential|invalid]
+  [--offline|--live]
+  [--github-api-endpoint uri]
+  [--allow-non-public-endpoints]
+  [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--only-verified]
   [--max-archive-entries n]
   [--max-archive-megabytes n]

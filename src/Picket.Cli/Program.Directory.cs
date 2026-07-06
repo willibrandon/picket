@@ -15,6 +15,7 @@ internal static partial class Program
         string diagnosticsCommand = "dir",
         string? defaultRoot = null,
         bool allowValidationResultFilters = false,
+        LiveVerificationConfiguration? liveVerification = null,
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, bool>? nativeResultWriter = null)
     {
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
@@ -492,6 +493,24 @@ internal static partial class Program
         if (nativeMode)
         {
             filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
+        }
+
+        if (liveVerification is not null)
+        {
+            if (!TryCreateLiveVerifier(liveVerification, cacheDir, rules.Fingerprint, out SecretLiveVerifier? liveVerifier))
+            {
+                return CompleteRun(1, diagnosticsSession);
+            }
+
+            using (liveVerifier)
+            {
+                if (!TryApplyLiveValidation(filteredFindings, liveVerifier, timeoutTimestamp, out List<Finding>? liveFindings))
+                {
+                    return CompleteRun(1, diagnosticsSession);
+                }
+
+                filteredFindings = liveFindings;
+            }
         }
 
         if (validationResults.Count != 0)

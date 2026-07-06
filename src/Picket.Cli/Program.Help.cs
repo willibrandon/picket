@@ -8,7 +8,7 @@ internal static partial class Program
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
         Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
-        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
+        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline|--live] [--github-api-endpoint uri] [--allow-non-public-endpoints] [--results value] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
         Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results value] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
         Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--redact[=n]]");
         Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--max-decode-depth n] [--max-target-megabytes n]");
@@ -33,10 +33,10 @@ internal static partial class Program
 
     static void WriteVerifyHelp()
     {
-        Console.Out.WriteLine("picket verify - run native offline verification for detected findings");
+        Console.Out.WriteLine("picket verify - run native verification for detected findings");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline] [--results unknown|structurally-valid|test-credential|invalid] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
+        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--offline|--live] [--github-api-endpoint uri] [--allow-non-public-endpoints] [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error] [--only-verified] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n]");
     }
 
     static void WriteAnalyzeHelp()

@@ -12,10 +12,11 @@ namespace Picket.Verify;
 public sealed class SecretLiveVerifier(
     ISecretLiveValidator[] validators,
     SecretValidationCache? cache = null,
-    SecretLiveVerifierOptions? options = null)
+    SecretLiveVerifierOptions? options = null) : IDisposable
 {
     private readonly SecretValidationCache? _cache = cache;
     private readonly SecretLiveVerifierOptions _options = options ?? SecretLiveVerifierOptions.CreateDefault();
+    private readonly Dictionary<string, SecretValidationResult> _requestCache = new(StringComparer.Ordinal);
     private readonly ISecretLiveValidator[] _validators = ValidateValidators(validators);
 
     /// <summary>
@@ -45,27 +46,47 @@ public sealed class SecretLiveVerifier(
                     string.Concat("endpoint blocked: ", endpointResult.BlockReason.ToString()));
             }
 
-            SecretValidationCacheKey? cacheKey = null;
             DateTimeOffset now = DateTimeOffset.UtcNow;
+            SecretValidationCacheKey cacheKey = SecretValidationCacheKey.FromFinding(validator.Provider, validator.Version, finding, validator.Endpoint);
+            if (_requestCache.TryGetValue(cacheKey.Fingerprint, out SecretValidationResult? requestCachedResult))
+            {
+                return requestCachedResult;
+            }
+
             if (_cache is not null)
             {
-                cacheKey = SecretValidationCacheKey.FromFinding(validator.Provider, validator.Version, finding, validator.Endpoint);
                 if (_cache.TryRead(cacheKey, now, out SecretValidationResult? cachedResult))
                 {
+                    _requestCache[cacheKey.Fingerprint] = cachedResult;
                     return cachedResult;
                 }
             }
 
             SecretValidationResult result = await validator.VerifyAsync(finding, cancellationToken).ConfigureAwait(false);
-            if (cacheKey is not null && _options.TryGetCacheDuration(result.State, out TimeSpan duration))
+            _requestCache[cacheKey.Fingerprint] = result;
+            if (_cache is not null && _options.TryGetCacheDuration(result.State, out TimeSpan duration))
             {
-                _cache!.Write(cacheKey, result, now + duration);
+                _cache.Write(cacheKey, result, now + duration);
             }
 
             return result;
         }
 
         return new SecretValidationResult(SecretValidationState.Skipped, "no live validator supports the finding");
+    }
+
+    /// <summary>
+    /// Releases provider validators owned by this verifier.
+    /// </summary>
+    public void Dispose()
+    {
+        for (int i = 0; i < _validators.Length; i++)
+        {
+            if (_validators[i] is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
     }
 
     private static ISecretLiveValidator[] ValidateValidators(ISecretLiveValidator[] validators)

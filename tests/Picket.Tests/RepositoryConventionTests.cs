@@ -294,6 +294,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Scout `ByteRegex`", rules);
         Assert.Contains("Offline validation", validation);
         Assert.Contains("Live network verification is disabled by default", validation);
+        Assert.Contains("picket verify --live", validation);
+        Assert.Contains("GitHub token validation", validation);
+        Assert.Contains("--github-api-endpoint", validation);
+        Assert.Contains("--allow-non-public-endpoints", validation);
         Assert.Contains("SSRF", validation);
         Assert.Contains("structurally-valid", validation);
         Assert.Contains("test-credential", validation);
