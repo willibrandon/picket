@@ -20,6 +20,7 @@ internal static class EmbeddedPicketConfig
             "service_account",
             "\",\"client_email\":\"scanner-sa@picket-prod-123.iam.gserviceaccount.com\"}");
         string gcpServiceAccountNegativeExample = "{\"type\":\"user\",\"project_id\":\"picket-prod-123\"}";
+        string sourcegraphAccessToken = CreateExample("sgp_", "0123456789abcdef0123456789abcdef01234567");
         string githubClassicTokenSuffix = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         string githubFineGrainedToken = CreateExample(
             "github",
@@ -39,6 +40,7 @@ disabledRules = [
     "github-oauth",
     "github-pat",
     "github-refresh-token",
+    "sourcegraph-access-token",
 ]
 
 [[rules]]
@@ -100,6 +102,22 @@ provider = "GCP"
 documentationUrl = "https://cloud.google.com/iam/docs/keys-create-delete"
 examples = ['''{{gcpServiceAccountExample}}''']
 negativeExamples = ['''{{gcpServiceAccountNegativeExample}}''']
+
+[[rules]]
+id = "picket-sourcegraph-access-token"
+description = "Detected a Sourcegraph access token."
+regex = '''(?i)\b(sgp_(?:[a-f0-9]{16}|local)_[a-f0-9]{40}|sgp_[a-f0-9]{40})(?:[\x60'"\s;]|\\[nr]|$)'''
+secretGroup = 1
+entropy = 3
+keywords = ["sgp_"]
+tags = ["picket", "sourcegraph", "access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Sourcegraph"
+documentationUrl = "https://sourcegraph.com/docs/api"
+examples = ["{{sourcegraphAccessToken}}"]
+negativeExamples = ["4c232b5014f7618360bd992b4c489cb055881c6b"]
 
 [[rules]]
 id = "picket-github-app-token"

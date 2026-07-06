@@ -119,6 +119,59 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that native defaults replace the inherited Sourcegraph rule with a prefixed-token rule.
+    /// </summary>
+    [TestMethod]
+    public void ScanUsesNativeSourcegraphAccessTokenRule()
+    {
+        RuleSet ruleSet = PicketConfigLoader.LoadRuleSet(null, "__picket-test__");
+        List<string> ruleIds = CreateRuleIds(ruleSet);
+
+        Assert.Contains("picket-sourcegraph-access-token", ruleIds);
+        Assert.DoesNotContain("sourcegraph-access-token", ruleIds);
+    }
+
+    /// <summary>
+    /// Verifies that native Sourcegraph detection does not report arbitrary commit hashes.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanSkipsBareCommitHashForNativeSourcegraphAccessTokenRule()
+    {
+        byte[] input = File.ReadAllBytes(Path.Combine(FindRepositoryRoot(), "src", "Picket.Compat", "EmbeddedGitleaksConfig.cs"));
+        RuleSet nativeRule = SelectRules(PicketConfigLoader.LoadRuleSet(null, "__picket-test__"), "picket-sourcegraph-access-token");
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "src/Picket.Compat/EmbeddedGitleaksConfig.cs",
+            CompiledRuleSet.Compile(nativeRule),
+            maxDecodeDepth: 0));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that native Sourcegraph detection still reports prefixed access tokens.
+    /// </summary>
+    [TestMethod]
+    public void ScanFindsNativeSourcegraphAccessToken()
+    {
+        string sourcegraphAccessToken = CreateSourcegraphAccessToken();
+        byte[] input = Encoding.UTF8.GetBytes($"sourcegraph_token = \"{sourcegraphAccessToken}\"");
+        RuleSet nativeRule = SelectRules(PicketConfigLoader.LoadRuleSet(null, "__picket-test__"), "picket-sourcegraph-access-token");
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "settings.txt",
+            CompiledRuleSet.Compile(nativeRule),
+            maxDecodeDepth: 0));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("picket-sourcegraph-access-token", findings[0].RuleID);
+        Assert.AreEqual(sourcegraphAccessToken, findings[0].Secret);
+    }
+
+    /// <summary>
     /// Verifies that native GitHub token coverage uses Picket-owned rule IDs rather than inherited compatibility IDs.
     /// </summary>
     [TestMethod]
@@ -900,6 +953,17 @@ public sealed class SecretScannerTests
         return new RuleSet(rules, ruleSet.Allowlists, ruleSet.RegexesPrevalidated);
     }
 
+    private static List<string> CreateRuleIds(RuleSet ruleSet)
+    {
+        var ruleIds = new List<string>(ruleSet.Rules.Count);
+        for (int i = 0; i < ruleSet.Rules.Count; i++)
+        {
+            ruleIds.Add(ruleSet.Rules[i].Id);
+        }
+
+        return ruleIds;
+    }
+
     private static int CountFindings(IReadOnlyList<Finding> findings, string ruleId)
     {
         int count = 0;
@@ -948,5 +1012,16 @@ public sealed class SecretScannerTests
     private static string CreateGitHubClassicToken(string prefix)
     {
         return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    }
+
+    private static string CreateSourcegraphAccessToken()
+    {
+        return new string([
+            's', 'g', 'p', '_',
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+            '0', '1', '2', '3', '4', '5', '6', '7']);
     }
 }

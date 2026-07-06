@@ -404,7 +404,7 @@ Native commands and compatibility commands selected with `--profile picket` use 
 6. `{target}/.gitleaks.toml`
 7. embedded Picket default config
 
-The embedded Picket default config extends the embedded Gitleaks default config and layers Picket-native rule packs on top. Explicit, environment, and target-local configs replace the embedded native default unless those configs opt into `[extend] useDefault = true`.
+The embedded Picket default config extends the embedded Gitleaks default config and layers Picket-native rule packs on top. Native defaults may disable inherited broad rules when a Picket-owned replacement lowers false positives without changing strict compatibility behavior; these replacements are recorded in `docs/PARITY.md`. Explicit, environment, and target-local configs replace the embedded native default unless those configs opt into `[extend] useDefault = true`.
 
 Exit codes:
 

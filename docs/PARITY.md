@@ -82,6 +82,30 @@ as deliberate.
   rule identity. Use native `scan`, `verify`, or `analyze` for Picket metadata,
   validation states, and stable native rule IDs.
 
+## Native Sourcegraph Token Coverage
+
+- **Upstream behavior:** The pinned Gitleaks `sourcegraph-access-token` rule can
+  report either prefixed `sgp_` Sourcegraph tokens or any 40-hex value when a
+  Sourcegraph keyword appears in the same scan fragment.
+- **Picket behavior:** Strict Gitleaks-compatible scans keep the inherited
+  `sourcegraph-access-token` rule unchanged. The embedded native default
+  disables that inherited rule and replaces it with
+  `picket-sourcegraph-access-token`, which requires the `sgp_` token prefix.
+- **Mode/profile affected:** Picket-native `scan`, `verify`, and `analyze`
+  when no target-local or environment config replaces the embedded native
+  default.
+- **Reason:** Native defaults should avoid reporting ordinary commit hashes as
+  access tokens while keeping strict Gitleaks compatibility intact.
+- **User impact:** Native default scans no longer report bare 40-hex hashes as
+  Sourcegraph credentials. Prefixed Sourcegraph access tokens still produce
+  findings with Picket-owned rule metadata.
+- **Test name:** `ScanUsesNativeSourcegraphAccessTokenRule`,
+  `ScanSkipsBareCommitHashForNativeSourcegraphAccessTokenRule`,
+  `ScanFindsNativeSourcegraphAccessToken`.
+- **Migration guidance:** Use strict compatibility commands for pinned Gitleaks
+  behavior. Use native `scan`, `verify`, or `analyze` for lower-noise
+  Sourcegraph token detection.
+
 ## Native C# String-Literal Concatenation
 
 - **Upstream behavior:** Gitleaks scans source bytes and does not evaluate C#
