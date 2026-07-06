@@ -97,6 +97,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("::warning", helper);
         Assert.Contains("PICKET_ANNOTATIONS", helper);
         Assert.Contains("PICKET_ANNOTATION_LIMIT", helper);
+        Assert.Contains("Get-FindingBreakdownSummaryLines", helper);
+        Assert.Contains("Findings by rule", helper);
+        Assert.Contains("Findings by file", helper);
+        Assert.Contains("ConvertTo-MarkdownCell", helper);
         Assert.DoesNotContain("finding.secret", helper);
         Assert.DoesNotContain("finding.match", helper);
         Assert.DoesNotContain("finding.line", helper);
@@ -134,6 +138,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("actions/cache/save", documentation);
         Assert.Contains("picket.sarif", documentation);
         Assert.Contains("picket.jsonl", documentation);
+        Assert.Contains("breakdowns by rule and by file", documentation);
         Assert.Contains("CI Smoke", documentation);
         Assert.Contains("sanitized GitHub secret-scanning fixture", documentation);
     }

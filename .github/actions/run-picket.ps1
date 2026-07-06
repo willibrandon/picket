@@ -84,6 +84,53 @@ function ConvertTo-GitHubCommandMessage {
     return $Value.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
 }
 
+function ConvertTo-MarkdownCell {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    return $Value.Replace('|', '\|').Replace("`r", ' ').Replace("`n", ' ').Trim()
+}
+
+function Get-JsonPropertyString {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    $property = $InputObject.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return ''
+    }
+
+    return [string]$property.Value
+}
+
+function Get-JsonPropertyInt {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Default
+    )
+
+    $propertyValue = Get-JsonPropertyString -InputObject $InputObject -Name $Name
+    [int]$parsed = 0
+    if ([int]::TryParse($propertyValue, [ref]$parsed)) {
+        return $parsed
+    }
+
+    return $Default
+}
+
 function ConvertTo-PositiveInt {
     param(
         [Parameter(Mandatory = $true)]
@@ -133,14 +180,14 @@ function Write-FindingAnnotations {
             continue
         }
 
-        $ruleId = [string]$finding.ruleId
-        $file = [string]$finding.file
+        $ruleId = Get-JsonPropertyString -InputObject $finding -Name 'ruleId'
+        $file = Get-JsonPropertyString -InputObject $finding -Name 'file'
         if ([string]::IsNullOrWhiteSpace($file)) {
             continue
         }
 
-        $lineNumber = [int]$finding.startLine
-        $columnNumber = [int]$finding.startColumn
+        $lineNumber = Get-JsonPropertyInt -InputObject $finding -Name 'startLine' -Default 1
+        $columnNumber = Get-JsonPropertyInt -InputObject $finding -Name 'startColumn' -Default 1
         if ($lineNumber -lt 1) {
             $lineNumber = 1
         }
@@ -156,6 +203,108 @@ function Write-FindingAnnotations {
     }
 
     return $emitted
+}
+
+function Add-FindingSummaryCount {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Counts,
+
+        [AllowEmptyString()]
+        [string]$Value,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Default
+    )
+
+    $key = if ([string]::IsNullOrWhiteSpace($Value)) { $Default } else { $Value }
+    if ($Counts.ContainsKey($key)) {
+        $Counts[$key] = [int]$Counts[$key] + 1
+        return
+    }
+
+    $Counts[$key] = 1
+}
+
+function Get-FindingBreakdownTableLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Title,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ColumnName,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Counts,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Limit
+    )
+
+    if ($Counts.Count -eq 0) {
+        return @()
+    }
+
+    $lines = @(
+        '',
+        "## $Title",
+        '',
+        "| $ColumnName | Count |",
+        '| --- | ---: |'
+    )
+
+    $rows = $Counts.GetEnumerator() |
+        Sort-Object @{ Expression = { -[int]$_.Value } }, @{ Expression = { [string]$_.Key } } |
+        Select-Object -First $Limit
+
+    foreach ($row in $rows) {
+        $lines += "| $(ConvertTo-MarkdownCell ([string]$row.Key)) | $($row.Value) |"
+    }
+
+    if ($Counts.Count -gt $Limit) {
+        $lines += ''
+        $lines += "_Showing top $Limit of $($Counts.Count)._"
+    }
+
+    return $lines
+}
+
+function Get-FindingBreakdownSummaryLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$JsonlPath,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Limit
+    )
+
+    if ($Limit -eq 0 -or !(Test-Path -LiteralPath $JsonlPath)) {
+        return @()
+    }
+
+    $ruleCounts = @{}
+    $fileCounts = @{}
+    foreach ($line in Get-Content -LiteralPath $JsonlPath) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        try {
+            $finding = $line | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            Write-Host '::warning title=Picket summary skipped::Could not parse a JSONL finding for summary output.'
+            continue
+        }
+
+        Add-FindingSummaryCount -Counts $ruleCounts -Value (Get-JsonPropertyString -InputObject $finding -Name 'ruleId') -Default '(unknown rule)'
+        Add-FindingSummaryCount -Counts $fileCounts -Value (Get-JsonPropertyString -InputObject $finding -Name 'file') -Default '(unknown file)'
+    }
+
+    $lines = @()
+    $lines += Get-FindingBreakdownTableLines -Title 'Findings by rule' -ColumnName 'Rule' -Counts $ruleCounts -Limit $Limit
+    $lines += Get-FindingBreakdownTableLines -Title 'Findings by file' -ColumnName 'File' -Counts $fileCounts -Limit $Limit
+    return $lines
 }
 
 $actionPath = [Environment]::GetEnvironmentVariable('GITHUB_ACTION_PATH')
@@ -301,7 +450,7 @@ Add-ActionOutput -Name 'annotations' -Value ([string]$annotationCount)
 Add-ActionOutput -Name 'should-fail' -Value $shouldFail.ToString().ToLowerInvariant()
 Add-ActionOutput -Name 'failure-code' -Value ([string]$failureCode)
 
-Add-StepSummary -Lines @(
+$summaryLines = @(
     '# Picket scan',
     '',
     '| Field | Value |',
@@ -313,5 +462,7 @@ Add-StepSummary -Lines @(
     "| SARIF | $sarifPath |",
     "| JSONL | $jsonlPath |"
 )
+$summaryLines += Get-FindingBreakdownSummaryLines -JsonlPath $jsonlPath -Limit 10
+Add-StepSummary -Lines $summaryLines
 
 exit 0
