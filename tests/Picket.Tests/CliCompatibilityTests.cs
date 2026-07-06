@@ -3690,7 +3690,7 @@ public sealed class CliCompatibilityTests
             "picket",
             "--print-config").ConfigureAwait(false);
 
-        Assert.AreEqual(0, printed.ExitCode);
+        Assert.AreEqual(0, printed.ExitCode, printed.Stderr);
         Assert.Contains("id = \"aws-access-token\"", printed.Stdout);
         Assert.Contains("id = \"picket-azure-storage-connection-string\"", printed.Stdout);
         Assert.Contains("rulePack = \"picket-default\"", printed.Stdout);
@@ -3726,24 +3726,25 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(baseConfigPath, CreateRuleConfig("base-token", "base-[0-9]+"));
         File.WriteAllText(
             configPath,
-            $"""
+            $$"""
             [extend]
-            path = '{baseConfigPath}'
+            path = '{{baseConfigPath}}'
 
             [[rules]]
-            id = "local-token"
-            regex = '''local-[0-9]+'''
-            keywords = ["local"]
+            id = "picket-github-personal-access-token"
+            regex = '''\b(ghp_[0-9A-Za-z]{36})\b'''
+            secretGroup = 1
+            keywords = ["ghp_"]
             severity = "high"
             confidence = "medium"
             rulePack = "picket-default"
-            provider = "example"
-            documentationUrl = "https://example.invalid/rules/local-token"
-            validation = ["offline:local-token"]
-            revocation = ["revocation:local-token"]
+            provider = "GitHub"
+            documentationUrl = "https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+            validation = ["offline:github-classic-token", "live:github-rest-user-v1"]
+            revocation = ["revocation:github-credentials-api"]
             deprecated = true
-            examples = ["local-12345"]
-            negativeExamples = ["local-token"]
+            examples = ["ghp_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+            negativeExamples = ["ghp_invalid"]
             """);
 
         CliResult printed = await RunCliAsync("rules", "check", "-c", configPath, "--print-config").ConfigureAwait(false);
@@ -3751,23 +3752,71 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(resolvedConfigPath, printed.Stdout);
         CliResult checkedAgain = await RunCliAsync("rules", "check", "-c", resolvedConfigPath).ConfigureAwait(false);
 
-        Assert.AreEqual(0, printed.ExitCode);
+        Assert.AreEqual(0, printed.ExitCode, printed.Stderr);
         Assert.DoesNotContain("rules ok", printed.Stdout);
         Assert.Contains("[[rules]]", printed.Stdout);
         Assert.Contains("id = \"base-token\"", printed.Stdout);
-        Assert.Contains("id = \"local-token\"", printed.Stdout);
+        Assert.Contains("id = \"picket-github-personal-access-token\"", printed.Stdout);
         Assert.Contains("severity = \"high\"", printed.Stdout);
         Assert.Contains("confidence = \"medium\"", printed.Stdout);
         Assert.Contains("rulePack = \"picket-default\"", printed.Stdout);
-        Assert.Contains("provider = \"example\"", printed.Stdout);
-        Assert.Contains("documentationUrl = \"https://example.invalid/rules/local-token\"", printed.Stdout);
-        Assert.Contains("validation = [\"offline:local-token\"]", printed.Stdout);
-        Assert.Contains("revocation = [\"revocation:local-token\"]", printed.Stdout);
+        Assert.Contains("provider = \"GitHub\"", printed.Stdout);
+        Assert.Contains("documentationUrl = \"https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens\"", printed.Stdout);
+        Assert.Contains("validation = [\"offline:github-classic-token\", \"live:github-rest-user-v1\"]", printed.Stdout);
+        Assert.Contains("revocation = [\"revocation:github-credentials-api\"]", printed.Stdout);
         Assert.Contains("deprecated = true", printed.Stdout);
-        Assert.Contains("examples = [\"local-12345\"]", printed.Stdout);
-        Assert.Contains("negativeExamples = [\"local-token\"]", printed.Stdout);
-        Assert.AreEqual(0, checkedAgain.ExitCode);
+        Assert.Contains("examples = [\"ghp_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\"]", printed.Stdout);
+        Assert.Contains("negativeExamples = [\"ghp_invalid\"]", printed.Stdout);
+        Assert.AreEqual(0, checkedAgain.ExitCode, checkedAgain.Stderr);
         Assert.Contains("rules ok: 2 rules", checkedAgain.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects validation templates that cannot be honored by the current verifier.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsUnsupportedValidationTemplate()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "custom-token"
+            regex = '''token-[0-9]+'''
+            validation = ["offline:missing-validator"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("rule custom-token: unsupported validation template: offline:missing-validator", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects revocation templates that cannot be emitted by the current analyzer.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsUnsupportedRevocationTemplate()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "custom-token"
+            regex = '''token-[0-9]+'''
+            revocation = ["revocation:missing-provider"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("rule custom-token: unsupported revocation template: revocation:missing-provider", result.Stderr);
     }
 
     /// <summary>

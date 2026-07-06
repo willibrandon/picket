@@ -64,11 +64,33 @@ confidence = "medium"
 rulePack = "picket-default"
 provider = "example"
 documentationUrl = "https://example.invalid/rules/sample-token"
-validation = ["offline:example-token"]
-revocation = ["revocation:example-token"]
 examples = ["token-12345"]
 negativeExamples = ["token-value"]
 ```
+
+Supported validation template identifiers are:
+
+- `offline:aws-access-key-id`
+- `offline:aws-access-key-pair`
+- `offline:azure-storage-connection-string`
+- `offline:gcp-api-key`
+- `offline:gcp-service-account-key-json`
+- `offline:github-classic-token`
+- `offline:github-fine-grained-pat`
+- `offline:jwt`
+- `offline:jwt-base64`
+- `offline:private-key-envelope`
+- `live:github-rest-user-v1`
+
+Supported revocation template identifiers are:
+
+- `revocation:aws-iam-access-key`
+- `revocation:azure-storage-account-key`
+- `revocation:gcp-api-key`
+- `revocation:gcp-service-account-key`
+- `revocation:github-credentials-api`
+
+`picket rules check` rejects a template identifier when the current verifier or analyzer cannot honor it for that rule ID.
 
 ## Allowlists
 
@@ -117,6 +139,7 @@ Every required rule ID must exist, and a rule must not require itself.
 - required-rule references.
 - required positive and negative examples for Picket-native rules.
 - positive and negative examples without printing example contents in diagnostics.
+- validation and revocation template identifiers supported by the current verifier/analyzer.
 
 `picket rules test <rule-id> <input>` scans sample text with one selected rule using Picket-native config precedence by default. It accepts `--source` for target-local `.gitleaks.toml` discovery, `--path` for path-only rules and report location metadata, `--max-decode-depth`, `--max-target-megabytes`, `--ignore-gitleaks-allow`, `--redact[=n]`, and the native report formats `json`, `jsonl`, `csv`, `junit`, `html`, `gitlab`, `sarif`, and `toon`. Use `--` before `<input>` when the sample starts with `-`. The default output is Picket JSON with schema, rule metadata, stable fingerprints, hashes, decode provenance, and offline validation state. Use `--print-config` to emit the resolved selected rule config.
 

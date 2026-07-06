@@ -262,6 +262,34 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies native rule metadata participates in the compiled rule-set fingerprint.
+    /// </summary>
+    [TestMethod]
+    public void CompiledRuleSetFingerprintIncludesNativeRuleMetadata()
+    {
+        string baseline = CreateRuleSetFingerprint(SecretRule.Create("token", string.Empty, "token-[0-9]+"));
+        string validation = CreateRuleSetFingerprint(SecretRule.Create(
+            "token",
+            string.Empty,
+            "token-[0-9]+",
+            validation: ["offline:example"]));
+        string revocation = CreateRuleSetFingerprint(SecretRule.Create(
+            "token",
+            string.Empty,
+            "token-[0-9]+",
+            revocation: ["revocation:example"]));
+        string deprecated = CreateRuleSetFingerprint(SecretRule.Create(
+            "token",
+            string.Empty,
+            "token-[0-9]+",
+            deprecated: true));
+
+        Assert.AreNotEqual(baseline, validation);
+        Assert.AreNotEqual(baseline, revocation);
+        Assert.AreNotEqual(baseline, deprecated);
+    }
+
+    /// <summary>
     /// Verifies rule-set fingerprints invalidate old cache entries.
     /// </summary>
     [TestMethod]
@@ -455,6 +483,11 @@ public sealed class PicketScanCacheTests
         var ruleSet = new RuleSet([SecretRule.Create("token", string.Empty, pattern)]);
         CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(ruleSet);
         return PicketScanCache.Open(root, ScanCacheKey.Create(compiledRuleSet.Fingerprint, maxDecodeDepth: 5, maxTargetBytes: null, ignoreGitleaksAllow, addressMode, storageMode));
+    }
+
+    private static string CreateRuleSetFingerprint(SecretRule rule)
+    {
+        return CompiledRuleSet.Compile(new RuleSet([rule])).Fingerprint;
     }
 
     private static Finding CreateFinding(string file)

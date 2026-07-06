@@ -9,6 +9,27 @@ namespace Picket;
 
 internal static partial class Program
 {
+    private static readonly string[] s_githubClassicTokenRuleIds = [
+        "github-app-token",
+        "github-oauth",
+        "github-pat",
+        "github-refresh-token",
+        "picket-github-app-token",
+        "picket-github-oauth-token",
+        "picket-github-personal-access-token",
+        "picket-github-refresh-token"
+    ];
+
+    private static readonly string[] s_githubFineGrainedTokenRuleIds = [
+        "github-fine-grained-pat",
+        "picket-github-fine-grained-personal-access-token"
+    ];
+
+    private static readonly string[] s_githubLiveTokenRuleIds = [
+        .. s_githubClassicTokenRuleIds,
+        .. s_githubFineGrainedTokenRuleIds
+    ];
+
     static int RunRules(string[] args)
     {
         if (args.Length == 0 || IsHelp(args[0]))
@@ -396,10 +417,78 @@ internal static partial class Program
             ValidateTextEntries(rule.Id, "tag", rule.Tags, StringComparer.Ordinal);
             ValidateTextEntries(rule.Id, "example", rule.Examples, StringComparer.Ordinal);
             ValidateTextEntries(rule.Id, "negative example", rule.NegativeExamples, StringComparer.Ordinal);
+            ValidateRuleTemplates(rule);
             ValidateNativeRuleExamples(rule);
             ValidateRequiredRules(rule);
             ValidateAllowlists($"rule {rule.Id} allowlist", rule.Allowlists);
         }
+    }
+
+    static void ValidateRuleTemplates(SecretRule rule)
+    {
+        ValidateTextEntries(rule.Id, "validation template", rule.Validation, StringComparer.Ordinal);
+        ValidateTextEntries(rule.Id, "revocation template", rule.Revocation, StringComparer.Ordinal);
+        for (int i = 0; i < rule.Validation.Count; i++)
+        {
+            if (!IsSupportedValidationTemplateForRule(rule.Id, rule.Validation[i]))
+            {
+                throw new InvalidDataException($"rule {rule.Id}: unsupported validation template: {rule.Validation[i]}");
+            }
+        }
+
+        for (int i = 0; i < rule.Revocation.Count; i++)
+        {
+            if (!IsSupportedRevocationTemplateForRule(rule.Id, rule.Revocation[i]))
+            {
+                throw new InvalidDataException($"rule {rule.Id}: unsupported revocation template: {rule.Revocation[i]}");
+            }
+        }
+    }
+
+    static bool IsSupportedValidationTemplateForRule(string ruleId, string template)
+    {
+        return template switch
+        {
+            "offline:aws-access-key-id" => ruleId.Equals("aws-access-token", StringComparison.Ordinal),
+            "offline:aws-access-key-pair" => ruleId.Equals("picket-aws-access-key-pair", StringComparison.Ordinal),
+            "offline:azure-storage-connection-string" => ruleId.Equals("picket-azure-storage-connection-string", StringComparison.Ordinal),
+            "offline:gcp-api-key" => ruleId is "gcp-api-key" or "picket-google-api-key",
+            "offline:gcp-service-account-key-json" => ruleId.Equals("picket-gcp-service-account-key", StringComparison.Ordinal),
+            "offline:github-classic-token" => ContainsRuleId(s_githubClassicTokenRuleIds, ruleId),
+            "offline:github-fine-grained-pat" => ContainsRuleId(s_githubFineGrainedTokenRuleIds, ruleId),
+            "offline:jwt" => ruleId.Equals("jwt", StringComparison.Ordinal),
+            "offline:jwt-base64" => ruleId.Equals("jwt-base64", StringComparison.Ordinal),
+            "offline:private-key-envelope" => ruleId.Equals("private-key", StringComparison.Ordinal),
+            "live:github-rest-user-v1" => ContainsRuleId(s_githubLiveTokenRuleIds, ruleId),
+            _ => false,
+        };
+    }
+
+    static bool IsSupportedRevocationTemplateForRule(string ruleId, string template)
+    {
+        return template switch
+        {
+            "revocation:aws-iam-access-key" => ruleId.Equals("picket-aws-access-key-pair", StringComparison.Ordinal),
+            "revocation:azure-storage-account-key" => ruleId.Equals("picket-azure-storage-connection-string", StringComparison.Ordinal),
+            "revocation:gcp-api-key" => ruleId.Equals("picket-google-api-key", StringComparison.Ordinal),
+            "revocation:gcp-service-account-key" => ruleId.Equals("picket-gcp-service-account-key", StringComparison.Ordinal),
+            "revocation:github-credentials-api" => ruleId.StartsWith("github-", StringComparison.Ordinal)
+                || ruleId.StartsWith("picket-github-", StringComparison.Ordinal),
+            _ => false,
+        };
+    }
+
+    static bool ContainsRuleId(string[] ruleIds, string ruleId)
+    {
+        for (int i = 0; i < ruleIds.Length; i++)
+        {
+            if (ruleIds[i].Equals(ruleId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     static void ValidateNativeRuleExamples(SecretRule rule)

@@ -163,6 +163,9 @@ public sealed class CompiledRuleSet(RuleSet rules)
             AppendValue(builder, rule.RulePack);
             AppendValue(builder, rule.Provider);
             AppendValue(builder, rule.DocumentationUrl);
+            AppendValues(builder, rule.Validation);
+            AppendValues(builder, rule.Revocation);
+            AppendValue(builder, rule.Deprecated ? "true" : "false");
             AppendValues(builder, rule.Examples);
             AppendValues(builder, rule.NegativeExamples);
             AppendAllowlists(builder, rule.Allowlists);
