@@ -59,7 +59,7 @@ Picket is heavily based on Gitleaks because Gitleaks has the clearest open-sourc
 - datastore-backed dedup and incremental scans,
 - first-class ignore and baseline workflows,
 - SARIF/JSONL/HTML/TOON outputs,
-- a free MIT GitHub Action and local hooks,
+- a free MIT GitHub Action, Azure DevOps pipeline integration, and local hooks,
 - embeddable .NET libraries.
 
 Picket is not a SaaS and does not require an account. It has no telemetry. Any feature that can send secrets or metadata to a provider API is opt-in, visibly labeled, rate limited, and covered by a documented egress model.
@@ -640,11 +640,14 @@ Native source support:
 - archives,
 - GitHub repos, orgs, PRs, issues, gists, releases, and Actions artifacts,
 - GitLab groups/projects/MRs/snippets/artifacts,
-- Bitbucket, Azure Repos, and Gitea,
+- Bitbucket and Gitea,
+- Azure DevOps Services and Azure DevOps Server sources, including Azure Repos Git repositories, projects, organizations, pull requests, wiki repositories, build artifacts, pipeline logs, and release artifacts where APIs expose them safely,
 - S3, GCS, Azure Blob,
 - Docker/OCI images and tarballs.
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
+
+Azure DevOps source support is native Picket behavior, not Gitleaks compatibility behavior. It supports both cloud and self-hosted endpoints, project-scoped and organization-scoped enumeration, PAT and job-token authentication where each is appropriate, continuation tokens, branch and pull-request scope controls, artifact size caps, log redaction before diagnostics, and clear handling for repositories or projects the token cannot read. Pipeline task defaults scan the job's checked-out workspace unless the user explicitly opts into remote Azure DevOps enumeration.
 
 ### 8.9 Output and Triage
 
@@ -669,6 +672,7 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 Picket ships:
 
 - MIT `picket-action`,
+- Azure DevOps pipeline task and marketplace extension,
 - pre-commit, pre-push, and pre-receive hooks,
 - Docker images,
 - Homebrew, Scoop, winget, MSI,
@@ -676,6 +680,15 @@ Picket ships:
 - NuGet packages for embedding.
 
 The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, baseline handling, validation-result filtering, cache restore/save, least-privilege permissions, summary output, and explicit fail modes.
+
+The Azure DevOps pipeline integration supports a first-class `PicketScan` task, workspace scans, optional Azure Repos/project/org enumeration, pipeline/build/release artifact scanning, JSONL/SARIF/HTML report publication, build annotations where Azure DevOps supports safe source locations, explicit fail modes, baseline handling, scan cache restore/save through pipeline cache or task-local cache, and no telemetry. It works on Microsoft-hosted and self-hosted Windows, Linux, and macOS agents, and it does not require a paid service, custom server, or custom domain.
+
+Marketplace distribution is planned for the public release phase, after core scanner behavior, compatibility, reports, and security controls are stable:
+
+- GitHub Marketplace listing for the GitHub Action with semver tags, immutable release tags, least-privilege permission examples, clear SARIF/code-scanning setup, screenshots or summary examples that contain no real secrets, MIT license metadata, and generated input/output reference from `action.yml`.
+- Azure DevOps Marketplace extension with a VSIX manifest, task metadata, icon, README, privacy and license details, agent compatibility matrix, a versioned task major line such as `PicketScan@1`, and installation-free execution through bundled signed binaries or deterministic acquisition from Picket releases.
+- Both marketplace packages use the same release provenance as CLI artifacts: checksums, attestations where the platform supports them, generated docs, dry-run validation, and a rollback path.
+- Marketplace packaging must not fork scanner behavior. It is a distribution wrapper around the same CLI/library contracts used by local and CI execution.
 
 Pre-receive support handles bare repositories, quarantine environment variables, old/new ref input, timeouts, concurrency, and clear rejection messages.
 
@@ -920,10 +933,15 @@ Gate: remote enumeration, checkpointing, redaction, and dedup tests green.
 - Docker,
 - Homebrew/Scoop/winget/MSI,
 - GitHub Action,
+- GitHub Marketplace listing,
+- Azure DevOps pipeline task,
+- Azure DevOps Marketplace extension,
 - hooks,
 - generated static documentation site.
 
-Gate: release workflow produces signed/checksummed artifacts, action smoke tests pass, and the docs site builds and deploys through GitHub Pages from the default branch.
+Gate: release workflow produces signed/checksummed artifacts, action smoke tests pass, marketplace packages validate without publishing, and the docs site builds and deploys through GitHub Pages from the default branch.
+
+Marketplace publishing can be implemented late in the milestone. It is a release-readiness task, not a prerequisite for engine, rule, report, or local CLI work.
 
 ### M8: Optional Stretch
 
@@ -954,6 +972,7 @@ Generated documentation includes:
 - API reference for public packages and embeddable APIs from XML documentation comments,
 - CLI reference generated from command metadata or stable `--help` output,
 - GitHub Action input and output reference generated from `action.yml`,
+- Azure DevOps task input and output reference generated from task metadata once the extension exists,
 - rule-pack catalog generated from embedded Gitleaks and Picket rule sources,
 - report-schema reference generated from report writer contracts and sample outputs,
 - config-schema reference generated from Gitleaks-compatible and Picket-native loaders,
@@ -979,6 +998,8 @@ Required before v1:
 - `docs/VALIDATION.md`: privacy and egress model,
 - `docs/REPORTS.md`: compatibility and native schemas,
 - `docs/ACTION.md`: CI action behavior and security posture,
+- `docs/AZURE_DEVOPS.md`: Azure DevOps task, source enumeration, artifact scanning, and marketplace behavior,
+- `docs/MARKETPLACES.md`: GitHub Marketplace and Azure DevOps Marketplace packaging, release, and rollback guidance,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,
 - `docs/PERFORMANCE.md`: benchmark and oracle comparison process,
 - `docs/RELEASE.md`: Native AOT publish profiles and release artifact guidance,
