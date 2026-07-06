@@ -563,6 +563,61 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans can filter findings by offline validation result.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanFiltersOfflineValidationResults()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteVerificationFilterConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), string.Concat("ghp", "_invalid", Environment.NewLine, "custom-12345"));
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl", "--results", "invalid").ConfigureAwait(false);
+        string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.HasCount(1, lines);
+        Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
+        Assert.Contains("\"validationState\":\"invalid\"", lines[0]);
+        Assert.DoesNotContain("custom-token", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can filter to live verified active results.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanOnlyVerifiedKeepsActiveLiveResults()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteVerificationFilterConfig(root.Path);
+        string token = CreateGitHubPatFixture();
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(
+            Path.Combine(root.Path, "secret.txt"),
+            string.Concat(token, Environment.NewLine, "custom-12345"));
+        WriteActiveGitHubValidationCache(cachePath, configPath, token);
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--cache-dir",
+            cachePath,
+            "--verify",
+            "-f",
+            "jsonl",
+            "--only-verified").ConfigureAwait(false);
+        string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.HasCount(1, lines);
+        Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
+        Assert.Contains("\"validationState\":\"active\"", lines[0]);
+        Assert.DoesNotContain("custom-token", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans can explicitly opt into guarded live provider verification.
     /// </summary>
     [TestMethod]
@@ -827,6 +882,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
         Assert.Contains("--results", result.Stdout);
+        Assert.Contains("--only-verified", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);
         Assert.Contains("--diagnostics", result.Stdout);
@@ -930,6 +986,8 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live-tls-mode", result.Stdout);
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
+        Assert.Contains("--results", result.Stdout);
+        Assert.Contains("--only-verified", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);
@@ -954,6 +1012,8 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live-tls-mode", result.Stdout);
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
+        Assert.Contains("--results", result.Stdout);
+        Assert.Contains("--only-verified", result.Stdout);
         Assert.Contains("--max-decode-depth", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);

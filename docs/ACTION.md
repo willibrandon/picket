@@ -41,6 +41,9 @@ jobs:
 | `cache-key` | empty | Optional explicit cache key. Empty uses an OS, cache-mode, branch, and commit scoped default with mode-scoped branch restore keys. |
 | `report-directory` | `picket-results` | Directory where `picket.sarif` and `picket.jsonl` are written. |
 | `fail-on` | `findings` | Failure policy: `findings`, `errors`, or `never`. |
+| `summary` | `true` | Write the Picket scan job summary. |
+| `results` | empty | Optional comma-separated validation states to keep before reports, annotations, and failure enforcement. |
+| `only-verified` | `false` | Keep only `structurally-valid` offline findings and `active` live-verification findings. Cannot be combined with `results`. |
 | `upload-sarif` | `false` | Upload `picket.sarif` through GitHub code scanning. |
 | `annotations` | `true` | Emit safe GitHub workflow warning annotations from JSONL findings. |
 | `annotation-limit` | `50` | Maximum number of workflow annotations to emit. Use `0` to disable without changing `annotations`. |
@@ -74,9 +77,11 @@ jobs:
 
 The action writes SARIF and JSONL before the final failure-enforcement step. This allows `upload-sarif: true` to publish code scanning results even when `fail-on: findings` is selected.
 
+`results` and `only-verified` filter the Picket scan result set before SARIF, JSONL, annotations, summary counts, and failure enforcement are evaluated. Use `results` for an explicit comma-separated state list such as `active,structurally-valid`, or `only-verified: true` for the standard verified-state shorthand.
+
 ## CI Smoke
 
-The repository CI runs the local composite action on `ubuntu-latest` against the sanitized GitHub secret-scanning fixture. The smoke path disables cache, annotations, and SARIF upload, then asserts a successful exit, zero findings, and both `picket.sarif` and `picket.jsonl` output files.
+The repository CI runs the local composite action on `ubuntu-latest` against the sanitized GitHub secret-scanning fixture. The smoke path disables cache, annotations, SARIF upload, and the nested composite-action summary, then asserts a successful exit, zero findings, and both `picket.sarif` and `picket.jsonl` output files. CI writes one top-level summary from the action outputs.
 
 ## Reports And Caching
 
@@ -88,7 +93,7 @@ The default action cache mode is `secret-hash-only`, so saved cache entries keep
 
 When `baseline-path` is supplied, baseline suppression is applied after cache hits and works with the default `secret-hash-only` cache mode by comparing cached evidence hashes to the baseline evidence.
 
-The job summary includes the scanner exit code, finding count, failure policy, report paths, and capped finding breakdowns by rule and by file. Secret values are not written to the summary, and findings are fully redacted by default. Set `redact: 0` only for trusted private CI where raw secret values are acceptable.
+The job summary includes the scanner exit code, finding count, failure policy, result filter, report paths, and capped finding breakdowns by rule and by file. Secret values are not written to the summary, and findings are fully redacted by default. Set `redact: 0` only for trusted private CI where raw secret values are acceptable.
 
 ## Annotations
 

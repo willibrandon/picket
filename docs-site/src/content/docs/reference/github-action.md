@@ -21,6 +21,9 @@ This page is generated from `action.yml`.
 | `cache-key` | Optional explicit cache key. | false | `` |
 | `report-directory` | Directory where SARIF and JSONL reports are written. | false | `picket-results` |
 | `fail-on` | Failure mode. Use findings, errors, or never. | false | `findings` |
+| `summary` | Write the Picket scan job summary. | false | `true` |
+| `results` | Optional comma-separated validation result states to keep before reports, annotations, and failure enforcement. | false | `` |
+| `only-verified` | Keep only structurally valid offline findings and active live-verification findings. | false | `false` |
 | `upload-sarif` | Upload the SARIF report through GitHub code scanning. | false | `false` |
 | `annotations` | Emit safe GitHub workflow annotations from JSONL findings. | false | `true` |
 | `annotation-limit` | Maximum number of workflow annotations to emit. | false | `50` |

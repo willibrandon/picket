@@ -320,6 +320,9 @@ $cacheMode = (Get-ActionInput -Name 'PICKET_CACHE_MODE' -Default 'secret-hash-on
 $cachePath = Get-ActionInput -Name 'PICKET_CACHE_PATH' -Default '.picket/cache'
 $reportDirectory = Resolve-WorkspacePath (Get-ActionInput -Name 'PICKET_REPORT_DIRECTORY' -Default 'picket-results')
 $failOn = (Get-ActionInput -Name 'PICKET_FAIL_ON' -Default 'findings').Trim().ToLowerInvariant()
+$summaryEnabled = (Get-ActionInput -Name 'PICKET_SUMMARY' -Default 'true').Trim().ToLowerInvariant()
+$validationResults = Get-ActionInput -Name 'PICKET_RESULTS'
+$onlyVerified = (Get-ActionInput -Name 'PICKET_ONLY_VERIFIED' -Default 'false').Trim().ToLowerInvariant()
 $annotationsEnabled = Get-ActionInput -Name 'PICKET_ANNOTATIONS' -Default 'true'
 $annotationLimit = ConvertTo-PositiveInt (Get-ActionInput -Name 'PICKET_ANNOTATION_LIMIT' -Default '50') 'annotation-limit'
 $redact = Get-ActionInput -Name 'PICKET_REDACT' -Default '100'
@@ -337,6 +340,21 @@ if ($failOn -notin @('findings', 'errors', 'never')) {
 
 if ($cacheMode -notin @('secret-hash-only', 'raw')) {
     Write-Host '::error title=Invalid cache-mode::cache-mode must be secret-hash-only or raw.'
+    exit 1
+}
+
+if ($summaryEnabled -notin @('true', 'false')) {
+    Write-Host '::error title=Invalid summary::summary must be true or false.'
+    exit 1
+}
+
+if ($onlyVerified -notin @('true', 'false')) {
+    Write-Host '::error title=Invalid only-verified::only-verified must be true or false.'
+    exit 1
+}
+
+if ($onlyVerified.Equals('true', [StringComparison]::OrdinalIgnoreCase) -and ![string]::IsNullOrWhiteSpace($validationResults)) {
+    Write-Host '::error title=Invalid validation filter::results and only-verified cannot both be set.'
     exit 1
 }
 
@@ -374,6 +392,13 @@ if ($cacheEnabled.Equals('true', [StringComparison]::OrdinalIgnoreCase)) {
     $resolvedCachePath = Resolve-WorkspacePath $cachePath
     New-Item -ItemType Directory -Force -Path $resolvedCachePath | Out-Null
     $arguments += @('--cache-dir', $resolvedCachePath, '--cache-mode', $cacheMode)
+}
+
+if ($onlyVerified.Equals('true', [StringComparison]::OrdinalIgnoreCase)) {
+    $arguments += '--only-verified'
+}
+elseif (![string]::IsNullOrWhiteSpace($validationResults)) {
+    $arguments += @('--results', $validationResults)
 }
 
 if (![string]::IsNullOrWhiteSpace($maxTargetMegabytes)) {
@@ -450,19 +475,30 @@ Add-ActionOutput -Name 'annotations' -Value ([string]$annotationCount)
 Add-ActionOutput -Name 'should-fail' -Value $shouldFail.ToString().ToLowerInvariant()
 Add-ActionOutput -Name 'failure-code' -Value ([string]$failureCode)
 
-$summaryLines = @(
-    '# Picket scan',
-    '',
-    '| Field | Value |',
-    '| --- | --- |',
-    "| Scanner exit code | $scannerExitCode |",
-    "| Findings | $findingCount |",
-    "| Annotations | $annotationCount |",
-    "| Fail on | $failOn |",
-    "| SARIF | $sarifPath |",
-    "| JSONL | $jsonlPath |"
-)
-$summaryLines += Get-FindingBreakdownSummaryLines -JsonlPath $jsonlPath -Limit 10
-Add-StepSummary -Lines $summaryLines
+if ($summaryEnabled.Equals('true', [StringComparison]::OrdinalIgnoreCase)) {
+    $resultFilterSummary = 'all'
+    if ($onlyVerified.Equals('true', [StringComparison]::OrdinalIgnoreCase)) {
+        $resultFilterSummary = 'only-verified'
+    }
+    elseif (![string]::IsNullOrWhiteSpace($validationResults)) {
+        $resultFilterSummary = $validationResults
+    }
+
+    $summaryLines = @(
+        '# Picket scan',
+        '',
+        '| Field | Value |',
+        '| --- | --- |',
+        "| Scanner exit code | $scannerExitCode |",
+        "| Findings | $findingCount |",
+        "| Annotations | $annotationCount |",
+        "| Fail on | $failOn |",
+        "| Result filter | $resultFilterSummary |",
+        "| SARIF | $sarifPath |",
+        "| JSONL | $jsonlPath |"
+    )
+    $summaryLines += Get-FindingBreakdownSummaryLines -JsonlPath $jsonlPath -Limit 10
+    Add-StepSummary -Lines $summaryLines
+}
 
 exit 0

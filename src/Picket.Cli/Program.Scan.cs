@@ -139,6 +139,7 @@ internal static partial class Program
             nativeReportFormats: true,
             diagnosticsCommand: "scan",
             defaultRoot: ".",
+            allowValidationResultFilters: true,
             liveVerification: liveVerification
                 ? new LiveVerificationConfiguration(
                     githubApiEndpoint,

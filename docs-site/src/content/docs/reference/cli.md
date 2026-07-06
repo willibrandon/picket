@@ -183,6 +183,8 @@ Use the grouped index to jump to the workflow you need.
   [--live-rate-limit-ms n]
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
+  [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
+  [--only-verified]
   [--max-target-megabytes n]
   [--max-archive-depth n]
   [--max-archive-entries n]
@@ -320,6 +322,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Allow guarded live validation endpoints that are not public internet addresses.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--results</code></td>
+              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid | active | inactive | skipped | error</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Keep findings with the selected validation result states.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--only-verified</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Keep structurally-valid offline findings and active live-verification findings.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-target-megabytes</code></td>
@@ -641,6 +655,7 @@ Use the grouped index to jump to the workflow you need.
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
+  [--only-verified]
   [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
@@ -765,6 +780,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid | active | inactive | skipped | error</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Keep findings with the selected validation result states.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--only-verified</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Keep structurally-valid offline findings and active live-verification findings.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-archive-depth</code></td>

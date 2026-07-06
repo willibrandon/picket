@@ -54,6 +54,9 @@ public sealed partial class RepositoryConventionTests
 
         Assert.Contains("upload-sarif", action);
         Assert.Contains("fail-on", action);
+        Assert.Contains("summary", action);
+        Assert.Contains("results", action);
+        Assert.Contains("only-verified", action);
         Assert.Contains("annotations", action);
         Assert.Contains("annotation-limit", action);
         Assert.Contains("cache-mode", action);
@@ -87,6 +90,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--cache-mode", helper);
         Assert.Contains("PICKET_CACHE_MODE", helper);
+        Assert.Contains("PICKET_SUMMARY", helper);
+        Assert.Contains("summary must be true or false", helper);
+        Assert.Contains("PICKET_RESULTS", helper);
+        Assert.Contains("PICKET_ONLY_VERIFIED", helper);
+        Assert.Contains("--results", helper);
+        Assert.Contains("--only-verified", helper);
         Assert.Contains("--max-target-megabytes", helper);
         Assert.Contains("--timeout", helper);
         Assert.Contains("--max-archive-depth", helper);
@@ -122,6 +131,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("fail-on: findings", documentation);
         Assert.Contains("fail-on: errors", documentation);
         Assert.Contains("fail-on: never", documentation);
+        Assert.Contains("summary", documentation);
+        Assert.Contains("only-verified", documentation);
+        Assert.Contains("results", documentation);
         Assert.Contains("annotation-limit", documentation);
         Assert.Contains("cache-mode", documentation);
         Assert.Contains("secret-hash-only", documentation);
@@ -219,7 +231,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("uses: ./", workflow);
         Assert.Contains("path: tests/fixtures/github-secret-scanning", workflow);
         Assert.Contains("setup-dotnet: \"false\"", workflow);
+        Assert.Contains("summary: \"false\"", workflow);
         Assert.Contains("Verify GitHub Action smoke outputs", workflow);
+        Assert.Contains("Write GitHub Action smoke summary", workflow);
+        Assert.Contains("GITHUB_STEP_SUMMARY", workflow);
         Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
@@ -262,6 +277,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("actions/download-artifact@v5", workflow);
         Assert.Contains("Smoke test GitHub Action", workflow);
         Assert.Contains("Verify GitHub Action smoke outputs", workflow);
+        Assert.Contains("summary: \"false\"", workflow);
+        Assert.Contains("Write GitHub Action smoke summary", workflow);
+        Assert.Contains("GITHUB_STEP_SUMMARY", workflow);
         Assert.Contains("checksums.txt", workflow);
         Assert.Contains(".sha256", workflow);
         Assert.Contains("gh release create", workflow);

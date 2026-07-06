@@ -669,7 +669,7 @@ Picket ships:
 - `dotnet tool`,
 - NuGet packages for embedding.
 
-The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, baseline handling, cache restore/save, least-privilege permissions, summary output, and explicit fail modes.
+The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, baseline handling, validation-result filtering, cache restore/save, least-privilege permissions, summary output, and explicit fail modes.
 
 Pre-receive support handles bare repositories, quarantine environment variables, old/new ref input, timeouts, concurrency, and clear rejection messages.
 

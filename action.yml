@@ -39,6 +39,18 @@ inputs:
     description: Failure mode. Use findings, errors, or never.
     required: false
     default: findings
+  summary:
+    description: Write the Picket scan job summary.
+    required: false
+    default: "true"
+  results:
+    description: Optional comma-separated validation result states to keep before reports, annotations, and failure enforcement.
+    required: false
+    default: ""
+  only-verified:
+    description: Keep only structurally valid offline findings and active live-verification findings.
+    required: false
+    default: "false"
   upload-sarif:
     description: Upload the SARIF report through GitHub code scanning.
     required: false
@@ -141,6 +153,9 @@ runs:
         PICKET_CACHE_PATH: ${{ inputs.cache-path }}
         PICKET_REPORT_DIRECTORY: ${{ inputs.report-directory }}
         PICKET_FAIL_ON: ${{ inputs.fail-on }}
+        PICKET_SUMMARY: ${{ inputs.summary }}
+        PICKET_RESULTS: ${{ inputs.results }}
+        PICKET_ONLY_VERIFIED: ${{ inputs.only-verified }}
         PICKET_ANNOTATIONS: ${{ inputs.annotations }}
         PICKET_ANNOTATION_LIMIT: ${{ inputs.annotation-limit }}
         PICKET_REDACT: ${{ inputs.redact }}
