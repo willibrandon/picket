@@ -101,22 +101,3 @@ jobs:
               throw "GitHub Action smoke did not write $fileName."
             }
           }
-
-      - name: Write GitHub Action smoke summary
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        shell: pwsh
-        run: |
-          $lines = @(
-            '# Picket scan',
-            '',
-            '| Field | Value |',
-            '| --- | --- |',
-            '| Scanner exit code | ${{ steps.action-smoke.outputs.exit-code }} |',
-            '| Findings | ${{ steps.action-smoke.outputs.findings }} |',
-            '| Annotations | ${{ steps.action-smoke.outputs.annotations }} |',
-            '| Fail on | never |',
-            '| Result filter | all |',
-            '| SARIF | ${{ steps.action-smoke.outputs.sarif-path }} |',
-            '| JSONL | ${{ steps.action-smoke.outputs.jsonl-path }} |'
-          )
-          $lines | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY

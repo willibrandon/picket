@@ -81,7 +81,7 @@ The action writes SARIF and JSONL before the final failure-enforcement step. Thi
 
 ## CI Smoke
 
-The repository CI runs the local composite action on `ubuntu-latest` against the sanitized GitHub secret-scanning fixture. The smoke path disables cache, annotations, SARIF upload, and the nested composite-action summary, then asserts a successful exit, zero findings, and both `picket.sarif` and `picket.jsonl` output files. CI writes one top-level summary from the action outputs.
+The repository CI runs the local composite action on `ubuntu-latest` against the sanitized GitHub secret-scanning fixture. The smoke path disables cache, annotations, SARIF upload, and the Action summary, then asserts a successful exit, zero findings, and both `picket.sarif` and `picket.jsonl` output files.
 
 ## Reports And Caching
 

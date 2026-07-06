@@ -233,8 +233,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("setup-dotnet: \"false\"", workflow);
         Assert.Contains("summary: \"false\"", workflow);
         Assert.Contains("Verify GitHub Action smoke outputs", workflow);
-        Assert.Contains("Write GitHub Action smoke summary", workflow);
-        Assert.Contains("GITHUB_STEP_SUMMARY", workflow);
+        Assert.DoesNotContain("Write GitHub Action smoke summary", workflow);
         Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
@@ -278,8 +277,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Smoke test GitHub Action", workflow);
         Assert.Contains("Verify GitHub Action smoke outputs", workflow);
         Assert.Contains("summary: \"false\"", workflow);
-        Assert.Contains("Write GitHub Action smoke summary", workflow);
-        Assert.Contains("GITHUB_STEP_SUMMARY", workflow);
+        Assert.DoesNotContain("Write GitHub Action smoke summary", workflow);
         Assert.Contains("checksums.txt", workflow);
         Assert.Contains(".sha256", workflow);
         Assert.Contains("gh release create", workflow);
