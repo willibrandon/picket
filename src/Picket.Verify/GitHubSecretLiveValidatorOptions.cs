@@ -91,9 +91,11 @@ public sealed class GitHubSecretLiveValidatorOptions
 
     internal HttpClient CreateHttpClient()
     {
-        HttpClient client = _messageHandlerFactory is null
-            ? new HttpClient()
-            : new HttpClient(_messageHandlerFactory(), disposeHandler: true);
+        HttpClient client = new(
+            _messageHandlerFactory is null
+                ? new HttpClientHandler { AllowAutoRedirect = false }
+                : _messageHandlerFactory(),
+            disposeHandler: true);
         client.Timeout = Timeout;
         return client;
     }

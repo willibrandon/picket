@@ -58,6 +58,27 @@ public sealed class GitHubSecretLiveValidatorTests
     }
 
     /// <summary>
+    /// Verifies that redirect responses are treated as provider errors instead of accepted validation.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncReturnsErrorForRedirectResponse()
+    {
+        var handler = new FakeHttpMessageHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.Redirect);
+            response.Headers.Location = new Uri("https://metadata.google.internal/latest/meta-data");
+            return response;
+        });
+        GitHubSecretLiveValidator validator = CreateValidator(handler);
+
+        SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), CancellationToken.None);
+
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.Contains("HTTP 302", result.Reason);
+        Assert.AreEqual(1, handler.RequestCount);
+    }
+
+    /// <summary>
     /// Verifies that malformed GitHub-looking findings are not eligible for provider requests.
     /// </summary>
     [TestMethod]

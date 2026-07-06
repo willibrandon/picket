@@ -53,6 +53,7 @@ The first provider validator is GitHub:
 - explicit non-public endpoint escape hatch: `--allow-non-public-endpoints`,
 - `200 OK` maps to `active` and can add non-secret user login, scope, reachable-resource, and evidence metadata for `picket analyze --live`,
 - `401 Unauthorized` maps to `inactive`,
+- automatic HTTP redirects are disabled; redirect responses map to `error`,
 - `403 Forbidden`, `429 Too Many Requests`, other unexpected statuses, request failures, and endpoint-policy failures map to `error`.
 
 Before additional providers can be enabled in the CLI, each validator also requires a threat-model entry with:
@@ -68,7 +69,7 @@ Before additional providers can be enabled in the CLI, each validator also requi
 - known provider side effects,
 - SSRF and redirect protections.
 
-Provider requests must use `Picket.Security` endpoint checks to block loopback, private, link-local, metadata-service, reserved, and non-public redirect targets by default. Redirect targets must be re-checked before following. Responses must be size-limited and redacted before diagnostics.
+Provider requests must use `Picket.Security` endpoint checks to block loopback, private, link-local, metadata-service, reserved, and non-public redirect targets by default. Redirects are disabled unless a provider implements explicit target re-checking before following. Responses must be size-limited and redacted before diagnostics.
 
 ## Reporting
 
