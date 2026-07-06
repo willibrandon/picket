@@ -41,6 +41,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         GenerateProjectDocumentation(generatedRoot);
         GenerateCliReference(referenceRoot);
         GenerateActionReference(referenceRoot);
+        GenerateConfigSchemaReference(referenceRoot);
         GenerateReportSchemaReference(referenceRoot);
         GenerateApiReference(apiRoot);
     }

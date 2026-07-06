@@ -362,6 +362,7 @@ public sealed partial class RepositoryConventionTests
         string siteConfig = ReadRepositoryFile("docs-site/astro.config.mjs");
         string packageJson = ReadRepositoryFile("docs-site/package.json");
         string cliReference = ReadRepositoryFile("docs-site/src/content/docs/reference/cli.md");
+        string configSchema = ReadRepositoryFile("docs-site/src/content/docs/reference/config-schema.md");
         string reportSchemas = ReadRepositoryFile("docs-site/src/content/docs/reference/report-schemas.md");
         string rulesApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-rules.md");
         string engineApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-engine.md");
@@ -390,6 +391,19 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("### picket git", cliReference);
         Assert.DoesNotContain("### picket cache\n", cliReference);
         Assert.DoesNotContain("### picket rules\n", cliReference);
+        Assert.Contains("Config Schema Reference", configSchema);
+        Assert.Contains("## Config Selection", configSchema);
+        Assert.Contains("GITLEAKS_CONFIG", configSchema);
+        Assert.Contains("PICKET_CONFIG", configSchema);
+        Assert.Contains("[extend]", configSchema);
+        Assert.Contains("[[rules]]", configSchema);
+        Assert.Contains("secretGroup", configSchema);
+        Assert.Contains("examples", configSchema);
+        Assert.Contains("negativeExamples", configSchema);
+        Assert.Contains("[[allowlists]]", configSchema);
+        Assert.Contains("targetRules", configSchema);
+        Assert.Contains("regexTarget", configSchema);
+        Assert.Contains("[[rules.required]]", configSchema);
         Assert.Contains("Report Schema Reference", reportSchemas);
         Assert.Contains("Native JSON report object", reportSchemas);
         Assert.Contains("Native JSONL finding object", reportSchemas);
