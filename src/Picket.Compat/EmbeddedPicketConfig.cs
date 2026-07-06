@@ -55,6 +55,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "AWS"
 documentationUrl = "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
+validation = ["offline:aws-access-key-pair"]
+revocation = ["revocation:aws-iam-access-key"]
 examples = ["aws_access_key_id = {{awsAccessKeyId}}\naws_secret_access_key = {{awsSecretAccessKey}}"]
 negativeExamples = ["aws_access_key_id = {{awsAccessKeyId}}"]
 
@@ -71,6 +73,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "Azure"
 documentationUrl = "https://learn.microsoft.com/azure/storage/common/storage-account-keys-manage"
+validation = ["offline:azure-storage-connection-string"]
+revocation = ["revocation:azure-storage-account-key"]
 examples = ["DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={{azureStorageAccountKey}};EndpointSuffix=core.windows.net"]
 negativeExamples = ["DefaultEndpointsProtocol=https;AccountName=picketstorage;EndpointSuffix=core.windows.net"]
 
@@ -86,6 +90,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GCP"
 documentationUrl = "https://cloud.google.com/docs/authentication/api-keys"
+validation = ["offline:gcp-api-key"]
+revocation = ["revocation:gcp-api-key"]
 examples = ["api_key = \"{{googleApiKey}}\""]
 negativeExamples = ["api_key = \"AIza-not-long-enough\""]
 
@@ -100,6 +106,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GCP"
 documentationUrl = "https://cloud.google.com/iam/docs/keys-create-delete"
+validation = ["offline:gcp-service-account-key-json"]
+revocation = ["revocation:gcp-service-account-key"]
 examples = ['''{{gcpServiceAccountExample}}''']
 negativeExamples = ['''{{gcpServiceAccountNegativeExample}}''']
 
@@ -132,6 +140,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app"
+validation = ["offline:github-classic-token", "live:github-rest-user-v1"]
+revocation = ["revocation:github-credentials-api"]
 examples = ["ghs_{{githubClassicTokenSuffix}}"]
 negativeExamples = ["ghs_invalid"]
 
@@ -148,6 +158,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+validation = ["offline:github-fine-grained-pat", "live:github-rest-user-v1"]
+revocation = ["revocation:github-credentials-api"]
 examples = ["{{githubFineGrainedToken}}"]
 negativeExamples = ["github_pat_invalid"]
 
@@ -164,6 +176,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/apps/oauth-apps/maintaining-oauth-apps/authorizing-oauth-apps"
+validation = ["offline:github-classic-token", "live:github-rest-user-v1"]
+revocation = ["revocation:github-credentials-api"]
 examples = ["gho_{{githubClassicTokenSuffix}}"]
 negativeExamples = ["gho_invalid"]
 
@@ -180,6 +194,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+validation = ["offline:github-classic-token", "live:github-rest-user-v1"]
+revocation = ["revocation:github-credentials-api"]
 examples = ["ghp_{{githubClassicTokenSuffix}}"]
 negativeExamples = ["ghp_invalid"]
 
@@ -196,6 +212,8 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "GitHub"
 documentationUrl = "https://docs.github.com/apps/oauth-apps/building-oauth-apps/refreshing-user-to-server-access-tokens"
+validation = ["offline:github-classic-token", "live:github-rest-user-v1"]
+revocation = ["revocation:github-credentials-api"]
 examples = ["ghr_{{githubClassicTokenSuffix}}"]
 negativeExamples = ["ghr_invalid"]
 """;

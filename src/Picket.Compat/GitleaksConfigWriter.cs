@@ -83,6 +83,13 @@ public static class GitleaksConfigWriter
                 AppendString(builder, "documentationUrl", rule.DocumentationUrl);
             }
 
+            AppendStringArray(builder, "validation", rule.Validation);
+            AppendStringArray(builder, "revocation", rule.Revocation);
+            if (rule.Deprecated)
+            {
+                builder.AppendLine("deprecated = true");
+            }
+
             AppendStringArray(builder, "examples", rule.Examples);
             AppendStringArray(builder, "negativeExamples", rule.NegativeExamples);
             if (rule.SkipReport)

@@ -3739,6 +3739,9 @@ public sealed class CliCompatibilityTests
             rulePack = "picket-default"
             provider = "example"
             documentationUrl = "https://example.invalid/rules/local-token"
+            validation = ["offline:local-token"]
+            revocation = ["revocation:local-token"]
+            deprecated = true
             examples = ["local-12345"]
             negativeExamples = ["local-token"]
             """);
@@ -3758,6 +3761,9 @@ public sealed class CliCompatibilityTests
         Assert.Contains("rulePack = \"picket-default\"", printed.Stdout);
         Assert.Contains("provider = \"example\"", printed.Stdout);
         Assert.Contains("documentationUrl = \"https://example.invalid/rules/local-token\"", printed.Stdout);
+        Assert.Contains("validation = [\"offline:local-token\"]", printed.Stdout);
+        Assert.Contains("revocation = [\"revocation:local-token\"]", printed.Stdout);
+        Assert.Contains("deprecated = true", printed.Stdout);
         Assert.Contains("examples = [\"local-12345\"]", printed.Stdout);
         Assert.Contains("negativeExamples = [\"local-token\"]", printed.Stdout);
         Assert.AreEqual(0, checkedAgain.ExitCode);

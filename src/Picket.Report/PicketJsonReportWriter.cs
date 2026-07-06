@@ -73,6 +73,9 @@ public static class PicketJsonReportWriter
         WriteString(builder, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
         WriteString(builder, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
         WriteString(builder, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
+        WriteArray(builder, "validation", rule.Validation, comma: true);
+        WriteArray(builder, "revocation", rule.Revocation, comma: true);
+        WriteBoolean(builder, "deprecated", rule.Deprecated, comma: true);
         WriteArray(builder, "keywords", rule.Keywords, comma: true);
         WriteArray(builder, "tags", rule.Tags, comma: true);
         WriteBoolean(builder, "skipReport", rule.SkipReport, comma: false);

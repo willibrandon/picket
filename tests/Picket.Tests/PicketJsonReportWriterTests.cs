@@ -18,7 +18,14 @@ public sealed class PicketJsonReportWriterTests
     [TestMethod]
     public void WriteIncludesSchemaAndRulesForNoFindings()
     {
-        SecretRule rule = SecretRule.Create("token", string.Empty, "token-[0-9]+", tags: ["secret"]);
+        SecretRule rule = SecretRule.Create(
+            "token",
+            string.Empty,
+            "token-[0-9]+",
+            tags: ["secret"],
+            validation: ["offline:token"],
+            revocation: ["revocation:token"],
+            deprecated: true);
 
         string json = PicketJsonReportWriter.Write([], [rule]);
 
@@ -28,6 +35,9 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"severity\":\"critical\"", json);
         Assert.Contains("\"confidence\":\"high\"", json);
         Assert.Contains("\"rulePack\":\"\"", json);
+        Assert.Contains("\"validation\":[\"offline:token\"]", json);
+        Assert.Contains("\"revocation\":[\"revocation:token\"]", json);
+        Assert.Contains("\"deprecated\":true", json);
         Assert.Contains("\"tags\":[\"secret\"]", json);
         Assert.Contains("\"findings\":[]", json);
     }

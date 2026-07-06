@@ -112,6 +112,9 @@ public static class GitleaksConfigLoader
         string rulePack = string.Empty;
         string provider = string.Empty;
         string documentationUrl = string.Empty;
+        IReadOnlyList<string> validation = [];
+        IReadOnlyList<string> revocation = [];
+        bool deprecated = false;
         IReadOnlyList<string> examples = [];
         IReadOnlyList<string> negativeExamples = [];
         string minVersion = string.Empty;
@@ -165,6 +168,9 @@ public static class GitleaksConfigLoader
                     rulePack = string.Empty;
                     provider = string.Empty;
                     documentationUrl = string.Empty;
+                    validation = [];
+                    revocation = [];
+                    deprecated = false;
                     examples = [];
                     negativeExamples = [];
                     continue;
@@ -399,6 +405,15 @@ public static class GitleaksConfigLoader
                 case "documentationUrl":
                     documentationUrl = ParseString(value, sourceName, key);
                     break;
+                case "validation":
+                    validation = ParseStringArray(value, sourceName, key);
+                    break;
+                case "revocation":
+                    revocation = ParseStringArray(value, sourceName, key);
+                    break;
+                case "deprecated":
+                    deprecated = ParseBoolean(value, sourceName, key);
+                    break;
                 case "examples":
                     examples = ParseStringArray(value, sourceName, key);
                     break;
@@ -582,6 +597,9 @@ public static class GitleaksConfigLoader
                 rulePack,
                 provider,
                 documentationUrl,
+                validation,
+                revocation,
+                deprecated,
                 examples,
                 negativeExamples));
             ruleAllowlists = [];

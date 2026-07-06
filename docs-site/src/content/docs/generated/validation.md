@@ -40,6 +40,8 @@ Current offline coverage includes:
 - private-key envelope checks.
 - common test, dummy, fake, placeholder, repeated-character, and repeated-pattern suppression signals.
 
+Native rule metadata can list supported validation templates with stable identifiers such as `offline:gcp-api-key` or `live:github-rest-user-v1`. These identifiers document available capability and appear in rich native rule catalogs; they do not enable live provider calls unless the user selects an explicit live-verification command or flag.
+
 ## Live Verification Model
 
 Live provider calls are opt-in behavior for `picket scan --verify`, `picket verify --live`, and `picket analyze --live`. The reusable verification layer defines the provider contract and safety envelope that provider validators must use:

@@ -36,6 +36,9 @@ Native reports carry Picket schema metadata such as `picket.report.v1` and `pick
 | `rulePack` | string |
 | `provider` | string |
 | `documentationUrl` | string |
+| `validation` | array |
+| `revocation` | array |
+| `deprecated` | boolean |
 | `keywords` | array<string> |
 | `tags` | array<string> |
 | `skipReport` | boolean |

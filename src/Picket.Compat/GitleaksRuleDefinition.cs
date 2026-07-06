@@ -20,6 +20,9 @@ internal sealed class GitleaksRuleDefinition(
     string rulePack = "",
     string provider = "",
     string documentationUrl = "",
+    IReadOnlyList<string>? validation = null,
+    IReadOnlyList<string>? revocation = null,
+    bool deprecated = false,
     IReadOnlyList<string>? examples = null,
     IReadOnlyList<string>? negativeExamples = null)
 {
@@ -55,6 +58,12 @@ internal sealed class GitleaksRuleDefinition(
 
     internal string DocumentationUrl { get; } = documentationUrl ?? string.Empty;
 
+    internal IReadOnlyList<string> Validation { get; } = validation ?? [];
+
+    internal IReadOnlyList<string> Revocation { get; } = revocation ?? [];
+
+    internal bool Deprecated { get; } = deprecated;
+
     internal IReadOnlyList<string> Examples { get; } = examples ?? [];
 
     internal IReadOnlyList<string> NegativeExamples { get; } = negativeExamples ?? [];
@@ -78,6 +87,9 @@ internal sealed class GitleaksRuleDefinition(
             rule.RulePack,
             rule.Provider,
             rule.DocumentationUrl,
+            rule.Validation,
+            rule.Revocation,
+            rule.Deprecated,
             rule.Examples,
             rule.NegativeExamples);
     }
@@ -101,6 +113,9 @@ internal sealed class GitleaksRuleDefinition(
             RulePack.Length != 0 ? RulePack : baseRule.RulePack,
             Provider.Length != 0 ? Provider : baseRule.Provider,
             DocumentationUrl.Length != 0 ? DocumentationUrl : baseRule.DocumentationUrl,
+            Validation.Count != 0 ? Validation : baseRule.Validation,
+            Revocation.Count != 0 ? Revocation : baseRule.Revocation,
+            Deprecated || baseRule.Deprecated,
             Examples.Count != 0 ? Examples : baseRule.Examples,
             NegativeExamples.Count != 0 ? NegativeExamples : baseRule.NegativeExamples);
     }
@@ -143,6 +158,9 @@ internal sealed class GitleaksRuleDefinition(
             rulePack: RulePack,
             provider: Provider,
             documentationUrl: DocumentationUrl,
+            validation: Validation,
+            revocation: Revocation,
+            deprecated: Deprecated,
             examples: Examples,
             negativeExamples: NegativeExamples);
     }
@@ -260,6 +278,9 @@ internal sealed class GitleaksRuleDefinition(
             RulePack,
             Provider,
             DocumentationUrl,
+            Validation,
+            Revocation,
+            Deprecated,
             Examples,
             NegativeExamples);
     }

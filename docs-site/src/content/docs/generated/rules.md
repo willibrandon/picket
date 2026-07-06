@@ -50,6 +50,9 @@ Supported rule fields:
 - `rulePack`: native rule-pack identifier such as `gitleaks`, `picket-default`, or `picket-strict`.
 - `provider`: owning provider or credential family.
 - `documentationUrl`: rule documentation or remediation URL.
+- `validation`: stable validation template identifiers supported by the rule. Identifiers name existing offline or live validators; they do not trigger network calls by themselves.
+- `revocation`: stable revocation template identifiers supported by the rule. Identifiers name report/analyze templates; revocation is never automatic during scan.
+- `deprecated`: `true` when the rule remains loadable but should not be used for new rule packs.
 - `examples`: positive examples that must produce findings for this rule during rule QA.
 - `negativeExamples`: negative examples that must not produce findings for this rule during rule QA.
 
@@ -67,6 +70,8 @@ confidence = "medium"
 rulePack = "picket-default"
 provider = "example"
 documentationUrl = "https://example.invalid/rules/sample-token"
+validation = ["offline:example-token"]
+revocation = ["revocation:example-token"]
 examples = ["token-12345"]
 negativeExamples = ["token-value"]
 ```

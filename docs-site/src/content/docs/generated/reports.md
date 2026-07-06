@@ -51,7 +51,7 @@ Native reports can include:
 - stable Picket fingerprint,
 - validation state,
 - severity and confidence,
-- rule pack, provider, and rule documentation URL when available,
+- rule pack, provider, rule documentation URL, validation templates, revocation templates, and rule deprecation state when available,
 - provenance,
 - decode path,
 - baseline status,

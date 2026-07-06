@@ -395,6 +395,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Strict compatibility commands ignore", rules);
         Assert.Contains("secretGroup", rules);
         Assert.Contains("targetRules", rules);
+        Assert.Contains("validation", rules);
+        Assert.Contains("revocation", rules);
+        Assert.Contains("deprecated", rules);
         Assert.Contains("Scout `ByteRegex`", rules);
         Assert.Contains("Offline validation", validation);
         Assert.Contains("Live network verification is disabled by default", validation);
@@ -411,6 +414,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket-Native Reports", reports);
         Assert.Contains("picket.finding.v1", reports);
         Assert.Contains("picket.report.v1", reports);
+        Assert.Contains("validation templates", reports);
+        Assert.Contains("revocation templates", reports);
         Assert.Contains("picket analyze", reports);
         Assert.Contains("reachable resources", reports);
         Assert.Contains("picket view", reports);

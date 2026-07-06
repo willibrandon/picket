@@ -19,6 +19,9 @@ namespace Picket.Rules;
 /// <param name="rulePack">The native rule pack that supplied the rule.</param>
 /// <param name="provider">The owning provider or credential family.</param>
 /// <param name="documentationUrl">The rule documentation or remediation URL.</param>
+/// <param name="validation">Stable validation template identifiers supported by the rule.</param>
+/// <param name="revocation">Stable revocation template identifiers supported by the rule.</param>
+/// <param name="deprecated">A value indicating whether the rule is deprecated.</param>
 /// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
 /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
 public sealed class SecretRule(
@@ -38,6 +41,9 @@ public sealed class SecretRule(
     string rulePack = "",
     string provider = "",
     string documentationUrl = "",
+    IReadOnlyList<string>? validation = null,
+    IReadOnlyList<string>? revocation = null,
+    bool deprecated = false,
     IReadOnlyList<string>? examples = null,
     IReadOnlyList<string>? negativeExamples = null)
 {
@@ -122,6 +128,21 @@ public sealed class SecretRule(
     public string DocumentationUrl { get; } = documentationUrl ?? string.Empty;
 
     /// <summary>
+    /// Gets stable validation template identifiers supported by the rule.
+    /// </summary>
+    public IReadOnlyList<string> Validation { get; } = validation ?? [];
+
+    /// <summary>
+    /// Gets stable revocation template identifiers supported by the rule.
+    /// </summary>
+    public IReadOnlyList<string> Revocation { get; } = revocation ?? [];
+
+    /// <summary>
+    /// Gets a value indicating whether the rule is deprecated.
+    /// </summary>
+    public bool Deprecated { get; } = deprecated;
+
+    /// <summary>
     /// Gets positive examples that must produce findings for this rule during rule QA.
     /// </summary>
     public IReadOnlyList<string> Examples { get; } = examples ?? [];
@@ -150,6 +171,9 @@ public sealed class SecretRule(
     /// <param name="rulePack">The native rule pack that supplied the rule.</param>
     /// <param name="provider">The owning provider or credential family.</param>
     /// <param name="documentationUrl">The rule documentation or remediation URL.</param>
+    /// <param name="validation">Stable validation template identifiers supported by the rule.</param>
+    /// <param name="revocation">Stable revocation template identifiers supported by the rule.</param>
+    /// <param name="deprecated">A value indicating whether the rule is deprecated.</param>
     /// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
     /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
     /// <returns>The created rule.</returns>
@@ -170,6 +194,9 @@ public sealed class SecretRule(
         string rulePack = "",
         string provider = "",
         string documentationUrl = "",
+        IReadOnlyList<string>? validation = null,
+        IReadOnlyList<string>? revocation = null,
+        bool deprecated = false,
         IReadOnlyList<string>? examples = null,
         IReadOnlyList<string>? negativeExamples = null)
     {
@@ -190,6 +217,9 @@ public sealed class SecretRule(
             rulePack,
             provider,
             documentationUrl,
+            validation ?? [],
+            revocation ?? [],
+            deprecated,
             examples ?? [],
             negativeExamples ?? []);
     }

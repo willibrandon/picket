@@ -176,6 +176,9 @@ SecretRule(
     string rulePack,
     string provider,
     string documentationUrl,
+    IReadOnlyList<string> validation,
+    IReadOnlyList<string> revocation,
+    bool deprecated,
     IReadOnlyList<string> examples,
     IReadOnlyList<string> negativeExamples
 )
@@ -206,6 +209,9 @@ Create(
     string rulePack,
     string provider,
     string documentationUrl,
+    IReadOnlyList<string> validation,
+    IReadOnlyList<string> revocation,
+    bool deprecated,
     IReadOnlyList<string> examples,
     IReadOnlyList<string> negativeExamples
 )
@@ -218,6 +224,7 @@ Creates a rule and normalizes optional collection arguments.
 
 - `Allowlists` - Gets per-rule allowlists used to suppress findings.
 - `Confidence` - Gets the native confidence value for reports and triage.
+- `Deprecated` - Gets a value indicating whether the rule is deprecated.
 - `Description` - Gets the user-facing rule description.
 - `DocumentationUrl` - Gets the rule documentation or remediation URL.
 - `Entropy` - Gets the minimum Shannon entropy required for the secret. Zero disables entropy filtering.
@@ -229,8 +236,10 @@ Creates a rule and normalizes optional collection arguments.
 - `Pattern` - Gets the content regex pattern in the compatibility dialect. Empty means path-only.
 - `Provider` - Gets the owning provider or credential family.
 - `RequiredRules` - Gets supporting rules required before a primary finding is reported.
+- `Revocation` - Gets stable revocation template identifiers supported by the rule.
 - `RulePack` - Gets the native rule pack that supplied the rule.
 - `SecretGroup` - Gets the capture group that contains the secret. Zero means the whole match.
 - `Severity` - Gets the native severity value for reports and triage.
 - `SkipReport` - Gets a value indicating whether normal findings for this rule are suppressed.
 - `Tags` - Gets rule classification tags.
+- `Validation` - Gets stable validation template identifiers supported by the rule.
