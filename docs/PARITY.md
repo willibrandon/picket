@@ -71,7 +71,9 @@ as deliberate.
 - **User impact:** Native scans can report additional findings in C# source when
   a credential is split across deterministic string literals. Findings point to
   the literal construction span; hosted scanners may report a downstream call
-  site for the same secret.
+  site for the same secret. Hosted historical alerts should be compared against
+  native git-history reports, not current-tree filesystem scans, because GitHub
+  alert locations include the commit that introduced the secret.
 - **Test name:** `ScanFindsNativeRuleMatchInCSharpStringConcat`.
 - **Migration guidance:** Use strict compatibility commands for Gitleaks byte
   parity. Use native `scan` when source-code literal normalization is desired.

@@ -121,10 +121,18 @@ function New-LocationKey
         [string]$Path,
 
         [Parameter(Mandatory = $true)]
-        [int]$Line
+        [int]$Line,
+
+        [string]$Commit = ""
     )
 
-    return "$($Path.Replace('\', '/')):$Line"
+    $normalizedPath = $Path.Replace('\', '/')
+    if ([string]::IsNullOrWhiteSpace($Commit))
+    {
+        return "$($normalizedPath):$Line"
+    }
+
+    return "$($Commit):$($normalizedPath):$Line"
 }
 
 function Add-Location
@@ -167,6 +175,7 @@ function ConvertTo-GitHubLocation
         StartColumn = Get-IntegerPropertyValue -Value $Location -Name "StartColumn"
         EndLine = Get-IntegerPropertyValue -Value $Location -Name "EndLine"
         EndColumn = Get-IntegerPropertyValue -Value $Location -Name "EndColumn"
+        CommitSha = Get-PropertyValue -Value $Location -Name "CommitSha"
     }
 }
 
@@ -186,6 +195,7 @@ function ConvertTo-PicketLocation
         Path = Get-PropertyValue -Value $Finding -Name "file"
         StartLine = Get-IntegerPropertyValue -Value $Finding -Name "startLine"
         StartColumn = Get-IntegerPropertyValue -Value $Finding -Name "startColumn"
+        Commit = Get-PropertyValue -Value $Finding -Name "commit"
         Fingerprint = Get-PropertyValue -Value $Finding -Name "fingerprint"
     }
 }
@@ -275,7 +285,7 @@ foreach ($secretType in $allSecretTypes)
         {
             $safeLocation = ConvertTo-GitHubLocation -Alert $alert -Location $location
             [void]$githubLocations.Add($safeLocation)
-            Add-Location -Map $githubLocationMap -Key (New-LocationKey -Path $safeLocation.Path -Line $safeLocation.StartLine) -Location $safeLocation
+            Add-Location -Map $githubLocationMap -Key (New-LocationKey -Path $safeLocation.Path -Line $safeLocation.StartLine -Commit $safeLocation.CommitSha) -Location $safeLocation
         }
     }
 
@@ -293,7 +303,7 @@ foreach ($secretType in $allSecretTypes)
 
             $safeFinding = ConvertTo-PicketLocation -Finding $finding -SecretType $secretType
             [void]$picketLocations.Add($safeFinding)
-            Add-Location -Map $picketLocationMap -Key (New-LocationKey -Path $safeFinding.Path -Line $safeFinding.StartLine) -Location $safeFinding
+            Add-Location -Map $picketLocationMap -Key (New-LocationKey -Path $safeFinding.Path -Line $safeFinding.StartLine -Commit $safeFinding.Commit) -Location $safeFinding
         }
     }
 

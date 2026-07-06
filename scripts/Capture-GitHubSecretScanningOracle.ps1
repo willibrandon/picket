@@ -110,6 +110,7 @@ function ConvertTo-SafeAlert
         [object]$Alert,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [object[]]$Locations
     )
 

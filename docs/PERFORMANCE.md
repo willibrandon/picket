@@ -30,6 +30,8 @@ For repository-level comparison:
   GitHub secret-scanning alert metadata,
 - use `scripts/Compare-GitHubSecretScanningOracle.ps1` to compare native JSONL
   scan output against mapped hosted alert classes and locations,
+- use `picket git . --profile picket --report-format jsonl` when captured
+  hosted locations include commit SHAs,
 - compare native scans against the GitHub alert classes and locations only after
   confirming whether differences are compatibility allowlists, history-only
   alerts, or true rule gaps.

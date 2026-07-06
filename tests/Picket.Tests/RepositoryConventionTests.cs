@@ -443,6 +443,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("RedactionMapPath", documentation);
         Assert.Contains("AllowUnredacted", documentation);
         Assert.Contains("gitleaks git <repo>", documentation);
+        Assert.Contains("picket git . --profile picket", documentation);
         Assert.DoesNotContain("gitleaks git --source", documentation);
         Assert.Contains("<!-- upstream-pins:start -->", documentation);
         Assert.Contains("<!-- upstream-pins:end -->", documentation);
@@ -468,6 +469,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.github-secret-scanning-comparison.v1", githubComparisonScript);
         Assert.Contains("FailOnDifference", githubComparisonScript);
         Assert.Contains("MissingLocations", githubComparisonScript);
+        Assert.Contains("CommitSha", githubComparisonScript);
         Assert.DoesNotContain("RawSecret", githubComparisonScript);
         Assert.Contains("Refusing to promote oracle captures", promotionScript);
         Assert.Contains("tests\\fixtures\\oracles", promotionScript);
@@ -513,7 +515,7 @@ public sealed partial class RepositoryConventionTests
                   "SecretType": "google_api_key",
                   "SecretTypeDisplayName": "Google API Key",
                   "Locations": [
-                    { "Type": "commit", "Path": "src/a.cs", "StartLine": 10, "EndLine": 10, "StartColumn": 5, "EndColumn": 44 }
+                    { "Type": "commit", "Path": "src/a.cs", "StartLine": 10, "EndLine": 10, "StartColumn": 5, "EndColumn": 44, "CommitSha": "abc123" }
                   ]
                 },
                 {
@@ -522,7 +524,7 @@ public sealed partial class RepositoryConventionTests
                   "SecretType": "google_api_key",
                   "SecretTypeDisplayName": "Google API Key",
                   "Locations": [
-                    { "Type": "commit", "Path": "src/missing.cs", "StartLine": 20, "EndLine": 20, "StartColumn": 1, "EndColumn": 40 }
+                    { "Type": "commit", "Path": "src/missing.cs", "StartLine": 20, "EndLine": 20, "StartColumn": 1, "EndColumn": 40, "CommitSha": "def456" }
                   ]
                 },
                 {
@@ -540,8 +542,8 @@ public sealed partial class RepositoryConventionTests
         File.WriteAllText(
             reportPath,
             """
-            {"schema":"picket.finding.v1","ruleId":"picket-google-api-key","file":"src/a.cs","startLine":10,"startColumn":5,"fingerprint":"fp1","secret":"SHOULD_NOT_APPEAR","match":"SHOULD_NOT_APPEAR","line":"SHOULD_NOT_APPEAR"}
-            {"schema":"picket.finding.v1","ruleId":"picket-google-api-key","file":"src/extra.cs","startLine":40,"startColumn":3,"fingerprint":"fp2","secret":"SHOULD_NOT_APPEAR","match":"SHOULD_NOT_APPEAR","line":"SHOULD_NOT_APPEAR"}
+            {"schema":"picket.finding.v1","ruleId":"picket-google-api-key","file":"src/a.cs","startLine":10,"startColumn":5,"commit":"abc123","fingerprint":"fp1","secret":"SHOULD_NOT_APPEAR","match":"SHOULD_NOT_APPEAR","line":"SHOULD_NOT_APPEAR"}
+            {"schema":"picket.finding.v1","ruleId":"picket-google-api-key","file":"src/extra.cs","startLine":40,"startColumn":3,"commit":"abc123","fingerprint":"fp2","secret":"SHOULD_NOT_APPEAR","match":"SHOULD_NOT_APPEAR","line":"SHOULD_NOT_APPEAR"}
             """);
 
         using Process process = new()
@@ -579,6 +581,61 @@ public sealed partial class RepositoryConventionTests
         Assert.AreEqual(1, root.GetProperty("MissingLocationCount").GetInt32());
         Assert.AreEqual(1, root.GetProperty("UnexpectedLocationCount").GetInt32());
         Assert.AreEqual(1, root.GetProperty("UnmappedAlertTypeCount").GetInt32());
+        Assert.AreEqual("def456", root.GetProperty("MissingLocations")[0].GetProperty("CommitSha").GetString());
+        Assert.AreEqual("abc123", root.GetProperty("UnexpectedLocations")[0].GetProperty("Commit").GetString());
+    }
+
+    /// <summary>
+    /// Verifies that the GitHub hosted-alert capture script can write alerts without location data.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task GitHubSecretScanningCaptureScriptAllowsAlertsWithoutLocations()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string toolsPath = Path.Combine(temp.Path, "tools");
+        Directory.CreateDirectory(toolsPath);
+        WriteFakeGitHubCli(toolsPath);
+        string outputPath = Path.Combine(temp.Path, "alerts.json");
+
+        using Process process = new()
+        {
+            StartInfo = new ProcessStartInfo("pwsh")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+            },
+        };
+
+        process.StartInfo.Environment["PATH"] = string.Concat(
+            toolsPath,
+            Path.PathSeparator,
+            Environment.GetEnvironmentVariable("PATH"));
+        process.StartInfo.ArgumentList.Add("-NoLogo");
+        process.StartInfo.ArgumentList.Add("-NoProfile");
+        process.StartInfo.ArgumentList.Add("-NonInteractive");
+        process.StartInfo.ArgumentList.Add("-File");
+        process.StartInfo.ArgumentList.Add(ResolveRepositoryPath("scripts/Capture-GitHubSecretScanningOracle.ps1"));
+        process.StartInfo.ArgumentList.Add("-Repository");
+        process.StartInfo.ArgumentList.Add("owner/repo");
+        process.StartInfo.ArgumentList.Add("-OutputPath");
+        process.StartInfo.ArgumentList.Add(outputPath);
+
+        Assert.IsTrue(process.Start(), "Could not start pwsh.");
+        (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+        string capture = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("SHOULD_NOT_APPEAR", capture);
+
+        using JsonDocument document = JsonDocument.Parse(capture);
+        JsonElement root = document.RootElement;
+        Assert.AreEqual("picket.github-secret-scanning-oracle.v1", root.GetProperty("Schema").GetString());
+        Assert.IsFalse(root.GetProperty("IncludeLocations").GetBoolean());
+        Assert.AreEqual(1, root.GetProperty("AlertCount").GetInt32());
+        Assert.AreEqual("google_api_key", root.GetProperty("Summary")[0].GetProperty("SecretType").GetString());
+        Assert.AreEqual(0, root.GetProperty("Alerts")[0].GetProperty("Locations").GetArrayLength());
     }
 
     /// <summary>
@@ -663,6 +720,38 @@ public sealed partial class RepositoryConventionTests
         string stderr = await stderrTask.ConfigureAwait(false);
 
         return (stdout, stderr);
+    }
+
+    private static void WriteFakeGitHubCli(string toolsPath)
+    {
+        const string AlertsJson = """
+            [[{"number":1,"state":"open","secret_type":"google_api_key","secret_type_display_name":"Google API Key","created_at":"2026-07-06T00:00:00Z","updated_at":"2026-07-06T00:00:00Z","resolved_at":null,"resolution":null,"html_url":"https://example.invalid/alerts/1","locations_url":"https://example.invalid/locations","secret":"SHOULD_NOT_APPEAR"}]]
+            """;
+        if (OperatingSystem.IsWindows())
+        {
+            string scriptPath = Path.Combine(toolsPath, "gh.ps1");
+            File.WriteAllText(
+                scriptPath,
+                string.Concat(
+                    "param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)\n",
+                    "Write-Output @'\n",
+                    AlertsJson.Trim(),
+                    "\n'@\n",
+                    "exit 0\n"));
+            return;
+        }
+
+        string executablePath = Path.Combine(toolsPath, "gh");
+        File.WriteAllText(
+            executablePath,
+            string.Concat(
+                "#!/bin/sh\n",
+                "cat <<'JSON'\n",
+                AlertsJson.Trim(),
+                "\nJSON\n"));
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
     }
 
     [GeneratedRegex(
