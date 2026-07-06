@@ -248,6 +248,7 @@ internal static partial class Program
             return CompleteRun(1, diagnosticsSession);
         }
 
+        diagnosticsSession?.RecordScanInput();
         IReadOnlyList<Finding> findings = baseline.Filter(
             gitleaksIgnore.Filter(SecretScanner.Scan(new ScanRequest(input, string.Empty, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes))),
             redactionPercent);
@@ -261,6 +262,7 @@ internal static partial class Program
             findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
         }
 
+        diagnosticsSession?.RecordFindingCount(findings.Count);
         if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
         {
             return CompleteRun(1, diagnosticsSession);

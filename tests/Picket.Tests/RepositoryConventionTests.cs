@@ -413,9 +413,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket cache prune", cache);
         Assert.Contains("picket cache export", cache);
         Assert.Contains("picket cache import", cache);
+        Assert.Contains("cacheHits", cache);
+        Assert.Contains("cacheMisses", cache);
         Assert.Contains("BenchmarkDotNet", performance);
         Assert.Contains("benchmarks/Picket.Benchmarks", performance);
         Assert.Contains("tests/fixtures/github-secret-scanning", performance);
+        Assert.Contains("cacheWrites", performance);
         Assert.Contains("Capture-GitHubSecretScanningOracle.ps1", performance);
         Assert.Contains("public class SecretScanBenchmarks", benchmarks);
         Assert.DoesNotContain("public sealed class SecretScanBenchmarks", benchmarks);

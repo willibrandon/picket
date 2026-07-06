@@ -477,10 +477,17 @@ internal static partial class Program
                     continue;
                 }
 
+                diagnosticsSession?.RecordScanInput();
                 if (scanCache is not null && scanCache.TryRead(input, file.DisplayPath, file.SymlinkDisplayPath, out List<Finding>? cachedFindings))
                 {
+                    diagnosticsSession?.RecordCacheHit();
                     findings.AddRange(cachedFindings);
                     continue;
+                }
+
+                if (scanCache is not null)
+                {
+                    diagnosticsSession?.RecordCacheMiss();
                 }
 
                 IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
@@ -493,7 +500,11 @@ internal static partial class Program
                     symlinkFile: file.SymlinkDisplayPath,
                     enableCSharpStringConcatenation: nativeMode));
                 findings.AddRange(scannedFindings);
-                scanCache?.Write(input, file.DisplayPath, scannedFindings);
+                if (scanCache is not null)
+                {
+                    scanCache.Write(input, file.DisplayPath, scannedFindings);
+                    diagnosticsSession?.RecordCacheWrite();
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -543,6 +554,7 @@ internal static partial class Program
             filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
         }
 
+        diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
         bool wroteResults = nativeResultWriter is null
             ? TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeMode)
             : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath, analysisMetadata);

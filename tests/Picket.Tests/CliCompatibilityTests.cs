@@ -931,11 +931,25 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteFindingWordConfig(root.Path);
         string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        string diagnosticsDir = Path.Combine(root.Path, "diagnostics");
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
 
         CliResult first = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
-        CliResult second = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult second = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--cache-dir",
+            cachePath,
+            "-f",
+            "jsonl",
+            "--diagnostics",
+            "cpu",
+            "--diagnostics-dir",
+            diagnosticsDir).ConfigureAwait(false);
         string[] secondLines = second.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        string cpu = File.ReadAllText(Path.Combine(diagnosticsDir, "cpu.json"));
 
         Assert.AreEqual(1, first.ExitCode);
         Assert.AreEqual(1, second.ExitCode);
@@ -943,6 +957,11 @@ public sealed class CliCompatibilityTests
         Assert.HasCount(1, secondLines);
         Assert.Contains("\"file\":\"secret.txt\"", secondLines[0]);
         Assert.DoesNotContain(".picket/cache", second.Stdout);
+        Assert.Contains("\"scanInputs\": 1", cpu);
+        Assert.Contains("\"findings\": 1", cpu);
+        Assert.Contains("\"cacheHits\": 1", cpu);
+        Assert.Contains("\"cacheMisses\": 0", cpu);
+        Assert.Contains("\"cacheWrites\": 0", cpu);
     }
 
     /// <summary>
@@ -2484,10 +2503,15 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"diagnostic\": \"cpu\"", cpu);
         Assert.Contains("\"command\": \"dir\"", cpu);
         Assert.Contains("\"exitCode\": 1", cpu);
+        Assert.Contains("\"scanInputs\": 1", cpu);
+        Assert.Contains("\"findings\": 1", cpu);
+        Assert.Contains("\"cacheHits\": 0", cpu);
         Assert.Contains("\"diagnostic\": \"mem\"", memory);
         Assert.Contains("\"allocatedBytes\"", memory);
+        Assert.Contains("\"cacheMisses\": 0", memory);
         Assert.Contains("\"event\":\"scan.start\"", trace);
         Assert.Contains("\"event\":\"scan.stop\"", trace);
+        Assert.Contains("\"scanInputs\":1", trace);
     }
 
     /// <summary>

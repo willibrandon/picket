@@ -356,6 +356,7 @@ internal static partial class Program
 
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         CreateGitLinkContext(root, staged || preCommit, platform, out string scmPlatform, out string remoteUrl);
+        diagnosticsSession?.RecordScanInputs(fragments.Count);
         List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth, timeoutTimestamp, scmPlatform, remoteUrl, out bool timedOut);
         timedOut |= IsTimedOut(timeoutTimestamp);
         IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
@@ -369,6 +370,7 @@ internal static partial class Program
             filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
         }
 
+        diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
         if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
         {
             return CompleteRun(1, diagnosticsSession);

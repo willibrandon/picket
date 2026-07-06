@@ -25,8 +25,13 @@ internal sealed class CompatibilityDiagnosticsSession
     private readonly int _startGen0Collections;
     private readonly int _startGen1Collections;
     private readonly int _startGen2Collections;
+    private int _cacheHitCount;
+    private int _cacheMissCount;
+    private int _cacheWriteCount;
     private CompatibilityDiagnosticsHttpServer? _httpServer;
     private bool _completed;
+    private int _findingCount;
+    private int _scanInputCount;
 
     private CompatibilityDiagnosticsSession(string command, string outputDirectory, bool writeHttp, bool writeCpu, bool writeMemory, bool writeTrace)
     {
@@ -190,6 +195,36 @@ internal sealed class CompatibilityDiagnosticsSession
         return true;
     }
 
+    internal void RecordCacheHit()
+    {
+        _cacheHitCount++;
+    }
+
+    internal void RecordCacheMiss()
+    {
+        _cacheMissCount++;
+    }
+
+    internal void RecordCacheWrite()
+    {
+        _cacheWriteCount++;
+    }
+
+    internal void RecordFindingCount(int count)
+    {
+        _findingCount = count;
+    }
+
+    internal void RecordScanInput()
+    {
+        _scanInputCount++;
+    }
+
+    internal void RecordScanInputs(int count)
+    {
+        _scanInputCount += count;
+    }
+
     private bool TryStartHttp(TextWriter error)
     {
         try
@@ -263,6 +298,7 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendNumber(builder, "processorTimeMilliseconds", processorTime.TotalMilliseconds);
         AppendNumber(builder, "userProcessorTimeMilliseconds", userProcessorTime.TotalMilliseconds);
         AppendNumber(builder, "privilegedProcessorTimeMilliseconds", privilegedProcessorTime.TotalMilliseconds);
+        AppendScanCounters(builder);
         AppendObjectEnd(builder);
         return builder.ToString();
     }
@@ -286,6 +322,7 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendNumber(builder, "gen0Collections", GC.CollectionCount(0) - _startGen0Collections);
         AppendNumber(builder, "gen1Collections", GC.CollectionCount(1) - _startGen1Collections);
         AppendNumber(builder, "gen2Collections", GC.CollectionCount(2) - _startGen2Collections);
+        AppendScanCounters(builder);
         AppendObjectEnd(builder);
         return builder.ToString();
     }
@@ -294,7 +331,7 @@ internal sealed class CompatibilityDiagnosticsSession
     {
         var builder = new StringBuilder(384);
         AppendTraceEvent(builder, "scan.start", _startedAt, 0, exitCode: -1);
-        AppendTraceEvent(builder, "scan.snapshot", DateTimeOffset.UtcNow, Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds, exitCode: -1);
+        AppendTraceEvent(builder, "scan.snapshot", DateTimeOffset.UtcNow, Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds, exitCode: -1, includeScanCounters: true);
         return builder.ToString();
     }
 
@@ -311,6 +348,7 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendNumber(builder, "processorTimeMilliseconds", processorTime.TotalMilliseconds);
         AppendNumber(builder, "userProcessorTimeMilliseconds", userProcessorTime.TotalMilliseconds);
         AppendNumber(builder, "privilegedProcessorTimeMilliseconds", privilegedProcessorTime.TotalMilliseconds);
+        AppendScanCounters(builder);
         AppendObjectEnd(builder);
         File.WriteAllText(Path.Combine(_outputDirectory, "cpu.json"), builder.ToString());
     }
@@ -335,6 +373,7 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendNumber(builder, "gen0Collections", GC.CollectionCount(0) - _startGen0Collections);
         AppendNumber(builder, "gen1Collections", GC.CollectionCount(1) - _startGen1Collections);
         AppendNumber(builder, "gen2Collections", GC.CollectionCount(2) - _startGen2Collections);
+        AppendScanCounters(builder);
         AppendObjectEnd(builder);
         File.WriteAllText(Path.Combine(_outputDirectory, "mem.json"), builder.ToString());
     }
@@ -343,7 +382,7 @@ internal sealed class CompatibilityDiagnosticsSession
     {
         var builder = new StringBuilder(384);
         AppendTraceEvent(builder, "scan.start", _startedAt, 0, exitCode);
-        AppendTraceEvent(builder, "scan.stop", endedAt, elapsed.TotalMilliseconds, exitCode);
+        AppendTraceEvent(builder, "scan.stop", endedAt, elapsed.TotalMilliseconds, exitCode, includeScanCounters: true);
         File.WriteAllText(Path.Combine(_outputDirectory, "trace.jsonl"), builder.ToString());
     }
 
@@ -371,7 +410,25 @@ internal sealed class CompatibilityDiagnosticsSession
         builder.Append("}\n");
     }
 
-    private void AppendTraceEvent(StringBuilder builder, string name, DateTimeOffset timestamp, double elapsedMilliseconds, int exitCode)
+    private void AppendScanCounters(StringBuilder builder)
+    {
+        AppendNumber(builder, "scanInputs", _scanInputCount);
+        AppendNumber(builder, "findings", _findingCount);
+        AppendNumber(builder, "cacheHits", _cacheHitCount);
+        AppendNumber(builder, "cacheMisses", _cacheMissCount);
+        AppendNumber(builder, "cacheWrites", _cacheWriteCount);
+    }
+
+    private void AppendInlineScanCounters(StringBuilder builder)
+    {
+        AppendInlineNumber(builder, "scanInputs", _scanInputCount);
+        AppendInlineNumber(builder, "findings", _findingCount);
+        AppendInlineNumber(builder, "cacheHits", _cacheHitCount);
+        AppendInlineNumber(builder, "cacheMisses", _cacheMissCount);
+        AppendInlineNumber(builder, "cacheWrites", _cacheWriteCount);
+    }
+
+    private void AppendTraceEvent(StringBuilder builder, string name, DateTimeOffset timestamp, double elapsedMilliseconds, int exitCode, bool includeScanCounters = false)
     {
         builder.Append('{');
         AppendInlineString(builder, "tool", "picket");
@@ -381,6 +438,11 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendInlineString(builder, "timestampUtc", FormatTimestamp(timestamp));
         AppendInlineNumber(builder, "elapsedMilliseconds", elapsedMilliseconds);
         AppendInlineNumber(builder, "exitCode", exitCode);
+        if (includeScanCounters)
+        {
+            AppendInlineScanCounters(builder);
+        }
+
         builder.Length--;
         builder.Append("}\n");
     }

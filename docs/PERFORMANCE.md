@@ -25,6 +25,11 @@ Run benchmarks before and after hot-path changes and keep the output in ignored
 machine-specific benchmark output unless it has been normalized into a reviewed
 fixture.
 
+For incremental-scan changes, run with `--cache-dir` and opt-in diagnostics.
+The `cpu.json`, `mem.json`, and `trace.jsonl` artifacts include `scanInputs`,
+`findings`, `cacheHits`, `cacheMisses`, and `cacheWrites` counters, which are the
+preferred evidence for cache hit-rate changes.
+
 For repository-level comparison:
 
 - use `scripts/Capture-CompatibilityOracle.ps1` for Gitleaks parity,

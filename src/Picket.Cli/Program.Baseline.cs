@@ -388,6 +388,7 @@ internal static partial class Program
                     continue;
                 }
 
+                diagnosticsSession?.RecordScanInput();
                 findings.AddRange(SecretScanner.Scan(new ScanRequest(
                     input,
                     file.DisplayPath,
@@ -410,6 +411,7 @@ internal static partial class Program
             filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
         }
 
+        diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
         if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, "json", reportTemplatePath: null))
         {
             return CompleteRun(1, diagnosticsSession);
