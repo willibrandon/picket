@@ -3,6 +3,10 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using Picket.Compat;
+using Picket.Engine;
+using Picket.Rules;
+using Picket.Verify;
 
 namespace Picket.Tests;
 
@@ -709,6 +713,41 @@ public sealed class CliCompatibilityTests
         Assert.HasCount(1, lines);
         Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
         Assert.Contains("\"validationState\":\"structurally-valid\"", lines[0]);
+        Assert.DoesNotContain("custom-token", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that --only-verified keeps live verified active results.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyOnlyVerifiedKeepsActiveLiveResults()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteVerificationFilterConfig(root.Path);
+        string token = CreateGitHubPatFixture();
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(
+            Path.Combine(root.Path, "secret.txt"),
+            string.Concat(token, Environment.NewLine, "custom-12345"));
+        WriteActiveGitHubValidationCache(cachePath, configPath, token);
+
+        CliResult result = await RunCliAsync(
+            "verify",
+            root.Path,
+            "-c",
+            configPath,
+            "--cache-dir",
+            cachePath,
+            "--live",
+            "-f",
+            "jsonl",
+            "--only-verified").ConfigureAwait(false);
+        string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.HasCount(1, lines);
+        Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
+        Assert.Contains("\"validationState\":\"active\"", lines[0]);
         Assert.DoesNotContain("custom-token", result.Stdout);
     }
 
@@ -4025,6 +4064,56 @@ public sealed class CliCompatibilityTests
             regex = '''custom-[0-9]+'''
             """);
         return configPath;
+    }
+
+    private static void WriteActiveGitHubValidationCache(string cachePath, string configPath, string token)
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.LoadFile(configPath);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(ruleSet);
+        GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
+        SecretValidationCache cache = SecretValidationCache.Open(
+            Path.Combine(cachePath, "validation"),
+            string.Concat(
+                "rules:",
+                rules.Fingerprint,
+                ";github:",
+                options.UserEndpoint,
+                ";github-proxy:",
+                string.Empty,
+                ";github-tls:",
+                options.TlsMode.ToString()));
+        SecretValidationCacheKey key = SecretValidationCacheKey.FromFinding(
+            "github",
+            "github-rest-user-v1",
+            CreateGitHubPatFinding(token),
+            options.UserEndpoint);
+        cache.Write(
+            key,
+            new SecretValidationResult(SecretValidationState.Active, "GitHub accepted the token"),
+            DateTimeOffset.UtcNow.AddHours(1));
+    }
+
+    private static Finding CreateGitHubPatFinding(string token)
+    {
+        return new Finding(
+            "github-pat",
+            string.Empty,
+            1,
+            1,
+            1,
+            token.Length,
+            token,
+            token,
+            "secret.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "secret.txt:github-pat:1");
     }
 
     private static string WritePathOnlyConfig(string root)

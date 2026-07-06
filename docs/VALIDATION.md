@@ -20,6 +20,8 @@ Offline validation never sends secrets, hashes, paths, or metadata to a network 
 - `invalid`: the secret fails a local structural check.
 - `active`, `inactive`, `skipped`, and `error`: reserved for opt-in live verification results.
 
+Use `--results` to keep specific validation states. `--only-verified` is shorthand for keeping `structurally-valid` offline findings and `active` live-verification findings; it does not keep `inactive`, `skipped`, `error`, `invalid`, `test-credential`, or `unknown` findings.
+
 Current offline coverage includes:
 
 - AWS access key ID shape and alphabet checks.

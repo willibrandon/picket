@@ -1144,7 +1144,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "--no-color" => "Disable colored console output.",
             "--no-ignore" => "Do not apply ignore files.",
             "--older-than-days" => "Prune cache entries older than this age.",
-            "--only-verified" => "Keep only findings that validation marked as verified.",
+            "--only-verified" => "Keep structurally-valid offline findings and active live-verification findings.",
             "--open" => "Open an HTML report in the default browser.",
             "--other-keys" => "Prune cache entries for config or source keys other than the selected key.",
             "--output" => "Write a portable cache archive to this path.",

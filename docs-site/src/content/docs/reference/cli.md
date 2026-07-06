@@ -548,7 +548,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--only-verified</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Keep only findings that validation marked as verified.</td>
+              <td data-label="Description">Keep structurally-valid offline findings and active live-verification findings.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-archive-depth</code></td>

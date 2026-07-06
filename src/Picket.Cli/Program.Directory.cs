@@ -202,6 +202,7 @@ internal static partial class Program
                 if (onlyVerified)
                 {
                     validationResults.Clear();
+                    validationResults.Add("active");
                     validationResults.Add("structurally-valid");
                 }
 
