@@ -9,6 +9,12 @@ Run the engine benchmarks with:
 dotnet run -c Release --project benchmarks/Picket.Benchmarks -- --filter "*SecretScanBenchmarks*"
 ```
 
+Run the report writer benchmarks with:
+
+```powershell
+dotnet run -c Release --project benchmarks/Picket.Benchmarks -- --filter "*ReportWriterBenchmarks*"
+```
+
 Current benchmark scenarios cover:
 
 - native default rules over the embedded Gitleaks config,
@@ -18,7 +24,10 @@ Current benchmark scenarios cover:
 - mapped native rules over the sanitized GitHub secret-scanning oracle fixture
   in `tests/fixtures/github-secret-scanning`,
 - native default rules over credential-analyzer tests,
-- native rule compilation.
+- native rule compilation,
+- compatibility JSON report writer throughput,
+- native JSON, JSON Lines, SARIF, HTML, and TOON report writer throughput across
+  deterministic 1, 100, and 1000 finding report sizes.
 
 Run benchmarks before and after hot-path changes and keep the output in ignored
 `BenchmarkDotNet.Artifacts/` or `artifacts/` directories. Do not commit

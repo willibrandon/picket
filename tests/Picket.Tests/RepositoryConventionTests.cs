@@ -386,6 +386,7 @@ public sealed partial class RepositoryConventionTests
         string cache = ReadRepositoryFile("docs/CACHE.md");
         string performance = ReadRepositoryFile("docs/PERFORMANCE.md");
         string benchmarks = ReadRepositoryFile("benchmarks/Picket.Benchmarks/SecretScanBenchmarks.cs");
+        string reportWriterBenchmarks = ReadRepositoryFile("benchmarks/Picket.Benchmarks/ReportWriterBenchmarks.cs");
         string githubSecretScanningFixture = ReadRepositoryFile("tests/fixtures/github-secret-scanning/alerts.json");
 
         Assert.Contains("picket rules check", rules);
@@ -440,6 +441,13 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("public sealed class SecretScanBenchmarks", benchmarks);
         Assert.Contains("ScanGitHubSecretScanningOracleFixtureWithMappedNativeRules", benchmarks);
         Assert.Contains("picket-google-api-key", benchmarks);
+        Assert.Contains("public class ReportWriterBenchmarks", reportWriterBenchmarks);
+        Assert.Contains("WritePicketJsonLines", reportWriterBenchmarks);
+        Assert.Contains("WritePicketSarif", reportWriterBenchmarks);
+        Assert.Contains("WritePicketHtml", reportWriterBenchmarks);
+        Assert.Contains("WritePicketToon", reportWriterBenchmarks);
+        Assert.Contains("ReportWriterBenchmarks", performance);
+        Assert.Contains("report writer throughput", performance);
         Assert.Contains("picket.github-secret-scanning-oracle.v1", githubSecretScanningFixture);
         Assert.DoesNotContain("\"secret\"", githubSecretScanningFixture);
     }

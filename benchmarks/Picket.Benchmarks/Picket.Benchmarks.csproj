@@ -10,6 +10,7 @@
     <PackageReference Include="BenchmarkDotNet" />
     <ProjectReference Include="..\..\src\Picket.Compat\Picket.Compat.csproj" />
     <ProjectReference Include="..\..\src\Picket.Engine\Picket.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />
     <ProjectReference Include="..\..\src\Picket.Rules\Picket.Rules.csproj" />
   </ItemGroup>
 </Project>
