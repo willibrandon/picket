@@ -197,6 +197,13 @@ public sealed partial class RepositoryConventionTests
         string documentation = ReadRepositoryFile("docs/RELEASE.md");
 
         Assert.Contains("Pack public packages", workflow);
+        Assert.Contains("Publish Native AOT CLI", workflow);
+        Assert.Contains("dotnet publish src/Picket.Cli/Picket.Cli.csproj", workflow);
+        Assert.Contains("PublishProfile=release-speed", workflow);
+        Assert.Contains("${{ matrix.rid }}", workflow);
+        Assert.Contains("rid: linux-x64", workflow);
+        Assert.Contains("rid: win-x64", workflow);
+        Assert.Contains("rid: osx-arm64", workflow);
         Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
@@ -209,6 +216,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("NuGet Package Validation", documentation);
         Assert.Contains("Every CI run packs the public embeddable packages", documentation);
         Assert.Contains("cross-platform MSBuild paths", documentation);
+        Assert.Contains("Native AOT Publish Validation", documentation);
+        Assert.Contains("Every CI run also publishes the CLI with `release-speed`", documentation);
+        Assert.Contains("normal `dotnet build` is not enough evidence", documentation);
     }
 
     /// <summary>

@@ -37,6 +37,16 @@ Every CI run packs the public embeddable packages after build and test:
 
 The CI pack gate runs on Windows, Linux, and macOS so package metadata, embedded readmes, symbol packages, project-reference dependencies, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
 
+## Native AOT Publish Validation
+
+Every CI run also publishes the CLI with `release-speed` for the runner's native RID:
+
+- `linux-x64` on `ubuntu-latest`
+- `win-x64` on `windows-latest`
+- `osx-arm64` on `macos-26`
+
+This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executable can be produced.
+
 ## Runtime Identifiers
 
 Use the target RID in the publish command. Common release RIDs are:
