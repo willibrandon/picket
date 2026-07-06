@@ -3904,6 +3904,7 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "picket-custom-token"
             regex = '''picket-[0-9]+'''
+            keywords = ["picket"]
             rulePack = "picket-default"
             negativeExamples = ["picket-token"]
             """);
@@ -3928,6 +3929,7 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "custom-token"
             regex = '''picket-[0-9]+'''
+            keywords = ["picket"]
             rulePack = "picket-default"
             examples = ["picket-12345"]
             """);
@@ -3936,6 +3938,59 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("rule custom-token: native rules require at least one negative example", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check requires keyword prefilters for Picket-native content rules.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsNativeContentRuleWithoutKeywordPrefilter()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "picket-custom-token"
+            regex = '''picket-[0-9]+'''
+            rulePack = "picket-default"
+            examples = ["picket-12345"]
+            negativeExamples = ["picket-token"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("rule picket-custom-token: native content rules require at least one keyword prefilter", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that rules check rejects obvious unbounded wildcard spans in Picket-native content rules.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsNativeContentRuleWithUnboundedWildcard()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "picket-custom-token"
+            regex = '''picket-.*'''
+            keywords = ["picket"]
+            rulePack = "picket-default"
+            examples = ["picket-12345"]
+            negativeExamples = ["token"]
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("rule picket-custom-token: regex contains an unbounded wildcard span", result.Stderr);
     }
 
     /// <summary>

@@ -418,6 +418,7 @@ internal static partial class Program
             ValidateTextEntries(rule.Id, "example", rule.Examples, StringComparer.Ordinal);
             ValidateTextEntries(rule.Id, "negative example", rule.NegativeExamples, StringComparer.Ordinal);
             ValidateRuleTemplates(rule);
+            ValidateRulePerformance(rule);
             ValidateNativeRuleExamples(rule);
             ValidateRequiredRules(rule);
             ValidateAllowlists($"rule {rule.Id} allowlist", rule.Allowlists);
@@ -489,6 +490,69 @@ internal static partial class Program
         }
 
         return false;
+    }
+
+    static void ValidateRulePerformance(SecretRule rule)
+    {
+        if (!IsPicketNativeRule(rule) || rule.Pattern.Length == 0)
+        {
+            return;
+        }
+
+        if (rule.Keywords.Count == 0)
+        {
+            throw new InvalidDataException($"rule {rule.Id}: native content rules require at least one keyword prefilter");
+        }
+
+        int unboundedWildcardIndex = FindUnboundedWildcardSpan(rule.Pattern);
+        if (unboundedWildcardIndex >= 0)
+        {
+            throw new InvalidDataException($"rule {rule.Id}: regex contains an unbounded wildcard span near index {unboundedWildcardIndex}");
+        }
+    }
+
+    static int FindUnboundedWildcardSpan(string pattern)
+    {
+        bool escaped = false;
+        bool inCharacterClass = false;
+        for (int i = 0; i < pattern.Length - 1; i++)
+        {
+            char current = pattern[i];
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+
+            if (current == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+
+            if (inCharacterClass)
+            {
+                if (current == ']')
+                {
+                    inCharacterClass = false;
+                }
+
+                continue;
+            }
+
+            if (current == '[')
+            {
+                inCharacterClass = true;
+                continue;
+            }
+
+            if (current == '.' && pattern[i + 1] is '*' or '+')
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     static void ValidateNativeRuleExamples(SecretRule rule)

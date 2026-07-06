@@ -144,6 +144,8 @@ Every required rule ID must exist, and a rule must not require itself.
 - empty keywords, tags, allowlist entries, and required-rule IDs.
 - required-rule references.
 - required positive and negative examples for Picket-native rules.
+- keyword prefilters for Picket-native content rules.
+- obvious Picket-native regex performance hazards such as unbounded `.*` or `.+` spans outside character classes.
 - positive and negative examples without printing example contents in diagnostics.
 - validation and revocation template identifiers supported by the current verifier/analyzer.
 
