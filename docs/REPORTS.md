@@ -54,6 +54,8 @@ Native reports can include:
 
 Native fingerprints are versioned as `picket:v1:<sha256>`. The hash input includes the normalized logical path, rule ID, secret or match hash, and decode path. It intentionally excludes line, column, commit, author, and message metadata so native triage IDs remain stable when a finding moves inside the same file or appears across multiple commits. Gitleaks-compatible reports keep Gitleaks fingerprints.
 
+`picket analyze` writes incident-response reports as JSON, JSON Lines, or text. Analysis records include provider, credential type, stable fingerprint, secret hash, validation state, risk, identity, scopes, reachable resources, risk summary, recommended actions, and non-secret evidence. `picket analyze --live` can enrich analysis with provider metadata from guarded live validation; offline analysis keeps identity, scopes, and resources as explicit offline placeholders.
+
 ## Report Selection
 
 When `--report-format` is provided, it controls the writer. Without `--report-format`, Picket infers the writer from `--report-path`:

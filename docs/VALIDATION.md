@@ -8,7 +8,7 @@ Picket separates offline structural validation from live provider verification.
 - Live network verification is disabled by default.
 - Plain `picket scan` and compatibility commands do not contact provider APIs.
 - `picket verify --offline` and native scan validation use local checks only.
-- `picket scan --verify` and `picket verify --live` are explicit opt-in provider verification. The initial live provider is GitHub token validation.
+- `picket scan --verify`, `picket verify --live`, and `picket analyze --live` are explicit opt-in provider calls. The initial live provider is GitHub token validation.
 
 ## Offline Validation
 
@@ -34,13 +34,13 @@ Current offline coverage includes:
 
 ## Live Verification Model
 
-Live provider calls are opt-in behavior for `picket scan --verify` and `picket verify --live`. The reusable verification layer defines the provider contract and safety envelope that provider validators must use:
+Live provider calls are opt-in behavior for `picket scan --verify`, `picket verify --live`, and `picket analyze --live`. The reusable verification layer defines the provider contract and safety envelope that provider validators must use:
 
 - `ISecretLiveValidator` describes one provider validator, its endpoint, provider ID, version, and support check.
 - `SecretLiveVerifier` chooses the first supporting validator, evaluates the endpoint guard before the validator runs, honors cancellation, and returns `skipped` when no validator supports a finding.
 - `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, and atomic writes.
 - `SecretValidationCacheKey` is built from provider, validator version, rule ID, endpoint, and a SHA-256 secret hash. It rejects raw secret material where a hash is required.
-- Cache files store fingerprints, report states, expiration, and non-secret reasons. They do not store raw secrets, raw matches, or endpoint query strings.
+- Cache files store fingerprints, report states, expiration, non-secret reasons, and non-secret analysis metadata such as provider identity, scopes, resources, and evidence. They do not store raw secrets, raw matches, or endpoint query strings.
 - Findings already marked `invalid` or `test-credential` by offline validation are not sent to live providers.
 
 The first provider validator is GitHub:
@@ -51,7 +51,7 @@ The first provider validator is GitHub:
 - endpoint override: `--github-api-endpoint <absolute-uri>`, intended for GitHub Enterprise and recorded/local test hosts,
 - default endpoint policy: HTTPS required and non-public addresses blocked,
 - explicit non-public endpoint escape hatch: `--allow-non-public-endpoints`,
-- `200 OK` maps to `active`,
+- `200 OK` maps to `active` and can add non-secret user login, scope, reachable-resource, and evidence metadata for `picket analyze --live`,
 - `401 Unauthorized` maps to `inactive`,
 - `403 Forbidden`, `429 Too Many Requests`, other unexpected statuses, request failures, and endpoint-policy failures map to `error`.
 

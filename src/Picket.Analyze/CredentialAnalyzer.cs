@@ -6,7 +6,7 @@ using Picket.Engine;
 namespace Picket.Analyze;
 
 /// <summary>
-/// Produces offline incident-response analysis for detected credentials.
+/// Produces incident-response analysis for detected credentials.
 /// </summary>
 public static class CredentialAnalyzer
 {
@@ -21,12 +21,31 @@ public static class CredentialAnalyzer
     /// <returns>Offline credential analysis records in finding order.</returns>
     public static List<CredentialAnalysis> Analyze(IReadOnlyList<Finding> findings)
     {
+        return Analyze(findings, null);
+    }
+
+    /// <summary>
+    /// Analyzes findings with optional non-secret provider metadata.
+    /// </summary>
+    /// <param name="findings">The findings to analyze.</param>
+    /// <param name="metadataByFingerprint">The optional provider metadata keyed by stable finding fingerprint.</param>
+    /// <returns>Credential analysis records in finding order.</returns>
+    public static List<CredentialAnalysis> Analyze(
+        IReadOnlyList<Finding> findings,
+        IReadOnlyDictionary<string, CredentialAnalysisMetadata>? metadataByFingerprint)
+    {
         ArgumentNullException.ThrowIfNull(findings);
 
         var analyses = new List<CredentialAnalysis>(findings.Count);
         for (int i = 0; i < findings.Count; i++)
         {
-            analyses.Add(Analyze(findings[i]));
+            Finding finding = findings[i];
+            string fingerprint = StableFindingFingerprint.Create(finding);
+            CredentialAnalysisMetadata? metadata = metadataByFingerprint is not null
+                && metadataByFingerprint.TryGetValue(fingerprint, out CredentialAnalysisMetadata? value)
+                    ? value
+                    : null;
+            analyses.Add(Analyze(finding, metadata));
         }
 
         return analyses;
@@ -39,6 +58,17 @@ public static class CredentialAnalyzer
     /// <returns>The offline credential analysis record.</returns>
     public static CredentialAnalysis Analyze(Finding finding)
     {
+        return Analyze(finding, metadata: null);
+    }
+
+    /// <summary>
+    /// Analyzes one finding with optional non-secret provider metadata.
+    /// </summary>
+    /// <param name="finding">The finding to analyze.</param>
+    /// <param name="metadata">The optional provider metadata.</param>
+    /// <returns>The credential analysis record.</returns>
+    public static CredentialAnalysis Analyze(Finding finding, CredentialAnalysisMetadata? metadata)
+    {
         ArgumentNullException.ThrowIfNull(finding);
 
         string validationState = finding.ValidationState.Length == 0 ? "unknown" : finding.ValidationState;
@@ -46,6 +76,7 @@ public static class CredentialAnalyzer
         string credentialType = InferCredentialType(finding.RuleID, provider);
         string risk = GetRisk(validationState);
         string secretSha256 = finding.SecretSha256.Length == 0 ? ComputeSha256(finding.Secret) : finding.SecretSha256;
+        string fingerprint = StableFindingFingerprint.Create(finding);
         return new CredentialAnalysis(
             Schema,
             finding.RuleID,
@@ -54,16 +85,16 @@ public static class CredentialAnalyzer
             finding.File,
             finding.StartLine,
             finding.StartColumn,
-            StableFindingFingerprint.Create(finding),
+            fingerprint,
             secretSha256,
             validationState,
             risk,
-            OfflineIdentity,
-            ["unknown-offline"],
-            ["unknown-offline"],
+            CreateIdentity(metadata, validationState),
+            CreateMetadataList(metadata?.Scopes, validationState),
+            CreateMetadataList(metadata?.ReachableResources, validationState),
             CreateRiskSummary(provider, credentialType, validationState),
             CreateRecommendedActions(provider, credentialType, validationState),
-            CreateEvidence(finding, validationState, secretSha256));
+            CreateEvidence(finding, validationState, secretSha256, metadata));
     }
 
     private static string InferProvider(string ruleId)
@@ -141,8 +172,12 @@ public static class CredentialAnalyzer
     {
         return validationState switch
         {
+            "active" => "critical",
             "structurally-valid" => "critical",
+            "inactive" => "medium",
             "unknown" => "high",
+            "skipped" => "high",
+            "error" => "high",
             "invalid" => "low",
             "test-credential" => "low",
             _ => "high",
@@ -153,6 +188,10 @@ public static class CredentialAnalyzer
     {
         return validationState switch
         {
+            "active" => $"{provider} accepted the {credentialType}. Identity, scope, and reachable-resource evidence is included when the provider exposed it.",
+            "inactive" => $"{provider} rejected the {credentialType}. Treat it as previously exposed until history, logs, and reuse have been checked.",
+            "skipped" => $"{credentialType} was not eligible for live provider analysis with the currently configured validators.",
+            "error" => $"{credentialType} could not be analyzed live because provider validation failed or was blocked by policy.",
             "structurally-valid" => $"{credentialType} matched {provider} offline structure. Live identity, scope, and resource discovery was not performed.",
             "invalid" => $"{credentialType} matched a known rule but failed offline structure checks. Confirm whether the rule or fixture should be refined.",
             "test-credential" => $"{credentialType} appears to be a test, dummy, placeholder, or sample credential.",
@@ -214,7 +253,36 @@ public static class CredentialAnalyzer
         };
     }
 
-    private static List<string> CreateEvidence(Finding finding, string validationState, string secretSha256)
+    private static string CreateIdentity(CredentialAnalysisMetadata? metadata, string validationState)
+    {
+        if (metadata is not null && metadata.Identity.Length != 0)
+        {
+            return metadata.Identity;
+        }
+
+        return IsLiveValidationState(validationState) ? "unknown-live" : OfflineIdentity;
+    }
+
+    private static IReadOnlyList<string> CreateMetadataList(IReadOnlyList<string>? values, string validationState)
+    {
+        if (values is not null && values.Count != 0)
+        {
+            return values;
+        }
+
+        return IsLiveValidationState(validationState) ? ["unknown-live"] : ["unknown-offline"];
+    }
+
+    private static bool IsLiveValidationState(string validationState)
+    {
+        return validationState is "active" or "inactive" or "skipped" or "error";
+    }
+
+    private static List<string> CreateEvidence(
+        Finding finding,
+        string validationState,
+        string secretSha256,
+        CredentialAnalysisMetadata? metadata)
     {
         var evidence = new List<string>
         {
@@ -246,6 +314,14 @@ public static class CredentialAnalyzer
         {
             evidence.Add($"projectId={projectId}");
             evidence.Add($"clientEmail={clientEmail}");
+        }
+
+        if (metadata is not null)
+        {
+            for (int i = 0; i < metadata.Evidence.Count; i++)
+            {
+                evidence.Add(metadata.Evidence[i]);
+            }
         }
 
         return evidence;

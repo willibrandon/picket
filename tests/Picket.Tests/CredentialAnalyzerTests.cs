@@ -120,6 +120,32 @@ public sealed class CredentialAnalyzerTests
         Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));
     }
 
+    /// <summary>
+    /// Verifies that live provider metadata enriches incident-response analysis.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeUsesLiveProviderMetadata()
+    {
+        string token = CreateGitHubPat();
+        Finding finding = CreateNativeGitHubPatFinding(token, validationState: "active");
+        var metadata = new CredentialAnalysisMetadata(
+            "octocat",
+            ["repo", "gist"],
+            ["github:user"],
+            ["githubLogin=octocat"]);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding, metadata);
+
+        Assert.AreEqual("active", analysis.ValidationState);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.AreEqual("octocat", analysis.Identity);
+        Assert.Contains("repo", analysis.Scopes);
+        Assert.Contains("gist", analysis.Scopes);
+        Assert.Contains("github:user", analysis.ReachableResources);
+        Assert.Contains("githubLogin=octocat", analysis.Evidence);
+        Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));
+    }
+
     private static Finding CreateAzureFinding(string accountKey)
     {
         string connectionString = $"DefaultEndpointsProtocol=https;AccountName=picketstorage;AccountKey={accountKey};EndpointSuffix=core.windows.net";
@@ -220,7 +246,7 @@ public sealed class CredentialAnalyzerTests
             validationState: "structurally-valid");
     }
 
-    private static Finding CreateNativeGitHubPatFinding(string token)
+    private static Finding CreateNativeGitHubPatFinding(string token, string validationState = "structurally-valid")
     {
         return new Finding(
             "picket-github-personal-access-token",
@@ -241,7 +267,7 @@ public sealed class CredentialAnalyzerTests
             string.Empty,
             ["picket", "github"],
             "settings.txt:picket-github-personal-access-token:1",
-            validationState: "structurally-valid");
+            validationState: validationState);
     }
 
     private static string CreateGoogleApiKey()

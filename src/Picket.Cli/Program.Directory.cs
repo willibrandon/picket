@@ -1,3 +1,4 @@
+using Picket.Analyze;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
@@ -16,7 +17,7 @@ internal static partial class Program
         string? defaultRoot = null,
         bool allowValidationResultFilters = false,
         LiveVerificationConfiguration? liveVerification = null,
-        Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, bool>? nativeResultWriter = null)
+        Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null)
     {
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
         {
@@ -496,6 +497,7 @@ internal static partial class Program
             filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
         }
 
+        IReadOnlyDictionary<string, CredentialAnalysisMetadata>? analysisMetadata = null;
         if (liveVerification is not null)
         {
             if (!TryCreateLiveVerifier(liveVerification, cacheDir, rules.Fingerprint, out SecretLiveVerifier? liveVerifier))
@@ -505,12 +507,18 @@ internal static partial class Program
 
             using (liveVerifier)
             {
-                if (!TryApplyLiveValidation(filteredFindings, liveVerifier, timeoutTimestamp, out List<Finding>? liveFindings))
+                if (!TryApplyLiveValidation(
+                    filteredFindings,
+                    liveVerifier,
+                    timeoutTimestamp,
+                    out List<Finding>? liveFindings,
+                    out Dictionary<string, CredentialAnalysisMetadata>? liveAnalysisMetadata))
                 {
                     return CompleteRun(1, diagnosticsSession);
                 }
 
                 filteredFindings = liveFindings;
+                analysisMetadata = liveAnalysisMetadata;
             }
         }
 
@@ -526,7 +534,7 @@ internal static partial class Program
 
         bool wroteResults = nativeResultWriter is null
             ? TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeMode)
-            : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath);
+            : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath, analysisMetadata);
         if (!wroteResults)
         {
             return CompleteRun(1, diagnosticsSession);

@@ -1,7 +1,7 @@
 namespace Picket.Analyze;
 
 /// <summary>
-/// Describes offline incident-response analysis for one detected credential.
+/// Describes incident-response analysis for one detected credential.
 /// </summary>
 /// <param name="schema">The stable analysis schema identifier.</param>
 /// <param name="ruleId">The finding rule identifier.</param>
@@ -12,8 +12,8 @@ namespace Picket.Analyze;
 /// <param name="startColumn">The one-based finding start column.</param>
 /// <param name="fingerprint">The stable Picket-native finding fingerprint.</param>
 /// <param name="secretSha256">The SHA-256 hash of the original secret.</param>
-/// <param name="validationState">The offline validation state.</param>
-/// <param name="risk">The offline triage risk.</param>
+/// <param name="validationState">The validation state.</param>
+/// <param name="risk">The triage risk.</param>
 /// <param name="identity">The discovered identity, or an explanatory placeholder.</param>
 /// <param name="scopes">The discovered credential scopes.</param>
 /// <param name="reachableResources">The discovered reachable resources.</param>
@@ -85,12 +85,12 @@ public sealed class CredentialAnalysis(
     public string SecretSha256 { get; } = secretSha256;
 
     /// <summary>
-    /// Gets the offline validation state.
+    /// Gets the validation state.
     /// </summary>
     public string ValidationState { get; } = validationState;
 
     /// <summary>
-    /// Gets the offline triage risk.
+    /// Gets the triage risk.
     /// </summary>
     public string Risk { get; } = risk;
 

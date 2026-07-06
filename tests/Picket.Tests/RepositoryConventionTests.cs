@@ -312,6 +312,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Offline validation", validation);
         Assert.Contains("Live network verification is disabled by default", validation);
         Assert.Contains("picket verify --live", validation);
+        Assert.Contains("picket analyze --live", validation);
         Assert.Contains("GitHub token validation", validation);
         Assert.Contains("--github-api-endpoint", validation);
         Assert.Contains("--allow-non-public-endpoints", validation);
@@ -323,6 +324,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket-Native Reports", reports);
         Assert.Contains("picket.finding.v1", reports);
         Assert.Contains("picket.report.v1", reports);
+        Assert.Contains("picket analyze", reports);
+        Assert.Contains("reachable resources", reports);
         Assert.Contains("picket view", reports);
         Assert.Contains("TruffleHog JSON/JSONL", reports);
         Assert.Contains("Report readers must not print raw secrets", reports);

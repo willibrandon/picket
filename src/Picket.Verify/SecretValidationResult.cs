@@ -1,11 +1,21 @@
 namespace Picket.Verify;
 
 /// <summary>
-/// Represents the result of offline validation for one finding.
+/// Represents the result of validation for one finding.
 /// </summary>
 /// <param name="state">The validation state.</param>
 /// <param name="reason">A concise non-secret reason for the state.</param>
-public sealed class SecretValidationResult(SecretValidationState state, string reason = "")
+/// <param name="identity">The non-secret identity discovered by live validation, or an empty string.</param>
+/// <param name="scopes">The non-secret scopes discovered by live validation.</param>
+/// <param name="reachableResources">The non-secret resources discovered by live validation.</param>
+/// <param name="evidence">Non-secret evidence produced by validation.</param>
+public sealed class SecretValidationResult(
+    SecretValidationState state,
+    string reason = "",
+    string identity = "",
+    string[]? scopes = null,
+    string[]? reachableResources = null,
+    string[]? evidence = null)
 {
     /// <summary>
     /// Gets the validation state.
@@ -16,6 +26,26 @@ public sealed class SecretValidationResult(SecretValidationState state, string r
     /// Gets a concise non-secret reason for the state.
     /// </summary>
     public string Reason { get; } = reason ?? string.Empty;
+
+    /// <summary>
+    /// Gets the non-secret identity discovered by live validation, or an empty string.
+    /// </summary>
+    public string Identity { get; } = identity ?? string.Empty;
+
+    /// <summary>
+    /// Gets the non-secret scopes discovered by live validation.
+    /// </summary>
+    public IReadOnlyList<string> Scopes { get; } = CopyOrEmpty(scopes);
+
+    /// <summary>
+    /// Gets the non-secret resources discovered by live validation.
+    /// </summary>
+    public IReadOnlyList<string> ReachableResources { get; } = CopyOrEmpty(reachableResources);
+
+    /// <summary>
+    /// Gets non-secret evidence produced by validation.
+    /// </summary>
+    public IReadOnlyList<string> Evidence { get; } = CopyOrEmpty(evidence);
 
     /// <summary>
     /// Gets the stable report value for the state.
@@ -40,5 +70,17 @@ public sealed class SecretValidationResult(SecretValidationState state, string r
             SecretValidationState.Error => "error",
             _ => "unknown",
         };
+    }
+
+    private static string[] CopyOrEmpty(string[]? values)
+    {
+        if (values is null || values.Length == 0)
+        {
+            return [];
+        }
+
+        var copy = new string[values.Length];
+        Array.Copy(values, copy, values.Length);
+        return copy;
     }
 }

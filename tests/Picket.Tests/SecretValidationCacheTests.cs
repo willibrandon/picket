@@ -27,7 +27,13 @@ public sealed class SecretValidationCacheTests
 
         cache.Write(
             key,
-            new SecretValidationResult(SecretValidationState.Active, "provider accepted token"),
+            new SecretValidationResult(
+                SecretValidationState.Active,
+                "provider accepted token",
+                "octocat",
+                ["repo", "gist"],
+                ["github:user"],
+                ["githubLogin=octocat"]),
             DateTimeOffset.UtcNow.AddMinutes(5));
 
         bool found = cache.TryRead(key, DateTimeOffset.UtcNow, out SecretValidationResult? result);
@@ -36,6 +42,11 @@ public sealed class SecretValidationCacheTests
         Assert.IsTrue(found);
         Assert.IsNotNull(result);
         Assert.AreEqual(SecretValidationState.Active, result.State);
+        Assert.AreEqual("octocat", result.Identity);
+        Assert.Contains("repo", result.Scopes);
+        Assert.Contains("gist", result.Scopes);
+        Assert.Contains("github:user", result.ReachableResources);
+        Assert.Contains("githubLogin=octocat", result.Evidence);
         Assert.DoesNotContain(finding.Secret, storedText);
         Assert.Contains("picket.validation-cache.v1", storedText);
     }

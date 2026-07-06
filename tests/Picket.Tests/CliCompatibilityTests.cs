@@ -775,15 +775,33 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that live access analysis does not silently run before provider integrations are implemented.
+    /// Verifies that live analysis uses guarded provider validation before writing analysis.
     /// </summary>
     [TestMethod]
-    public async Task AnalyzeRejectsLiveAccessAnalysis()
+    public async Task AnalyzeLiveBlocksUnsafeProviderEndpoint()
     {
-        CliResult result = await RunCliAsync("analyze", "--live").ConfigureAwait(false);
+        using TempDirectory root = TempDirectory.Create();
+        WriteGitHubPatConfig(root.Path, ".gitleaks.toml");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), CreateGitHubPatFixture());
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "analyze",
+            "--live",
+            "--github-api-endpoint",
+            "https://metadata.google.internal/user",
+            "--results",
+            "error",
+            "-f",
+            "jsonl").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
-        Assert.Contains("live access analysis is not implemented yet", result.Stderr);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"error\"", result.Stdout);
+        Assert.Contains("\"identity\":\"unknown-live\"", result.Stdout);
+        Assert.Contains("liveValidationReason=endpoint blocked", result.Stdout);
+        Assert.DoesNotContain("not implemented", result.Stderr);
     }
 
     /// <summary>
@@ -797,6 +815,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(0, result.ExitCode);
         Assert.Contains("picket analyze", result.Stdout);
         Assert.Contains("--offline", result.Stdout);
+        Assert.Contains("--live", result.Stdout);
+        Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
         Assert.Contains("--max-archive-depth", result.Stdout);
         Assert.Contains("--timeout", result.Stdout);

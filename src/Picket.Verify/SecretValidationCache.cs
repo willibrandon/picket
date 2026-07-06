@@ -12,12 +12,16 @@ public sealed class SecretValidationCache
 {
     private const string CacheFingerprintHeader = "cacheFingerprint";
     private const string EntriesDirectoryName = "entries";
+    private const string EvidenceHeader = "evidence";
     private const string ExpiresUnixTimeSecondsHeader = "expiresUnixTimeSeconds";
+    private const string IdentityHeader = "identity";
     private const string KeyHeader = "key";
     private const string LocksDirectoryName = "locks";
     private const string LowerHex = "0123456789abcdef";
     private const string ReasonHeader = "reason";
+    private const string ReachableResourcesHeader = "reachableResources";
     private const string SchemaLine = "picket.validation-cache.v1";
+    private const string ScopesHeader = "scopes";
     private const string StateHeader = "state";
 
     private readonly string _entriesPath;
@@ -167,6 +171,10 @@ public sealed class SecretValidationCache
         AppendHeader(builder, ExpiresUnixTimeSecondsHeader, expiresAtUtc.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
         AppendHeader(builder, StateHeader, SecretValidationResult.ToReportValue(result.State));
         AppendHeader(builder, ReasonHeader, Encode(result.Reason));
+        AppendHeader(builder, IdentityHeader, Encode(result.Identity));
+        AppendHeader(builder, ScopesHeader, EncodeList(result.Scopes));
+        AppendHeader(builder, ReachableResourcesHeader, EncodeList(result.ReachableResources));
+        AppendHeader(builder, EvidenceHeader, EncodeList(result.Evidence));
         return builder.ToString();
     }
 
@@ -213,6 +221,44 @@ public sealed class SecretValidationCache
         return Encoding.UTF8.GetString(Convert.FromBase64String(value));
     }
 
+    private static string EncodeList(IReadOnlyList<string> values)
+    {
+        if (values.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        for (int i = 0; i < values.Count; i++)
+        {
+            if (i != 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append(Encode(values[i]));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string[] DecodeList(string value)
+    {
+        if (value.Length == 0)
+        {
+            return [];
+        }
+
+        string[] encodedValues = value.Split(',');
+        var values = new string[encodedValues.Length];
+        for (int i = 0; i < encodedValues.Length; i++)
+        {
+            values[i] = Decode(encodedValues[i]);
+        }
+
+        return values;
+    }
+
     private static string ComputeSha256Hex(string value)
     {
         return ComputeSha256Hex(Encoding.UTF8.GetBytes(value));
@@ -255,7 +301,19 @@ public sealed class SecretValidationCache
         string reason = headers.TryGetValue(ReasonHeader, out string? encodedReason)
             ? Decode(encodedReason)
             : string.Empty;
-        result = new SecretValidationResult(state, reason);
+        string identity = headers.TryGetValue(IdentityHeader, out string? encodedIdentity)
+            ? Decode(encodedIdentity)
+            : string.Empty;
+        string[] scopes = headers.TryGetValue(ScopesHeader, out string? encodedScopes)
+            ? DecodeList(encodedScopes)
+            : [];
+        string[] reachableResources = headers.TryGetValue(ReachableResourcesHeader, out string? encodedReachableResources)
+            ? DecodeList(encodedReachableResources)
+            : [];
+        string[] evidence = headers.TryGetValue(EvidenceHeader, out string? encodedEvidence)
+            ? DecodeList(encodedEvidence)
+            : [];
+        result = new SecretValidationResult(state, reason, identity, scopes, reachableResources, evidence);
         return true;
     }
 

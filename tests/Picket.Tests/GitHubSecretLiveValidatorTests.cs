@@ -16,15 +16,25 @@ public sealed class GitHubSecretLiveValidatorTests
     [TestMethod]
     public async Task VerifyAsyncReturnsActiveForOkResponse()
     {
-        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        var handler = new FakeHttpMessageHandler(_ =>
         {
-            Content = new StringContent("{\"login\":\"octocat\"}"),
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"login\":\"octocat\"}"),
+            };
+            response.Headers.Add("X-OAuth-Scopes", "repo, gist");
+            return response;
         });
         GitHubSecretLiveValidator validator = CreateValidator(handler);
 
         SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), CancellationToken.None);
 
         Assert.AreEqual(SecretValidationState.Active, result.State);
+        Assert.AreEqual("octocat", result.Identity);
+        Assert.Contains("repo", result.Scopes);
+        Assert.Contains("gist", result.Scopes);
+        Assert.Contains("github:user", result.ReachableResources);
+        Assert.Contains("githubLogin=octocat", result.Evidence);
         Assert.AreEqual(1, handler.RequestCount);
         Assert.IsNotNull(handler.LastRequest);
         Assert.AreEqual("Bearer", handler.LastRequest.Headers.Authorization?.Scheme);

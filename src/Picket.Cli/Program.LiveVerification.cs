@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Picket.Analyze;
 using Picket.Engine;
 using Picket.Security;
 using Picket.Verify;
@@ -59,12 +60,15 @@ internal static partial class Program
         IReadOnlyList<Finding> findings,
         SecretLiveVerifier liveVerifier,
         long timeoutTimestamp,
-        [NotNullWhen(true)] out List<Finding>? liveFindings)
+        [NotNullWhen(true)] out List<Finding>? liveFindings,
+        [NotNullWhen(true)] out Dictionary<string, CredentialAnalysisMetadata>? analysisMetadata)
     {
         liveFindings = null;
+        analysisMetadata = null;
         using CancellationTokenSource? cancellation = CreateLiveCancellation(timeoutTimestamp);
         CancellationToken cancellationToken = cancellation?.Token ?? CancellationToken.None;
         var annotated = new List<Finding>(findings.Count);
+        var metadata = new Dictionary<string, CredentialAnalysisMetadata>(StringComparer.Ordinal);
         for (int i = 0; i < findings.Count; i++)
         {
             if (IsTimedOut(timeoutTimestamp))
@@ -82,7 +86,9 @@ internal static partial class Program
                 }
 
                 SecretValidationResult result = liveVerifier.VerifyAsync(findings[i], cancellationToken).GetAwaiter().GetResult();
-                annotated.Add(CopyWithValidationState(findings[i], result.ReportValue));
+                Finding annotatedFinding = CopyWithValidationState(findings[i], result.ReportValue);
+                annotated.Add(annotatedFinding);
+                metadata[StableFindingFingerprint.Create(annotatedFinding)] = CreateAnalysisMetadata(result);
             }
             catch (OperationCanceledException)
             {
@@ -92,6 +98,7 @@ internal static partial class Program
         }
 
         liveFindings = annotated;
+        analysisMetadata = metadata;
         return true;
     }
 
@@ -147,5 +154,44 @@ internal static partial class Program
             validationState,
             finding.BlobSha256,
             finding.DecodePath);
+    }
+
+    private static CredentialAnalysisMetadata CreateAnalysisMetadata(SecretValidationResult result)
+    {
+        var evidence = new List<string>(result.Evidence.Count + 2)
+        {
+            string.Concat("liveValidationState=", result.ReportValue)
+        };
+        if (result.Reason.Length != 0)
+        {
+            evidence.Add(string.Concat("liveValidationReason=", result.Reason));
+        }
+
+        for (int i = 0; i < result.Evidence.Count; i++)
+        {
+            evidence.Add(result.Evidence[i]);
+        }
+
+        return new CredentialAnalysisMetadata(
+            result.Identity,
+            ToStringArray(result.Scopes),
+            ToStringArray(result.ReachableResources),
+            [.. evidence]);
+    }
+
+    private static string[] ToStringArray(IReadOnlyList<string> values)
+    {
+        if (values.Count == 0)
+        {
+            return [];
+        }
+
+        var result = new string[values.Count];
+        for (int i = 0; i < values.Count; i++)
+        {
+            result[i] = values[i];
+        }
+
+        return result;
     }
 }

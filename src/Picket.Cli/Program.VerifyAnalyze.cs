@@ -96,6 +96,10 @@ internal static partial class Program
     static int RunAnalyze(string[] args)
     {
         var forwardedArgs = new List<string>();
+        bool allowNonPublicProviderEndpoints = false;
+        Uri? githubApiEndpoint = null;
+        bool liveVerification = false;
+        bool providerOptionSpecified = false;
         string? source = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -136,14 +140,41 @@ internal static partial class Program
 
                 if (live)
                 {
-                    Console.Error.WriteLine("live access analysis is not implemented yet; use --offline");
-                    return 1;
+                    liveVerification = true;
                 }
 
                 continue;
             }
 
+            if (IsGitHubApiEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--github-api-endpoint", out githubApiEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                providerOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAllowNonPublicProviderEndpointsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                providerOptionSpecified = true;
+                continue;
+            }
+
             forwardedArgs.Add(arg);
+        }
+
+        if (providerOptionSpecified && !liveVerification)
+        {
+            Console.Error.WriteLine("--github-api-endpoint and --allow-non-public-endpoints require --live");
+            return UnknownFlagExitCode;
         }
 
         if (source is not null)
@@ -157,6 +188,9 @@ internal static partial class Program
             diagnosticsCommand: "analyze",
             defaultRoot: ".",
             allowValidationResultFilters: true,
+            liveVerification: liveVerification
+                ? new LiveVerificationConfiguration(githubApiEndpoint, allowNonPublicProviderEndpoints)
+                : null,
             nativeResultWriter: TryWriteAnalysisReports);
     }
 }

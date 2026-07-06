@@ -84,7 +84,8 @@ internal static partial class Program
         string? reportPath,
         List<string> reportPaths,
         string? reportFormat,
-        string? reportTemplatePath)
+        string? reportTemplatePath,
+        IReadOnlyDictionary<string, CredentialAnalysisMetadata>? analysisMetadata)
     {
         if (!string.IsNullOrWhiteSpace(reportTemplatePath))
         {
@@ -94,7 +95,7 @@ internal static partial class Program
 
         if (reportPaths.Count <= 1)
         {
-            return TryWriteAnalysisReport(findings, reportPath, reportFormat);
+            return TryWriteAnalysisReport(findings, reportPath, reportFormat, analysisMetadata);
         }
 
         if (!string.IsNullOrWhiteSpace(reportFormat))
@@ -117,7 +118,7 @@ internal static partial class Program
                 wroteStdout = true;
             }
 
-            if (!TryWriteAnalysisReport(findings, path, reportFormat: null))
+            if (!TryWriteAnalysisReport(findings, path, reportFormat: null, analysisMetadata))
             {
                 return false;
             }
@@ -126,14 +127,18 @@ internal static partial class Program
         return true;
     }
 
-    static bool TryWriteAnalysisReport(IReadOnlyList<Finding> findings, string? reportPath, string? reportFormat)
+    static bool TryWriteAnalysisReport(
+        IReadOnlyList<Finding> findings,
+        string? reportPath,
+        string? reportFormat,
+        IReadOnlyDictionary<string, CredentialAnalysisMetadata>? analysisMetadata)
     {
         if (!TryResolveAnalysisReportFormat(reportPath, reportFormat, out string? resolvedReportFormat))
         {
             return false;
         }
 
-        List<CredentialAnalysis> analyses = CredentialAnalyzer.Analyze(findings);
+        List<CredentialAnalysis> analyses = CredentialAnalyzer.Analyze(findings, analysisMetadata);
         string report = resolvedReportFormat switch
         {
             "json" => CredentialAnalysisReportWriter.WriteJson(analyses),

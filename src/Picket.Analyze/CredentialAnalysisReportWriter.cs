@@ -94,6 +94,8 @@ public static class CredentialAnalysisReportWriter
             builder.AppendLine(analysis.Identity);
             builder.Append("validationState: ");
             builder.AppendLine(analysis.ValidationState);
+            AppendTextList(builder, "scopes", analysis.Scopes);
+            AppendTextList(builder, "reachableResources", analysis.ReachableResources);
             builder.Append("summary: ");
             builder.AppendLine(analysis.RiskSummary);
             AppendTextList(builder, "recommendedActions", analysis.RecommendedActions);

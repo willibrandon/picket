@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using Picket.Engine;
 
 namespace Picket.Verify;
@@ -89,10 +91,10 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken).ConfigureAwait(false);
 
-            await DrainSmallResponseAsync(response, cancellationToken).ConfigureAwait(false);
+            string responseBody = await ReadSmallResponseAsync(response, cancellationToken).ConfigureAwait(false);
             return response.StatusCode switch
             {
-                HttpStatusCode.OK => new SecretValidationResult(SecretValidationState.Active, "GitHub accepted the token"),
+                HttpStatusCode.OK => CreateActiveResult(response, responseBody),
                 HttpStatusCode.Unauthorized => new SecretValidationResult(SecretValidationState.Inactive, "GitHub rejected the token"),
                 HttpStatusCode.Forbidden => new SecretValidationResult(SecretValidationState.Error, "GitHub forbade the verification request"),
                 (HttpStatusCode)429 => new SecretValidationResult(SecretValidationState.Error, "GitHub rate limited the verification request"),
@@ -117,26 +119,110 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
         _client.Dispose();
     }
 
-    private async ValueTask DrainSmallResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private SecretValidationResult CreateActiveResult(HttpResponseMessage response, string responseBody)
+    {
+        string identity = TryReadGitHubLogin(responseBody, out string login) ? login : string.Empty;
+        string[] scopes = ReadCommaSeparatedHeaders(response, "X-OAuth-Scopes");
+        var evidence = new List<string>
+        {
+            "provider=github",
+            string.Concat("endpoint=", _options.UserEndpoint.GetComponents(UriComponents.SchemeAndServer | UriComponents.Path, UriFormat.UriEscaped)),
+            "httpStatus=200"
+        };
+        if (identity.Length != 0)
+        {
+            evidence.Add(string.Concat("githubLogin=", identity));
+        }
+
+        if (scopes.Length != 0)
+        {
+            evidence.Add(string.Concat("scopeCount=", scopes.Length.ToString(CultureInfo.InvariantCulture)));
+        }
+
+        return new SecretValidationResult(
+            SecretValidationState.Active,
+            "GitHub accepted the token",
+            identity,
+            scopes,
+            ["github:user"],
+            [.. evidence]);
+    }
+
+    private async ValueTask<string> ReadSmallResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.Content is null)
         {
-            return;
+            return string.Empty;
         }
 
         using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         byte[] buffer = new byte[Math.Min(_options.MaxResponseBytes, 4096)];
         int remaining = _options.MaxResponseBytes;
+        using var output = new MemoryStream(Math.Min(_options.MaxResponseBytes, 4096));
         while (remaining > 0)
         {
             int read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)), cancellationToken).ConfigureAwait(false);
             if (read == 0)
             {
-                return;
+                break;
             }
 
+            output.Write(buffer, 0, read);
             remaining -= read;
         }
+
+        return Encoding.UTF8.GetString(output.ToArray());
+    }
+
+    private static bool TryReadGitHubLogin(string responseBody, out string login)
+    {
+        login = string.Empty;
+        if (responseBody.Length == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(responseBody);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("login", out JsonElement loginProperty)
+                || loginProperty.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            login = loginProperty.GetString() ?? string.Empty;
+            return login.Length != 0;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string[] ReadCommaSeparatedHeaders(HttpResponseMessage response, string headerName)
+    {
+        if (!response.Headers.TryGetValues(headerName, out IEnumerable<string>? values))
+        {
+            return [];
+        }
+
+        var parsed = new List<string>();
+        foreach (string value in values)
+        {
+            string[] fields = value.Split(',');
+            for (int i = 0; i < fields.Length; i++)
+            {
+                string field = fields[i].Trim();
+                if (field.Length != 0)
+                {
+                    parsed.Add(field);
+                }
+            }
+        }
+
+        return [.. parsed];
     }
 
     private static bool IsClassicGitHubToken(string secret, string prefix)

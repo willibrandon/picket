@@ -31,7 +31,7 @@ Use the grouped index to jump to the workflow you need.
       <li>
         <a class="cli-command-link" href="#picket-analyze">
           <code>picket analyze</code>
-          <span>Write offline incident-response analysis for detected findings.</span>
+          <span>Write incident-response analysis for detected findings.</span>
         </a>
       </li>
     </ul>
@@ -550,7 +550,7 @@ Use the grouped index to jump to the workflow you need.
       <dd>Offline</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Write offline incident-response analysis for detected findings.</p>
+  <p class="cli-command-summary">Write incident-response analysis for detected findings.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
@@ -562,8 +562,10 @@ Use the grouped index to jump to the workflow you need.
   [--profile picket]
   [--source path]
   [--cache-dir path]
-  [--offline]
-  [--results unknown|structurally-valid|test-credential|invalid]
+  [--offline|--live]
+  [--github-api-endpoint uri]
+  [--allow-non-public-endpoints]
+  [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--max-archive-depth n]
   [--max-archive-entries n]
   [--max-archive-megabytes n]
@@ -636,14 +638,26 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--offline</code></td>
-              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Option"><code>--offline / --live</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose local validation or opt-in live provider verification.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--github-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow guarded live validation endpoints that are not public internet addresses.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--results</code></td>
-              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid</code></td>
+              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid | active | inactive | skipped | error</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Keep findings with the selected validation result states.</td>
             </tr>
