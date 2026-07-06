@@ -593,7 +593,7 @@ Live verification:
 
 ### 8.5 Revocation
 
-Where provider APIs support safe self-service revocation, Picket can emit and optionally run revocation commands. Revocation is never automatic during scan. Reports include revocation availability and exact command guidance only when redaction settings allow it.
+Where provider APIs support safe self-service revocation, Picket can emit and optionally run revocation commands. Revocation is never automatic during scan. Analysis reports include `revocationAvailable`, `revocationCommands`, and `revocationGuidance`; command templates are emitted only when Picket can build them from non-secret identifiers such as an AWS access key ID, Azure Storage account name, or GCP service-account key ID, or with explicit placeholders such as GitHub's credential revocation API token parameter. Provider workflows that cannot be safely expressed as a command still set revocation availability and explain the manual workflow without raw secret values.
 
 ### 8.6 Credential Privilege Analysis
 
@@ -609,7 +609,7 @@ Initial targets:
 - database connection strings,
 - common SaaS API tokens.
 
-Analysis output is separate from scan output and optimized for incident response: identity, scopes, reachable resources, risk summary, recommended rotation/revocation steps, and evidence.
+Analysis output is separate from scan output and optimized for incident response: identity, scopes, reachable resources, risk summary, recommended rotation/revocation steps, revocation command templates where safe, and evidence.
 
 ### 8.7 Blob Store and Incremental Scans
 

@@ -99,6 +99,10 @@ public static class CredentialAnalysisReportWriter
             builder.Append("summary: ");
             builder.AppendLine(analysis.RiskSummary);
             AppendTextList(builder, "recommendedActions", analysis.RecommendedActions);
+            builder.Append("revocationAvailable: ");
+            builder.AppendLine(analysis.RevocationAvailable ? "true" : "false");
+            AppendTextList(builder, "revocationCommands", analysis.RevocationCommands);
+            AppendTextList(builder, "revocationGuidance", analysis.RevocationGuidance);
             AppendTextList(builder, "evidence", analysis.Evidence);
         }
 
@@ -133,6 +137,9 @@ public static class CredentialAnalysisReportWriter
         WriteArray(builder, "reachableResources", analysis.ReachableResources, comma: true);
         WriteString(builder, "riskSummary", analysis.RiskSummary, comma: true);
         WriteArray(builder, "recommendedActions", analysis.RecommendedActions, comma: true);
+        WriteBoolean(builder, "revocationAvailable", analysis.RevocationAvailable, comma: true);
+        WriteArray(builder, "revocationCommands", analysis.RevocationCommands, comma: true);
+        WriteArray(builder, "revocationGuidance", analysis.RevocationGuidance, comma: true);
         WriteArray(builder, "evidence", analysis.Evidence, comma: false);
         builder.Append('}');
     }
@@ -148,6 +155,13 @@ public static class CredentialAnalysisReportWriter
     {
         WritePropertyName(builder, name);
         builder.Append(value.ToString(CultureInfo.InvariantCulture));
+        WriteComma(builder, comma);
+    }
+
+    private static void WriteBoolean(StringBuilder builder, string name, bool value, bool comma)
+    {
+        WritePropertyName(builder, name);
+        builder.Append(value ? "true" : "false");
         WriteComma(builder, comma);
     }
 

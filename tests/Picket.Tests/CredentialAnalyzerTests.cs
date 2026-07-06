@@ -26,7 +26,13 @@ public sealed class CredentialAnalyzerTests
         Assert.AreEqual("critical", analysis.Risk);
         Assert.Contains("accountName=picketstorage", analysis.Evidence);
         Assert.Contains("Rotate one Azure Storage account key", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.Contains(
+            "az storage account keys renew --account-name picketstorage --resource-group <resource-group> --key primary",
+            analysis.RevocationCommands);
+        Assert.Contains("Move consumers to the alternate storage account key before regenerating the compromised key.", analysis.RevocationGuidance);
         Assert.DoesNotContain(accountKey, string.Join('\n', analysis.Evidence));
+        Assert.DoesNotContain(accountKey, string.Join('\n', analysis.RevocationCommands));
     }
 
     /// <summary>
@@ -47,7 +53,11 @@ public sealed class CredentialAnalyzerTests
         Assert.Contains($"accessKeyId={accessKeyId}", analysis.Evidence);
         Assert.Contains("resourceType=access key", analysis.Evidence);
         Assert.Contains("Disable or rotate the leaked AWS access key", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.Contains($"aws iam update-access-key --access-key-id {accessKeyId} --status Inactive --user-name <iam-user>", analysis.RevocationCommands);
+        Assert.Contains($"aws iam delete-access-key --access-key-id {accessKeyId} --user-name <iam-user>", analysis.RevocationCommands);
         Assert.DoesNotContain(secretAccessKey, string.Join('\n', analysis.Evidence));
+        Assert.DoesNotContain(secretAccessKey, string.Join('\n', analysis.RevocationCommands));
     }
 
     /// <summary>
@@ -66,8 +76,14 @@ public sealed class CredentialAnalyzerTests
         Assert.AreEqual("critical", analysis.Risk);
         Assert.Contains("projectId=picket-prod-123", analysis.Evidence);
         Assert.Contains("clientEmail=scanner-sa@picket-prod-123.iam.gserviceaccount.com", analysis.Evidence);
+        Assert.Contains("privateKeyId=0123456789abcdef0123456789abcdef01234567", analysis.Evidence);
         Assert.Contains("Disable or delete the leaked service account key", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.Contains(
+            "gcloud iam service-accounts keys delete 0123456789abcdef0123456789abcdef01234567 --iam-account=scanner-sa@picket-prod-123.iam.gserviceaccount.com",
+            analysis.RevocationCommands);
         Assert.DoesNotContain(serviceAccountJson, string.Join('\n', analysis.Evidence));
+        Assert.DoesNotContain(serviceAccountJson, string.Join('\n', analysis.RevocationCommands));
     }
 
     /// <summary>
@@ -84,6 +100,8 @@ public sealed class CredentialAnalyzerTests
         Assert.AreEqual("GCP API key", analysis.CredentialType);
         Assert.AreEqual("critical", analysis.Risk);
         Assert.Contains("Review and tighten API key restrictions", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.Contains("gcloud services api-keys delete <key-id> --project <project-id> --location global", analysis.RevocationCommands);
     }
 
     /// <summary>
@@ -100,6 +118,8 @@ public sealed class CredentialAnalyzerTests
         Assert.AreEqual("GCP API key", analysis.CredentialType);
         Assert.AreEqual("critical", analysis.Risk);
         Assert.Contains("Review and tighten API key restrictions", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.Contains("Find the API key resource in Google Cloud API Keys before deleting or replacing it.", analysis.RevocationGuidance);
     }
 
     /// <summary>
@@ -117,6 +137,11 @@ public sealed class CredentialAnalyzerTests
         Assert.AreEqual("GitHub personal access token", analysis.CredentialType);
         Assert.AreEqual("critical", analysis.Risk);
         Assert.Contains("Rotate or revoke the GitHub token", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.Contains("<github-token>", string.Join('\n', analysis.RevocationCommands));
+        Assert.Contains("https://api.github.com/credentials/revoke", string.Join('\n', analysis.RevocationCommands));
+        Assert.Contains("Submit the leaked token to GitHub's credential revocation API or revoke it from the owner's token settings.", analysis.RevocationGuidance);
+        Assert.DoesNotContain(token, string.Join('\n', analysis.RevocationCommands));
         Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));
     }
 

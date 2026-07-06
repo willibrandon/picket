@@ -70,7 +70,7 @@ Before additional providers can be enabled in the CLI, each validator also requi
 - expected success and failure codes,
 - retry policy,
 - cache key,
-- revocation support,
+- revocation support and safe command-template output,
 - known provider side effects,
 - SSRF and redirect protections.
 
@@ -79,5 +79,7 @@ Provider requests must use `Picket.Security` endpoint checks to block loopback, 
 ## Reporting
 
 Native report writers expose validation state in Picket JSON, JSONL, SARIF, CSV, JUnit, HTML, TOON, and GitLab code-quality outputs where the format supports it. Gitleaks-compatible report writers preserve the compatibility schema and do not add Picket-native validation fields.
+
+Native analysis reports can include provider-specific revocation availability, command templates, and guidance. Revocation is never automatic during scan, verification, or analysis. Command templates must be derived from non-secret identifiers and must never include raw secret values.
 
 Secrets must be redacted before logs, action annotations, summaries, diagnostics, and crash data. Secret hashes are intended for deduplication and triage, not as proof that a credential is safe to disclose.

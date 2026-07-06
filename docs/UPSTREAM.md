@@ -122,6 +122,20 @@ promoted files still contain drive-root paths or any redaction-map secret.
 Picket compatibility tests should compare normalized reports, fingerprints,
 config diagnostics, exit codes, and stderr text against this pinned version.
 
+## Provider Revocation References
+
+Native analysis revocation command templates are based on provider
+documentation reviewed on 2026-07-06:
+
+- GitHub credential revocation API: `https://docs.github.com/en/rest/credentials/revoke`
+- GitHub token expiration and revocation: `https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/token-expiration-and-revocation`
+- AWS IAM `update-access-key`: `https://docs.aws.amazon.com/cli/latest/reference/iam/update-access-key.html`
+- AWS IAM `delete-access-key`: `https://docs.aws.amazon.com/cli/latest/reference/iam/delete-access-key.html`
+- AWS IAM access-key rotation workflow: `https://docs.aws.amazon.com/IAM/latest/UserGuide/id-credentials-access-keys-update.html`
+- Azure Storage account key renewal: `https://learn.microsoft.com/en-us/cli/azure/storage/account/keys`
+- GCP API key delete command: `https://docs.cloud.google.com/sdk/gcloud/reference/services/api-keys/delete`
+- GCP service-account key delete command: `https://docs.cloud.google.com/sdk/gcloud/reference/iam/service-accounts/keys/delete`
+
 ## GitHub Secret Scanning Oracle
 
 GitHub Secret Protection secret scanning is a hosted proprietary system, not a

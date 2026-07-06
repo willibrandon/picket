@@ -751,6 +751,10 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"identity\":\"unknown-offline\"", result.Stdout);
         Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
         Assert.Contains("\"recommendedActions\"", result.Stdout);
+        Assert.Contains("\"revocationAvailable\":true", result.Stdout);
+        Assert.Contains("https://api.github.com/credentials/revoke", result.Stdout);
+        Assert.Contains("<github-token>", result.Stdout);
+        Assert.Contains("\"revocationGuidance\"", result.Stdout);
         Assert.DoesNotContain(token, result.Stdout);
     }
 

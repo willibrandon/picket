@@ -19,6 +19,9 @@ namespace Picket.Analyze;
 /// <param name="reachableResources">The discovered reachable resources.</param>
 /// <param name="riskSummary">A concise non-secret risk summary.</param>
 /// <param name="recommendedActions">Recommended incident-response actions.</param>
+/// <param name="revocationAvailable">A value indicating whether provider-specific revocation guidance is available.</param>
+/// <param name="revocationCommands">Provider command templates that can revoke or rotate the credential without embedding raw secret values.</param>
+/// <param name="revocationGuidance">Human-readable provider revocation guidance.</param>
 /// <param name="evidence">Non-secret evidence used for the analysis.</param>
 public sealed class CredentialAnalysis(
     string schema,
@@ -37,6 +40,9 @@ public sealed class CredentialAnalysis(
     IReadOnlyList<string> reachableResources,
     string riskSummary,
     IReadOnlyList<string> recommendedActions,
+    bool revocationAvailable,
+    IReadOnlyList<string> revocationCommands,
+    IReadOnlyList<string> revocationGuidance,
     IReadOnlyList<string> evidence)
 {
     /// <summary>
@@ -118,6 +124,21 @@ public sealed class CredentialAnalysis(
     /// Gets recommended incident-response actions.
     /// </summary>
     public IReadOnlyList<string> RecommendedActions { get; } = recommendedActions;
+
+    /// <summary>
+    /// Gets a value indicating whether provider-specific revocation guidance is available.
+    /// </summary>
+    public bool RevocationAvailable { get; } = revocationAvailable;
+
+    /// <summary>
+    /// Gets provider command templates that can revoke or rotate the credential without embedding raw secret values.
+    /// </summary>
+    public IReadOnlyList<string> RevocationCommands { get; } = revocationCommands;
+
+    /// <summary>
+    /// Gets human-readable provider revocation guidance.
+    /// </summary>
+    public IReadOnlyList<string> RevocationGuidance { get; } = revocationGuidance;
 
     /// <summary>
     /// Gets non-secret evidence used for the analysis.

@@ -94,6 +94,9 @@ public static class CredentialAnalyzer
             CreateMetadataList(metadata?.ReachableResources, validationState),
             CreateRiskSummary(provider, credentialType, validationState),
             CreateRecommendedActions(provider, credentialType, validationState),
+            CreateRevocationAvailable(provider, credentialType),
+            CreateRevocationCommands(finding, provider, credentialType),
+            CreateRevocationGuidance(provider, credentialType),
             CreateEvidence(finding, validationState, secretSha256, metadata));
     }
 
@@ -253,6 +256,110 @@ public static class CredentialAnalyzer
         };
     }
 
+    private static bool CreateRevocationAvailable(string provider, string credentialType)
+    {
+        return provider switch
+        {
+            "AWS" => credentialType.Equals("AWS access key pair", StringComparison.Ordinal),
+            "Azure" => credentialType.Equals("Azure Storage account key", StringComparison.Ordinal),
+            "GCP" => credentialType is "GCP API key" or "GCP service account key",
+            "GitHub" => true,
+            _ => false,
+        };
+    }
+
+    private static List<string> CreateRevocationCommands(Finding finding, string provider, string credentialType)
+    {
+        if (provider.Equals("AWS", StringComparison.Ordinal)
+            && credentialType.Equals("AWS access key pair", StringComparison.Ordinal))
+        {
+            string accessKeyId = TryReadAwsAccessKeyId(finding.Match, out string parsedAccessKeyId)
+                ? parsedAccessKeyId
+                : "<access-key-id>";
+            return [
+                $"aws iam get-access-key-last-used --access-key-id {accessKeyId}",
+                $"aws iam update-access-key --access-key-id {accessKeyId} --status Inactive --user-name <iam-user>",
+                $"aws iam delete-access-key --access-key-id {accessKeyId} --user-name <iam-user>"
+            ];
+        }
+
+        if (provider.Equals("Azure", StringComparison.Ordinal)
+            && credentialType.Equals("Azure Storage account key", StringComparison.Ordinal))
+        {
+            string accountName = TryGetConnectionStringField(finding.Match, "AccountName", out string parsedAccountName)
+                ? parsedAccountName
+                : "<storage-account>";
+            return [
+                $"az storage account keys renew --account-name {accountName} --resource-group <resource-group> --key primary",
+                $"az storage account keys renew --account-name {accountName} --resource-group <resource-group> --key secondary"
+            ];
+        }
+
+        if (provider.Equals("GitHub", StringComparison.Ordinal))
+        {
+            return [
+                "curl -L -X POST -H \"Accept: application/vnd.github+json\" -H \"X-GitHub-Api-Version: 2026-03-10\" https://api.github.com/credentials/revoke -d '{\"credentials\":[\"<github-token>\"]}'"
+            ];
+        }
+
+        if (provider.Equals("GCP", StringComparison.Ordinal)
+            && credentialType.Equals("GCP service account key", StringComparison.Ordinal)
+            && TryReadGcpServiceAccountEvidence(
+                GetFindingSecretMaterial(finding),
+                out _,
+                out string clientEmail,
+                out string privateKeyId))
+        {
+            return [
+                $"gcloud iam service-accounts keys list --iam-account={clientEmail}",
+                $"gcloud iam service-accounts keys delete {privateKeyId} --iam-account={clientEmail}"
+            ];
+        }
+
+        if (provider.Equals("GCP", StringComparison.Ordinal)
+            && credentialType.Equals("GCP API key", StringComparison.Ordinal))
+        {
+            return [
+                "gcloud services api-keys delete <key-id> --project <project-id> --location global"
+            ];
+        }
+
+        return [];
+    }
+
+    private static IReadOnlyList<string> CreateRevocationGuidance(string provider, string credentialType)
+    {
+        return provider switch
+        {
+            "GitHub" => [
+                "Submit the leaked token to GitHub's credential revocation API or revoke it from the owner's token settings.",
+                "For GitHub App tokens, also review the app installation and rotate app credentials or suspend/remove the installation when required.",
+                "Re-run analysis after revocation to confirm the provider no longer accepts the credential."
+            ],
+            "AWS" when credentialType.Equals("AWS access key pair", StringComparison.Ordinal) => [
+                "Create or identify the replacement key first when workloads still depend on this IAM principal.",
+                "Disable the leaked access key, verify dependent workloads, then delete the key.",
+                "Use IAM last-used data and CloudTrail to decide the investigation window."
+            ],
+            "Azure" when credentialType.Equals("Azure Storage account key", StringComparison.Ordinal) => [
+                "Move consumers to the alternate storage account key before regenerating the compromised key.",
+                "Regenerate the compromised key, update consumers, then rotate the alternate key.",
+                "Review storage diagnostics, SAS issuance, and network controls after rotation."
+            ],
+            "GCP" when credentialType.Equals("GCP service account key", StringComparison.Ordinal) => [
+                "Delete the exposed user-managed service account key after confirming workloads have moved to a replacement.",
+                "Prefer service account impersonation or Workload Identity over long-lived JSON keys.",
+                "Review IAM roles and Cloud Audit Logs for use of the leaked key."
+            ],
+            "GCP" when credentialType.Equals("GCP API key", StringComparison.Ordinal) => [
+                "Find the API key resource in Google Cloud API Keys before deleting or replacing it.",
+                "Create a replacement with required API and application restrictions before updating consumers.",
+                "Delete the exposed key after traffic has moved to the replacement."
+            ],
+            _ => [],
+        };
+    }
+
     private static string CreateIdentity(CredentialAnalysisMetadata? metadata, string validationState)
     {
         if (metadata is not null && metadata.Identity.Length != 0)
@@ -310,10 +417,15 @@ public static class CredentialAnalyzer
         }
 
         if (finding.RuleID.Equals("picket-gcp-service-account-key", StringComparison.Ordinal)
-            && TryReadGcpServiceAccountEvidence(GetFindingSecretMaterial(finding), out string projectId, out string clientEmail))
+            && TryReadGcpServiceAccountEvidence(
+                GetFindingSecretMaterial(finding),
+                out string projectId,
+                out string clientEmail,
+                out string privateKeyId))
         {
             evidence.Add($"projectId={projectId}");
             evidence.Add($"clientEmail={clientEmail}");
+            evidence.Add($"privateKeyId={privateKeyId}");
         }
 
         if (metadata is not null)
@@ -393,16 +505,18 @@ public static class CredentialAnalyzer
         };
     }
 
-    private static bool TryReadGcpServiceAccountEvidence(string json, out string projectId, out string clientEmail)
+    private static bool TryReadGcpServiceAccountEvidence(string json, out string projectId, out string clientEmail, out string privateKeyId)
     {
         projectId = string.Empty;
         clientEmail = string.Empty;
+        privateKeyId = string.Empty;
         try
         {
             using JsonDocument document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !TryGetJsonString(document.RootElement, "project_id", out projectId)
-                || !TryGetJsonString(document.RootElement, "client_email", out clientEmail))
+                || !TryGetJsonString(document.RootElement, "client_email", out clientEmail)
+                || !TryGetJsonString(document.RootElement, "private_key_id", out privateKeyId))
             {
                 return false;
             }
