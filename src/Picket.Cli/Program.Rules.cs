@@ -402,13 +402,13 @@ internal static partial class Program
 
     static void ValidateRulesWithScout(RuleSet ruleSet)
     {
-        ValidateUniqueRuleIds(ruleSet.Rules);
-        ValidateRuleQuality(ruleSet);
+        HashSet<string> ruleIds = ValidateUniqueRuleIds(ruleSet.Rules);
+        ValidateRuleQuality(ruleSet, ruleIds);
         CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(new RuleSet(ruleSet.Rules, ruleSet.Allowlists));
         ValidateRuleExamples(ruleSet.Rules, compiledRuleSet);
     }
 
-    static void ValidateRuleQuality(RuleSet ruleSet)
+    static void ValidateRuleQuality(RuleSet ruleSet, HashSet<string> ruleIds)
     {
         ValidateAllowlists("global allowlist", ruleSet.Allowlists);
         foreach (SecretRule rule in ruleSet.Rules)
@@ -420,7 +420,7 @@ internal static partial class Program
             ValidateRuleTemplates(rule);
             ValidateRulePerformance(rule);
             ValidateNativeRuleExamples(rule);
-            ValidateRequiredRules(rule);
+            ValidateRequiredRules(rule, ruleIds);
             ValidateAllowlists($"rule {rule.Id} allowlist", rule.Allowlists);
         }
     }
@@ -628,7 +628,7 @@ internal static partial class Program
         return false;
     }
 
-    static void ValidateUniqueRuleIds(IReadOnlyList<SecretRule> rules)
+    static HashSet<string> ValidateUniqueRuleIds(IReadOnlyList<SecretRule> rules)
     {
         var ruleIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (SecretRule rule in rules)
@@ -638,9 +638,11 @@ internal static partial class Program
                 throw new InvalidDataException($"duplicate rule ID: {rule.Id}");
             }
         }
+
+        return ruleIds;
     }
 
-    static void ValidateRequiredRules(SecretRule rule)
+    static void ValidateRequiredRules(SecretRule rule, HashSet<string> ruleIds)
     {
         var requiredRuleIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (SecretRequiredRule requiredRule in rule.RequiredRules)
@@ -653,6 +655,11 @@ internal static partial class Program
             if (!requiredRuleIds.Add(requiredRule.Id))
             {
                 throw new InvalidDataException($"rule {rule.Id}: duplicate required rule: {requiredRule.Id}");
+            }
+
+            if (!ruleIds.Contains(requiredRule.Id))
+            {
+                throw new InvalidDataException($"rule {rule.Id}: required rule does not exist: {requiredRule.Id}");
             }
         }
     }

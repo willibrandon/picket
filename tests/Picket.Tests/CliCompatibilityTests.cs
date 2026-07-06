@@ -4065,6 +4065,32 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that rules check rejects required rules whose target rule does not exist.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckRejectsMissingRequiredRuleTarget()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+
+              [[rules.required]]
+              id = "missing"
+            """);
+
+        CliResult result = await RunCliAsync("rules", "check", "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("[[rules.required]] rule ID 'missing' does not exist", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that rules test scans sample text with a selected rule.
     /// </summary>
     [TestMethod]
