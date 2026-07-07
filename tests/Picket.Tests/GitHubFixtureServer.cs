@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -118,6 +119,41 @@ internal sealed class GitHubFixtureServer : IDisposable
         {
             const string IssuesJson = """[{"number":7,"title":"leaked issue-token-777","body":"body-token-777","comments":1},{"number":8,"title":"pull request token-999","body":"skip-token-999","comments":1,"pull_request":{"url":"https://api.github.com/repos/willibrandon/picket/pulls/8"}}]""";
             await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(IssuesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/gists/auth-gist/comments?", StringComparison.Ordinal))
+        {
+            const string CommentsJson = """[{"id":77,"body":"comment-token-999"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(CommentsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/raw/gists/auth-gist/raw.txt", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes("raw-token-777"), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/gists/auth-gist", StringComparison.Ordinal))
+        {
+            string rawUrl = string.Concat(Endpoint.GetLeftPart(UriPartial.Authority), "/raw/gists/auth-gist/raw.txt");
+            string gistJson = string.Concat(
+                "{\"id\":\"auth-gist\",\"owner\":{\"login\":\"willibrandon\"},\"comments\":1,\"files\":{\"secret.txt\":{\"filename\":\"secret.txt\",\"size\":",
+                _content.Length.ToString(CultureInfo.InvariantCulture),
+                ",\"truncated\":false,\"content\":\"",
+                _content,
+                "\"},\"raw.txt\":{\"filename\":\"raw.txt\",\"size\":13,\"truncated\":true,\"raw_url\":\"",
+                rawUrl,
+                "\"}}}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(gistJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/gists?", StringComparison.Ordinal))
+        {
+            const string GistsJson = """[{"id":"auth-gist"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(GistsJson), cancellationToken).ConfigureAwait(false);
             return;
         }
 

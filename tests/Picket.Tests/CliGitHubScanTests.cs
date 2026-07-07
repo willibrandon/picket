@@ -222,6 +222,48 @@ public sealed class CliGitHubScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate authenticated GitHub gists.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitHubAuthenticatedGists()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitHubFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-source-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--github-gists",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"github/gists/willibrandon/auth-gist/secret.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"github/gists/willibrandon/auth-gist/raw.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"github/gists/willibrandon/auth-gist/comments/77.md\"", result.Stdout);
+        Assert.Contains("/api/v3/gists?", server.RequestTargets);
+        Assert.Contains("/api/v3/gists/auth-gist", server.RequestTargets);
+        Assert.Contains("/api/v3/gists/auth-gist/comments?", server.RequestTargets);
+        Assert.Contains("/raw/gists/auth-gist/raw.txt", server.RequestTargets);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that GitHub pull request scans cannot also include issue enumeration.
     /// </summary>
     [TestMethod]
@@ -252,6 +294,39 @@ public sealed class CliGitHubScanTests
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.Contains("cannot combine --github-pull-request with --github-include-issues", result.Stderr);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that gist source scans cannot also include issue enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitHubGistAndIssues()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-gist",
+            "auth-gist",
+            "--github-include-issues",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.Contains("GitHub issue source options require --github-repository or --github-organization", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }
@@ -355,7 +430,7 @@ public sealed class CliGitHubScanTests
             "jsonl").ConfigureAwait(false);
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
-        Assert.Contains("GitHub source scan requires exactly one of --github-repository or --github-organization", result.Stderr);
+        Assert.Contains("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-gist, --github-gists, or --github-user-gists", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }

@@ -25,6 +25,8 @@ internal static partial class Program
         string azureDevOpsRepository = string.Empty;
         int azureDevOpsPullRequestId = 0;
         Uri? githubSourceApiEndpoint = null;
+        bool githubSourceIncludeAuthenticatedGists = false;
+        string githubSourceGistId = string.Empty;
         string? githubSourceTokenEnvironmentVariable = null;
         string githubSourceOrganization = string.Empty;
         bool githubSourceIncludeIssues = false;
@@ -33,6 +35,7 @@ internal static partial class Program
         string githubSourceRef = string.Empty;
         string githubSourceRepository = string.Empty;
         string githubSourceRepositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType;
+        string githubSourceUserGists = string.Empty;
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
@@ -109,6 +112,45 @@ internal static partial class Program
                 }
 
                 githubSourceRepositoryType = repositoryType;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubGistFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-gist", out string? gistId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceGistId = gistId;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubGistsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--github-gists", out githubSourceIncludeAuthenticatedGists))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (githubSourceIncludeAuthenticatedGists)
+                {
+                    githubSourceOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitHubUserGistsFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-user-gists", out string? userName))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceUserGists = userName;
                 githubSourceOptionSpecified = true;
                 continue;
             }
@@ -444,6 +486,9 @@ internal static partial class Program
                 githubSourceRepository,
                 githubSourceOrganization,
                 githubSourceRepositoryType,
+                githubSourceGistId,
+                githubSourceIncludeAuthenticatedGists,
+                githubSourceUserGists,
                 githubSourceTokenEnvironmentVariable,
                 githubSourceRef,
                 githubSourcePullRequestNumber,

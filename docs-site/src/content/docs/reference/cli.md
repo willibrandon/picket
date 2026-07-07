@@ -186,6 +186,9 @@ Use the grouped index to jump to the workflow you need.
   [--github-repository owner/name]
   [--github-organization org]
   [--github-repository-type all|public|private|forks|sources|member]
+  [--github-gist id]
+  [--github-gists]
+  [--github-user-gists login]
   [--github-token-env name]
   [--github-ref ref]
   [--github-pull-request id]
@@ -360,6 +363,24 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>all | public | private | forks | sources | member</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Filter organization repositories by GitHub type.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-gist</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan a single GitHub gist by ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-gists</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan the authenticated user&#39;s GitHub gists.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-user-gists</code></td>
+              <td data-label="Value"><code>login</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan public GitHub gists for this user.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-token-env</code></td>

@@ -180,12 +180,14 @@ documentation reviewed on 2026-07-06:
 
 ## GitHub Source References
 
-Native GitHub repository, pull request, issue, issue comment, and organization source enumeration is based on GitHub REST API documentation reviewed on 2026-07-07:
+Native GitHub repository, pull request, issue, issue comment, gist, gist comment, and organization source enumeration is based on GitHub REST API documentation reviewed on 2026-07-07:
 
 - GitHub repository metadata REST API: `https://docs.github.com/rest/repos/repos`
 - GitHub pull requests REST API: `https://docs.github.com/rest/pulls/pulls`
 - GitHub issues REST API: `https://docs.github.com/rest/issues/issues`
 - GitHub issue comments REST API: `https://docs.github.com/rest/issues/comments`
+- GitHub gists REST API: `https://docs.github.com/rest/gists/gists`
+- GitHub gist comments REST API: `https://docs.github.com/rest/gists/comments`
 - GitHub REST pagination: `https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api`
 - Git trees REST API: `https://docs.github.com/v3/git/trees`
 - Repository contents REST API: `https://docs.github.com/en/rest/repos/contents`

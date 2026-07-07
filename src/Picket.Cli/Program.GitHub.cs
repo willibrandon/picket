@@ -25,6 +25,24 @@ internal static partial class Program
             || arg.StartsWith("--github-repository-type=", StringComparison.Ordinal);
     }
 
+    static bool IsGitHubGistFlag(string arg)
+    {
+        return arg.Equals("--github-gist", StringComparison.Ordinal)
+            || arg.StartsWith("--github-gist=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitHubGistsFlag(string arg)
+    {
+        return arg.Equals("--github-gists", StringComparison.Ordinal)
+            || arg.StartsWith("--github-gists=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitHubUserGistsFlag(string arg)
+    {
+        return arg.Equals("--github-user-gists", StringComparison.Ordinal)
+            || arg.StartsWith("--github-user-gists=", StringComparison.Ordinal);
+    }
+
     static bool IsGitHubTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--github-token-env", StringComparison.Ordinal)
@@ -102,6 +120,9 @@ internal static partial class Program
         string repository,
         string organization,
         string repositoryType,
+        string gistId,
+        bool includeAuthenticatedGists,
+        string gistUserName,
         string? tokenEnvironmentVariable,
         string gitRef,
         int pullRequestNumber,
@@ -114,9 +135,37 @@ internal static partial class Program
         sourceFileProvider = null;
         bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);
         bool organizationSpecified = !string.IsNullOrWhiteSpace(organization);
-        if (repositorySpecified == organizationSpecified)
+        bool gistSpecified = !string.IsNullOrWhiteSpace(gistId);
+        bool gistUserSpecified = !string.IsNullOrWhiteSpace(gistUserName);
+        int sourceSelectorCount = 0;
+        if (repositorySpecified)
         {
-            Console.Error.WriteLine("GitHub source scan requires exactly one of --github-repository or --github-organization");
+            sourceSelectorCount++;
+        }
+
+        if (organizationSpecified)
+        {
+            sourceSelectorCount++;
+        }
+
+        if (gistSpecified)
+        {
+            sourceSelectorCount++;
+        }
+
+        if (includeAuthenticatedGists)
+        {
+            sourceSelectorCount++;
+        }
+
+        if (gistUserSpecified)
+        {
+            sourceSelectorCount++;
+        }
+
+        if (sourceSelectorCount != 1)
+        {
+            Console.Error.WriteLine("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-gist, --github-gists, or --github-user-gists");
             return false;
         }
 
@@ -135,6 +184,18 @@ internal static partial class Program
         if (pullRequestNumber != 0 && includeIssues)
         {
             Console.Error.WriteLine("GitHub source scan cannot combine --github-pull-request with --github-include-issues");
+            return false;
+        }
+
+        if (!repositorySpecified && !organizationSpecified && !string.IsNullOrWhiteSpace(gitRef))
+        {
+            Console.Error.WriteLine("GitHub source scan accepts --github-ref only with repository or organization scans");
+            return false;
+        }
+
+        if (!repositorySpecified && !organizationSpecified && includeIssues)
+        {
+            Console.Error.WriteLine("GitHub issue source options require --github-repository or --github-organization");
             return false;
         }
 
@@ -171,7 +232,7 @@ internal static partial class Program
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
             }
-            else
+            else if (organizationSpecified)
             {
                 var validatedOptions = new GitHubOrganizationSourceOptions(
                     sourceEndpoint,
@@ -187,6 +248,20 @@ internal static partial class Program
                 gitRef = validatedOptions.Ref;
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
+            }
+            else
+            {
+                var validatedOptions = new GitHubGistSourceOptions(
+                    sourceEndpoint,
+                    credential,
+                    gistId,
+                    includeAuthenticatedGists,
+                    gistUserName);
+                validatedOptions.ValidateSelector();
+                sourceEndpoint = validatedOptions.Endpoint;
+                gistId = validatedOptions.GistId;
+                includeAuthenticatedGists = validatedOptions.IncludeAuthenticatedGists;
+                gistUserName = validatedOptions.UserName;
             }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -229,14 +304,27 @@ internal static partial class Program
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
             }
 
-            return client.EnumerateOrganizationRepositoryFilesAsync(new GitHubOrganizationSourceOptions(
+            if (organizationSpecified)
+            {
+                return client.EnumerateOrganizationRepositoryFilesAsync(new GitHubOrganizationSourceOptions(
+                    sourceEndpoint,
+                    organization,
+                    credential,
+                    gitRef,
+                    repositoryType,
+                    includeIssues,
+                    issueState,
+                    maxTargetBytes,
+                    Console.Error.WriteLine,
+                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+            }
+
+            return client.EnumerateGistFilesAsync(new GitHubGistSourceOptions(
                 sourceEndpoint,
-                organization,
                 credential,
-                gitRef,
-                repositoryType,
-                includeIssues,
-                issueState,
+                gistId,
+                includeAuthenticatedGists,
+                gistUserName,
                 maxTargetBytes,
                 Console.Error.WriteLine,
                 () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();

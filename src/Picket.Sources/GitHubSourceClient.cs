@@ -13,6 +13,8 @@ namespace Picket.Sources;
 public sealed class GitHubSourceClient(HttpClient httpClient)
 {
     private const string ApiVersion = "2022-11-28";
+    private const int GistCommentsPerPage = 100;
+    private const int GistsPerPage = 100;
     private const int IssuesPerPage = 100;
     private const int RepositoriesPerPage = 100;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-github-remote");
@@ -165,6 +167,35 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         return sourceFiles;
     }
 
+    /// <summary>
+    /// Enumerates files from GitHub gists selected by the supplied options.
+    /// </summary>
+    /// <param name="options">The GitHub gist source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateGistFilesAsync(
+        GitHubGistSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        options.ValidateSelector();
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        if (options.GistId.Length != 0)
+        {
+            await AddGistFilesAsync(options, options.GistId, sourceFiles, cancellationToken).ConfigureAwait(false);
+            return sourceFiles;
+        }
+
+        await AddPagedGistFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        return sourceFiles;
+    }
+
     private async Task AddRepositoryFilesAsync(
         GitHubSourceOptions options,
         string gitRef,
@@ -247,6 +278,237 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
         return GetString(document.RootElement, "default_branch");
+    }
+
+    private async Task AddPagedGistFilesAsync(
+        GitHubGistSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = options.IncludeAuthenticatedGists
+                ? CreateAuthenticatedGistListUri(options, page)
+                : CreateUserGistListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, "skipping GitHub gist enumeration");
+                return;
+            }
+
+            await AddPagedGistFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(response);
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddPagedGistFilesAsync(
+        GitHubGistSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement gist in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string gistId = GetString(gist, "id");
+            if (gistId.Length == 0)
+            {
+                continue;
+            }
+
+            await AddGistFilesAsync(options, gistId, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddGistFilesAsync(
+        GitHubGistSourceOptions options,
+        string gistId,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreateGistUri(options, gistId);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping GitHub gist {gistId}");
+            return;
+        }
+
+        await AddGistFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task AddGistFilesAsync(
+        GitHubGistSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        JsonElement gist = document.RootElement;
+        string gistId = GetString(gist, "id");
+        if (gistId.Length == 0)
+        {
+            return;
+        }
+
+        string owner = GetNestedString(gist, "owner", "login");
+        if (owner.Length == 0)
+        {
+            owner = "unknown";
+        }
+
+        if (GetBoolean(gist, "truncated"))
+        {
+            options.WarningSink?.Invoke($"GitHub gist {gistId} file list was truncated by the API");
+        }
+
+        if (gist.TryGetProperty("files", out JsonElement files)
+            && files.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty file in files.EnumerateObject())
+            {
+                if (IsCancellationRequested(options))
+                {
+                    return;
+                }
+
+                await AddGistFileAsync(options, owner, gistId, file.Name, file.Value, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        if ((!TryGetJsonInt64(gist, "comments", out long comments) || comments > 0)
+            && !IsCancellationRequested(options))
+        {
+            await AddGistCommentFilesAsync(options, owner, gistId, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddGistFileAsync(
+        GitHubGistSourceOptions options,
+        string owner,
+        string gistId,
+        string fallbackFileName,
+        JsonElement file,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string fileName = GetString(file, "filename");
+        if (fileName.Length == 0)
+        {
+            fileName = fallbackFileName;
+        }
+
+        string displayPath = CreateGistFileDisplayPath(owner, gistId, fileName);
+        if (options.MaxFileBytes.HasValue
+            && TryGetJsonInt64(file, "size", out long size)
+            && size > options.MaxFileBytes.Value)
+        {
+            options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+            return;
+        }
+
+        if (!GetBoolean(file, "truncated")
+            && TryGetJsonStringAllowEmpty(file, "content", out string content))
+        {
+            AddSyntheticTextFile(options, displayPath, content, sourceFiles);
+            return;
+        }
+
+        string rawUrl = GetString(file, "raw_url");
+        if (rawUrl.Length == 0 || !Uri.TryCreate(rawUrl, UriKind.Absolute, out Uri? rawUri))
+        {
+            options.WarningSink?.Invoke($"skipping GitHub gist file {displayPath} because the gist API did not return content or raw_url");
+            return;
+        }
+
+        byte[]? bytes = await DownloadGistRawFileAsync(options, rawUri, displayPath, cancellationToken).ConfigureAwait(false);
+        if (bytes is not null)
+        {
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, bytes));
+        }
+    }
+
+    private async Task AddGistCommentFilesAsync(
+        GitHubGistSourceOptions options,
+        string owner,
+        string gistId,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateGistCommentListUri(options, gistId, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping GitHub gist comments for {gistId}");
+                return;
+            }
+
+            await AddGistCommentFilesAsync(options, owner, gistId, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(response);
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private static async Task AddGistCommentFilesAsync(
+        GitHubGistSourceOptions options,
+        string owner,
+        string gistId,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement comment in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonInt64(comment, "id", out long commentId))
+            {
+                continue;
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateGistCommentDisplayPath(owner, gistId, commentId),
+                CreateGistCommentContent(gistId, commentId, GetString(comment, "body")),
+                sourceFiles);
+        }
     }
 
     private async Task AddTreeFilesAsync(
@@ -438,6 +700,22 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, bytes));
     }
 
+    private static void AddSyntheticTextFile(
+        GitHubGistSourceOptions options,
+        string displayPath,
+        string content,
+        List<SourceFile> sourceFiles)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(content);
+        if (options.MaxFileBytes.HasValue && bytes.LongLength > options.MaxFileBytes.Value)
+        {
+            options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+            return;
+        }
+
+        sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, bytes));
+    }
+
     private async Task<byte[]?> DownloadFileAsync(
         GitHubSourceOptions options,
         Uri uri,
@@ -481,6 +759,15 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     }
 
     private async Task<HttpResponseMessage> SendAsync(
+        GitHubGistSourceOptions options,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
+        return await SendAsync(options.Credential, uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
         string credential,
         Uri uri,
         bool acceptRaw,
@@ -491,6 +778,14 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
         request.Headers.Add("X-GitHub-Api-Version", ApiVersion);
+        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendUnauthenticatedRawAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+        request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
         return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
     }
 
@@ -534,9 +829,117 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         return memory.ToArray();
     }
 
+    private async Task<byte[]?> DownloadGistRawFileAsync(
+        GitHubGistSourceOptions options,
+        Uri uri,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAllowedGistRawUri(options, uri))
+        {
+            options.WarningSink?.Invoke($"skipping GitHub gist file {displayPath} because raw_url is not an allowed GitHub raw content endpoint");
+            return null;
+        }
+
+        using HttpResponseMessage response = await SendUnauthenticatedRawAsync(uri, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping GitHub gist file {displayPath}");
+            return null;
+        }
+
+        if (options.MaxFileBytes.HasValue
+            && response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
+        {
+            options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+            return null;
+        }
+
+        return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<byte[]?> ReadContentWithinLimitAsync(
+        HttpResponseMessage response,
+        GitHubGistSourceOptions options,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var memory = new MemoryStream();
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);
+        try
+        {
+            while (true)
+            {
+                int read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                if (options.MaxFileBytes.HasValue)
+                {
+                    long projectedLength = memory.Length + read;
+                    if (projectedLength > options.MaxFileBytes.Value)
+                    {
+                        options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+                        return null;
+                    }
+                }
+
+                memory.Write(buffer.AsSpan(0, read));
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
+
+        return memory.ToArray();
+    }
+
     private static Uri CreateRepositoryUri(GitHubSourceOptions options)
     {
         return CreateUri(options.Endpoint, ["repos", options.Owner, options.RepositoryName], []);
+    }
+
+    private static Uri CreateAuthenticatedGistListUri(GitHubGistSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["gists"],
+            [
+                new KeyValuePair<string, string>("per_page", GistsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateUserGistListUri(GitHubGistSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["users", options.UserName, "gists"],
+            [
+                new KeyValuePair<string, string>("per_page", GistsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateGistUri(GitHubGistSourceOptions options, string gistId)
+    {
+        return CreateUri(options.Endpoint, ["gists", gistId], []);
+    }
+
+    private static Uri CreateGistCommentListUri(GitHubGistSourceOptions options, string gistId, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["gists", gistId, "comments"],
+            [
+                new KeyValuePair<string, string>("per_page", GistCommentsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
     }
 
     private static Uri CreateOrganizationRepositoryListUri(GitHubOrganizationSourceOptions options, int page)
@@ -667,6 +1070,19 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             response.StatusCode));
     }
 
+    private static void WarnUnsuccessfulResponse(
+        GitHubGistSourceOptions options,
+        HttpResponseMessage response,
+        string target)
+    {
+        options.WarningSink?.Invoke(string.Concat(
+            target,
+            " because GitHub returned ",
+            ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture),
+            " ",
+            response.StatusCode));
+    }
+
     private static bool HasNextPage(HttpResponseMessage response)
     {
         return response.Headers.TryGetValues("Link", out IEnumerable<string>? values)
@@ -690,6 +1106,19 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
 
         propertyValue = property.GetString() ?? string.Empty;
         return propertyValue.Length != 0;
+    }
+
+    private static bool TryGetJsonStringAllowEmpty(JsonElement value, string propertyName, out string propertyValue)
+    {
+        propertyValue = string.Empty;
+        if (!value.TryGetProperty(propertyName, out JsonElement property)
+            || property.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        propertyValue = property.GetString() ?? string.Empty;
+        return true;
     }
 
     private static bool TryGetJsonInt64(JsonElement value, string propertyName, out long propertyValue)
@@ -785,6 +1214,30 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             ".md");
     }
 
+    private static string CreateGistFileDisplayPath(string owner, string gistId, string fileName)
+    {
+        string normalizedFileName = fileName.Replace('\\', '/').TrimStart('/');
+        return string.Concat(
+            "github/gists/",
+            EscapeDisplaySegment(owner),
+            "/",
+            EscapeDisplaySegment(gistId),
+            "/",
+            normalizedFileName);
+    }
+
+    private static string CreateGistCommentDisplayPath(string owner, string gistId, long commentId)
+    {
+        return string.Concat(
+            "github/gists/",
+            EscapeDisplaySegment(owner),
+            "/",
+            EscapeDisplaySegment(gistId),
+            "/comments/",
+            commentId.ToString(CultureInfo.InvariantCulture),
+            ".md");
+    }
+
     private static string CreateIssueContent(int issueNumber, string title, string body)
     {
         var builder = new StringBuilder();
@@ -823,6 +1276,50 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         return builder.ToString();
     }
 
+    private static string CreateGistCommentContent(string gistId, long commentId, string body)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Gist ");
+        builder.Append(gistId);
+        builder.Append(" comment ");
+        builder.Append(commentId.ToString(CultureInfo.InvariantCulture));
+        builder.AppendLine();
+        builder.AppendLine();
+        if (body.Length != 0)
+        {
+            builder.AppendLine(body);
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsAllowedGistRawUri(GitHubGistSourceOptions options, Uri uri)
+    {
+        if (!uri.IsAbsoluteUri
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || uri.Scheme is not "https" and not "http")
+        {
+            return false;
+        }
+
+        bool sameHost = uri.Host.Equals(options.Endpoint.Host, StringComparison.OrdinalIgnoreCase);
+        bool subdomainOfEndpoint = uri.Host.EndsWith(string.Concat(".", options.Endpoint.Host), StringComparison.OrdinalIgnoreCase);
+        bool publicGitHubRawHost = options.Endpoint.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
+            && uri.Host.Equals("gist.githubusercontent.com", StringComparison.OrdinalIgnoreCase);
+        if (!sameHost && !subdomainOfEndpoint && !publicGitHubRawHost)
+        {
+            return false;
+        }
+
+        if (uri.Scheme.Equals("http", StringComparison.Ordinal)
+            && !options.Endpoint.Scheme.Equals("http", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private static string EscapeDisplaySegment(string value)
     {
         return Uri.EscapeDataString(value).Replace("%2F", "_", StringComparison.OrdinalIgnoreCase);
@@ -834,6 +1331,11 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     }
 
     private static bool IsCancellationRequested(GitHubOrganizationSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(GitHubGistSourceOptions options)
     {
         return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }

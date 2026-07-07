@@ -64,6 +64,23 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitHub gist source options reject ambiguous selectors.
+    /// </summary>
+    [TestMethod]
+    public void GitHubGistSourceOptionsRejectsAmbiguousSelectors()
+    {
+        var options = new GitHubGistSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "github-test-token",
+            "gist-one",
+            includeAuthenticatedGists: true);
+
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(options.ValidateSelector);
+
+        Assert.Contains("exactly one", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration reads the recursive tree and downloads raw blob content.
     /// </summary>
     [TestMethod]
@@ -286,6 +303,88 @@ public sealed class GitHubSourceClientTests
         Assert.Contains("per_page=100", requests);
         Assert.Contains("/repos/willibrandon/picket/issues/7/comments?", requests);
         Assert.DoesNotContain("/repos/willibrandon/picket/issues/8/comments?", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that gist enumeration reads gist files, raw fallback content, and comments.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateGistFilesReadsFilesRawFallbackAndComments()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            authorizationHeaders.Add(request.Headers.Authorization?.ToString() ?? string.Empty);
+            if (url.Contains("/gists/gist-one/comments?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{"id":77,"body":"comment-token-333"}]""");
+            }
+
+            if (url.Contains("/raw/gists/gist-one/raw.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("raw-token-222");
+            }
+
+            if (url.Contains("/gists/gist-one", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "id": "gist-one",
+                      "owner": { "login": "octocat" },
+                      "comments": 1,
+                      "files": {
+                        "secret.txt": {
+                          "filename": "secret.txt",
+                          "size": 15,
+                          "truncated": false,
+                          "content": "file-token-111"
+                        },
+                        "raw.txt": {
+                          "filename": "raw.txt",
+                          "size": 13,
+                          "truncated": true,
+                          "raw_url": "https://api.github.com/raw/gists/gist-one/raw.txt"
+                        }
+                      }
+                    }
+                    """);
+            }
+
+            if (url.Contains("/gists?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{"id":"gist-one"}]""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubGistSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            Token,
+            includeAuthenticatedGists: true);
+
+        List<SourceFile> files = await client.EnumerateGistFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(3, files);
+        Assert.AreEqual("github/gists/octocat/gist-one/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("file-token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("github/gists/octocat/gist-one/raw.txt", files[1].DisplayPath);
+        Assert.AreEqual("raw-token-222", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.AreEqual("github/gists/octocat/gist-one/comments/77.md", files[2].DisplayPath);
+        Assert.Contains("comment-token-333", Encoding.UTF8.GetString(files[2].ReadAllBytes()));
+        Assert.Contains("/gists?per_page=100", requests);
+        Assert.Contains("/gists/gist-one", requests);
+        Assert.Contains("/gists/gist-one/comments?", requests);
+        Assert.Contains("/raw/gists/gist-one/raw.txt", requests);
+        Assert.Contains("Bearer github-test-token", authorizationHeaders);
+        Assert.AreEqual(string.Empty, authorizationHeaders[2]);
         Assert.DoesNotContain(Token, requests);
     }
 
