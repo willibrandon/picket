@@ -143,6 +143,7 @@ public sealed partial class RepositoryConventionTests
     public void GitHubActionHelperDefinesStableOutputs()
     {
         string helper = ReadRepositoryFile(".github/actions/run-picket.cs");
+        string readme = ReadRepositoryFile(".github/actions/README.md");
 
         Assert.Contains("GITHUB_OUTPUT", helper);
         Assert.Contains("GITHUB_STEP_SUMMARY", helper);
@@ -178,6 +179,13 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("should-fail", helper);
         Assert.Contains("failure-code", helper);
         Assert.Contains("annotations", helper);
+        Assert.Contains("dotnet build", readme);
+        Assert.Contains("dotnet run --file", readme);
+        Assert.Contains("--no-build", readme);
+        Assert.Contains("Directory.Build.props", readme);
+        Assert.Contains("GITHUB_OUTPUT", readme);
+        Assert.Contains("GITHUB_STEP_SUMMARY", readme);
+        Assert.Contains("must not print raw", readme);
     }
 
     /// <summary>
