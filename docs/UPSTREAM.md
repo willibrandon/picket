@@ -80,6 +80,21 @@ without an extra separator:
 ./scripts/Capture-UpstreamPins.cs -AllowMissing
 ```
 
+## Microsoft .NET and CLI Guidance
+
+Runtime, testing, and command-line behavior are based on Microsoft Learn
+documentation reviewed on 2026-07-07:
+
+- System.CommandLine overview: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/`
+- System.CommandLine syntax overview: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/syntax`
+- System.CommandLine parse and invoke guidance: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/how-to-parse-and-invoke`
+- System.CommandLine parsing and validation guidance: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/how-to-customize-parsing-and-validation`
+- System.CommandLine parser configuration guidance: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/how-to-configure-the-parser`
+- System.CommandLine help customization guidance: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/how-to-customize-help`
+- System.CommandLine tab completion guidance: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/how-to-enable-tab-completion`
+- System.CommandLine command-line design guidance: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/design-guidance`
+- System.CommandLine 2.0.0-beta5+ migration guide: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/migration-guide-2.0.0-beta5`
+
 ## Gitleaks Compatibility
 
 The embedded strict-compatibility default config in

@@ -679,7 +679,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("<code class=\"cli-command-name\">picket analyze</code>", cliReference);
         Assert.Contains("<dd>Offline or live</dd>", cliReference);
         Assert.DoesNotContain("<dd>Offline</dd>", cliReference);
-        Assert.Contains("<td data-label=\"Option\"><code>--offline / --live</code></td>", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--offline</code></td>", cliReference);
+        Assert.Contains("<td data-label=\"Option\"><code>--live</code></td>", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--verify</code></td>", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--max-target-megabytes</code></td>", cliReference);
         Assert.Contains("<td data-label=\"Option\"><code>--timeout</code></td>", cliReference);

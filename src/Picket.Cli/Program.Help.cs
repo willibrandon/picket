@@ -1,218 +1,60 @@
+using System.CommandLine;
+
 namespace Picket;
 
 internal static partial class Program
 {
-    static void WriteHelp()
-    {
-        Console.Out.WriteLine("picket - bootstrap secrets scanner");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--enable-rule id] [--verify] [--github-api-endpoint uri] [--github-api-proxy uri] [--live-tls-mode system|tls12-plus] [--live-rate-limit-ms n] [--live-provider-rate-limit-ms n] [--allow-non-public-endpoints] [--github-repository owner/name] [--github-organization org] [--github-user login] [--github-repository-type value] [--github-gist id] [--github-gists] [--github-user-gists login] [--github-token-env name] [--github-ref ref] [--github-pull-request id] [--github-include-issues] [--github-issue-state open|closed|all] [--github-include-releases] [--github-include-actions-artifacts] [--github-source-api-endpoint uri] [--azure-devops-organization org] [--azure-devops-endpoint uri] [--azure-devops-token-env name] [--azure-devops-token-kind pat|bearer] [--azure-devops-project name] [--azure-devops-repository name] [--azure-devops-branch name] [--azure-devops-pull-request id] [--azure-devops-include-wikis] [--azure-devops-build-id id] [--azure-devops-include-artifacts] [--azure-devops-include-logs] [--azure-devops-release-id id] [--azure-devops-include-release-artifacts] [--azure-devops-max-artifact-megabytes n] [--azure-devops-max-log-megabytes n] [--allow-non-public-source-endpoints] [--allow-insecure-source-endpoints] [--results value] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
-        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--offline|--live] [--github-api-endpoint uri] [--github-api-proxy uri] [--live-tls-mode system|tls12-plus] [--live-rate-limit-ms n] [--live-provider-rate-limit-ms n] [--allow-non-public-endpoints] [--results value] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
-        Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--offline|--live] [--github-api-endpoint uri] [--github-api-proxy uri] [--live-tls-mode system|tls12-plus] [--live-rate-limit-ms n] [--live-provider-rate-limit-ms n] [--allow-non-public-endpoints] [--results value] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
-        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-        Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-        Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--cache-mode raw|secret-hash-only] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-        Console.Out.WriteLine("  picket cache export [source] --cache-dir path --output path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-        Console.Out.WriteLine("  picket cache import [source] --cache-dir path --input path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-        Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-        Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-        Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-archive-depth n] [--max-target-megabytes n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-        Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
-        Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
-        Console.Out.WriteLine("  picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]");
-        Console.Out.WriteLine("  picket view <report> [--open]");
-        Console.Out.WriteLine("  picket tui <report> [--flow]");
-        Console.Out.WriteLine("  picket version");
-    }
+    static void WriteHelp() => WriteCommandHelp("--help");
 
-    static void WriteScanHelp()
-    {
-        Console.Out.WriteLine("picket scan - native filesystem and source-host scan");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--enable-rule id] [--verify] [--github-api-endpoint uri] [--github-api-proxy uri] [--live-tls-mode system|tls12-plus] [--live-rate-limit-ms n] [--live-provider-rate-limit-ms n] [--allow-non-public-endpoints] [--github-repository owner/name] [--github-organization org] [--github-user login] [--github-repository-type value] [--github-gist id] [--github-gists] [--github-user-gists login] [--github-token-env name] [--github-ref ref] [--github-pull-request id] [--github-include-issues] [--github-issue-state open|closed|all] [--github-include-releases] [--github-include-actions-artifacts] [--github-source-api-endpoint uri] [--azure-devops-organization org] [--azure-devops-endpoint uri] [--azure-devops-token-env name] [--azure-devops-token-kind pat|bearer] [--azure-devops-project name] [--azure-devops-repository name] [--azure-devops-branch name] [--azure-devops-pull-request id] [--azure-devops-include-wikis] [--azure-devops-build-id id] [--azure-devops-include-artifacts] [--azure-devops-include-logs] [--azure-devops-release-id id] [--azure-devops-include-release-artifacts] [--azure-devops-max-artifact-megabytes n] [--azure-devops-max-log-megabytes n] [--allow-non-public-source-endpoints] [--allow-insecure-source-endpoints] [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
-    }
+    static void WriteScanHelp() => WriteCommandHelp("scan", "--help");
 
-    static void WriteVerifyHelp()
-    {
-        Console.Out.WriteLine("picket verify - run native verification for detected findings");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket verify [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--offline|--live] [--github-api-endpoint uri] [--github-api-proxy uri] [--live-tls-mode system|tls12-plus] [--live-rate-limit-ms n] [--live-provider-rate-limit-ms n] [--allow-non-public-endpoints] [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
-    }
+    static void WriteVerifyHelp() => WriteCommandHelp("verify", "--help");
 
-    static void WriteAnalyzeHelp()
-    {
-        Console.Out.WriteLine("picket analyze - write incident-response analysis for detected findings");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket analyze [path] [-c path] [-f json|jsonl|text] [-r path] [--profile picket] [--source path] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--offline|--live] [--github-api-endpoint uri] [--github-api-proxy uri] [--live-tls-mode system|tls12-plus] [--live-rate-limit-ms n] [--live-provider-rate-limit-ms n] [--allow-non-public-endpoints] [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
-    }
+    static void WriteAnalyzeHelp() => WriteCommandHelp("analyze", "--help");
 
-    static void WriteBaselineHelp()
-    {
-        Console.Out.WriteLine("picket baseline - baseline workflow commands");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-    }
+    static void WriteBaselineHelp() => WriteCommandHelp("baseline", "--help");
 
-    static void WriteBaselineCreateHelp()
-    {
-        Console.Out.WriteLine("picket baseline create - write a Gitleaks-compatible baseline JSON report");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket baseline create [path] [-c path] [-r path] [--source path] [--ignore-path path] [--no-ignore] [--enable-rule id] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-    }
+    static void WriteBaselineCreateHelp() => WriteCommandHelp("baseline", "create", "--help");
 
-    static void WriteCacheHelp()
-    {
-        Console.Out.WriteLine("picket cache - native scan cache maintenance");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-        Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--cache-mode raw|secret-hash-only] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-        Console.Out.WriteLine("  picket cache export [source] --cache-dir path --output path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-        Console.Out.WriteLine("  picket cache import [source] --cache-dir path --input path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-    }
+    static void WriteCacheHelp() => WriteCommandHelp("cache", "--help");
 
-    static void WriteCacheStatsHelp()
-    {
-        Console.Out.WriteLine("picket cache stats - summarize native scan cache entries");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket cache stats [source] --cache-dir path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-    }
+    static void WriteCacheStatsHelp() => WriteCommandHelp("cache", "stats", "--help");
 
-    static void WriteCachePruneHelp()
-    {
-        Console.Out.WriteLine("picket cache prune - delete native scan cache entries");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket cache prune [source] --cache-dir path [-c path] [--cache-mode raw|secret-hash-only] [--other-keys] [--older-than-days n] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-    }
+    static void WriteCachePruneHelp() => WriteCommandHelp("cache", "prune", "--help");
 
-    static void WriteCacheExportHelp()
-    {
-        Console.Out.WriteLine("picket cache export - write active native scan cache entries to a portable archive");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket cache export [source] --cache-dir path --output path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-    }
+    static void WriteCacheExportHelp() => WriteCommandHelp("cache", "export", "--help");
 
-    static void WriteCacheImportHelp()
-    {
-        Console.Out.WriteLine("picket cache import - restore active native scan cache entries from a portable archive");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket cache import [source] --cache-dir path --input path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
-    }
+    static void WriteCacheImportHelp() => WriteCommandHelp("cache", "import", "--help");
 
-    static void WriteGitHelp()
-    {
-        Console.Out.WriteLine("picket git - scan git history using the Gitleaks-compatible patch model");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-    }
+    static void WriteGitHelp() => WriteCommandHelp("git", "--help");
 
-    static void WriteDirectoryHelp()
-    {
-        Console.Out.WriteLine("picket dir - scan a directory or file path");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-    }
+    static void WriteDirectoryHelp() => WriteCommandHelp("dir", "--help");
 
-    static void WriteStdinHelp()
-    {
-        Console.Out.WriteLine("picket stdin - scan piped input");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-archive-depth n] [--max-target-megabytes n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
-    }
+    static void WriteStdinHelp() => WriteCommandHelp("stdin", "--help");
 
-    static void WriteDetectHelp()
-    {
-        Console.Out.WriteLine("picket detect - deprecated Gitleaks-compatible detection shim");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket detect [--source path] [--no-git] [--pipe] [-c path] [-f json|csv|junit|sarif|template] [-r path] [--log-opts value] [--platform value] [--follow-symlinks] [--max-target-megabytes n] [--max-archive-depth n] [--timeout n] [--redact[=n]]");
-    }
+    static void WriteDetectHelp() => WriteCommandHelp("detect", "--help");
 
-    static void WriteProtectHelp()
-    {
-        Console.Out.WriteLine("picket protect - deprecated Gitleaks-compatible pre-commit shim");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket protect [--source path] [--staged] [-c path] [-f json|csv|junit|sarif|template] [-r path] [--max-target-megabytes n] [--max-archive-depth n] [--timeout n] [--redact[=n]]");
-    }
+    static void WriteProtectHelp() => WriteCommandHelp("protect", "--help");
 
-    static void WriteViewHelp()
-    {
-        Console.Out.WriteLine("picket view - summarize or open a local report");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket view <report> [--open]");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Formats:");
-        Console.Out.WriteLine("  Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML");
-    }
+    static void WriteViewHelp() => WriteCommandHelp("view", "--help");
 
-    static void WriteTuiHelp()
-    {
-        Console.Out.WriteLine("picket tui - interactive report triage console");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket tui <report> [--flow]");
-        Console.Out.WriteLine("  picket tui --flow");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Formats:");
-        Console.Out.WriteLine("  Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML");
-    }
+    static void WriteTuiHelp() => WriteCommandHelp("tui", "--help");
 
-    static void WriteRulesHelp()
-    {
-        Console.Out.WriteLine("picket rules - rule pack commands");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
-        Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
-    }
+    static void WriteRulesHelp() => WriteCommandHelp("rules", "--help");
 
-    static void WriteRulesCheckHelp()
-    {
-        Console.Out.WriteLine("picket rules check - validate a resolved rule pack");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket rules check [source] [-c path] [--profile picket] [--print-config]");
-    }
+    static void WriteRulesCheckHelp() => WriteCommandHelp("rules", "check", "--help");
 
-    static void WriteRulesTestHelp()
-    {
-        Console.Out.WriteLine("picket rules test - scan sample text with a single rule");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
-    }
+    static void WriteRulesTestHelp() => WriteCommandHelp("rules", "test", "--help");
 
-    static void WriteHooksHelp()
-    {
-        Console.Out.WriteLine("picket hooks - install local git hooks");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]");
-    }
+    static void WriteHooksHelp() => WriteCommandHelp("hooks", "--help");
 
-    static void WriteHooksInstallHelp()
+    static void WriteHooksInstallHelp() => WriteCommandHelp("hooks", "install", "--help");
+
+    private static void WriteCommandHelp(params string[] args)
     {
-        Console.Out.WriteLine("picket hooks install - write managed pre-commit, pre-push, and pre-receive hooks");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Usage:");
-        Console.Out.WriteLine("  picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]");
-        Console.Out.WriteLine();
-        Console.Out.WriteLine("Defaults:");
-        Console.Out.WriteLine("  Installs pre-commit when no hook name is provided and uses --redact=100 in generated hooks.");
+        string[] normalizedArgs = NormalizeCommandLineArgs(args);
+        RootCommand rootCommand = CreateRootCommand(args);
+        ParseResult parseResult = rootCommand.Parse(normalizedArgs, s_commandLineParserConfiguration);
+        _ = parseResult.Invoke();
     }
 }

@@ -7,6 +7,27 @@ namespace Picket.Docs;
 
 internal sealed partial class DocumentationGenerator(string repositoryRoot)
 {
+    private static readonly string[][] s_cliReferenceCommands =
+    [
+        ["scan"],
+        ["verify"],
+        ["analyze"],
+        ["baseline", "create"],
+        ["cache", "stats"],
+        ["cache", "prune"],
+        ["cache", "export"],
+        ["cache", "import"],
+        ["git"],
+        ["dir"],
+        ["stdin"],
+        ["rules", "check"],
+        ["rules", "test"],
+        ["hooks", "install"],
+        ["view"],
+        ["tui"],
+        ["version"],
+    ];
+
     private readonly string _repositoryRoot = repositoryRoot;
     private readonly string _docsRoot = Path.Combine(repositoryRoot, "docs");
     private readonly string _siteDocsRoot = Path.Combine(repositoryRoot, "docs-site", "src", "content", "docs");
@@ -95,12 +116,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
 
     private void GenerateCliReference(string outputRoot)
     {
-        string helpSource = File.ReadAllText(Path.Combine(_repositoryRoot, "src", "Picket.Cli", "Program.Help.cs"));
-        List<List<string>> helpBlocks = ReadCliHelpBlocks(helpSource);
-        List<string> rootBlock = helpBlocks.Count == 0 ? [] : helpBlocks[0];
-        List<List<string>> commandBlocks = [.. helpBlocks.Skip(1)];
-        List<string> rootUsageLines = ReadCliHelpSection(rootBlock, "Usage");
-        HashSet<string> rootCommands = ReadCliUsageCommands(rootUsageLines);
+        List<List<string>> commandBlocks = ReadCliReferenceHelpBlocks();
+        HashSet<string> rootCommands = ReadCliTitleCommands(commandBlocks);
         Dictionary<string, string> commandSummaries = ReadCliCommandSummaries(commandBlocks);
 
         var builder = new StringBuilder();
@@ -110,22 +127,9 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         AppendCliCommandOverview(builder, rootCommands, commandSummaries);
         builder.AppendLine("## Command Reference");
         builder.AppendLine();
-        Dictionary<string, List<string>> commandBlockByCommand = ReadCliCommandBlocks(commandBlocks);
-        foreach (string usageLine in rootUsageLines)
+        foreach (List<string> commandBlock in commandBlocks)
         {
-            string command = GetCliUsageCommandName(usageLine);
-            if (command.Length == 0)
-            {
-                continue;
-            }
-
-            if (commandBlockByCommand.TryGetValue(command, out List<string>? commandBlock))
-            {
-                AppendCliHelpBlock(builder, commandBlock);
-                continue;
-            }
-
-            AppendCliUsageOnlyBlock(builder, command, GetCliFallbackSummary(command), usageLine);
+            AppendCliHelpBlock(builder, commandBlock);
         }
 
         WriteMarkdown(
@@ -317,64 +321,156 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         builder.AppendLine();
     }
 
-    private static List<List<string>> ReadCliHelpBlocks(string helpSource)
+    private List<List<string>> ReadCliReferenceHelpBlocks()
     {
         var helpBlocks = new List<List<string>>();
-        List<string>? currentBlock = null;
-        foreach (string line in helpSource.Split('\n'))
+        BuildCliReferenceProject();
+        foreach (string[] command in s_cliReferenceCommands)
         {
-            string trimmed = line.Trim();
-            if (trimmed.StartsWith("static void Write", StringComparison.Ordinal)
-                && trimmed.Contains("Help(", StringComparison.Ordinal))
-            {
-                currentBlock = [];
-                helpBlocks.Add(currentBlock);
-                continue;
-            }
-
-            if (currentBlock is null)
-            {
-                continue;
-            }
-
-            string? literal = TryReadConsoleLiteral(line);
-            if (literal is not null)
-            {
-                currentBlock.Add(literal);
-                continue;
-            }
-
-            if (trimmed.Equals("}", StringComparison.Ordinal))
-            {
-                currentBlock = null;
-            }
+            string helpOutput = ReadCliHelpOutput(command);
+            helpBlocks.Add(CreateCliHelpBlock(command, helpOutput));
         }
 
         return helpBlocks;
     }
 
-    private static List<string> ReadCliHelpSection(List<string> block, string sectionName)
+    private void BuildCliReferenceProject()
     {
-        var lines = new List<string>();
-        bool inSection = false;
-        string header = string.Concat(sectionName, ":");
-        foreach (string line in block)
+        List<string> arguments =
+        [
+            "build",
+            Path.Combine(_repositoryRoot, "src", "Picket.Cli", "Picket.Cli.csproj"),
+            "--configuration",
+            "Release",
+            "--framework",
+            "net10.0",
+            "--verbosity",
+            "minimal",
+        ];
+
+        RunDotNetCommand(arguments, "CLI reference build");
+    }
+
+    private string ReadCliHelpOutput(string[] command)
+    {
+        List<string> arguments =
+        [
+            "run",
+            "--project",
+            Path.Combine(_repositoryRoot, "src", "Picket.Cli", "Picket.Cli.csproj"),
+            "--configuration",
+            "Release",
+            "--framework",
+            "net10.0",
+            "--no-build",
+            "--",
+        ];
+        arguments.AddRange(command);
+        arguments.Add("--help");
+        return RunDotNetCommand(arguments, string.Concat("CLI help for picket ", string.Join(' ', command)));
+    }
+
+    private string RunDotNetCommand(List<string> arguments, string operation)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo("dotnet")
         {
-            if (!inSection)
+            WorkingDirectory = _repositoryRoot,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+        foreach (string argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        process.Start();
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"{operation} failed with exit code {process.ExitCode}: {error.Trim()}");
+        }
+
+        return output;
+    }
+
+    private static List<string> CreateCliHelpBlock(string[] command, string helpOutput)
+    {
+        List<string> outputLines = [.. NormalizeLineEndings(helpOutput)
+            .Split('\n')
+            .Select(line => line.TrimEnd())
+            .SkipWhile(line => line.Length == 0)];
+
+        List<KeyValuePair<string, List<string>>> sections = ReadCliOutputSections(outputLines);
+        string commandName = string.Concat("picket ", string.Join(' ', command));
+        string summary = FormatCliDescription(string.Join(' ', ReadCliSectionLines(sections, "Description")));
+        if (summary.Length == 0)
+        {
+            summary = GetCliFallbackSummary(commandName);
+        }
+
+        var block = new List<string>
+        {
+            string.Concat(commandName, " - ", summary),
+        };
+
+        foreach (KeyValuePair<string, List<string>> section in sections)
+        {
+            if (section.Key.Equals("Description", StringComparison.Ordinal) || section.Value.Count == 0)
             {
-                inSection = line.Equals(header, StringComparison.Ordinal);
                 continue;
             }
 
-            if (line.Length == 0 || IsCliHelpHeader(line))
-            {
-                break;
-            }
-
-            lines.Add(line.Trim());
+            block.Add(string.Concat(section.Key, ":"));
+            block.AddRange(section.Value);
+            block.Add(string.Empty);
         }
 
-        return lines;
+        return block;
+    }
+
+    private static List<KeyValuePair<string, List<string>>> ReadCliOutputSections(List<string> lines)
+    {
+        var sections = new List<KeyValuePair<string, List<string>>>();
+        for (int i = 0; i < lines.Count; i++)
+        {
+            string line = lines[i];
+            if (!IsCliHelpHeader(line))
+            {
+                continue;
+            }
+
+            string sectionName = line[..^1];
+            var sectionLines = new List<string>();
+            while (++i < lines.Count)
+            {
+                string sectionLine = lines[i];
+                if (sectionLine.Length == 0)
+                {
+                    if (sectionLines.Count != 0)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                if (IsCliHelpHeader(sectionLine))
+                {
+                    i--;
+                    break;
+                }
+
+                sectionLines.Add(sectionLine.Trim());
+            }
+
+            sections.Add(new KeyValuePair<string, List<string>>(sectionName, sectionLines));
+        }
+
+        return sections;
     }
 
     private static Dictionary<string, string> ReadCliCommandSummaries(List<List<string>> commandBlocks)
@@ -393,35 +489,18 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         return summaries;
     }
 
-    private static HashSet<string> ReadCliUsageCommands(List<string> usageLines)
+    private static HashSet<string> ReadCliTitleCommands(List<List<string>> commandBlocks)
     {
         var commands = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string usageLine in usageLines)
+        foreach (List<string> commandBlock in commandBlocks)
         {
-            string command = GetCliUsageCommandName(usageLine);
-            if (command.Length != 0)
+            if (TryReadCliTitle(commandBlock, out string command, out _))
             {
                 commands.Add(command);
             }
         }
 
         return commands;
-    }
-
-    private static Dictionary<string, List<string>> ReadCliCommandBlocks(List<List<string>> commandBlocks)
-    {
-        var blocks = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        foreach (List<string> commandBlock in commandBlocks)
-        {
-            if (!TryReadCliTitle(commandBlock, out string command, out _))
-            {
-                continue;
-            }
-
-            blocks[command] = commandBlock;
-        }
-
-        return blocks;
     }
 
     private static void AppendCliCommandOverview(
@@ -448,7 +527,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             availableCommands,
             renderedCommands,
             commandSummaries,
-            ["picket baseline create", "picket view"]);
+            ["picket baseline create", "picket view", "picket tui"]);
         AppendCliCommandGroup(
             builder,
             "Rules",
@@ -462,7 +541,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             availableCommands,
             renderedCommands,
             commandSummaries,
-            ["picket cache stats", "picket cache prune", "picket hooks install"]);
+            ["picket cache stats", "picket cache prune", "picket cache export", "picket cache import", "picket hooks install"]);
         AppendCliCommandGroup(
             builder,
             "Compatibility",
@@ -538,12 +617,11 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         }
 
         List<KeyValuePair<string, List<string>>> sections = ReadCliHelpSections(block);
-        List<string> usageLines = ReadCliSectionLines(sections, "Usage");
         builder.Append("### ");
         builder.AppendLine(EscapeMarkdownText(command));
         builder.AppendLine();
         builder.AppendLine("<div class=\"cli-command-detail\">");
-        AppendCliCommandHeader(builder, command, summary, usageLines);
+        AppendCliCommandHeader(builder, command, summary, sections);
         if (summary.Length != 0)
         {
             builder.Append("  <p class=\"cli-command-summary\">");
@@ -553,34 +631,16 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
 
         foreach (KeyValuePair<string, List<string>> section in sections)
         {
-            AppendCliHelpSection(builder, section.Key, section.Value);
-            if (section.Key.Equals("Usage", StringComparison.Ordinal))
+            if (section.Key.Equals("Arguments", StringComparison.Ordinal)
+                || section.Key.Equals("Options", StringComparison.Ordinal))
             {
-                AppendCliReferenceTables(builder, command, section.Value);
+                continue;
             }
+
+            AppendCliHelpSection(builder, section.Key, section.Value);
         }
 
-        builder.AppendLine("</div>");
-        builder.AppendLine();
-    }
-
-    private static void AppendCliUsageOnlyBlock(StringBuilder builder, string command, string summary, string usageLine)
-    {
-        builder.Append("### ");
-        builder.AppendLine(EscapeMarkdownText(command));
-        builder.AppendLine();
-        builder.AppendLine("<div class=\"cli-command-detail\">");
-        List<string> usageLines = [usageLine];
-        AppendCliCommandHeader(builder, command, summary, usageLines);
-        if (summary.Length != 0)
-        {
-            builder.Append("  <p class=\"cli-command-summary\">");
-            builder.Append(EscapeHtmlText(summary));
-            builder.AppendLine("</p>");
-        }
-
-        AppendCliHelpSection(builder, "Usage", usageLines);
-        AppendCliReferenceTables(builder, command, usageLines);
+        AppendCliReferenceTables(builder, command, sections);
         builder.AppendLine("</div>");
         builder.AppendLine();
     }
@@ -638,7 +698,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         StringBuilder builder,
         string command,
         string summary,
-        List<string> usageLines)
+        List<KeyValuePair<string, List<string>>> sections)
     {
         builder.AppendLine("  <div class=\"cli-command-detail-header\">");
         builder.Append("    <code class=\"cli-command-name\">");
@@ -648,21 +708,21 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         builder.Append(EscapeHtmlText(GetCliCommandWorkflow(command)));
         builder.AppendLine("</span>");
         builder.AppendLine("  </div>");
-        AppendCliCommandFacts(builder, command, summary, usageLines);
+        AppendCliCommandFacts(builder, command, summary, sections);
     }
 
     private static void AppendCliCommandFacts(
         StringBuilder builder,
         string command,
         string summary,
-        List<string> usageLines)
+        List<KeyValuePair<string, List<string>>> sections)
     {
         var facts = new List<(string Label, string Value)>
         {
             ("Input", GetCliInputSummary(command)),
         };
 
-        string formatValues = ReadCliFormatValues(usageLines);
+        string formatValues = ReadCliFormatValues(sections);
         if (formatValues.Length != 0)
         {
             facts.Add(("Reports", formatValues));
@@ -756,10 +816,16 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         builder.AppendLine("  </div>");
     }
 
-    private static void AppendCliReferenceTables(StringBuilder builder, string command, List<string> usageLines)
+    private static void AppendCliReferenceTables(
+        StringBuilder builder,
+        string command,
+        List<KeyValuePair<string, List<string>>> sections)
     {
-        List<(string Syntax, string Requirement, string Description)> arguments = ReadCliArgumentRows(command, usageLines);
-        List<(string Option, string Value, string Requirement, string Description)> options = ReadCliOptionRows(command, usageLines);
+        List<string> usageLines = ReadCliSectionLines(sections, "Usage");
+        List<string> argumentLines = ReadCliSectionLines(sections, "Arguments");
+        List<string> optionLines = ReadCliSectionLines(sections, "Options");
+        List<(string Syntax, string Requirement, string Description)> arguments = ReadCliArgumentRows(command, usageLines, argumentLines);
+        List<(string Option, string Value, string Requirement, string Description)> options = ReadCliOptionRows(command, usageLines, optionLines);
         if (arguments.Count == 0 && options.Count == 0)
         {
             return;
@@ -850,13 +916,38 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
 
     private static List<(string Syntax, string Requirement, string Description)> ReadCliArgumentRows(
         string command,
-        List<string> usageLines)
+        List<string> usageLines,
+        List<string> argumentLines)
     {
         var rows = new List<(string Syntax, string Requirement, string Description)>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach ((string syntax, bool optional, bool repeatable) in ReadCliUsageTokens(usageLines))
+        if (argumentLines.Count == 0)
         {
-            if (IsCliOptionSyntax(syntax))
+            foreach ((string syntax, bool optional, bool repeatable) in ReadCliUsageTokens(usageLines))
+            {
+                if (IsCliOptionSyntax(syntax) || syntax.Equals("options", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string displaySyntax = FormatCliArgumentSyntax(syntax);
+                if (displaySyntax.Length == 0 || !seen.Add(displaySyntax))
+                {
+                    continue;
+                }
+
+                rows.Add((
+                    displaySyntax,
+                    FormatCliRequirement(optional, repeatable),
+                    GetCliArgumentDescription(command, syntax)));
+            }
+
+            return rows;
+        }
+
+        foreach (string line in argumentLines)
+        {
+            if (!TryReadCliHelpRow(line, out string syntax, out string description))
             {
                 continue;
             }
@@ -869,8 +960,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
 
             rows.Add((
                 displaySyntax,
-                FormatCliRequirement(optional, repeatable),
-                GetCliArgumentDescription(command, syntax)));
+                ReadCliArgumentRequirement(usageLines, displaySyntax),
+                description.Length == 0 ? GetCliArgumentDescription(command, syntax) : description));
         }
 
         return rows;
@@ -878,14 +969,41 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
 
     private static List<(string Option, string Value, string Requirement, string Description)> ReadCliOptionRows(
         string command,
-        List<string> usageLines)
+        List<string> usageLines,
+        List<string> optionLines)
     {
         var rows = new List<(string Option, string Value, string Requirement, string Description)>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach ((string syntax, bool optional, bool repeatable) in ReadCliUsageTokens(usageLines))
+        if (optionLines.Count == 0)
         {
-            if (!IsCliOptionSyntax(syntax)
-                || !TryReadCliOptionSyntax(syntax, out string option, out string value))
+            foreach ((string syntax, bool optional, bool repeatable) in ReadCliUsageTokens(usageLines))
+            {
+                if (!IsCliOptionSyntax(syntax)
+                    || !TryReadCliOptionSyntax(syntax, out string option, out string value))
+                {
+                    continue;
+                }
+
+                string key = string.Concat(option, "|", value);
+                if (!seen.Add(key))
+                {
+                    continue;
+                }
+
+                rows.Add((
+                    option,
+                    FormatCliOptionValue(value),
+                    FormatCliRequirement(optional, repeatable),
+                    GetCliOptionDescription(command, option)));
+            }
+
+            return rows;
+        }
+
+        foreach (string line in optionLines)
+        {
+            if (!TryReadCliHelpRow(line, out string syntax, out string description)
+                || !TryReadCliHelpOptionSyntax(syntax, out string option, out string value))
             {
                 continue;
             }
@@ -899,8 +1017,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             rows.Add((
                 option,
                 FormatCliOptionValue(value),
-                FormatCliRequirement(optional, repeatable),
-                GetCliOptionDescription(command, option)));
+                IsCliRequiredOption(command, option) ? "Required" : "Optional",
+                description.Length == 0 ? GetCliOptionDescription(command, option) : description));
         }
 
         return rows;
@@ -973,6 +1091,101 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         return option.Length != 0;
     }
 
+    private static bool TryReadCliHelpRow(string line, out string syntax, out string description)
+    {
+        string trimmed = line.Trim();
+        syntax = trimmed;
+        description = string.Empty;
+        int splitIndex = FindCliHelpRowDescriptionIndex(trimmed);
+        if (splitIndex >= 0)
+        {
+            syntax = trimmed[..splitIndex].Trim();
+            description = trimmed[splitIndex..].Trim();
+        }
+
+        return syntax.Length != 0;
+    }
+
+    private static int FindCliHelpRowDescriptionIndex(string line)
+    {
+        for (int i = 0; i + 1 < line.Length; i++)
+        {
+            if (line[i] != ' ' || line[i + 1] != ' ')
+            {
+                continue;
+            }
+
+            int next = i + 2;
+            while (next < line.Length && line[next] == ' ')
+            {
+                next++;
+            }
+
+            return next < line.Length ? i : -1;
+        }
+
+        return -1;
+    }
+
+    private static bool TryReadCliHelpOptionSyntax(string syntax, out string option, out string value)
+    {
+        option = string.Empty;
+        value = string.Empty;
+        int valueStart = syntax.IndexOf(" <", StringComparison.Ordinal);
+        if (valueStart >= 0 && syntax.EndsWith('>'))
+        {
+            option = syntax[..valueStart].Trim();
+            value = syntax[(valueStart + 2)..^1];
+            return option.Length != 0 && value.Length != 0;
+        }
+
+        option = syntax.Trim();
+        return option.Length != 0;
+    }
+
+    private static string ReadCliArgumentRequirement(List<string> usageLines, string displaySyntax)
+    {
+        foreach ((string syntax, bool optional, bool repeatable) in ReadCliUsageTokens(usageLines))
+        {
+            if (IsCliOptionSyntax(syntax))
+            {
+                continue;
+            }
+
+            if (FormatCliArgumentSyntax(syntax).Equals(displaySyntax, StringComparison.Ordinal))
+            {
+                return FormatCliRequirement(optional, repeatable);
+            }
+        }
+
+        return "Required";
+    }
+
+    private static bool IsCliRequiredOption(string command, string option)
+    {
+        string longOption = ReadCliLongOption(option);
+        return command switch
+        {
+            "picket cache stats" or "picket cache prune" => longOption.Equals("--cache-dir", StringComparison.Ordinal),
+            "picket cache export" => longOption is "--cache-dir" or "--output",
+            "picket cache import" => longOption is "--cache-dir" or "--input",
+            _ => false,
+        };
+    }
+
+    private static string ReadCliLongOption(string option)
+    {
+        foreach (string part in option.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (part.StartsWith("--", StringComparison.Ordinal))
+            {
+                return part;
+            }
+        }
+
+        return option;
+    }
+
     private static string NormalizeCliUsageSyntax(string syntax, out bool optional, out bool repeatable)
     {
         string value = syntax.Trim();
@@ -1023,9 +1236,9 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         return command switch
         {
             "picket scan" or "picket verify" or "picket analyze" => "Scan and triage",
-            "picket baseline create" or "picket view" => "Reports and baselines",
+            "picket baseline create" or "picket view" or "picket tui" => "Reports and baselines",
             "picket rules check" or "picket rules test" => "Rules",
-            "picket cache stats" or "picket cache prune" or "picket hooks install" => "Maintenance",
+            "picket cache stats" or "picket cache prune" or "picket cache export" or "picket cache import" or "picket hooks install" => "Maintenance",
             "picket git" or "picket dir" or "picket stdin" or "picket version" => "Compatibility",
             _ => "Command",
         };
@@ -1039,7 +1252,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "picket verify" => "Optional report or scan path",
             "picket analyze" => "Optional report or scan path",
             "picket baseline create" => "Optional filesystem path",
-            "picket cache stats" or "picket cache prune" => "Optional cache source",
+            "picket cache stats" or "picket cache prune" or "picket cache export" or "picket cache import" => "Optional cache source",
             "picket git" => "Optional git repository",
             "picket dir" => "Required directory path",
             "picket stdin" => "Standard input",
@@ -1047,6 +1260,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "picket rules test" => "Rule ID and sample input",
             "picket hooks install" => "Optional hook name",
             "picket view" => "Required report path",
+            "picket tui" => "Optional report path",
             "picket version" => "None",
             _ => "Command arguments",
         };
@@ -1066,13 +1280,19 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         return command is "picket git" or "picket dir" or "picket stdin";
     }
 
-    private static string ReadCliFormatValues(List<string> usageLines)
+    private static string ReadCliFormatValues(List<KeyValuePair<string, List<string>>> sections)
     {
-        foreach ((string syntax, _, _) in ReadCliUsageTokens(usageLines))
+        foreach (string line in ReadCliSectionLines(sections, "Options"))
         {
-            if (syntax.StartsWith("-f ", StringComparison.Ordinal))
+            if (!TryReadCliHelpRow(line, out string syntax, out _)
+                || !syntax.Contains("--report-format", StringComparison.Ordinal))
             {
-                return syntax[3..].Replace("|", ", ", StringComparison.Ordinal);
+                continue;
+            }
+
+            if (TryReadCliHelpOptionSyntax(syntax, out _, out string value) && value.Length != 0)
+            {
+                return value.Replace("|", ", ", StringComparison.Ordinal);
             }
         }
 
@@ -1376,27 +1596,6 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
 
         AddParameterType(signatureParameters, parameters[start..]);
         return signatureParameters;
-    }
-
-    private static string? TryReadConsoleLiteral(string line)
-    {
-        const string Marker = "Console.Out.WriteLine(\"";
-        int start = line.IndexOf(Marker, StringComparison.Ordinal);
-        if (start < 0)
-        {
-            return null;
-        }
-
-        start += Marker.Length;
-        int end = line.LastIndexOf("\");", StringComparison.Ordinal);
-        if (end <= start)
-        {
-            return null;
-        }
-
-        return line[start..end]
-            .Replace("\\\"", "\"", StringComparison.Ordinal)
-            .Replace("\\\\", "\\", StringComparison.Ordinal);
     }
 
     private static void WriteMarkdown(string path, string title, string description, string content)

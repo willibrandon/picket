@@ -51,6 +51,12 @@ Use the grouped index to jump to the workflow you need.
           <span>Summarize or open a local report.</span>
         </a>
       </li>
+      <li>
+        <a class="cli-command-link" href="#picket-tui">
+          <code>picket tui</code>
+          <span>Interactive report triage console.</span>
+        </a>
+      </li>
     </ul>
   </section>
   <section class="cli-command-group">
@@ -86,6 +92,18 @@ Use the grouped index to jump to the workflow you need.
         </a>
       </li>
       <li>
+        <a class="cli-command-link" href="#picket-cache-export">
+          <code>picket cache export</code>
+          <span>Write active native scan cache entries to a portable archive.</span>
+        </a>
+      </li>
+      <li>
+        <a class="cli-command-link" href="#picket-cache-import">
+          <code>picket cache import</code>
+          <span>Restore active native scan cache entries from a portable archive.</span>
+        </a>
+      </li>
+      <li>
         <a class="cli-command-link" href="#picket-hooks-install">
           <code>picket hooks install</code>
           <span>Write managed pre-commit, pre-push, and pre-receive hooks.</span>
@@ -117,30 +135,7 @@ Use the grouped index to jump to the workflow you need.
       <li>
         <a class="cli-command-link" href="#picket-version">
           <code>picket version</code>
-          <span>Prints version information.</span>
-        </a>
-      </li>
-    </ul>
-  </section>
-  <section class="cli-command-group">
-    <p class="cli-command-group-title">Other</p>
-    <ul class="cli-command-list">
-      <li>
-        <a class="cli-command-link" href="#picket-cache-export">
-          <code>picket cache export</code>
-          <span>Write active native scan cache entries to a portable archive.</span>
-        </a>
-      </li>
-      <li>
-        <a class="cli-command-link" href="#picket-cache-import">
-          <code>picket cache import</code>
-          <span>Restore active native scan cache entries from a portable archive.</span>
-        </a>
-      </li>
-      <li>
-        <a class="cli-command-link" href="#picket-tui">
-          <code>picket tui</code>
-          <span>Interactive report triage console.</span>
+          <span>Print version information.</span>
         </a>
       </li>
     </ul>
@@ -170,68 +165,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket scan
-  [path]
-  [-c path]
-  [-f json|jsonl|csv|junit|html|gitlab|sarif|toon]
-  [-r path]...
-  [--profile picket]
-  [--source path]
-  [--ignore-path path]
-  [--no-ignore]
-  [--cache-dir path]
-  [--cache-mode raw|secret-hash-only]
-  [--enable-rule id]
-  [--verify]
-  [--github-api-endpoint uri]
-  [--github-api-proxy uri]
-  [--live-tls-mode system|tls12-plus]
-  [--live-rate-limit-ms n]
-  [--live-provider-rate-limit-ms n]
-  [--allow-non-public-endpoints]
-  [--github-repository owner/name]
-  [--github-organization org]
-  [--github-user login]
-  [--github-repository-type value]
-  [--github-gist id]
-  [--github-gists]
-  [--github-user-gists login]
-  [--github-token-env name]
-  [--github-ref ref]
-  [--github-pull-request id]
-  [--github-include-issues]
-  [--github-issue-state open|closed|all]
-  [--github-include-releases]
-  [--github-include-actions-artifacts]
-  [--github-source-api-endpoint uri]
-  [--azure-devops-organization org]
-  [--azure-devops-endpoint uri]
-  [--azure-devops-token-env name]
-  [--azure-devops-token-kind pat|bearer]
-  [--azure-devops-project name]
-  [--azure-devops-repository name]
-  [--azure-devops-branch name]
-  [--azure-devops-pull-request id]
-  [--azure-devops-include-wikis]
-  [--azure-devops-build-id id]
-  [--azure-devops-include-artifacts]
-  [--azure-devops-include-logs]
-  [--azure-devops-release-id id]
-  [--azure-devops-include-release-artifacts]
-  [--azure-devops-max-artifact-megabytes n]
-  [--azure-devops-max-log-megabytes n]
-  [--allow-non-public-source-endpoints]
-  [--allow-insecure-source-endpoints]
-  [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
-  [--only-verified]
-  [--max-target-megabytes n]
-  [--max-archive-depth n]
-  [--max-archive-entries n]
-  [--max-archive-megabytes n]
-  [--max-archive-ratio n]
-  [--timeout n]
-  [--diagnostics mode[,mode]]
-  [--diagnostics-dir path]</code></pre>
+      <pre class="cli-usage-code"><code>picket scan [&lt;path&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -261,26 +195,26 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Option"><code>-f, --report-format</code></td>
               <td data-label="Value"><code>json | jsonl | csv | junit | html | gitlab | sarif | toon</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Select report format.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
-              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -310,7 +244,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
-              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
@@ -340,7 +274,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--live-tls-mode</code></td>
-              <td data-label="Value"><code>system | tls12-plus</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose the TLS policy for live provider requests.</td>
             </tr>
@@ -430,7 +364,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--github-issue-state</code></td>
-              <td data-label="Value"><code>open | closed | all</code></td>
+              <td data-label="Value"><code>state</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Filter GitHub issues by state.</td>
             </tr>
@@ -472,7 +406,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--azure-devops-token-kind</code></td>
-              <td data-label="Value"><code>pat | bearer</code></td>
+              <td data-label="Value"><code>kind</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose PAT basic authentication or bearer-token authentication for Azure DevOps requests.</td>
             </tr>
@@ -562,7 +496,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--results</code></td>
-              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid | active | inactive | skipped | error</code></td>
+              <td data-label="Value"><code>value</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Keep findings with the selected validation result states.</td>
             </tr>
@@ -619,6 +553,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -652,32 +592,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket verify
-  [path]
-  [-c path]
-  [-f json|jsonl|csv|junit|html|gitlab|sarif|toon]
-  [-r path]
-  [--profile picket]
-  [--source path]
-  [--cache-dir path]
-  [--cache-mode raw|secret-hash-only]
-  [--offline|--live]
-  [--github-api-endpoint uri]
-  [--github-api-proxy uri]
-  [--live-tls-mode system|tls12-plus]
-  [--live-rate-limit-ms n]
-  [--live-provider-rate-limit-ms n]
-  [--allow-non-public-endpoints]
-  [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
-  [--only-verified]
-  [--max-target-megabytes n]
-  [--max-archive-depth n]
-  [--max-archive-entries n]
-  [--max-archive-megabytes n]
-  [--max-archive-ratio n]
-  [--timeout n]
-  [--diagnostics mode[,mode]]
-  [--diagnostics-dir path]</code></pre>
+      <pre class="cli-usage-code"><code>picket verify [&lt;path&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -707,26 +622,26 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Option"><code>-f, --report-format</code></td>
               <td data-label="Value"><code>json | jsonl | csv | junit | html | gitlab | sarif | toon</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Select report format.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -744,15 +659,21 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
-              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--offline / --live</code></td>
-              <td data-label="Value"><code>mode</code></td>
+              <td data-label="Option"><code>--offline</code></td>
+              <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Choose local validation or opt-in live provider verification.</td>
+              <td data-label="Description">Run local structural validation without contacting providers.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Run opt-in live provider verification for supported findings.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-api-endpoint</code></td>
@@ -768,7 +689,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--live-tls-mode</code></td>
-              <td data-label="Value"><code>system | tls12-plus</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose the TLS policy for live provider requests.</td>
             </tr>
@@ -792,7 +713,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--results</code></td>
-              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid | active | inactive | skipped | error</code></td>
+              <td data-label="Value"><code>value</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Keep findings with the selected validation result states.</td>
             </tr>
@@ -849,6 +770,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -882,32 +809,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket analyze
-  [path]
-  [-c path]
-  [-f json|jsonl|text]
-  [-r path]
-  [--profile picket]
-  [--source path]
-  [--cache-dir path]
-  [--cache-mode raw|secret-hash-only]
-  [--offline|--live]
-  [--github-api-endpoint uri]
-  [--github-api-proxy uri]
-  [--live-tls-mode system|tls12-plus]
-  [--live-rate-limit-ms n]
-  [--live-provider-rate-limit-ms n]
-  [--allow-non-public-endpoints]
-  [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
-  [--only-verified]
-  [--max-target-megabytes n]
-  [--max-archive-depth n]
-  [--max-archive-entries n]
-  [--max-archive-megabytes n]
-  [--max-archive-ratio n]
-  [--timeout n]
-  [--diagnostics mode[,mode]]
-  [--diagnostics-dir path]</code></pre>
+      <pre class="cli-usage-code"><code>picket analyze [&lt;path&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -937,26 +839,26 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Option"><code>-f, --report-format</code></td>
               <td data-label="Value"><code>json | jsonl | text</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Select report format.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -974,15 +876,21 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
-              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--offline / --live</code></td>
-              <td data-label="Value"><code>mode</code></td>
+              <td data-label="Option"><code>--offline</code></td>
+              <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Choose local validation or opt-in live provider verification.</td>
+              <td data-label="Description">Run local structural validation without contacting providers.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Run opt-in live provider verification for supported findings.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-api-endpoint</code></td>
@@ -998,7 +906,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--live-tls-mode</code></td>
-              <td data-label="Value"><code>system | tls12-plus</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose the TLS policy for live provider requests.</td>
             </tr>
@@ -1022,7 +930,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--results</code></td>
-              <td data-label="Value"><code>unknown | structurally-valid | test-credential | invalid | active | inactive | skipped | error</code></td>
+              <td data-label="Value"><code>value</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Keep findings with the selected validation result states.</td>
             </tr>
@@ -1080,6 +988,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write diagnostics artifacts to this directory.</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -1104,23 +1018,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket baseline create
-  [path]
-  [-c path]
-  [-r path]
-  [--source path]
-  [--ignore-path path]
-  [--no-ignore]
-  [--enable-rule id]
-  [--max-target-megabytes n]
-  [--max-archive-depth n]
-  [--max-archive-entries n]
-  [--max-archive-megabytes n]
-  [--max-archive-ratio n]
-  [--timeout n]
-  [--diagnostics mode[,mode]]
-  [--diagnostics-dir path]
-  [--redact[=n]]</code></pre>
+      <pre class="cli-usage-code"><code>picket baseline create [&lt;path&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1150,13 +1048,13 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
@@ -1235,9 +1133,15 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--redact</code></td>
-              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -1263,14 +1167,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket cache stats
-  [source]
-  --cache-dir path
-  [-c path]
-  [--cache-mode raw|secret-hash-only]
-  [--max-decode-depth n]
-  [--max-target-megabytes n]
-  [--ignore-gitleaks-allow]</code></pre>
+      <pre class="cli-usage-code"><code>picket cache stats [&lt;source&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1306,14 +1203,14 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
-              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
@@ -1334,6 +1231,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -1359,16 +1262,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket cache prune
-  [source]
-  --cache-dir path
-  [-c path]
-  [--cache-mode raw|secret-hash-only]
-  [--other-keys]
-  [--older-than-days n]
-  [--max-decode-depth n]
-  [--max-target-megabytes n]
-  [--ignore-gitleaks-allow]</code></pre>
+      <pre class="cli-usage-code"><code>picket cache prune [&lt;source&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1404,16 +1298,34 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
-              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--other-keys</code></td>
@@ -1428,22 +1340,10 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Prune cache entries older than this age.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--max-decode-depth</code></td>
-              <td data-label="Value"><code>n</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Limit recursive decoding passes.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--max-target-megabytes</code></td>
-              <td data-label="Value"><code>n</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Skip files larger than this size.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -1457,27 +1357,19 @@ Use the grouped index to jump to the workflow you need.
 <div class="cli-command-detail">
   <div class="cli-command-detail-header">
     <code class="cli-command-name">picket cache export</code>
-    <span class="cli-command-badge">Command</span>
+    <span class="cli-command-badge">Maintenance</span>
   </div>
   <dl class="cli-command-facts">
     <div>
       <dt>Input</dt>
-      <dd>Command arguments</dd>
+      <dd>Optional cache source</dd>
     </div>
   </dl>
   <p class="cli-command-summary">Write active native scan cache entries to a portable archive.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket cache export
-  [source]
-  --cache-dir path
-  --output path
-  [-c path]
-  [--cache-mode raw|secret-hash-only]
-  [--max-decode-depth n]
-  [--max-target-megabytes n]
-  [--ignore-gitleaks-allow]</code></pre>
+      <pre class="cli-usage-code"><code>picket cache export [&lt;source&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1513,20 +1405,14 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--output</code></td>
-              <td data-label="Value"><code>path</code></td>
-              <td data-label="Required">Required</td>
-              <td data-label="Description">Write a portable cache archive to this path.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
-              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
@@ -1547,6 +1433,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--output</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Write a portable cache archive to this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -1560,27 +1458,19 @@ Use the grouped index to jump to the workflow you need.
 <div class="cli-command-detail">
   <div class="cli-command-detail-header">
     <code class="cli-command-name">picket cache import</code>
-    <span class="cli-command-badge">Command</span>
+    <span class="cli-command-badge">Maintenance</span>
   </div>
   <dl class="cli-command-facts">
     <div>
       <dt>Input</dt>
-      <dd>Command arguments</dd>
+      <dd>Optional cache source</dd>
     </div>
   </dl>
   <p class="cli-command-summary">Restore active native scan cache entries from a portable archive.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket cache import
-  [source]
-  --cache-dir path
-  --input path
-  [-c path]
-  [--cache-mode raw|secret-hash-only]
-  [--max-decode-depth n]
-  [--max-target-megabytes n]
-  [--ignore-gitleaks-allow]</code></pre>
+      <pre class="cli-usage-code"><code>picket cache import [&lt;source&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1616,20 +1506,14 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Read or write scanner cache data in this directory.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--input</code></td>
-              <td data-label="Value"><code>path</code></td>
-              <td data-label="Required">Required</td>
-              <td data-label="Description">Read a portable cache archive from this path.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
-              <td data-label="Value"><code>raw | secret-hash-only</code></td>
+              <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
@@ -1650,6 +1534,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--input</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Read a portable cache archive from this path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -1683,35 +1579,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket git
-  [repo]
-  [-b path]
-  [-c path]
-  [-f json|csv|junit|sarif|template]
-  [-r path]
-  [-i path]
-  [-l level]
-  [-v]
-  [--profile picket]
-  [--no-color]
-  [--no-banner]
-  [--report-template path]
-  [--enable-rule id]
-  [--exit-code n]
-  [--ignore-gitleaks-allow]
-  [--log-opts value]
-  [--platform value]
-  [--staged]
-  [--pre-commit]
-  [--max-target-megabytes n]
-  [--max-archive-depth n]
-  [--max-archive-entries n]
-  [--max-archive-megabytes n]
-  [--max-archive-ratio n]
-  [--timeout n]
-  [--diagnostics mode[,mode]]
-  [--diagnostics-dir path]
-  [--redact[=n]]</code></pre>
+      <pre class="cli-usage-code"><code>picket git [&lt;repo&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1741,50 +1609,50 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Option"><code>-b, --baseline-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a baseline report and suppress matching findings.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Option"><code>-f, --report-format</code></td>
               <td data-label="Value"><code>json | csv | junit | sarif | template</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Select report format.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-i</code></td>
+              <td data-label="Option"><code>-i, --gitleaks-ignore-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a Gitleaks ignore file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-l</code></td>
+              <td data-label="Option"><code>-l, --log-level</code></td>
               <td data-label="Value"><code>level</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Set the log level.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-v</code></td>
+              <td data-label="Option"><code>-v, --verbose</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Enable verbose logging.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -1898,9 +1766,15 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--redact</code></td>
-              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -1934,32 +1808,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket dir
-  &lt;path&gt;
-  [-b path]
-  [-c path]
-  [-f json|csv|junit|sarif|template]
-  [-r path]
-  [-i path]
-  [-l level]
-  [-v]
-  [--profile picket]
-  [--no-color]
-  [--no-banner]
-  [--report-template path]
-  [--enable-rule id]
-  [--exit-code n]
-  [--follow-symlinks]
-  [--ignore-gitleaks-allow]
-  [--max-target-megabytes n]
-  [--max-archive-depth n]
-  [--max-archive-entries n]
-  [--max-archive-megabytes n]
-  [--max-archive-ratio n]
-  [--timeout n]
-  [--diagnostics mode[,mode]]
-  [--diagnostics-dir path]
-  [--redact[=n]]</code></pre>
+      <pre class="cli-usage-code"><code>picket dir &lt;path&gt; [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -1989,50 +1838,50 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Option"><code>-b, --baseline-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a baseline report and suppress matching findings.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Option"><code>-f, --report-format</code></td>
               <td data-label="Value"><code>json | csv | junit | sarif | template</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Select report format.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-i</code></td>
+              <td data-label="Option"><code>-i, --gitleaks-ignore-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a Gitleaks ignore file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-l</code></td>
+              <td data-label="Option"><code>-l, --log-level</code></td>
               <td data-label="Value"><code>level</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Set the log level.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-v</code></td>
+              <td data-label="Option"><code>-v, --verbose</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Enable verbose logging.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -2067,16 +1916,16 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Exit with this code when findings are present.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--follow-symlinks</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Follow symlinks while scanning directories.</td>
-            </tr>
-            <tr>
               <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--follow-symlinks</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Follow symlinks while scanning directories.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-target-megabytes</code></td>
@@ -2128,9 +1977,15 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--redact</code></td>
-              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -2164,27 +2019,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket stdin
-  [-b path]
-  [-c path]
-  [-f json|csv|junit|sarif|template]
-  [-r path]
-  [-l level]
-  [-v]
-  [--profile picket]
-  [--no-color]
-  [--no-banner]
-  [--report-template path]
-  [--enable-rule id]
-  [--exit-code n]
-  [--ignore-gitleaks-allow]
-  [--max-decode-depth n]
-  [--max-archive-depth n]
-  [--max-target-megabytes n]
-  [--timeout n]
-  [--diagnostics mode[,mode]]
-  [--diagnostics-dir path]
-  [--redact[=n]]</code></pre>
+      <pre class="cli-usage-code"><code>picket stdin [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -2197,44 +2032,50 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Option"><code>-b, --baseline-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a baseline report and suppress matching findings.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Option"><code>-f, --report-format</code></td>
               <td data-label="Value"><code>json | csv | junit | sarif | template</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Select report format.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-l</code></td>
+              <td data-label="Option"><code>-i, --gitleaks-ignore-path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a Gitleaks ignore file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
               <td data-label="Value"><code>level</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Set the log level.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-v</code></td>
+              <td data-label="Option"><code>-v, --verbose</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Enable verbose logging.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -2275,6 +2116,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Do not honor gitleaks:allow comments.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-target-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-decode-depth</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -2285,12 +2132,6 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Limit nested archive traversal depth.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--max-target-megabytes</code></td>
-              <td data-label="Value"><code>n</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Skip files larger than this size.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--timeout</code></td>
@@ -2312,9 +2153,15 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--redact</code></td>
-              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -2340,7 +2187,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket rules check [source] [-c path] [--profile picket] [--print-config]</code></pre>
+      <pre class="cli-usage-code"><code>picket rules check [&lt;source&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -2370,14 +2217,14 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -2386,6 +2233,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Print the resolved config.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -2415,21 +2268,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket rules test
-  &lt;rule-id&gt;
-  [-c path]
-  [-f json|jsonl|csv|junit|html|gitlab|sarif|toon]
-  [-r path]
-  [--profile picket]
-  [--source path]
-  [--path path]
-  [--print-config]
-  [--ignore-gitleaks-allow]
-  [--max-decode-depth n]
-  [--max-target-megabytes n]
-  [--redact[=n]]
-  [--]
-  &lt;input&gt;</code></pre>
+      <pre class="cli-usage-code"><code>picket rules test &lt;rule-id&gt; [&lt;input&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -2448,7 +2287,7 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Argument"><code>input</code></td>
-              <td data-label="Required">Required</td>
+              <td data-label="Required">Optional</td>
               <td data-label="Description">Literal sample text scanned by the selected rule.</td>
             </tr>
           </tbody>
@@ -2464,26 +2303,26 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-f</code></td>
+              <td data-label="Option"><code>-f, --report-format</code></td>
               <td data-label="Value"><code>json | jsonl | csv | junit | html | gitlab | sarif | toon</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Select report format.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-r</code></td>
+              <td data-label="Option"><code>-r, --report-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write a report to this path.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--profile</code></td>
-              <td data-label="Value"><code>picket</code></td>
+              <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
@@ -2512,28 +2351,40 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Do not honor gitleaks:allow comments.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--max-decode-depth</code></td>
-              <td data-label="Value"><code>n</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Limit recursive decoding passes.</td>
-            </tr>
-            <tr>
               <td data-label="Option"><code>--max-target-megabytes</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Skip files larger than this size.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-archive-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit nested archive traversal depth.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop scanning after this many seconds. Use 0 to disable.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--redact</code></td>
-              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--</code></td>
-              <td data-label="Value"><code>separator</code></td>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">End option parsing before literal input.</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
@@ -2559,16 +2410,12 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket hooks install
-  [pre-commit|pre-push|pre-receive|all]
-  [--repo path]
-  [--force]
-  [--command path]
-  [-c path]
-  [-b path]
-  [--max-target-megabytes n]
-  [--redact[=n]]</code></pre>
+      <pre class="cli-usage-code"><code>picket hooks install [&lt;pre-commit|pre-push|pre-receive|all&gt;] [options]</code></pre>
     </div>
+  </div>
+  <div class="cli-info-block">
+    <p class="cli-section-label">Defaults</p>
+    <p>Installs pre-commit when no hook name is provided and uses --redact=100 in generated hooks.</p>
   </div>
   <div class="cli-reference-tables">
     <div class="cli-reference-table-block">
@@ -2615,13 +2462,13 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this command path in generated hook scripts.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-c</code></td>
+              <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-b</code></td>
+              <td data-label="Option"><code>-b, --baseline-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a baseline report and suppress matching findings.</td>
@@ -2634,18 +2481,20 @@ Use the grouped index to jump to the workflow you need.
             </tr>
             <tr>
               <td data-label="Option"><code>--redact</code></td>
-              <td data-label="Value"><code>n (optional)</code></td>
+              <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
-  <div class="cli-info-block">
-    <p class="cli-section-label">Defaults</p>
-    <p>Installs pre-commit when no hook name is provided and uses --redact=100 in generated hooks.</p>
   </div>
 </div>
 
@@ -2666,8 +2515,12 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket view &lt;report&gt; [--open]</code></pre>
+      <pre class="cli-usage-code"><code>picket view &lt;report&gt; [options]</code></pre>
     </div>
+  </div>
+  <div class="cli-info-block">
+    <p class="cli-section-label">Formats</p>
+    <p>Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML</p>
   </div>
   <div class="cli-reference-tables">
     <div class="cli-reference-table-block">
@@ -2701,14 +2554,16 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Open an HTML report in the default browser.</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
-  <div class="cli-info-block">
-    <p class="cli-section-label">Formats</p>
-    <p>Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML</p>
   </div>
 </div>
 
@@ -2717,24 +2572,24 @@ Use the grouped index to jump to the workflow you need.
 <div class="cli-command-detail">
   <div class="cli-command-detail-header">
     <code class="cli-command-name">picket tui</code>
-    <span class="cli-command-badge">Command</span>
+    <span class="cli-command-badge">Reports and baselines</span>
   </div>
   <dl class="cli-command-facts">
     <div>
       <dt>Input</dt>
-      <dd>Command arguments</dd>
+      <dd>Optional report path</dd>
     </div>
   </dl>
   <p class="cli-command-summary">Interactive report triage console.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
-      <p class="cli-section-label">Usage 1</p>
-      <pre class="cli-usage-code"><code>picket tui &lt;report&gt; [--flow]</code></pre>
+      <p class="cli-section-label">Usage</p>
+      <pre class="cli-usage-code"><code>picket tui [&lt;report&gt;] [options]</code></pre>
     </div>
-    <div class="cli-usage-block">
-      <p class="cli-section-label">Usage 2</p>
-      <pre class="cli-usage-code"><code>picket tui --flow</code></pre>
-    </div>
+  </div>
+  <div class="cli-info-block">
+    <p class="cli-section-label">Formats</p>
+    <p>Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML</p>
   </div>
   <div class="cli-reference-tables">
     <div class="cli-reference-table-block">
@@ -2747,7 +2602,7 @@ Use the grouped index to jump to the workflow you need.
           <tbody>
             <tr>
               <td data-label="Argument"><code>report</code></td>
-              <td data-label="Required">Required</td>
+              <td data-label="Required">Optional</td>
               <td data-label="Description">Report file to summarize or open.</td>
             </tr>
           </tbody>
@@ -2768,14 +2623,16 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Run the interactive report triage console as inline terminal steps.</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
-  <div class="cli-info-block">
-    <p class="cli-section-label">Formats</p>
-    <p>Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML</p>
   </div>
 </div>
 
@@ -2792,11 +2649,31 @@ Use the grouped index to jump to the workflow you need.
       <dd>None</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Prints version information.</p>
+  <p class="cli-command-summary">Print version information.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket version</code></pre>
+      <pre class="cli-usage-code"><code>picket version [options]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

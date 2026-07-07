@@ -9,5 +9,6 @@
     <PackageVersion Include="Scout.IO.Globbing" Version="0.4.2" />
     <PackageVersion Include="Scout.IO.Ignore" Version="0.4.2" />
     <PackageVersion Include="Scout.Text.Regex" Version="0.4.2" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.9" />
   </ItemGroup>
 </Project>

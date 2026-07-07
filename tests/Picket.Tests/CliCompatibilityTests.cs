@@ -975,6 +975,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--diagnostics", result.Stdout);
         Assert.Contains("--diagnostics-dir", result.Stdout);
         Assert.Contains("--cache-mode", result.Stdout);
+        Assert.DoesNotContain("Additional Arguments", result.Stdout);
     }
 
     /// <summary>
@@ -989,16 +990,20 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(0, git.ExitCode);
         Assert.Contains("picket git", git.Stdout);
+        Assert.Contains("-f, --report-format", git.Stdout);
         Assert.Contains("--log-opts", git.Stdout);
         Assert.Contains("--timeout", git.Stdout);
+        Assert.DoesNotContain("Additional Arguments", git.Stdout);
         Assert.AreEqual(0, directory.ExitCode);
         Assert.Contains("picket dir", directory.Stdout);
         Assert.Contains("--follow-symlinks", directory.Stdout);
         Assert.Contains("--max-archive-depth", directory.Stdout);
+        Assert.DoesNotContain("Additional Arguments", directory.Stdout);
         Assert.AreEqual(0, stdin.ExitCode);
         Assert.Contains("picket stdin", stdin.Stdout);
         Assert.Contains("--max-decode-depth", stdin.Stdout);
         Assert.Contains("--timeout", stdin.Stdout);
+        Assert.DoesNotContain("Additional Arguments", stdin.Stdout);
     }
 
     /// <summary>
@@ -1128,32 +1133,65 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--timeout", result.Stdout);
         Assert.Contains("--diagnostics", result.Stdout);
         Assert.Contains("--diagnostics-dir", result.Stdout);
+        Assert.DoesNotContain("Additional Arguments", result.Stdout);
     }
 
     /// <summary>
-    /// Verifies that root help advertises scan limits and diagnostics controls.
+    /// Verifies that root help advertises the command index instead of every command option.
     /// </summary>
     [TestMethod]
-    public async Task RootHelpAdvertisesOperationalScanControls()
+    public async Task RootHelpAdvertisesCommandIndex()
     {
         CliResult result = await RunCliAsync("--help").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
-        Assert.Contains("picket scan", result.Stdout);
-        Assert.Contains("picket stdin", result.Stdout);
-        Assert.Contains("--verify", result.Stdout);
+        Assert.Contains("picket [command] [options]", result.Stdout);
+        Assert.Contains("Commands:", result.Stdout);
+        Assert.Contains("scan <path>", result.Stdout);
+        Assert.Contains("verify <path>", result.Stdout);
+        Assert.Contains("analyze <path>", result.Stdout);
+        Assert.Contains("git <repo>", result.Stdout);
+        Assert.Contains("dir, directory, file <path>", result.Stdout);
+        Assert.Contains("stdin", result.Stdout);
+        Assert.Contains("rules", result.Stdout);
+        Assert.Contains("hooks", result.Stdout);
+        Assert.Contains("tui <report>", result.Stdout);
+        Assert.Contains("--version", result.Stdout);
+        Assert.DoesNotContain("--github-api-endpoint", result.Stdout);
+        Assert.DoesNotContain("--max-decode-depth", result.Stdout);
+        Assert.DoesNotContain("--diagnostics-dir", result.Stdout);
+        Assert.DoesNotContain("  detect", result.Stdout);
+        Assert.DoesNotContain("  protect", result.Stdout);
+        Assert.DoesNotContain("Additional Arguments", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the help command form displays command-local help.
+    /// </summary>
+    [TestMethod]
+    public async Task HelpCommandDisplaysCommandLocalHelp()
+    {
+        CliResult result = await RunCliAsync("help", "scan").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket scan [<path>] [options]", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
-        Assert.Contains("--github-api-proxy", result.Stdout);
-        Assert.Contains("--live-tls-mode", result.Stdout);
-        Assert.Contains("--live-rate-limit-ms", result.Stdout);
-        Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
-        Assert.Contains("--results", result.Stdout);
-        Assert.Contains("--only-verified", result.Stdout);
-        Assert.Contains("--max-decode-depth", result.Stdout);
-        Assert.Contains("--max-archive-depth", result.Stdout);
-        Assert.Contains("--timeout", result.Stdout);
-        Assert.Contains("--diagnostics", result.Stdout);
-        Assert.Contains("--diagnostics-dir", result.Stdout);
+        Assert.Contains("--max-target-megabytes", result.Stdout);
+        Assert.DoesNotContain("Additional Arguments", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that System.CommandLine shell suggestions expose public commands.
+    /// </summary>
+    [TestMethod]
+    public async Task RootSuggestionsAdvertisePublicCommands()
+    {
+        CliResult result = await RunCliAsync("[suggest:8]", "sc").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("scan", result.Stdout);
+        Assert.DoesNotContain("detect", result.Stdout);
+        Assert.DoesNotContain("protect", result.Stdout);
     }
 
     /// <summary>
@@ -1665,15 +1703,19 @@ public sealed class CliCompatibilityTests
     public async Task CacheHelpAdvertisesStatsAndPrune()
     {
         CliResult result = await RunCliAsync("cache", "--help").ConfigureAwait(false);
+        CliResult prune = await RunCliAsync("cache", "prune", "--help").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
-        Assert.Contains("picket cache stats", result.Stdout);
-        Assert.Contains("picket cache prune", result.Stdout);
-        Assert.Contains("picket cache export", result.Stdout);
-        Assert.Contains("picket cache import", result.Stdout);
-        Assert.Contains("--older-than-days", result.Stdout);
-        Assert.Contains("--ignore-gitleaks-allow", result.Stdout);
-        Assert.Contains("--cache-mode", result.Stdout);
+        Assert.Contains("picket cache [command] [options]", result.Stdout);
+        Assert.Contains("stats <source>", result.Stdout);
+        Assert.Contains("prune <source>", result.Stdout);
+        Assert.Contains("export <source>", result.Stdout);
+        Assert.Contains("import <source>", result.Stdout);
+        Assert.AreEqual(0, prune.ExitCode);
+        Assert.Contains("picket cache prune", prune.Stdout);
+        Assert.Contains("--older-than-days", prune.Stdout);
+        Assert.Contains("--ignore-gitleaks-allow", prune.Stdout);
+        Assert.Contains("--cache-mode", prune.Stdout);
     }
 
     /// <summary>
@@ -2236,7 +2278,8 @@ public sealed class CliCompatibilityTests
         CliResult result = await RunCliAsync("baseline", "--help").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
-        Assert.Contains("picket baseline create", result.Stdout);
+        Assert.Contains("picket baseline [command] [options]", result.Stdout);
+        Assert.Contains("create <path>", result.Stdout);
     }
 
     /// <summary>
@@ -3665,10 +3708,15 @@ public sealed class CliCompatibilityTests
     public async Task HooksHelpAdvertisesInstall()
     {
         CliResult result = await RunCliAsync("hooks", "--help").ConfigureAwait(false);
+        CliResult install = await RunCliAsync("hooks", "install", "--help").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
-        Assert.Contains("picket hooks install", result.Stdout);
+        Assert.Contains("picket hooks [command] [options]", result.Stdout);
+        Assert.Contains("install <pre-commit|pre-push|pre-receive|all>", result.Stdout);
+        Assert.AreEqual(0, install.ExitCode);
+        Assert.Contains("picket hooks install", install.Stdout);
         Assert.Contains("pre-commit|pre-push|pre-receive|all", result.Stdout);
+        Assert.Contains("Installs pre-commit when no hook name is provided", install.Stdout);
     }
 
     /// <summary>
