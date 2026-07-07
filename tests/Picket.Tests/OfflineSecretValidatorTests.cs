@@ -237,6 +237,36 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that database connection URLs with embedded credentials are structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesDatabaseConnectionUrlShape()
+    {
+        Finding finding = CreateFinding("picket-database-connection-url", CreateDatabaseConnectionUrl());
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that database connection URLs without passwords are rejected by offline validation.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsPasswordlessDatabaseConnectionUrl()
+    {
+        Finding finding = CreateFinding(
+            "picket-database-connection-url",
+            "postgresql://app_user@db.internal.local:5432/appdb");
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that GCP API keys are structurally validated offline.
     /// </summary>
     [TestMethod]
@@ -410,6 +440,11 @@ public sealed class OfflineSecretValidatorTests
         return Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(
             "0123456789ABCDEFGHIJKLMNOPQRSTUV",
             "WXYZabcdefghijklmnopqrstuvwxyz01")));
+    }
+
+    private static string CreateDatabaseConnectionUrl()
+    {
+        return "postgresql://app_user:picket-db-password-123@db.internal.local:5432/appdb?sslmode=require";
     }
 
     private static string CreateGcpApiKey()

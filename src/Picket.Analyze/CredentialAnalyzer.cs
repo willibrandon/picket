@@ -120,6 +120,7 @@ public static class CredentialAnalyzer
             "picket-google-api-key" => "GCP",
             "picket-gcp-service-account-key" => "GCP",
             "picket-azure-storage-connection-string" => "Azure",
+            "picket-database-connection-url" => "Database",
             "private-key" => "Generic",
             _ => "Unknown",
         };
@@ -236,6 +237,7 @@ public static class CredentialAnalyzer
             "picket-google-api-key" => "GCP API key",
             "picket-gcp-service-account-key" => "GCP service account key",
             "picket-azure-storage-connection-string" => "Azure Storage account key",
+            "picket-database-connection-url" => "Database connection URL",
             "private-key" => "Private key",
             _ => "Secret",
         };
@@ -314,6 +316,11 @@ public static class CredentialAnalyzer
                 "Review token scopes, group and project membership, protected branch and tag permissions, package registry access, container registry access, and recent audit events.",
                 "Search repositories, CI variables, pipeline logs, job artifacts, releases, packages, issues, and merge requests for the same credential hash."
             ],
+            "Database" => [
+                "Rotate the database password or connection credential and update every dependent application configuration.",
+                "Review database authentication logs, connection history, network allowlists, grants, roles, and recent schema or data access.",
+                "Search source history, CI variables, deployment manifests, container images, logs, and artifacts for the same credential hash."
+            ],
             "AWS" => [
                 credentialType.Equals("AWS access key pair", StringComparison.Ordinal)
                     ? "Disable or rotate the leaked AWS access key in IAM after dependent workloads are updated."
@@ -352,6 +359,7 @@ public static class CredentialAnalyzer
             "GCP" => credentialType is "GCP API key" or "GCP service account key",
             "GitHub" => true,
             "GitLab" => true,
+            "Database" => credentialType.Equals("Database connection URL", StringComparison.Ordinal),
             _ => false,
         };
     }
@@ -450,6 +458,11 @@ public static class CredentialAnalyzer
                 "Delete the exposed key after traffic has moved to the replacement."
             ],
             "GitLab" => CreateGitLabRevocationGuidance(credentialType),
+            "Database" when credentialType.Equals("Database connection URL", StringComparison.Ordinal) => [
+                "Identify the database user and owning application from configuration management before rotation.",
+                "Create or assign a replacement credential with the same minimum required privileges, update consumers, then revoke or change the exposed password.",
+                "Review database audit logs, role grants, network access rules, backups, and downstream exports for post-exposure access."
+            ],
             _ => [],
         };
     }
@@ -561,6 +574,16 @@ public static class CredentialAnalyzer
             evidence.Add($"privateKeyId={privateKeyId}");
         }
 
+        if (finding.RuleID.Equals("picket-database-connection-url", StringComparison.Ordinal)
+            && TryReadDatabaseConnectionEvidence(
+                GetFindingSecretMaterial(finding),
+                out string databaseScheme,
+                out string databaseUser))
+        {
+            evidence.Add($"databaseScheme={databaseScheme}");
+            evidence.Add($"databaseUser={databaseUser}");
+        }
+
         if (IsGitLabRuleId(finding.RuleID))
         {
             evidence.Add($"gitLabRuleId={finding.RuleID}");
@@ -576,6 +599,28 @@ public static class CredentialAnalyzer
         }
 
         return evidence;
+    }
+
+    private static bool TryReadDatabaseConnectionEvidence(string secret, out string scheme, out string user)
+    {
+        scheme = string.Empty;
+        user = string.Empty;
+        if (!Uri.TryCreate(secret, UriKind.Absolute, out Uri? uri)
+            || uri.Scheme.Length == 0
+            || uri.UserInfo.Length == 0)
+        {
+            return false;
+        }
+
+        int separator = uri.UserInfo.IndexOf(':');
+        if (separator <= 0)
+        {
+            return false;
+        }
+
+        scheme = uri.Scheme;
+        user = uri.UserInfo[..separator];
+        return true;
     }
 
     private static string GetGitLabResourceType(string ruleId)

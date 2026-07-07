@@ -275,6 +275,27 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the embedded database connection URL rule.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesEmbeddedDatabaseConnectionUrlRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string connectionUrl = CreateDatabaseConnectionUrlFixture();
+        File.WriteAllText(Path.Combine(root.Path, "settings.env"), $"DATABASE_URL=\"{connectionUrl}\"");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-database-connection-url\"", result.Stdout);
+        Assert.Contains($"\"secret\":\"{connectionUrl}\"", result.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
+        Assert.Contains("\"provider\":\"Database\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.Contains("\"documentationUrl\":\"https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans use the embedded GCP service account key rule.
     /// </summary>
     [TestMethod]
@@ -4461,6 +4482,11 @@ public sealed class CliCompatibilityTests
     private static string CreateAwsSecretAccessKeyFixture()
     {
         return string.Concat("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
+    }
+
+    private static string CreateDatabaseConnectionUrlFixture()
+    {
+        return "postgresql://app_user:picket-db-password-123@db.internal.local:5432/appdb?sslmode=require";
     }
 
     private static string CreateGcpServiceAccountKeyJsonFixture()

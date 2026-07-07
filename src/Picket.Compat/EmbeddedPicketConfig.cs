@@ -2,7 +2,7 @@ namespace Picket.Compat;
 
 internal static class EmbeddedPicketConfig
 {
-    internal const string SourceVersion = "picket-2026-07-06";
+    internal const string SourceVersion = "picket-2026-07-07";
 
     internal static string Toml { get; } = CreateToml();
 
@@ -21,6 +21,10 @@ internal static class EmbeddedPicketConfig
             "\",\"client_email\":\"scanner-sa@picket-prod-123.iam.gserviceaccount.com\"}");
         string gcpServiceAccountNegativeExample = "{\"type\":\"user\",\"project_id\":\"picket-prod-123\"}";
         string sourcegraphAccessToken = CreateExample("sgp_", "0123456789abcdef0123456789abcdef01234567");
+        string databaseConnectionUrl = CreateExample(
+            "postgresql://app_user:",
+            "picket-db-password-123",
+            "@db.internal.local:5432/appdb?sslmode=require");
         string githubClassicTokenSuffix = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         string githubFineGrainedToken = CreateExample(
             "github",
@@ -110,6 +114,23 @@ validation = ["offline:gcp-service-account-key-json"]
 revocation = ["revocation:gcp-service-account-key"]
 examples = ['''{{gcpServiceAccountExample}}''']
 negativeExamples = ['''{{gcpServiceAccountNegativeExample}}''']
+
+[[rules]]
+id = "picket-database-connection-url"
+description = "Detected a database connection URL with embedded user credentials."
+regex = '''(?i)\b((?:postgres(?:ql)?|mysql|mariadb|sqlserver|mongodb(?:\+srv)?|redis)://[^:/?#@\s'"\x60;]{1,128}:[^@\s'"\x60;]{8,256}@[^\s'"\x60<>;]{3,512})(?:[\x60'"\s;]|\\[nr]|$)'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["postgres://", "postgresql://", "mysql://", "mariadb://", "sqlserver://", "mongodb://", "mongodb+srv://", "redis://"]
+tags = ["picket", "database", "connection-string", "connection-url"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Database"
+documentationUrl = "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+validation = ["offline:database-connection-url"]
+examples = ["{{databaseConnectionUrl}}"]
+negativeExamples = ["postgresql://app_user@db.internal.local:5432/appdb"]
 
 [[rules]]
 id = "picket-sourcegraph-access-token"

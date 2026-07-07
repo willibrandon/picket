@@ -453,6 +453,7 @@ internal static partial class Program
             "offline:aws-access-key-id" => ruleId.Equals("aws-access-token", StringComparison.Ordinal),
             "offline:aws-access-key-pair" => ruleId.Equals("picket-aws-access-key-pair", StringComparison.Ordinal),
             "offline:azure-storage-connection-string" => ruleId.Equals("picket-azure-storage-connection-string", StringComparison.Ordinal),
+            "offline:database-connection-url" => ruleId.Equals("picket-database-connection-url", StringComparison.Ordinal),
             "offline:gcp-api-key" => ruleId is "gcp-api-key" or "picket-google-api-key",
             "offline:gcp-service-account-key-json" => ruleId.Equals("picket-gcp-service-account-key", StringComparison.Ordinal),
             "offline:github-classic-token" => ContainsRuleId(s_githubClassicTokenRuleIds, ruleId),

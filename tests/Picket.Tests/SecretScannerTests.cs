@@ -172,6 +172,45 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that native database URL detection reports credentialed connection URLs.
+    /// </summary>
+    [TestMethod]
+    public void ScanFindsNativeDatabaseConnectionUrl()
+    {
+        string connectionUrl = CreateDatabaseConnectionUrl();
+        byte[] input = Encoding.UTF8.GetBytes($"DATABASE_URL=\"{connectionUrl}\"");
+        RuleSet nativeRule = SelectRules(PicketConfigLoader.LoadRuleSet(null, "__picket-test__"), "picket-database-connection-url");
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "settings.env",
+            CompiledRuleSet.Compile(nativeRule),
+            maxDecodeDepth: 0));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("picket-database-connection-url", findings[0].RuleID);
+        Assert.AreEqual(connectionUrl, findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that native database URL detection skips passwordless connection URLs.
+    /// </summary>
+    [TestMethod]
+    public void ScanSkipsPasswordlessDatabaseConnectionUrl()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("DATABASE_URL=\"postgresql://app_user@db.internal.local:5432/appdb\"");
+        RuleSet nativeRule = SelectRules(PicketConfigLoader.LoadRuleSet(null, "__picket-test__"), "picket-database-connection-url");
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "settings.env",
+            CompiledRuleSet.Compile(nativeRule),
+            maxDecodeDepth: 0));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that native GitHub token coverage uses Picket-owned rule IDs rather than inherited compatibility IDs.
     /// </summary>
     [TestMethod]
@@ -1012,6 +1051,11 @@ public sealed class SecretScannerTests
     private static string CreateGitHubClassicToken(string prefix)
     {
         return string.Concat(prefix, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    }
+
+    private static string CreateDatabaseConnectionUrl()
+    {
+        return "postgresql://app_user:picket-db-password-123@db.internal.local:5432/appdb?sslmode=require";
     }
 
     private static string CreateSourcegraphAccessToken()

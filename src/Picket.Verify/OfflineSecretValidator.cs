@@ -52,6 +52,7 @@ public static class OfflineSecretValidator
             "picket-google-api-key" => ValidateGcpApiKey(secret),
             "picket-gcp-service-account-key" => ValidateGcpServiceAccountKeyJson(secret),
             "picket-azure-storage-connection-string" => ValidateAzureStorageConnectionString(finding.Match, secret),
+            "picket-database-connection-url" => ValidateDatabaseConnectionUrl(secret),
             "private-key" => ValidatePrivateKeyEnvelope(finding.Match),
             _ => Unknown(),
         };
@@ -245,6 +246,31 @@ public static class OfflineSecretValidator
         }
 
         return StructurallyValid("valid Azure Storage connection string shape");
+    }
+
+    private static SecretValidationResult ValidateDatabaseConnectionUrl(string secret)
+    {
+        if (!Uri.TryCreate(secret, UriKind.Absolute, out Uri? uri)
+            || !IsDatabaseConnectionScheme(uri.Scheme)
+            || uri.Host.Length == 0
+            || uri.UserInfo.Length == 0)
+        {
+            return Invalid("invalid database connection URL shape");
+        }
+
+        int separator = uri.UserInfo.IndexOf(':');
+        if (separator <= 0 || separator == uri.UserInfo.Length - 1)
+        {
+            return Invalid("database connection URL must include username and password");
+        }
+
+        ReadOnlySpan<char> password = uri.UserInfo.AsSpan(separator + 1);
+        if (password.Length < 8 || ContainsAsciiControlOrWhitespace(password))
+        {
+            return Invalid("invalid database connection URL password shape");
+        }
+
+        return StructurallyValid("valid database connection URL shape");
     }
 
     private static SecretValidationResult ValidateGcpApiKey(string secret)
@@ -509,6 +535,31 @@ public static class OfflineSecretValidator
         }
 
         return hasDot && previous is not '.' and not '-';
+    }
+
+    private static bool IsDatabaseConnectionScheme(string scheme)
+    {
+        return scheme.Equals("postgres", StringComparison.OrdinalIgnoreCase)
+            || scheme.Equals("postgresql", StringComparison.OrdinalIgnoreCase)
+            || scheme.Equals("mysql", StringComparison.OrdinalIgnoreCase)
+            || scheme.Equals("mariadb", StringComparison.OrdinalIgnoreCase)
+            || scheme.Equals("sqlserver", StringComparison.OrdinalIgnoreCase)
+            || scheme.Equals("mongodb", StringComparison.OrdinalIgnoreCase)
+            || scheme.Equals("mongodb+srv", StringComparison.OrdinalIgnoreCase)
+            || scheme.Equals("redis", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsAsciiControlOrWhitespace(ReadOnlySpan<char> value)
+    {
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (value[i] <= ' ' || value[i] == '\u007F')
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static SecretValidationResult ValidateBase64EncodedJwt(string secret)

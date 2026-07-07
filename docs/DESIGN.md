@@ -515,7 +515,7 @@ Native mode adds stricter archive-safety controls: decompressed byte caps, entry
 Picket ships separate rule packs:
 
 - `gitleaks`: exact compatibility rules,
-- `picket-default`: high-confidence modern coverage, initially including AWS access key ID plus secret access key pairs, Azure Storage connection strings with `AccountKey` values, Google API keys, GCP service account key JSON, and GitHub App, OAuth, refresh, fine-grained personal access, and classic personal access tokens,
+- `picket-default`: high-confidence modern coverage, initially including AWS access key ID plus secret access key pairs, Azure Storage connection strings with `AccountKey` values, credentialed database connection URLs, Google API keys, GCP service account key JSON, and GitHub App, OAuth, refresh, fine-grained personal access, and classic personal access tokens,
 - `picket-strict`: broader coverage with more aggressive heuristics,
 - `picket-experimental`: new detectors under active tuning,
 - organization-local packs.

@@ -36,6 +36,30 @@ public sealed class CredentialAnalyzerTests
     }
 
     /// <summary>
+    /// Verifies that database connection URL findings receive database-specific triage guidance.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesDatabaseConnectionUrls()
+    {
+        string connectionUrl = CreateDatabaseConnectionUrl();
+        Finding finding = CreateDatabaseFinding(connectionUrl);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("Database", analysis.Provider);
+        Assert.AreEqual("Database connection URL", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains("databaseScheme=postgresql", analysis.Evidence);
+        Assert.Contains("databaseUser=app_user", analysis.Evidence);
+        Assert.Contains("Rotate the database password", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.IsEmpty(analysis.RevocationCommands);
+        Assert.Contains("Identify the database user", string.Join('\n', analysis.RevocationGuidance));
+        Assert.DoesNotContain(connectionUrl, string.Join('\n', analysis.Evidence));
+        Assert.DoesNotContain("picket-db-password-123", string.Join('\n', analysis.Evidence));
+    }
+
+    /// <summary>
     /// Verifies that native AWS access key pair findings receive AWS-specific triage guidance.
     /// </summary>
     [TestMethod]
@@ -241,6 +265,30 @@ public sealed class CredentialAnalyzerTests
             validationState: "structurally-valid");
     }
 
+    private static Finding CreateDatabaseFinding(string connectionUrl)
+    {
+        return new Finding(
+            "picket-database-connection-url",
+            "Detected a database connection URL with embedded user credentials.",
+            1,
+            1,
+            1,
+            connectionUrl.Length,
+            connectionUrl,
+            connectionUrl,
+            "settings.env",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["picket", "database", "connection-url"],
+            "settings.env:picket-database-connection-url:1",
+            validationState: "structurally-valid");
+    }
+
     private static Finding CreateAwsFinding(string accessKeyId, string secretAccessKey)
     {
         string match = $"aws_access_key_id = {accessKeyId}\naws_secret_access_key = {secretAccessKey}";
@@ -443,6 +491,11 @@ public sealed class CredentialAnalyzerTests
         return Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(
             "0123456789ABCDEFGHIJKLMNOPQRSTUV",
             "WXYZabcdefghijklmnopqrstuvwxyz01")));
+    }
+
+    private static string CreateDatabaseConnectionUrl()
+    {
+        return "postgresql://app_user:picket-db-password-123@db.internal.local:5432/appdb?sslmode=require";
     }
 
     private static string CreateAwsAccessKeyId()

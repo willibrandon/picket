@@ -438,6 +438,7 @@ public sealed class GitleaksConfigLoaderTests
             List<string> ruleIds = [.. ruleSet.Rules.Select(rule => rule.Id)];
 
             Assert.Contains("aws-access-token", ruleIds);
+            Assert.Contains("picket-database-connection-url", ruleIds);
             Assert.Contains("picket-github-personal-access-token", ruleIds);
             Assert.Contains("picket-github-fine-grained-personal-access-token", ruleIds);
             Assert.Contains("picket-google-api-key", ruleIds);
