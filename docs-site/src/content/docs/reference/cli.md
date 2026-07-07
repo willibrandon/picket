@@ -54,7 +54,7 @@ Use the grouped index to jump to the workflow you need.
       <li>
         <a class="cli-command-link" href="#picket-tui">
           <code>picket tui</code>
-          <span>Interactive report triage console.</span>
+          <span>Interactive report triage and scan workspace.</span>
         </a>
       </li>
     </ul>
@@ -270,7 +270,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-proxy</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+              <td data-label="Description">Use this HTTPS proxy for live GitHub API requests.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--live-tls-mode</code></td>
@@ -555,6 +555,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Write diagnostics artifacts to this directory.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--redact</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
@@ -685,7 +691,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-proxy</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+              <td data-label="Description">Use this HTTPS proxy for live GitHub API requests.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--live-tls-mode</code></td>
@@ -902,7 +908,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-proxy</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Use this HTTP or HTTPS proxy for live GitHub API requests.</td>
+              <td data-label="Description">Use this HTTPS proxy for live GitHub API requests.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--live-tls-mode</code></td>
@@ -2580,7 +2586,7 @@ Use the grouped index to jump to the workflow you need.
       <dd>Optional report path</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Interactive report triage console.</p>
+  <p class="cli-command-summary">Interactive report triage and scan workspace.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
@@ -2622,6 +2628,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Run the interactive report triage console as inline terminal steps.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--scan</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Open the native scan workspace instead of loading an existing report.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>

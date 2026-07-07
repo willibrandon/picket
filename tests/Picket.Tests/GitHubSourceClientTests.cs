@@ -824,6 +824,52 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitHub downloads stop when the body exceeds the byte cap even if the declared length is understated.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesAppliesByteLimitToUnderstatedContentLength()
+    {
+        const string Token = "github-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"large.txt","type":"blob","size":4}]}""");
+            }
+
+            if (url.Contains("/contents/large.txt", StringComparison.Ordinal))
+            {
+                HttpResponseMessage response = BytesResponse("0123456789");
+                response.Content.Headers.ContentLength = 1;
+                return response;
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            maxFileBytes: 4,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("GitHub file byte limit skipped github/willibrandon/picket/large.txt", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that GitHub source enumeration retries bounded rate-limit responses.
     /// </summary>
     [TestMethod]

@@ -5,7 +5,7 @@ namespace Picket.Tui;
 /// <summary>
 /// Provides the high-contrast theme used by the Picket terminal UI.
 /// </summary>
-internal static class PicketTuiAccessibilityPalette
+internal static class PicketTuiPalette
 {
     /// <summary>
     /// Minimum contrast ratio for normal terminal text.
@@ -19,13 +19,22 @@ internal static class PicketTuiAccessibilityPalette
 
     private static readonly Hex1bColor s_background = Hex1bColor.FromRgb(12, 14, 16);
     private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(144, 152, 160);
+    private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(255, 224, 130);
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 138, 138);
     private static readonly Hex1bColor s_focusBackground = Hex1bColor.White;
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 200, 180);
+    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.Black;
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(244, 244, 244);
+    private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(132, 180, 255);
     private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(190, 198, 206);
     private static readonly Hex1bColor s_panelBackground = Hex1bColor.FromRgb(24, 28, 32);
+    private static readonly Hex1bColor s_primaryActionBackground = Hex1bColor.FromRgb(102, 204, 255);
+    private static readonly Hex1bColor s_primaryActionForeground = Hex1bColor.Black;
+    private static readonly Hex1bColor s_successForeground = Hex1bColor.FromRgb(118, 230, 151);
     private static readonly Hex1bColor s_warningForeground = Hex1bColor.FromRgb(255, 214, 102);
+    private static readonly Hex1bColor s_yankFlashBackground = Hex1bColor.FromRgb(126, 201, 216);
+    private static readonly Hex1bColor s_yankFlashForeground = Hex1bColor.FromRgb(24, 24, 37);
 
     /// <summary>
     /// Gets the default application background color.
@@ -36,6 +45,11 @@ internal static class PicketTuiAccessibilityPalette
     /// Gets the border and separator foreground color.
     /// </summary>
     internal static Hex1bColor Border => s_border;
+
+    /// <summary>
+    /// Gets the foreground color used for command previews and shell-facing text.
+    /// </summary>
+    internal static Hex1bColor CommandForeground => s_commandForeground;
 
     /// <summary>
     /// Gets the foreground color used for error state text.
@@ -53,9 +67,24 @@ internal static class PicketTuiAccessibilityPalette
     internal static Hex1bColor FocusForeground => s_focusForeground;
 
     /// <summary>
+    /// Gets the focused table row background color.
+    /// </summary>
+    internal static Hex1bColor FocusedRowBackground => s_focusedRowBackground;
+
+    /// <summary>
+    /// Gets the focused table row foreground color.
+    /// </summary>
+    internal static Hex1bColor FocusedRowForeground => s_focusedRowForeground;
+
+    /// <summary>
     /// Gets the primary terminal text foreground color.
     /// </summary>
     internal static Hex1bColor Foreground => s_foreground;
+
+    /// <summary>
+    /// Gets the foreground color used for informational status text.
+    /// </summary>
+    internal static Hex1bColor InfoForeground => s_infoForeground;
 
     /// <summary>
     /// Gets the muted terminal text foreground color.
@@ -68,9 +97,34 @@ internal static class PicketTuiAccessibilityPalette
     internal static Hex1bColor PanelBackground => s_panelBackground;
 
     /// <summary>
+    /// Gets the background color used for primary actions.
+    /// </summary>
+    internal static Hex1bColor PrimaryActionBackground => s_primaryActionBackground;
+
+    /// <summary>
+    /// Gets the foreground color used for primary actions.
+    /// </summary>
+    internal static Hex1bColor PrimaryActionForeground => s_primaryActionForeground;
+
+    /// <summary>
+    /// Gets the foreground color used for successful status text.
+    /// </summary>
+    internal static Hex1bColor SuccessForeground => s_successForeground;
+
+    /// <summary>
     /// Gets the foreground color used for warning state text.
     /// </summary>
     internal static Hex1bColor WarningForeground => s_warningForeground;
+
+    /// <summary>
+    /// Gets the transient yank flash background color.
+    /// </summary>
+    internal static Hex1bColor YankFlashBackground => s_yankFlashBackground;
+
+    /// <summary>
+    /// Gets the transient yank flash foreground color.
+    /// </summary>
+    internal static Hex1bColor YankFlashForeground => s_yankFlashForeground;
 
     /// <summary>
     /// Applies the Picket high-contrast palette to a Hex1b theme.
@@ -90,6 +144,8 @@ internal static class PicketTuiAccessibilityPalette
             .Set(ButtonTheme.FocusedForegroundColor, FocusForeground)
             .Set(ButtonTheme.HoveredBackgroundColor, FocusBackground)
             .Set(ButtonTheme.HoveredForegroundColor, FocusForeground)
+            .Set(InfoBarTheme.BackgroundColor, Foreground)
+            .Set(InfoBarTheme.ForegroundColor, PanelBackground)
             .Set(ListTheme.BackgroundColor, Background)
             .Set(ListTheme.ForegroundColor, Foreground)
             .Set(ListTheme.SelectedBackgroundColor, FocusBackground)
@@ -108,23 +164,32 @@ internal static class PicketTuiAccessibilityPalette
             .Set(TableTheme.BackgroundColor, Background)
             .Set(TableTheme.BorderColor, Border)
             .Set(TableTheme.EmptyTextForeground, MutedForeground)
-            .Set(TableTheme.FocusedBorderColor, FocusBackground)
-            .Set(TableTheme.FocusedRowBackground, FocusBackground)
-            .Set(TableTheme.FocusedRowForeground, FocusForeground)
+            .Set(TableTheme.FocusedBorderColor, Border)
+            .Set(TableTheme.FocusedRowBackground, Background)
+            .Set(TableTheme.FocusedRowForeground, Foreground)
             .Set(TableTheme.HeaderBackground, PanelBackground)
             .Set(TableTheme.HeaderForeground, Foreground)
             .Set(TableTheme.LoadingTextForeground, MutedForeground)
             .Set(TableTheme.RowBackground, Background)
             .Set(TableTheme.RowForeground, Foreground)
-            .Set(TableTheme.ScrollbarThumbColor, FocusBackground)
+            .Set(TableTheme.ScrollbarThumbColor, Border)
             .Set(TableTheme.ScrollbarTrackColor, Border)
-            .Set(TableTheme.TableFocusedBorderColor, FocusBackground)
+            .Set(TableTheme.TableFocusedBorderColor, Border)
+            .Set(ToggleSwitchTheme.FocusedSelectedBackgroundColor, FocusBackground)
+            .Set(ToggleSwitchTheme.FocusedSelectedForegroundColor, FocusForeground)
+            .Set(ToggleSwitchTheme.UnfocusedSelectedBackgroundColor, InfoForeground)
+            .Set(ToggleSwitchTheme.UnfocusedSelectedForegroundColor, FocusForeground)
+            .Set(ToggleSwitchTheme.UnselectedBackgroundColor, PanelBackground)
+            .Set(ToggleSwitchTheme.UnselectedForegroundColor, Foreground)
             .Set(TextBoxTheme.BackgroundColor, PanelBackground)
             .Set(TextBoxTheme.CursorBackgroundColor, FocusBackground)
             .Set(TextBoxTheme.CursorForegroundColor, FocusForeground)
             .Set(TextBoxTheme.FocusedFillBackgroundColor, PanelBackground)
             .Set(TextBoxTheme.FocusedForegroundColor, Foreground)
-            .Set(TextBoxTheme.ForegroundColor, Foreground);
+            .Set(TextBoxTheme.ForegroundColor, Foreground)
+            .Set(ProgressTheme.EmptyForegroundColor, Border)
+            .Set(ProgressTheme.FilledForegroundColor, SuccessForeground)
+            .Set(ProgressTheme.IndeterminateForegroundColor, InfoForeground);
     }
 
     /// <summary>

@@ -8,6 +8,8 @@ Picket includes an interactive scanner console for report triage.
 
 `picket-tui <report>` runs the companion directly.
 
+`picket tui --scan` and `picket-tui --scan` open the native scan workspace without loading an existing report.
+
 `picket tui <report> --flow` and `picket-tui <report> --flow` render interactive steps inline in the normal terminal buffer. `picket-tui --flow` can prompt for the report path before loading the report.
 
 ## Supported Inputs
@@ -27,15 +29,14 @@ The initial console uses only non-secret fields: rule IDs, detector names, paths
 
 The full-screen console is designed as a scanner console:
 
-- a top menu/status row,
-- a navigation rail,
+- a top command strip with view switching and Run scan,
+- a Scan page that keeps the target, command preview, status, and latest findings in one view,
 - a findings table with stable row focus,
 - focused-finding details,
 - rule and file frequency views,
-- an accessibility view,
-- a diagnostics/status panel.
+- a compact status footer with non-wrapping command hints.
 
-The interface favors dense tables, predictable keyboard navigation, and text status over decorative layout.
+Opening without a report starts on the Scan page. Opening an existing report with findings starts on the Findings page. The interface favors dense tables, predictable keyboard navigation, and text status over decorative layout.
 
 ## Native AOT Packaging
 
@@ -45,9 +46,9 @@ Keeping the TUI in `picket-tui` prevents Hex1b terminal UI code and terminal-nat
 
 ## Scan Workspace
 
-The TUI also has a planned scan workspace for running scans interactively. It uses the same engine and option model as `picket scan`.
+The TUI includes a scan workspace for running native scans interactively. It builds and displays the command-equivalent `picket scan` request, then invokes the same scanner executable rather than reimplementing scan behavior inside the TUI.
 
-The workspace should let users configure:
+The workspace keeps the normal path short: choose a target, check the command preview, press Run scan, and read the loaded findings on the same page. It exposes commonly changed options directly:
 
 - local path or source-host target,
 - profile and config,
@@ -58,7 +59,11 @@ The workspace should let users configure:
 - redaction,
 - report formats and output paths.
 
-During a scan it shows live progress, discovered targets, warnings, findings, validation state, elapsed time, and cancellation status. It writes normal Picket reports and shows the command-equivalent settings before execution so the TUI does not become a separate behavior path.
+For GitHub targets, the workspace includes repository, organization, user, gist, authenticated-gist, and user-gist selectors; repository type and issue state filters; issue, release, and Actions artifact toggles; token environment variable; ref and pull request selectors; source API endpoint override; and explicit source endpoint policy toggles.
+
+For Azure DevOps targets, the workspace includes endpoint, organization, project, repository, branch, pull request, token environment variable, token kind, build ID, release ID, wiki/artifact/log/release-artifact toggles, artifact and log size caps, and explicit source endpoint policy toggles.
+
+During a scan it shows text status, exit code state, elapsed-time diagnostics, streamed stdout/stderr scanner output, and cancellation status. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console. It prepares the report output directory before launch, writes normal Picket reports, reloads the generated report summary when the scan completes, and keeps the loaded findings visible in the Scan page. The dedicated Findings view uses the same non-secret report readers as `picket view`.
 
 ## Inline Flow Mode
 
@@ -70,7 +75,7 @@ Use Flow mode when the user should keep terminal history visible, such as guided
 
 TUI changes require first-class Hex1b tests. Tests should run the actual widget tree in a headless Hex1b terminal, wait for rendered screen state, capture terminal snapshots, verify keyboard exits/navigation, and exercise practical desktop and narrow terminal dimensions.
 
-## Accessibility
+## Input and Contrast
 
 The TUI follows WCAG 2.2 AA principles adapted to terminal UI:
 
@@ -80,5 +85,3 @@ The TUI follows WCAG 2.2 AA principles adapted to terminal UI:
 - normal text contrast targets at least 4.5:1,
 - borders, focus indicators, and other non-text UI target at least 3:1,
 - progress and long-running states include text status.
-
-WCAG 3.0 is tracked as a draft. WCAG 2.2 AA is the implementation and test baseline.

@@ -58,7 +58,7 @@ The first provider validator is GitHub:
 - supported native rule IDs: `picket-github-personal-access-token`, `picket-github-oauth-token`, `picket-github-refresh-token`, `picket-github-app-token`, and `picket-github-fine-grained-personal-access-token`,
 - default endpoint: `https://api.github.com/user`,
 - endpoint override: `--github-api-endpoint <absolute-uri>`, intended for GitHub Enterprise and recorded/local test hosts,
-- proxy override: `--github-api-proxy <absolute-uri>`, intended for enterprise and CI egress environments and rejected when the URI includes user info, query, or fragment data,
+- proxy override: `--github-api-proxy <https-uri>`, intended for enterprise and CI egress environments and rejected when the URI uses HTTP or includes user info, query, or fragment data,
 - TLS mode override: `--live-tls-mode system|tls12-plus`, where `system` uses platform defaults and `tls12-plus` restricts provider requests to TLS 1.2 or TLS 1.3; certificate validation is not bypassed,
 - rate-limit overrides: `--live-provider-rate-limit-ms <n>` changes the same-provider minimum interval and `--live-rate-limit-ms <n>` changes the global minimum interval; `0` disables the selected interval,
 - default endpoint policy: HTTPS required and non-public addresses blocked,

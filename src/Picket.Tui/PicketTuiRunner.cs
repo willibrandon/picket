@@ -17,15 +17,21 @@ internal static class PicketTuiRunner
     internal static async Task<int> RunAsync(string reportPath, CancellationToken cancellationToken = default)
     {
         PicketTuiState state = LoadState(reportPath);
-        await using Hex1bTerminal terminal = Hex1bTerminal.CreateBuilder()
-            .WithHex1bApp(
-                options =>
-                {
-                    options.EnableMouse = true;
-                    options.Theme = PicketTuiAccessibilityPalette.CreateTheme();
-                },
-                ctx => PicketTuiApp.Build(ctx, state))
-            .Build();
+        await using Hex1bTerminal terminal = CreateTerminal(state);
+
+        return await terminal.RunAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs the full-screen scan workspace.
+    /// </summary>
+    /// <param name="cancellationToken">A token used to cancel the console.</param>
+    /// <returns>The process-style exit code.</returns>
+    internal static async Task<int> RunScanWorkspaceAsync(CancellationToken cancellationToken = default)
+    {
+        PicketTuiState state = CreateScanWorkspaceState();
+        state.SetView(PicketTuiView.Scan);
+        await using Hex1bTerminal terminal = CreateTerminal(state);
 
         return await terminal.RunAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -44,5 +50,29 @@ internal static class PicketTuiRunner
             Path.GetFullPath(reportPath),
             summary,
             DateTimeOffset.UtcNow));
+    }
+
+    private static PicketTuiState CreateScanWorkspaceState()
+    {
+        var state = new PicketTuiState(new PicketTuiReport(
+            "picket-tui-scan",
+            new ReportSummary("picket-jsonl", []),
+            DateTimeOffset.UtcNow));
+        state.TryLoadPreviousScanReport();
+        state.SetView(PicketTuiView.Scan);
+        return state;
+    }
+
+    private static Hex1bTerminal CreateTerminal(PicketTuiState state)
+    {
+        return Hex1bTerminal.CreateBuilder()
+            .WithHex1bApp(
+                options =>
+                {
+                    options.EnableMouse = true;
+                    options.Theme = PicketTuiPalette.CreateTheme();
+                },
+                ctx => PicketTuiApp.Build(ctx, state))
+            .Build();
     }
 }

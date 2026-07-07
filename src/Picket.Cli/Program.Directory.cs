@@ -4,6 +4,7 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Sources;
 using Picket.Store;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket;
 
@@ -425,6 +426,12 @@ internal static partial class Program
                 hadScanError: false);
         }
 
+        if (allowReportInput && File.Exists(root) && TryGetSummaryOnlyReportFormat(root, out string? summaryOnlyReportFormat))
+        {
+            Console.Error.WriteLine($"report input format '{summaryOnlyReportFormat}' does not preserve raw secret material; use picket view for summary-only reports");
+            return CompleteRun(1, diagnosticsSession);
+        }
+
         PicketScanCache? scanCache = null;
         if (nativeMode && !string.IsNullOrWhiteSpace(cacheDir))
         {
@@ -608,5 +615,26 @@ internal static partial class Program
             nativeResultWriter,
             exitCode,
             hadScanError);
+    }
+
+    static bool TryGetSummaryOnlyReportFormat(string path, [NotNullWhen(true)] out string? format)
+    {
+        try
+        {
+            ReportSummary summary = ReportSummaryReader.Read(path);
+            if (summary.Format is "picket-json" or "picket-jsonl" or "gitleaks-json")
+            {
+                format = null;
+                return false;
+            }
+
+            format = summary.Format;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            format = null;
+            return false;
+        }
     }
 }

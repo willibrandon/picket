@@ -75,6 +75,26 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies strict native redaction never leaves a full secret visible for non-zero percentages.
+    /// </summary>
+    [TestMethod]
+    public void RedactStrictNonZeroPercentagesNeverKeepFullSecret()
+    {
+        for (int length = 1; length <= 64; length++)
+        {
+            string secret = new('a', length);
+            Finding finding = CreateFinding(secret, secret);
+            for (int redactionPercent = 1; redactionPercent < 100; redactionPercent++)
+            {
+                Finding redacted = GitleaksFindingRedactor.Redact(finding, redactionPercent, requirePartialMask: true);
+
+                Assert.DoesNotContain(secret, redacted.Secret);
+                Assert.DoesNotContain(secret, redacted.Match);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies native redaction does not keep hashes of the original evidence.
     /// </summary>
     [TestMethod]

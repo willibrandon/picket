@@ -109,7 +109,7 @@ internal static class PicketTuiFlowRunner
                     await flow.FullScreenStepAsync((_, options) =>
                     {
                         options.EnableMouse = true;
-                        options.Theme = PicketTuiAccessibilityPalette.CreateTheme();
+                        options.Theme = PicketTuiPalette.CreateTheme();
                         return ctx => PicketTuiApp.Build(ctx, state);
                     }).ConfigureAwait(false);
                 }
@@ -119,7 +119,7 @@ internal static class PicketTuiFlowRunner
             {
                 options.EnableMouse = true;
                 options.InitialCursorRow = cursorRow;
-                options.Theme = PicketTuiAccessibilityPalette.CreateTheme();
+                options.Theme = PicketTuiPalette.CreateTheme();
                 options.UseSoftWrapTombstones = true;
             })
             .Build();

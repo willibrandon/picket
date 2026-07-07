@@ -52,16 +52,12 @@ internal sealed class PicketTuiFindingRow(ReportFindingSummary finding, int inde
 
     private static string CreateKey(ReportFindingSummary finding, int index)
     {
-        return finding.Fingerprint.Length == 0
-            ? string.Concat(
-                index.ToString(CultureInfo.InvariantCulture),
-                ":",
-                finding.RuleId,
-                ":",
-                finding.Path,
-                ":",
-                finding.Line.ToString(CultureInfo.InvariantCulture))
-            : finding.Fingerprint;
+        return string.Concat(
+            index.ToString(CultureInfo.InvariantCulture),
+            ":",
+            finding.Fingerprint.Length == 0
+                ? string.Concat(finding.RuleId, ":", finding.Path, ":", finding.Line.ToString(CultureInfo.InvariantCulture))
+                : finding.Fingerprint);
     }
 
     private static string CreateLocation(ReportFindingSummary finding)

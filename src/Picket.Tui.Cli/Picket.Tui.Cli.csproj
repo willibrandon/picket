@@ -23,6 +23,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- System.CommandLine 2.0.9 is documented as trim-friendly/AOT-capable and its source project is annotated
+         for AOT compatibility, but the shipped package does not currently flow the IsAotCompatible package metadata. -->
+    <PackageReference Include="System.CommandLine" IsAotCompatible="true" />
     <ProjectReference Include="..\Picket.Tui\Picket.Tui.csproj" />
   </ItemGroup>
 </Project>

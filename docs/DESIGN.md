@@ -759,11 +759,11 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 
 ### 8.10 Terminal Triage UI
 
-`picket tui <report>` opens an interactive scanner console for non-secret report triage. The main `picket` executable keeps the scanner binary focused and delegates to the companion `picket-tui` executable when it is installed beside `picket` or discoverable on `PATH`. The companion is also Native AOT and uses the same release profiles as `picket`; it is separate so terminal UI code and terminal-native assets do not increase the default scanner payload. The companion loads the same non-secret report summaries as `picket view`: rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names. It does not load raw secret, match, or source-line evidence into the initial console.
+`picket tui <report>` opens an interactive scanner console for non-secret report triage. `picket tui --scan` opens the native scan workspace without loading an existing report. The main `picket` executable keeps the scanner binary focused and delegates to the companion `picket-tui` executable when it is installed beside `picket` or discoverable on `PATH`. The companion is also Native AOT and uses the same release profiles as `picket`; it is separate so terminal UI code and terminal-native assets do not increase the default scanner payload. The companion loads the same non-secret report summaries as `picket view`: rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names. It does not load raw secret, match, or source-line evidence into the initial console.
 
-The full-screen console is an operator interface, not a marketing screen. The first viewport is a dense scanner console: a status/menu row, navigation, findings table, focused-finding details, rule and file frequency views, an accessibility view, and a diagnostics/status area. It favors tables, stable row keys, clear focus, keyboard navigation, and text labels over decorative graphics.
+The full-screen console is an operator interface, not a marketing screen. Opening without a report starts on the Scan page; opening a report with findings starts on Findings. The first viewport for scanning keeps Run scan, target inputs, command preview, status, and latest findings in one view so completed scans do not require hunting through navigation. It favors tables, stable row keys, clear focus, keyboard navigation, and text labels over decorative graphics.
 
-The scanner console also has a native scan workspace. The scan workspace lets users choose a local path or source-host target, profile, config, ignore behavior, verification mode, result filter, archive limits, redaction, and report outputs through terminal controls. It runs the same engine and option model as `picket scan`, displays live progress, discovered targets, warnings, findings, validation state, elapsed time, and cancellation status, and writes normal Picket reports. It must not create a separate behavior path from the CLI; the TUI builds an explicit scan request and shows the command-equivalent settings before execution.
+The scanner console also has a native scan workspace. The scan workspace lets users choose a local path or source-host target, profile, config, ignore behavior, verification mode, result filter, archive limits, redaction, and report outputs through terminal controls. It builds and displays the command-equivalent `picket scan` request, prepares the report output directory, invokes the scanner executable instead of reimplementing scan behavior in the TUI, displays text status, exit code state, elapsed-time diagnostics, streamed stdout/stderr scanner output, and cancellation status, reloads the generated report summary when the scan completes, and keeps loaded findings visible on the Scan page. While a scan is running, the primary action changes from Run scan to Cancel and `Ctrl+C` requests scan cancellation without closing the console. It must not create a separate behavior path from the CLI.
 
 `picket tui <report> --flow` renders interactive steps inline in the normal terminal buffer. The inline flow can prompt for a report path, show a frozen summary in scrollback, and open the same full-screen console through a full-screen step when the user needs a larger workspace. Inline steps keep output suitable for normal terminal history; full-screen steps use the alternate screen buffer only for the scanner console.
 
@@ -775,8 +775,6 @@ The TUI follows WCAG 2.2 AA principles adapted to terminal constraints:
 - normal text contrast of at least 4.5:1,
 - non-text UI, borders, and focus indicators of at least 3:1,
 - no flashing or motion-only progress; progress must have text status.
-
-WCAG 3.0 is monitored as a draft, but WCAG 2.2 AA is the stable baseline for implementation and tests.
 
 TUI coverage uses Hex1b's headless terminal and automation APIs as first-class tests. Tests render the real widget tree, capture terminal snapshots, verify keyboard behavior, and cover practical desktop and narrow terminal dimensions.
 
@@ -1125,7 +1123,7 @@ Required before v1:
 - `docs/RULES.md`: rule schema, examples, validator/revocation metadata,
 - `docs/VALIDATION.md`: privacy and egress model,
 - `docs/REPORTS.md`: compatibility and native schemas,
-- `docs/TUI.md`: terminal triage UI, Flow mode, and accessibility contract,
+- `docs/TUI.md`: terminal triage UI, Flow mode, and terminal accessibility requirements,
 - `docs/ACTION.md`: CI action behavior and security posture,
 - `docs/GITHUB.md`: GitHub source enumeration, hosted-alert oracle capture, and permission guidance,
 - `docs/AZURE_DEVOPS.md`: Azure DevOps task, source enumeration, artifact scanning, and marketplace behavior,

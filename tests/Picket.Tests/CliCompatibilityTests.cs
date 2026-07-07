@@ -816,6 +816,44 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native verification can validate findings from a Picket JSON report.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyReadsPicketJsonReportInput()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string token = CreateGitHubPatFixture();
+        string reportPath = Path.Combine(root.Path, "picket.json");
+        File.WriteAllText(reportPath, PicketJsonReportWriter.Write([CreateGitHubPatFinding(token)], []));
+
+        CliResult result = await RunCliAsync("verify", reportPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.finding.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.DoesNotContain("picket.json", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native verification rejects summary-only report inputs instead of scanning them as source.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyRejectsSummaryOnlyReportInput()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = Path.Combine(root.Path, "report.sarif");
+        File.WriteAllText(reportPath, CreateSarifSummaryReport());
+
+        CliResult result = await RunCliAsync("verify", reportPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("report input format 'sarif' does not preserve raw secret material; use picket view for summary-only reports", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native verification can filter findings by offline validation result.
     /// </summary>
     [TestMethod]
@@ -1059,6 +1097,46 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native analysis can analyze findings from a Gitleaks JSON report.
+    /// </summary>
+    [TestMethod]
+    public async Task AnalyzeReadsGitleaksJsonReportInput()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string token = CreateGitHubPatFixture();
+        string reportPath = Path.Combine(root.Path, "gitleaks.json");
+        File.WriteAllText(reportPath, GitleaksJsonReportWriter.Write([CreateGitHubPatFinding(token)]));
+
+        CliResult result = await RunCliAsync("analyze", reportPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"schema\":\"picket.analysis.v1\"", result.Stdout);
+        Assert.Contains("\"ruleId\":\"github-pat\"", result.Stdout);
+        Assert.Contains("\"provider\":\"GitHub\"", result.Stdout);
+        Assert.Contains("\"file\":\"secret.txt\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.DoesNotContain(token, result.Stdout);
+        Assert.DoesNotContain("gitleaks.json", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that native analysis rejects summary-only report inputs instead of scanning them as source.
+    /// </summary>
+    [TestMethod]
+    public async Task AnalyzeRejectsSummaryOnlyReportInput()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = Path.Combine(root.Path, "report.sarif");
+        File.WriteAllText(reportPath, CreateSarifSummaryReport());
+
+        CliResult result = await RunCliAsync("analyze", reportPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("report input format 'sarif' does not preserve raw secret material; use picket view for summary-only reports", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native analysis can filter by offline validation result and write JSON Lines.
     /// </summary>
     [TestMethod]
@@ -1177,7 +1255,22 @@ public sealed class CliCompatibilityTests
         Assert.Contains("picket scan [<path>] [options]", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
         Assert.Contains("--max-target-megabytes", result.Stdout);
+        Assert.Contains("--redact", result.Stdout);
         Assert.DoesNotContain("Additional Arguments", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the TUI command help exposes both report triage and scan workspace entry points.
+    /// </summary>
+    [TestMethod]
+    public async Task TuiHelpAdvertisesScanWorkspace()
+    {
+        CliResult result = await RunCliAsync("tui", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket tui [<report>] [options]", result.Stdout);
+        Assert.Contains("--flow", result.Stdout);
+        Assert.Contains("--scan", result.Stdout);
     }
 
     /// <summary>
@@ -4612,6 +4705,13 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "{{id}}"
             regex = '''{{pattern}}'''
+            """;
+    }
+
+    private static string CreateSarifSummaryReport()
+    {
+        return """
+            {"version":"2.1.0","runs":[{"results":[{"ruleId":"sarif-rule","locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/secret.txt"},"region":{"startLine":9}}}],"partialFingerprints":{"picketFingerprint":"sarif-fingerprint"},"properties":{"secret":"token-12345"}}]}]}
             """;
     }
 

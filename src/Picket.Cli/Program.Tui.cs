@@ -7,14 +7,15 @@ internal static partial class Program
 {
     static async Task<int> RunTuiAsync(string[] args)
     {
-        if (args.Length == 0 || IsHelp(args[0]))
+        if (args.Length > 0 && IsHelp(args[0]))
         {
             WriteTuiHelp();
             return 0;
         }
 
-        bool flow = false;
         string? reportPath = null;
+        bool flow = false;
+        bool scan = false;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -27,6 +28,16 @@ internal static partial class Program
             if (IsFlowFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--flow", out flow))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsTuiScanFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--scan", out scan))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -49,9 +60,15 @@ internal static partial class Program
             reportPath = arg;
         }
 
-        if (!flow && string.IsNullOrWhiteSpace(reportPath))
+        if (scan && flow)
         {
-            Console.Error.WriteLine("tui requires a report path");
+            Console.Error.WriteLine("--scan cannot be combined with --flow");
+            return UnknownFlagExitCode;
+        }
+
+        if (scan && !string.IsNullOrWhiteSpace(reportPath))
+        {
+            Console.Error.WriteLine("--scan cannot be combined with a report path");
             return UnknownFlagExitCode;
         }
 
@@ -97,5 +114,10 @@ internal static partial class Program
     private static bool IsFlowFlag(string arg)
     {
         return arg.Equals("--flow", StringComparison.Ordinal) || arg.StartsWith("--flow=", StringComparison.Ordinal);
+    }
+
+    private static bool IsTuiScanFlag(string arg)
+    {
+        return arg.Equals("--scan", StringComparison.Ordinal) || arg.StartsWith("--scan=", StringComparison.Ordinal);
     }
 }

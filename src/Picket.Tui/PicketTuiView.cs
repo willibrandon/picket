@@ -11,6 +11,11 @@ internal enum PicketTuiView
     Dashboard,
 
     /// <summary>
+    /// Native scan workspace view.
+    /// </summary>
+    Scan,
+
+    /// <summary>
     /// Findings table and detail view.
     /// </summary>
     Findings,
@@ -24,11 +29,6 @@ internal enum PicketTuiView
     /// File frequency view.
     /// </summary>
     Files,
-
-    /// <summary>
-    /// Accessibility contract view.
-    /// </summary>
-    Accessibility,
 
     /// <summary>
     /// Session diagnostics view.

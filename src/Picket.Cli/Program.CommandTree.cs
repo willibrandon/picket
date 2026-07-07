@@ -69,6 +69,7 @@ internal static partial class Program
         AddResultFilterOptions(command, "picket scan");
         AddScanLimitOptions(command, "picket scan", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, "picket scan");
+        command.Options.Add(CreateRedactOption("picket scan"));
         return command;
     }
 
@@ -316,12 +317,13 @@ internal static partial class Program
     {
         Command command = CreateForwardingCommand(
             "tui",
-            "Interactive report triage console.",
+            "Interactive report triage and scan workspace.",
             args,
             1,
             static forwardedArgs => RunTuiAsync(forwardedArgs));
         AddOptionalArgument(command, "picket tui", "report");
         command.Options.Add(CreateFlagOption("picket tui", "--flow"));
+        command.Options.Add(CreateFlagOption("picket tui", "--scan"));
         return command;
     }
 

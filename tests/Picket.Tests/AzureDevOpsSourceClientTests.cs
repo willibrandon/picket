@@ -787,6 +787,65 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Azure DevOps downloads stop when the body exceeds the byte cap even if the declared length is understated.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesAppliesByteLimitToUnderstatedContentLength()
+    {
+        const string Token = "azdo-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": "repo-1",
+                          "name": "web",
+                          "project": { "name": "Project One" }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal)
+                && url.Contains("download=true", StringComparison.Ordinal))
+            {
+                HttpResponseMessage response = BytesResponse("0123456789");
+                response.Content.Headers.ContentLength = 1;
+                return response;
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"path":"/large.txt","gitObjectType":"blob"}]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            repository: "web",
+            maxFileBytes: 4,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Azure DevOps file byte limit skipped azure-devops/Project%20One/web/large.txt", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that Azure DevOps source enumeration retries bounded rate-limit responses.
     /// </summary>
     [TestMethod]
