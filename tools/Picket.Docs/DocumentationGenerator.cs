@@ -1104,6 +1104,12 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         }
 
         string key = option.Split(" / ", StringSplitOptions.None)[0];
+        int valueSeparator = key.IndexOf(' ', StringComparison.Ordinal);
+        if (valueSeparator > 0)
+        {
+            key = key[..valueSeparator];
+        }
+
         return key switch
         {
             "--" => "End option parsing before literal input.",
@@ -1115,6 +1121,15 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "-r" => "Write a report to this path.",
             "-v" => "Enable verbose logging.",
             "--allow-non-public-endpoints" => "Allow guarded live validation endpoints that are not public internet addresses.",
+            "--allow-insecure-source-endpoints" => "Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments.",
+            "--allow-non-public-source-endpoints" => "Allow source-host endpoints that resolve to private, loopback, link-local, or otherwise non-public addresses.",
+            "--azure-devops-branch" => "Scan this Azure Repos branch.",
+            "--azure-devops-endpoint" => "Use this Azure DevOps Server or organization endpoint for native source enumeration.",
+            "--azure-devops-organization" => "Use this Azure DevOps Services organization for native source enumeration.",
+            "--azure-devops-project" => "Limit Azure DevOps source enumeration to this project.",
+            "--azure-devops-repository" => "Limit Azure DevOps source enumeration to this repository.",
+            "--azure-devops-token-env" => "Read the Azure DevOps PAT or bearer token from this environment variable.",
+            "--azure-devops-token-kind" => "Choose PAT basic authentication or bearer-token authentication for Azure DevOps requests.",
             "--cache-dir" => "Read or write scanner cache data in this directory.",
             "--cache-mode" => "Choose whether scan cache entries store raw evidence or secret and match hashes only.",
             "--command" => "Use this command path in generated hook scripts.",

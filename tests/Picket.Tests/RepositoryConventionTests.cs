@@ -467,6 +467,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("attestations", marketplaces);
         Assert.Contains("Rollback", marketplaces);
         Assert.Contains("AZURE_DEVOPS_MARKETPLACE_PAT", marketplaces);
+        Assert.Contains("PICKET_GITHUB_SECRET_SCANNING_PAT", marketplaces);
+        Assert.DoesNotContain("`GITHUB_SECRET_SCANNING_PAT`", marketplaces);
         Assert.Contains("BenchmarkDotNet", performance);
         Assert.Contains("benchmarks/Picket.Benchmarks", performance);
         Assert.Contains("tests/fixtures/github-secret-scanning", performance);

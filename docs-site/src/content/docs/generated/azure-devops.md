@@ -97,6 +97,8 @@ Native source enumeration supports:
 - pipeline logs,
 - release artifacts where the server exposes them safely.
 
+Repository file enumeration is implemented first. Pull requests, wiki repositories, build artifacts, pipeline logs, release artifacts, and feed/package sources are planned native source extensions and must remain explicit opt-ins when added.
+
 Provider options include:
 
 | Option | Purpose |
@@ -106,11 +108,15 @@ Provider options include:
 | `--azure-devops-repository` | Optional repository filter. |
 | `--azure-devops-endpoint` | Endpoint override for Azure DevOps Server. |
 | `--azure-devops-token-env` | Environment variable containing the PAT or job token. |
+| `--azure-devops-token-kind` | Credential transport: `pat` for personal access tokens or `bearer` for job and Entra tokens. |
+| `--azure-devops-branch` | Optional branch name. |
 | `--azure-devops-pull-request` | Pull request number or ID to scan. |
 | `--azure-devops-include-artifacts` | Include build and release artifacts when supported. |
 | `--azure-devops-include-logs` | Include pipeline logs. |
 | `--azure-devops-max-artifact-megabytes` | Per-artifact download cap. |
 | `--azure-devops-max-log-megabytes` | Per-log download cap. |
+| `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-hosted Azure DevOps Server. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 
 Enumeration handles continuation tokens, retries, rate limits, server paging limits, branch and pull-request scope controls, and clear permission-denied records for projects or repositories the token cannot read. Permission failures for one project or repository should not hide successful scans of other authorized resources.
 

@@ -17,6 +17,7 @@ internal static partial class Program
         bool allowValidationResultFilters = false,
         LiveVerificationConfiguration? liveVerification = null,
         bool allowReportInput = false,
+        Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider = null,
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null)
     {
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
@@ -432,29 +433,49 @@ internal static partial class Program
             }
         }
 
-        if (!TryLoadPicketIgnore(root, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? picketIgnore))
+        PicketIgnore picketIgnore;
+        IReadOnlyList<SourceFile> files;
+        if (sourceFileProvider is null)
         {
-            return CompleteRun(1, diagnosticsSession);
+            if (!TryLoadPicketIgnore(root, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? loadedPicketIgnore))
+            {
+                return CompleteRun(1, diagnosticsSession);
+            }
+
+            picketIgnore = loadedPicketIgnore;
+            files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxTargetBytes: maxTargetBytes,
+                followSymbolicLinks: followSymlinks,
+                maxArchiveDepth: maxArchiveDepth,
+                maxArchiveEntries: maxArchiveEntries,
+                maxArchiveBytes: maxArchiveBytes,
+                maxArchiveCompressionRatio: maxArchiveCompressionRatio,
+                isPathAllowed: rules.IsGlobalPathAllowed,
+                readPicketIgnoreFiles: respectNativeIgnoreFiles,
+                readIgnoreFiles: respectNativeIgnoreFiles,
+                readGitIgnoreFiles: respectNativeIgnoreFiles,
+                readGlobalGitIgnore: respectNativeIgnoreFiles,
+                ignoreHidden: respectNativeIgnoreFiles,
+                readParentIgnoreFiles: respectNativeIgnoreFiles,
+                ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
+                warningSink: nativeMode ? Console.Error.WriteLine : null,
+                isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+        }
+        else
+        {
+            try
+            {
+                picketIgnore = PicketIgnore.Empty;
+                files = sourceFileProvider(root, rules, maxTargetBytes, timeoutTimestamp);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return CompleteRun(1, diagnosticsSession);
+            }
         }
 
-        IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
-            root,
-            maxTargetBytes: maxTargetBytes,
-            followSymbolicLinks: followSymlinks,
-            maxArchiveDepth: maxArchiveDepth,
-            maxArchiveEntries: maxArchiveEntries,
-            maxArchiveBytes: maxArchiveBytes,
-            maxArchiveCompressionRatio: maxArchiveCompressionRatio,
-            isPathAllowed: rules.IsGlobalPathAllowed,
-            readPicketIgnoreFiles: respectNativeIgnoreFiles,
-            readIgnoreFiles: respectNativeIgnoreFiles,
-            readGitIgnoreFiles: respectNativeIgnoreFiles,
-            readGlobalGitIgnore: respectNativeIgnoreFiles,
-            ignoreHidden: respectNativeIgnoreFiles,
-            readParentIgnoreFiles: respectNativeIgnoreFiles,
-            ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
-            warningSink: nativeMode ? Console.Error.WriteLine : null,
-            isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
         {

@@ -107,7 +107,7 @@ Repository and environment secrets should be narrowly scoped:
 | --- | --- |
 | `NUGET_API_KEY` | Publish approved NuGet packages and tools. |
 | `AZURE_DEVOPS_MARKETPLACE_PAT` | Publish the Azure DevOps Marketplace VSIX package. |
-| `GITHUB_SECRET_SCANNING_PAT` | Optional hosted-alert oracle capture for the Picket repository. |
+| `PICKET_GITHUB_SECRET_SCANNING_PAT` | Optional hosted-alert oracle capture for the Picket repository. GitHub Actions secret names cannot start with `GITHUB_`. |
 | `AZURE_DEVOPS_TEST_PAT` | Optional live Azure DevOps integration tests against a dedicated test organization. |
 
 GitHub Releases, GitHub Pages, artifact attestations, and normal action publishing should use built-in GitHub workflow credentials wherever possible.

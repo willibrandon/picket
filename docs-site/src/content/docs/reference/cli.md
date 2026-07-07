@@ -19,7 +19,7 @@ Use the grouped index to jump to the workflow you need.
       <li>
         <a class="cli-command-link" href="#picket-scan">
           <code>picket scan</code>
-          <span>Native filesystem scan.</span>
+          <span>Native filesystem and source-host scan.</span>
         </a>
       </li>
       <li>
@@ -160,7 +160,7 @@ Use the grouped index to jump to the workflow you need.
       <dd>json, jsonl, csv, junit, html, gitlab, sarif, toon</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Native filesystem scan.</p>
+  <p class="cli-command-summary">Native filesystem and source-host scan.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
@@ -183,6 +183,15 @@ Use the grouped index to jump to the workflow you need.
   [--live-rate-limit-ms n]
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
+  [--azure-devops-organization org]
+  [--azure-devops-endpoint uri]
+  [--azure-devops-token-env name]
+  [--azure-devops-token-kind pat|bearer]
+  [--azure-devops-project name]
+  [--azure-devops-repository name]
+  [--azure-devops-branch name]
+  [--allow-non-public-source-endpoints]
+  [--allow-insecure-source-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
   [--only-verified]
   [--max-target-megabytes n]
@@ -322,6 +331,60 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Allow guarded live validation endpoints that are not public internet addresses.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-organization</code></td>
+              <td data-label="Value"><code>org</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Azure DevOps Services organization for native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Azure DevOps Server or organization endpoint for native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Azure DevOps PAT or bearer token from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-token-kind</code></td>
+              <td data-label="Value"><code>pat | bearer</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose PAT basic authentication or bearer-token authentication for Azure DevOps requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-project</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Azure DevOps source enumeration to this project.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-repository</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Azure DevOps source enumeration to this repository.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-branch</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Azure Repos branch.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-non-public-source-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow source-host endpoints that resolve to private, loopback, link-local, or otherwise non-public addresses.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-insecure-source-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--results</code></td>
