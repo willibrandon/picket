@@ -403,7 +403,12 @@ public sealed class PicketTuiTests
         Assert.IsGreaterThanOrEqualTo(2, invalidationCount);
 
         state.CancelScan(() => Interlocked.Increment(ref invalidationCount));
-        await WaitUntilAsync(() => !state.ScanWorkspace.IsRunning, TestContext.CancellationToken).ConfigureAwait(false);
+        await WaitUntilAsync(
+            () => !state.ScanWorkspace.IsRunning
+                && state.ScanWorkspace.LastExitCode == 130
+                && state.ScanWorkspace.Status.Equals("Scan cancelled", StringComparison.Ordinal)
+                && state.StatusMessage.Equals("Scan cancelled", StringComparison.Ordinal),
+            TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(130, state.ScanWorkspace.LastExitCode);
         Assert.AreEqual("Scan cancelled", state.ScanWorkspace.Status);
