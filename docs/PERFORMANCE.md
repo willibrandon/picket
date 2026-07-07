@@ -42,10 +42,10 @@ preferred evidence for cache hit-rate changes.
 
 For repository-level comparison:
 
-- use `scripts/Capture-CompatibilityOracle.ps1` for Gitleaks parity,
-- use `scripts/Capture-GitHubSecretScanningOracle.ps1` for sanitized hosted
+- use `scripts/Capture-CompatibilityOracle.cs` for Gitleaks parity,
+- use `scripts/Capture-GitHubSecretScanningOracle.cs` for sanitized hosted
   GitHub secret-scanning alert metadata,
-- use `scripts/Compare-GitHubSecretScanningOracle.ps1` to compare native JSONL
+- use `scripts/Compare-GitHubSecretScanningOracle.cs` to compare native JSONL
   scan output against mapped hosted alert classes and locations,
 - use `picket git . --profile picket --report-format jsonl` when captured
   hosted locations include commit SHAs,

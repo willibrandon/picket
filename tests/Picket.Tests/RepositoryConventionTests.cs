@@ -130,7 +130,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("actions/cache/save", action);
         Assert.Contains("github/codeql-action/upload-sarif", action);
         Assert.Contains("actions/setup-dotnet", action);
-        Assert.Contains("run-picket.ps1", action);
+        Assert.Contains("run-picket.cs", action);
+        Assert.Contains("dotnet build", action);
+        Assert.Contains("dotnet run --file", action);
+        Assert.Contains("--no-build", action);
     }
 
     /// <summary>
@@ -139,13 +142,13 @@ public sealed partial class RepositoryConventionTests
     [TestMethod]
     public void GitHubActionHelperDefinesStableOutputs()
     {
-        string helper = ReadRepositoryFile(".github/actions/run-picket.ps1");
+        string helper = ReadRepositoryFile(".github/actions/run-picket.cs");
 
         Assert.Contains("GITHUB_OUTPUT", helper);
         Assert.Contains("GITHUB_STEP_SUMMARY", helper);
         Assert.Contains("picket.sarif", helper);
         Assert.Contains("picket.jsonl", helper);
-        Assert.Contains("--redact=$redact", helper);
+        Assert.Contains("--redact={redact}", helper);
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--cache-mode", helper);
         Assert.Contains("PICKET_CACHE_MODE", helper);
@@ -161,20 +164,20 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--max-archive-entries", helper);
         Assert.Contains("--max-archive-megabytes", helper);
         Assert.Contains("--max-archive-ratio", helper);
-        Assert.Contains("ConvertFrom-Json", helper);
+        Assert.Contains("JsonNode.Parse", helper);
         Assert.Contains("::warning", helper);
         Assert.Contains("PICKET_ANNOTATIONS", helper);
         Assert.Contains("PICKET_ANNOTATION_LIMIT", helper);
-        Assert.Contains("Get-FindingBreakdownSummaryLines", helper);
+        Assert.Contains("GetFindingBreakdownSummaryLines", helper);
         Assert.Contains("Findings by rule", helper);
         Assert.Contains("Findings by file", helper);
-        Assert.Contains("ConvertTo-MarkdownCell", helper);
+        Assert.Contains("ConvertToMarkdownCell", helper);
         Assert.DoesNotContain("finding.secret", helper);
         Assert.DoesNotContain("finding.match", helper);
         Assert.DoesNotContain("finding.line", helper);
-        Assert.Contains("'should-fail'", helper);
-        Assert.Contains("'failure-code'", helper);
-        Assert.Contains("'annotations'", helper);
+        Assert.Contains("should-fail", helper);
+        Assert.Contains("failure-code", helper);
+        Assert.Contains("annotations", helper);
     }
 
     /// <summary>
@@ -352,8 +355,12 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("PICKET_GITHUB_SECRET_SCANNING_PAT", workflow);
         Assert.Contains("GH_TOKEN", workflow);
-        Assert.Contains("Capture-GitHubSecretScanningOracle.ps1", workflow);
-        Assert.Contains("Compare-GitHubSecretScanningOracle.ps1", workflow);
+        Assert.Contains("Capture-GitHubSecretScanningOracle.cs", workflow);
+        Assert.Contains("Compare-GitHubSecretScanningOracle.cs", workflow);
+        Assert.Contains("dotnet build ./scripts/Capture-GitHubSecretScanningOracle.cs", workflow);
+        Assert.Contains("dotnet run --file ./scripts/Capture-GitHubSecretScanningOracle.cs --no-build --", workflow);
+        Assert.Contains("dotnet build ./scripts/Compare-GitHubSecretScanningOracle.cs", workflow);
+        Assert.Contains("dotnet run --file ./scripts/Compare-GitHubSecretScanningOracle.cs --no-build --", workflow);
         Assert.Contains("--redact=100", workflow);
         Assert.Contains("actions/upload-artifact@v7", workflow);
         Assert.Contains("Secret scanning alerts", gitHub);
@@ -582,7 +589,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("benchmarks/Picket.Benchmarks", performance);
         Assert.Contains("tests/fixtures/github-secret-scanning", performance);
         Assert.Contains("cacheWrites", performance);
-        Assert.Contains("Capture-GitHubSecretScanningOracle.ps1", performance);
+        Assert.Contains("Capture-GitHubSecretScanningOracle.cs", performance);
         Assert.Contains("public class SecretScanBenchmarks", benchmarks);
         Assert.DoesNotContain("public sealed class SecretScanBenchmarks", benchmarks);
         Assert.Contains("ScanGitHubSecretScanningOracleFixtureWithMappedNativeRules", benchmarks);
@@ -710,23 +717,30 @@ public sealed partial class RepositoryConventionTests
     public void UpstreamDocumentationCoversPortableOracleCapture()
     {
         string documentation = ReadRepositoryFile("docs/UPSTREAM.md");
-        string script = ReadRepositoryFile("scripts/Capture-UpstreamPins.ps1");
-        string oracleScript = ReadRepositoryFile("scripts/Capture-GitleaksOracle.ps1");
-        string compatibilityScript = ReadRepositoryFile("scripts/Capture-CompatibilityOracle.ps1");
-        string githubOracleScript = ReadRepositoryFile("scripts/Capture-GitHubSecretScanningOracle.ps1");
-        string githubComparisonScript = ReadRepositoryFile("scripts/Compare-GitHubSecretScanningOracle.ps1");
-        string promotionScript = ReadRepositoryFile("scripts/Promote-CompatibilityOracle.ps1");
+        string scriptsReadme = ReadRepositoryFile("scripts/README.md");
+        string script = ReadRepositoryFile("scripts/Capture-UpstreamPins.cs");
+        string oracleScript = ReadRepositoryFile("scripts/Capture-GitleaksOracle.cs");
+        string compatibilityScript = ReadRepositoryFile("scripts/Capture-CompatibilityOracle.cs");
+        string githubOracleScript = ReadRepositoryFile("scripts/Capture-GitHubSecretScanningOracle.cs");
+        string githubComparisonScript = ReadRepositoryFile("scripts/Compare-GitHubSecretScanningOracle.cs");
+        string promotionScript = ReadRepositoryFile("scripts/Promote-CompatibilityOracle.cs");
         string fixtureReadme = ReadRepositoryFile("tests/fixtures/oracles/README.md");
 
         Assert.Contains("PICKET_GITLEAKS_REPO", documentation);
         Assert.Contains("PICKET_SCOUT_REPO", documentation);
         Assert.Contains("PICKET_DOTNET_RUNTIME_REPO", documentation);
-        Assert.Contains("scripts/Capture-UpstreamPins.ps1 -Update", documentation);
-        Assert.Contains("scripts/Capture-GitleaksOracle.ps1", documentation);
-        Assert.Contains("scripts/Capture-CompatibilityOracle.ps1", documentation);
-        Assert.Contains("scripts/Capture-GitHubSecretScanningOracle.ps1", documentation);
-        Assert.Contains("scripts/Compare-GitHubSecretScanningOracle.ps1", documentation);
-        Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", documentation);
+        Assert.Contains("scripts/Capture-UpstreamPins.cs -- -Update", documentation);
+        Assert.Contains("scripts/Capture-GitleaksOracle.cs", documentation);
+        Assert.Contains("scripts/Capture-CompatibilityOracle.cs", documentation);
+        Assert.Contains("scripts/Capture-GitHubSecretScanningOracle.cs", documentation);
+        Assert.Contains("scripts/Compare-GitHubSecretScanningOracle.cs", documentation);
+        Assert.Contains("scripts/Promote-CompatibilityOracle.cs", documentation);
+        Assert.Contains("dotnet build", scriptsReadme);
+        Assert.Contains("dotnet run --file", scriptsReadme);
+        Assert.Contains("--no-build", scriptsReadme);
+        Assert.Contains("dotnet clean file-based-apps", scriptsReadme);
+        Assert.Contains("#!/usr/bin/env -S dotnet --", scriptsReadme);
+        Assert.Contains("Directory.Build.props", scriptsReadme);
         Assert.Contains("PICKET_GITLEAKS_BIN", documentation);
         Assert.Contains("PICKET_BIN", documentation);
         Assert.Contains("artifacts/oracles/gitleaks", documentation);
@@ -749,14 +763,14 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--report-format", oracleScript);
         Assert.Contains("--report-path", oracleScript);
         Assert.Contains("metadata.json", oracleScript);
-        Assert.Contains("Capture-GitleaksOracle.ps1", compatibilityScript);
+        Assert.Contains("Capture-GitleaksOracle.cs", compatibilityScript);
         Assert.Contains("PICKET_BIN", compatibilityScript);
         Assert.Contains("comparison.json", compatibilityScript);
         Assert.Contains("FailOnDifference", compatibilityScript);
-        Assert.Contains("picket-$Mode", compatibilityScript);
+        Assert.Contains("$\"picket-{mode}.{extension}\"", compatibilityScript);
         Assert.Contains("secret-scanning/alerts", githubOracleScript);
         Assert.Contains("picket.github-secret-scanning-oracle.v1", githubOracleScript);
-        Assert.Contains("ConvertTo-SafeAlert", githubOracleScript);
+        Assert.Contains("ConvertToSafeAlert", githubOracleScript);
         Assert.Contains("SecretType", githubOracleScript);
         Assert.DoesNotContain("RawSecret", githubOracleScript);
         Assert.Contains("picket.github-secret-scanning-comparison.v1", githubComparisonScript);
@@ -765,14 +779,56 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("CommitSha", githubComparisonScript);
         Assert.DoesNotContain("RawSecret", githubComparisonScript);
         Assert.Contains("Refusing to promote oracle captures", promotionScript);
-        Assert.Contains("tests\\fixtures\\oracles", promotionScript);
+        Assert.Contains("\"tests\", \"fixtures\", \"oracles\"", promotionScript);
         Assert.Contains("manifest.json", promotionScript);
         Assert.Contains("picket.oracle.v1", promotionScript);
         Assert.Contains("RedactionMapPath", promotionScript);
         Assert.Contains("AllowUnredacted", promotionScript);
         Assert.Contains("drive-root paths", documentation);
-        Assert.Contains("scripts/Promote-CompatibilityOracle.ps1", fixtureReadme);
+        Assert.Contains("scripts/Promote-CompatibilityOracle.cs", fixtureReadme);
         Assert.Contains("unredacted realistic credentials", fixtureReadme);
+    }
+
+    /// <summary>
+    /// Verifies that file-based utility apps build under the same SDK path used by CI.
+    /// </summary>
+    [TestMethod]
+    [Timeout(300000, CooperativeCancellation = true)]
+    public async Task FileBasedScriptAppsBuildSuccessfully()
+    {
+        string root = FindRepositoryRoot();
+        string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
+        Assert.HasCount(7, scripts);
+
+        foreach (string scriptPath in scripts)
+        {
+            await BuildFileBasedAppAsync(Path.GetRelativePath(root, scriptPath)).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that script app helpers have XML documentation comments on declared members.
+    /// </summary>
+    [TestMethod]
+    public void FileBasedScriptMembersHaveXmlDocumentation()
+    {
+        string root = FindRepositoryRoot();
+        List<string> violations = [];
+
+        foreach (string file in EnumerateFileBasedCSharpFiles(root).Order(StringComparer.Ordinal))
+        {
+            string relative = Path.GetRelativePath(root, file);
+            string[] lines = File.ReadAllLines(file);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (IsDocumentableScriptMemberDeclaration(lines[i]) && !HasXmlDocumentation(lines, i))
+                {
+                    violations.Add($"{relative}:{i + 1}: script type and member declarations require XML documentation");
+                }
+            }
+        }
+
+        Assert.IsEmpty(violations);
     }
 
     /// <summary>
@@ -839,21 +895,9 @@ public sealed partial class RepositoryConventionTests
             {"schema":"picket.finding.v1","ruleId":"picket-google-api-key","file":"src/extra.cs","startLine":40,"startColumn":3,"commit":"abc123","fingerprint":"fp2","secret":"SHOULD_NOT_APPEAR","match":"SHOULD_NOT_APPEAR","line":"SHOULD_NOT_APPEAR"}
             """);
 
-        using Process process = new()
-        {
-            StartInfo = new ProcessStartInfo("pwsh")
-            {
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-            },
-        };
+        await BuildFileBasedAppAsync("scripts/Compare-GitHubSecretScanningOracle.cs").ConfigureAwait(false);
 
-        process.StartInfo.ArgumentList.Add("-NoLogo");
-        process.StartInfo.ArgumentList.Add("-NoProfile");
-        process.StartInfo.ArgumentList.Add("-NonInteractive");
-        process.StartInfo.ArgumentList.Add("-File");
-        process.StartInfo.ArgumentList.Add(ResolveRepositoryPath("scripts/Compare-GitHubSecretScanningOracle.ps1"));
+        using Process process = CreateFileBasedAppProcess("scripts/Compare-GitHubSecretScanningOracle.cs", noBuild: true);
         process.StartInfo.ArgumentList.Add("-OraclePath");
         process.StartInfo.ArgumentList.Add(oraclePath);
         process.StartInfo.ArgumentList.Add("-PicketReportPath");
@@ -891,27 +935,17 @@ public sealed partial class RepositoryConventionTests
         WriteFakeGitHubCli(toolsPath);
         string outputPath = Path.Combine(temp.Path, "alerts.json");
 
-        using Process process = new()
-        {
-            StartInfo = new ProcessStartInfo("pwsh")
-            {
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-            },
-        };
+        await BuildFileBasedAppAsync("scripts/Capture-GitHubSecretScanningOracle.cs").ConfigureAwait(false);
 
+        using Process process = CreateFileBasedAppProcess("scripts/Capture-GitHubSecretScanningOracle.cs", noBuild: true);
         process.StartInfo.Environment["PATH"] = string.Concat(
             toolsPath,
             Path.PathSeparator,
             Environment.GetEnvironmentVariable("PATH"));
-        process.StartInfo.ArgumentList.Add("-NoLogo");
-        process.StartInfo.ArgumentList.Add("-NoProfile");
-        process.StartInfo.ArgumentList.Add("-NonInteractive");
-        process.StartInfo.ArgumentList.Add("-File");
-        process.StartInfo.ArgumentList.Add(ResolveRepositoryPath("scripts/Capture-GitHubSecretScanningOracle.ps1"));
         process.StartInfo.ArgumentList.Add("-Repository");
         process.StartInfo.ArgumentList.Add("owner/repo");
+        process.StartInfo.ArgumentList.Add("-State");
+        process.StartInfo.ArgumentList.Add("all");
         process.StartInfo.ArgumentList.Add("-OutputPath");
         process.StartInfo.ArgumentList.Add(outputPath);
 
@@ -942,7 +976,10 @@ public sealed partial class RepositoryConventionTests
         string[] scripts = [.. Directory.EnumerateFiles(root, "*.ps1", SearchOption.AllDirectories)
             .Where(file => IsPortableTextFile(root, file))
             .Order(StringComparer.Ordinal)];
-        Assert.IsNotEmpty(scripts);
+        if (scripts.Length == 0)
+        {
+            return;
+        }
 
         using Process process = new()
         {
@@ -1015,6 +1052,49 @@ public sealed partial class RepositoryConventionTests
         return (stdout, stderr);
     }
 
+    private async Task BuildFileBasedAppAsync(string relativePath)
+    {
+        using Process process = CreateDotNetProcess();
+        process.StartInfo.ArgumentList.Add("build");
+        process.StartInfo.ArgumentList.Add(ResolveRepositoryPath(relativePath));
+        process.StartInfo.ArgumentList.Add("--nologo");
+        process.StartInfo.ArgumentList.Add("--verbosity");
+        process.StartInfo.ArgumentList.Add("quiet");
+
+        Assert.IsTrue(process.Start(), "Could not start dotnet.");
+        (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, process.ExitCode, string.Concat(relativePath, Environment.NewLine, stdout, stderr));
+    }
+
+    private static Process CreateFileBasedAppProcess(string relativePath, bool noBuild)
+    {
+        Process process = CreateDotNetProcess();
+        process.StartInfo.ArgumentList.Add("run");
+        process.StartInfo.ArgumentList.Add("--file");
+        process.StartInfo.ArgumentList.Add(ResolveRepositoryPath(relativePath));
+        if (noBuild)
+        {
+            process.StartInfo.ArgumentList.Add("--no-build");
+        }
+
+        process.StartInfo.ArgumentList.Add("--");
+        return process;
+    }
+
+    private static Process CreateDotNetProcess()
+    {
+        return new Process
+        {
+            StartInfo = new ProcessStartInfo("dotnet")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+            },
+        };
+    }
+
     private static void WriteFakeGitHubCli(string toolsPath)
     {
         const string AlertsJson = """
@@ -1022,15 +1102,15 @@ public sealed partial class RepositoryConventionTests
             """;
         if (OperatingSystem.IsWindows())
         {
-            string scriptPath = Path.Combine(toolsPath, "gh.ps1");
+            string scriptPath = Path.Combine(toolsPath, "gh.cmd");
             File.WriteAllText(
                 scriptPath,
                 string.Concat(
-                    "param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)\n",
-                    "Write-Output @'\n",
+                    "@echo off\n",
+                    "echo ",
                     AlertsJson.Trim(),
-                    "\n'@\n",
-                    "exit 0\n"));
+                    "\n",
+                    "exit /b 0\n"));
             return;
         }
 
@@ -1045,6 +1125,78 @@ public sealed partial class RepositoryConventionTests
         File.SetUnixFileMode(
             executablePath,
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+
+    private static bool IsFileBasedApp(string path)
+    {
+        string? firstLine = File.ReadLines(path).FirstOrDefault();
+        return string.Equals(firstLine, "#!/usr/bin/env -S dotnet --", StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<string> EnumerateFileBasedAppFiles(string root)
+    {
+        foreach (string file in EnumerateFileBasedCSharpFiles(root))
+        {
+            if (IsFileBasedApp(file))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateFileBasedCSharpFiles(string root)
+    {
+        foreach (string directory in new[] { "scripts", ".github/actions" })
+        {
+            string path = Path.Combine(root, directory);
+            if (!Directory.Exists(path))
+            {
+                continue;
+            }
+
+            foreach (string file in Directory.EnumerateFiles(path, "*.cs", SearchOption.TopDirectoryOnly))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    private static bool IsDocumentableScriptMemberDeclaration(string line)
+    {
+        string trimmed = line.TrimStart();
+        if (!trimmed.StartsWith("internal ", StringComparison.Ordinal)
+            && !trimmed.StartsWith("private ", StringComparison.Ordinal)
+            && !trimmed.StartsWith("public ", StringComparison.Ordinal)
+            && !trimmed.StartsWith("protected ", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return trimmed.Contains(" class ", StringComparison.Ordinal)
+            || trimmed.Contains(" struct ", StringComparison.Ordinal)
+            || trimmed.Contains(" interface ", StringComparison.Ordinal)
+            || trimmed.Contains(" enum ", StringComparison.Ordinal)
+            || trimmed.Contains(" delegate ", StringComparison.Ordinal)
+            || trimmed.Contains(" static ", StringComparison.Ordinal)
+            || trimmed.StartsWith("private const ", StringComparison.Ordinal)
+            || trimmed.StartsWith("internal const ", StringComparison.Ordinal)
+            || trimmed.StartsWith("public const ", StringComparison.Ordinal);
+    }
+
+    private static bool HasXmlDocumentation(string[] lines, int declarationLineIndex)
+    {
+        for (int i = declarationLineIndex - 1; i >= 0; i--)
+        {
+            string trimmed = lines[i].TrimStart();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            return trimmed.StartsWith("///", StringComparison.Ordinal);
+        }
+
+        return false;
     }
 
     [GeneratedRegex(
@@ -1084,6 +1236,8 @@ public sealed partial class RepositoryConventionTests
         return (normalized.StartsWith("src/", StringComparison.Ordinal)
                 || normalized.StartsWith("tests/", StringComparison.Ordinal)
                 || normalized.StartsWith("tools/", StringComparison.Ordinal)
+                || normalized.StartsWith("scripts/", StringComparison.Ordinal)
+                || normalized.StartsWith(".github/actions/", StringComparison.Ordinal)
                 || normalized.StartsWith("benchmarks/", StringComparison.Ordinal))
             && !relative.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             && !relative.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
@@ -1127,6 +1281,7 @@ public sealed partial class RepositoryConventionTests
         string normalized = relative.Replace(Path.DirectorySeparatorChar, '/');
         if (normalized.Contains("/bin/", StringComparison.Ordinal)
             || normalized.Contains("/obj/", StringComparison.Ordinal)
+            || normalized.Contains("/node_modules/", StringComparison.Ordinal)
             || normalized.StartsWith("TestResults/", StringComparison.Ordinal)
             || normalized.StartsWith("artifacts/", StringComparison.Ordinal))
         {

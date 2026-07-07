@@ -165,7 +165,9 @@ runs:
         PICKET_MAX_ARCHIVE_ENTRIES: ${{ inputs.max-archive-entries }}
         PICKET_MAX_ARCHIVE_MEGABYTES: ${{ inputs.max-archive-megabytes }}
         PICKET_MAX_ARCHIVE_RATIO: ${{ inputs.max-archive-ratio }}
-      run: '& "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.ps1"'
+      run: |
+        dotnet build "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.cs" --nologo --verbosity quiet
+        dotnet run --file "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.cs" --no-build
 
     - name: Save scan cache
       if: ${{ inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true' }}
