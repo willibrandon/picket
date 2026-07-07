@@ -160,6 +160,54 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that a repository item-list failure is reported without failing other repositories.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesSkipsRepositoriesWhoseItemsCannotBeListed()
+    {
+        const string Token = "azdo-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": "repo-1",
+                          "name": "empty",
+                          "project": { "name": "Project One" }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("skipping Azure DevOps repository empty", warnings[0]);
+        Assert.Contains("404 NotFound", warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that Azure DevOps file byte caps skip oversized blobs without logging credentials.
     /// </summary>
     [TestMethod]

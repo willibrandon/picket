@@ -99,7 +99,7 @@ Native source enumeration supports:
 
 Repository file enumeration is implemented first. Pull requests, wiki repositories, build artifacts, pipeline logs, release artifacts, and feed/package sources are planned native source extensions and must remain explicit opt-ins when added.
 
-Repositories that explicitly report no default branch are skipped unless `--azure-devops-branch` is supplied. This keeps empty repositories from failing an organization or project scan.
+Repositories that explicitly report no default branch are skipped unless `--azure-devops-branch` is supplied. If branch metadata is not returned and a repository cannot list items, Picket warns and continues so an empty or unauthorized repository does not fail the rest of an organization or project scan.
 
 Provider options include:
 
