@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -1077,20 +1078,30 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         bool acceptRaw,
         CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/vnd.github.raw" : "application/vnd.github+json"));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
-        request.Headers.Add("X-GitHub-Api-Version", ApiVersion);
-        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        return await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/vnd.github.raw" : "application/vnd.github+json"));
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
+                request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
+                request.Headers.Add("X-GitHub-Api-Version", ApiVersion);
+                return request;
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<HttpResponseMessage> SendUnauthenticatedRawAsync(Uri uri, CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
-        request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
-        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        return await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+                request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
+                return request;
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<HttpResponseMessage> SendReleaseAssetAsync(
@@ -1098,12 +1109,58 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         Uri uri,
         CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Credential);
-        request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
-        request.Headers.Add("X-GitHub-Api-Version", ApiVersion);
-        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        return await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Credential);
+                request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
+                request.Headers.Add("X-GitHub-Api-Version", ApiVersion);
+                return request;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
+        Func<HttpRequestMessage> requestFactory,
+        CancellationToken cancellationToken)
+    {
+        return await RemoteSourceHttpRetry.SendAsync(
+            _httpClient,
+            requestFactory,
+            IsRetryableResponse,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool IsRetryableResponse(HttpResponseMessage response)
+    {
+        return RemoteSourceHttpRetry.IsGenericRetryableResponse(response)
+            || response.StatusCode == HttpStatusCode.Forbidden
+                && IsRateLimitResponse(response);
+    }
+
+    private static bool IsRateLimitResponse(HttpResponseMessage response)
+    {
+        if (response.Headers.RetryAfter is not null)
+        {
+            return true;
+        }
+
+        if (!response.Headers.TryGetValues("X-RateLimit-Remaining", out IEnumerable<string>? values))
+        {
+            return false;
+        }
+
+        foreach (string value in values)
+        {
+            if (value.Equals("0", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static async Task<byte[]?> ReadContentWithinLimitAsync(

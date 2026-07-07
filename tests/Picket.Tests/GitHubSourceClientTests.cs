@@ -1,6 +1,7 @@
 using Picket.Sources;
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace Picket.Tests;
@@ -798,6 +799,82 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitHub source enumeration retries bounded rate-limit responses.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRetriesRateLimitedGitHubRequests()
+    {
+        const string Token = "github-test-token";
+        int treeRequests = 0;
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/git/trees/main?", StringComparison.Ordinal))
+            {
+                treeRequests++;
+                if (treeRequests == 1)
+                {
+                    return RetryAfterResponse((HttpStatusCode)429);
+                }
+
+                return JsonResponse("""{"tree":[]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            "main");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(2, treeRequests);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub source enumeration recognizes provider-specific forbidden rate-limit responses.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRetriesForbiddenGitHubRateLimitResponses()
+    {
+        const string Token = "github-test-token";
+        int treeRequests = 0;
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/git/trees/main?", StringComparison.Ordinal))
+            {
+                treeRequests++;
+                if (treeRequests == 1)
+                {
+                    HttpResponseMessage response = RetryAfterResponse(HttpStatusCode.Forbidden);
+                    response.Headers.TryAddWithoutValidation("X-RateLimit-Remaining", "0");
+                    return response;
+                }
+
+                return JsonResponse("""{"tree":[]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            "main");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(2, treeRequests);
+    }
+
+    /// <summary>
     /// Verifies provider-supplied repository paths are normalized before they become report paths.
     /// </summary>
     [TestMethod]
@@ -1063,6 +1140,13 @@ public sealed class GitHubSourceClientTests
         {
             Content = new ByteArrayContent(value),
         };
+    }
+
+    private static HttpResponseMessage RetryAfterResponse(HttpStatusCode statusCode)
+    {
+        var response = new HttpResponseMessage(statusCode);
+        response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+        return response;
     }
 
     private static byte[] CreateZipBytes(params (string Name, byte[] Content)[] entries)

@@ -1,6 +1,7 @@
 using Picket.Sources;
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace Picket.Tests;
@@ -696,6 +697,41 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Azure DevOps source enumeration retries bounded rate-limit responses.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRetriesRateLimitedAzureDevOpsRequests()
+    {
+        const string Token = "azdo-test-token";
+        int repositoryRequests = 0;
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                repositoryRequests++;
+                if (repositoryRequests == 1)
+                {
+                    return RetryAfterResponse((HttpStatusCode)429);
+                }
+
+                return JsonResponse("""{"value":[]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(2, repositoryRequests);
+    }
+
+    /// <summary>
     /// Verifies provider-supplied repository paths are normalized before they become report paths.
     /// </summary>
     [TestMethod]
@@ -808,6 +844,13 @@ public sealed class AzureDevOpsSourceClientTests
         {
             Content = new ByteArrayContent(value),
         };
+    }
+
+    private static HttpResponseMessage RetryAfterResponse(HttpStatusCode statusCode)
+    {
+        var response = new HttpResponseMessage(statusCode);
+        response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+        return response;
     }
 
     private static byte[] CreateZipBytes(string entryName, string content)

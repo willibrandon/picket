@@ -652,17 +652,38 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         bool acceptJson,
         CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptJson ? "application/json" : "application/octet-stream"));
-        request.Headers.Authorization = CreateAuthorizationHeader(options);
-        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        return await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptJson ? "application/json" : "application/octet-stream"));
+                request.Headers.Authorization = CreateAuthorizationHeader(options);
+                return request;
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<HttpResponseMessage> SendUnauthenticatedRawAsync(Uri uri, CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
-        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        return await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+                return request;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
+        Func<HttpRequestMessage> requestFactory,
+        CancellationToken cancellationToken)
+    {
+        return await RemoteSourceHttpRetry.SendAsync(
+            _httpClient,
+            requestFactory,
+            RemoteSourceHttpRetry.IsGenericRetryableResponse,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task AddRepositoriesAsync(
