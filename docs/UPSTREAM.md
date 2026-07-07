@@ -204,6 +204,14 @@ Native GitHub repository, pull request, issue, issue comment, release, release a
 - Git trees REST API: `https://docs.github.com/v3/git/trees`
 - Repository contents REST API: `https://docs.github.com/en/rest/repos/contents`
 
+## GitLab Source References
+
+Native GitLab project repository source enumeration is based on GitLab REST API documentation reviewed on 2026-07-07:
+
+- GitLab repositories API: `https://docs.gitlab.com/api/repositories/`
+- GitLab repository files API: `https://docs.gitlab.com/api/repository_files/`
+- GitLab REST pagination: `https://docs.gitlab.com/api/rest/#pagination`
+
 ## Azure DevOps Source References
 
 Native Azure DevOps repository, wiki, build artifact, build log, and release

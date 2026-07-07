@@ -65,6 +65,7 @@ internal static partial class Program
         AddNativeScanOptions(command, "picket scan");
         AddLiveVerificationOptions(command, "picket scan", includeModeSwitches: false);
         AddGitHubSourceOptions(command, "picket scan");
+        AddGitLabSourceOptions(command, "picket scan");
         AddAzureDevOpsSourceOptions(command, "picket scan");
         AddContainerArchiveSourceOptions(command, "picket scan");
         AddResultFilterOptions(command, "picket scan");
@@ -484,6 +485,14 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--azure-devops-max-log-megabytes", "n"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-non-public-source-endpoints"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-insecure-source-endpoints"));
+    }
+
+    private static void AddGitLabSourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--gitlab-project", "path"));
+        command.Options.Add(CreateValueOption(commandName, "--gitlab-ref", "ref"));
+        command.Options.Add(CreateValueOption(commandName, "--gitlab-token-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--gitlab-api-endpoint", "uri"));
     }
 
     private static void AddContainerArchiveSourceOptions(Command command, string commandName)

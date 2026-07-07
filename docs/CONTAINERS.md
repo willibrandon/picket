@@ -34,6 +34,6 @@ The normal archive safety controls apply:
 | `--max-target-megabytes` | Skips oversized yielded files. |
 | `--timeout` | Stops long scans between scanner work units. |
 
-Only one native source provider can be selected for a scan. Do not combine `--docker-archive` or `--oci-archive` with GitHub or Azure DevOps source enumeration flags.
+Only one native source provider can be selected for a scan. Do not combine `--docker-archive` or `--oci-archive` with GitHub, GitLab, or Azure DevOps source enumeration flags.
 
 Registry pulls and remote image references are separate planned source providers. They need credential handling, endpoint policy, redirect policy, and provenance rules before they become part of the scanner contract.

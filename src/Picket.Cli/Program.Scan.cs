@@ -43,6 +43,11 @@ internal static partial class Program
         string githubSourceRepositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType;
         string githubSourceUser = string.Empty;
         string githubSourceUserGists = string.Empty;
+        Uri? gitLabApiEndpoint = null;
+        bool gitLabOptionSpecified = false;
+        string gitLabProject = string.Empty;
+        string gitLabRef = string.Empty;
+        string? gitLabTokenEnvironmentVariable = null;
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
@@ -302,6 +307,52 @@ internal static partial class Program
                 }
 
                 githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabProjectFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitlab-project", out string? project))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gitLabProject = project;
+                gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabRefFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitlab-ref", out string? gitRef))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gitLabRef = gitRef;
+                gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitlab-token-env", out gitLabTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabApiEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--gitlab-api-endpoint", out gitLabApiEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gitLabOptionSpecified = true;
                 continue;
             }
 
@@ -600,7 +651,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -616,13 +667,14 @@ internal static partial class Program
         sourceProviderCount += azureDevOpsOptionSpecified ? 1 : 0;
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
+        sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
         if (sourceProviderCount > 1)
         {
             Console.Error.WriteLine("scan accepts only one native source provider at a time");
             return UnknownFlagExitCode;
         }
 
-        if ((azureDevOpsOptionSpecified || githubSourceOptionSpecified)
+        if ((azureDevOpsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified)
             && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
@@ -679,6 +731,19 @@ internal static partial class Program
                 githubSourceIssueState,
                 githubSourceIncludeReleases,
                 githubSourceIncludeActionsArtifacts,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (gitLabOptionSpecified
+            && !TryCreateGitLabSourceProvider(
+                gitLabApiEndpoint,
+                gitLabProject,
+                gitLabRef,
+                gitLabTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

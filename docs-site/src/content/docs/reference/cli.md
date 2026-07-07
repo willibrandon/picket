@@ -388,6 +388,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this GitHub API endpoint for native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitlab-project</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this GitLab project path or numeric project ID through native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-ref</code></td>
+              <td data-label="Value"><code>ref</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this GitLab branch, tag, or commit.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the GitLab source enumeration token from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this GitLab API endpoint for native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--azure-devops-organization</code></td>
               <td data-label="Value"><code>org</code></td>
               <td data-label="Required">Optional</td>

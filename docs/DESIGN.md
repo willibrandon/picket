@@ -694,7 +694,38 @@ Local container archive scanning is native Picket behavior, not Gitleaks compati
 
 Picket treats the image archive as a source envelope, scans metadata files such as manifests and configs, expands layer tarballs and gzip-compressed layer blobs through the same archive safety caps as local archives, and reports provenance paths such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
 
-Container archive flags cannot be combined with GitHub or Azure DevOps source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+Container archive flags cannot be combined with GitHub, GitLab, or Azure DevOps source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+
+GitLab source support is native Picket behavior, not Gitleaks compatibility behavior.
+
+Implemented GitLab entry points:
+
+| Scope | Options | Behavior |
+| --- | --- | --- |
+| Project repository files | `--gitlab-project`, `--gitlab-ref`, `--gitlab-token-env`, `--gitlab-api-endpoint` | Scans a GitLab project path, numeric project ID, or project URL at a branch, tag, or commit. Empty `--gitlab-ref` uses the project default branch. |
+
+GitLab API flow:
+
+| Source | API behavior |
+| --- | --- |
+| Project metadata | Resolves the default branch for project scans. |
+| Repository tree | Lists repository blobs with recursive tree enumeration and `per_page=100`. |
+| Raw repository files | Downloads file bytes through the raw repository file endpoint. |
+
+GitLab source safety rules:
+
+- Endpoint safety checks run before the first request.
+- Redirects are disabled before credentials are sent.
+- Responses from injected HTTP handlers that already followed a redirect are rejected.
+- Retryable throttling and service responses are retried once with bounded `Retry-After` backoff.
+- GitLab REST pagination stops at a 1,000-page safety limit with a warning.
+- Remote downloads use a 100 decimal MB default cap.
+- A positive `--max-target-megabytes` value overrides the default remote cap.
+- Zero keeps its local-scan compatibility meaning, but remote GitLab sources reject zero because remote HTTP bodies are always bounded.
+- Oversized tree entries are skipped before download when GitLab returns a size.
+- Project groups, merge requests, snippets, jobs, pipelines, packages, and artifacts remain planned explicit source selectors.
+
+GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for the initial project repository source. Least-privilege project repository enumeration requires read-only repository/API access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 
@@ -1044,6 +1075,7 @@ Gate: recorded provider suites green; live tests opt-in and documented.
 - source-host scanners,
 - object-store scanners,
 - local Docker/OCI archive scanners,
+- GitLab project repository file scanner,
 - JSONL/rich JSON/TOON/HTML/GitLab reports,
 - `picket view`.
 
@@ -1137,6 +1169,7 @@ Required before v1:
 - `docs/TUI.md`: terminal triage UI, Flow mode, and terminal accessibility requirements,
 - `docs/ACTION.md`: CI action behavior and security posture,
 - `docs/GITHUB.md`: GitHub source enumeration, hosted-alert oracle capture, and permission guidance,
+- `docs/GITLAB.md`: GitLab source enumeration and permission guidance,
 - `docs/AZURE_DEVOPS.md`: Azure DevOps task, source enumeration, artifact scanning, and marketplace behavior,
 - `docs/MARKETPLACES.md`: GitHub Marketplace and Azure DevOps Marketplace packaging, release, and rollback guidance,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,
