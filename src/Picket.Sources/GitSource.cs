@@ -273,7 +273,7 @@ public static class GitSource
                 }
             }
 
-            if (line.StartsWith("+++ ", StringComparison.Ordinal))
+            if (hunkStartLine == 0 && line.StartsWith("+++ ", StringComparison.Ordinal))
             {
                 FlushFragment();
                 filePath = ParseNewFilePath(line);
@@ -300,7 +300,7 @@ public static class GitSource
                 continue;
             }
 
-            if (hunkStartLine != 0 && filePath is not null && line.StartsWith('+') && !line.StartsWith("+++", StringComparison.Ordinal))
+            if (hunkStartLine != 0 && filePath is not null && line.StartsWith('+'))
             {
                 addedLines.Add(line[1..]);
             }

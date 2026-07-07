@@ -192,6 +192,26 @@ public sealed class GitSourceTests
     }
 
     /// <summary>
+    /// Verifies that added git patch lines beginning with two plus signs are preserved.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateCapturesAddedLinesBeginningWithDoublePlus()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "++secret-token\n++ secret-token\n");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add plus-prefixed secret").ConfigureAwait(false);
+
+        IReadOnlyList<GitPatchFragment> fragments = GitSource.Enumerate(new GitScanOptions(root.Path));
+
+        Assert.HasCount(1, fragments);
+        Assert.AreEqual("secret.txt", fragments[0].FilePath);
+        Assert.AreEqual("++secret-token\n++ secret-token", Encoding.UTF8.GetString(fragments[0].Input.Span));
+        Assert.AreEqual(1, fragments[0].StartLine);
+    }
+
+    /// <summary>
     /// Verifies that git enumeration stops cleanly when cancellation is already requested.
     /// </summary>
     [TestMethod]
