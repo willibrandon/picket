@@ -18,6 +18,12 @@ internal static partial class Program
             || arg.StartsWith("--github-organization=", StringComparison.Ordinal);
     }
 
+    static bool IsGitHubUserFlag(string arg)
+    {
+        return arg.Equals("--github-user", StringComparison.Ordinal)
+            || arg.StartsWith("--github-user=", StringComparison.Ordinal);
+    }
+
     static bool IsGitHubRepositoryTypeFlag(string arg)
     {
         return arg.Equals("--github-repository-type", StringComparison.Ordinal)
@@ -130,6 +136,7 @@ internal static partial class Program
         Uri? endpoint,
         string repository,
         string organization,
+        string userName,
         string repositoryType,
         string gistId,
         bool includeAuthenticatedGists,
@@ -148,6 +155,7 @@ internal static partial class Program
         sourceFileProvider = null;
         bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);
         bool organizationSpecified = !string.IsNullOrWhiteSpace(organization);
+        bool userSpecified = !string.IsNullOrWhiteSpace(userName);
         bool gistSpecified = !string.IsNullOrWhiteSpace(gistId);
         bool gistUserSpecified = !string.IsNullOrWhiteSpace(gistUserName);
         int sourceSelectorCount = 0;
@@ -157,6 +165,11 @@ internal static partial class Program
         }
 
         if (organizationSpecified)
+        {
+            sourceSelectorCount++;
+        }
+
+        if (userSpecified)
         {
             sourceSelectorCount++;
         }
@@ -178,7 +191,7 @@ internal static partial class Program
 
         if (sourceSelectorCount != 1)
         {
-            Console.Error.WriteLine("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-gist, --github-gists, or --github-user-gists");
+            Console.Error.WriteLine("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-user, --github-gist, --github-gists, or --github-user-gists");
             return false;
         }
 
@@ -212,27 +225,27 @@ internal static partial class Program
             return false;
         }
 
-        if (!repositorySpecified && !organizationSpecified && !string.IsNullOrWhiteSpace(gitRef))
+        if (!repositorySpecified && !organizationSpecified && !userSpecified && !string.IsNullOrWhiteSpace(gitRef))
         {
-            Console.Error.WriteLine("GitHub source scan accepts --github-ref only with repository or organization scans");
+            Console.Error.WriteLine("GitHub source scan accepts --github-ref only with repository, organization, or user scans");
             return false;
         }
 
-        if (!repositorySpecified && !organizationSpecified && includeIssues)
+        if (!repositorySpecified && !organizationSpecified && !userSpecified && includeIssues)
         {
-            Console.Error.WriteLine("GitHub issue source options require --github-repository or --github-organization");
+            Console.Error.WriteLine("GitHub issue source options require --github-repository, --github-organization, or --github-user");
             return false;
         }
 
-        if (!repositorySpecified && !organizationSpecified && includeReleases)
+        if (!repositorySpecified && !organizationSpecified && !userSpecified && includeReleases)
         {
-            Console.Error.WriteLine("GitHub release source options require --github-repository or --github-organization");
+            Console.Error.WriteLine("GitHub release source options require --github-repository, --github-organization, or --github-user");
             return false;
         }
 
-        if (!repositorySpecified && !organizationSpecified && includeActionArtifacts)
+        if (!repositorySpecified && !organizationSpecified && !userSpecified && includeActionArtifacts)
         {
-            Console.Error.WriteLine("GitHub Actions artifact source options require --github-repository or --github-organization");
+            Console.Error.WriteLine("GitHub Actions artifact source options require --github-repository, --github-organization, or --github-user");
             return false;
         }
 
@@ -287,6 +300,27 @@ internal static partial class Program
                     includeActionArtifacts);
                 sourceEndpoint = validatedOptions.Endpoint;
                 organization = validatedOptions.Organization;
+                repositoryType = validatedOptions.RepositoryType;
+                gitRef = validatedOptions.Ref;
+                includeIssues = validatedOptions.IncludeIssues;
+                issueState = validatedOptions.IssueState;
+                includeReleases = validatedOptions.IncludeReleases;
+                includeActionArtifacts = validatedOptions.IncludeActionArtifacts;
+            }
+            else if (userSpecified)
+            {
+                var validatedOptions = new GitHubUserSourceOptions(
+                    sourceEndpoint,
+                    userName,
+                    credential,
+                    gitRef,
+                    repositoryType,
+                    includeIssues,
+                    issueState,
+                    includeReleases,
+                    includeActionArtifacts);
+                sourceEndpoint = validatedOptions.Endpoint;
+                userName = validatedOptions.UserName;
                 repositoryType = validatedOptions.RepositoryType;
                 gitRef = validatedOptions.Ref;
                 includeIssues = validatedOptions.IncludeIssues;
@@ -361,6 +395,28 @@ internal static partial class Program
                 return client.EnumerateOrganizationRepositoryFilesAsync(new GitHubOrganizationSourceOptions(
                     sourceEndpoint,
                     organization,
+                    credential,
+                    gitRef,
+                    repositoryType,
+                    includeIssues,
+                    issueState,
+                    includeReleases,
+                    includeActionArtifacts,
+                    maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
+                    rules.IsGlobalPathAllowed,
+                    Console.Error.WriteLine,
+                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+            }
+
+            if (userSpecified)
+            {
+                return client.EnumerateUserRepositoryFilesAsync(new GitHubUserSourceOptions(
+                    sourceEndpoint,
+                    userName,
                     credential,
                     gitRef,
                     repositoryType,

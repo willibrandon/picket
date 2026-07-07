@@ -98,6 +98,21 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitHub user source options reject invalid repository type filters.
+    /// </summary>
+    [TestMethod]
+    public void GitHubUserSourceOptionsRejectsInvalidRepositoryType()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitHubUserSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            "github-test-token",
+            repositoryType: "public"));
+
+        Assert.Contains("GitHub user repository type must be one of", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that GitHub source options default to bounded remote downloads.
     /// </summary>
     [TestMethod]
@@ -111,6 +126,10 @@ public sealed class GitHubSourceClientTests
             GitHubSourceOptions.CreateDefaultEndpoint(),
             "willibrandon",
             "github-test-token");
+        var userOptions = new GitHubUserSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            "github-test-token");
         var gistOptions = new GitHubGistSourceOptions(
             GitHubSourceOptions.CreateDefaultEndpoint(),
             "github-test-token",
@@ -118,6 +137,7 @@ public sealed class GitHubSourceClientTests
 
         Assert.AreEqual(100_000_000, repositoryOptions.MaxFileBytes);
         Assert.AreEqual(100_000_000, organizationOptions.MaxFileBytes);
+        Assert.AreEqual(100_000_000, userOptions.MaxFileBytes);
         Assert.AreEqual(100_000_000, gistOptions.MaxFileBytes);
     }
 
@@ -133,6 +153,11 @@ public sealed class GitHubSourceClientTests
             "github-test-token",
             maxFileBytes: 0));
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new GitHubOrganizationSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            "github-test-token",
+            maxFileBytes: 0));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new GitHubUserSourceOptions(
             GitHubSourceOptions.CreateDefaultEndpoint(),
             "willibrandon",
             "github-test-token",
@@ -1056,6 +1081,72 @@ public sealed class GitHubSourceClientTests
         Assert.AreEqual("github/willibrandon/one/one.txt", files[0].DisplayPath);
         Assert.AreEqual("github/willibrandon/two/two.txt", files[1].DisplayPath);
         Assert.Contains("type=sources", string.Join('\n', urls));
+        Assert.Contains("per_page=100", string.Join('\n', urls));
+        Assert.Contains("page=2", string.Join('\n', urls));
+        Assert.DoesNotContain(Token, string.Join('\n', urls));
+    }
+
+    /// <summary>
+    /// Verifies that user repository enumeration follows paged repositories and scans each default branch.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateUserRepositoryFilesFollowsRepositoryPages()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/users/octocat/repos?", StringComparison.Ordinal)
+                && url.Contains("&page=1", StringComparison.Ordinal))
+            {
+                HttpResponseMessage response = JsonResponse("""[{"name":"one","full_name":"octocat/one","default_branch":"main"}]""");
+                response.Headers.Add("Link", "<https://api.github.com/users/octocat/repos?type=member&per_page=100&page=2>; rel=\"next\"");
+                return response;
+            }
+
+            if (url.Contains("/users/octocat/repos?", StringComparison.Ordinal)
+                && url.Contains("&page=2", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{"name":"two","full_name":"example/two","default_branch":"trunk"}]""");
+            }
+
+            if (url.Contains("/repos/octocat/one/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"one.txt","type":"blob","size":9}]}""");
+            }
+
+            if (url.Contains("/repos/example/two/git/trees/trunk?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"two.txt","type":"blob","size":9}]}""");
+            }
+
+            if (url.Contains("/repos/octocat/one/contents/one.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-111");
+            }
+
+            if (url.Contains("/repos/example/two/contents/two.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-222");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubUserSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "octocat",
+            Token,
+            repositoryType: "member");
+
+        List<SourceFile> files = await client.EnumerateUserRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(2, files);
+        Assert.AreEqual("github/octocat/one/one.txt", files[0].DisplayPath);
+        Assert.AreEqual("github/example/two/two.txt", files[1].DisplayPath);
+        Assert.Contains("type=member", string.Join('\n', urls));
         Assert.Contains("per_page=100", string.Join('\n', urls));
         Assert.Contains("page=2", string.Join('\n', urls));
         Assert.DoesNotContain(Token, string.Join('\n', urls));

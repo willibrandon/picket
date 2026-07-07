@@ -343,6 +343,49 @@ public sealed class CliGitHubScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate GitHub user repositories.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitHubUserRepositories()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitHubFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-source-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--github-user",
+            "octocat",
+            "--github-repository-type",
+            "owner",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"github/octocat/hello/src/appsettings.txt\"", result.Stdout);
+        Assert.Contains("/api/v3/users/octocat/repos?", server.RequestTargets);
+        Assert.Contains("type=owner", server.RequestTargets);
+        Assert.Contains("Bearer ", server.LastAuthorization);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate authenticated GitHub gists.
     /// </summary>
     [TestMethod]
@@ -447,7 +490,7 @@ public sealed class CliGitHubScanTests
             "jsonl").ConfigureAwait(false);
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
-        Assert.Contains("GitHub issue source options require --github-repository or --github-organization", result.Stderr);
+        Assert.Contains("GitHub issue source options require --github-repository, --github-organization, or --github-user", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }
@@ -621,7 +664,7 @@ public sealed class CliGitHubScanTests
             "jsonl").ConfigureAwait(false);
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
-        Assert.Contains("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-gist, --github-gists, or --github-user-gists", result.Stderr);
+        Assert.Contains("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-user, --github-gist, --github-gists, or --github-user-gists", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }

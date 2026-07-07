@@ -39,6 +39,7 @@ internal static partial class Program
         string githubSourceRef = string.Empty;
         string githubSourceRepository = string.Empty;
         string githubSourceRepositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType;
+        string githubSourceUser = string.Empty;
         string githubSourceUserGists = string.Empty;
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
@@ -106,6 +107,18 @@ internal static partial class Program
                 }
 
                 githubSourceOrganization = organization;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubUserFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-user", out string? userName))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceUser = userName;
                 githubSourceOptionSpecified = true;
                 continue;
             }
@@ -593,6 +606,7 @@ internal static partial class Program
                 githubSourceApiEndpoint ?? githubApiEndpoint,
                 githubSourceRepository,
                 githubSourceOrganization,
+                githubSourceUser,
                 githubSourceRepositoryType,
                 githubSourceGistId,
                 githubSourceIncludeAuthenticatedGists,

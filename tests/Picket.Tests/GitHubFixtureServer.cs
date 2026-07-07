@@ -89,6 +89,13 @@ internal sealed class GitHubFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v3/users/octocat/repos?", StringComparison.Ordinal))
+        {
+            const string RepositoriesJson = """[{"name":"hello","full_name":"octocat/hello","default_branch":"main"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(RepositoriesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v3/repos/willibrandon/picket/pulls/42", StringComparison.Ordinal))
         {
             const string PullRequestJson = """{"number":42,"head":{"sha":"abcdef1234567890","repo":{"full_name":"forker/picket-fork"}}}""";
@@ -199,7 +206,20 @@ internal sealed class GitHubFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v3/repos/octocat/hello/contents/src/appsettings.txt?", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v3/repos/willibrandon/picket/git/trees/main?", StringComparison.Ordinal))
+        {
+            const string TreeJson = """{"tree":[{"path":"src/appsettings.txt","type":"blob","size":11}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(TreeJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/repos/octocat/hello/git/trees/main?", StringComparison.Ordinal))
         {
             const string TreeJson = """{"tree":[{"path":"src/appsettings.txt","type":"blob","size":11}]}""";
             await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(TreeJson), cancellationToken).ConfigureAwait(false);

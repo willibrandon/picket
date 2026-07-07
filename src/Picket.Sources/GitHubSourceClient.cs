@@ -200,6 +200,80 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     }
 
     /// <summary>
+    /// Enumerates files from repositories visible for the supplied GitHub user.
+    /// </summary>
+    /// <param name="options">The GitHub user source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateUserRepositoryFilesAsync(
+        GitHubUserSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        List<(string Repository, string DefaultBranch)> repositories = await ListUserRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+        for (int i = 0; i < repositories.Count; i++)
+        {
+            if (IsCancellationRequested(options))
+            {
+                break;
+            }
+
+            (string repository, string defaultBranch) = repositories[i];
+            string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
+            if (gitRef.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping GitHub repository {repository} because it does not have a default branch");
+            }
+
+            var repositoryOptions = new GitHubSourceOptions(
+                options.Endpoint,
+                repository,
+                options.Credential,
+                gitRef,
+                includeIssues: options.IncludeIssues,
+                issueState: options.IssueState,
+                includeReleases: options.IncludeReleases,
+                includeActionArtifacts: options.IncludeActionArtifacts,
+                maxFileBytes: options.MaxFileBytes,
+                maxArchiveDepth: options.MaxArchiveDepth,
+                maxArchiveEntries: options.MaxArchiveEntries,
+                maxArchiveBytes: options.MaxArchiveBytes,
+                maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
+                isPathAllowed: options.IsPathAllowed,
+                warningSink: options.WarningSink,
+                isCancellationRequested: options.IsCancellationRequested);
+            if (gitRef.Length != 0)
+            {
+                await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeIssues && !IsCancellationRequested(options))
+            {
+                await AddRepositoryIssueFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeReleases && !IsCancellationRequested(options))
+            {
+                await AddRepositoryReleaseFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
+            {
+                await AddRepositoryActionArtifactFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return sourceFiles;
+    }
+
+    /// <summary>
     /// Enumerates files from GitHub gists selected by the supplied options.
     /// </summary>
     /// <param name="options">The GitHub gist source options.</param>
@@ -299,6 +373,63 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
 
             repositories.Add((name, GetString(item, "default_branch")));
+        }
+    }
+
+    private async Task<List<(string Repository, string DefaultBranch)>> ListUserRepositoriesAsync(
+        GitHubUserSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        var repositories = new List<(string Repository, string DefaultBranch)>();
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateUserRepositoryListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            await AddUserRepositoriesAsync(options, response, repositories, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub user {options.UserName} repository enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+
+        return repositories;
+    }
+
+    private static async Task AddUserRepositoriesAsync(
+        GitHubUserSourceOptions options,
+        HttpResponseMessage response,
+        List<(string Repository, string DefaultBranch)> repositories,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string repository = GetString(item, "full_name");
+            if (repository.Length == 0)
+            {
+                string name = GetString(item, "name");
+                if (name.Length == 0)
+                {
+                    continue;
+                }
+
+                repository = string.Concat(options.UserName, "/", name);
+            }
+
+            repositories.Add((repository, GetString(item, "default_branch")));
         }
     }
 
@@ -1064,6 +1195,15 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     }
 
     private async Task<HttpResponseMessage> SendAsync(
+        GitHubUserSourceOptions options,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
+        return await SendAsync(options.Credential, uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
         GitHubGistSourceOptions options,
         Uri uri,
         bool acceptRaw,
@@ -1432,6 +1572,18 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         return CreateUri(
             options.Endpoint,
             ["orgs", options.Organization, "repos"],
+            [
+                new KeyValuePair<string, string>("type", options.RepositoryType),
+                new KeyValuePair<string, string>("per_page", RepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateUserRepositoryListUri(GitHubUserSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["users", options.UserName, "repos"],
             [
                 new KeyValuePair<string, string>("type", options.RepositoryType),
                 new KeyValuePair<string, string>("per_page", RepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
@@ -2049,6 +2201,11 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     }
 
     private static bool IsCancellationRequested(GitHubOrganizationSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(GitHubUserSourceOptions options)
     {
         return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }

@@ -174,7 +174,7 @@ documentation reviewed on 2026-07-06:
 
 ## GitHub Source References
 
-Native GitHub repository, pull request, issue, issue comment, release, release asset, Actions artifact, gist, gist comment, and organization source enumeration is based on GitHub REST API documentation reviewed on 2026-07-07:
+Native GitHub repository, pull request, issue, issue comment, release, release asset, Actions artifact, gist, gist comment, organization, and user source enumeration is based on GitHub REST API documentation reviewed on 2026-07-07:
 
 - GitHub repository metadata REST API: `https://docs.github.com/rest/repos/repos`
 - GitHub pull requests REST API: `https://docs.github.com/rest/pulls/pulls`

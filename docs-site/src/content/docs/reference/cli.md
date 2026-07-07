@@ -185,7 +185,8 @@ Use the grouped index to jump to the workflow you need.
   [--allow-non-public-endpoints]
   [--github-repository owner/name]
   [--github-organization org]
-  [--github-repository-type all|public|private|forks|sources|member]
+  [--github-user login]
+  [--github-repository-type value]
   [--github-gist id]
   [--github-gists]
   [--github-user-gists login]
@@ -366,10 +367,16 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan repositories visible in this GitHub organization through native source enumeration.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>--github-repository-type</code></td>
-              <td data-label="Value"><code>all | public | private | forks | sources | member</code></td>
+              <td data-label="Option"><code>--github-user</code></td>
+              <td data-label="Value"><code>login</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Filter organization repositories by GitHub type.</td>
+              <td data-label="Description">Scan public repositories for this GitHub user through native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-repository-type</code></td>
+              <td data-label="Value"><code>value</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filter organization or user repository listings by GitHub type.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-gist</code></td>
