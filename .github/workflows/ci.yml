@@ -77,7 +77,7 @@ jobs:
           cache: "false"
           report-directory: ${{ runner.temp }}/picket-action-smoke
           fail-on: never
-          summary: "false"
+          summary: "true"
           upload-sarif: "false"
           annotations: "false"
           setup-dotnet: "false"

@@ -293,7 +293,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("uses: ./", workflow);
         Assert.Contains("path: tests/fixtures/github-secret-scanning", workflow);
         Assert.Contains("setup-dotnet: \"false\"", workflow);
-        Assert.Contains("summary: \"false\"", workflow);
+        Assert.Contains("summary: \"true\"", workflow);
         Assert.Contains("Verify GitHub Action smoke outputs", workflow);
         Assert.DoesNotContain("Write GitHub Action smoke summary", workflow);
         Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
