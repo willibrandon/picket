@@ -211,6 +211,26 @@ public sealed class GitSourceTests
         Assert.IsEmpty(fragments);
     }
 
+    /// <summary>
+    /// Verifies unsafe git log options are rejected before git can create output files.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRejectsUnsafeLogOptionsWithoutCreatingOutput()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
+        await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
+        string outputPath = Path.Combine(root.Path, "git-output.txt");
+
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
+            () => GitSource.Enumerate(new GitScanOptions(root.Path, logOptions: $"--output={outputPath}")));
+
+        Assert.Contains("unsafe git log option: --output=", exception.Message);
+        Assert.IsFalse(File.Exists(outputPath));
+    }
+
     private static async Task InitializeGitRepositoryAsync(string root)
     {
         await RunGitCommandAsync(root, "init").ConfigureAwait(false);

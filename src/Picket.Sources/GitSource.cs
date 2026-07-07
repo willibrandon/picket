@@ -76,7 +76,7 @@ public static class GitSource
             return process;
         }
 
-        AddArguments(process.StartInfo, "-C", options.Root, "log", "-p", "-U0", "--date=iso-strict");
+        AddArguments(process.StartInfo, "-C", options.Root, "log", "-p", "-U0", "--date=iso-strict", "--no-ext-diff");
         if (options.LogOptions.Length == 0)
         {
             AddArguments(process.StartInfo, "--full-history", "--all", "--diff-filter=tuxdb");
@@ -85,10 +85,95 @@ public static class GitSource
 
         foreach (string argument in options.LogOptions.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
+            if (!IsSafeLogOptionArgument(argument))
+            {
+                throw new InvalidOperationException($"unsafe git log option: {argument}");
+            }
+
             process.StartInfo.ArgumentList.Add(argument);
         }
 
         return process;
+    }
+
+    private static bool IsSafeLogOptionArgument(string argument)
+    {
+        if (!argument.StartsWith('-'))
+        {
+            return true;
+        }
+
+        if (argument is "--all"
+            or "--branches"
+            or "--tags"
+            or "--remotes"
+            or "--full-history"
+            or "--first-parent"
+            or "--ancestry-path"
+            or "--no-merges"
+            or "--merges"
+            or "--regexp-ignore-case"
+            or "--fixed-strings"
+            or "--extended-regexp")
+        {
+            return true;
+        }
+
+        if (argument is "--since"
+            or "--after"
+            or "--until"
+            or "--before"
+            or "--author"
+            or "--committer"
+            or "--grep"
+            or "--max-count"
+            or "--skip"
+            or "--diff-filter")
+        {
+            return true;
+        }
+
+        if (argument.StartsWith("--branches=", StringComparison.Ordinal)
+            || argument.StartsWith("--tags=", StringComparison.Ordinal)
+            || argument.StartsWith("--remotes=", StringComparison.Ordinal)
+            || argument.StartsWith("--since=", StringComparison.Ordinal)
+            || argument.StartsWith("--after=", StringComparison.Ordinal)
+            || argument.StartsWith("--until=", StringComparison.Ordinal)
+            || argument.StartsWith("--before=", StringComparison.Ordinal)
+            || argument.StartsWith("--author=", StringComparison.Ordinal)
+            || argument.StartsWith("--committer=", StringComparison.Ordinal)
+            || argument.StartsWith("--grep=", StringComparison.Ordinal)
+            || argument.StartsWith("--max-count=", StringComparison.Ordinal)
+            || argument.StartsWith("--skip=", StringComparison.Ordinal)
+            || argument.StartsWith("--diff-filter=", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return IsSafeShortMaxCountOption(argument);
+    }
+
+    private static bool IsSafeShortMaxCountOption(string argument)
+    {
+        if (argument.Equals("-n", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!argument.StartsWith("-n", StringComparison.Ordinal) || argument.Length == 2)
+        {
+            return false;
+        }
+
+        for (int i = 2; i < argument.Length; i++)
+        {
+            if (!char.IsDigit(argument[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void AddArguments(ProcessStartInfo startInfo, params string[] arguments)

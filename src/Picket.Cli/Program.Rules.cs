@@ -357,7 +357,7 @@ internal static partial class Program
 
             if (redactionPercent > 0)
             {
-                findings = GitleaksFindingRedactor.Redact(findings, redactionPercent);
+                findings = GitleaksFindingRedactor.Redact(findings, redactionPercent, requirePartialMask: nativeMode);
             }
 
             if (!TryWriteReports(findings, selectedRuleSet.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath: null, nativeMode))

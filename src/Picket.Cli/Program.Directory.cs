@@ -42,7 +42,7 @@ internal static partial class Program
         bool followSymlinks = false;
         bool ignoreGitleaksAllow = false;
         bool respectNativeIgnoreFiles = nativeMode;
-        ScanCacheStorageMode cacheStorageMode = ScanCacheStorageMode.Raw;
+        ScanCacheStorageMode cacheStorageMode = ScanCacheStorageMode.SecretHashOnly;
         int maxArchiveEntries = nativeMode ? DefaultNativeMaxArchiveEntries : 0;
         long? maxArchiveBytes = nativeMode ? DefaultNativeMaxArchiveBytes : null;
         int maxArchiveCompressionRatio = nativeMode ? DefaultNativeMaxArchiveCompressionRatio : 0;
@@ -424,6 +424,7 @@ internal static partial class Program
         {
             try
             {
+                WarnIfRawScanCacheMode(cacheStorageMode);
                 scanCache = PicketScanCache.Open(cacheDir, CreateNativeScanCacheKey(rules, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

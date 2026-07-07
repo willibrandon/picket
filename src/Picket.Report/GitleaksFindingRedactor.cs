@@ -15,13 +15,25 @@ public static class GitleaksFindingRedactor
     /// <returns>The redacted findings.</returns>
     public static List<Finding> Redact(IReadOnlyList<Finding> findings, int redactionPercent)
     {
+        return Redact(findings, redactionPercent, requirePartialMask: false);
+    }
+
+    /// <summary>
+    /// Redacts secrets in each finding using the supplied percentage.
+    /// </summary>
+    /// <param name="findings">The findings to redact.</param>
+    /// <param name="redactionPercent">The redaction percentage from 0 through 100.</param>
+    /// <param name="requirePartialMask">A value indicating whether a non-zero redaction percentage must mask at least one character.</param>
+    /// <returns>The redacted findings.</returns>
+    public static List<Finding> Redact(IReadOnlyList<Finding> findings, int redactionPercent, bool requirePartialMask)
+    {
         ArgumentNullException.ThrowIfNull(findings);
         ValidateRedactionPercent(redactionPercent);
 
         var redacted = new List<Finding>(findings.Count);
         foreach (Finding finding in findings)
         {
-            redacted.Add(Redact(finding, redactionPercent));
+            redacted.Add(Redact(finding, redactionPercent, requirePartialMask));
         }
 
         return redacted;
@@ -35,6 +47,18 @@ public static class GitleaksFindingRedactor
     /// <returns>The redacted finding.</returns>
     public static Finding Redact(Finding finding, int redactionPercent)
     {
+        return Redact(finding, redactionPercent, requirePartialMask: false);
+    }
+
+    /// <summary>
+    /// Redacts a finding secret using the supplied percentage.
+    /// </summary>
+    /// <param name="finding">The finding to redact.</param>
+    /// <param name="redactionPercent">The redaction percentage from 0 through 100.</param>
+    /// <param name="requirePartialMask">A value indicating whether a non-zero redaction percentage must mask at least one character.</param>
+    /// <returns>The redacted finding.</returns>
+    public static Finding Redact(Finding finding, int redactionPercent, bool requirePartialMask)
+    {
         ArgumentNullException.ThrowIfNull(finding);
         ValidateRedactionPercent(redactionPercent);
 
@@ -43,7 +67,7 @@ public static class GitleaksFindingRedactor
             return finding;
         }
 
-        string secret = MaskSecret(finding.Secret, redactionPercent);
+        string secret = MaskSecret(finding.Secret, redactionPercent, requirePartialMask);
         string match = finding.Match.Replace(finding.Secret, secret, StringComparison.Ordinal);
         string line = RedactLine(finding, secret);
         return new Finding(
@@ -84,7 +108,7 @@ public static class GitleaksFindingRedactor
         return finding.Line.Replace(finding.Secret, redactedSecret, StringComparison.Ordinal);
     }
 
-    private static string MaskSecret(string secret, int redactionPercent)
+    private static string MaskSecret(string secret, int redactionPercent, bool requirePartialMask)
     {
         if (redactionPercent >= 100)
         {
@@ -92,6 +116,11 @@ public static class GitleaksFindingRedactor
         }
 
         int visibleLength = (int)Math.Round(secret.Length * (100 - redactionPercent) / 100.0, MidpointRounding.ToEven);
+        if (requirePartialMask && redactionPercent > 0 && visibleLength >= secret.Length)
+        {
+            visibleLength = secret.Length - 1;
+        }
+
         return string.Concat(secret.AsSpan(0, visibleLength), "...");
     }
 

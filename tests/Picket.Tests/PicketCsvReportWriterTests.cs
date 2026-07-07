@@ -58,6 +58,26 @@ public sealed class PicketCsvReportWriterTests
     }
 
     /// <summary>
+    /// Verifies native CSV neutralizes spreadsheet formula prefixes in finding-controlled fields.
+    /// </summary>
+    [TestMethod]
+    public void WriteNeutralizesFormulaPrefixes()
+    {
+        Finding finding = CreateFinding(
+            match: "+match",
+            secret: "=secret",
+            line: "@line",
+            author: "-author");
+
+        string csv = PicketCsvReportWriter.Write([finding]);
+
+        Assert.Contains("\"'=secret\"", csv);
+        Assert.Contains("\"'+match\"", csv);
+        Assert.Contains("\"'@line\"", csv);
+        Assert.Contains("\"'-author\"", csv);
+    }
+
+    /// <summary>
     /// Verifies CSV can resolve native rule metadata when rules are supplied.
     /// </summary>
     [TestMethod]
@@ -82,7 +102,8 @@ public sealed class PicketCsvReportWriterTests
     private static Finding CreateFinding(
         string match = "line containing secret",
         string secret = "secret",
-        string line = "line containing secret")
+        string line = "line containing secret",
+        string author = "John Doe")
     {
         return new Finding(
             "rule",
@@ -97,7 +118,7 @@ public sealed class PicketCsvReportWriterTests
             string.Empty,
             "0000000000000000",
             2.5,
-            "John Doe",
+            author,
             "johndoe@example.com",
             "2026-07-05",
             "message",

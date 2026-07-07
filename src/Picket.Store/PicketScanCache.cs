@@ -22,9 +22,12 @@ public sealed class PicketScanCache
     private const string FindingCountHeader = "findingCount";
     private const string LocksDirectoryName = "locks";
     private const string StorageModeHeader = "storageMode";
+    private const UnixFileMode OwnerOnlyDirectoryMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+    private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
 
     private readonly string _entriesPath;
     private readonly string _locksPath;
+    private static readonly UTF8Encoding s_utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private PicketScanCache(string rootPath, ScanCacheKey key)
     {
@@ -32,8 +35,9 @@ public sealed class PicketScanCache
         Key = key;
         _entriesPath = Path.Combine(RootPath, EntriesDirectoryName);
         _locksPath = Path.Combine(RootPath, LocksDirectoryName);
-        Directory.CreateDirectory(_entriesPath);
-        Directory.CreateDirectory(_locksPath);
+        CreateOwnerOnlyDirectory(RootPath);
+        CreateOwnerOnlyDirectory(_entriesPath);
+        CreateOwnerOnlyDirectory(_locksPath);
     }
 
     /// <summary>
@@ -108,7 +112,7 @@ public sealed class PicketScanCache
         string? entryDirectory = Path.GetDirectoryName(entryPath);
         if (entryDirectory is not null)
         {
-            Directory.CreateDirectory(entryDirectory);
+            CreateOwnerOnlyDirectory(entryDirectory);
         }
 
         string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
@@ -116,8 +120,9 @@ public sealed class PicketScanCache
         string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
         try
         {
-            File.WriteAllText(tempPath, CreateEntry(blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode, findings), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            WriteOwnerOnlyText(tempPath, CreateEntry(blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode, findings));
             File.Move(tempPath, entryPath, overwrite: true);
+            SetOwnerOnlyFile(entryPath);
         }
         finally
         {
@@ -228,7 +233,7 @@ public sealed class PicketScanCache
             string? entryDirectory = Path.GetDirectoryName(fullEntryPath);
             if (entryDirectory is not null)
             {
-                Directory.CreateDirectory(entryDirectory);
+                CreateOwnerOnlyDirectory(entryDirectory);
             }
 
             string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
@@ -237,7 +242,7 @@ public sealed class PicketScanCache
             try
             {
                 using (Stream input = archiveEntry.Open())
-                using (var output = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                using (FileStream output = OpenOwnerOnlyNewFile(tempPath))
                 {
                     input.CopyTo(output);
                 }
@@ -248,6 +253,7 @@ public sealed class PicketScanCache
                 }
 
                 File.Move(tempPath, fullEntryPath, overwrite: true);
+                SetOwnerOnlyFile(fullEntryPath);
                 TrySetLastWriteTimeUtc(fullEntryPath, archiveEntry);
                 imported++;
             }
@@ -313,7 +319,55 @@ public sealed class PicketScanCache
 
     private static FileStream OpenLock(string lockPath)
     {
-        return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        FileStream stream = OpenOwnerOnlyFile(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+        SetOwnerOnlyFile(lockPath);
+        return stream;
+    }
+
+    private static FileStream OpenOwnerOnlyNewFile(string path)
+    {
+        return OpenOwnerOnlyFile(path, FileMode.CreateNew, FileAccess.Write);
+    }
+
+    private static FileStream OpenOwnerOnlyFile(string path, FileMode mode, FileAccess access)
+    {
+        var options = new FileStreamOptions
+        {
+            Access = access,
+            Mode = mode,
+            Share = FileShare.None,
+            Options = FileOptions.SequentialScan,
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = OwnerOnlyFileMode;
+        }
+
+        return new FileStream(path, options);
+    }
+
+    private static void WriteOwnerOnlyText(string path, string text)
+    {
+        using FileStream stream = OpenOwnerOnlyNewFile(path);
+        using var writer = new StreamWriter(stream, s_utf8NoBom);
+        writer.Write(text);
+    }
+
+    private static void CreateOwnerOnlyDirectory(string path)
+    {
+        Directory.CreateDirectory(path);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, OwnerOnlyDirectoryMode);
+        }
+    }
+
+    private static void SetOwnerOnlyFile(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, OwnerOnlyFileMode);
+        }
     }
 
     private static FileStream OpenSequentialRead(string path)

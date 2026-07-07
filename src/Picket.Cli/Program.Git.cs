@@ -367,7 +367,7 @@ internal static partial class Program
 
         if (redactionPercent > 0)
         {
-            filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);
+            filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent, requirePartialMask: nativeMode);
         }
 
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);

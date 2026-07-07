@@ -18,7 +18,7 @@ Each entry is addressed by:
 
 The address discriminator is the narrowest safe value for the active scan behavior. Path-sensitive rule sets use the logical report path. Path-insensitive native scans that can run file-extension-specific decoders use the file extension. Scans with no path-dependent rule or decoder behavior use a content-only discriminator, so identical blobs can reuse matching work across paths while reports are rehydrated with the current path and symlink provenance.
 
-The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, maximum target size, whether `--ignore-gitleaks-allow` was enabled, the cache address mode when it is not the legacy path mode, and the cache storage mode when it is not raw mode. Changing rules or these scan options invalidates old entries without deleting them.
+The scanner configuration fingerprint includes the compiled rule-set fingerprint, maximum decode depth, maximum target size, whether `--ignore-gitleaks-allow` was enabled, the cache address mode when it is not the legacy path mode, and the cache storage mode when the mode is not the legacy raw mode. Changing rules or these scan options invalidates old entries without deleting them.
 
 ## Entry Format
 
@@ -39,9 +39,11 @@ Older entries for the legacy raw/path mode without creation, address-mode, stora
 
 ## Privacy
 
-The default cache mode is `raw`. Raw mode may contain finding match, secret, and line fields because cached findings preserve native report behavior. Use a workspace-local or protected cache directory. Public CI should rely on normal Picket redaction for logs and annotations and should avoid uploading raw cache contents as generic artifacts.
+The default cache mode is `secret-hash-only`. Cache rows keep rule, location, entropy, validation, tags, decode path, blob hash, secret hash, and match hash, but omit raw match, secret, and line text. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hash fields, stable fingerprints, and provenance remain available. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
 
-Use `--cache-mode secret-hash-only` when the cache must not persist raw finding evidence. In this mode cache rows keep rule, location, entropy, validation, tags, decode path, blob hash, secret hash, and match hash, but omit raw match, secret, and line text. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hash fields, stable fingerprints, and provenance remain available. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
+Use `--cache-mode raw` only for trusted private caches that need cached reports to replay match, secret, and line fields exactly. Raw mode may contain recoverable secret material, and the CLI writes a warning when raw mode is active.
+
+On Unix-like systems Picket creates the cache root, lock directory, entry directories, lock files, and entry files with owner-only permissions. On Windows, choose a cache root whose inherited ACL is private to the intended user or build identity.
 
 Baseline suppression still works with secret-hash-only cache hits. Picket compares the cached match and secret hashes to hashes of the baseline evidence rather than requiring raw cached match or secret text.
 
@@ -61,7 +63,7 @@ The native CLI wraps the same APIs:
 
 ```text
 picket cache stats --cache-dir .picket/cache --source .
-picket cache stats --cache-dir .picket/cache --source . --cache-mode secret-hash-only
+picket cache stats --cache-dir .picket/cache --source . --cache-mode raw
 picket cache stats --cache-dir .picket/cache --source . --ignore-gitleaks-allow
 picket cache prune --cache-dir .picket/cache --source . --other-keys
 picket cache prune --cache-dir .picket/cache --source . --older-than-days 14

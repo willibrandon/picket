@@ -57,6 +57,22 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies native redaction can require non-zero percentages to hide at least one character.
+    /// </summary>
+    [TestMethod]
+    public void RedactStrictNonZeroPercentageMasksAtLeastOneCharacter()
+    {
+        Finding finding = CreateFinding("abcdefghij", "abcdefghij");
+
+        Finding compatible = GitleaksFindingRedactor.Redact(finding, 5);
+        Finding strict = GitleaksFindingRedactor.Redact(finding, 5, requirePartialMask: true);
+
+        Assert.AreEqual("abcdefghij...", compatible.Secret);
+        Assert.AreEqual("abcdefghi...", strict.Secret);
+        Assert.DoesNotContain("abcdefghij", strict.Secret);
+    }
+
+    /// <summary>
     /// Verifies that zero redaction keeps findings unchanged.
     /// </summary>
     [TestMethod]

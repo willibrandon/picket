@@ -48,7 +48,9 @@ Applies Gitleaks-compatible finding redaction before reports are written.
 ### Methods
 
 - `Redact(Finding finding, int redactionPercent)` - Redacts a finding secret using the supplied percentage.
+- `Redact(Finding finding, int redactionPercent, bool requirePartialMask)` - Redacts a finding secret using the supplied percentage.
 - `Redact(IReadOnlyList<Finding> findings, int redactionPercent)` - Redacts secrets in each finding using the supplied percentage.
+- `Redact(IReadOnlyList<Finding> findings, int redactionPercent, bool requirePartialMask)` - Redacts secrets in each finding using the supplied percentage.
 
 ## GitleaksJsonReportWriter
 

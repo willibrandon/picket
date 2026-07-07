@@ -58,6 +58,8 @@ Native reports can include:
 - ignore reason,
 - remediation links.
 
+Native CSV reports prefix finding-controlled cells that begin with `=`, `+`, `-`, or `@` with a single quote so spreadsheet tools do not interpret them as formulas. Gitleaks-compatible CSV keeps the pinned Gitleaks byte contract and does not apply this native-only neutralization.
+
 Native fingerprints are versioned as `picket:v1:<sha256>`. The hash input includes the normalized logical path, rule ID, secret or match hash, and decode path. It intentionally excludes line, column, commit, author, and message metadata so native triage IDs remain stable when a finding moves inside the same file or appears across multiple commits. Gitleaks-compatible reports keep Gitleaks fingerprints.
 
 `picket analyze` writes incident-response reports as JSON, JSON Lines, or text. Analysis records include provider, credential type, stable fingerprint, secret hash, validation state, risk, identity, scopes, reachable resources, risk summary, recommended actions, revocation availability, revocation command templates, revocation guidance, and non-secret evidence. Offline analysis recognizes AWS access keys, Azure Storage connection strings, database connection URLs, GCP API keys, GCP service account keys, GitHub token families, GitLab token families, and Sourcegraph access tokens. `picket analyze --live` can enrich analysis with provider metadata from guarded live validation; offline analysis keeps identity, scopes, and resources as explicit offline placeholders.

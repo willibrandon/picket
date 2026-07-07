@@ -139,13 +139,19 @@ public static class PicketCsvReportWriter
 
     private static void AppendField(StringBuilder builder, string value)
     {
-        if (!NeedsQuotes(value))
+        bool neutralizeFormula = StartsWithFormulaPrefix(value);
+        if (!neutralizeFormula && !NeedsQuotes(value))
         {
             builder.Append(value);
             return;
         }
 
         builder.Append('"');
+        if (neutralizeFormula)
+        {
+            builder.Append('\'');
+        }
+
         foreach (char ch in value)
         {
             if (ch == '"')
@@ -159,6 +165,11 @@ public static class PicketCsvReportWriter
         }
 
         builder.Append('"');
+    }
+
+    private static bool StartsWithFormulaPrefix(string value)
+    {
+        return value.Length != 0 && value[0] is '=' or '+' or '-' or '@';
     }
 
     private static bool NeedsQuotes(string value)

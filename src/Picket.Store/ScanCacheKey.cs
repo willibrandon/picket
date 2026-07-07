@@ -12,7 +12,7 @@ namespace Picket.Store;
 public sealed class ScanCacheKey(
     string fingerprint,
     ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path,
-    ScanCacheStorageMode storageMode = ScanCacheStorageMode.Raw)
+    ScanCacheStorageMode storageMode = ScanCacheStorageMode.SecretHashOnly)
 {
     private const int Sha256HexLength = 64;
 
@@ -47,7 +47,7 @@ public sealed class ScanCacheKey(
         long? maxTargetBytes,
         bool ignoreGitleaksAllow = false,
         ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path,
-        ScanCacheStorageMode storageMode = ScanCacheStorageMode.Raw)
+        ScanCacheStorageMode storageMode = ScanCacheStorageMode.SecretHashOnly)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ruleSetFingerprint);
         ArgumentOutOfRangeException.ThrowIfNegative(maxDecodeDepth);

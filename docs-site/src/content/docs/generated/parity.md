@@ -135,3 +135,21 @@ as deliberate.
 - **Test name:** `ScanFindsNativeRuleMatchInCSharpStringConcat`.
 - **Migration guidance:** Use strict compatibility commands for Gitleaks byte
   parity. Use native `scan` when source-code literal normalization is desired.
+
+## Git Log Option Guard
+
+- **Upstream behavior:** Gitleaks forwards `--log-opts` tokens to `git log`
+  after shell-style splitting.
+- **Picket behavior:** Picket accepts plain revision ranges and a small allowlist
+  of safe revision-filter options, but rejects output, pager, external-diff, and
+  unknown option-shaped tokens before `git` starts.
+- **Mode/profile affected:** `picket git`.
+- **Reason:** `git log` options such as `--output=<path>` can create or
+  overwrite files even though Picket correctly avoids shell execution.
+- **User impact:** Common ranges such as `main..HEAD` and safe filters such as
+  `--all`, `--branches`, `--tags`, `--since`, `--author`, `--grep`, and
+  `--max-count` remain usable. Workflows that relied on arbitrary `git log`
+  options need an explicit Picket feature instead.
+- **Test name:** `EnumerateRejectsUnsafeLogOptionsWithoutCreatingOutput`.
+- **Migration guidance:** Pass revision ranges directly through `--log-opts`.
+  Avoid using `--log-opts` as a general `git log` escape hatch.

@@ -72,12 +72,35 @@ public sealed class PicketScanCacheTests
         string entry = File.ReadAllText(GetSingleEntryPath(root.Path));
         PicketScanCacheStats stats = cache.GetStats();
         Assert.Contains("createdUnixTimeSeconds\t", entry);
-        Assert.Contains("storageMode\tRaw", entry);
+        Assert.Contains("storageMode\tSecretHashOnly", entry);
         Assert.Contains("findingCount\t1", entry);
         Assert.AreEqual(root.Path, stats.RootPath);
         Assert.AreEqual(1, stats.EntryCount);
         Assert.AreEqual(1, stats.CurrentKeyEntryCount);
         Assert.AreNotEqual(0L, stats.TotalBytes);
+    }
+
+    /// <summary>
+    /// Verifies cache directories and entry files are owner-only on Unix-like systems.
+    /// </summary>
+    [TestMethod]
+    public void WriteCreatesOwnerOnlyCacheFilesOnUnix()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(root.Path));
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(Path.Combine(root.Path, "entries")));
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(Path.Combine(root.Path, "locks")));
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(GetSingleEntryPath(root.Path)));
     }
 
     /// <summary>
@@ -87,7 +110,7 @@ public sealed class PicketScanCacheTests
     public void TryReadAcceptsLegacyEntryWithoutMetadata()
     {
         using TempDirectory root = TempDirectory.Create();
-        PicketScanCache cache = CreateCache(root.Path);
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.Raw);
         byte[] content = Encoding.UTF8.GetBytes("token-12345");
         string blobHash = BlobHasher.ComputeSha256Hex(content);
         string pathHash = BlobHasher.ComputeSha256Hex("secret.txt");
@@ -316,7 +339,7 @@ public sealed class PicketScanCacheTests
     {
         using TempDirectory root = TempDirectory.Create();
         byte[] content = Encoding.UTF8.GetBytes("token-12345");
-        PicketScanCache rawCache = CreateCache(root.Path);
+        PicketScanCache rawCache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.Raw);
         PicketScanCache hashOnlyCache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
 
         rawCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
@@ -455,7 +478,8 @@ public sealed class PicketScanCacheTests
         Assert.IsTrue(hit);
         Assert.IsNotNull(cachedFindings);
         Assert.HasCount(1, cachedFindings);
-        Assert.AreEqual("token-12345", cachedFindings[0].Secret);
+        Assert.IsEmpty(cachedFindings[0].Secret);
+        Assert.AreEqual(BlobHasher.ComputeSha256Hex("token-12345"), cachedFindings[0].SecretSha256);
     }
 
     /// <summary>
@@ -478,7 +502,7 @@ public sealed class PicketScanCacheTests
         string pattern = "token-[0-9]+",
         bool ignoreGitleaksAllow = false,
         ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path,
-        ScanCacheStorageMode storageMode = ScanCacheStorageMode.Raw)
+        ScanCacheStorageMode storageMode = ScanCacheStorageMode.SecretHashOnly)
     {
         var ruleSet = new RuleSet([SecretRule.Create("token", string.Empty, pattern)]);
         CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(ruleSet);
@@ -549,6 +573,19 @@ public sealed class PicketScanCacheTests
         string[] entries = Directory.GetFiles(Path.Combine(root, "entries"), "*.cache", SearchOption.AllDirectories);
         Assert.HasCount(1, entries);
         return entries[0];
+    }
+
+    private static void AssertHasNoGroupOrOtherBits(UnixFileMode mode)
+    {
+        const UnixFileMode GroupOrOtherBits =
+            UnixFileMode.GroupRead
+            | UnixFileMode.GroupWrite
+            | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead
+            | UnixFileMode.OtherWrite
+            | UnixFileMode.OtherExecute;
+
+        Assert.AreEqual((UnixFileMode)0, mode & GroupOrOtherBits);
     }
 
     private static void WriteZipEntry(string archivePath, string entryName, string content)

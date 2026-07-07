@@ -10,6 +10,8 @@ namespace Picket;
 
 internal static partial class Program
 {
+    private static bool s_rawScanCacheWarningWritten;
+
     static bool IsHelp(string arg)
     {
         return arg is "-h" or "--help" or "help";
@@ -307,7 +309,7 @@ internal static partial class Program
         maxDecodeDepth = 5;
         maxTargetBytes = null;
         ignoreGitleaksAllow = false;
-        cacheStorageMode = ScanCacheStorageMode.Raw;
+        cacheStorageMode = ScanCacheStorageMode.SecretHashOnly;
         pruneOtherKeys = false;
         olderThanDays = null;
         bool sourceRead = false;
@@ -444,7 +446,7 @@ internal static partial class Program
         maxDecodeDepth = 5;
         maxTargetBytes = null;
         ignoreGitleaksAllow = false;
-        cacheStorageMode = ScanCacheStorageMode.Raw;
+        cacheStorageMode = ScanCacheStorageMode.SecretHashOnly;
         archivePath = null;
         bool sourceRead = false;
         for (int i = 0; i < args.Length; i++)
@@ -1040,7 +1042,7 @@ internal static partial class Program
     {
         if (!TryReadStringFlag(args, ref index, "--cache-mode", out string? value))
         {
-            mode = ScanCacheStorageMode.Raw;
+            mode = ScanCacheStorageMode.SecretHashOnly;
             return false;
         }
 
@@ -1056,9 +1058,15 @@ internal static partial class Program
     static bool TryParseScanCacheStorageMode(string value, out ScanCacheStorageMode mode)
     {
         string normalized = value.Trim().ToLowerInvariant();
-        if (normalized is "raw" or "default")
+        if (normalized.Equals("raw", StringComparison.Ordinal))
         {
             mode = ScanCacheStorageMode.Raw;
+            return true;
+        }
+
+        if (normalized.Equals("default", StringComparison.Ordinal))
+        {
+            mode = ScanCacheStorageMode.SecretHashOnly;
             return true;
         }
 
@@ -1068,8 +1076,19 @@ internal static partial class Program
             return true;
         }
 
-        mode = ScanCacheStorageMode.Raw;
+        mode = ScanCacheStorageMode.SecretHashOnly;
         return false;
+    }
+
+    static void WarnIfRawScanCacheMode(ScanCacheStorageMode mode)
+    {
+        if (mode != ScanCacheStorageMode.Raw || s_rawScanCacheWarningWritten)
+        {
+            return;
+        }
+
+        s_rawScanCacheWarningWritten = true;
+        Console.Error.WriteLine("warning: raw scan-cache mode stores finding match, secret, and line text; use secret-hash-only for shared or public caches");
     }
 
     static bool TryValidatePlatform(string? platform)
@@ -1169,6 +1188,7 @@ internal static partial class Program
 
         try
         {
+            WarnIfRawScanCacheMode(cacheStorageMode);
             scanCache = PicketScanCache.Open(cacheDir, CreateNativeScanCacheKey(rules, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode));
             return true;
         }

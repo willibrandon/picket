@@ -1228,20 +1228,20 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that secret-hash-only native scan cache entries avoid persisted raw evidence.
+    /// Verifies that native scan cache defaults avoid persisted raw evidence.
     /// </summary>
     [TestMethod]
-    public async Task NativeScanCacheSupportsSecretHashOnlyMode()
+    public async Task NativeScanCacheDefaultsToSecretHashOnlyMode()
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteFindingWordConfig(root.Path);
         string cachePath = Path.Combine(root.Path, ".picket", "cache");
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
 
-        CliResult first = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "--cache-mode", "secret-hash-only", "-f", "jsonl").ConfigureAwait(false);
-        CliResult second = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "--cache-mode", "secret-hash-only", "-f", "jsonl").ConfigureAwait(false);
-        CliResult rawStats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path).ConfigureAwait(false);
-        CliResult hashOnlyStats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path, "--cache-mode", "secret-hash-only").ConfigureAwait(false);
+        CliResult first = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult second = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult defaultStats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path).ConfigureAwait(false);
+        CliResult rawStats = await RunCliAsync("cache", "stats", "--cache-dir", cachePath, "-c", configPath, "--source", root.Path, "--cache-mode", "raw").ConfigureAwait(false);
         string cacheEntry = File.ReadAllText(GetSingleCacheEntryPath(cachePath));
         string expectedHash = ComputeSha256("finding").ToLowerInvariant();
 
@@ -1255,10 +1255,10 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"line\":\"\"", second.Stdout);
         Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes("finding")), cacheEntry);
         Assert.Contains("storageMode\tSecretHashOnly", cacheEntry);
+        Assert.AreEqual(0, defaultStats.ExitCode);
+        Assert.Contains("current-key entries: 1", defaultStats.Stdout);
         Assert.AreEqual(0, rawStats.ExitCode);
         Assert.Contains("current-key entries: 0", rawStats.Stdout);
-        Assert.AreEqual(0, hashOnlyStats.ExitCode);
-        Assert.Contains("current-key entries: 1", hashOnlyStats.Stdout);
     }
 
     /// <summary>

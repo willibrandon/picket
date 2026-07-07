@@ -376,7 +376,7 @@ The applied guidance comes from current Microsoft Learn pages. These links are m
 
 | Command | Compatibility behavior |
 |---|---|
-| `picket git [repo]` | Uses the same Git patch model as Gitleaks: `git log -p -U0 --full-history --all --diff-filter=tuxdb`, additions only. `--log-opts`, `--staged`, and `--pre-commit` reproduce Gitleaks behavior, including its quoting limitations where tests depend on them. |
+| `picket git [repo]` | Uses the same Git patch model as Gitleaks: `git log -p -U0 --full-history --all --diff-filter=tuxdb`, additions only. `--staged` and `--pre-commit` reproduce Gitleaks behavior. `--log-opts` accepts plain revision ranges and a small allowlist of safe revision-filter options; output, pager, external-diff, and unknown option-shaped tokens are rejected before `git` starts. |
 | `picket dir [path]` | Filesystem scan with Gitleaks traversal semantics. Aliases: `file`, `directory`. Supports `--follow-symlinks`. |
 | `picket stdin` | Scans piped input with Gitleaks-compatible path/fingerprint/report behavior. |
 | `picket detect` | Hidden/deprecated shim. Maps to `git`, `dir`, or `stdin` the way Gitleaks does. |
@@ -494,7 +494,7 @@ Native mode adds `.picketignore`, glob ignores, content-hash ignores, stale-igno
 Compatibility report writers are byte-oriented golden-output components, not generic serializers.
 
 - JSON: exact field order, escaping, indentation, omitted fields, empty-array behavior, and trailing newline behavior from the pinned Gitleaks version.
-- CSV: exact header behavior, including the no-findings case and conditional `Link` column behavior.
+- CSV: exact header behavior, including the no-findings case and conditional `Link` column behavior. Native CSV neutralizes spreadsheet formula prefixes in finding-controlled cells; strict compatibility CSV preserves the pinned Gitleaks CSV bytes.
 - JUnit: exact XML shape, suite names, failure text, escaping, and indentation.
 - SARIF: exact Gitleaks-compatible mode for consumers that depend on `tool.driver.name`, semantic version, fingerprints, and snippets.
 - Template: Go `text/template` compatibility with the same supported safe Sprig function map as Gitleaks. Template behavior is tested with real templates.
@@ -630,7 +630,7 @@ Design requirements:
 - rule-pack/config/version and scan-behavior cache invalidation,
 - decode/archive-derived blob lineage,
 - concurrent CI-safe locking,
-- raw and secret-hash-only cache storage modes, with the storage mode included in the cache key,
+- secret-hash-only scan cache storage by default, explicit raw mode for trusted private replay, owner-only POSIX cache permissions, and storage mode participation in the cache key,
 - GC and retention policy,
 - portable cache export/import,
 - provenance-preserving reports.
