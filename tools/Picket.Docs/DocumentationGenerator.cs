@@ -1143,6 +1143,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "--force" => "Overwrite existing hook files.",
             "--github-api-endpoint" => "Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.",
             "--github-api-proxy" => "Use this HTTP or HTTPS proxy for live GitHub API requests.",
+            "--github-include-issues" => "Include GitHub issue bodies and comments in native source enumeration.",
+            "--github-issue-state" => "Filter GitHub issues by state.",
             "--github-organization" => "Scan repositories visible in this GitHub organization through native source enumeration.",
             "--github-pull-request" => "Scan this GitHub pull request head.",
             "--github-ref" => "Scan this GitHub branch, tag, or commit.",

@@ -13,6 +13,7 @@ namespace Picket.Sources;
 public sealed class GitHubSourceClient(HttpClient httpClient)
 {
     private const string ApiVersion = "2022-11-28";
+    private const int IssuesPerPage = 100;
     private const int RepositoriesPerPage = 100;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-github-remote");
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -50,17 +51,27 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         }
 
         string gitRef = options.Ref;
+        bool hasRepositoryFiles = true;
         if (gitRef.Length == 0)
         {
             gitRef = await ReadDefaultBranchAsync(options, cancellationToken).ConfigureAwait(false);
             if (gitRef.Length == 0)
             {
                 options.WarningSink?.Invoke($"skipping GitHub repository {options.Repository} because it does not have a default branch");
-                return sourceFiles;
+                hasRepositoryFiles = false;
             }
         }
 
-        await AddRepositoryFilesAsync(options, gitRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
+        if (hasRepositoryFiles)
+        {
+            await AddRepositoryFilesAsync(options, gitRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (options.IncludeIssues && !IsCancellationRequested(options))
+        {
+            await AddRepositoryIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
         return sourceFiles;
     }
 
@@ -128,7 +139,6 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             if (gitRef.Length == 0)
             {
                 options.WarningSink?.Invoke($"skipping GitHub repository {options.Organization}/{name} because it does not have a default branch");
-                continue;
             }
 
             var repositoryOptions = new GitHubSourceOptions(
@@ -136,10 +146,20 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 string.Concat(options.Organization, "/", name),
                 options.Credential,
                 gitRef,
+                includeIssues: options.IncludeIssues,
+                issueState: options.IssueState,
                 maxFileBytes: options.MaxFileBytes,
                 warningSink: options.WarningSink,
                 isCancellationRequested: options.IsCancellationRequested);
-            await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
+            if (gitRef.Length != 0)
+            {
+                await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeIssues && !IsCancellationRequested(options))
+            {
+                await AddRepositoryIssueFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return sourceFiles;
@@ -279,6 +299,145 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         }
     }
 
+    private async Task AddRepositoryIssueFilesAsync(
+        GitHubSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateRepositoryIssueListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping GitHub issues for repository {options.Repository}");
+                return;
+            }
+
+            await AddIssueFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(response);
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddIssueFilesAsync(
+        GitHubSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement issue in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (issue.TryGetProperty("pull_request", out _)
+                || !TryGetJsonInt32(issue, "number", out int issueNumber))
+            {
+                continue;
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateIssueDisplayPath(options, issueNumber),
+                CreateIssueContent(issueNumber, GetString(issue, "title"), GetString(issue, "body")),
+                sourceFiles);
+
+            if (!TryGetJsonInt64(issue, "comments", out long comments)
+                || comments > 0)
+            {
+                await AddIssueCommentFilesAsync(options, issueNumber, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task AddIssueCommentFilesAsync(
+        GitHubSourceOptions options,
+        int issueNumber,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateIssueCommentListUri(options, issueNumber, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping GitHub issue comments for {options.Repository}#{issueNumber.ToString(CultureInfo.InvariantCulture)}");
+                return;
+            }
+
+            await AddIssueCommentFilesAsync(options, issueNumber, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(response);
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private static async Task AddIssueCommentFilesAsync(
+        GitHubSourceOptions options,
+        int issueNumber,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement comment in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonInt64(comment, "id", out long commentId))
+            {
+                continue;
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateIssueCommentDisplayPath(options, issueNumber, commentId),
+                CreateIssueCommentContent(issueNumber, commentId, GetString(comment, "body")),
+                sourceFiles);
+        }
+    }
+
+    private static void AddSyntheticTextFile(
+        GitHubSourceOptions options,
+        string displayPath,
+        string content,
+        List<SourceFile> sourceFiles)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(content);
+        if (options.MaxFileBytes.HasValue && bytes.LongLength > options.MaxFileBytes.Value)
+        {
+            options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+            return;
+        }
+
+        sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, bytes));
+    }
+
     private async Task<byte[]?> DownloadFileAsync(
         GitHubSourceOptions options,
         Uri uri,
@@ -388,6 +547,29 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             [
                 new KeyValuePair<string, string>("type", options.RepositoryType),
                 new KeyValuePair<string, string>("per_page", RepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateRepositoryIssueListUri(GitHubSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.RepositoryName, "issues"],
+            [
+                new KeyValuePair<string, string>("state", options.IssueState),
+                new KeyValuePair<string, string>("per_page", IssuesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateIssueCommentListUri(GitHubSourceOptions options, int issueNumber, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.RepositoryName, "issues", issueNumber.ToString(CultureInfo.InvariantCulture), "comments"],
+            [
+                new KeyValuePair<string, string>("per_page", IssuesPerPage.ToString(CultureInfo.InvariantCulture)),
                 new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
             ]);
     }
@@ -518,6 +700,14 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             && property.TryGetInt64(out propertyValue);
     }
 
+    private static bool TryGetJsonInt32(JsonElement value, string propertyName, out int propertyValue)
+    {
+        propertyValue = 0;
+        return value.TryGetProperty(propertyName, out JsonElement property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out propertyValue);
+    }
+
     private static string GetString(JsonElement value, string propertyName)
     {
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
@@ -567,6 +757,70 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             EscapeDisplaySegment(options.RepositoryName),
             "/",
             normalizedItemPath);
+    }
+
+    private static string CreateIssueDisplayPath(GitHubSourceOptions options, int issueNumber)
+    {
+        return string.Concat(
+            "github/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.RepositoryName),
+            "/issues/",
+            issueNumber.ToString(CultureInfo.InvariantCulture),
+            ".md");
+    }
+
+    private static string CreateIssueCommentDisplayPath(GitHubSourceOptions options, int issueNumber, long commentId)
+    {
+        return string.Concat(
+            "github/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.RepositoryName),
+            "/issues/",
+            issueNumber.ToString(CultureInfo.InvariantCulture),
+            "/comments/",
+            commentId.ToString(CultureInfo.InvariantCulture),
+            ".md");
+    }
+
+    private static string CreateIssueContent(int issueNumber, string title, string body)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Issue ");
+        builder.Append(issueNumber.ToString(CultureInfo.InvariantCulture));
+        if (title.Length != 0)
+        {
+            builder.Append(": ");
+            builder.Append(title);
+        }
+
+        builder.AppendLine();
+        builder.AppendLine();
+        if (body.Length != 0)
+        {
+            builder.AppendLine(body);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string CreateIssueCommentContent(int issueNumber, long commentId, string body)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Issue ");
+        builder.Append(issueNumber.ToString(CultureInfo.InvariantCulture));
+        builder.Append(" comment ");
+        builder.Append(commentId.ToString(CultureInfo.InvariantCulture));
+        builder.AppendLine();
+        builder.AppendLine();
+        if (body.Length != 0)
+        {
+            builder.AppendLine(body);
+        }
+
+        return builder.ToString();
     }
 
     private static string EscapeDisplaySegment(string value)

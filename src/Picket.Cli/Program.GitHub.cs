@@ -43,6 +43,18 @@ internal static partial class Program
             || arg.StartsWith("--github-pull-request=", StringComparison.Ordinal);
     }
 
+    static bool IsGitHubIncludeIssuesFlag(string arg)
+    {
+        return arg.Equals("--github-include-issues", StringComparison.Ordinal)
+            || arg.StartsWith("--github-include-issues=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitHubIssueStateFlag(string arg)
+    {
+        return arg.Equals("--github-issue-state", StringComparison.Ordinal)
+            || arg.StartsWith("--github-issue-state=", StringComparison.Ordinal);
+    }
+
     static bool IsGitHubSourceApiEndpointFlag(string arg)
     {
         return arg.Equals("--github-source-api-endpoint", StringComparison.Ordinal)
@@ -65,6 +77,26 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadGitHubIssueStateFlag(string[] args, ref int index, out string issueState)
+    {
+        issueState = GitHubSourceOptions.DefaultIssueState;
+        if (!TryReadStringFlag(args, ref index, "--github-issue-state", out string? value))
+        {
+            return false;
+        }
+
+        try
+        {
+            issueState = GitHubSourceOptions.NormalizeIssueState(value);
+            return true;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return false;
+        }
+    }
+
     static bool TryCreateGitHubSourceProvider(
         Uri? endpoint,
         string repository,
@@ -73,6 +105,8 @@ internal static partial class Program
         string? tokenEnvironmentVariable,
         string gitRef,
         int pullRequestNumber,
+        bool includeIssues,
+        string issueState,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
         [NotNullWhen(true)] out Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider)
@@ -95,6 +129,12 @@ internal static partial class Program
         if (pullRequestNumber != 0 && !string.IsNullOrWhiteSpace(gitRef))
         {
             Console.Error.WriteLine("GitHub source scan accepts either --github-ref or --github-pull-request, not both");
+            return false;
+        }
+
+        if (pullRequestNumber != 0 && includeIssues)
+        {
+            Console.Error.WriteLine("GitHub source scan cannot combine --github-pull-request with --github-include-issues");
             return false;
         }
 
@@ -121,11 +161,15 @@ internal static partial class Program
                     repository,
                     credential,
                     gitRef,
-                    pullRequestNumber);
+                    pullRequestNumber,
+                    includeIssues,
+                    issueState);
                 sourceEndpoint = validatedOptions.Endpoint;
                 repository = validatedOptions.Repository;
                 gitRef = validatedOptions.Ref;
                 pullRequestNumber = validatedOptions.PullRequestNumber;
+                includeIssues = validatedOptions.IncludeIssues;
+                issueState = validatedOptions.IssueState;
             }
             else
             {
@@ -134,11 +178,15 @@ internal static partial class Program
                     organization,
                     credential,
                     gitRef,
-                    repositoryType);
+                    repositoryType,
+                    includeIssues,
+                    issueState);
                 sourceEndpoint = validatedOptions.Endpoint;
                 organization = validatedOptions.Organization;
                 repositoryType = validatedOptions.RepositoryType;
                 gitRef = validatedOptions.Ref;
+                includeIssues = validatedOptions.IncludeIssues;
+                issueState = validatedOptions.IssueState;
             }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -174,6 +222,8 @@ internal static partial class Program
                     credential,
                     gitRef,
                     pullRequestNumber,
+                    includeIssues,
+                    issueState,
                     maxTargetBytes,
                     Console.Error.WriteLine,
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
@@ -185,6 +235,8 @@ internal static partial class Program
                 credential,
                 gitRef,
                 repositoryType,
+                includeIssues,
+                issueState,
                 maxTargetBytes,
                 Console.Error.WriteLine,
                 () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();

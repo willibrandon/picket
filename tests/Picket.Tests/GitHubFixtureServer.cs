@@ -107,6 +107,20 @@ internal sealed class GitHubFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v3/repos/willibrandon/picket/issues/7/comments?", StringComparison.Ordinal))
+        {
+            const string CommentsJson = """[{"id":99,"body":"comment-token-888"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(CommentsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/repos/willibrandon/picket/issues?", StringComparison.Ordinal))
+        {
+            const string IssuesJson = """[{"number":7,"title":"leaked issue-token-777","body":"body-token-777","comments":1},{"number":8,"title":"pull request token-999","body":"skip-token-999","comments":1,"pull_request":{"url":"https://api.github.com/repos/willibrandon/picket/pulls/8"}}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(IssuesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v3/repos/willibrandon/picket/contents/src/appsettings.txt?", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);

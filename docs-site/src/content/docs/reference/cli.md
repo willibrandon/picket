@@ -189,6 +189,8 @@ Use the grouped index to jump to the workflow you need.
   [--github-token-env name]
   [--github-ref ref]
   [--github-pull-request id]
+  [--github-include-issues]
+  [--github-issue-state open|closed|all]
   [--github-source-api-endpoint uri]
   [--azure-devops-organization org]
   [--azure-devops-endpoint uri]
@@ -376,6 +378,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>id</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Scan this GitHub pull request head.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-include-issues</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include GitHub issue bodies and comments in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-issue-state</code></td>
+              <td data-label="Value"><code>open | closed | all</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filter GitHub issues by state.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-source-api-endpoint</code></td>

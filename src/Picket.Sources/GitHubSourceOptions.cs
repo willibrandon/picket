@@ -8,6 +8,8 @@ namespace Picket.Sources;
 /// <param name="credential">The credential used for GitHub API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
 /// <param name="pullRequestNumber">An optional pull request number whose head should be scanned.</param>
+/// <param name="includeIssues">A value indicating whether GitHub issue bodies and comments should be scanned.</param>
+/// <param name="issueState">The issue state filter to scan.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
@@ -17,10 +19,17 @@ public sealed class GitHubSourceOptions(
     string credential,
     string gitRef = "",
     int pullRequestNumber = 0,
+    bool includeIssues = false,
+    string issueState = GitHubSourceOptions.DefaultIssueState,
     long? maxFileBytes = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
 {
+    /// <summary>
+    /// Gets the default GitHub issue state filter.
+    /// </summary>
+    public const string DefaultIssueState = "all";
+
     private readonly string _credential = RequireCredential(credential);
     private readonly (string Owner, string Name) _repository = ParseRepository(repository);
 
@@ -53,6 +62,16 @@ public sealed class GitHubSourceOptions(
     /// Gets the optional pull request number whose head should be scanned.
     /// </summary>
     public int PullRequestNumber { get; } = RequirePullRequestNumber(pullRequestNumber);
+
+    /// <summary>
+    /// Gets a value indicating whether GitHub issue bodies and comments should be scanned.
+    /// </summary>
+    public bool IncludeIssues { get; } = RequireIncludeIssues(includeIssues, pullRequestNumber);
+
+    /// <summary>
+    /// Gets the issue state filter.
+    /// </summary>
+    public string IssueState { get; } = NormalizeIssueState(issueState);
 
     /// <summary>
     /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.
@@ -173,5 +192,37 @@ public sealed class GitHubSourceOptions(
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
+    }
+
+    private static bool RequireIncludeIssues(bool value, int pullRequestNumber)
+    {
+        if (value && pullRequestNumber != 0)
+        {
+            throw new ArgumentException("GitHub source options accept either issue enumeration or a pull request number, not both.", nameof(value));
+        }
+
+        return value;
+    }
+
+    /// <summary>
+    /// Normalizes and validates a GitHub issue state filter.
+    /// </summary>
+    /// <param name="value">The issue state filter value.</param>
+    /// <returns>The normalized issue state filter.</returns>
+    /// <exception cref="ArgumentException"><paramref name="value" /> is not a supported GitHub issue state filter.</exception>
+    public static string NormalizeIssueState(string value)
+    {
+        string normalized = NormalizeOptionalText(value).ToLowerInvariant();
+        if (normalized.Length == 0)
+        {
+            return DefaultIssueState;
+        }
+
+        if (normalized is "open" or "closed" or "all")
+        {
+            return normalized;
+        }
+
+        throw new ArgumentException("GitHub issue state must be one of: open, closed, all.", nameof(value));
     }
 }

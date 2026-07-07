@@ -32,6 +32,38 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitHub repository source options reject ambiguous issue and pull request scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitHubSourceOptionsRejectsIssuesAndPullRequest()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "github-test-token",
+            pullRequestNumber: 42,
+            includeIssues: true));
+
+        Assert.Contains("either issue enumeration or a pull request number", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub repository source options reject invalid issue states.
+    /// </summary>
+    [TestMethod]
+    public void GitHubSourceOptionsRejectsInvalidIssueState()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "github-test-token",
+            includeIssues: true,
+            issueState: "merged"));
+
+        Assert.Contains("GitHub issue state must be one of", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration reads the recursive tree and downloads raw blob content.
     /// </summary>
     [TestMethod]
@@ -177,6 +209,83 @@ public sealed class GitHubSourceClientTests
         Assert.Contains("/repos/forker/picket-fork/git/trees/abcdef1234567890?", requests);
         Assert.Contains("ref=abcdef1234567890", requests);
         Assert.DoesNotContain("/repos/willibrandon/picket/git/trees/", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that issue enumeration reads issue bodies and comments while skipping pull request issues.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsIssuesAndComments()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repos/willibrandon/picket/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/issues/7/comments?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{"id":99,"body":"comment-token-222"}]""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/issues?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "number": 7,
+                        "title": "leaked issue-token-111",
+                        "body": "body-token-111",
+                        "comments": 1
+                      },
+                      {
+                        "number": 8,
+                        "title": "pull request token-999",
+                        "body": "skip-token-999",
+                        "comments": 1,
+                        "pull_request": {
+                          "url": "https://api.github.com/repos/willibrandon/picket/pulls/8"
+                        }
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeIssues: true,
+            issueState: "closed");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(2, files);
+        Assert.AreEqual("github/willibrandon/picket/issues/7.md", files[0].DisplayPath);
+        Assert.Contains("leaked issue-token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("body-token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("github/willibrandon/picket/issues/7/comments/99.md", files[1].DisplayPath);
+        Assert.Contains("comment-token-222", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("state=closed", requests);
+        Assert.Contains("per_page=100", requests);
+        Assert.Contains("/repos/willibrandon/picket/issues/7/comments?", requests);
+        Assert.DoesNotContain("/repos/willibrandon/picket/issues/8/comments?", requests);
         Assert.DoesNotContain(Token, requests);
     }
 

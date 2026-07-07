@@ -27,6 +27,8 @@ internal static partial class Program
         Uri? githubSourceApiEndpoint = null;
         string? githubSourceTokenEnvironmentVariable = null;
         string githubSourceOrganization = string.Empty;
+        bool githubSourceIncludeIssues = false;
+        string githubSourceIssueState = GitHubSourceOptions.DefaultIssueState;
         int githubSourcePullRequestNumber = 0;
         string githubSourceRef = string.Empty;
         string githubSourceRepository = string.Empty;
@@ -141,6 +143,33 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubIncludeIssuesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--github-include-issues", out githubSourceIncludeIssues))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (githubSourceIncludeIssues)
+                {
+                    githubSourceOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitHubIssueStateFlag(arg))
+            {
+                if (!TryReadGitHubIssueStateFlag(args, ref i, out githubSourceIssueState))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceIncludeIssues = true;
                 githubSourceOptionSpecified = true;
                 continue;
             }
@@ -418,6 +447,8 @@ internal static partial class Program
                 githubSourceTokenEnvironmentVariable,
                 githubSourceRef,
                 githubSourcePullRequestNumber,
+                githubSourceIncludeIssues,
+                githubSourceIssueState,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

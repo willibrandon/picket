@@ -8,6 +8,8 @@ namespace Picket.Sources;
 /// <param name="credential">The credential used for GitHub API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference used for every repository.</param>
 /// <param name="repositoryType">The organization repository type filter.</param>
+/// <param name="includeIssues">A value indicating whether GitHub issue bodies and comments should be scanned.</param>
+/// <param name="issueState">The issue state filter to scan.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
@@ -17,6 +19,8 @@ public sealed class GitHubOrganizationSourceOptions(
     string credential,
     string gitRef = "",
     string repositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType,
+    bool includeIssues = false,
+    string issueState = GitHubSourceOptions.DefaultIssueState,
     long? maxFileBytes = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
@@ -47,6 +51,16 @@ public sealed class GitHubOrganizationSourceOptions(
     /// Gets the organization repository type filter.
     /// </summary>
     public string RepositoryType { get; } = NormalizeRepositoryType(repositoryType);
+
+    /// <summary>
+    /// Gets a value indicating whether GitHub issue bodies and comments should be scanned.
+    /// </summary>
+    public bool IncludeIssues { get; } = includeIssues;
+
+    /// <summary>
+    /// Gets the issue state filter.
+    /// </summary>
+    public string IssueState { get; } = GitHubSourceOptions.NormalizeIssueState(issueState);
 
     /// <summary>
     /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.
