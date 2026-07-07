@@ -85,22 +85,10 @@ internal sealed partial class DocumentationGenerator
     {
         builder.AppendLine("## Picket-Native Rules");
         builder.AppendLine();
-        builder.AppendLine("<div class=\"reference-card-list\">");
+        builder.AppendLine("<div class=\"reference-summary-list\">");
         foreach (SecretRule rule in rules)
         {
-            AppendReferenceCard(
-                builder,
-                rule.Id,
-                FormatOptionalValue(rule.Provider),
-                rule.Description,
-                [
-                    ("Severity", rule.Severity, true, false),
-                    ("Confidence", rule.Confidence, true, false),
-                    ("Validation", FormatValueList(rule.Validation), true, false),
-                    ("Revocation", FormatValueList(rule.Revocation), true, false),
-                    ("Tags", FormatValueList(rule.Tags), false, false),
-                    ("Examples", FormatExampleCounts(rule), false, false),
-                ]);
+            AppendNativeRuleSummary(builder, rule);
         }
 
         builder.AppendLine("</div>");
@@ -111,25 +99,76 @@ internal sealed partial class DocumentationGenerator
     {
         builder.AppendLine("## Gitleaks-Compatible Rules");
         builder.AppendLine();
-        builder.AppendLine("<div class=\"reference-card-list\">");
+        builder.AppendLine("<div class=\"reference-summary-list\">");
         foreach (SecretRule rule in rules)
         {
-            AppendReferenceCard(
-                builder,
-                rule.Id,
-                "Gitleaks-compatible",
-                rule.Description,
-                [
-                    ("Tags", FormatValueList(rule.Tags), false, false),
-                    ("Keywords", FormatValueList(rule.Keywords), false, false),
-                    ("Entropy", rule.Entropy.ToString("0.###", CultureInfo.InvariantCulture), false, false),
-                    ("Secret group", rule.SecretGroup.ToString(CultureInfo.InvariantCulture), false, false),
-                    ("Allowlists", rule.Allowlists.Count.ToString(CultureInfo.InvariantCulture), false, false),
-                ]);
+            AppendCompatibilityRuleSummary(builder, rule);
         }
 
         builder.AppendLine("</div>");
         builder.AppendLine();
+    }
+
+    private static void AppendNativeRuleSummary(StringBuilder builder, SecretRule rule)
+    {
+        AppendRuleSummaryHeader(builder, rule.Id, FormatOptionalValue(rule.Provider), rule.Description);
+        builder.Append("    <p class=\"reference-summary-meta\"><span>Severity <code>");
+        builder.Append(EscapeHtmlCode(rule.Severity));
+        builder.Append("</code></span><span>Confidence <code>");
+        builder.Append(EscapeHtmlCode(rule.Confidence));
+        builder.Append("</code></span><span>Examples ");
+        builder.Append(EscapeHtmlText(FormatExampleCounts(rule)));
+        builder.AppendLine("</span></p>");
+        AppendRuleSummaryDetail(builder, "Validation", FormatValueList(rule.Validation));
+        AppendRuleSummaryDetail(builder, "Revocation", FormatValueList(rule.Revocation));
+        AppendRuleSummaryDetail(builder, "Tags", FormatValueList(rule.Tags));
+        builder.AppendLine("  </article>");
+    }
+
+    private static void AppendCompatibilityRuleSummary(StringBuilder builder, SecretRule rule)
+    {
+        AppendRuleSummaryHeader(builder, rule.Id, "Gitleaks-compatible", rule.Description);
+        builder.Append("    <p class=\"reference-summary-meta\"><span>Entropy ");
+        builder.Append(EscapeHtmlText(rule.Entropy.ToString("0.###", CultureInfo.InvariantCulture)));
+        builder.Append("</span><span>Secret group ");
+        builder.Append(EscapeHtmlText(rule.SecretGroup.ToString(CultureInfo.InvariantCulture)));
+        builder.Append("</span><span>Allowlists ");
+        builder.Append(EscapeHtmlText(rule.Allowlists.Count.ToString(CultureInfo.InvariantCulture)));
+        builder.AppendLine("</span></p>");
+        AppendRuleSummaryDetail(builder, "Tags", FormatValueList(rule.Tags));
+        AppendRuleSummaryDetail(builder, "Keywords", FormatValueList(rule.Keywords));
+        builder.AppendLine("  </article>");
+    }
+
+    private static void AppendRuleSummaryHeader(
+        StringBuilder builder,
+        string title,
+        string subtitle,
+        string description)
+    {
+        builder.AppendLine("  <article class=\"reference-summary-card\">");
+        builder.AppendLine("    <div class=\"reference-summary-heading\">");
+        builder.Append("      <code>");
+        builder.Append(EscapeHtmlCode(title));
+        builder.Append("</code><span>");
+        builder.Append(EscapeHtmlText(subtitle));
+        builder.AppendLine("</span>");
+        builder.AppendLine("    </div>");
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            builder.Append("    <p class=\"reference-summary-description\">");
+            builder.Append(EscapeHtmlText(description));
+            builder.AppendLine("</p>");
+        }
+    }
+
+    private static void AppendRuleSummaryDetail(StringBuilder builder, string label, string value)
+    {
+        builder.Append("    <p class=\"reference-summary-detail\"><strong>");
+        builder.Append(EscapeHtmlText(label));
+        builder.Append("</strong>: ");
+        builder.Append(EscapeHtmlText(value));
+        builder.AppendLine("</p>");
     }
 
     private static string FormatValueList(IEnumerable<string> values)
