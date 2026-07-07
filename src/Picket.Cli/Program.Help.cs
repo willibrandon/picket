@@ -22,6 +22,7 @@ internal static partial class Program
         Console.Out.WriteLine("  picket rules test <rule-id> [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path] [--profile picket] [--source path] [--path path] [--print-config] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-target-megabytes n] [--redact[=n]] [--] <input>");
         Console.Out.WriteLine("  picket hooks install [pre-commit|pre-push|pre-receive|all] [--repo path] [--force] [--command path] [-c path] [-b path] [--max-target-megabytes n] [--redact[=n]]");
         Console.Out.WriteLine("  picket view <report> [--open]");
+        Console.Out.WriteLine("  picket tui <report> [--flow]");
         Console.Out.WriteLine("  picket version");
     }
 
@@ -154,6 +155,18 @@ internal static partial class Program
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
         Console.Out.WriteLine("  picket view <report> [--open]");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine("Formats:");
+        Console.Out.WriteLine("  Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML");
+    }
+
+    static void WriteTuiHelp()
+    {
+        Console.Out.WriteLine("picket tui - interactive report triage console");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine("Usage:");
+        Console.Out.WriteLine("  picket tui <report> [--flow]");
+        Console.Out.WriteLine("  picket tui --flow");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Formats:");
         Console.Out.WriteLine("  Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML");

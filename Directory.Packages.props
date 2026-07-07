@@ -5,6 +5,7 @@
 
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Hex1b" Version="0.165.0" />
     <PackageVersion Include="Scout.IO.Globbing" Version="0.4.2" />
     <PackageVersion Include="Scout.IO.Ignore" Version="0.4.2" />
     <PackageVersion Include="Scout.Text.Regex" Version="0.4.2" />

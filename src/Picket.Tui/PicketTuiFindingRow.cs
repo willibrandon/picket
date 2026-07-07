@@ -1,0 +1,78 @@
+using Picket.Report;
+using System.Globalization;
+
+namespace Picket.Tui;
+
+/// <summary>
+/// Represents a non-secret finding row displayed by the terminal UI.
+/// </summary>
+/// <param name="finding">The source non-secret finding summary.</param>
+/// <param name="index">The one-based display index.</param>
+internal sealed class PicketTuiFindingRow(ReportFindingSummary finding, int index)
+{
+    /// <summary>
+    /// Gets the source non-secret finding summary.
+    /// </summary>
+    internal ReportFindingSummary Finding { get; } = finding;
+
+    /// <summary>
+    /// Gets the one-based display index.
+    /// </summary>
+    internal int Index { get; } = index;
+
+    /// <summary>
+    /// Gets the stable row key used by Hex1b table focus.
+    /// </summary>
+    internal string Key { get; } = CreateKey(finding, index);
+
+    /// <summary>
+    /// Gets the displayed rule identifier.
+    /// </summary>
+    internal string RuleId { get; } = EmptyAsUnknown(finding.RuleId);
+
+    /// <summary>
+    /// Gets the displayed path.
+    /// </summary>
+    internal string Path { get; } = EmptyAsUnknown(finding.Path);
+
+    /// <summary>
+    /// Gets the displayed line number.
+    /// </summary>
+    internal string Line { get; } = finding.Line == 0 ? "unknown" : finding.Line.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Gets the displayed source location.
+    /// </summary>
+    internal string Location { get; } = CreateLocation(finding);
+
+    /// <summary>
+    /// Gets the displayed fingerprint.
+    /// </summary>
+    internal string Fingerprint { get; } = EmptyAsUnknown(finding.Fingerprint);
+
+    private static string CreateKey(ReportFindingSummary finding, int index)
+    {
+        return finding.Fingerprint.Length == 0
+            ? string.Concat(
+                index.ToString(CultureInfo.InvariantCulture),
+                ":",
+                finding.RuleId,
+                ":",
+                finding.Path,
+                ":",
+                finding.Line.ToString(CultureInfo.InvariantCulture))
+            : finding.Fingerprint;
+    }
+
+    private static string CreateLocation(ReportFindingSummary finding)
+    {
+        return finding.Line == 0
+            ? EmptyAsUnknown(finding.Path)
+            : string.Concat(finding.Path, ":", finding.Line.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static string EmptyAsUnknown(string value)
+    {
+        return value.Length == 0 ? "unknown" : value;
+    }
+}

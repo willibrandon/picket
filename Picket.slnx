@@ -12,6 +12,8 @@
     <Project Path="src/Picket.Security/Picket.Security.csproj" />
     <Project Path="src/Picket.Sources/Picket.Sources.csproj" />
     <Project Path="src/Picket.Store/Picket.Store.csproj" />
+    <Project Path="src/Picket.Tui/Picket.Tui.csproj" />
+    <Project Path="src/Picket.Tui.Cli/Picket.Tui.Cli.csproj" />
     <Project Path="src/Picket.Verify/Picket.Verify.csproj" />
   </Folder>
   <Folder Name="/tests/">

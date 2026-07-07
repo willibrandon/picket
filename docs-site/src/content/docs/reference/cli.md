@@ -137,6 +137,12 @@ Use the grouped index to jump to the workflow you need.
           <span>Restore active native scan cache entries from a portable archive.</span>
         </a>
       </li>
+      <li>
+        <a class="cli-command-link" href="#picket-tui">
+          <code>picket tui</code>
+          <span>Interactive report triage console.</span>
+        </a>
+      </li>
     </ul>
   </section>
 </div>
@@ -2694,6 +2700,73 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Open an HTML report in the default browser.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="cli-info-block">
+    <p class="cli-section-label">Formats</p>
+    <p>Picket JSON/JSONL, Gitleaks JSON, TruffleHog JSON/JSONL, GitLab code-quality JSON, SARIF, HTML</p>
+  </div>
+</div>
+
+### picket tui
+
+<div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket tui</code>
+    <span class="cli-command-badge">Command</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Command arguments</dd>
+    </div>
+  </dl>
+  <p class="cli-command-summary">Interactive report triage console.</p>
+  <div class="cli-usage-list">
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage 1</p>
+      <pre class="cli-usage-code"><code>picket tui &lt;report&gt; [--flow]</code></pre>
+    </div>
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage 2</p>
+      <pre class="cli-usage-code"><code>picket tui --flow</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Arguments</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Argument"><code>report</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Report file to summarize or open.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--flow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Run the interactive report triage console as inline terminal steps.</td>
             </tr>
           </tbody>
         </table>

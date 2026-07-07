@@ -58,6 +58,11 @@ internal static partial class Program
             return RunView(args[1..]);
         }
 
+        if (command.Equals("tui", StringComparison.OrdinalIgnoreCase))
+        {
+            return await RunTuiAsync(args[1..]).ConfigureAwait(false);
+        }
+
         if (command.Equals("stdin", StringComparison.OrdinalIgnoreCase))
         {
             return await RunStdinAsync(args[1..]).ConfigureAwait(false);

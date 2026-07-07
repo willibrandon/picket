@@ -65,6 +65,7 @@ internal static class CliOptionMetadata
             "--exit-code" => "Exit with this code when findings are present.",
             "--follow-symlinks" => "Follow symlinks while scanning directories.",
             "--force" => "Overwrite existing hook files.",
+            "--flow" => "Run the interactive report triage console as inline terminal steps.",
             "--github-api-endpoint" => "Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.",
             "--github-api-proxy" => "Use this HTTP or HTTPS proxy for live GitHub API requests.",
             "--github-gist" => "Scan a single GitHub gist by ID.",
