@@ -16,10 +16,18 @@ internal static class RemoteSourceHttpRetry
     {
         for (int attempt = 0; ; attempt++)
         {
+            HttpRequestMessage request = requestFactory();
+            Uri? requestUri = request.RequestUri;
             HttpResponseMessage response = await httpClient.SendAsync(
-                requestFactory(),
+                request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken).ConfigureAwait(false);
+            if (requestUri is not null && WasAutoRedirected(response, request, requestUri))
+            {
+                response.Dispose();
+                return CreateAutoRedirectBlockedResponse(request);
+            }
+
             if (attempt >= MaxRetryAttempts || !isRetryableResponse(response))
             {
                 return response;
@@ -32,6 +40,31 @@ internal static class RemoteSourceHttpRetry
                 await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    private static bool WasAutoRedirected(
+        HttpResponseMessage response,
+        HttpRequestMessage request,
+        Uri requestUri)
+    {
+        HttpRequestMessage? responseRequest = response.RequestMessage;
+        if (responseRequest is null
+            || ReferenceEquals(responseRequest, request)
+            || responseRequest.RequestUri is null)
+        {
+            return false;
+        }
+
+        return !responseRequest.RequestUri.AbsoluteUri.Equals(requestUri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    private static HttpResponseMessage CreateAutoRedirectBlockedResponse(HttpRequestMessage request)
+    {
+        return new HttpResponseMessage((HttpStatusCode)421)
+        {
+            ReasonPhrase = "Automatic redirect blocked",
+            RequestMessage = request,
+        };
     }
 
     internal static bool IsGenericRetryableResponse(HttpResponseMessage response)

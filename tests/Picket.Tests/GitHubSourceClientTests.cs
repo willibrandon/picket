@@ -875,6 +875,48 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that a caller-supplied HTTP client cannot silently auto-follow GitHub raw-content redirects.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesBlocksAutoFollowedRawContentRedirects()
+    {
+        const string Token = "github-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"secret.txt","type":"blob","size":12}]}""");
+            }
+
+            if (url.Contains("/contents/secret.txt?", StringComparison.Ordinal))
+            {
+                return AutoRedirectedBytesResponse("secret-token", "https://objects.example.invalid/secret.txt");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("421", warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies provider-supplied repository paths are normalized before they become report paths.
     /// </summary>
     [TestMethod]
@@ -1139,6 +1181,15 @@ public sealed class GitHubSourceClientTests
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new ByteArrayContent(value),
+        };
+    }
+
+    private static HttpResponseMessage AutoRedirectedBytesResponse(string value, string redirectedUri)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes(value)),
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, redirectedUri),
         };
     }
 

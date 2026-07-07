@@ -732,6 +732,61 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that a caller-supplied HTTP client cannot silently auto-follow Azure DevOps file redirects.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesBlocksAutoFollowedFileRedirects()
+    {
+        const string Token = "azdo-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": "repo-1",
+                          "name": "web",
+                          "project": { "name": "Project One" }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal)
+                && url.Contains("download=true", StringComparison.Ordinal))
+            {
+                return AutoRedirectedBytesResponse("secret-token", "https://objects.example.invalid/secret.txt");
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"path":"/secret.txt","gitObjectType":"blob"}]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            repository: "web",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("421", warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies provider-supplied repository paths are normalized before they become report paths.
     /// </summary>
     [TestMethod]
@@ -843,6 +898,15 @@ public sealed class AzureDevOpsSourceClientTests
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new ByteArrayContent(value),
+        };
+    }
+
+    private static HttpResponseMessage AutoRedirectedBytesResponse(string value, string redirectedUri)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes(value)),
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, redirectedUri),
         };
     }
 
