@@ -12,6 +12,8 @@ Generated from XML documentation for `Picket.Security`.
 
 - [EndpointGuard](#endpointguard) - Validates outbound provider endpoints before live verification or analysis can contact them.
 - [EndpointGuardBlockReason](#endpointguardblockreason) - Describes why an outbound endpoint was blocked.
+- [EndpointGuardHttpHandlerFactory](#endpointguardhttphandlerfactory) - Creates HTTP handlers that enforce endpoint guard checks against the address used for each socket connection.
+- [EndpointGuardHttpHandlerOptions](#endpointguardhttphandleroptions) - Configures a guarded HTTP handler created by the endpoint guard HTTP handler factory.
 - [EndpointGuardOptions](#endpointguardoptions) - Configures outbound endpoint safety checks.
 - [EndpointGuardResult](#endpointguardresult) - Represents an outbound endpoint safety decision.
 
@@ -41,6 +43,29 @@ Describes why an outbound endpoint was blocked.
 - `NonPublicAddress` - The endpoint resolved to a loopback, private, link-local, reserved, or otherwise non-public address.
 - `None` - The endpoint is allowed.
 - `RelativeUri` - The endpoint URI is not absolute.
+
+## EndpointGuardHttpHandlerFactory
+
+`Picket.Security.EndpointGuardHttpHandlerFactory`
+
+Creates HTTP handlers that enforce endpoint guard checks against the address used for each socket connection.
+
+### Methods
+
+- `Create(EndpointGuardHttpHandlerOptions options)` - Creates a sockets-based HTTP handler with redirects disabled and connect-time endpoint checks enabled.
+
+## EndpointGuardHttpHandlerOptions
+
+`Picket.Security.EndpointGuardHttpHandlerOptions`
+
+Configures a guarded HTTP handler created by the endpoint guard HTTP handler factory.
+
+### Properties
+
+- `AddressResolver` - Gets or sets the optional address resolver used before connecting a socket.
+- `EnabledSslProtocols` - Gets or sets the TLS protocols enabled for HTTPS connections.
+- `EndpointGuardOptions` - Gets or sets the endpoint guard options applied to the actual connected address.
+- `Proxy` - Gets or sets the optional proxy used by the handler.
 
 ## EndpointGuardOptions
 

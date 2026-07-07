@@ -1,6 +1,5 @@
 using Picket.Security;
 using System.Net;
-using System.Net.Sockets;
 using System.Security.Authentication;
 
 namespace Picket.Verify;
@@ -212,82 +211,13 @@ public sealed class GitHubSecretLiveValidatorOptions
 
     private SocketsHttpHandler CreateHttpClientHandler()
     {
-        var handler = new SocketsHttpHandler
+        return EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
         {
-            AllowAutoRedirect = false,
-            ConnectCallback = ConnectWithEndpointGuardAsync,
-        };
-        handler.SslOptions.EnabledSslProtocols = GetSslProtocols(_tlsMode);
-        if (_proxyEndpoint is not null)
-        {
-            handler.Proxy = new WebProxy(_proxyEndpoint);
-            handler.UseProxy = true;
-        }
-
-        return handler;
-    }
-
-    private async ValueTask<Stream> ConnectWithEndpointGuardAsync(
-        SocketsHttpConnectionContext context,
-        CancellationToken cancellationToken)
-    {
-        IPAddress[] addresses;
-        try
-        {
-            addresses = await ResolveAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
-        }
-        catch (SocketException ex)
-        {
-            throw new HttpRequestException("endpoint host could not be resolved", ex);
-        }
-
-        EndpointGuardResult guardResult = EndpointGuard.Evaluate(CreateConnectedEndpoint(context), addresses, _endpointGuardOptions);
-        if (!guardResult.IsAllowed)
-        {
-            throw new HttpRequestException(string.Concat("endpoint blocked: ", guardResult.BlockReason.ToString()));
-        }
-
-        return await ConnectToAllowedAddressAsync(context.DnsEndPoint, addresses, cancellationToken).ConfigureAwait(false);
-    }
-
-    private ValueTask<IPAddress[]> ResolveAddressesAsync(string host, CancellationToken cancellationToken)
-    {
-        return _addressResolver is null
-            ? new ValueTask<IPAddress[]>(Dns.GetHostAddressesAsync(host, cancellationToken))
-            : _addressResolver(host, cancellationToken);
-    }
-
-    private static Uri CreateConnectedEndpoint(SocketsHttpConnectionContext context)
-    {
-        string scheme = context.InitialRequestMessage.RequestUri?.Scheme ?? Uri.UriSchemeHttps;
-        return new UriBuilder(scheme, context.DnsEndPoint.Host, context.DnsEndPoint.Port).Uri;
-    }
-
-    private static async ValueTask<Stream> ConnectToAllowedAddressAsync(
-        DnsEndPoint endpoint,
-        IPAddress[] addresses,
-        CancellationToken cancellationToken)
-    {
-        SocketException? lastException = null;
-        for (int i = 0; i < addresses.Length; i++)
-        {
-            var socket = new Socket(addresses[i].AddressFamily, SocketType.Stream, ProtocolType.Tcp)
-            {
-                NoDelay = true,
-            };
-            try
-            {
-                await socket.ConnectAsync(new IPEndPoint(addresses[i], endpoint.Port), cancellationToken).ConfigureAwait(false);
-                return new NetworkStream(socket, ownsSocket: true);
-            }
-            catch (SocketException ex)
-            {
-                lastException = ex;
-                socket.Dispose();
-            }
-        }
-
-        throw new HttpRequestException("endpoint connection failed", lastException);
+            AddressResolver = _addressResolver,
+            EnabledSslProtocols = GetSslProtocols(_tlsMode),
+            EndpointGuardOptions = _endpointGuardOptions,
+            Proxy = _proxyEndpoint is null ? null : new WebProxy(_proxyEndpoint),
+        });
     }
 
     private static SslProtocols GetSslProtocols(GitHubSecretLiveValidatorTlsMode tlsMode)

@@ -171,10 +171,10 @@ internal static partial class Program
 
         sourceFileProvider = (_, rules, maxTargetBytes, _, _, _, _, timeoutTimestamp) =>
         {
-            using var httpClient = new HttpClient(new HttpClientHandler
+            using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
-                AllowAutoRedirect = false,
-            });
+                EndpointGuardOptions = endpointGuardOptions,
+            }), disposeHandler: true);
             var client = new GitLabSourceClient(httpClient);
             if (hasGroup)
             {

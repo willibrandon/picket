@@ -10,6 +10,11 @@ namespace Picket.Tests;
 public sealed class EndpointGuardTests
 {
     /// <summary>
+    /// Gets or sets the current test context.
+    /// </summary>
+    public TestContext TestContext { get; set; } = null!;
+
+    /// <summary>
     /// Verifies that public HTTPS provider endpoints are allowed.
     /// </summary>
     [TestMethod]
@@ -69,12 +74,15 @@ public sealed class EndpointGuardTests
             IPAddress.Parse("::1"),
             IPAddress.Parse("fe80::1"),
             IPAddress.Parse("fc00::1"),
+            IPAddress.Parse("fec0::1"),
             IPAddress.Parse("2001:db8::1"),
             IPAddress.Parse("::127.0.0.1"),
             IPAddress.Parse("::10.0.0.1"),
+            IPAddress.Parse("::ffff:169.254.169.254"),
             IPAddress.Parse("64:ff9b::7f00:1"),
             IPAddress.Parse("64:ff9b::0a00:1"),
             IPAddress.Parse("2002:0a00:0001::"),
+            IPAddress.Parse("2001:0000:0000:0000:0000:0000:f5ff:fffe"),
         ];
 
         for (int i = 0; i < blockedAddresses.Length; i++)
@@ -119,5 +127,29 @@ public sealed class EndpointGuardTests
 
         Assert.IsFalse(result.IsAllowed);
         Assert.AreEqual(EndpointGuardBlockReason.DnsFailure, result.BlockReason);
+    }
+
+    /// <summary>
+    /// Verifies that guarded HTTP handlers reject a non-public address resolved at socket-connect time.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task GuardedHttpHandlerBlocksNonPublicAddressResolvedAtConnectTime()
+    {
+        int resolverCalls = 0;
+        using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
+        {
+            AddressResolver = (_, _) =>
+            {
+                resolverCalls++;
+                return new ValueTask<IPAddress[]>([IPAddress.Loopback]);
+            },
+        }), disposeHandler: true);
+
+        HttpRequestException exception = await Assert.ThrowsExactlyAsync<HttpRequestException>(
+            () => httpClient.GetAsync(new Uri("https://provider.example/token"), TestContext.CancellationToken));
+
+        Assert.Contains("endpoint blocked", exception.Message);
+        Assert.AreEqual(1, resolverCalls);
     }
 }

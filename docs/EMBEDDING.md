@@ -80,7 +80,24 @@ Recommended defaults for embedders:
 
 ## Endpoint Safety
 
-Use `EndpointGuard.Evaluate` before live verification or source-provider code contacts an endpoint that may be configured by users, rules, or environment:
+Use `EndpointGuardHttpHandlerFactory` when live verification or source-provider code contacts an endpoint that may be configured by users, rules, or environment. The handler disables automatic redirects and re-applies `EndpointGuard` to the IP address resolved for the actual socket connection:
+
+```csharp
+using System.Net.Http;
+using Picket.Security;
+
+var guardOptions = new EndpointGuardOptions
+{
+    RequireHttps = true,
+};
+
+using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
+{
+    EndpointGuardOptions = guardOptions,
+}), disposeHandler: true);
+```
+
+Use `EndpointGuard.Evaluate` for preflight diagnostics or when a host API needs to decide before constructing an HTTP client:
 
 ```csharp
 using System.Net;
@@ -96,7 +113,7 @@ if (!decision.IsAllowed)
 }
 ```
 
-The default guard requires HTTPS and blocks loopback, private, link-local, metadata-service, reserved, multicast, and documentation addresses. Tests and local fakes can opt in to non-public endpoints with `EndpointGuardOptions.AllowNonPublicAddresses`.
+The default guard requires HTTPS and blocks loopback, private, link-local, metadata-service, reserved, multicast, documentation, IPv4-mapped, IPv4-compatible, NAT64, 6to4, Teredo-to-non-public, and site-local addresses. Tests and local fakes can opt in to non-public endpoints with `EndpointGuardOptions.AllowNonPublicAddresses`.
 
 ## Native AOT Hosts
 

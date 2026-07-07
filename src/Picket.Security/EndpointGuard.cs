@@ -170,12 +170,14 @@ public static class EndpointGuard
     {
         return (bytes[0] & 0xFE) == 0xFC
             || bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80
+            || bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0xC0
             || bytes[0] == 0xFF
             || IsIPv6DocumentationAddress(bytes)
             || IsIPv4MappedNonPublicAddress(bytes)
             || IsIPv4CompatibleNonPublicAddress(bytes)
             || IsNat64NonPublicAddress(bytes)
-            || Is6To4NonPublicAddress(bytes);
+            || Is6To4NonPublicAddress(bytes)
+            || IsTeredoNonPublicAddress(bytes);
     }
 
     private static bool IsIPv6DocumentationAddress(byte[] bytes)
@@ -240,5 +242,23 @@ public static class EndpointGuard
         return bytes[0] == 0x20
             && bytes[1] == 0x02
             && IsNonPublicIPv4(bytes.AsSpan(2, 4));
+    }
+
+    private static bool IsTeredoNonPublicAddress(byte[] bytes)
+    {
+        if (bytes[0] != 0x20
+            || bytes[1] != 0x01
+            || bytes[2] != 0x00
+            || bytes[3] != 0x00)
+        {
+            return false;
+        }
+
+        Span<byte> clientAddress = stackalloc byte[4];
+        clientAddress[0] = (byte)~bytes[12];
+        clientAddress[1] = (byte)~bytes[13];
+        clientAddress[2] = (byte)~bytes[14];
+        clientAddress[3] = (byte)~bytes[15];
+        return IsNonPublicIPv4(clientAddress);
     }
 }
