@@ -95,6 +95,19 @@ internal sealed class GitLabFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/snippets/7/raw", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/snippets?", StringComparison.Ordinal))
+        {
+            const string SnippetsJson = """[{"id":7,"file_name":"ops/token.txt","raw_url":"https://gitlab.example/snippets/7/raw"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(SnippetsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v4/projects/123/repository/tree?", StringComparison.Ordinal))
         {
             const string TreeJson = """[{"path":"src/appsettings.txt","type":"blob","size":11},{"path":"src","type":"tree"}]""";

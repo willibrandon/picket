@@ -8,6 +8,7 @@ namespace Picket.Sources;
 /// <param name="credential">The credential used for GitLab API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
 /// <param name="mergeRequestIid">An optional merge request internal ID whose source head should be scanned.</param>
+/// <param name="includeSnippets">A value indicating whether project snippets should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
@@ -18,6 +19,7 @@ public sealed class GitLabSourceOptions(
     string credential,
     string gitRef = "",
     int mergeRequestIid = 0,
+    bool includeSnippets = false,
     long? maxFileBytes = null,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
@@ -45,6 +47,11 @@ public sealed class GitLabSourceOptions(
     /// Gets the optional merge request internal ID whose source head should be scanned.
     /// </summary>
     public int MergeRequestIid { get; } = RequireMergeRequestIid(mergeRequestIid);
+
+    /// <summary>
+    /// Gets a value indicating whether project snippets should be scanned.
+    /// </summary>
+    public bool IncludeSnippets { get; } = RequireIncludeSnippets(includeSnippets, mergeRequestIid);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -154,6 +161,16 @@ public sealed class GitLabSourceOptions(
     private static int RequireMergeRequestIid(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static bool RequireIncludeSnippets(bool value, int mergeRequestIid)
+    {
+        if (value && mergeRequestIid != 0)
+        {
+            throw new ArgumentException("GitLab source options cannot combine merge request scans with snippet enumeration.", nameof(value));
+        }
+
         return value;
     }
 

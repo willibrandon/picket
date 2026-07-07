@@ -24,6 +24,12 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-merge-request=", StringComparison.Ordinal);
     }
 
+    static bool IsGitLabIncludeSnippetsFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-snippets", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-snippets=", StringComparison.Ordinal);
+    }
+
     static bool IsGitLabTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitlab-token-env", StringComparison.Ordinal)
@@ -57,6 +63,7 @@ internal static partial class Program
         string project,
         string gitRef,
         int mergeRequestIid,
+        bool includeSnippets,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -90,11 +97,13 @@ internal static partial class Program
                 project,
                 credential,
                 gitRef,
-                mergeRequestIid);
+                mergeRequestIid,
+                includeSnippets);
             sourceEndpoint = validatedOptions.Endpoint;
             project = validatedOptions.Project;
             gitRef = validatedOptions.Ref;
             mergeRequestIid = validatedOptions.MergeRequestIid;
+            includeSnippets = validatedOptions.IncludeSnippets;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -127,6 +136,7 @@ internal static partial class Program
                 credential,
                 gitRef,
                 mergeRequestIid,
+                includeSnippets,
                 maxTargetBytes,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,

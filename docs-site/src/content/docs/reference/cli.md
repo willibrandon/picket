@@ -406,6 +406,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan this GitLab merge request source head.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitlab-include-snippets</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include GitLab project snippets in native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitlab-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

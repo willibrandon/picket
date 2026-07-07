@@ -44,6 +44,7 @@ internal static partial class Program
         string githubSourceUser = string.Empty;
         string githubSourceUserGists = string.Empty;
         Uri? gitLabApiEndpoint = null;
+        bool gitLabIncludeSnippets = false;
         bool gitLabOptionSpecified = false;
         int gitLabMergeRequestIid = 0;
         string gitLabProject = string.Empty;
@@ -343,6 +344,21 @@ internal static partial class Program
                 }
 
                 gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabIncludeSnippetsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-snippets", out gitLabIncludeSnippets))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (gitLabIncludeSnippets)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
                 continue;
             }
 
@@ -756,6 +772,7 @@ internal static partial class Program
                 gitLabProject,
                 gitLabRef,
                 gitLabMergeRequestIid,
+                gitLabIncludeSnippets,
                 gitLabTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

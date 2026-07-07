@@ -492,6 +492,7 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--gitlab-project", "path"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-ref", "ref"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-merge-request", "id"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-snippets"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-api-endpoint", "uri"));
     }

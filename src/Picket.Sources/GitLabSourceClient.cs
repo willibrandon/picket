@@ -12,6 +12,7 @@ namespace Picket.Sources;
 /// <param name="httpClient">The HTTP client used for GitLab requests.</param>
 public sealed class GitLabSourceClient(HttpClient httpClient)
 {
+    private const int SnippetsPerPage = 100;
     private const int TreeEntriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-gitlab-remote");
@@ -50,17 +51,27 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         }
 
         string gitRef = options.Ref;
+        bool hasRepositoryFiles = true;
         if (gitRef.Length == 0)
         {
             gitRef = await ReadDefaultBranchAsync(options, cancellationToken).ConfigureAwait(false);
             if (gitRef.Length == 0)
             {
                 options.WarningSink?.Invoke($"skipping GitLab project {options.Project} because it does not have a default branch");
-                return sourceFiles;
+                hasRepositoryFiles = false;
             }
         }
 
-        await AddRepositoryFilesAsync(options, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+        if (hasRepositoryFiles)
+        {
+            await AddRepositoryFilesAsync(options, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (options.IncludeSnippets && !IsCancellationRequested(options))
+        {
+            await AddProjectSnippetFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
         return sourceFiles;
     }
 
@@ -109,6 +120,70 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             warningSink: options.WarningSink,
             isCancellationRequested: options.IsCancellationRequested);
         return (true, sourceOptions, sourceRef);
+    }
+
+    private async Task AddProjectSnippetFilesAsync(
+        GitLabSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri snippetsUri = CreateSnippetsUri(options, page);
+            using HttpResponseMessage snippetsResponse = await SendAsync(options, snippetsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!snippetsResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, snippetsResponse, $"skipping GitLab project {options.Project} snippets");
+                return;
+            }
+
+            await AddSnippetFilesAsync(options, snippetsResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(snippetsResponse, page, options.WarningSink, $"GitLab project {options.Project} snippet enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddSnippetFilesAsync(
+        GitLabSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonInt64(item, "id", out long snippetId))
+            {
+                continue;
+            }
+
+            string displayPath = CreateSnippetDisplayPath(options, snippetId, GetString(item, "file_name"));
+            if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+            {
+                continue;
+            }
+
+            Uri rawUri = CreateSnippetRawUri(options, snippetId);
+            byte[]? content = await DownloadFileAsync(options, rawUri, displayPath, cancellationToken).ConfigureAwait(false);
+            if (content is not null)
+            {
+                sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            }
+        }
     }
 
     private async Task<string> ReadDefaultBranchAsync(
@@ -281,6 +356,17 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         return CreateUri(options.Endpoint, ["projects", options.Project], []);
     }
 
+    private static Uri CreateSnippetsUri(GitLabSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "snippets"],
+            [
+                new KeyValuePair<string, string>("per_page", SnippetsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
     private static Uri CreateMergeRequestUri(GitLabSourceOptions options)
     {
         return CreateUri(
@@ -308,6 +394,14 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             options.Endpoint,
             ["projects", options.Project, "repository", "files", path, "raw"],
             [new KeyValuePair<string, string>("ref", gitRef)]);
+    }
+
+    private static Uri CreateSnippetRawUri(GitLabSourceOptions options, long snippetId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "snippets", snippetId.ToString(CultureInfo.InvariantCulture), "raw"],
+            []);
     }
 
     private static Uri CreateUri(
@@ -453,6 +547,20 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             NormalizeRemoteItemPath(options.Project),
             "/",
             NormalizeRemoteItemPath(itemPath));
+    }
+
+    private static string CreateSnippetDisplayPath(GitLabSourceOptions options, long snippetId, string fileName)
+    {
+        string normalizedFileName = fileName.Length == 0
+            ? string.Concat("snippet-", snippetId.ToString(CultureInfo.InvariantCulture), ".txt")
+            : fileName;
+        return string.Concat(
+            "gitlab-snippet/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            snippetId.ToString(CultureInfo.InvariantCulture),
+            "/",
+            NormalizeRemoteItemPath(normalizedFileName));
     }
 
     private static string EscapeDisplaySegment(string value)

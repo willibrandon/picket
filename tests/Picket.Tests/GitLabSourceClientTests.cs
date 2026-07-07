@@ -33,6 +33,22 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitLab source options reject ambiguous merge request and snippet scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitLabSourceOptionsRejectsMergeRequestAndSnippets()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            mergeRequestIid: 42,
+            includeSnippets: true));
+
+        Assert.Contains("cannot combine merge request scans with snippet enumeration", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that GitLab source options default to bounded remote downloads.
     /// </summary>
     [TestMethod]
@@ -241,6 +257,113 @@ public sealed class GitLabSourceClientTests
         Assert.IsEmpty(files);
         Assert.Contains("/projects/willibrandon%2Fpicket/repository/tree?", requests);
         Assert.Contains("ref=feature%2Fscan", requests);
+    }
+
+    /// <summary>
+    /// Verifies that project snippet enumeration lists snippets and downloads raw snippet content.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesIncludesProjectSnippets()
+    {
+        const string Token = "gitlab-test-token";
+        var urls = new List<string>();
+        var privateTokens = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            CaptureRequest(request, urls, privateTokens, authorizationHeaders, acceptHeaders);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/projects/willibrandon%2Fpicket/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/snippets?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "id": 7, "file_name": "ops/token.txt", "raw_url": "https://gitlab.example/snippets/7/raw" }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/snippets/7/raw", StringComparison.Ordinal))
+            {
+                return BytesResponse("snippet-token-12345");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeSnippets: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitlab-snippet/willibrandon/picket/7/ops/token.txt", files[0].DisplayPath);
+        Assert.AreEqual("snippet-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/projects/willibrandon%2Fpicket/snippets?", requests);
+        Assert.Contains("per_page=100", requests);
+        Assert.Contains("page=1", requests);
+        Assert.Contains("/projects/willibrandon%2Fpicket/snippets/7/raw", requests);
+        Assert.Contains("PRIVATE-TOKEN", string.Join('\n', privateTokens));
+        Assert.Contains("gitlab-test-token", string.Join('\n', privateTokens));
+        Assert.DoesNotContain("Bearer", string.Join('\n', authorizationHeaders));
+        Assert.Contains("application/octet-stream", acceptHeaders);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that snippet enumeration does not depend on the project default branch.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesIncludesProjectSnippetsWithoutDefaultBranch()
+    {
+        var urls = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/projects/willibrandon%2Fpicket/snippets?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "id": 7, "file_name": "ops/token.txt" }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/snippets/7/raw", StringComparison.Ordinal))
+            {
+                return BytesResponse("snippet-token-12345");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":""}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            includeSnippets: true,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitlab-snippet/willibrandon/picket/7/ops/token.txt", files[0].DisplayPath);
+        Assert.Contains("skipping GitLab project willibrandon/picket because it does not have a default branch", string.Join('\n', warnings));
+        Assert.DoesNotContain("/repository/tree?", requests);
     }
 
     /// <summary>

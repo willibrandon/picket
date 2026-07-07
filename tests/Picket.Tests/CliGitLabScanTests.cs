@@ -105,6 +105,51 @@ public sealed class CliGitLabScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate GitLab project snippets.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitLabProjectSnippets()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitLabFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-include-snippets",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitlab/willibrandon/picket/src/appsettings.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitlab-snippet/willibrandon/picket/7/ops/token.txt\"", result.Stdout);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/snippets?", server.RequestTargets);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/snippets/7/raw", server.RequestTargets);
+        Assert.AreEqual("gitlab-source-secret", server.LastPrivateToken);
+        Assert.IsEmpty(server.LastAuthorization);
+        Assert.Contains("application/octet-stream", server.LastAccept);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that GitLab remote source scans reject unbounded download caps.
     /// </summary>
     [TestMethod]
@@ -170,6 +215,41 @@ public sealed class CliGitLabScanTests
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source options accept either a ref or a merge request ID, not both.", result.Stderr);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that merge request and snippet source scopes are mutually exclusive.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitLabMergeRequestAndSnippets()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-merge-request",
+            "42",
+            "--gitlab-include-snippets",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("GitLab source options cannot combine merge request scans with snippet enumeration.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
     }
 
