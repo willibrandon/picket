@@ -121,30 +121,26 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
-    /// Verifies that GitHub source options can explicitly disable remote download size caps.
+    /// Verifies that GitHub source options reject unbounded remote downloads.
     /// </summary>
     [TestMethod]
-    public void GitHubSourceOptionsAcceptsZeroForUnboundedRemoteDownloads()
+    public void GitHubSourceOptionsRejectsZeroForUnboundedRemoteDownloads()
     {
-        var repositoryOptions = new GitHubSourceOptions(
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new GitHubSourceOptions(
             GitHubSourceOptions.CreateDefaultEndpoint(),
             "willibrandon/picket",
             "github-test-token",
-            maxFileBytes: 0);
-        var organizationOptions = new GitHubOrganizationSourceOptions(
+            maxFileBytes: 0));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new GitHubOrganizationSourceOptions(
             GitHubSourceOptions.CreateDefaultEndpoint(),
             "willibrandon",
             "github-test-token",
-            maxFileBytes: 0);
-        var gistOptions = new GitHubGistSourceOptions(
+            maxFileBytes: 0));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new GitHubGistSourceOptions(
             GitHubSourceOptions.CreateDefaultEndpoint(),
             "github-test-token",
             "gist-one",
-            maxFileBytes: 0);
-
-        Assert.IsNull(repositoryOptions.MaxFileBytes);
-        Assert.IsNull(organizationOptions.MaxFileBytes);
-        Assert.IsNull(gistOptions.MaxFileBytes);
+            maxFileBytes: 0));
     }
 
     /// <summary>

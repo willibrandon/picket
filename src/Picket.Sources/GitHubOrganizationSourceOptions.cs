@@ -12,7 +12,7 @@ namespace Picket.Sources;
 /// <param name="issueState">The issue state filter to scan.</param>
 /// <param name="includeReleases">A value indicating whether GitHub release bodies and release assets should be scanned.</param>
 /// <param name="includeActionArtifacts">A value indicating whether GitHub Actions artifact ZIP contents should be scanned.</param>
-/// <param name="maxFileBytes">The maximum file content bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
+/// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="maxArchiveDepth">The maximum nested artifact archive depth to enumerate.</param>
 /// <param name="maxArchiveEntries">The maximum number of artifact archive entries to enumerate, or 0 for no cap.</param>
 /// <param name="maxArchiveBytes">The maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
@@ -87,9 +87,9 @@ public sealed class GitHubOrganizationSourceOptions(
     public bool IncludeActionArtifacts { get; } = includeActionArtifacts;
 
     /// <summary>
-    /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.
+    /// Gets the maximum file content bytes to download.
     /// </summary>
-    public long? MaxFileBytes { get; } = GitHubSourceOptions.RequireMaxFileBytes(maxFileBytes);
+    public long MaxFileBytes { get; } = GitHubSourceOptions.RequireMaxFileBytes(maxFileBytes, nameof(maxFileBytes));
 
     /// <summary>
     /// Gets the maximum nested artifact archive depth to enumerate.

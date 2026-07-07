@@ -550,6 +550,21 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
+        if ((azureDevOpsOptionSpecified || githubSourceOptionSpecified)
+            && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
+        {
+            Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
+            return UnknownFlagExitCode;
+        }
+
+        if (azureDevOpsOptionSpecified
+            && (HasZeroMegabytesFlag(args, "--azure-devops-max-artifact-megabytes")
+                || HasZeroMegabytesFlag(args, "--azure-devops-max-log-megabytes")))
+        {
+            Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
+            return UnknownFlagExitCode;
+        }
+
         if (azureDevOpsOptionSpecified
             && !TryCreateAzureDevOpsSourceProvider(
                 azureDevOpsOrganization,
@@ -612,5 +627,25 @@ internal static partial class Program
                     minimumRequestIntervalPerProvider)
                 : null,
             sourceFileProvider: sourceFileProvider);
+    }
+
+    private static bool HasZeroMegabytesFlag(string[] args, string flagName)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            if (arg.Equals(flagName, StringComparison.Ordinal))
+            {
+                return i + 1 < args.Length && args[i + 1].Equals("0", StringComparison.Ordinal);
+            }
+
+            if (arg.StartsWith(string.Concat(flagName, "="), StringComparison.Ordinal)
+                && arg.AsSpan(flagName.Length + 1).SequenceEqual("0"))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

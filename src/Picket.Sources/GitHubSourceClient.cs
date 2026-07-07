@@ -452,9 +452,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         }
 
         string displayPath = CreateGistFileDisplayPath(owner, gistId, fileName);
-        if (options.MaxFileBytes.HasValue
-            && TryGetJsonInt64(file, "size", out long size)
-            && size > options.MaxFileBytes.Value)
+        if (TryGetJsonInt64(file, "size", out long size)
+            && size > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return;
@@ -574,9 +573,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 continue;
             }
 
-            if (options.MaxFileBytes.HasValue
-                && TryGetJsonInt64(item, "size", out long treeSize)
-                && treeSize > options.MaxFileBytes.Value)
+            if (TryGetJsonInt64(item, "size", out long treeSize)
+                && treeSize > options.MaxFileBytes)
             {
                 options.WarningSink?.Invoke($"GitHub file byte limit skipped {CreateDisplayPath(options, path)}");
                 continue;
@@ -753,9 +751,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         }
 
         string displayPath = CreateReleaseAssetDisplayPath(options, releaseTag, assetName);
-        if (options.MaxFileBytes.HasValue
-            && TryGetJsonInt64(asset, "size", out long size)
-            && size > options.MaxFileBytes.Value)
+        if (TryGetJsonInt64(asset, "size", out long size)
+            && size > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return;
@@ -848,9 +845,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return;
         }
 
-        if (options.MaxFileBytes.HasValue
-            && TryGetJsonInt64(artifact, "size_in_bytes", out long size)
-            && size > options.MaxFileBytes.Value)
+        if (TryGetJsonInt64(artifact, "size_in_bytes", out long size)
+            && size > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return;
@@ -1000,7 +996,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(content);
-        if (options.MaxFileBytes.HasValue && bytes.LongLength > options.MaxFileBytes.Value)
+        if (bytes.LongLength > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return;
@@ -1016,7 +1012,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(content);
-        if (options.MaxFileBytes.HasValue && bytes.LongLength > options.MaxFileBytes.Value)
+        if (bytes.LongLength > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return;
@@ -1038,9 +1034,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return null;
         }
 
-        if (options.MaxFileBytes.HasValue
-            && response.Content.Headers.ContentLength.HasValue
-            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return null;
@@ -1130,14 +1125,11 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                     break;
                 }
 
-                if (options.MaxFileBytes.HasValue)
+                long projectedLength = memory.Length + read;
+                if (projectedLength > options.MaxFileBytes)
                 {
-                    long projectedLength = memory.Length + read;
-                    if (projectedLength > options.MaxFileBytes.Value)
-                    {
-                        options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
-                        return null;
-                    }
+                    options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+                    return null;
                 }
 
                 memory.Write(buffer.AsSpan(0, read));
@@ -1170,9 +1162,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return null;
         }
 
-        if (options.MaxFileBytes.HasValue
-            && response.Content.Headers.ContentLength.HasValue
-            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return null;
@@ -1273,9 +1264,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         string displayPath,
         CancellationToken cancellationToken)
     {
-        if (options.MaxFileBytes.HasValue
-            && response.Content.Headers.ContentLength.HasValue
-            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return null;
@@ -1290,9 +1280,8 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         string displayPath,
         CancellationToken cancellationToken)
     {
-        if (options.MaxFileBytes.HasValue
-            && response.Content.Headers.ContentLength.HasValue
-            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
             return null;
@@ -1320,14 +1309,11 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                     break;
                 }
 
-                if (options.MaxFileBytes.HasValue)
+                long projectedLength = memory.Length + read;
+                if (projectedLength > options.MaxFileBytes)
                 {
-                    long projectedLength = memory.Length + read;
-                    if (projectedLength > options.MaxFileBytes.Value)
-                    {
-                        options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
-                        return null;
-                    }
+                    options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+                    return null;
                 }
 
                 memory.Write(buffer.AsSpan(0, read));

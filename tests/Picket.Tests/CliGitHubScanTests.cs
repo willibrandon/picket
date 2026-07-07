@@ -55,6 +55,44 @@ public sealed class CliGitHubScanTests
     }
 
     /// <summary>
+    /// Verifies that GitHub remote source scans reject unbounded download caps.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsUnboundedGitHubRemoteDownloads()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitHubFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-source-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--github-repository",
+            "willibrandon/picket",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "--max-target-megabytes=0",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that GitHub source scans can use the shared GitHub API endpoint flag without enabling live validation.
     /// </summary>
     [TestMethod]

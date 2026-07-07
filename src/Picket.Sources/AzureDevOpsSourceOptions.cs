@@ -14,9 +14,9 @@ namespace Picket.Sources;
 /// <param name="buildId">An optional Azure Pipelines build ID whose artifacts or logs should be scanned.</param>
 /// <param name="includeArtifacts">A value indicating whether build artifacts should be scanned.</param>
 /// <param name="includeLogs">A value indicating whether build logs should be scanned.</param>
-/// <param name="maxFileBytes">The maximum file content bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
-/// <param name="maxArtifactBytes">The maximum build artifact archive bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
-/// <param name="maxLogBytes">The maximum build log bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
+/// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
+/// <param name="maxArtifactBytes">The maximum build artifact archive bytes to download, or <see langword="null" /> for the default cap.</param>
+/// <param name="maxLogBytes">The maximum build log bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="maxArchiveDepth">The maximum nested archive depth to inspect for build artifacts.</param>
 /// <param name="maxArchiveEntries">The maximum number of archive entries to inspect for build artifacts.</param>
 /// <param name="maxArchiveBytes">The maximum decompressed archive bytes to inspect for build artifacts.</param>
@@ -102,19 +102,19 @@ public sealed class AzureDevOpsSourceOptions(
     public bool IncludeLogs { get; } = includeLogs;
 
     /// <summary>
-    /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.
+    /// Gets the maximum file content bytes to download.
     /// </summary>
-    public long? MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes);
+    public long MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes, nameof(maxFileBytes));
 
     /// <summary>
-    /// Gets the maximum build artifact archive bytes to download, or <see langword="null" /> for no cap.
+    /// Gets the maximum build artifact archive bytes to download.
     /// </summary>
-    public long? MaxArtifactBytes { get; } = RequireMaxFileBytes(maxArtifactBytes);
+    public long MaxArtifactBytes { get; } = RequireMaxFileBytes(maxArtifactBytes, nameof(maxArtifactBytes));
 
     /// <summary>
-    /// Gets the maximum build log bytes to download, or <see langword="null" /> for no cap.
+    /// Gets the maximum build log bytes to download.
     /// </summary>
-    public long? MaxLogBytes { get; } = RequireMaxFileBytes(maxLogBytes);
+    public long MaxLogBytes { get; } = RequireMaxFileBytes(maxLogBytes, nameof(maxLogBytes));
 
     /// <summary>
     /// Gets the maximum nested archive depth to inspect for build artifacts.
@@ -222,24 +222,19 @@ public sealed class AzureDevOpsSourceOptions(
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
-    private static long? RequireMaxFileBytes(long? value)
+    private static long RequireMaxFileBytes(long? value, string parameterName)
     {
         if (!value.HasValue)
         {
             return GitHubSourceOptions.DefaultMaxFileBytes;
         }
 
-        if (value.Value == 0)
+        if (value.Value <= 0)
         {
-            return null;
+            throw new ArgumentOutOfRangeException(parameterName, value.Value, "Remote download byte caps must be greater than zero.");
         }
 
-        if (value.Value < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(value));
-        }
-
-        return value;
+        return value.Value;
     }
 
     private static int RequireMaxArchiveDepth(int value)

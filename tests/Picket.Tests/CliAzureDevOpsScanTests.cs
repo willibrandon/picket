@@ -56,6 +56,46 @@ public sealed class CliAzureDevOpsScanTests
     }
 
     /// <summary>
+    /// Verifies that Azure DevOps remote source scans reject unbounded download caps.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsUnboundedAzureDevOpsRemoteDownloads()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new AzureDevOpsFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-project",
+            "test",
+            "--azure-devops-repository",
+            "picket",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "--max-target-megabytes=0",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate an Azure DevOps pull request source commit.
     /// </summary>
     [TestMethod]

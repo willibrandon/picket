@@ -478,7 +478,7 @@ internal static partial class Program
                     maxArchiveCompressionRatio,
                     timeoutTimestamp);
             }
-            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is ArgumentException or HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
             {
                 Console.Error.WriteLine(ex.Message);
                 return CompleteRun(1, diagnosticsSession);

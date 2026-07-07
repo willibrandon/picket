@@ -30,21 +30,17 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
-    /// Verifies that Azure DevOps source options can explicitly disable remote download size caps.
+    /// Verifies that Azure DevOps source options reject unbounded remote downloads.
     /// </summary>
     [TestMethod]
-    public void AzureDevOpsSourceOptionsAcceptsZeroForUnboundedRemoteDownloads()
+    public void AzureDevOpsSourceOptionsRejectsZeroForUnboundedRemoteDownloads()
     {
-        var options = new AzureDevOpsSourceOptions(
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new AzureDevOpsSourceOptions(
             AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
             "azdo-test-token",
             maxFileBytes: 0,
             maxArtifactBytes: 0,
-            maxLogBytes: 0);
-
-        Assert.IsNull(options.MaxFileBytes);
-        Assert.IsNull(options.MaxArtifactBytes);
-        Assert.IsNull(options.MaxLogBytes);
+            maxLogBytes: 0));
     }
 
     /// <summary>

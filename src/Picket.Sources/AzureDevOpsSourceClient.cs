@@ -548,9 +548,8 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return null;
         }
 
-        if (options.MaxFileBytes.HasValue
-            && response.Content.Headers.ContentLength.HasValue
-            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
         {
             options.WarningSink?.Invoke($"Azure DevOps file byte limit skipped {displayPath}");
             return null;
