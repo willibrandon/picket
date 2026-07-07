@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -34,7 +35,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        List<(string Id, string Name, string ProjectName)> repositories = await ListRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+        List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)> repositories = await ListRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
         for (int i = 0; i < repositories.Count; i++)
         {
             if (IsCancellationRequested(options))
@@ -42,7 +43,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 break;
             }
 
-            (string id, string name, string projectName) = repositories[i];
+            (string id, string name, string projectName, string defaultBranch, bool hasDefaultBranchMetadata) = repositories[i];
             if (options.Repository.Length != 0
                 && !name.Equals(options.Repository, StringComparison.OrdinalIgnoreCase))
             {
@@ -55,17 +56,25 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 continue;
             }
 
+            if (options.Branch.Length == 0
+                && hasDefaultBranchMetadata
+                && defaultBranch.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because it does not have a default branch");
+                continue;
+            }
+
             await AddRepositoryFilesAsync(options, id, name, projectName, sourceFiles, cancellationToken).ConfigureAwait(false);
         }
 
         return sourceFiles;
     }
 
-    private async Task<List<(string Id, string Name, string ProjectName)>> ListRepositoriesAsync(
+    private async Task<List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)>> ListRepositoriesAsync(
         AzureDevOpsSourceOptions options,
         CancellationToken cancellationToken)
     {
-        var repositories = new List<(string Id, string Name, string ProjectName)>();
+        var repositories = new List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)>();
         string continuationToken = string.Empty;
         do
         {
@@ -93,7 +102,12 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         {
             Uri uri = CreateItemListUri(options, projectName, repositoryId, continuationToken);
             using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps repository {repositoryName}");
+                return;
+            }
+
             await AddItemFilesAsync(options, response, repositoryId, repositoryName, projectName, sourceFiles, cancellationToken).ConfigureAwait(false);
             continuationToken = ReadContinuationToken(response);
         }
@@ -147,7 +161,12 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         CancellationToken cancellationToken)
     {
         using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: false, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps file {displayPath}");
+            return null;
+        }
+
         if (options.MaxFileBytes.HasValue
             && response.Content.Headers.ContentLength.HasValue
             && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
@@ -173,7 +192,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 
     private static async Task AddRepositoriesAsync(
         HttpResponseMessage response,
-        List<(string Id, string Name, string ProjectName)> repositories,
+        List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)> repositories,
         CancellationToken cancellationToken)
     {
         using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -199,7 +218,14 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 TryGetJsonString(project, "name", out projectName);
             }
 
-            repositories.Add((id, name, projectName));
+            string defaultBranch = string.Empty;
+            bool hasDefaultBranchMetadata = repository.TryGetProperty("defaultBranch", out JsonElement defaultBranchElement);
+            if (hasDefaultBranchMetadata && defaultBranchElement.ValueKind == JsonValueKind.String)
+            {
+                defaultBranch = defaultBranchElement.GetString() ?? string.Empty;
+            }
+
+            repositories.Add((id, name, projectName, defaultBranch, hasDefaultBranchMetadata));
         }
     }
 
@@ -241,6 +267,19 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
 
         return memory.ToArray();
+    }
+
+    private static void WarnUnsuccessfulResponse(
+        AzureDevOpsSourceOptions options,
+        HttpResponseMessage response,
+        string target)
+    {
+        options.WarningSink?.Invoke(string.Concat(
+            target,
+            " because Azure DevOps returned ",
+            ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture),
+            " ",
+            response.StatusCode));
     }
 
     private static AuthenticationHeaderValue CreateAuthorizationHeader(AzureDevOpsSourceOptions options)
