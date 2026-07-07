@@ -594,7 +594,7 @@ public sealed class PicketTuiTests
             .WaitUntil(s => s.ContainsText("Findings"), TimeSpan.FromSeconds(5), "findings to render")
             .Key(Hex1bKey.G)
             .Key(Hex1bKey.S)
-            .WaitUntil(s => s.ContainsText("Scan status"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .WaitUntil(s => s.ContainsText("Command equivalent"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -631,7 +631,7 @@ public sealed class PicketTuiTests
 
         Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
-            .WaitUntil(s => s.ContainsText("Scan status"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .WaitUntil(s => s.ContainsText("Command equivalent"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -645,7 +645,6 @@ public sealed class PicketTuiTests
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("Scan status", screenText);
         Assert.Contains("Command equivalent", screenText);
         Assert.Contains("picket scan", screenText);
         Assert.Contains("Redact", screenText);

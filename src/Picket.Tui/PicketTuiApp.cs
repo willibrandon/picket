@@ -92,7 +92,6 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildStatusText(v, "Dashboard", PicketTuiPalette.InfoForeground),
             v.Text(state.GetSummaryLine()).Wrap(),
             v.Text(string.Concat("Report: ", state.Report.Path)).Ellipsis(),
             v.Separator(),
@@ -324,7 +323,6 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildStatusText(v, "Scan status", PicketTuiPalette.InfoForeground),
             v.Text(GetScanOutcomeLine(state)).Wrap(),
             v.Text(FormatScanTiming(state.ScanWorkspace)).Wrap(),
             v.Text(string.Concat("Report: ", state.Report.Path)).Ellipsis(),
@@ -475,7 +473,6 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildStatusText(v, "Findings", PicketTuiPalette.InfoForeground),
             v.HStack(h => [
                 h.Text("Filter").FixedWidth(8),
                 h.TextBox(state.SearchText)
@@ -566,20 +563,19 @@ internal static class PicketTuiApp
     private static VStackWidget BuildRulesView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
-        return ctx.VStack(v => BuildCountList(v, "Rules", state.GetTopRules(24))).Fill();
+        return ctx.VStack(v => BuildCountList(v, "Top rules", state.GetTopRules(24))).Fill();
     }
 
     private static VStackWidget BuildFilesView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
-        return ctx.VStack(v => BuildCountList(v, "Files", state.GetTopFiles(24))).Fill();
+        return ctx.VStack(v => BuildCountList(v, "Top files", state.GetTopFiles(24))).Fill();
     }
 
     private static VStackWidget BuildLogsView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildStatusText(v, "Logs", PicketTuiPalette.InfoForeground),
             v.Text(string.Concat("Loaded: ", state.Report.LoadedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture))),
             v.Text(string.Concat("Report: ", state.Report.Path)).Wrap(),
             v.Text(string.Concat("Status: ", state.StatusMessage)).Wrap(),
