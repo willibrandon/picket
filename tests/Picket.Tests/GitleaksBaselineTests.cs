@@ -1,8 +1,8 @@
-using System.Security.Cryptography;
-using System.Text;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Picket.Tests;
 

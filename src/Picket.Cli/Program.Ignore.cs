@@ -1,9 +1,9 @@
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Picket.Compat;
 using Picket.Report;
 using Picket.Sources;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket;
 

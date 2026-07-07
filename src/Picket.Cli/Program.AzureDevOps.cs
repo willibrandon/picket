@@ -1,7 +1,7 @@
-using System.Diagnostics.CodeAnalysis;
 using Picket.Engine;
 using Picket.Security;
 using Picket.Sources;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket;
 

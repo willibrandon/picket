@@ -67,7 +67,7 @@ public sealed class GitHubSourceOptions(
         return new Uri("https://api.github.com/", UriKind.Absolute);
     }
 
-    private static Uri NormalizeEndpoint(Uri endpoint)
+    internal static Uri NormalizeEndpoint(Uri endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
         if (!endpoint.IsAbsoluteUri || endpoint.Scheme is not "https" and not "http")
@@ -130,18 +130,18 @@ public sealed class GitHubSourceOptions(
         return value.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? value[..^4] : value;
     }
 
-    private static string RequireCredential(string value)
+    internal static string RequireCredential(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         return value;
     }
 
-    private static string NormalizeOptionalText(string value)
+    internal static string NormalizeOptionalText(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
-    private static long? RequireMaxFileBytes(long? value)
+    internal static long? RequireMaxFileBytes(long? value)
     {
         if (value.HasValue)
         {

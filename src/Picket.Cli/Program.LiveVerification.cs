@@ -1,9 +1,9 @@
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Picket.Analyze;
 using Picket.Engine;
 using Picket.Security;
 using Picket.Verify;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket;
 

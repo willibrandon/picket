@@ -1,8 +1,8 @@
+using Picket.Rules;
+using Scout.Text.Regex;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Picket.Rules;
-using Scout.Text.Regex;
 
 namespace Picket.Engine;
 

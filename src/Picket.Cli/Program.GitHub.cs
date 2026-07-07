@@ -1,7 +1,7 @@
-using System.Diagnostics.CodeAnalysis;
 using Picket.Engine;
 using Picket.Security;
 using Picket.Sources;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket;
 
@@ -11,6 +11,18 @@ internal static partial class Program
     {
         return arg.Equals("--github-repository", StringComparison.Ordinal)
             || arg.StartsWith("--github-repository=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitHubOrganizationFlag(string arg)
+    {
+        return arg.Equals("--github-organization", StringComparison.Ordinal)
+            || arg.StartsWith("--github-organization=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitHubRepositoryTypeFlag(string arg)
+    {
+        return arg.Equals("--github-repository-type", StringComparison.Ordinal)
+            || arg.StartsWith("--github-repository-type=", StringComparison.Ordinal);
     }
 
     static bool IsGitHubTokenEnvironmentVariableFlag(string arg)
@@ -34,6 +46,8 @@ internal static partial class Program
     static bool TryCreateGitHubSourceProvider(
         Uri? endpoint,
         string repository,
+        string organization,
+        string repositoryType,
         string? tokenEnvironmentVariable,
         string gitRef,
         bool allowNonPublicSourceEndpoints,
@@ -41,9 +55,11 @@ internal static partial class Program
         [NotNullWhen(true)] out Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider)
     {
         sourceFileProvider = null;
-        if (string.IsNullOrWhiteSpace(repository))
+        bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);
+        bool organizationSpecified = !string.IsNullOrWhiteSpace(organization);
+        if (repositorySpecified == organizationSpecified)
         {
-            Console.Error.WriteLine("GitHub source scan requires --github-repository");
+            Console.Error.WriteLine("GitHub source scan requires exactly one of --github-repository or --github-organization");
             return false;
         }
 
@@ -63,14 +79,30 @@ internal static partial class Program
         Uri sourceEndpoint = endpoint ?? GitHubSourceOptions.CreateDefaultEndpoint();
         try
         {
-            var validatedOptions = new GitHubSourceOptions(
-                sourceEndpoint,
-                repository,
-                credential,
-                gitRef);
-            sourceEndpoint = validatedOptions.Endpoint;
-            repository = validatedOptions.Repository;
-            gitRef = validatedOptions.Ref;
+            if (repositorySpecified)
+            {
+                var validatedOptions = new GitHubSourceOptions(
+                    sourceEndpoint,
+                    repository,
+                    credential,
+                    gitRef);
+                sourceEndpoint = validatedOptions.Endpoint;
+                repository = validatedOptions.Repository;
+                gitRef = validatedOptions.Ref;
+            }
+            else
+            {
+                var validatedOptions = new GitHubOrganizationSourceOptions(
+                    sourceEndpoint,
+                    organization,
+                    credential,
+                    gitRef,
+                    repositoryType);
+                sourceEndpoint = validatedOptions.Endpoint;
+                organization = validatedOptions.Organization;
+                repositoryType = validatedOptions.RepositoryType;
+                gitRef = validatedOptions.Ref;
+            }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -97,11 +129,24 @@ internal static partial class Program
                 AllowAutoRedirect = false,
             });
             var client = new GitHubSourceClient(httpClient);
-            return client.EnumerateRepositoryFilesAsync(new GitHubSourceOptions(
+            if (repositorySpecified)
+            {
+                return client.EnumerateRepositoryFilesAsync(new GitHubSourceOptions(
+                    sourceEndpoint,
+                    repository,
+                    credential,
+                    gitRef,
+                    maxTargetBytes,
+                    Console.Error.WriteLine,
+                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+            }
+
+            return client.EnumerateOrganizationRepositoryFilesAsync(new GitHubOrganizationSourceOptions(
                 sourceEndpoint,
-                repository,
+                organization,
                 credential,
                 gitRef,
+                repositoryType,
                 maxTargetBytes,
                 Console.Error.WriteLine,
                 () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();

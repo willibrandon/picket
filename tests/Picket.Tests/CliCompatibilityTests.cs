@@ -1,13 +1,13 @@
-using System.Diagnostics;
-using System.IO.Compression;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using Picket.Verify;
+using System.Diagnostics;
+using System.IO.Compression;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Picket.Tests;
 

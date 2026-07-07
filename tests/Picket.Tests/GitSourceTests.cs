@@ -1,7 +1,7 @@
+using Picket.Sources;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
-using Picket.Sources;
 
 namespace Picket.Tests;
 

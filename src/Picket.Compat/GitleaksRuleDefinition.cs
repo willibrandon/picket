@@ -1,5 +1,5 @@
-using System.Text;
 using Picket.Rules;
+using System.Text;
 
 namespace Picket.Compat;
 

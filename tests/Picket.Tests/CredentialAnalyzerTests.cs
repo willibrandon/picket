@@ -1,6 +1,6 @@
-using System.Text;
 using Picket.Analyze;
 using Picket.Engine;
+using System.Text;
 
 namespace Picket.Tests;
 

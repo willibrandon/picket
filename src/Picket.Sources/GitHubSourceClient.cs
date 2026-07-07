@@ -13,6 +13,7 @@ namespace Picket.Sources;
 public sealed class GitHubSourceClient(HttpClient httpClient)
 {
     private const string ApiVersion = "2022-11-28";
+    private const int RepositoriesPerPage = 100;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-github-remote");
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
@@ -45,11 +46,130 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
         }
 
+        await AddRepositoryFilesAsync(options, gitRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
+        return sourceFiles;
+    }
+
+    /// <summary>
+    /// Enumerates files from repositories visible in the supplied GitHub organization.
+    /// </summary>
+    /// <param name="options">The GitHub organization source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateOrganizationRepositoryFilesAsync(
+        GitHubOrganizationSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        List<(string Name, string DefaultBranch)> repositories = await ListOrganizationRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+        for (int i = 0; i < repositories.Count; i++)
+        {
+            if (IsCancellationRequested(options))
+            {
+                break;
+            }
+
+            (string name, string defaultBranch) = repositories[i];
+            string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
+            if (gitRef.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping GitHub repository {options.Organization}/{name} because it does not have a default branch");
+                continue;
+            }
+
+            var repositoryOptions = new GitHubSourceOptions(
+                options.Endpoint,
+                string.Concat(options.Organization, "/", name),
+                options.Credential,
+                gitRef,
+                options.MaxFileBytes,
+                options.WarningSink,
+                options.IsCancellationRequested);
+            await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
+        }
+
+        return sourceFiles;
+    }
+
+    private async Task AddRepositoryFilesAsync(
+        GitHubSourceOptions options,
+        string gitRef,
+        List<SourceFile> sourceFiles,
+        bool failOnTreeError,
+        CancellationToken cancellationToken)
+    {
         Uri treeUri = CreateTreeUri(options, gitRef);
         using HttpResponseMessage treeResponse = await SendAsync(options, treeUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
-        treeResponse.EnsureSuccessStatusCode();
+        if (!treeResponse.IsSuccessStatusCode)
+        {
+            if (failOnTreeError)
+            {
+                treeResponse.EnsureSuccessStatusCode();
+            }
+
+            WarnUnsuccessfulResponse(options, treeResponse, $"skipping GitHub repository {options.Repository}");
+            return;
+        }
+
         await AddTreeFilesAsync(options, gitRef, treeResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
-        return sourceFiles;
+    }
+
+    private async Task<List<(string Name, string DefaultBranch)>> ListOrganizationRepositoriesAsync(
+        GitHubOrganizationSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        var repositories = new List<(string Name, string DefaultBranch)>();
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateOrganizationRepositoryListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            await AddOrganizationRepositoriesAsync(options, response, repositories, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(response);
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+
+        return repositories;
+    }
+
+    private static async Task AddOrganizationRepositoriesAsync(
+        GitHubOrganizationSourceOptions options,
+        HttpResponseMessage response,
+        List<(string Name, string DefaultBranch)> repositories,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string name = GetString(item, "name");
+            if (name.Length == 0)
+            {
+                continue;
+            }
+
+            repositories.Add((name, GetString(item, "default_branch")));
+        }
     }
 
     private async Task<string> ReadDefaultBranchAsync(GitHubSourceOptions options, CancellationToken cancellationToken)
@@ -142,9 +262,27 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         bool acceptRaw,
         CancellationToken cancellationToken)
     {
+        return await SendAsync(options.Credential, uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        GitHubOrganizationSourceOptions options,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
+        return await SendAsync(options.Credential, uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        string credential,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/vnd.github.raw" : "application/vnd.github+json"));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Credential);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
         request.Headers.Add("X-GitHub-Api-Version", ApiVersion);
         return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
@@ -193,6 +331,18 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     private static Uri CreateRepositoryUri(GitHubSourceOptions options)
     {
         return CreateUri(options.Endpoint, ["repos", options.Owner, options.RepositoryName], []);
+    }
+
+    private static Uri CreateOrganizationRepositoryListUri(GitHubOrganizationSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["orgs", options.Organization, "repos"],
+            [
+                new KeyValuePair<string, string>("type", options.RepositoryType),
+                new KeyValuePair<string, string>("per_page", RepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
     }
 
     private static Uri CreateTreeUri(GitHubSourceOptions options, string gitRef)
@@ -280,6 +430,12 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             response.StatusCode));
     }
 
+    private static bool HasNextPage(HttpResponseMessage response)
+    {
+        return response.Headers.TryGetValues("Link", out IEnumerable<string>? values)
+            && values.Any(value => value.Contains("rel=\"next\"", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static bool IsBlobItem(JsonElement item)
     {
         return TryGetJsonString(item, "type", out string type)
@@ -336,6 +492,11 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     }
 
     private static bool IsCancellationRequested(GitHubSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(GitHubOrganizationSourceOptions options)
     {
         return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }

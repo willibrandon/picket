@@ -1,6 +1,6 @@
+using Picket.Sources;
 using System.Net;
 using System.Text;
-using Picket.Sources;
 
 namespace Picket.Tests;
 
@@ -186,6 +186,129 @@ public sealed class GitHubSourceClientTests
         Assert.HasCount(1, warnings);
         Assert.Contains("skipping GitHub file github/willibrandon/picket/missing.txt", warnings[0]);
         Assert.Contains("404 NotFound", warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that organization enumeration follows paged repositories and scans each default branch.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateOrganizationRepositoryFilesFollowsRepositoryPages()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/orgs/willibrandon/repos?", StringComparison.Ordinal)
+                && url.Contains("&page=1", StringComparison.Ordinal))
+            {
+                HttpResponseMessage response = JsonResponse("""[{"name":"one","default_branch":"main"}]""");
+                response.Headers.Add("Link", "<https://api.github.com/orgs/willibrandon/repos?type=sources&per_page=100&page=2>; rel=\"next\"");
+                return response;
+            }
+
+            if (url.Contains("/orgs/willibrandon/repos?", StringComparison.Ordinal)
+                && url.Contains("&page=2", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{"name":"two","default_branch":"trunk"}]""");
+            }
+
+            if (url.Contains("/repos/willibrandon/one/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"one.txt","type":"blob","size":9}]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/two/git/trees/trunk?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"two.txt","type":"blob","size":9}]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/one/contents/one.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-111");
+            }
+
+            if (url.Contains("/repos/willibrandon/two/contents/two.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-222");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubOrganizationSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            Token,
+            repositoryType: "sources");
+
+        List<SourceFile> files = await client.EnumerateOrganizationRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(2, files);
+        Assert.AreEqual("github/willibrandon/one/one.txt", files[0].DisplayPath);
+        Assert.AreEqual("github/willibrandon/two/two.txt", files[1].DisplayPath);
+        Assert.Contains("type=sources", string.Join('\n', urls));
+        Assert.Contains("per_page=100", string.Join('\n', urls));
+        Assert.Contains("page=2", string.Join('\n', urls));
+        Assert.DoesNotContain(Token, string.Join('\n', urls));
+    }
+
+    /// <summary>
+    /// Verifies that organization enumeration warns and continues when one repository cannot be scanned.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateOrganizationRepositoryFilesSkipsRepositoryFailures()
+    {
+        const string Token = "github-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/orgs/willibrandon/repos?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {"name":"empty","default_branch":""},
+                      {"name":"denied","default_branch":"main"},
+                      {"name":"readable","default_branch":"main"}
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/repos/willibrandon/denied/git/trees/main?", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Forbidden);
+            }
+
+            if (url.Contains("/repos/willibrandon/readable/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"ok.txt","type":"blob","size":9}]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/readable/contents/ok.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-333");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubOrganizationSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateOrganizationRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("github/willibrandon/readable/ok.txt", files[0].DisplayPath);
+        Assert.HasCount(2, warnings);
+        Assert.Contains("skipping GitHub repository willibrandon/empty because it does not have a default branch", warnings[0]);
+        Assert.Contains("skipping GitHub repository willibrandon/denied", warnings[1]);
+        Assert.Contains("403 Forbidden", warnings[1]);
     }
 
     private static void CaptureRequest(

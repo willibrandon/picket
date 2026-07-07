@@ -1,5 +1,5 @@
-using System.Net;
 using Picket.Security;
+using System.Net;
 
 namespace Picket.Tests;
 

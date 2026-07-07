@@ -184,6 +184,8 @@ Use the grouped index to jump to the workflow you need.
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
   [--github-repository owner/name]
+  [--github-organization org]
+  [--github-repository-type all|public|private|forks|sources|member]
   [--github-token-env name]
   [--github-ref ref]
   [--github-source-api-endpoint uri]
@@ -341,6 +343,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>owner/name</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Scan this GitHub repository through native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-organization</code></td>
+              <td data-label="Value"><code>org</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan repositories visible in this GitHub organization through native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-repository-type</code></td>
+              <td data-label="Value"><code>all | public | private | forks | sources | member</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filter organization repositories by GitHub type.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-token-env</code></td>

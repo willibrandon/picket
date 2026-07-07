@@ -45,6 +45,65 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that source files sort using directives as a single alphabetic block.
+    /// </summary>
+    [TestMethod]
+    public void SourceFilesSortUsingsAlphabetically()
+    {
+        string root = FindRepositoryRoot();
+        List<string> violations = [];
+
+        foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+        {
+            if (!IsRepositoryCSharpFile(root, file))
+            {
+                continue;
+            }
+
+            string relative = Path.GetRelativePath(root, file);
+            string[] lines = File.ReadAllLines(file);
+            List<int> usingLineIndexes = [];
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (lines[i].StartsWith("using ", StringComparison.Ordinal))
+                {
+                    usingLineIndexes.Add(i);
+                }
+            }
+
+            if (usingLineIndexes.Count == 0)
+            {
+                continue;
+            }
+
+            int firstUsingLineIndex = usingLineIndexes[0];
+            int lastUsingLineIndex = usingLineIndexes[^1];
+            for (int i = firstUsingLineIndex; i <= lastUsingLineIndex; i++)
+            {
+                if (lines[i].Length == 0)
+                {
+                    violations.Add($"{relative}:{i + 1}: using directives must not be separated by blank lines");
+                    continue;
+                }
+
+                if (!lines[i].StartsWith("using ", StringComparison.Ordinal))
+                {
+                    violations.Add($"{relative}:{i + 1}: using directives must be contiguous");
+                }
+            }
+
+            string[] actual = [.. usingLineIndexes.Select(index => lines[index])];
+            string[] expected = [.. actual.OrderBy(GetUsingSortKey, StringComparer.Ordinal)];
+            if (!actual.SequenceEqual(expected))
+            {
+                violations.Add($"{relative}:{firstUsingLineIndex + 1}: using directives must be sorted alphabetically");
+            }
+        }
+
+        Assert.IsEmpty(violations);
+    }
+
+    /// <summary>
     /// Verifies that the GitHub Action metadata exposes the security scanner contract.
     /// </summary>
     [TestMethod]
@@ -1015,6 +1074,24 @@ public sealed partial class RepositoryConventionTests
         return !normalized.Equals("src/Picket.Cli/Program.cs", StringComparison.Ordinal)
             && !relative.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             && !relative.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+    }
+
+    private static bool IsRepositoryCSharpFile(string root, string file)
+    {
+        string relative = Path.GetRelativePath(root, file);
+        string normalized = relative.Replace(Path.DirectorySeparatorChar, '/');
+        return (normalized.StartsWith("src/", StringComparison.Ordinal)
+                || normalized.StartsWith("tests/", StringComparison.Ordinal)
+                || normalized.StartsWith("tools/", StringComparison.Ordinal)
+                || normalized.StartsWith("benchmarks/", StringComparison.Ordinal))
+            && !relative.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            && !relative.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+    }
+
+    private static string GetUsingSortKey(string usingDirective)
+    {
+        string key = usingDirective["using ".Length..].Trim();
+        return key.EndsWith(';') ? key[..^1] : key;
     }
 
     private static IEnumerable<string> EnumeratePortableTextFiles(string root)

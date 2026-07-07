@@ -1,11 +1,11 @@
+using Picket.Engine;
+using Picket.Verify;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Authentication;
 using System.Text;
-using Picket.Engine;
-using Picket.Verify;
 
 namespace Picket.Tests;
 

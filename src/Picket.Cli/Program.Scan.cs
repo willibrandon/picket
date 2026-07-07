@@ -25,8 +25,10 @@ internal static partial class Program
         string azureDevOpsRepository = string.Empty;
         Uri? githubSourceApiEndpoint = null;
         string? githubSourceTokenEnvironmentVariable = null;
+        string githubSourceOrganization = string.Empty;
         string githubSourceRef = string.Empty;
         string githubSourceRepository = string.Empty;
+        string githubSourceRepositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType;
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
@@ -78,6 +80,30 @@ internal static partial class Program
                 }
 
                 githubSourceRepository = repository;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubOrganizationFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-organization", out string? organization))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceOrganization = organization;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubRepositoryTypeFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-repository-type", out string? repositoryType))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceRepositoryType = repositoryType;
                 githubSourceOptionSpecified = true;
                 continue;
             }
@@ -345,6 +371,8 @@ internal static partial class Program
             && !TryCreateGitHubSourceProvider(
                 githubSourceApiEndpoint ?? githubApiEndpoint,
                 githubSourceRepository,
+                githubSourceOrganization,
+                githubSourceRepositoryType,
                 githubSourceTokenEnvironmentVariable,
                 githubSourceRef,
                 allowNonPublicSourceEndpoints,

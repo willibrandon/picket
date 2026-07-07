@@ -1,8 +1,8 @@
-using System.IO.Compression;
-using System.Text;
 using Picket.Engine;
 using Picket.Rules;
 using Picket.Store;
+using System.IO.Compression;
+using System.Text;
 
 namespace Picket.Tests;
 

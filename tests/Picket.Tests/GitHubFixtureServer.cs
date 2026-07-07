@@ -63,6 +63,13 @@ internal sealed class GitHubFixtureServer : IDisposable
         LastAuthorization = GetHeaderValue(request, "Authorization");
         LastAccept = GetHeaderValue(request, "Accept");
 
+        if (target.Contains("/api/v3/orgs/willibrandon/repos?", StringComparison.Ordinal))
+        {
+            const string RepositoriesJson = """[{"name":"picket","default_branch":"main"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(RepositoriesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v3/repos/willibrandon/picket/contents/src/appsettings.txt?", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);

@@ -1,9 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
 using Picket.Analyze;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket;
 

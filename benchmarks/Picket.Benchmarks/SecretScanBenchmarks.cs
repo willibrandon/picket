@@ -1,9 +1,9 @@
-using System.Text;
-using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Rules;
+using System.Text;
+using System.Text.Json;
 
 namespace Picket.Benchmarks;
 

@@ -1,6 +1,6 @@
+using Picket.Sources;
 using System.Net;
 using System.Text;
-using Picket.Sources;
 
 namespace Picket.Tests;
 

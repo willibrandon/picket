@@ -2,6 +2,7 @@ root = true
 
 [*]
 insert_final_newline = true
+end_of_line = lf
 indent_style = space
 indent_size = 4
 trim_trailing_whitespace = true
@@ -17,7 +18,7 @@ csharp_indent_case_contents = true
 csharp_indent_switch_labels = true
 csharp_preferred_modifier_order = public,private,protected,internal,file,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,required,volatile,async:error
 csharp_using_directive_placement = outside_namespace:error
-dotnet_sort_system_directives_first = true
+dotnet_sort_system_directives_first = false
 dotnet_separate_import_directive_groups = false
 dotnet_style_qualification_for_field = false:error
 dotnet_style_qualification_for_property = false:error

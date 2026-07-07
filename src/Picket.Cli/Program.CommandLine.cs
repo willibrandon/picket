@@ -1,10 +1,10 @@
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Rules;
 using Picket.Store;
 using Picket.Verify;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket;
 

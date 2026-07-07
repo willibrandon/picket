@@ -1,6 +1,6 @@
-using System.Diagnostics.CodeAnalysis;
 using Picket.Engine;
 using Picket.Security;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Picket.Verify;
 

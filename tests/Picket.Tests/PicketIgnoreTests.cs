@@ -1,6 +1,6 @@
+using Picket.Sources;
 using System.Security.Cryptography;
 using System.Text;
-using Picket.Sources;
 
 namespace Picket.Tests;
 

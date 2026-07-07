@@ -1,9 +1,9 @@
-using System.Text;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using Picket.Verify;
+using System.Text;
 
 namespace Picket;
 

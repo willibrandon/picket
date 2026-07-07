@@ -21,23 +21,31 @@ GitHub repository enumeration is opt-in native source behavior. Workspace scans 
 picket scan --github-repository willibrandon/picket --github-token-env PICKET_GITHUB_SOURCE_TOKEN --report-format jsonl
 ```
 
+Organization scans enumerate repositories visible to the token and then scan each selected repository:
+
+```powershell
+picket scan --github-organization willibrandon --github-repository-type sources --github-token-env PICKET_GITHUB_SOURCE_TOKEN --report-format jsonl
+```
+
 The token is read from an environment variable and is never passed as a command-line value.
 
 | Option | Purpose |
 | --- | --- |
 | `--github-repository` | Repository to scan as `owner/name` or a GitHub repository URL. |
+| `--github-organization` | Organization login whose visible repositories should be scanned. |
+| `--github-repository-type` | Organization repository filter: `all`, `public`, `private`, `forks`, `sources`, or `member`. Empty uses `all`. |
 | `--github-token-env` | Environment variable containing the GitHub token. |
-| `--github-ref` | Optional branch, tag, or commit SHA. Empty uses the repository default branch. |
+| `--github-ref` | Optional branch, tag, or commit SHA. Empty uses each repository's default branch. |
 | `--github-source-api-endpoint` | GitHub API endpoint used for repository enumeration. |
 | `--github-api-endpoint` | Shared GitHub API endpoint used when a source-specific endpoint is not supplied. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for GitHub Enterprise Server. |
 | `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 
-Repository file enumeration uses GitHub's repository metadata API to resolve the default branch, the recursive Git Trees API to list blobs, and the raw Contents API to download file bytes. Redirects are disabled before credentials are sent. Endpoint safety checks run before the first request. `--max-target-megabytes` caps downloaded file content; oversized tree entries are skipped before download when GitHub returns a size.
+Single-repository file enumeration uses GitHub's repository metadata API to resolve the default branch. Organization enumeration uses the list organization repositories REST API with `per_page=100` and follows GitHub's `Link` pagination header while a `rel="next"` page is present. For every selected repository, Picket lists blobs through the recursive Git Trees API and downloads bytes through the raw Contents API. Redirects are disabled before credentials are sent. Endpoint safety checks run before the first request. `--max-target-megabytes` caps downloaded file content; oversized tree entries are skipped before download when GitHub returns a size.
 
-Repository tree truncation and per-file download failures are warnings. Picket keeps scanning the files it can read so one missing object or permission failure does not hide the rest of the repository.
+Repository tree truncation and per-file download failures are warnings. Organization scans also treat per-repository tree failures as warnings and continue with the remaining repositories. A single-repository scan still fails when the selected repository tree cannot be read.
 
-The initial scope is repository file enumeration. Organization/user repository discovery, pull requests, issues, gists, releases, Actions artifacts, packages, and code-search-backed discovery remain planned explicit opt-ins.
+The current scope is single-repository file enumeration and organization repository discovery. User repository discovery, pull requests, issues, gists, releases, Actions artifacts, packages, and code-search-backed discovery remain planned explicit opt-ins.
 
 Recommended fine-grained token permissions for repository file enumeration are:
 
@@ -46,7 +54,7 @@ Recommended fine-grained token permissions for repository file enumeration are:
 | Metadata | Read |
 | Contents | Read |
 
-Use the narrowest repository selection possible. Write, administration, workflow, security-event write, and secret-scanning alert permissions are not needed for repository file enumeration.
+Use the narrowest repository selection possible. Organization scans require access to list the organization repositories selected by `--github-repository-type`; the same token also needs Contents Read on repositories whose files should be scanned. Write, administration, workflow, security-event write, and secret-scanning alert permissions are not needed for repository file enumeration.
 
 ## Hosted Alert Oracle
 
@@ -66,6 +74,7 @@ This token is separate from source-enumeration tokens. It should not have write,
 Official API references:
 
 - GitHub repository metadata REST API: `https://docs.github.com/rest/repos/repos`
+- GitHub REST pagination: `https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api`
 - Git trees REST API: `https://docs.github.com/v3/git/trees`
 - Repository contents REST API: `https://docs.github.com/en/rest/repos/contents`
 - Secret scanning alert REST API: `https://docs.github.com/en/rest/secret-scanning/secret-scanning`
