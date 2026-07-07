@@ -4,9 +4,9 @@ using Picket.Sources;
 namespace Picket;
 
 /// <summary>
-/// Enumerates source files selected by a native remote source provider.
+/// Enumerates source files selected by a native source provider.
 /// </summary>
-internal delegate List<SourceFile> RemoteSourceProvider(
+internal delegate List<SourceFile> NativeSourceProvider(
     string root,
     CompiledRuleSet rules,
     long? maxTargetBytes,

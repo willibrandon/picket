@@ -150,7 +150,7 @@ internal static partial class Program
         bool includeActionArtifacts,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
-        [NotNullWhen(true)] out RemoteSourceProvider? sourceFileProvider)
+        [NotNullWhen(true)] out NativeSourceProvider? sourceFileProvider)
     {
         sourceFileProvider = null;
         bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);

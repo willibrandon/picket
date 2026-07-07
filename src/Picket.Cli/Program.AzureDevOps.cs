@@ -207,7 +207,7 @@ internal static partial class Program
         long? maxLogBytes,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
-        [NotNullWhen(true)] out RemoteSourceProvider? sourceFileProvider)
+        [NotNullWhen(true)] out NativeSourceProvider? sourceFileProvider)
     {
         sourceFileProvider = null;
         if (!string.IsNullOrWhiteSpace(organization) && endpoint is not null)

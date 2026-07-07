@@ -18,7 +18,7 @@ internal static partial class Program
         bool allowValidationResultFilters = false,
         LiveVerificationConfiguration? liveVerification = null,
         bool allowReportInput = false,
-        RemoteSourceProvider? sourceFileProvider = null,
+        NativeSourceProvider? sourceFileProvider = null,
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null)
     {
         if (ContainsHelp(args))

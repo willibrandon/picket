@@ -66,6 +66,7 @@ internal static partial class Program
         AddLiveVerificationOptions(command, "picket scan", includeModeSwitches: false);
         AddGitHubSourceOptions(command, "picket scan");
         AddAzureDevOpsSourceOptions(command, "picket scan");
+        AddContainerArchiveSourceOptions(command, "picket scan");
         AddResultFilterOptions(command, "picket scan");
         AddScanLimitOptions(command, "picket scan", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, "picket scan");
@@ -483,6 +484,12 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--azure-devops-max-log-megabytes", "n"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-non-public-source-endpoints"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-insecure-source-endpoints"));
+    }
+
+    private static void AddContainerArchiveSourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--docker-archive", "path"));
+        command.Options.Add(CreateValueOption(commandName, "--oci-archive", "path"));
     }
 
     private static void AddResultFilterOptions(Command command, string commandName)

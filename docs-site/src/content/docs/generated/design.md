@@ -691,6 +691,17 @@ Native source support:
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
 
+Local container archive scanning is native Picket behavior, not Gitleaks compatibility behavior.
+
+| Source | Option | Behavior |
+| --- | --- | --- |
+| Docker archive | `--docker-archive <path>` | Scans a Docker image archive produced by `docker save`. |
+| OCI image layout | `--oci-archive <path>` | Scans a local OCI image-layout archive. |
+
+Picket treats the image archive as a source envelope, scans metadata files such as manifests and configs, expands layer tarballs and gzip-compressed layer blobs through the same archive safety caps as local archives, and reports provenance paths such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
+
+Container archive flags cannot be combined with GitHub or Azure DevOps source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 
 Implemented GitHub entry points:
@@ -1038,7 +1049,7 @@ Gate: recorded provider suites green; live tests opt-in and documented.
 
 - source-host scanners,
 - object-store scanners,
-- Docker/OCI scanners,
+- local Docker/OCI archive scanners,
 - JSONL/rich JSON/TOON/HTML/GitLab reports,
 - `picket view`.
 

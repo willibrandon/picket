@@ -27,6 +27,7 @@ internal static partial class Program
         int azureDevOpsReleaseId = 0;
         long? azureDevOpsMaxArtifactBytes = null;
         long? azureDevOpsMaxLogBytes = null;
+        string dockerArchivePath = string.Empty;
         Uri? githubSourceApiEndpoint = null;
         bool githubSourceIncludeAuthenticatedGists = false;
         string githubSourceGistId = string.Empty;
@@ -50,9 +51,11 @@ internal static partial class Program
         bool azureDevOpsIncludeReleaseArtifacts = false;
         bool azureDevOpsIncludeWikis = false;
         bool azureDevOpsOptionSpecified = false;
+        bool containerArchiveOptionSpecified = false;
         bool githubApiEndpointSpecified = false;
         bool githubSourceOptionSpecified = false;
         bool liveProviderOptionSpecified = false;
+        string ociArchivePath = string.Empty;
         bool sourceEndpointPolicySpecified = false;
         for (int i = 0; i < args.Length; i++)
         {
@@ -86,6 +89,30 @@ internal static partial class Program
                     liveVerification = true;
                 }
 
+                continue;
+            }
+
+            if (IsDockerArchiveFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--docker-archive", out string? archivePath))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                dockerArchivePath = archivePath;
+                containerArchiveOptionSpecified = true;
+                continue;
+            }
+
+            if (IsOciArchiveFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--oci-archive", out string? archivePath))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                ociArchivePath = archivePath;
+                containerArchiveOptionSpecified = true;
                 continue;
             }
 
@@ -584,10 +611,14 @@ internal static partial class Program
             forwardedArgs.Add(source);
         }
 
-        RemoteSourceProvider? sourceFileProvider = null;
-        if (azureDevOpsOptionSpecified && githubSourceOptionSpecified)
+        NativeSourceProvider? sourceFileProvider = null;
+        int sourceProviderCount = 0;
+        sourceProviderCount += azureDevOpsOptionSpecified ? 1 : 0;
+        sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
+        sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
+        if (sourceProviderCount > 1)
         {
-            Console.Error.WriteLine("scan accepts only one remote source provider at a time");
+            Console.Error.WriteLine("scan accepts only one native source provider at a time");
             return UnknownFlagExitCode;
         }
 
@@ -650,6 +681,15 @@ internal static partial class Program
                 githubSourceIncludeActionsArtifacts,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (containerArchiveOptionSpecified
+            && !TryCreateContainerArchiveSourceProvider(
+                dockerArchivePath,
+                ociArchivePath,
                 out sourceFileProvider))
         {
             return UnknownFlagExitCode;

@@ -496,6 +496,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--docker-archive</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan a local Docker image archive produced by docker save.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--oci-archive</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan a local OCI image-layout archive.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--results</code></td>
               <td data-label="Value"><code>value</code></td>
               <td data-label="Required">Optional</td>
