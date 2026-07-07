@@ -452,6 +452,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("release artifacts", azureDevOps);
         Assert.Contains("job token", azureDevOps);
         Assert.Contains("PAT", azureDevOps);
+        Assert.Contains("Code: Read", azureDevOps);
+        Assert.Contains("Build: Read", azureDevOps);
+        Assert.Contains("Release: Read", azureDevOps);
+        Assert.Contains("Wiki: Read", azureDevOps);
+        Assert.Contains("Packaging: Read", azureDevOps);
         Assert.Contains("no telemetry", azureDevOps);
         Assert.Contains("GitHub Marketplace", marketplaces);
         Assert.Contains("Azure DevOps Marketplace", marketplaces);

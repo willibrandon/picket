@@ -117,6 +117,19 @@ Supported credentials:
 - Azure Pipelines job token for the current project when the requested API supports it,
 - Azure DevOps PAT for cross-project, organization, or Azure DevOps Server enumeration.
 
+Recommended PAT scopes for the dedicated integration-test organization are:
+
+| Scope | Use |
+| --- | --- |
+| Project and Team: Read | Resolve projects and project-scoped metadata. |
+| Code: Read | Enumerate Azure Repos repositories, branches, commits, file contents, and pull-request source metadata. |
+| Build: Read | Read build definitions, pipeline runs, logs, and build artifacts. |
+| Release: Read | Read classic release definitions, releases, logs, and release artifacts. |
+| Wiki: Read | Read Azure DevOps wiki repositories when wiki scanning is enabled. |
+| Packaging: Read | Read Azure Artifacts feeds only when package/feed scanning is enabled. |
+
+Do not grant write, execute, manage, service-connection, agent-pool, token-administration, or full-access scopes for normal scanner tests.
+
 Credential handling requirements:
 
 - no telemetry,

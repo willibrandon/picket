@@ -650,6 +650,8 @@ Every remote source requires an auth, pagination, retry, rate-limit, checkpoint,
 
 Azure DevOps source support is native Picket behavior, not Gitleaks compatibility behavior. It supports both cloud and self-hosted endpoints, project-scoped and organization-scoped enumeration, PAT and job-token authentication where each is appropriate, continuation tokens, branch and pull-request scope controls, artifact size caps, log redaction before diagnostics, and clear handling for repositories or projects the token cannot read. Pipeline task defaults scan the job's checked-out workspace unless the user explicitly opts into remote Azure DevOps enumeration.
 
+Azure DevOps credentials use least-privilege read scopes. Repository enumeration requires Project and Team Read plus Code Read; build logs and artifacts require Build Read; classic releases require Release Read; wikis require Wiki Read; package/feed scanning requires Packaging Read. Write, execute, manage, service-connection, agent-pool, token-administration, and full-access scopes are not part of the scanner test contract.
+
 ### 8.9 Output and Triage
 
 Native outputs:
