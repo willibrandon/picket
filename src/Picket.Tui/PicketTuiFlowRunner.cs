@@ -12,6 +12,11 @@ internal static class PicketTuiFlowRunner
 {
     private const int ReportPathStepHeight = 4;
     private const int ReviewStepHeight = 8;
+    private static readonly string[] s_reviewActions =
+    [
+        "Open full-screen scanner console",
+        "Keep summary in scrollback",
+    ];
 
     /// <summary>
     /// Runs the inline report triage flow.
@@ -80,11 +85,7 @@ internal static class PicketTuiFlowRunner
                 int selectedAction = 1;
                 FlowStep reviewStep = flow.Step(ctx => ctx.VStack(v => [
                     v.Text("Next step"),
-                    v.List(new[]
-                        {
-                            "Open full-screen scanner console",
-                            "Keep summary in scrollback",
-                        })
+                    v.List(s_reviewActions)
                         .OnFocusChanged(e => selectedAction = e.FocusedIndex)
                         .OnItemActivated(e =>
                         {

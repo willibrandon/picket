@@ -759,7 +759,7 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 
 ### 8.10 Terminal Triage UI
 
-`picket tui <report>` opens an interactive scanner console for non-secret report triage. The main `picket` executable keeps the Native AOT scanner path clean and delegates to the companion `picket-tui` executable when it is installed beside `picket` or discoverable on `PATH`. The companion loads the same non-secret report summaries as `picket view`: rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names. It does not load raw secret, match, or source-line evidence into the initial console.
+`picket tui <report>` opens an interactive scanner console for non-secret report triage. The main `picket` executable keeps the scanner binary focused and delegates to the companion `picket-tui` executable when it is installed beside `picket` or discoverable on `PATH`. The companion is also Native AOT and uses the same release profiles as `picket`; it is separate so terminal UI code and terminal-native assets do not increase the default scanner payload. The companion loads the same non-secret report summaries as `picket view`: rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names. It does not load raw secret, match, or source-line evidence into the initial console.
 
 The full-screen console is an operator interface, not a marketing screen. The first viewport is a dense scanner console: a status/menu row, navigation, findings table, focused-finding details, rule and file frequency views, an accessibility view, and a diagnostics/status area. It favors tables, stable row keys, clear focus, keyboard navigation, and text labels over decorative graphics.
 
@@ -777,6 +777,8 @@ The TUI follows WCAG 2.2 AA principles adapted to terminal constraints:
 - no flashing or motion-only progress; progress must have text status.
 
 WCAG 3.0 is monitored as a draft, but WCAG 2.2 AA is the stable baseline for implementation and tests.
+
+TUI coverage uses Hex1b's headless terminal and automation APIs as first-class tests. Tests render the real widget tree, capture terminal snapshots, verify keyboard behavior, and cover practical desktop and narrow terminal dimensions.
 
 ### 8.11 CI, Hooks, and Distribution
 

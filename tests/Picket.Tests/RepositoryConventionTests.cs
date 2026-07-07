@@ -11,6 +11,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed partial class RepositoryConventionTests
 {
+    private static readonly string[] s_fileBasedAppDirectories = ["scripts", ".github/actions"];
+    private static readonly string[] s_portableTextRoots = ["AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "src", "tests"];
     private static readonly Regex s_typeDeclarationPattern = CreateTypeDeclarationPattern();
 
     /// <summary>
@@ -258,16 +260,32 @@ public sealed partial class RepositoryConventionTests
     public void CliPublishProfilesMatchReleaseContract()
     {
         XElement cliProject = ReadProjectFile("src/Picket.Cli/Picket.Cli.csproj");
+        XElement tuiProject = ReadProjectFile("src/Picket.Tui/Picket.Tui.csproj");
+        XElement tuiCliProject = ReadProjectFile("src/Picket.Tui.Cli/Picket.Tui.Cli.csproj");
         XElement speed = ReadPublishProfile("release-speed");
         XElement minSize = ReadPublishProfile("release-minsize");
         XElement diagnostics = ReadPublishProfile("release-diagnostics");
+        XElement tuiSpeed = ReadPublishProfile("src/Picket.Tui.Cli", "release-speed");
+        XElement tuiMinSize = ReadPublishProfile("src/Picket.Tui.Cli", "release-minsize");
+        XElement tuiDiagnostics = ReadPublishProfile("src/Picket.Tui.Cli", "release-diagnostics");
 
         AssertProjectProperty(cliProject, "VerifyReferenceTrimCompatibility", "true");
         AssertProjectProperty(cliProject, "VerifyReferenceAotCompatibility", "true");
         AssertProjectProperty(cliProject, "TrimmerSingleWarn", "false");
+        AssertProjectProperty(tuiProject, "IsAotCompatible", "true");
+        AssertProjectProperty(tuiProject, "VerifyReferenceTrimCompatibility", "true");
+        AssertProjectProperty(tuiProject, "VerifyReferenceAotCompatibility", "true");
+        AssertProjectProperty(tuiCliProject, "PublishAot", "true");
+        AssertProjectProperty(tuiCliProject, "SelfContained", "true");
+        AssertProjectProperty(tuiCliProject, "IsAotCompatible", "true");
+        AssertProjectProperty(tuiCliProject, "VerifyReferenceTrimCompatibility", "true");
+        AssertProjectProperty(tuiCliProject, "VerifyReferenceAotCompatibility", "true");
         AssertCommonNativeAotProfile(speed);
         AssertCommonNativeAotProfile(minSize);
         AssertCommonNativeAotProfile(diagnostics);
+        AssertCommonNativeAotProfile(tuiSpeed);
+        AssertCommonNativeAotProfile(tuiMinSize);
+        AssertCommonNativeAotProfile(tuiDiagnostics);
         AssertProfileProperty(speed, "OptimizationPreference", "Speed");
         AssertProfileProperty(speed, "StripSymbols", "true");
         AssertProfileProperty(speed, "DebuggerSupport", "false");
@@ -284,6 +302,22 @@ public sealed partial class RepositoryConventionTests
         AssertProfileProperty(diagnostics, "EventSourceSupport", "true");
         AssertProfileProperty(diagnostics, "MetricsSupport", "true");
         AssertProfileProperty(diagnostics, "StackTraceSupport", "true");
+        AssertProfileProperty(tuiSpeed, "OptimizationPreference", "Speed");
+        AssertProfileProperty(tuiSpeed, "StripSymbols", "true");
+        AssertProfileProperty(tuiSpeed, "DebuggerSupport", "false");
+        AssertProfileProperty(tuiMinSize, "OptimizationPreference", "Size");
+        AssertProfileProperty(tuiMinSize, "StripSymbols", "true");
+        AssertProfileProperty(tuiMinSize, "DebuggerSupport", "false");
+        AssertProfileProperty(tuiMinSize, "EventSourceSupport", "false");
+        AssertProfileProperty(tuiMinSize, "MetricsSupport", "false");
+        AssertProfileProperty(tuiMinSize, "StackTraceSupport", "false");
+        AssertProfileProperty(tuiMinSize, "UseSystemResourceKeys", "true");
+        AssertProfileProperty(tuiDiagnostics, "OptimizationPreference", "Speed");
+        AssertProfileProperty(tuiDiagnostics, "StripSymbols", "false");
+        AssertProfileProperty(tuiDiagnostics, "DebuggerSupport", "true");
+        AssertProfileProperty(tuiDiagnostics, "EventSourceSupport", "true");
+        AssertProfileProperty(tuiDiagnostics, "MetricsSupport", "true");
+        AssertProfileProperty(tuiDiagnostics, "StackTraceSupport", "true");
     }
 
     /// <summary>
@@ -297,6 +331,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("release-speed", documentation);
         Assert.Contains("release-minsize", documentation);
         Assert.Contains("release-diagnostics", documentation);
+        Assert.Contains("Picket.Tui.Cli", documentation);
         Assert.Contains("-r win-x64", documentation);
         Assert.Contains("Native AOT", documentation);
         Assert.Contains("must not change scanner findings", documentation);
@@ -316,8 +351,9 @@ public sealed partial class RepositoryConventionTests
         string documentation = ReadRepositoryFile("docs/RELEASE.md");
 
         Assert.Contains("Pack public packages", workflow);
-        Assert.Contains("Publish Native AOT CLI", workflow);
+        Assert.Contains("Publish Native AOT binaries", workflow);
         Assert.Contains("dotnet publish src/Picket.Cli/Picket.Cli.csproj", workflow);
+        Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
         Assert.Contains("PublishProfile=release-speed", workflow);
         Assert.Contains("${{ matrix.rid }}", workflow);
         Assert.Contains("rid: linux-x64", workflow);
@@ -349,7 +385,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Every CI run packs the public embeddable packages", documentation);
         Assert.Contains("cross-platform MSBuild paths", documentation);
         Assert.Contains("Native AOT Publish Validation", documentation);
-        Assert.Contains("Every CI run also publishes the CLI with `release-speed`", documentation);
+        Assert.Contains("Every CI run also publishes `picket` and `picket-tui` with `release-speed`", documentation);
         Assert.Contains("normal `dotnet build` is not enough evidence", documentation);
         Assert.Contains("CI Picket Scan Validation", documentation);
         Assert.Contains("both `picket.sarif` and `picket.jsonl`", documentation);
@@ -429,6 +465,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("attestations: write", workflow);
         Assert.Contains("actions/upload-artifact@v6", workflow);
         Assert.Contains("actions/download-artifact@v5", workflow);
+        Assert.Contains("build-binaries", workflow);
+        Assert.Contains("release-binaries-${{ matrix.rid }}", workflow);
+        Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
         Assert.Contains("Smoke test GitHub Action", workflow);
         Assert.Contains("Verify GitHub Action smoke outputs", workflow);
         Assert.Contains("summary: \"false\"", workflow);
@@ -1187,7 +1226,7 @@ public sealed partial class RepositoryConventionTests
 
     private static IEnumerable<string> EnumerateFileBasedCSharpFiles(string root)
     {
-        foreach (string directory in new[] { "scripts", ".github/actions" })
+        foreach (string directory in s_fileBasedAppDirectories)
         {
             string path = Path.Combine(root, directory);
             if (!Directory.Exists(path))
@@ -1292,7 +1331,7 @@ public sealed partial class RepositoryConventionTests
 
     private static IEnumerable<string> EnumeratePortableTextFiles(string root)
     {
-        foreach (string relativePath in new[] { "AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "src", "tests" })
+        foreach (string relativePath in s_portableTextRoots)
         {
             string path = ResolveRepositoryPath(relativePath);
             if (File.Exists(path))
@@ -1356,6 +1395,18 @@ public sealed partial class RepositoryConventionTests
             "PublishProfiles",
             string.Concat(name, ".pubxml"));
         Assert.IsTrue(File.Exists(path), $"Missing publish profile: {name}");
+        return XElement.Load(path);
+    }
+
+    private static XElement ReadPublishProfile(string projectRelativePath, string name)
+    {
+        string path = Path.Combine(
+            FindRepositoryRoot(),
+            projectRelativePath.Replace('/', Path.DirectorySeparatorChar),
+            "Properties",
+            "PublishProfiles",
+            string.Concat(name, ".pubxml"));
+        Assert.IsTrue(File.Exists(path), $"Missing publish profile: {projectRelativePath}/{name}");
         return XElement.Load(path);
     }
 

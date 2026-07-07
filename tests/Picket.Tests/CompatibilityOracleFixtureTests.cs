@@ -10,6 +10,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CompatibilityOracleFixtureTests
 {
+    private static readonly string[] s_compatibilityReportFormats = ["json", "csv", "junit", "sarif"];
+
     /// <summary>
     /// Verifies that the basic directory fixture still matches promoted Gitleaks oracle reports.
     /// </summary>
@@ -21,7 +23,7 @@ public sealed class CompatibilityOracleFixtureTests
         string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "basic-dir-json");
         string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "basic-dir-json");
 
-        foreach (string format in new[] { "json", "csv", "junit", "sarif" })
+        foreach (string format in s_compatibilityReportFormats)
         {
             string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", format);
             string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", format);

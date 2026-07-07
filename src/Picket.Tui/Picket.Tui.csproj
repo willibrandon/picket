@@ -3,7 +3,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <RootNamespace>Picket.Tui</RootNamespace>
-    <IsAotCompatible>false</IsAotCompatible>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <VerifyReferenceTrimCompatibility>true</VerifyReferenceTrimCompatibility>
+    <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <!-- Hex1b 0.165.0 is AOT-annotated in source and Picket validates the companion with an actual Native AOT publish,
+         but the shipped package graph does not carry the metadata consumed by IL3058 for Hex1b and selected transitive assemblies. -->
+    <NoWarn>$(NoWarn);IL3058</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

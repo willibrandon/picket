@@ -43,6 +43,12 @@ The full-screen console is designed as a scanner console:
 
 The interface favors dense tables, predictable keyboard navigation, and text status over decorative layout.
 
+## Native AOT Packaging
+
+The companion is a separate executable for packaging and surface-area isolation. It is published as Native AOT with the same release profiles as `picket` and is staged beside `picket` in RID-specific release archives.
+
+Keeping the TUI in `picket-tui` prevents Hex1b terminal UI code and terminal-native assets from increasing the default scanner binary while preserving a first-class installed experience through `picket tui`.
+
 ## Scan Workspace
 
 The TUI also has a planned scan workspace for running scans interactively. It uses the same engine and option model as `picket scan`.
@@ -65,6 +71,10 @@ During a scan it shows live progress, discovered targets, warnings, findings, va
 Flow mode renders interactive steps in the normal terminal buffer. Steps reserve terminal rows, complete to frozen scrollback output, and can open the same full-screen scanner console when a larger workspace is needed.
 
 Use Flow mode when the user should keep terminal history visible, such as guided report selection or a short triage summary before returning to a scriptable shell session.
+
+## Testing
+
+TUI changes require first-class Hex1b tests. Tests should run the actual widget tree in a headless Hex1b terminal, wait for rendered screen state, capture terminal snapshots, verify keyboard exits/navigation, and exercise practical desktop and narrow terminal dimensions.
 
 ## Accessibility
 

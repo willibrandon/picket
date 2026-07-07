@@ -82,7 +82,7 @@ Marketplace publishing happens after the scanner release artifacts are built and
 
 1. Build and test the repository.
 2. Run docs generation and stale-doc checks.
-3. Publish Native AOT CLI artifacts for supported RIDs.
+3. Publish Native AOT binary artifacts for supported RIDs.
 4. Write per-asset checksums and aggregate checksums.
 5. Create artifact attestations where supported.
 6. Create or update the GitHub Release.

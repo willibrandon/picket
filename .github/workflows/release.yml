@@ -99,8 +99,8 @@ jobs:
             }
           }
 
-  build-cli:
-    name: Build CLI (${{ matrix.rid }})
+  build-binaries:
+    name: Build binaries (${{ matrix.rid }})
     needs: validate
     runs-on: ${{ matrix.os }}
     permissions:
@@ -136,13 +136,14 @@ jobs:
       - name: Restore
         run: dotnet restore Picket.slnx
 
-      - name: Publish Native AOT CLI
+      - name: Publish Native AOT binaries
         shell: pwsh
         run: |
           $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}"
           dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
+          dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
 
-      - name: Package CLI archive
+      - name: Package binary archive
         id: package
         shell: pwsh
         run: |
@@ -171,15 +172,15 @@ jobs:
           "archive-path=$archivePath" >> $env:GITHUB_OUTPUT
           "checksum-path=$checksumPath" >> $env:GITHUB_OUTPUT
 
-      - name: Generate CLI artifact attestation
+      - name: Generate binary artifact attestation
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.package.outputs.archive-path }}
 
-      - name: Upload CLI release assets
+      - name: Upload binary release assets
         uses: actions/upload-artifact@v6
         with:
-          name: release-cli-${{ matrix.rid }}
+          name: release-binaries-${{ matrix.rid }}
           path: |
             ${{ steps.package.outputs.archive-path }}
             ${{ steps.package.outputs.checksum-path }}
@@ -256,7 +257,7 @@ jobs:
   publish-release:
     name: Publish GitHub Release
     needs:
-      - build-cli
+      - build-binaries
       - build-packages
     runs-on: ubuntu-latest
     permissions:

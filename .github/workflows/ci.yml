@@ -51,11 +51,12 @@ jobs:
       - name: Test
         run: dotnet test --solution Picket.slnx --configuration Release --no-restore
 
-      - name: Publish Native AOT CLI
+      - name: Publish Native AOT binaries
         shell: pwsh
         run: |
           $publishOutput = Join-Path $env:RUNNER_TEMP "picket-native-${{ matrix.rid }}"
           dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
+          dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
 
       - name: Pack public packages
         shell: pwsh
