@@ -1,5 +1,6 @@
 using Picket.Compat;
 using Picket.Rules;
+using System.Text;
 
 namespace Picket.Tests;
 
@@ -881,6 +882,61 @@ public sealed class GitleaksConfigLoaderTests
             InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.LoadFile(configPath));
 
             Assert.Contains("extend.path cycle detected", exception.Message);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that multiline TOML arrays are rejected without repeatedly rescanning the whole accumulated value.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void FromTomlRejectsUnterminatedArrayQuickly()
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("[[rules]]");
+        builder.AppendLine("id = \"local-token\"");
+        builder.AppendLine("regex = '''local-[0-9]+'''");
+        builder.AppendLine("keywords = [");
+        for (int i = 0; i < 50000; i++)
+        {
+            builder.AppendLine("\"local\",");
+        }
+
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(builder.ToString(), "memory"));
+
+        Assert.Contains("'keywords' must be a TOML string array", exception.Message);
+    }
+
+    /// <summary>
+    /// Verifies that extended configuration files are read with a bounded byte limit.
+    /// </summary>
+    [TestMethod]
+    public void LoadFileRejectsOversizedExtendedConfig()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string baseConfigPath = Path.Combine(root, "base.toml");
+            string childConfigPath = Path.Combine(root, "child.toml");
+            File.WriteAllText(baseConfigPath, new string(' ', (10 * 1024 * 1024) + 1));
+            File.WriteAllText(
+                childConfigPath,
+                $$"""
+                [extend]
+                path = {{CreateTomlLiteral(baseConfigPath)}}
+
+                [[rules]]
+                id = "local-token"
+                regex = '''local-[0-9]+'''
+                """);
+
+            InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.LoadFile(childConfigPath));
+
+            Assert.Contains("config file exceeds", exception.Message);
         }
         finally
         {

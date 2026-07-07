@@ -462,6 +462,7 @@ Reports are written on partial scans when Gitleaks writes them.
 Picket implements the Gitleaks TOML schema:
 
 - `[extend]`: `useDefault`, `path`, `disabledRules`, chain depth, merge ordering, conflict rules, and `minVersion`.
+- File-backed config loads, including extended configs, are capped at 10 MiB per file to keep untrusted config paths from becoming unbounded reads.
 - `extend.url`: parsed and ignored in strict compatibility mode because local Gitleaks has an unimplemented URL extender. Native mode may warn.
 - `[[rules]]`: `id`, `description`, `regex`, `path`, `secretGroup`, `entropy`, `keywords`, `tags`, `skipReport`, allowlists, and required/composite rules.
 - Allowlists: global and per-rule, plural and deprecated singular forms, `condition`, `commits`, `paths`, `regexTarget`, `regexes`, `stopwords`, and `targetRules`.

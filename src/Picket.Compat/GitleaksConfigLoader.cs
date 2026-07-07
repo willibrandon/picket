@@ -12,6 +12,7 @@ public static class GitleaksConfigLoader
     private const string GitleaksConfigEnvironmentVariable = "GITLEAKS_CONFIG";
     private const string GitleaksConfigTomlEnvironmentVariable = "GITLEAKS_CONFIG_TOML";
     private const string GitleaksConfigFileName = ".gitleaks.toml";
+    private const long MaxConfigFileBytes = 10 * 1024 * 1024;
     private const int MaxExtendDepth = 2;
     private static readonly Lazy<RuleSet> s_defaultRuleSet = new(LoadEmbeddedDefaultRuleSet);
 
@@ -93,12 +94,40 @@ public static class GitleaksConfigLoader
 
         try
         {
-            return FromToml(File.ReadAllText(fullPath), fullPath, extendDepth, visitedPaths);
+            return FromToml(ReadConfigText(fullPath), fullPath, extendDepth, visitedPaths);
         }
         finally
         {
             visitedPaths.Remove(fullPath);
         }
+    }
+
+    private static string ReadConfigText(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 8192, FileOptions.SequentialScan);
+        if (stream.CanSeek && stream.Length > MaxConfigFileBytes)
+        {
+            throw new InvalidDataException($"{path}: config file exceeds {MaxConfigFileBytes.ToString(CultureInfo.InvariantCulture)} bytes");
+        }
+
+        var content = new MemoryStream();
+        var buffer = new byte[8192];
+        long totalBytes = 0;
+        int read;
+        while ((read = stream.Read(buffer.AsSpan())) != 0)
+        {
+            totalBytes += read;
+            if (totalBytes > MaxConfigFileBytes)
+            {
+                throw new InvalidDataException($"{path}: config file exceeds {MaxConfigFileBytes.ToString(CultureInfo.InvariantCulture)} bytes");
+            }
+
+            content.Write(buffer.AsSpan(0, read));
+        }
+
+        content.Position = 0;
+        using var reader = new StreamReader(content, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 
     private static RuleSet FromToml(string toml, string sourceName, int extendDepth, HashSet<string>? visitedPaths)
@@ -754,12 +783,19 @@ public static class GitleaksConfigLoader
     private static string ReadMultilineValue(string[] lines, ref int lineIndex, string initialValue)
     {
         var value = new StringBuilder(initialValue);
+        if (!TryGetArrayContinuationState(initialValue, out int arrayDepth, out int stringMode))
+        {
+            return value.ToString();
+        }
+
         while (lineIndex + 1 < lines.Length)
         {
             lineIndex++;
             value.Append(' ');
-            value.Append(StripComment(lines[lineIndex]).Trim());
-            if (!ValueContinues(value.ToString()))
+            string nextLine = StripComment(lines[lineIndex]).Trim();
+            value.Append(nextLine);
+            UpdateArrayContinuationState(nextLine, ref arrayDepth, ref stringMode);
+            if (arrayDepth <= 0)
             {
                 break;
             }
@@ -770,29 +806,42 @@ public static class GitleaksConfigLoader
 
     private static bool ValueContinues(string value)
     {
-        string trimmed = value.TrimStart();
-        return trimmed.StartsWith('[')
-            && CountOutsideString(value, '[') > CountOutsideString(value, ']');
+        return TryGetArrayContinuationState(value, out int arrayDepth, out _)
+            && arrayDepth > 0;
     }
 
-    private static int CountOutsideString(string value, char needle)
+    private static bool TryGetArrayContinuationState(string value, out int arrayDepth, out int stringMode)
     {
-        int mode = 0;
-        int count = 0;
+        arrayDepth = 0;
+        stringMode = 0;
+        string trimmed = value.TrimStart();
+        if (!trimmed.StartsWith('['))
+        {
+            return false;
+        }
+
+        UpdateArrayContinuationState(value, ref arrayDepth, ref stringMode);
+        return true;
+    }
+
+    private static void UpdateArrayContinuationState(string value, ref int arrayDepth, ref int stringMode)
+    {
         for (int i = 0; i < value.Length; i++)
         {
-            if (UpdateStringMode(value, ref i, ref mode))
+            if (UpdateStringMode(value, ref i, ref stringMode))
             {
                 continue;
             }
 
-            if (mode == 0 && value[i] == needle)
+            if (stringMode == 0 && value[i] == '[')
             {
-                count++;
+                arrayDepth++;
+            }
+            else if (stringMode == 0 && value[i] == ']')
+            {
+                arrayDepth--;
             }
         }
-
-        return count;
     }
 
     private static string StripComment(string line)
