@@ -367,8 +367,14 @@ internal static class ArchiveReader
                 }
 
                 totalRead += read;
-                if ((length.HasValue && totalRead > length.GetValueOrDefault())
-                    || IsTooLarge(totalRead, maxBytes)
+                if (length.HasValue && totalRead > length.GetValueOrDefault())
+                {
+                    budget.ReportSizeMetadataMismatch(archivePath, length.Value, totalRead);
+                    bytes = [];
+                    return false;
+                }
+
+                if (IsTooLarge(totalRead, maxBytes)
                     || (compressedLength.HasValue && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, totalRead))
                     || !budget.TryConsumeBytes(archivePath, read))
                 {

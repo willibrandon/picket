@@ -496,6 +496,36 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that archive enumeration rejects entries whose declared size understates the real decompressed size.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateRejectsZipEntryWithUnderstatedUncompressedSize()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] archive = CreateZipBytes(("secret.txt", Encoding.UTF8.GetBytes(new string('x', 1024))));
+            OverwriteZipUncompressedSizes(archive, 1);
+            File.WriteAllBytes(Path.Combine(root, "secrets.zip"), archive);
+            var warnings = new List<string>();
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxArchiveDepth: 1,
+                maxArchiveBytes: 2_048,
+                warningSink: warnings.Add));
+
+            Assert.IsEmpty(files);
+            Assert.HasCount(1, warnings);
+            Assert.Contains("archive size metadata mismatch while reading secrets.zip", warnings[0]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that archive enumeration honors the configured compression-ratio safety cap.
     /// </summary>
     [TestMethod]

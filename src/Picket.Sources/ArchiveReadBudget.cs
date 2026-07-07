@@ -27,6 +27,8 @@ internal sealed class ArchiveReadBudget(
 
     internal bool CancellationReported { get; private set; }
 
+    internal bool SizeMetadataMismatchReported { get; private set; }
+
     internal bool TryContinue(string archivePath)
     {
         if (isCancellationRequested is null || !isCancellationRequested())
@@ -91,6 +93,24 @@ internal sealed class ArchiveReadBudget(
         }
 
         return true;
+    }
+
+    internal void ReportSizeMetadataMismatch(string archivePath, long declaredByteCount, long actualByteCount)
+    {
+        if (SizeMetadataMismatchReported)
+        {
+            return;
+        }
+
+        warningSink?.Invoke(string.Concat(
+            "archive size metadata mismatch while reading ",
+            archivePath,
+            ": ",
+            actualByteCount.ToString(CultureInfo.InvariantCulture),
+            " decompressed bytes exceeded declared ",
+            declaredByteCount.ToString(CultureInfo.InvariantCulture),
+            " bytes"));
+        SizeMetadataMismatchReported = true;
     }
 
     private bool TryConsumeBytesCore(string archivePath, long byteCount)
