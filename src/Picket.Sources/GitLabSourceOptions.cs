@@ -25,7 +25,7 @@ public sealed class GitLabSourceOptions(
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
 {
-    private const long DefaultMaxFileBytes = 100_000_000;
+    internal const long DefaultMaxFileBytes = 100_000_000;
     private readonly string _credential = RequireCredential(credential);
 
     /// <summary>
@@ -136,13 +136,13 @@ public sealed class GitLabSourceOptions(
         return normalized;
     }
 
-    private static string RequireCredential(string value)
+    internal static string RequireCredential(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         return value;
     }
 
-    private static string NormalizeOptionalText(string value)
+    internal static string NormalizeOptionalText(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
@@ -174,7 +174,7 @@ public sealed class GitLabSourceOptions(
         return value;
     }
 
-    private static long RequireMaxFileBytes(long? value, string parameterName)
+    internal static long RequireMaxFileBytes(long? value, string parameterName)
     {
         if (!value.HasValue)
         {

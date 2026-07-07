@@ -90,6 +90,20 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitLab group URLs normalize to group paths.
+    /// </summary>
+    [TestMethod]
+    public void GitLabGroupSourceOptionsNormalizesGroupUrls()
+    {
+        var options = new GitLabGroupSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "https://gitlab.com/groups/team/platform",
+            "gitlab-test-token");
+
+        Assert.AreEqual("team/platform", options.Group);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration reads the project tree and downloads raw blob content.
     /// </summary>
     [TestMethod]
@@ -142,6 +156,64 @@ public sealed class GitLabSourceClientTests
         Assert.Contains("gitlab-test-token", string.Join('\n', privateTokens));
         Assert.DoesNotContain("Bearer", string.Join('\n', authorizationHeaders));
         Assert.Contains("application/octet-stream", acceptHeaders);
+    }
+
+    /// <summary>
+    /// Verifies that group enumeration lists group projects and scans each project repository.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateGroupRepositoryFilesReadsProjectRepositories()
+    {
+        const string Token = "gitlab-test-token";
+        var urls = new List<string>();
+        var privateTokens = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            CaptureRequest(request, urls, privateTokens, authorizationHeaders, acceptHeaders);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/groups/team%2Fplatform/projects?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "id": 321, "path_with_namespace": "team/platform/api", "default_branch": "main" }]""");
+            }
+
+            if (url.Contains("/projects/team%2Fplatform%2Fapi/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "path": "src/appsettings.txt", "type": "blob", "size": 11 }]""");
+            }
+
+            if (url.Contains("/projects/team%2Fplatform%2Fapi/repository/files/src%2Fappsettings.txt/raw?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabGroupSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "team/platform",
+            Token,
+            includeSubgroups: true);
+
+        List<SourceFile> files = await client.EnumerateGroupRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitlab/team/platform/api/src/appsettings.txt", files[0].DisplayPath);
+        Assert.AreEqual("token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/groups/team%2Fplatform/projects?", requests);
+        Assert.Contains("per_page=100", requests);
+        Assert.Contains("page=1", requests);
+        Assert.Contains("include_subgroups=true", requests);
+        Assert.Contains("/projects/team%2Fplatform%2Fapi/repository/tree?", requests);
+        Assert.Contains("ref=main", requests);
+        Assert.Contains("PRIVATE-TOKEN", string.Join('\n', privateTokens));
+        Assert.Contains("gitlab-test-token", string.Join('\n', privateTokens));
+        Assert.DoesNotContain("Bearer", string.Join('\n', authorizationHeaders));
+        Assert.Contains("application/octet-stream", acceptHeaders);
+        Assert.DoesNotContain(Token, requests);
     }
 
     /// <summary>

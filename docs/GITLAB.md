@@ -1,6 +1,6 @@
 # GitLab
 
-Picket can scan GitLab project repository files, merge request source heads, and project snippets through native source enumeration for `picket scan`.
+Picket can scan GitLab project repository files, group project repositories, merge request source heads, and project snippets through native source enumeration for `picket scan`.
 
 This is opt-in native source behavior. Workspace scans remain the default because they are deterministic and use normal checkout permissions. Strict Gitleaks-compatible commands are unchanged.
 
@@ -12,6 +12,18 @@ Project repository scans resolve the default branch when `--gitlab-ref` is omitt
 
 ```powershell
 picket scan --gitlab-project willibrandon/picket --gitlab-ref main --gitlab-token-env PICKET_GITLAB_SOURCE_TOKEN --report-format jsonl
+```
+
+Group scans list projects in a GitLab group and scan each project repository:
+
+```powershell
+picket scan --gitlab-group team/platform --gitlab-token-env PICKET_GITLAB_SOURCE_TOKEN --report-format jsonl
+```
+
+Subgroup projects are explicit:
+
+```powershell
+picket scan --gitlab-group team/platform --gitlab-include-subgroups --gitlab-token-env PICKET_GITLAB_SOURCE_TOKEN --report-format jsonl
 ```
 
 Merge request scans resolve the merge request source project and source head before listing repository files:
@@ -41,8 +53,10 @@ The token is read from an environment variable and is never passed as a command-
 | Option | Purpose |
 | --- | --- |
 | `--gitlab-project` | Project to scan as a namespace path, numeric project ID, or project URL. |
+| `--gitlab-group` | Group to scan as a namespace path, numeric group ID, or group URL. |
 | `--gitlab-ref` | Optional branch, tag, or commit SHA. Empty uses the project default branch. |
 | `--gitlab-merge-request` | Optional merge request internal ID. Scans the merge request source head. |
+| `--gitlab-include-subgroups` | Include subgroup projects when scanning a group. |
 | `--gitlab-include-snippets` | Include project snippets. |
 | `--gitlab-token-env` | Environment variable containing the GitLab token. |
 | `--gitlab-api-endpoint` | GitLab API endpoint used for repository enumeration. Defaults to `https://gitlab.com/api/v4/`. |
@@ -53,6 +67,7 @@ The token is read from an environment variable and is never passed as a command-
 
 | Source | API behavior |
 | --- | --- |
+| Group projects | Lists group projects with `per_page=100`. `include_subgroups=true` is sent only when `--gitlab-include-subgroups` is set. |
 | Project metadata | Resolves the default branch when `--gitlab-ref` is omitted. |
 | Merge request metadata | Resolves `source_project_id` and the source ref. Picket prefers `diff_refs.head_sha`, then `sha`, then `source_branch`. |
 | Repository tree | Lists blobs recursively with `per_page=100` and page-based pagination. |
@@ -77,13 +92,14 @@ Picket sends the configured token as a `PRIVATE-TOKEN` header. It does not send 
 
 ## Permissions
 
-Use the narrowest project selection possible. Repository file scanning needs read-only access to project metadata, repository tree entries, and raw repository file content for the selected project. Merge request scanning also needs read access to merge request metadata and the source project when the merge request originates from a fork. Snippet scanning needs read access to project snippets and raw snippet content. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not needed for source enumeration.
+Use the narrowest project or group selection possible. Repository file scanning needs read-only access to project metadata, repository tree entries, and raw repository file content for the selected project. Group scanning also needs read access to the group project listing and to each selected project repository. Merge request scanning needs read access to merge request metadata and the source project when the merge request originates from a fork. Snippet scanning needs read access to project snippets and raw snippet content. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not needed for source enumeration.
 
-Groups, jobs, pipelines, packages, and artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+Jobs, pipelines, packages, and artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
 
 ## References
 
 - GitLab repositories API: `https://docs.gitlab.com/api/repositories/`
+- GitLab groups API: `https://docs.gitlab.com/api/groups/`
 - GitLab merge requests API: `https://docs.gitlab.com/api/merge_requests/`
 - GitLab project snippets API: `https://docs.gitlab.com/api/project_snippets/`
 - GitLab repository files API: `https://docs.gitlab.com/api/repository_files/`

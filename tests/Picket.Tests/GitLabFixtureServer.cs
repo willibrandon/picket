@@ -95,6 +95,12 @@ internal sealed class GitLabFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v4/projects/team%2Fplatform%2Fapi/repository/files/src%2Fappsettings.txt/raw?", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/snippets/7/raw", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
@@ -119,6 +125,20 @@ internal sealed class GitLabFixtureServer : IDisposable
         {
             const string TreeJson = """[{"path":"src/appsettings.txt","type":"blob","size":11},{"path":"src","type":"tree"}]""";
             await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(TreeJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/team%2Fplatform%2Fapi/repository/tree?", StringComparison.Ordinal))
+        {
+            const string TreeJson = """[{"path":"src/appsettings.txt","type":"blob","size":11},{"path":"src","type":"tree"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(TreeJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/groups/team%2Fplatform/projects?", StringComparison.Ordinal))
+        {
+            const string GroupProjectsJson = """[{"id":321,"path_with_namespace":"team/platform/api","default_branch":"main"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(GroupProjectsJson), cancellationToken).ConfigureAwait(false);
             return;
         }
 

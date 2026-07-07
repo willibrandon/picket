@@ -490,8 +490,10 @@ internal static partial class Program
     private static void AddGitLabSourceOptions(Command command, string commandName)
     {
         command.Options.Add(CreateValueOption(commandName, "--gitlab-project", "path"));
+        command.Options.Add(CreateValueOption(commandName, "--gitlab-group", "path"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-ref", "ref"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-merge-request", "id"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-subgroups"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-snippets"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-api-endpoint", "uri"));

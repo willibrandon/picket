@@ -12,6 +12,12 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-project=", StringComparison.Ordinal);
     }
 
+    static bool IsGitLabGroupFlag(string arg)
+    {
+        return arg.Equals("--gitlab-group", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-group=", StringComparison.Ordinal);
+    }
+
     static bool IsGitLabRefFlag(string arg)
     {
         return arg.Equals("--gitlab-ref", StringComparison.Ordinal)
@@ -28,6 +34,12 @@ internal static partial class Program
     {
         return arg.Equals("--gitlab-include-snippets", StringComparison.Ordinal)
             || arg.StartsWith("--gitlab-include-snippets=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitLabIncludeSubgroupsFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-subgroups", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-subgroups=", StringComparison.Ordinal);
     }
 
     static bool IsGitLabTokenEnvironmentVariableFlag(string arg)
@@ -61,8 +73,10 @@ internal static partial class Program
     static bool TryCreateGitLabSourceProvider(
         Uri? endpoint,
         string project,
+        string group,
         string gitRef,
         int mergeRequestIid,
+        bool includeSubgroups,
         bool includeSnippets,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
@@ -70,9 +84,23 @@ internal static partial class Program
         [NotNullWhen(true)] out NativeSourceProvider? sourceFileProvider)
     {
         sourceFileProvider = null;
-        if (string.IsNullOrWhiteSpace(project))
+        bool hasProject = !string.IsNullOrWhiteSpace(project);
+        bool hasGroup = !string.IsNullOrWhiteSpace(group);
+        if (!hasProject && !hasGroup)
         {
-            Console.Error.WriteLine("GitLab source scan requires --gitlab-project");
+            Console.Error.WriteLine("GitLab source scan requires --gitlab-project or --gitlab-group");
+            return false;
+        }
+
+        if (hasProject && hasGroup)
+        {
+            Console.Error.WriteLine("GitLab source scan accepts either --gitlab-project or --gitlab-group, not both");
+            return false;
+        }
+
+        if (hasGroup && mergeRequestIid != 0)
+        {
+            Console.Error.WriteLine("--gitlab-merge-request requires --gitlab-project");
             return false;
         }
 
@@ -92,18 +120,36 @@ internal static partial class Program
         Uri sourceEndpoint = endpoint ?? GitLabSourceOptions.CreateDefaultEndpoint();
         try
         {
-            var validatedOptions = new GitLabSourceOptions(
-                sourceEndpoint,
-                project,
-                credential,
-                gitRef,
-                mergeRequestIid,
-                includeSnippets);
-            sourceEndpoint = validatedOptions.Endpoint;
-            project = validatedOptions.Project;
-            gitRef = validatedOptions.Ref;
-            mergeRequestIid = validatedOptions.MergeRequestIid;
-            includeSnippets = validatedOptions.IncludeSnippets;
+            if (hasGroup)
+            {
+                var validatedGroupOptions = new GitLabGroupSourceOptions(
+                    sourceEndpoint,
+                    group,
+                    credential,
+                    gitRef,
+                    includeSubgroups,
+                    includeSnippets);
+                sourceEndpoint = validatedGroupOptions.Endpoint;
+                group = validatedGroupOptions.Group;
+                gitRef = validatedGroupOptions.Ref;
+                includeSubgroups = validatedGroupOptions.IncludeSubgroups;
+                includeSnippets = validatedGroupOptions.IncludeSnippets;
+            }
+            else
+            {
+                var validatedOptions = new GitLabSourceOptions(
+                    sourceEndpoint,
+                    project,
+                    credential,
+                    gitRef,
+                    mergeRequestIid,
+                    includeSnippets);
+                sourceEndpoint = validatedOptions.Endpoint;
+                project = validatedOptions.Project;
+                gitRef = validatedOptions.Ref;
+                mergeRequestIid = validatedOptions.MergeRequestIid;
+                includeSnippets = validatedOptions.IncludeSnippets;
+            }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -130,6 +176,21 @@ internal static partial class Program
                 AllowAutoRedirect = false,
             });
             var client = new GitLabSourceClient(httpClient);
+            if (hasGroup)
+            {
+                return client.EnumerateGroupRepositoryFilesAsync(new GitLabGroupSourceOptions(
+                    sourceEndpoint,
+                    group,
+                    credential,
+                    gitRef,
+                    includeSubgroups,
+                    includeSnippets,
+                    maxTargetBytes,
+                    rules.IsGlobalPathAllowed,
+                    Console.Error.WriteLine,
+                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+            }
+
             return client.EnumerateRepositoryFilesAsync(new GitLabSourceOptions(
                 sourceEndpoint,
                 project,

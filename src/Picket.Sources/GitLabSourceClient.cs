@@ -12,6 +12,7 @@ namespace Picket.Sources;
 /// <param name="httpClient">The HTTP client used for GitLab requests.</param>
 public sealed class GitLabSourceClient(HttpClient httpClient)
 {
+    private const int GroupProjectsPerPage = 100;
     private const int SnippetsPerPage = 100;
     private const int TreeEntriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
@@ -75,6 +76,45 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         return sourceFiles;
     }
 
+    /// <summary>
+    /// Enumerates GitLab repository files for projects selected by the supplied group options.
+    /// </summary>
+    /// <param name="options">The GitLab group source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateGroupRepositoryFilesAsync(
+        GitLabGroupSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri groupProjectsUri = CreateGroupProjectsUri(options, page);
+            using HttpResponseMessage groupProjectsResponse = await SendAsync(options, groupProjectsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!groupProjectsResponse.IsSuccessStatusCode)
+            {
+                options.WarningSink?.Invoke($"skipping GitLab group {options.Group} projects because GitLab returned {((int)groupProjectsResponse.StatusCode).ToString(CultureInfo.InvariantCulture)} {groupProjectsResponse.StatusCode}");
+                return sourceFiles;
+            }
+
+            await AddGroupProjectFilesAsync(options, groupProjectsResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(groupProjectsResponse, page, options.WarningSink, $"GitLab group {options.Group} project enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+
+        return sourceFiles;
+    }
+
     private async Task<(bool ShouldScan, GitLabSourceOptions SourceOptions, string SourceRef)> ResolveMergeRequestSourceAsync(
         GitLabSourceOptions options,
         CancellationToken cancellationToken)
@@ -120,6 +160,48 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             warningSink: options.WarningSink,
             isCancellationRequested: options.IsCancellationRequested);
         return (true, sourceOptions, sourceRef);
+    }
+
+    private async Task AddGroupProjectFilesAsync(
+        GitLabGroupSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string project = GetGroupProjectIdentifier(item);
+            if (project.Length == 0)
+            {
+                continue;
+            }
+
+            string gitRef = options.Ref.Length == 0 ? GetString(item, "default_branch") : options.Ref;
+            var projectOptions = new GitLabSourceOptions(
+                options.Endpoint,
+                project,
+                options.Credential,
+                gitRef,
+                includeSnippets: options.IncludeSnippets,
+                maxFileBytes: options.MaxFileBytes,
+                isPathAllowed: options.IsPathAllowed,
+                warningSink: options.WarningSink,
+                isCancellationRequested: options.IsCancellationRequested);
+            List<SourceFile> projectFiles = await EnumerateRepositoryFilesAsync(projectOptions, cancellationToken).ConfigureAwait(false);
+            sourceFiles.AddRange(projectFiles);
+        }
     }
 
     private async Task AddProjectSnippetFilesAsync(
@@ -300,6 +382,24 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         bool acceptRaw,
         CancellationToken cancellationToken)
     {
+        return await SendAsync(options.Credential, uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        GitLabGroupSourceOptions options,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
+        return await SendAsync(options.Credential, uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        string credential,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
         return await RemoteSourceHttpRetry.SendAsync(
             _httpClient,
             () =>
@@ -307,7 +407,7 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
                 var request = new HttpRequestMessage(HttpMethod.Get, uri);
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/octet-stream" : "application/json"));
                 request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
-                request.Headers.Add("PRIVATE-TOKEN", options.Credential);
+                request.Headers.Add("PRIVATE-TOKEN", credential);
                 return request;
             },
             RemoteSourceHttpRetry.IsGenericRetryableResponse,
@@ -349,6 +449,21 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         }
 
         return memory.ToArray();
+    }
+
+    private static Uri CreateGroupProjectsUri(GitLabGroupSourceOptions options, int page)
+    {
+        var query = new List<KeyValuePair<string, string>>(3)
+        {
+            new("per_page", GroupProjectsPerPage.ToString(CultureInfo.InvariantCulture)),
+            new("page", page.ToString(CultureInfo.InvariantCulture)),
+        };
+        if (options.IncludeSubgroups)
+        {
+            query.Add(new KeyValuePair<string, string>("include_subgroups", "true"));
+        }
+
+        return CreateUri(options.Endpoint, ["groups", options.Group, "projects"], query);
     }
 
     private static Uri CreateProjectUri(GitLabSourceOptions options)
@@ -540,6 +655,18 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         return GetString(firstProperty, secondPropertyName);
     }
 
+    private static string GetGroupProjectIdentifier(JsonElement value)
+    {
+        if (TryGetJsonString(value, "path_with_namespace", out string projectPath))
+        {
+            return projectPath;
+        }
+
+        return TryGetJsonInt64(value, "id", out long projectId) && projectId > 0
+            ? projectId.ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
     private static string CreateDisplayPath(GitLabSourceOptions options, string itemPath)
     {
         return string.Concat(
@@ -597,6 +724,11 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
     }
 
     private static bool IsCancellationRequested(GitLabSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(GitLabGroupSourceOptions options)
     {
         return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }

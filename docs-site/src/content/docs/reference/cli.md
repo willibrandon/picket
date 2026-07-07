@@ -394,6 +394,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan this GitLab project path or numeric project ID through native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitlab-group</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan projects in this GitLab group through native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitlab-ref</code></td>
               <td data-label="Value"><code>ref</code></td>
               <td data-label="Required">Optional</td>
@@ -404,6 +410,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>id</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Scan this GitLab merge request source head.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-include-subgroups</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include projects from GitLab subgroups when scanning a group.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--gitlab-include-snippets</code></td>

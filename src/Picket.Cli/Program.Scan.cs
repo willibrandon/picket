@@ -44,6 +44,8 @@ internal static partial class Program
         string githubSourceUser = string.Empty;
         string githubSourceUserGists = string.Empty;
         Uri? gitLabApiEndpoint = null;
+        string gitLabGroup = string.Empty;
+        bool gitLabIncludeSubgroups = false;
         bool gitLabIncludeSnippets = false;
         bool gitLabOptionSpecified = false;
         int gitLabMergeRequestIid = 0;
@@ -324,6 +326,18 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsGitLabGroupFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitlab-group", out string? group))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gitLabGroup = group;
+                gitLabOptionSpecified = true;
+                continue;
+            }
+
             if (IsGitLabRefFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--gitlab-ref", out string? gitRef))
@@ -355,6 +369,21 @@ internal static partial class Program
                 }
 
                 if (gitLabIncludeSnippets)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitLabIncludeSubgroupsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-subgroups", out gitLabIncludeSubgroups))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (gitLabIncludeSubgroups)
                 {
                     gitLabOptionSpecified = true;
                 }
@@ -770,8 +799,10 @@ internal static partial class Program
             && !TryCreateGitLabSourceProvider(
                 gitLabApiEndpoint,
                 gitLabProject,
+                gitLabGroup,
                 gitLabRef,
                 gitLabMergeRequestIid,
+                gitLabIncludeSubgroups,
                 gitLabIncludeSnippets,
                 gitLabTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,

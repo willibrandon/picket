@@ -703,6 +703,7 @@ Implemented GitLab entry points:
 | Scope | Options | Behavior |
 | --- | --- | --- |
 | Project repository files | `--gitlab-project`, `--gitlab-ref`, `--gitlab-token-env`, `--gitlab-api-endpoint` | Scans a GitLab project path, numeric project ID, or project URL at a branch, tag, or commit. Empty `--gitlab-ref` uses the project default branch. |
+| Group project repositories | `--gitlab-group`, `--gitlab-include-subgroups`, `--gitlab-ref`, `--gitlab-token-env`, `--gitlab-api-endpoint` | Lists projects in a GitLab group with `per_page=100` and scans each project repository. Subgroup projects are included only when `--gitlab-include-subgroups` is set. Empty `--gitlab-ref` uses each project's default branch when GitLab returns it, falling back to project metadata when needed. |
 | Merge request source head | `--gitlab-project`, `--gitlab-merge-request` | Resolves the merge request through the project merge requests API, scans `diff_refs.head_sha` when available, falls back to `sha` and then `source_branch`, and switches to `source_project_id` for forked merge requests. |
 | Project snippets | `--gitlab-project`, `--gitlab-include-snippets` | Lists project snippets with `per_page=100` and downloads raw snippet content through the project snippets API. Snippets are additive to repository file scans and cannot be combined with merge request source-head scans. |
 
@@ -710,6 +711,7 @@ GitLab API flow:
 
 | Source | API behavior |
 | --- | --- |
+| Group projects | Lists projects through the GitLab group projects API. `include_subgroups=true` is sent only when requested. |
 | Project metadata | Resolves the default branch for project scans. |
 | Merge request metadata | Resolves the source project and source ref for merge request scans. |
 | Repository tree | Lists repository blobs with recursive tree enumeration and `per_page=100`. |
@@ -727,9 +729,9 @@ GitLab source safety rules:
 - A positive `--max-target-megabytes` value overrides the default remote cap.
 - Zero keeps its local-scan compatibility meaning, but remote GitLab sources reject zero because remote HTTP bodies are always bounded.
 - Oversized tree entries are skipped before download when GitLab returns a size.
-- Project groups, jobs, pipelines, packages, and artifacts remain planned explicit source selectors.
+- Jobs, pipelines, packages, and artifacts remain planned explicit source selectors.
 
-GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for project repository, merge request source, and project snippet scans. Least-privilege project repository, merge request, and snippet enumeration requires read-only repository/API access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
+GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, and project snippet scans. Least-privilege group project, project repository, merge request, and snippet enumeration requires read-only repository/API access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 
