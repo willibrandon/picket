@@ -196,6 +196,7 @@ Use the grouped index to jump to the workflow you need.
   [--azure-devops-project name]
   [--azure-devops-repository name]
   [--azure-devops-branch name]
+  [--azure-devops-include-wikis]
   [--allow-non-public-source-endpoints]
   [--allow-insecure-source-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
@@ -415,6 +416,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Scan this Azure Repos branch.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-include-wikis</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include Azure DevOps wiki backing repositories in native source enumeration.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-source-endpoints</code></td>

@@ -555,6 +555,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Azure DevOps Services", azureDevOps);
         Assert.Contains("Azure DevOps Server", azureDevOps);
         Assert.Contains("Azure Repos", azureDevOps);
+        Assert.Contains("--azure-devops-include-wikis", azureDevOps);
         Assert.Contains("pipeline logs", azureDevOps);
         Assert.Contains("build artifacts", azureDevOps);
         Assert.Contains("release artifacts", azureDevOps);

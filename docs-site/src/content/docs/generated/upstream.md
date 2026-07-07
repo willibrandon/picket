@@ -152,6 +152,15 @@ REST API documentation reviewed on 2026-07-07:
 - Git trees REST API: `https://docs.github.com/v3/git/trees`
 - Repository contents REST API: `https://docs.github.com/en/rest/repos/contents`
 
+## Azure DevOps Source References
+
+Native Azure DevOps repository and wiki source enumeration is based on
+Microsoft Learn REST API documentation reviewed on 2026-07-07:
+
+- Azure DevOps repositories list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list?view=azure-devops-rest-7.1`
+- Azure DevOps Git items list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/git/items/list?view=azure-devops-rest-7.1`
+- Azure DevOps wikis list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/wiki/wikis/list?view=azure-devops-rest-7.1`
+
 ## GitHub Secret Scanning Oracle
 
 GitHub Secret Protection secret scanning is a hosted proprietary system, not a

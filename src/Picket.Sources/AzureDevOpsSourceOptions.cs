@@ -9,6 +9,7 @@ namespace Picket.Sources;
 /// <param name="project">An optional project filter.</param>
 /// <param name="repository">An optional repository name filter.</param>
 /// <param name="branch">An optional branch name.</param>
+/// <param name="includeWikis">A value indicating whether wiki backing repositories should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
@@ -19,6 +20,7 @@ public sealed class AzureDevOpsSourceOptions(
     string project = "",
     string repository = "",
     string branch = "",
+    bool includeWikis = false,
     long? maxFileBytes = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
@@ -49,6 +51,11 @@ public sealed class AzureDevOpsSourceOptions(
     /// Gets the optional branch name.
     /// </summary>
     public string Branch { get; } = NormalizeOptionalName(branch);
+
+    /// <summary>
+    /// Gets a value indicating whether wiki backing repositories should be scanned.
+    /// </summary>
+    public bool IncludeWikis { get; } = includeWikis;
 
     /// <summary>
     /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.

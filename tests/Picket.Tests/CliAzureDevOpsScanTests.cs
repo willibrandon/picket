@@ -56,6 +56,69 @@ public sealed class CliAzureDevOpsScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can include Azure DevOps wiki backing repositories.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsAzureDevOpsWikiFilesWhenEnabled()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new AzureDevOpsFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-project",
+            "test",
+            "--azure-devops-include-wikis",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"azure-devops/test/picket/src/appsettings.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"azure-devops-wiki/test/Team%20Wiki/Home.md\"", result.Stdout);
+        Assert.Contains("Basic ", server.LastAuthorization);
+        Assert.DoesNotContain("test-pat-secret", result.Stdout);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that an explicitly disabled wiki option does not trigger Azure DevOps enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanDoesNotRequireAzureDevOpsEndpointWhenWikiEnumerationIsDisabled()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            new Dictionary<string, string?>(),
+            "scan",
+            "--azure-devops-include-wikis=false",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode, result.Stderr);
+        Assert.DoesNotContain("Azure DevOps source scan requires", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native Azure DevOps scan endpoints are guarded before any provider request is made.
     /// </summary>
     [TestMethod]

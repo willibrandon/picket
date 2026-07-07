@@ -32,6 +32,7 @@ internal static partial class Program
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
+        bool azureDevOpsIncludeWikis = false;
         bool azureDevOpsOptionSpecified = false;
         bool githubApiEndpointSpecified = false;
         bool githubSourceOptionSpecified = false;
@@ -222,6 +223,21 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsAzureDevOpsIncludeWikisFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--azure-devops-include-wikis", out azureDevOpsIncludeWikis))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (azureDevOpsIncludeWikis)
+                {
+                    azureDevOpsOptionSpecified = true;
+                }
+
+                continue;
+            }
+
             if (IsAllowNonPublicSourceEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-source-endpoints", out allowNonPublicSourceEndpoints))
@@ -360,6 +376,7 @@ internal static partial class Program
                 azureDevOpsProject,
                 azureDevOpsRepository,
                 azureDevOpsBranch,
+                azureDevOpsIncludeWikis,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

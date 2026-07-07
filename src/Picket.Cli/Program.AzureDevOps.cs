@@ -49,6 +49,12 @@ internal static partial class Program
             || arg.StartsWith("--azure-devops-branch=", StringComparison.Ordinal);
     }
 
+    static bool IsAzureDevOpsIncludeWikisFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-include-wikis", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-include-wikis=", StringComparison.Ordinal);
+    }
+
     static bool IsAllowNonPublicSourceEndpointsFlag(string arg)
     {
         return arg.Equals("--allow-non-public-source-endpoints", StringComparison.Ordinal)
@@ -133,6 +139,7 @@ internal static partial class Program
         string project,
         string repository,
         string branch,
+        bool includeWikis,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
         [NotNullWhen(true)] out Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider)
@@ -188,11 +195,13 @@ internal static partial class Program
                 credentialKind,
                 project,
                 repository,
-                branch);
+                branch,
+                includeWikis);
             sourceEndpoint = validatedOptions.Endpoint;
             project = validatedOptions.Project;
             repository = validatedOptions.Repository;
             branch = validatedOptions.Branch;
+            includeWikis = validatedOptions.IncludeWikis;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -226,6 +235,7 @@ internal static partial class Program
                 project,
                 repository,
                 branch,
+                includeWikis,
                 maxTargetBytes,
                 Console.Error.WriteLine,
                 () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();

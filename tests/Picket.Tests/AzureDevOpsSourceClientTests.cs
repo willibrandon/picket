@@ -89,6 +89,80 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that wiki backing repositories are scanned only when explicitly enabled.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesIncludesWikiRepositoriesWhenEnabled()
+    {
+        const string Token = "azdo-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[]}""");
+            }
+
+            if (url.Contains("/_apis/wiki/wikis?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "name": "Team Wiki",
+                          "repositoryId": "wiki-repo",
+                          "projectId": "Project One",
+                          "mappedPath": "/docs",
+                          "versions": [
+                            { "version": "wikiMaster" }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/Project One/_apis/git/repositories/wiki-repo/items?", StringComparison.Ordinal)
+                && url.Contains("download=true", StringComparison.Ordinal))
+            {
+                return BytesResponse("wiki-token-12345");
+            }
+
+            if (url.Contains("/Project One/_apis/git/repositories/wiki-repo/items?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        { "path": "/docs/Home.md", "gitObjectType": "blob" },
+                        { "path": "/docs", "gitObjectType": "tree" }
+                      ]
+                    }
+                    """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            includeWikis: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("azure-devops-wiki/Project%20One/Team%20Wiki/docs/Home.md", files[0].DisplayPath);
+        Assert.AreEqual("wiki-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("scopePath=%2Fdocs", string.Join('\n', urls));
+        Assert.Contains("versionDescriptor.version=wikiMaster", string.Join('\n', urls));
+        Assert.DoesNotContain(Token, string.Join('\n', urls));
+    }
+
+    /// <summary>
     /// Verifies that Azure Pipelines job tokens use Bearer authorization instead of PAT Basic authorization.
     /// </summary>
     [TestMethod]

@@ -60,6 +60,27 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
         string target = GetRequestTarget(request);
         LastAuthorization = GetHeaderValue(request, "Authorization");
 
+        if (target.Contains("/_apis/git/repositories/wiki-repo/items?", StringComparison.Ordinal)
+            && target.Contains("download=true", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes("wiki-token-6789"), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/git/repositories/wiki-repo/items?", StringComparison.Ordinal))
+        {
+            const string WikiItemsJson = """{"value":[{"path":"/Home.md","gitObjectType":"blob"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(WikiItemsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/wiki/wikis?", StringComparison.Ordinal))
+        {
+            const string WikisJson = """{"value":[{"id":"wiki-id","name":"Team Wiki","projectId":"test","repositoryId":"wiki-repo","mappedPath":"/","versions":[{"version":"wikiMaster"}]}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(WikisJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/_apis/git/repositories/repo-id/items?", StringComparison.Ordinal)
             && target.Contains("download=true", StringComparison.Ordinal))
         {

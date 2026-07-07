@@ -67,6 +67,11 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             await AddRepositoryFilesAsync(options, id, name, projectName, sourceFiles, cancellationToken).ConfigureAwait(false);
         }
 
+        if (options.IncludeWikis && !IsCancellationRequested(options))
+        {
+            await AddWikiFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
         return sourceFiles;
     }
 
@@ -114,6 +119,101 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         while (continuationToken.Length != 0 && !IsCancellationRequested(options));
     }
 
+    private async Task AddWikiFilesAsync(
+        AzureDevOpsSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        List<(string Name, string ProjectName, string RepositoryId, string MappedPath, string Version, bool IsDisabled)> wikis = await ListWikisAsync(options, cancellationToken).ConfigureAwait(false);
+        for (int i = 0; i < wikis.Count; i++)
+        {
+            if (IsCancellationRequested(options))
+            {
+                break;
+            }
+
+            (string name, string projectName, string repositoryId, string mappedPath, string version, bool isDisabled) = wikis[i];
+            if (isDisabled)
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps wiki {name} because it is disabled");
+                continue;
+            }
+
+            if (projectName.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps wiki {name} because its project was not returned");
+                continue;
+            }
+
+            if (repositoryId.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps wiki {name} because its backing repository was not returned");
+                continue;
+            }
+
+            string itemVersion = options.Branch.Length == 0 ? version : options.Branch;
+            if (itemVersion.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps wiki {name} because it does not have a version");
+                continue;
+            }
+
+            await AddWikiRepositoryFilesAsync(
+                options,
+                projectName,
+                name,
+                repositoryId,
+                mappedPath,
+                itemVersion,
+                sourceFiles,
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<List<(string Name, string ProjectName, string RepositoryId, string MappedPath, string Version, bool IsDisabled)>> ListWikisAsync(
+        AzureDevOpsSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        var wikis = new List<(string Name, string ProjectName, string RepositoryId, string MappedPath, string Version, bool IsDisabled)>();
+        Uri uri = CreateWikiListUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, "skipping Azure DevOps wikis");
+            return wikis;
+        }
+
+        await AddWikisAsync(options, response, wikis, cancellationToken).ConfigureAwait(false);
+        return wikis;
+    }
+
+    private async Task AddWikiRepositoryFilesAsync(
+        AzureDevOpsSourceOptions options,
+        string projectName,
+        string wikiName,
+        string repositoryId,
+        string mappedPath,
+        string version,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string continuationToken = string.Empty;
+        do
+        {
+            Uri uri = CreateWikiItemListUri(options, projectName, repositoryId, mappedPath, version, continuationToken);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps wiki {wikiName}");
+                return;
+            }
+
+            await AddWikiItemFilesAsync(options, response, projectName, wikiName, repositoryId, version, sourceFiles, cancellationToken).ConfigureAwait(false);
+            continuationToken = ReadContinuationToken(response);
+        }
+        while (continuationToken.Length != 0 && !IsCancellationRequested(options));
+    }
+
     private async Task AddItemFilesAsync(
         AzureDevOpsSourceOptions options,
         HttpResponseMessage response,
@@ -146,6 +246,47 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 
             Uri downloadUri = CreateItemDownloadUri(options, projectName, repositoryId, path);
             string displayPath = CreateDisplayPath(projectName, repositoryName, path);
+            byte[]? content = await DownloadFileAsync(options, downloadUri, displayPath, cancellationToken).ConfigureAwait(false);
+            if (content is not null)
+            {
+                sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            }
+        }
+    }
+
+    private async Task AddWikiItemFilesAsync(
+        AzureDevOpsSourceOptions options,
+        HttpResponseMessage response,
+        string projectName,
+        string wikiName,
+        string repositoryId,
+        string version,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!document.RootElement.TryGetProperty("value", out JsonElement values)
+            || values.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in values.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonString(item, "path", out string path)
+                || !IsBlobItem(item))
+            {
+                continue;
+            }
+
+            Uri downloadUri = CreateWikiItemDownloadUri(options, projectName, repositoryId, path, version);
+            string displayPath = CreateWikiDisplayPath(projectName, wikiName, path);
             byte[]? content = await DownloadFileAsync(options, downloadUri, displayPath, cancellationToken).ConfigureAwait(false);
             if (content is not null)
             {
@@ -229,6 +370,49 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
     }
 
+    private static async Task AddWikisAsync(
+        AzureDevOpsSourceOptions options,
+        HttpResponseMessage response,
+        List<(string Name, string ProjectName, string RepositoryId, string MappedPath, string Version, bool IsDisabled)> wikis,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!document.RootElement.TryGetProperty("value", out JsonElement values)
+            || values.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement wiki in values.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonString(wiki, "name", out string name))
+            {
+                continue;
+            }
+
+            string repositoryId = GetString(wiki, "repositoryId");
+            if (repositoryId.Length == 0)
+            {
+                repositoryId = GetString(wiki, "id");
+            }
+
+            string projectName = options.Project.Length == 0 ? GetString(wiki, "projectId") : options.Project;
+            wikis.Add((
+                name,
+                projectName,
+                repositoryId,
+                NormalizeWikiMappedPath(GetString(wiki, "mappedPath")),
+                GetFirstWikiVersion(wiki),
+                GetBoolean(wiki, "isDisabled")));
+        }
+    }
+
     private static async Task<byte[]?> ReadContentWithinLimitAsync(
         HttpResponseMessage response,
         AzureDevOpsSourceOptions options,
@@ -302,6 +486,14 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         return CreateUri(options.Endpoint, segments, CreateApiQuery(continuationToken));
     }
 
+    private static Uri CreateWikiListUri(AzureDevOpsSourceOptions options)
+    {
+        string[] segments = options.Project.Length == 0
+            ? ["_apis", "wiki", "wikis"]
+            : [options.Project, "_apis", "wiki", "wikis"];
+        return CreateUri(options.Endpoint, segments, CreateApiQuery(continuationToken: string.Empty));
+    }
+
     private static Uri CreateItemListUri(
         AzureDevOpsSourceOptions options,
         string projectName,
@@ -318,6 +510,29 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         return CreateUri(options.Endpoint, [projectName, "_apis", "git", "repositories", repositoryId, "items"], query);
     }
 
+    private static Uri CreateWikiItemListUri(
+        AzureDevOpsSourceOptions options,
+        string projectName,
+        string repositoryId,
+        string mappedPath,
+        string version,
+        string continuationToken)
+    {
+        var query = new List<KeyValuePair<string, string>>
+        {
+            new("recursionLevel", "Full"),
+            new("includeContentMetadata", "true")
+        };
+        if (mappedPath.Length != 0)
+        {
+            query.Add(new KeyValuePair<string, string>("scopePath", mappedPath));
+        }
+
+        AddBranchQuery(version, query);
+        AddApiQuery(query, continuationToken);
+        return CreateUri(options.Endpoint, [projectName, "_apis", "git", "repositories", repositoryId, "items"], query);
+    }
+
     private static Uri CreateItemDownloadUri(
         AzureDevOpsSourceOptions options,
         string projectName,
@@ -330,6 +545,23 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             new("download", "true")
         };
         AddBranchQuery(options, query);
+        AddApiQuery(query, continuationToken: string.Empty);
+        return CreateUri(options.Endpoint, [projectName, "_apis", "git", "repositories", repositoryId, "items"], query);
+    }
+
+    private static Uri CreateWikiItemDownloadUri(
+        AzureDevOpsSourceOptions options,
+        string projectName,
+        string repositoryId,
+        string path,
+        string version)
+    {
+        var query = new List<KeyValuePair<string, string>>
+        {
+            new("path", path),
+            new("download", "true")
+        };
+        AddBranchQuery(version, query);
         AddApiQuery(query, continuationToken: string.Empty);
         return CreateUri(options.Endpoint, [projectName, "_apis", "git", "repositories", repositoryId, "items"], query);
     }
@@ -352,12 +584,17 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 
     private static void AddBranchQuery(AzureDevOpsSourceOptions options, List<KeyValuePair<string, string>> query)
     {
-        if (options.Branch.Length == 0)
+        AddBranchQuery(options.Branch, query);
+    }
+
+    private static void AddBranchQuery(string branch, List<KeyValuePair<string, string>> query)
+    {
+        if (branch.Length == 0)
         {
             return;
         }
 
-        query.Add(new KeyValuePair<string, string>("versionDescriptor.version", options.Branch));
+        query.Add(new KeyValuePair<string, string>("versionDescriptor.version", branch));
         query.Add(new KeyValuePair<string, string>("versionDescriptor.versionType", "branch"));
     }
 
@@ -445,6 +682,42 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         return propertyValue.Length != 0;
     }
 
+    private static string GetString(JsonElement value, string propertyName)
+    {
+        return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
+    }
+
+    private static bool GetBoolean(JsonElement value, string propertyName)
+    {
+        return value.TryGetProperty(propertyName, out JsonElement property)
+            && property.ValueKind == JsonValueKind.True;
+    }
+
+    private static string GetFirstWikiVersion(JsonElement wiki)
+    {
+        if (!wiki.TryGetProperty("versions", out JsonElement versions)
+            || versions.ValueKind != JsonValueKind.Array)
+        {
+            return string.Empty;
+        }
+
+        foreach (JsonElement version in versions.EnumerateArray())
+        {
+            if (TryGetJsonString(version, "version", out string value))
+            {
+                return value;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string NormalizeWikiMappedPath(string value)
+    {
+        string normalized = value.Replace('\\', '/').Trim();
+        return normalized is "" or "/" ? string.Empty : normalized;
+    }
+
     private static string CreateDisplayPath(string projectName, string repositoryName, string itemPath)
     {
         string normalizedItemPath = itemPath.Replace('\\', '/').TrimStart('/');
@@ -453,6 +726,18 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             EscapeDisplaySegment(projectName),
             "/",
             EscapeDisplaySegment(repositoryName),
+            "/",
+            normalizedItemPath);
+    }
+
+    private static string CreateWikiDisplayPath(string projectName, string wikiName, string itemPath)
+    {
+        string normalizedItemPath = itemPath.Replace('\\', '/').TrimStart('/');
+        return string.Concat(
+            "azure-devops-wiki/",
+            EscapeDisplaySegment(projectName),
+            "/",
+            EscapeDisplaySegment(wikiName),
             "/",
             normalizedItemPath);
     }

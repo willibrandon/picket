@@ -1125,6 +1125,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "--allow-non-public-source-endpoints" => "Allow source-host endpoints that resolve to private, loopback, link-local, or otherwise non-public addresses.",
             "--azure-devops-branch" => "Scan this Azure Repos branch.",
             "--azure-devops-endpoint" => "Use this Azure DevOps Server or organization endpoint for native source enumeration.",
+            "--azure-devops-include-wikis" => "Include Azure DevOps wiki backing repositories in native source enumeration.",
             "--azure-devops-organization" => "Use this Azure DevOps Services organization for native source enumeration.",
             "--azure-devops-project" => "Limit Azure DevOps source enumeration to this project.",
             "--azure-devops-repository" => "Limit Azure DevOps source enumeration to this repository.",
