@@ -54,6 +54,10 @@ This is the analyzer gate for Native AOT, trimming, single-file compatibility, a
 
 CI packages the Azure DevOps Marketplace scaffold on Ubuntu with `tfx-cli` and `azure-devops/vss-extension.json`. This validates the extension manifest, `PicketScan@1` task metadata, included files, and VSIX layout before release automation attempts to publish the same wrapper.
 
+## Documentation Validation
+
+The docs workflow builds the static site, verifies generated docs are current, and checks local documentation links and fragments under the GitHub Pages `/picket/` base path. External links are left to source review so the offline docs build stays deterministic.
+
 ## CI Picket Scan Validation
 
 CI runs the local composite action against the repository root on Windows, Linux, and macOS with cache, annotations, and SARIF upload disabled. The scan step keeps the Action summary enabled, uses `fail-on: never` for the repository's intentional test fixtures, and asserts that the action reports at least one finding and writes both `picket.sarif` and `picket.jsonl`.

@@ -16,11 +16,25 @@ if (args.Length == 0)
 }
 
 string status = generator.GetGeneratedDocumentationStatus();
-if (status.Length == 0)
+List<string> linkViolations = generator.ValidateDocumentationLinks();
+if (status.Length == 0 && linkViolations.Count == 0)
 {
     return 0;
 }
 
-Console.Error.WriteLine("Generated documentation is stale. Run `pnpm --dir docs-site docs:generate` and commit the result.");
-Console.Error.WriteLine(status);
+if (status.Length != 0)
+{
+    Console.Error.WriteLine("Generated documentation is stale. Run `pnpm --dir docs-site docs:generate` and commit the result.");
+    Console.Error.WriteLine(status);
+}
+
+if (linkViolations.Count != 0)
+{
+    Console.Error.WriteLine("Generated documentation contains broken local links.");
+    for (int i = 0; i < linkViolations.Count; i++)
+    {
+        Console.Error.WriteLine(linkViolations[i]);
+    }
+}
+
 return 1;
