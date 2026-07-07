@@ -10,6 +10,9 @@ namespace Picket.Verify;
 /// </summary>
 public sealed class SecretValidationCache
 {
+    private const int AuthenticationKeyByteLength = 32;
+    private const int Sha256HexLength = 64;
+    private const string AuthenticationKeyFileName = "validation-cache-auth.key";
     private const string CacheFingerprintHeader = "cacheFingerprint";
     private const string EntriesDirectoryName = "entries";
     private const string EvidenceHeader = "evidence";
@@ -18,23 +21,31 @@ public sealed class SecretValidationCache
     private const string KeyHeader = "key";
     private const string LocksDirectoryName = "locks";
     private const string LowerHex = "0123456789abcdef";
+    private const string MacHeader = "mac";
+    private const string ProductDirectoryName = "Picket";
     private const string ReasonHeader = "reason";
     private const string ReachableResourcesHeader = "reachableResources";
-    private const string SchemaLine = "picket.validation-cache.v1";
+    private const string SchemaLine = "picket.validation-cache.v2";
     private const string ScopesHeader = "scopes";
     private const string StateHeader = "state";
+    private const UnixFileMode OwnerOnlyDirectoryMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+    private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
 
     private readonly string _entriesPath;
     private readonly string _locksPath;
+    private readonly byte[] _authenticationKey;
+    private static readonly UTF8Encoding s_utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private SecretValidationCache(string rootPath, string cacheFingerprint)
     {
         RootPath = Path.GetFullPath(rootPath);
         CacheFingerprintSha256 = ComputeSha256Hex(cacheFingerprint);
+        _authenticationKey = LoadOrCreateAuthenticationKey();
         _entriesPath = Path.Combine(RootPath, EntriesDirectoryName);
         _locksPath = Path.Combine(RootPath, LocksDirectoryName);
-        Directory.CreateDirectory(_entriesPath);
-        Directory.CreateDirectory(_locksPath);
+        CreateOwnerOnlyDirectory(RootPath);
+        CreateOwnerOnlyDirectory(_entriesPath);
+        CreateOwnerOnlyDirectory(_locksPath);
     }
 
     /// <summary>
@@ -105,7 +116,7 @@ public sealed class SecretValidationCache
         string? entryDirectory = Path.GetDirectoryName(entryPath);
         if (entryDirectory is not null)
         {
-            Directory.CreateDirectory(entryDirectory);
+            CreateOwnerOnlyDirectory(entryDirectory);
         }
 
         string lockPath = Path.Combine(_locksPath, string.Concat(key.Fingerprint, ".lock"));
@@ -113,8 +124,9 @@ public sealed class SecretValidationCache
         string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
         try
         {
-            File.WriteAllText(tempPath, CreateEntry(key, result, expiresAtUtc), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            WriteOwnerOnlyText(tempPath, CreateAuthenticatedEntry(key, result, expiresAtUtc));
             File.Move(tempPath, entryPath, overwrite: true);
+            SetOwnerOnlyFile(entryPath);
         }
         finally
         {
@@ -158,7 +170,15 @@ public sealed class SecretValidationCache
 
     private static FileStream OpenLock(string lockPath)
     {
-        return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        FileStream stream = OpenOwnerOnlyFile(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+        SetOwnerOnlyFile(lockPath);
+        return stream;
+    }
+
+    private string CreateAuthenticatedEntry(SecretValidationCacheKey key, SecretValidationResult result, DateTimeOffset expiresAtUtc)
+    {
+        string body = CreateEntry(key, result, expiresAtUtc);
+        return string.Concat(body, MacHeader, '\t', ComputeEntryMac(body), '\n');
     }
 
     private string CreateEntry(SecretValidationCacheKey key, SecretValidationResult result, DateTimeOffset expiresAtUtc)
@@ -285,8 +305,8 @@ public sealed class SecretValidationCache
         [NotNullWhen(true)] out SecretValidationResult? result)
     {
         result = null;
-        string[] lines = File.ReadAllLines(entryPath);
-        if (!TryReadHeaders(lines, out Dictionary<string, string>? headers)
+        if (!TryReadAuthenticatedEntryLines(entryPath, out string[]? lines)
+            || !TryReadHeaders(lines, out Dictionary<string, string>? headers)
             || !headers.TryGetValue(CacheFingerprintHeader, out string? cacheFingerprint)
             || !cacheFingerprint.Equals(CacheFingerprintSha256, StringComparison.Ordinal)
             || !headers.TryGetValue(KeyHeader, out string? storedKey)
@@ -353,10 +373,10 @@ public sealed class SecretValidationCache
             && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) > now;
     }
 
-    private static bool IsExpiredEntry(string entryPath, DateTimeOffset now)
+    private bool IsExpiredEntry(string entryPath, DateTimeOffset now)
     {
-        string[] lines = File.ReadAllLines(entryPath);
-        return TryReadHeaders(lines, out Dictionary<string, string>? headers)
+        return TryReadAuthenticatedEntryLines(entryPath, out string[]? lines)
+            && TryReadHeaders(lines, out Dictionary<string, string>? headers)
             && headers.TryGetValue(ExpiresUnixTimeSecondsHeader, out string? expiresValue)
             && long.TryParse(expiresValue, CultureInfo.InvariantCulture, out long expiresUnixTimeSeconds)
             && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) <= now;
@@ -393,5 +413,216 @@ public sealed class SecretValidationCache
         }
 
         return false;
+    }
+
+    private bool TryReadAuthenticatedEntryLines(string entryPath, [NotNullWhen(true)] out string[]? lines)
+    {
+        lines = null;
+        string text = File.ReadAllText(entryPath);
+        if (!TrySplitAuthenticatedEntry(text, out string body, out string mac))
+        {
+            return false;
+        }
+
+        string expectedMac = ComputeEntryMac(body);
+        if (!FixedTimeEqualsHex(expectedMac, mac))
+        {
+            return false;
+        }
+
+        lines = body.Split('\n');
+        return true;
+    }
+
+    private static bool TrySplitAuthenticatedEntry(string text, out string body, out string mac)
+    {
+        body = string.Empty;
+        mac = string.Empty;
+        if (text.Length == 0 || text[^1] != '\n')
+        {
+            return false;
+        }
+
+        int macLineStart = text.LastIndexOf('\n', text.Length - 2) + 1;
+        if (macLineStart <= 0)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> macLine = text.AsSpan(macLineStart, text.Length - macLineStart - 1);
+        string header = string.Concat(MacHeader, "\t");
+        if (!macLine.StartsWith(header, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        body = text[..macLineStart];
+        mac = macLine[header.Length..].ToString();
+        return IsSha256Hex(mac);
+    }
+
+    private string ComputeEntryMac(string body)
+    {
+        byte[] bodyBytes = s_utf8NoBom.GetBytes(body);
+        byte[] macBytes = HMACSHA256.HashData(_authenticationKey, bodyBytes);
+        return Convert.ToHexStringLower(macBytes);
+    }
+
+    private static bool FixedTimeEqualsHex(string expected, string actual)
+    {
+        return expected.Length == actual.Length
+            && CryptographicOperations.FixedTimeEquals(
+                s_utf8NoBom.GetBytes(expected),
+                s_utf8NoBom.GetBytes(actual));
+    }
+
+    private static bool IsSha256Hex(ReadOnlySpan<char> value)
+    {
+        if (value.Length != Sha256HexLength)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            char ch = value[i];
+            if (ch is not (>= '0' and <= '9') and not (>= 'a' and <= 'f'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static byte[] LoadOrCreateAuthenticationKey()
+    {
+        string keyPath = GetAuthenticationKeyPath();
+        string? keyDirectory = Path.GetDirectoryName(keyPath);
+        if (!string.IsNullOrEmpty(keyDirectory))
+        {
+            CreateOwnerOnlyDirectory(keyDirectory);
+        }
+
+        try
+        {
+            if (File.Exists(keyPath))
+            {
+                byte[] existing = File.ReadAllBytes(keyPath);
+                if (existing.Length == AuthenticationKeyByteLength)
+                {
+                    SetOwnerOnlyFile(keyPath);
+                    return existing;
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        byte[] key = RandomNumberGenerator.GetBytes(AuthenticationKeyByteLength);
+        string tempPath = string.Concat(keyPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
+        try
+        {
+            using (FileStream stream = OpenOwnerOnlyNewFile(tempPath))
+            {
+                stream.Write(key);
+            }
+
+            try
+            {
+                File.Move(tempPath, keyPath, overwrite: false);
+                SetOwnerOnlyFile(keyPath);
+                return key;
+            }
+            catch (IOException)
+            {
+                byte[] existing = File.ReadAllBytes(keyPath);
+                if (existing.Length == AuthenticationKeyByteLength)
+                {
+                    SetOwnerOnlyFile(keyPath);
+                    return existing;
+                }
+
+                File.Move(tempPath, keyPath, overwrite: true);
+                SetOwnerOnlyFile(keyPath);
+                return key;
+            }
+        }
+        finally
+        {
+            TryDelete(tempPath);
+        }
+    }
+
+    private static string GetAuthenticationKeyPath()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            string? stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
+            if (!string.IsNullOrWhiteSpace(stateHome))
+            {
+                return Path.Combine(stateHome, "picket", AuthenticationKeyFileName);
+            }
+        }
+
+        string basePath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(basePath))
+        {
+            basePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        if (string.IsNullOrWhiteSpace(basePath))
+        {
+            basePath = Path.GetTempPath();
+        }
+
+        return Path.Combine(basePath, ProductDirectoryName, AuthenticationKeyFileName);
+    }
+
+    private static FileStream OpenOwnerOnlyNewFile(string path)
+    {
+        return OpenOwnerOnlyFile(path, FileMode.CreateNew, FileAccess.Write);
+    }
+
+    private static FileStream OpenOwnerOnlyFile(string path, FileMode mode, FileAccess access)
+    {
+        var options = new FileStreamOptions
+        {
+            Access = access,
+            Mode = mode,
+            Share = FileShare.None,
+            Options = FileOptions.SequentialScan,
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = OwnerOnlyFileMode;
+        }
+
+        return new FileStream(path, options);
+    }
+
+    private static void WriteOwnerOnlyText(string path, string text)
+    {
+        using FileStream stream = OpenOwnerOnlyNewFile(path);
+        using var writer = new StreamWriter(stream, s_utf8NoBom);
+        writer.Write(text);
+    }
+
+    private static void CreateOwnerOnlyDirectory(string path)
+    {
+        Directory.CreateDirectory(path);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, OwnerOnlyDirectoryMode);
+        }
+    }
+
+    private static void SetOwnerOnlyFile(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, OwnerOnlyFileMode);
+        }
     }
 }

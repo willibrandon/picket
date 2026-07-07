@@ -51,7 +51,7 @@ Live provider calls are opt-in behavior for `picket scan --verify`, `picket veri
 - `ISecretLiveValidator` describes one provider validator, its endpoint, provider ID, version, and support check.
 - `SecretLiveVerifier` chooses the first supporting validator, evaluates the endpoint guard before the validator runs, honors cancellation, and returns `skipped` when no validator supports a finding.
 - `SecretLiveVerifierOptions` limits live provider concurrency to four total provider requests and one request per provider by default, spaces requests to the same provider by one second by default, and can also enforce a global request interval.
-- `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, and atomic writes.
+- `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, authenticated entries, owner-only Unix file modes, and atomic writes.
 - `SecretValidationCacheKey` is built from provider, validator version, rule ID, endpoint, and a SHA-256 secret hash. It rejects raw secret material where a hash is required.
 - Cache files store fingerprints, report states, expiration, non-secret reasons, and non-secret analysis metadata such as provider identity, scopes, resources, and evidence. They do not store raw secrets, raw matches, or endpoint query strings.
 - Transient provider failures can be request-cached for the current verifier run but are not written to the persistent cache.

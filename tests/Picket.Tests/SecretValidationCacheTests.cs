@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Verify;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace Picket.Tests;
@@ -48,7 +49,84 @@ public sealed class SecretValidationCacheTests
         Assert.Contains("github:user", result.ReachableResources);
         Assert.Contains("githubLogin=octocat", result.Evidence);
         Assert.DoesNotContain(finding.Secret, storedText);
-        Assert.Contains("picket.validation-cache.v1", storedText);
+        Assert.Contains("picket.validation-cache.v2", storedText);
+        Assert.Contains("mac\t", storedText);
+    }
+
+    /// <summary>
+    /// Verifies that validation cache reads reject entries whose authenticated body was changed.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsTamperedEntry()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretValidationCacheKey key = SecretValidationCacheKey.FromFinding(
+            "github",
+            "v1",
+            CreateFinding(),
+            new Uri("https://api.github.com/user"));
+        cache.Write(key, new SecretValidationResult(SecretValidationState.Active), DateTimeOffset.UtcNow.AddMinutes(5));
+        string entryPath = GetSingleEntryPath(temp.Path);
+        string tampered = File.ReadAllText(entryPath).Replace("state\tactive", "state\tinvalid", StringComparison.Ordinal);
+        File.WriteAllText(entryPath, tampered, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        bool found = cache.TryRead(key, DateTimeOffset.UtcNow, out SecretValidationResult? result);
+
+        Assert.IsFalse(found);
+        Assert.IsNull(result);
+    }
+
+    /// <summary>
+    /// Verifies validation cache entries written without authentication are treated as misses.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsLegacyEntryWithoutAuthentication()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretValidationCacheKey key = SecretValidationCacheKey.FromFinding(
+            "github",
+            "v1",
+            CreateFinding(),
+            new Uri("https://api.github.com/user"));
+        cache.Write(key, new SecretValidationResult(SecretValidationState.Active), DateTimeOffset.UtcNow.AddMinutes(5));
+        string entryPath = GetSingleEntryPath(temp.Path);
+        string authenticated = File.ReadAllText(entryPath);
+        int macLineStart = authenticated.LastIndexOf("\nmac\t", StringComparison.Ordinal);
+        File.WriteAllText(entryPath, authenticated[..(macLineStart + 1)], new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        bool found = cache.TryRead(key, DateTimeOffset.UtcNow, out SecretValidationResult? result);
+
+        Assert.IsFalse(found);
+        Assert.IsNull(result);
+    }
+
+    /// <summary>
+    /// Verifies validation cache directories, lock files, and entry files are owner-only on Unix-like systems.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    [SupportedOSPlatform("freebsd")]
+    public void WriteCreatesOwnerOnlyValidationCacheFilesOnUnix()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretValidationCacheKey key = SecretValidationCacheKey.FromFinding(
+            "github",
+            "v1",
+            CreateFinding(),
+            new Uri("https://api.github.com/user"));
+
+        cache.Write(key, new SecretValidationResult(SecretValidationState.Active), DateTimeOffset.UtcNow.AddMinutes(5));
+
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(temp.Path));
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(Path.Combine(temp.Path, "entries")));
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(Path.Combine(temp.Path, "locks")));
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(GetSingleEntryPath(temp.Path)));
+        AssertHasNoGroupOrOtherBits(File.GetUnixFileMode(GetSingleLockPath(temp.Path)));
     }
 
     /// <summary>
@@ -147,6 +225,33 @@ public sealed class SecretValidationCacheTests
         }
 
         return builder.ToString();
+    }
+
+    private static string GetSingleEntryPath(string rootPath)
+    {
+        string[] entries = Directory.GetFiles(Path.Combine(rootPath, "entries"), "*.cache", SearchOption.AllDirectories);
+        Assert.HasCount(1, entries);
+        return entries[0];
+    }
+
+    private static string GetSingleLockPath(string rootPath)
+    {
+        string[] entries = Directory.GetFiles(Path.Combine(rootPath, "locks"), "*.lock", SearchOption.AllDirectories);
+        Assert.HasCount(1, entries);
+        return entries[0];
+    }
+
+    private static void AssertHasNoGroupOrOtherBits(UnixFileMode mode)
+    {
+        const UnixFileMode GroupOrOtherBits =
+            UnixFileMode.GroupRead
+            | UnixFileMode.GroupWrite
+            | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead
+            | UnixFileMode.OtherWrite
+            | UnixFileMode.OtherExecute;
+
+        Assert.AreEqual((UnixFileMode)0, mode & GroupOrOtherBits);
     }
 
     private static Finding CreateFinding()
