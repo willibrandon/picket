@@ -11,7 +11,17 @@ namespace Picket.Sources;
 /// <param name="branch">An optional branch name.</param>
 /// <param name="pullRequestId">An optional pull request ID whose source head should be scanned.</param>
 /// <param name="includeWikis">A value indicating whether wiki backing repositories should be scanned.</param>
+/// <param name="buildId">An optional Azure Pipelines build ID whose artifacts or logs should be scanned.</param>
+/// <param name="includeArtifacts">A value indicating whether build artifacts should be scanned.</param>
+/// <param name="includeLogs">A value indicating whether build logs should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
+/// <param name="maxArtifactBytes">The maximum build artifact archive bytes to download, or <see langword="null" /> for no cap.</param>
+/// <param name="maxLogBytes">The maximum build log bytes to download, or <see langword="null" /> for no cap.</param>
+/// <param name="maxArchiveDepth">The maximum nested archive depth to inspect for build artifacts.</param>
+/// <param name="maxArchiveEntries">The maximum number of archive entries to inspect for build artifacts.</param>
+/// <param name="maxArchiveBytes">The maximum decompressed archive bytes to inspect for build artifacts.</param>
+/// <param name="maxArchiveCompressionRatio">The maximum archive compression ratio to allow for build artifacts.</param>
+/// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a path should be ignored.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 public sealed class AzureDevOpsSourceOptions(
@@ -23,7 +33,17 @@ public sealed class AzureDevOpsSourceOptions(
     string branch = "",
     int pullRequestId = 0,
     bool includeWikis = false,
+    int buildId = 0,
+    bool includeArtifacts = false,
+    bool includeLogs = false,
     long? maxFileBytes = null,
+    long? maxArtifactBytes = null,
+    long? maxLogBytes = null,
+    int maxArchiveDepth = 1,
+    int maxArchiveEntries = 4096,
+    long? maxArchiveBytes = 512_000_000,
+    int maxArchiveCompressionRatio = 1000,
+    Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
 {
@@ -42,7 +62,7 @@ public sealed class AzureDevOpsSourceOptions(
     /// <summary>
     /// Gets the optional project filter.
     /// </summary>
-    public string Project { get; } = NormalizeOptionalName(project);
+    public string Project { get; } = RequireBuildScope(NormalizeOptionalName(project), buildId, includeArtifacts, includeLogs);
 
     /// <summary>
     /// Gets the optional repository name filter.
@@ -65,11 +85,58 @@ public sealed class AzureDevOpsSourceOptions(
     public bool IncludeWikis { get; } = includeWikis;
 
     /// <summary>
+    /// Gets the optional Azure Pipelines build ID whose artifacts or logs should be scanned.
+    /// </summary>
+    public int BuildId { get; } = RequireBuildId(buildId);
+
+    /// <summary>
+    /// Gets a value indicating whether build artifacts should be scanned.
+    /// </summary>
+    public bool IncludeArtifacts { get; } = includeArtifacts;
+
+    /// <summary>
+    /// Gets a value indicating whether build logs should be scanned.
+    /// </summary>
+    public bool IncludeLogs { get; } = includeLogs;
+
+    /// <summary>
     /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes);
 
+    /// <summary>
+    /// Gets the maximum build artifact archive bytes to download, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxArtifactBytes { get; } = RequireMaxFileBytes(maxArtifactBytes);
+
+    /// <summary>
+    /// Gets the maximum build log bytes to download, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxLogBytes { get; } = RequireMaxFileBytes(maxLogBytes);
+
+    /// <summary>
+    /// Gets the maximum nested archive depth to inspect for build artifacts.
+    /// </summary>
+    public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
+    /// <summary>
+    /// Gets the maximum number of archive entries to inspect for build artifacts.
+    /// </summary>
+    public int MaxArchiveEntries { get; } = RequireMaxArchiveEntries(maxArchiveEntries);
+
+    /// <summary>
+    /// Gets the maximum decompressed archive bytes to inspect for build artifacts.
+    /// </summary>
+    public long? MaxArchiveBytes { get; } = RequireMaxArchiveBytes(maxArchiveBytes);
+
+    /// <summary>
+    /// Gets the maximum archive compression ratio to allow for build artifacts.
+    /// </summary>
+    public int MaxArchiveCompressionRatio { get; } = RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
+
     internal string Credential => _credential;
+
+    internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
     internal Action<string>? WarningSink { get; } = warningSink;
 
@@ -151,9 +218,63 @@ public sealed class AzureDevOpsSourceOptions(
         return value;
     }
 
+    private static int RequireMaxArchiveDepth(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static int RequireMaxArchiveEntries(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static long? RequireMaxArchiveBytes(long? value)
+    {
+        if (value.HasValue)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+        }
+
+        return value;
+    }
+
+    private static int RequireMaxArchiveCompressionRatio(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
     private static int RequirePullRequestId(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
+    }
+
+    private static int RequireBuildId(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static string RequireBuildScope(string project, int buildId, bool includeArtifacts, bool includeLogs)
+    {
+        if (!includeArtifacts && !includeLogs)
+        {
+            return project;
+        }
+
+        if (project.Length == 0)
+        {
+            throw new ArgumentException("Azure DevOps build artifact and log scanning requires --azure-devops-project.", nameof(project));
+        }
+
+        if (buildId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(buildId), "Azure DevOps build artifact and log scanning requires --azure-devops-build-id.");
+        }
+
+        return project;
     }
 }

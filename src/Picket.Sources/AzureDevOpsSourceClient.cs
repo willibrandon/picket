@@ -92,6 +92,11 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             await AddWikiFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
         }
 
+        if ((options.IncludeArtifacts || options.IncludeLogs) && !IsCancellationRequested(options))
+        {
+            await AddBuildFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
         return sourceFiles;
     }
 
@@ -234,6 +239,151 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 sourceFiles,
                 cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private async Task AddBuildFilesAsync(
+        AzureDevOpsSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        if (options.IncludeArtifacts)
+        {
+            await AddBuildArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (options.IncludeLogs && !IsCancellationRequested(options))
+        {
+            await AddBuildLogFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddBuildArtifactFilesAsync(
+        AzureDevOpsSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreateBuildArtifactListUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps build artifacts for build {options.BuildId.ToString(CultureInfo.InvariantCulture)}");
+            return;
+        }
+
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!TryGetJsonArray(document.RootElement, out JsonElement artifacts))
+        {
+            return;
+        }
+
+        foreach (JsonElement artifact in artifacts.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            await AddBuildArtifactFileAsync(options, artifact, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddBuildArtifactFileAsync(
+        AzureDevOpsSourceOptions options,
+        JsonElement artifact,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string artifactName = GetString(artifact, "name");
+        if (artifactName.Length == 0)
+        {
+            artifactName = TryGetJsonInt32(artifact, "id", out int artifactId)
+                ? artifactId.ToString(CultureInfo.InvariantCulture)
+                : "artifact";
+        }
+
+        string displayPath = CreateBuildArtifactDisplayPath(options, artifactName);
+        if (!artifact.TryGetProperty("resource", out JsonElement resource)
+            || resource.ValueKind != JsonValueKind.Object
+            || !TryGetJsonString(resource, "downloadUrl", out string downloadUrl)
+            || !Uri.TryCreate(downloadUrl, UriKind.Absolute, out Uri? downloadUri))
+        {
+            options.WarningSink?.Invoke($"skipping Azure DevOps build artifact {displayPath} because the artifact API did not return a download URL");
+            return;
+        }
+
+        byte[]? content = await DownloadBuildContentAsync(
+            options,
+            downloadUri,
+            displayPath,
+            options.MaxArtifactBytes,
+            "artifact",
+            cancellationToken).ConfigureAwait(false);
+        if (content is null)
+        {
+            return;
+        }
+
+        AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
+    }
+
+    private async Task AddBuildLogFilesAsync(
+        AzureDevOpsSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreateBuildLogListUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps build logs for build {options.BuildId.ToString(CultureInfo.InvariantCulture)}");
+            return;
+        }
+
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!TryGetJsonArray(document.RootElement, out JsonElement logs))
+        {
+            return;
+        }
+
+        foreach (JsonElement log in logs.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            await AddBuildLogFileAsync(options, log, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddBuildLogFileAsync(
+        AzureDevOpsSourceOptions options,
+        JsonElement log,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetJsonInt32(log, "id", out int logId))
+        {
+            return;
+        }
+
+        string displayPath = CreateBuildLogDisplayPath(options, logId);
+        Uri uri = CreateBuildLogDownloadUri(options, logId);
+        byte[]? content = await DownloadBuildContentAsync(
+            options,
+            uri,
+            displayPath,
+            options.MaxLogBytes,
+            "log",
+            cancellationToken).ConfigureAwait(false);
+        if (content is null)
+        {
+            return;
+        }
+
+        AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
     }
 
     private async Task<List<(string Name, string ProjectName, string RepositoryId, string MappedPath, string Version, bool IsDisabled)>> ListWikisAsync(
@@ -387,6 +537,94 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<byte[]?> DownloadBuildContentAsync(
+        AzureDevOpsSourceOptions options,
+        Uri uri,
+        string displayPath,
+        long? maxBytes,
+        string limitName,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAllowedAzureDevOpsUri(options.Endpoint, uri))
+        {
+            options.WarningSink?.Invoke($"skipping Azure DevOps {limitName} {displayPath} because the download URL is not an allowed Azure DevOps endpoint");
+            return null;
+        }
+
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: false, cancellationToken).ConfigureAwait(false);
+        if (IsRedirect(response) && response.Headers.Location is not null)
+        {
+            Uri redirectUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(uri, response.Headers.Location);
+            if (!IsAllowedAzureDevOpsRedirectUri(options.Endpoint, redirectUri))
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps {limitName} {displayPath} because the redirected download URL is not an allowed Azure DevOps artifact endpoint");
+                return null;
+            }
+
+            using HttpResponseMessage redirectedResponse = await SendUnauthenticatedRawAsync(redirectUri, cancellationToken).ConfigureAwait(false);
+            if (!redirectedResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping Azure DevOps {limitName} {displayPath}");
+                return null;
+            }
+
+            return await ReadContentWithinLimitAsync(redirectedResponse, maxBytes, options.WarningSink, limitName, displayPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps {limitName} {displayPath}");
+            return null;
+        }
+
+        return await ReadContentWithinLimitAsync(response, maxBytes, options.WarningSink, limitName, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void AddContentOrArchiveEntries(
+        AzureDevOpsSourceOptions options,
+        string displayPath,
+        byte[] content,
+        List<SourceFile> sourceFiles)
+    {
+        if (!ArchiveReader.IsArchiveContent(content))
+        {
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            return;
+        }
+
+        if (options.MaxArchiveDepth == 0)
+        {
+            options.WarningSink?.Invoke($"skipping Azure DevOps archive {displayPath} because archive traversal is disabled");
+            return;
+        }
+
+        var entries = new List<ArchiveEntry>();
+        if (!ArchiveReader.TryReadBytesEntries(
+            content,
+            displayPath,
+            options.MaxArchiveDepth,
+            options.MaxArchiveEntries,
+            options.MaxArchiveBytes,
+            options.MaxArchiveCompressionRatio,
+            options.MaxFileBytes,
+            options.IsPathAllowed,
+            options.WarningSink,
+            options.IsCancellationRequested,
+            entries))
+        {
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            return;
+        }
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ArchiveEntry entry = entries[i];
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, entry.DisplayPath, entry.Content));
+        }
+    }
+
     private async Task<HttpResponseMessage> SendAsync(
         AzureDevOpsSourceOptions options,
         Uri uri,
@@ -396,6 +634,13 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptJson ? "application/json" : "application/octet-stream"));
         request.Headers.Authorization = CreateAuthorizationHeader(options);
+        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendUnauthenticatedRawAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
         return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
     }
 
@@ -487,6 +732,25 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         string displayPath,
         CancellationToken cancellationToken)
     {
+        return await ReadContentWithinLimitAsync(response, options.MaxFileBytes, options.WarningSink, "file", displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<byte[]?> ReadContentWithinLimitAsync(
+        HttpResponseMessage response,
+        long? maxBytes,
+        Action<string>? warningSink,
+        string limitName,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        if (maxBytes.HasValue
+            && response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > maxBytes.Value)
+        {
+            warningSink?.Invoke($"Azure DevOps {limitName} byte limit skipped {displayPath}");
+            return null;
+        }
+
         using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var memory = new MemoryStream();
         byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);
@@ -500,12 +764,12 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                     break;
                 }
 
-                if (options.MaxFileBytes.HasValue)
+                if (maxBytes.HasValue)
                 {
                     long projectedLength = memory.Length + read;
-                    if (projectedLength > options.MaxFileBytes.Value)
+                    if (projectedLength > maxBytes.Value)
                     {
-                        options.WarningSink?.Invoke($"Azure DevOps file byte limit skipped {displayPath}");
+                        warningSink?.Invoke($"Azure DevOps {limitName} byte limit skipped {displayPath}");
                         return null;
                     }
                 }
@@ -655,6 +919,38 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         AddBranchQuery(version, query);
         AddApiQuery(query, continuationToken: string.Empty);
         return CreateUri(options.Endpoint, [projectName, "_apis", "git", "repositories", repositoryId, "items"], query);
+    }
+
+    private static Uri CreateBuildArtifactListUri(AzureDevOpsSourceOptions options)
+    {
+        return CreateUri(
+            options.Endpoint,
+            [options.Project, "_apis", "build", "builds", options.BuildId.ToString(CultureInfo.InvariantCulture), "artifacts"],
+            CreateApiQuery(continuationToken: string.Empty));
+    }
+
+    private static Uri CreateBuildLogListUri(AzureDevOpsSourceOptions options)
+    {
+        return CreateUri(
+            options.Endpoint,
+            [options.Project, "_apis", "build", "builds", options.BuildId.ToString(CultureInfo.InvariantCulture), "logs"],
+            CreateApiQuery(continuationToken: string.Empty));
+    }
+
+    private static Uri CreateBuildLogDownloadUri(AzureDevOpsSourceOptions options, int logId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            [
+                options.Project,
+                "_apis",
+                "build",
+                "builds",
+                options.BuildId.ToString(CultureInfo.InvariantCulture),
+                "logs",
+                logId.ToString(CultureInfo.InvariantCulture)
+            ],
+            CreateApiQuery(continuationToken: string.Empty));
     }
 
     private static List<KeyValuePair<string, string>> CreateApiQuery(string continuationToken)
@@ -833,6 +1129,32 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             && property.ValueKind == JsonValueKind.True;
     }
 
+    private static bool TryGetJsonArray(JsonElement value, out JsonElement array)
+    {
+        if (value.ValueKind == JsonValueKind.Array)
+        {
+            array = value;
+            return true;
+        }
+
+        if (value.TryGetProperty("value", out array)
+            && array.ValueKind == JsonValueKind.Array)
+        {
+            return true;
+        }
+
+        array = default;
+        return false;
+    }
+
+    private static bool TryGetJsonInt32(JsonElement value, string propertyName, out int propertyValue)
+    {
+        propertyValue = 0;
+        return value.TryGetProperty(propertyName, out JsonElement property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out propertyValue);
+    }
+
     private static string GetFirstWikiVersion(JsonElement wiki)
     {
         if (!wiki.TryGetProperty("versions", out JsonElement versions)
@@ -889,6 +1211,82 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             EscapeDisplaySegment(wikiName),
             "/",
             normalizedItemPath);
+    }
+
+    private static string CreateBuildArtifactDisplayPath(AzureDevOpsSourceOptions options, string artifactName)
+    {
+        return string.Concat(
+            "azure-devops-build/",
+            EscapeDisplaySegment(options.Project),
+            "/",
+            options.BuildId.ToString(CultureInfo.InvariantCulture),
+            "/artifacts/",
+            EscapeDisplaySegment(artifactName),
+            ".zip");
+    }
+
+    private static string CreateBuildLogDisplayPath(AzureDevOpsSourceOptions options, int logId)
+    {
+        return string.Concat(
+            "azure-devops-build/",
+            EscapeDisplaySegment(options.Project),
+            "/",
+            options.BuildId.ToString(CultureInfo.InvariantCulture),
+            "/logs/",
+            logId.ToString(CultureInfo.InvariantCulture),
+            ".log");
+    }
+
+    private static bool IsRedirect(HttpResponseMessage response)
+    {
+        int statusCode = (int)response.StatusCode;
+        return statusCode is >= 300 and <= 399;
+    }
+
+    private static bool IsAllowedAzureDevOpsUri(Uri endpoint, Uri uri)
+    {
+        if (!uri.IsAbsoluteUri
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || !uri.Scheme.Equals(endpoint.Scheme, StringComparison.Ordinal)
+            || !uri.Host.Equals(endpoint.Host, StringComparison.OrdinalIgnoreCase)
+            || uri.Port != endpoint.Port)
+        {
+            return false;
+        }
+
+        string endpointPath = endpoint.AbsolutePath.TrimEnd('/');
+        return endpointPath.Length == 0
+            || uri.AbsolutePath.StartsWith(string.Concat(endpointPath, "/"), StringComparison.Ordinal);
+    }
+
+    private static bool IsAllowedAzureDevOpsRedirectUri(Uri endpoint, Uri uri)
+    {
+        if (!uri.IsAbsoluteUri
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || uri.Scheme is not "https" and not "http")
+        {
+            return false;
+        }
+
+        if (uri.Scheme.Equals("http", StringComparison.Ordinal)
+            && !endpoint.Scheme.Equals("http", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        bool sameHost = uri.Host.Equals(endpoint.Host, StringComparison.OrdinalIgnoreCase);
+        bool subdomainOfEndpoint = uri.Host.EndsWith(string.Concat(".", endpoint.Host), StringComparison.OrdinalIgnoreCase);
+        bool publicAzureDevOpsArtifactHost = IsPublicAzureDevOpsEndpoint(endpoint)
+            && (uri.Host.EndsWith(".blob.core.windows.net", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".vsassets.io", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase));
+        return sameHost || subdomainOfEndpoint || publicAzureDevOpsArtifactHost;
+    }
+
+    private static bool IsPublicAzureDevOpsEndpoint(Uri endpoint)
+    {
+        return endpoint.Host.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase)
+            || endpoint.Host.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string EscapeDisplaySegment(string value)

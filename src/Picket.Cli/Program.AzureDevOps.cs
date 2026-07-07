@@ -60,6 +60,36 @@ internal static partial class Program
             || arg.StartsWith("--azure-devops-include-wikis=", StringComparison.Ordinal);
     }
 
+    static bool IsAzureDevOpsBuildIdFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-build-id", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-build-id=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsIncludeArtifactsFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-include-artifacts", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-include-artifacts=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsIncludeLogsFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-include-logs", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-include-logs=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsMaxArtifactMegabytesFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-max-artifact-megabytes", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-max-artifact-megabytes=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsMaxLogMegabytesFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-max-log-megabytes", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-max-log-megabytes=", StringComparison.Ordinal);
+    }
+
     static bool IsAllowNonPublicSourceEndpointsFlag(string arg)
     {
         return arg.Equals("--allow-non-public-source-endpoints", StringComparison.Ordinal)
@@ -70,18 +100,6 @@ internal static partial class Program
     {
         return arg.Equals("--allow-insecure-source-endpoints", StringComparison.Ordinal)
             || arg.StartsWith("--allow-insecure-source-endpoints=", StringComparison.Ordinal);
-    }
-
-    static bool IsUnsupportedAzureDevOpsSourceFlag(string arg)
-    {
-        return arg.Equals("--azure-devops-include-artifacts", StringComparison.Ordinal)
-            || arg.StartsWith("--azure-devops-include-artifacts=", StringComparison.Ordinal)
-            || arg.Equals("--azure-devops-include-logs", StringComparison.Ordinal)
-            || arg.StartsWith("--azure-devops-include-logs=", StringComparison.Ordinal)
-            || arg.Equals("--azure-devops-max-artifact-megabytes", StringComparison.Ordinal)
-            || arg.StartsWith("--azure-devops-max-artifact-megabytes=", StringComparison.Ordinal)
-            || arg.Equals("--azure-devops-max-log-megabytes", StringComparison.Ordinal)
-            || arg.StartsWith("--azure-devops-max-log-megabytes=", StringComparison.Ordinal);
     }
 
     static bool TryReadAzureDevOpsCredentialKindFlag(string[] args, ref int index, out AzureDevOpsCredentialKind credentialKind)
@@ -126,27 +144,19 @@ internal static partial class Program
         return false;
     }
 
-    static bool TryReadUnsupportedAzureDevOpsSourceFlag(string[] args, ref int index, string arg)
+    static bool TryReadPositiveAzureDevOpsBuildIdFlag(string[] args, ref int index, out int buildId)
     {
-        if (arg.StartsWith("--azure-devops-include-artifacts", StringComparison.Ordinal)
-            || arg.StartsWith("--azure-devops-include-logs", StringComparison.Ordinal))
-        {
-            if (!TryReadBooleanFlag(arg, GetLongFlagName(arg), out bool enabled))
-            {
-                return false;
-            }
-
-            if (!enabled)
-            {
-                return true;
-            }
-        }
-        else if (!TryReadStringFlag(args, ref index, GetLongFlagName(arg), out _))
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--azure-devops-build-id", out buildId))
         {
             return false;
         }
 
-        Console.Error.WriteLine($"{GetLongFlagName(arg)} is not implemented yet");
+        if (buildId > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--azure-devops-build-id requires a positive integer value");
         return false;
     }
 
@@ -160,6 +170,11 @@ internal static partial class Program
         string branch,
         int pullRequestId,
         bool includeWikis,
+        int buildId,
+        bool includeArtifacts,
+        bool includeLogs,
+        long? maxArtifactBytes,
+        long? maxLogBytes,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
         [NotNullWhen(true)] out RemoteSourceProvider? sourceFileProvider)
@@ -217,13 +232,19 @@ internal static partial class Program
                 repository,
                 branch,
                 pullRequestId,
-                includeWikis);
+                includeWikis,
+                buildId,
+                includeArtifacts,
+                includeLogs);
             sourceEndpoint = validatedOptions.Endpoint;
             project = validatedOptions.Project;
             repository = validatedOptions.Repository;
             branch = validatedOptions.Branch;
             pullRequestId = validatedOptions.PullRequestId;
             includeWikis = validatedOptions.IncludeWikis;
+            buildId = validatedOptions.BuildId;
+            includeArtifacts = validatedOptions.IncludeArtifacts;
+            includeLogs = validatedOptions.IncludeLogs;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -255,7 +276,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, _, maxTargetBytes, _, _, _, _, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(new HttpClientHandler
             {
@@ -271,16 +292,20 @@ internal static partial class Program
                 branch,
                 pullRequestId,
                 includeWikis,
+                buildId,
+                includeArtifacts,
+                includeLogs,
                 maxTargetBytes,
+                maxArtifactBytes ?? maxTargetBytes,
+                maxLogBytes ?? maxTargetBytes,
+                maxArchiveDepth,
+                maxArchiveEntries,
+                maxArchiveBytes,
+                maxArchiveCompressionRatio,
+                rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
                 () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
         };
         return true;
-    }
-
-    private static string GetLongFlagName(string arg)
-    {
-        int equals = arg.IndexOf('=');
-        return equals < 0 ? arg : arg[..equals];
     }
 }

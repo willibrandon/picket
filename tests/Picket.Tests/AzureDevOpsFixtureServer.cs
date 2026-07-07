@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -105,6 +106,37 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/_apis/build/builds/77/artifacts?", StringComparison.Ordinal)
+            && target.Contains("artifactName=drop", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/zip", CreateZipBytes("nested/artifact.txt", "artifact-token-2468"), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/build/builds/77/artifacts?", StringComparison.Ordinal))
+        {
+            string artifactsJson = string.Concat(
+                "{\"value\":[{\"id\":12,\"name\":\"drop\",\"resource\":{\"downloadUrl\":\"",
+                Endpoint.AbsoluteUri,
+                "test/_apis/build/builds/77/artifacts?artifactName=drop&api-version=7.1",
+                "\"}}]}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(artifactsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/build/builds/77/logs/4?", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "text/plain", Encoding.UTF8.GetBytes("log-token-1357"), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/build/builds/77/logs?", StringComparison.Ordinal))
+        {
+            const string LogsJson = """{"value":[{"id":4,"type":"container","url":"https://dev.azure.com/willibrandon/test/_apis/build/builds/77/logs/4"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(LogsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/_apis/git/repositories/repo-id/items?", StringComparison.Ordinal)
             && target.Contains("download=true", StringComparison.Ordinal))
         {
@@ -203,5 +235,19 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
             reasonPhrase,
             "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static byte[] CreateZipBytes(string entryName, string content)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryName);
+            using Stream entryStream = entry.Open();
+            byte[] bytes = Encoding.UTF8.GetBytes(content);
+            entryStream.Write(bytes);
+        }
+
+        return stream.ToArray();
     }
 }

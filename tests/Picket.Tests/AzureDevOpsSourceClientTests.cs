@@ -1,4 +1,5 @@
 using Picket.Sources;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 
@@ -248,6 +249,167 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that build artifacts and build logs are scanned only when explicitly enabled.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsBuildArtifactsAndLogsWhenEnabled()
+    {
+        const string Token = "azdo-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[]}""");
+            }
+
+            if (url.Contains("artifactName=drop", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("nested/artifact.txt", "artifact-token-12345"));
+            }
+
+            if (url.Contains("/_apis/build/builds/77/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": 12,
+                          "name": "drop",
+                          "resource": {
+                            "downloadUrl": "https://dev.azure.com/picket/Project%20One/_apis/build/builds/77/artifacts?artifactName=drop&api-version=7.1"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/_apis/build/builds/77/logs?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"id":4,"type":"container","url":"https://dev.azure.com/picket/Project%20One/_apis/build/builds/77/logs/4"}]}""");
+            }
+
+            if (url.Contains("/_apis/build/builds/77/logs/4?", StringComparison.Ordinal))
+            {
+                return BytesResponse("log-token-67890");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            buildId: 77,
+            includeArtifacts: true,
+            includeLogs: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(2, files);
+        Assert.AreEqual("azure-devops-build/Project%20One/77/artifacts/drop.zip!nested/artifact.txt", files[0].DisplayPath);
+        Assert.AreEqual("artifact-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("azure-devops-build/Project%20One/77/logs/4.log", files[1].DisplayPath);
+        Assert.AreEqual("log-token-67890", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("/_apis/build/builds/77/artifacts?", string.Join('\n', urls));
+        Assert.Contains("/_apis/build/builds/77/logs?", string.Join('\n', urls));
+        Assert.DoesNotContain(Token, string.Join('\n', urls));
+    }
+
+    /// <summary>
+    /// Verifies that redirected artifact downloads do not forward Azure DevOps credentials.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesDownloadsRedirectedBuildArtifactsWithoutCredentials()
+    {
+        const string Token = "azdo-test-token";
+        var authorizationHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            authorizationHeaders.Add(request.Headers.Authorization?.ToString() ?? string.Empty);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[]}""");
+            }
+
+            if (url.Contains("/_apis/build/builds/77/artifacts?", StringComparison.Ordinal)
+                && !url.Contains("artifactName=drop", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "name": "drop",
+                          "resource": {
+                            "downloadUrl": "https://dev.azure.com/picket/Project%20One/_apis/build/builds/77/artifacts?artifactName=drop&api-version=7.1"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("artifactName=drop", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Redirect)
+                {
+                    Headers =
+                    {
+                        Location = new Uri("https://picket.blob.core.windows.net/artifacts/drop.zip"),
+                    },
+                };
+            }
+
+            if (url.Equals("https://picket.blob.core.windows.net/artifacts/drop.zip", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("artifact.txt", "artifact-token-54321"));
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            buildId: 77,
+            includeArtifacts: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("azure-devops-build/Project%20One/77/artifacts/drop.zip!artifact.txt", files[0].DisplayPath);
+        Assert.AreEqual("artifact-token-54321", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual(string.Empty, authorizationHeaders[^1]);
+        Assert.Contains("Basic ", authorizationHeaders[0]);
+    }
+
+    /// <summary>
+    /// Verifies that build artifacts and logs require an explicit project and build ID.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsSourceOptionsRejectsBuildSourcesWithoutBuildScope()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "token",
+            buildId: 77,
+            includeArtifacts: true));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "token",
+            project: "Project One",
+            includeLogs: true));
+    }
+
+    /// <summary>
     /// Verifies that Azure Pipelines job tokens use Bearer authorization instead of PAT Basic authorization.
     /// </summary>
     [TestMethod]
@@ -446,5 +608,27 @@ public sealed class AzureDevOpsSourceClientTests
         {
             Content = new ByteArrayContent(Encoding.UTF8.GetBytes(value)),
         };
+    }
+
+    private static HttpResponseMessage BytesResponse(byte[] value)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(value),
+        };
+    }
+
+    private static byte[] CreateZipBytes(string entryName, string content)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryName);
+            using Stream entryStream = entry.Open();
+            byte[] bytes = Encoding.UTF8.GetBytes(content);
+            entryStream.Write(bytes);
+        }
+
+        return stream.ToArray();
     }
 }

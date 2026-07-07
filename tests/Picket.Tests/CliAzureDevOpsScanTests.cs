@@ -142,6 +142,52 @@ public sealed class CliAzureDevOpsScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can include Azure DevOps build artifacts and logs.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsAzureDevOpsBuildArtifactsAndLogsWhenEnabled()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new AzureDevOpsFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-project",
+            "test",
+            "--azure-devops-build-id",
+            "77",
+            "--azure-devops-include-artifacts",
+            "--azure-devops-include-logs",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"azure-devops/test/picket/src/appsettings.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"azure-devops-build/test/77/artifacts/drop.zip!nested/artifact.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"azure-devops-build/test/77/logs/4.log\"", result.Stdout);
+        Assert.Contains("/_apis/build/builds/77/artifacts?", server.RequestTargets);
+        Assert.Contains("/_apis/build/builds/77/logs?", server.RequestTargets);
+        Assert.Contains("Basic ", server.LastAuthorization);
+        Assert.DoesNotContain("test-pat-secret", result.Stdout);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that branch and pull request source scopes are mutually exclusive.
     /// </summary>
     [TestMethod]
@@ -198,6 +244,64 @@ public sealed class CliAzureDevOpsScanTests
 
         Assert.AreEqual(0, result.ExitCode, result.Stderr);
         Assert.DoesNotContain("Azure DevOps source scan requires", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that an explicitly disabled artifact option does not trigger Azure DevOps enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanDoesNotRequireAzureDevOpsEndpointWhenArtifactEnumerationIsDisabled()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            new Dictionary<string, string?>(),
+            "scan",
+            "--azure-devops-include-artifacts=false",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode, result.Stderr);
+        Assert.DoesNotContain("Azure DevOps source scan requires", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that build artifact scans require an explicit build ID.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsAzureDevOpsArtifactsWithoutBuildId()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-endpoint",
+            "https://dev.azure.com/willibrandon/",
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-project",
+            "test",
+            "--azure-devops-include-artifacts",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.Contains("--azure-devops-build-id", result.Stderr);
+        Assert.DoesNotContain("test-pat-secret", result.Stdout);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
     }
 
     /// <summary>

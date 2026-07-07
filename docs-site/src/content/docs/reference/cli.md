@@ -206,6 +206,11 @@ Use the grouped index to jump to the workflow you need.
   [--azure-devops-branch name]
   [--azure-devops-pull-request id]
   [--azure-devops-include-wikis]
+  [--azure-devops-build-id id]
+  [--azure-devops-include-artifacts]
+  [--azure-devops-include-logs]
+  [--azure-devops-max-artifact-megabytes n]
+  [--azure-devops-max-log-megabytes n]
   [--allow-non-public-source-endpoints]
   [--allow-insecure-source-endpoints]
   [--results unknown|structurally-valid|test-credential|invalid|active|inactive|skipped|error]
@@ -485,6 +490,36 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Include Azure DevOps wiki backing repositories in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-build-id</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan artifacts or logs from this Azure Pipelines build ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-include-artifacts</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include Azure Pipelines build artifact contents in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-include-logs</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include Azure Pipelines build logs in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-max-artifact-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit each Azure Pipelines artifact archive download in decimal megabytes; 0 disables the artifact-specific cap.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-max-log-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit each Azure Pipelines log download in decimal megabytes; 0 disables the log-specific cap.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-source-endpoints</code></td>

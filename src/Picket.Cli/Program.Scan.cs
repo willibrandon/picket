@@ -22,7 +22,10 @@ internal static partial class Program
         string azureDevOpsBranch = string.Empty;
         string azureDevOpsProject = string.Empty;
         string azureDevOpsRepository = string.Empty;
+        int azureDevOpsBuildId = 0;
         int azureDevOpsPullRequestId = 0;
+        long? azureDevOpsMaxArtifactBytes = null;
+        long? azureDevOpsMaxLogBytes = null;
         Uri? githubSourceApiEndpoint = null;
         bool githubSourceIncludeAuthenticatedGists = false;
         string githubSourceGistId = string.Empty;
@@ -40,6 +43,8 @@ internal static partial class Program
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
+        bool azureDevOpsIncludeArtifacts = false;
+        bool azureDevOpsIncludeLogs = false;
         bool azureDevOpsIncludeWikis = false;
         bool azureDevOpsOptionSpecified = false;
         bool githubApiEndpointSpecified = false;
@@ -364,6 +369,69 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsAzureDevOpsBuildIdFlag(arg))
+            {
+                if (!TryReadPositiveAzureDevOpsBuildIdFlag(args, ref i, out azureDevOpsBuildId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureDevOpsIncludeArtifactsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--azure-devops-include-artifacts", out azureDevOpsIncludeArtifacts))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (azureDevOpsIncludeArtifacts)
+                {
+                    azureDevOpsOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsAzureDevOpsIncludeLogsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--azure-devops-include-logs", out azureDevOpsIncludeLogs))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (azureDevOpsIncludeLogs)
+                {
+                    azureDevOpsOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsAzureDevOpsMaxArtifactMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-artifact-megabytes", out azureDevOpsMaxArtifactBytes))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureDevOpsMaxLogMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-log-megabytes", out azureDevOpsMaxLogBytes))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicSourceEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-source-endpoints", out allowNonPublicSourceEndpoints))
@@ -383,17 +451,6 @@ internal static partial class Program
                 }
 
                 sourceEndpointPolicySpecified = true;
-                continue;
-            }
-
-            if (IsUnsupportedAzureDevOpsSourceFlag(arg))
-            {
-                if (!TryReadUnsupportedAzureDevOpsSourceFlag(args, ref i, arg))
-                {
-                    return UnknownFlagExitCode;
-                }
-
-                azureDevOpsOptionSpecified = true;
                 continue;
             }
 
@@ -504,6 +561,11 @@ internal static partial class Program
                 azureDevOpsBranch,
                 azureDevOpsPullRequestId,
                 azureDevOpsIncludeWikis,
+                azureDevOpsBuildId,
+                azureDevOpsIncludeArtifacts,
+                azureDevOpsIncludeLogs,
+                azureDevOpsMaxArtifactBytes,
+                azureDevOpsMaxLogBytes,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

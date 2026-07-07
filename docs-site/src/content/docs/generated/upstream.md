@@ -203,6 +203,10 @@ Microsoft Learn REST API documentation reviewed on 2026-07-07:
 - Azure DevOps repositories list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list?view=azure-devops-rest-7.1`
 - Azure DevOps Git items list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/git/items/list?view=azure-devops-rest-7.1`
 - Azure DevOps wikis list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/wiki/wikis/list?view=azure-devops-rest-7.1`
+- Azure DevOps build artifacts list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/artifacts/list?view=azure-devops-rest-7.1`
+- Azure DevOps build artifact file REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/artifacts/get-file?view=azure-devops-rest-7.1`
+- Azure DevOps build logs list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-logs?view=azure-devops-rest-7.1`
+- Azure DevOps build log REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-log?view=azure-devops-rest-7.1`
 
 ## GitHub Secret Scanning Oracle
 
