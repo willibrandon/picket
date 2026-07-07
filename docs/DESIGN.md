@@ -677,7 +677,7 @@ Picket ships:
 
 The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, baseline handling, validation-result filtering, cache restore/save, least-privilege permissions, summary output, and explicit fail modes.
 
-The Azure DevOps pipeline integration supports a first-class `PicketScan` task, workspace scans, optional Azure Repos/project/org enumeration, pipeline/build/release artifact scanning, JSONL/SARIF/HTML report publication, build annotations where Azure DevOps supports safe source locations, explicit fail modes, baseline handling, scan cache restore/save through pipeline cache or task-local cache, and no telemetry. It works on Microsoft-hosted and self-hosted Windows, Linux, and macOS agents, and it does not require a paid service, custom server, or custom domain.
+The Azure DevOps pipeline integration supports a first-class `PicketScan` task, workspace scans, optional Azure Repos/project/org enumeration, pipeline/build/release artifact scanning, JSONL/SARIF/HTML report publication, build annotations where Azure DevOps supports safe source locations, explicit fail modes, baseline handling, scan cache restore/save through pipeline cache or task-local cache, and no telemetry. It works on Microsoft-hosted and self-hosted Windows, Linux, and macOS agents.
 
 Marketplace distribution is planned for the public release phase, after core scanner behavior, compatibility, reports, and security controls are stable:
 
