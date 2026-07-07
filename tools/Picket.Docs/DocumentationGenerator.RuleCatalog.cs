@@ -85,31 +85,25 @@ internal sealed partial class DocumentationGenerator
     {
         builder.AppendLine("## Picket-Native Rules");
         builder.AppendLine();
-        builder.AppendLine("| Rule | Provider | Severity | Confidence | Validation | Revocation | Tags | Examples |");
-        builder.AppendLine("|---|---|---|---|---|---|---|---:|");
+        builder.AppendLine("<div class=\"reference-card-list\">");
         foreach (SecretRule rule in rules)
         {
-            builder.Append("| `");
-            builder.Append(EscapeTable(rule.Id));
-            builder.Append("`<br />");
-            builder.Append(EscapeTable(rule.Description));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(FormatOptionalValue(rule.Provider)));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(rule.Severity));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(rule.Confidence));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(FormatValueList(rule.Validation)));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(FormatValueList(rule.Revocation)));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(FormatValueList(rule.Tags)));
-            builder.Append(" | ");
-            builder.Append(FormatExampleCounts(rule));
-            builder.AppendLine(" |");
+            AppendReferenceCard(
+                builder,
+                rule.Id,
+                FormatOptionalValue(rule.Provider),
+                rule.Description,
+                [
+                    ("Severity", rule.Severity, true, false),
+                    ("Confidence", rule.Confidence, true, false),
+                    ("Validation", FormatValueList(rule.Validation), true, false),
+                    ("Revocation", FormatValueList(rule.Revocation), true, false),
+                    ("Tags", FormatValueList(rule.Tags), false, false),
+                    ("Examples", FormatExampleCounts(rule), false, false),
+                ]);
         }
 
+        builder.AppendLine("</div>");
         builder.AppendLine();
     }
 
@@ -117,27 +111,24 @@ internal sealed partial class DocumentationGenerator
     {
         builder.AppendLine("## Gitleaks-Compatible Rules");
         builder.AppendLine();
-        builder.AppendLine("| Rule | Tags | Keywords | Entropy | Secret group | Allowlists |");
-        builder.AppendLine("|---|---|---|---:|---:|---:|");
+        builder.AppendLine("<div class=\"reference-card-list\">");
         foreach (SecretRule rule in rules)
         {
-            builder.Append("| `");
-            builder.Append(EscapeTable(rule.Id));
-            builder.Append("`<br />");
-            builder.Append(EscapeTable(rule.Description));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(FormatValueList(rule.Tags)));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(FormatValueList(rule.Keywords)));
-            builder.Append(" | ");
-            builder.Append(rule.Entropy.ToString("0.###", CultureInfo.InvariantCulture));
-            builder.Append(" | ");
-            builder.Append(rule.SecretGroup.ToString(CultureInfo.InvariantCulture));
-            builder.Append(" | ");
-            builder.Append(rule.Allowlists.Count.ToString(CultureInfo.InvariantCulture));
-            builder.AppendLine(" |");
+            AppendReferenceCard(
+                builder,
+                rule.Id,
+                "Gitleaks-compatible",
+                rule.Description,
+                [
+                    ("Tags", FormatValueList(rule.Tags), false, false),
+                    ("Keywords", FormatValueList(rule.Keywords), false, false),
+                    ("Entropy", rule.Entropy.ToString("0.###", CultureInfo.InvariantCulture), false, false),
+                    ("Secret group", rule.SecretGroup.ToString(CultureInfo.InvariantCulture), false, false),
+                    ("Allowlists", rule.Allowlists.Count.ToString(CultureInfo.InvariantCulture), false, false),
+                ]);
         }
 
+        builder.AppendLine("</div>");
         builder.AppendLine();
     }
 

@@ -32,243 +32,6578 @@ revocation:aws-iam-access-key, revocation:azure-storage-account-key, revocation:
 
 ## Picket-Native Rules
 
-| Rule | Provider | Severity | Confidence | Validation | Revocation | Tags | Examples |
-|---|---|---|---|---|---|---|---:|
-| `picket-aws-access-key-pair`<br />Detected an AWS access key ID paired with a secret access key. | AWS | critical | high | offline:aws-access-key-pair | revocation:aws-iam-access-key | access-key, aws, picket, secret-access-key | 1/1 |
-| `picket-azure-storage-connection-string`<br />Detected an Azure Storage connection string with an account key. | Azure | critical | high | offline:azure-storage-connection-string | revocation:azure-storage-account-key | azure, connection-string, picket, storage | 1/1 |
-| `picket-database-connection-url`<br />Detected a database connection URL with embedded user credentials. | Database | critical | high | offline:database-connection-url | - | connection-string, connection-url, database, picket | 1/1 |
-| `picket-gcp-service-account-key`<br />Detected a Google Cloud service account key JSON document. | GCP | critical | high | offline:gcp-service-account-key-json | revocation:gcp-service-account-key | gcp, google, json, picket, service-account | 1/1 |
-| `picket-google-api-key`<br />Detected a Google API key. | GCP | critical | high | offline:gcp-api-key | revocation:gcp-api-key | api-key, gcp, google, picket | 1/1 |
-| `picket-github-app-token`<br />Detected a GitHub App user or server token. | GitHub | critical | high | live:github-rest-user-v1, offline:github-classic-token | revocation:github-credentials-api | github, github-app, picket, token | 1/1 |
-| `picket-github-fine-grained-personal-access-token`<br />Detected a GitHub fine-grained personal access token. | GitHub | critical | high | live:github-rest-user-v1, offline:github-fine-grained-pat | revocation:github-credentials-api | fine-grained, github, personal-access-token, picket | 1/1 |
-| `picket-github-oauth-token`<br />Detected a GitHub OAuth access token. | GitHub | critical | high | live:github-rest-user-v1, offline:github-classic-token | revocation:github-credentials-api | github, oauth, picket, token | 1/1 |
-| `picket-github-personal-access-token`<br />Detected a GitHub personal access token. | GitHub | critical | high | live:github-rest-user-v1, offline:github-classic-token | revocation:github-credentials-api | github, personal-access-token, picket | 1/1 |
-| `picket-github-refresh-token`<br />Detected a GitHub refresh token. | GitHub | critical | high | live:github-rest-user-v1, offline:github-classic-token | revocation:github-credentials-api | github, picket, refresh-token | 1/1 |
-| `picket-sourcegraph-access-token`<br />Detected a Sourcegraph access token. | Sourcegraph | critical | high | offline:sourcegraph-access-token | - | access-token, picket, sourcegraph | 1/1 |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-aws-access-key-pair</code><span>AWS</span>
+    </div>
+    <p class="reference-card-description">Detected an AWS access key ID paired with a secret access key.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>offline:aws-access-key-pair</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:aws-iam-access-key</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>access-key, aws, picket, secret-access-key</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-azure-storage-connection-string</code><span>Azure</span>
+    </div>
+    <p class="reference-card-description">Detected an Azure Storage connection string with an account key.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>offline:azure-storage-connection-string</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:azure-storage-account-key</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>azure, connection-string, picket, storage</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-database-connection-url</code><span>Database</span>
+    </div>
+    <p class="reference-card-description">Detected a database connection URL with embedded user credentials.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>offline:database-connection-url</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>-</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>connection-string, connection-url, database, picket</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-gcp-service-account-key</code><span>GCP</span>
+    </div>
+    <p class="reference-card-description">Detected a Google Cloud service account key JSON document.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>offline:gcp-service-account-key-json</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:gcp-service-account-key</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>gcp, google, json, picket, service-account</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-google-api-key</code><span>GCP</span>
+    </div>
+    <p class="reference-card-description">Detected a Google API key.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>offline:gcp-api-key</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:gcp-api-key</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>api-key, gcp, google, picket</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-github-app-token</code><span>GitHub</span>
+    </div>
+    <p class="reference-card-description">Detected a GitHub App user or server token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>live:github-rest-user-v1, offline:github-classic-token</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:github-credentials-api</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>github, github-app, picket, token</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-github-fine-grained-personal-access-token</code><span>GitHub</span>
+    </div>
+    <p class="reference-card-description">Detected a GitHub fine-grained personal access token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>live:github-rest-user-v1, offline:github-fine-grained-pat</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:github-credentials-api</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>fine-grained, github, personal-access-token, picket</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-github-oauth-token</code><span>GitHub</span>
+    </div>
+    <p class="reference-card-description">Detected a GitHub OAuth access token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>live:github-rest-user-v1, offline:github-classic-token</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:github-credentials-api</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>github, oauth, picket, token</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-github-personal-access-token</code><span>GitHub</span>
+    </div>
+    <p class="reference-card-description">Detected a GitHub personal access token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>live:github-rest-user-v1, offline:github-classic-token</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:github-credentials-api</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>github, personal-access-token, picket</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-github-refresh-token</code><span>GitHub</span>
+    </div>
+    <p class="reference-card-description">Detected a GitHub refresh token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>live:github-rest-user-v1, offline:github-classic-token</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>revocation:github-credentials-api</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>github, picket, refresh-token</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picket-sourcegraph-access-token</code><span>Sourcegraph</span>
+    </div>
+    <p class="reference-card-description">Detected a Sourcegraph access token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Severity</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Confidence</dt>
+        <dd><code>high</code></dd>
+      </div>
+      <div>
+        <dt>Validation</dt>
+        <dd><code>offline:sourcegraph-access-token</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd><code>-</code></dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>access-token, picket, sourcegraph</dd>
+      </div>
+      <div>
+        <dt>Examples</dt>
+        <dd>1/1</dd>
+      </div>
+    </dl>
+  </article>
+</div>
 
 ## Gitleaks-Compatible Rules
 
-| Rule | Tags | Keywords | Entropy | Secret group | Allowlists |
-|---|---|---|---:|---:|---:|
-| `1password-secret-key`<br />Uncovered a possible 1Password secret key, potentially compromising access to secrets in vaults. | - | a3- | 3.8 | 0 | 0 |
-| `1password-service-account-token`<br />Uncovered a possible 1Password service account token, potentially compromising access to secrets in vaults. | - | ops_ | 4 | 0 | 0 |
-| `adafruit-api-key`<br />Identified a potential Adafruit API Key, which could lead to unauthorized access to Adafruit services and sensitive data exposure. | - | adafruit | 0 | 0 | 0 |
-| `adobe-client-id`<br />Detected a pattern that resembles an Adobe OAuth Web Client ID, posing a risk of compromised Adobe integrations and data breaches. | - | adobe | 2 | 0 | 0 |
-| `adobe-client-secret`<br />Discovered a potential Adobe Client Secret, which, if exposed, could allow unauthorized Adobe service access and data manipulation. | - | p8e- | 2 | 0 | 0 |
-| `age-secret-key`<br />Discovered a potential Age encryption tool secret key, risking data decryption and unauthorized access to sensitive information. | - | age-secret-key-1 | 0 | 0 | 0 |
-| `airtable-api-key`<br />Uncovered a possible Airtable API Key, potentially compromising database access and leading to data leakage or alteration. | - | airtable | 0 | 0 | 0 |
-| `airtable-personnal-access-token`<br />Uncovered a possible Airtable Personal AccessToken, potentially compromising database access and leading to data leakage or alteration. | - | airtable | 0 | 0 | 0 |
-| `algolia-api-key`<br />Identified an Algolia API Key, which could result in unauthorized search operations and data exposure on Algolia-managed platforms. | - | algolia | 0 | 0 | 0 |
-| `alibaba-access-key-id`<br />Detected an Alibaba Cloud AccessKey ID, posing a risk of unauthorized cloud resource access and potential data compromise. | - | ltai | 2 | 0 | 0 |
-| `alibaba-secret-key`<br />Discovered a potential Alibaba Cloud Secret Key, potentially allowing unauthorized operations and data access within Alibaba Cloud. | - | alibaba | 2 | 0 | 0 |
-| `anthropic-admin-api-key`<br />Detected an Anthropic Admin API Key, risking unauthorized access to administrative functions and sensitive AI model configurations. | - | sk-ant-admin01 | 0 | 0 | 0 |
-| `anthropic-api-key`<br />Identified an Anthropic API Key, which may compromise AI assistant integrations and expose sensitive data to unauthorized access. | - | sk-ant-api03 | 0 | 0 | 0 |
-| `artifactory-api-key`<br />Detected an Artifactory api key, posing a risk unauthorized access to the central repository. | - | akcp | 4.5 | 0 | 0 |
-| `artifactory-reference-token`<br />Detected an Artifactory reference token, posing a risk of impersonation and unauthorized access to the central repository. | - | cmvmd | 4.5 | 0 | 0 |
-| `asana-client-id`<br />Discovered a potential Asana Client ID, risking unauthorized access to Asana projects and sensitive task information. | - | asana | 0 | 0 | 0 |
-| `asana-client-secret`<br />Identified an Asana Client Secret, which could lead to compromised project management integrity and unauthorized access. | - | asana | 0 | 0 | 0 |
-| `atlassian-api-token`<br />Detected an Atlassian API token, posing a threat to project management and collaboration tool security and data confidentiality. | - | atatt3, atlassian, confluence, jira | 3.5 | 0 | 0 |
-| `authress-service-client-access-key`<br />Uncovered a possible Authress Service Client Access Key, which may compromise access control services and sensitive data. | - | authress_, ext_, sc_, scauth_ | 2 | 0 | 0 |
-| `aws-access-token`<br />Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms. | - | a3t, abia, acca, akia, asia | 3 | 0 | 1 |
-| `aws-amazon-bedrock-api-key-long-lived`<br />Identified a pattern that may indicate long-lived Amazon Bedrock API keys, risking unauthorized Amazon Bedrock usage | - | absk | 3 | 0 | 0 |
-| `aws-amazon-bedrock-api-key-short-lived`<br />Identified a pattern that may indicate short-lived Amazon Bedrock API keys, risking unauthorized Amazon Bedrock usage | - | bedrock-api-key- | 3 | 0 | 0 |
-| `azure-ad-client-secret`<br />Azure AD Client Secret | - | q~ | 3 | 0 | 0 |
-| `beamer-api-token`<br />Detected a Beamer API token, potentially compromising content management and exposing sensitive notifications and updates. | - | beamer | 0 | 0 | 0 |
-| `bitbucket-client-id`<br />Discovered a potential Bitbucket Client ID, risking unauthorized repository access and potential codebase exposure. | - | bitbucket | 0 | 0 | 0 |
-| `bitbucket-client-secret`<br />Discovered a potential Bitbucket Client Secret, posing a risk of compromised code repositories and unauthorized access. | - | bitbucket | 0 | 0 | 0 |
-| `bittrex-access-key`<br />Identified a Bittrex Access Key, which could lead to unauthorized access to cryptocurrency trading accounts and financial loss. | - | bittrex | 0 | 0 | 0 |
-| `bittrex-secret-key`<br />Detected a Bittrex Secret Key, potentially compromising cryptocurrency transactions and financial security. | - | bittrex | 0 | 0 | 0 |
-| `cisco-meraki-api-key`<br />Cisco Meraki is a cloud-managed IT solution that provides networking, security, and device management through an easy-to-use interface. | - | meraki | 3 | 0 | 0 |
-| `clickhouse-cloud-api-secret-key`<br />Identified a pattern that may indicate clickhouse cloud API secret key, risking unauthorized clickhouse cloud api access and data breaches on ClickHouse Cloud platforms. | - | 4b1d | 3 | 0 | 0 |
-| `clojars-api-token`<br />Uncovered a possible Clojars API token, risking unauthorized access to Clojure libraries and potential code manipulation. | - | clojars_ | 2 | 0 | 0 |
-| `cloudflare-api-key`<br />Detected a Cloudflare API Key, potentially compromising cloud application deployments and operational security. | - | cloudflare | 2 | 0 | 0 |
-| `cloudflare-global-api-key`<br />Detected a Cloudflare Global API Key, potentially compromising cloud application deployments and operational security. | - | cloudflare | 2 | 0 | 0 |
-| `cloudflare-origin-ca-key`<br />Detected a Cloudflare Origin CA Key, potentially compromising cloud application deployments and operational security. | - | cloudflare, v1.0- | 2 | 0 | 0 |
-| `codecov-access-token`<br />Found a pattern resembling a Codecov Access Token, posing a risk of unauthorized access to code coverage reports and sensitive data. | - | codecov | 0 | 0 | 0 |
-| `cohere-api-token`<br />Identified a Cohere Token, posing a risk of unauthorized access to AI services and data manipulation. | - | co_api_key, cohere | 4 | 0 | 0 |
-| `coinbase-access-token`<br />Detected a Coinbase Access Token, posing a risk of unauthorized access to cryptocurrency accounts and financial transactions. | - | coinbase | 0 | 0 | 0 |
-| `confluent-access-token`<br />Identified a Confluent Access Token, which could compromise access to streaming data platforms and sensitive data flow. | - | confluent | 0 | 0 | 0 |
-| `confluent-secret-key`<br />Found a Confluent Secret Key, potentially risking unauthorized operations and data access within Confluent services. | - | confluent | 0 | 0 | 0 |
-| `contentful-delivery-api-token`<br />Discovered a Contentful delivery API token, posing a risk to content management systems and data integrity. | - | contentful | 0 | 0 | 0 |
-| `curl-auth-header`<br />Discovered a potential authorization token provided in a curl command header, which could compromise the curl accessed resource. | - | curl | 2.75 | 0 | 0 |
-| `curl-auth-user`<br />Discovered a potential basic authorization token provided in a curl command, which could compromise the curl accessed resource. | - | curl | 2 | 0 | 1 |
-| `databricks-api-token`<br />Uncovered a Databricks API token, which may compromise big data analytics platforms and sensitive data processing. | - | dapi | 3 | 0 | 0 |
-| `datadog-access-token`<br />Detected a Datadog Access Token, potentially risking monitoring and analytics data exposure and manipulation. | - | datadog | 0 | 0 | 0 |
-| `defined-networking-api-token`<br />Identified a Defined Networking API token, which could lead to unauthorized network operations and data breaches. | - | dnkey | 0 | 0 | 0 |
-| `digitalocean-access-token`<br />Found a DigitalOcean OAuth Access Token, risking unauthorized cloud resource access and data compromise. | - | doo_v1_ | 3 | 0 | 0 |
-| `digitalocean-pat`<br />Discovered a DigitalOcean Personal Access Token, posing a threat to cloud infrastructure security and data privacy. | - | dop_v1_ | 3 | 0 | 0 |
-| `digitalocean-refresh-token`<br />Uncovered a DigitalOcean OAuth Refresh Token, which could allow prolonged unauthorized access and resource manipulation. | - | dor_v1_ | 0 | 0 | 0 |
-| `discord-api-token`<br />Detected a Discord API key, potentially compromising communication channels and user data privacy on Discord. | - | discord | 0 | 0 | 0 |
-| `discord-client-id`<br />Identified a Discord client ID, which may lead to unauthorized integrations and data exposure in Discord applications. | - | discord | 2 | 0 | 0 |
-| `discord-client-secret`<br />Discovered a potential Discord client secret, risking compromised Discord bot integrations and data leaks. | - | discord | 2 | 0 | 0 |
-| `doppler-api-token`<br />Discovered a Doppler API token, posing a risk to environment and secrets management security. | - | dp.pt. | 2 | 0 | 0 |
-| `droneci-access-token`<br />Detected a Droneci Access Token, potentially compromising continuous integration and deployment workflows. | - | droneci | 0 | 0 | 0 |
-| `dropbox-api-token`<br />Identified a Dropbox API secret, which could lead to unauthorized file access and data breaches in Dropbox storage. | - | dropbox | 0 | 0 | 0 |
-| `dropbox-long-lived-api-token`<br />Found a Dropbox long-lived API token, risking prolonged unauthorized access to cloud storage and sensitive data. | - | dropbox | 0 | 0 | 0 |
-| `dropbox-short-lived-api-token`<br />Discovered a Dropbox short-lived API token, posing a risk of temporary but potentially harmful data access and manipulation. | - | dropbox | 0 | 0 | 0 |
-| `duffel-api-token`<br />Uncovered a Duffel API token, which may compromise travel platform integrations and sensitive customer data. | - | duffel_ | 2 | 0 | 0 |
-| `dynatrace-api-token`<br />Detected a Dynatrace API token, potentially risking application performance monitoring and data exposure. | - | dt0c01. | 4 | 0 | 0 |
-| `easypost-api-token`<br />Identified an EasyPost API token, which could lead to unauthorized postal and shipment service access and data exposure. | - | ezak | 2 | 0 | 0 |
-| `easypost-test-api-token`<br />Detected an EasyPost test API token, risking exposure of test environments and potentially sensitive shipment data. | - | eztk | 2 | 0 | 0 |
-| `etsy-access-token`<br />Found an Etsy Access Token, potentially compromising Etsy shop management and customer data. | - | etsy | 3 | 0 | 0 |
-| `facebook-access-token`<br />Discovered a Facebook Access Token, posing a risk of unauthorized access to Facebook accounts and personal data exposure. | - | facebook | 3 | 0 | 0 |
-| `facebook-page-access-token`<br />Discovered a Facebook Page Access Token, posing a risk of unauthorized access to Facebook accounts and personal data exposure. | - | eaac, eaam | 4 | 0 | 0 |
-| `facebook-secret`<br />Discovered a Facebook Application secret, posing a risk of unauthorized access to Facebook accounts and personal data exposure. | - | facebook | 3 | 0 | 0 |
-| `fastly-api-token`<br />Uncovered a Fastly API key, which may compromise CDN and edge cloud services, leading to content delivery and security issues. | - | fastly | 0 | 0 | 0 |
-| `finicity-api-token`<br />Detected a Finicity API token, potentially risking financial data access and unauthorized financial operations. | - | finicity | 0 | 0 | 0 |
-| `finicity-client-secret`<br />Identified a Finicity Client Secret, which could lead to compromised financial service integrations and data breaches. | - | finicity | 0 | 0 | 0 |
-| `finnhub-access-token`<br />Found a Finnhub Access Token, risking unauthorized access to financial market data and analytics. | - | finnhub | 0 | 0 | 0 |
-| `flickr-access-token`<br />Discovered a Flickr Access Token, posing a risk of unauthorized photo management and potential data leakage. | - | flickr | 0 | 0 | 0 |
-| `flutterwave-encryption-key`<br />Uncovered a Flutterwave Encryption Key, which may compromise payment processing and sensitive financial information. | - | flwseck_test | 2 | 0 | 0 |
-| `flutterwave-public-key`<br />Detected a Finicity Public Key, potentially exposing public cryptographic operations and integrations. | - | flwpubk_test | 2 | 0 | 0 |
-| `flutterwave-secret-key`<br />Identified a Flutterwave Secret Key, risking unauthorized financial transactions and data breaches. | - | flwseck_test | 2 | 0 | 0 |
-| `flyio-access-token`<br />Uncovered a Fly.io API key | - | fm1, fm2_, fo1_ | 4 | 0 | 0 |
-| `frameio-api-token`<br />Found a Frame.io API token, potentially compromising video collaboration and project management. | - | fio-u- | 0 | 0 | 0 |
-| `freemius-secret-key`<br />Detected a Freemius secret key, potentially exposing sensitive information. | - | secret_key | 0 | 0 | 0 |
-| `freshbooks-access-token`<br />Discovered a Freshbooks Access Token, posing a risk to accounting software access and sensitive financial data exposure. | - | freshbooks | 0 | 0 | 0 |
-| `gcp-api-key`<br />Uncovered a GCP API key, which could lead to unauthorized access to Google Cloud services and data breaches. | - | aiza | 4 | 0 | 1 |
-| `generic-api-key`<br />Detected a Generic API Key, potentially exposing access to various services and sensitive operations. | - | access, api, auth, credential, creds, key, passwd, password, secret, token | 3.5 | 0 | 4 |
-| `github-app-token`<br />Identified a GitHub App Token, which may compromise GitHub application integrations and source code security. | - | ghs_, ghu_ | 3 | 0 | 1 |
-| `github-fine-grained-pat`<br />Found a GitHub Fine-Grained Personal Access Token, risking unauthorized repository access and code manipulation. | - | github_pat_ | 3 | 0 | 0 |
-| `github-oauth`<br />Discovered a GitHub OAuth Access Token, posing a risk of compromised GitHub account integrations and data leaks. | - | gho_ | 3 | 0 | 0 |
-| `github-pat`<br />Uncovered a GitHub Personal Access Token, potentially leading to unauthorized repository access and sensitive content exposure. | - | ghp_ | 3 | 0 | 1 |
-| `github-refresh-token`<br />Detected a GitHub Refresh Token, which could allow prolonged unauthorized access to GitHub services. | - | ghr_ | 3 | 0 | 0 |
-| `gitlab-cicd-job-token`<br />Identified a GitLab CI/CD Job Token, potential access to projects and some APIs on behalf of a user while the CI job is running. | - | glcbt- | 3 | 0 | 0 |
-| `gitlab-deploy-token`<br />Identified a GitLab Deploy Token, risking access to repositories, packages and containers with write access. | - | gldt- | 3 | 0 | 0 |
-| `gitlab-feature-flag-client-token`<br />Identified a GitLab feature flag client token, risks exposing user lists and features flags used by an application. | - | glffct- | 3 | 0 | 0 |
-| `gitlab-feed-token`<br />Identified a GitLab feed token, risking exposure of user data. | - | glft- | 3 | 0 | 0 |
-| `gitlab-incoming-mail-token`<br />Identified a GitLab incoming mail token, risking manipulation of data sent by mail. | - | glimt- | 3 | 0 | 0 |
-| `gitlab-kubernetes-agent-token`<br />Identified a GitLab Kubernetes Agent token, risking access to repos and registry of projects connected via agent. | - | glagent- | 3 | 0 | 0 |
-| `gitlab-oauth-app-secret`<br />Identified a GitLab OIDC Application Secret, risking access to apps using GitLab as authentication provider. | - | gloas- | 3 | 0 | 0 |
-| `gitlab-pat`<br />Identified a GitLab Personal Access Token, risking unauthorized access to GitLab repositories and codebase exposure. | - | glpat- | 3 | 0 | 0 |
-| `gitlab-pat-routable`<br />Identified a GitLab Personal Access Token (routable), risking unauthorized access to GitLab repositories and codebase exposure. | - | glpat- | 4 | 0 | 0 |
-| `gitlab-ptt`<br />Found a GitLab Pipeline Trigger Token, potentially compromising continuous integration workflows and project security. | - | glptt- | 3 | 0 | 0 |
-| `gitlab-rrt`<br />Discovered a GitLab Runner Registration Token, posing a risk to CI/CD pipeline integrity and unauthorized access. | - | gr1348941 | 3 | 0 | 0 |
-| `gitlab-runner-authentication-token`<br />Discovered a GitLab Runner Authentication Token, posing a risk to CI/CD pipeline integrity and unauthorized access. | - | glrt- | 3 | 0 | 0 |
-| `gitlab-runner-authentication-token-routable`<br />Discovered a GitLab Runner Authentication Token (Routable), posing a risk to CI/CD pipeline integrity and unauthorized access. | - | glrt- | 4 | 0 | 0 |
-| `gitlab-scim-token`<br />Discovered a GitLab SCIM Token, posing a risk to unauthorized access for a organization or instance. | - | glsoat- | 3 | 0 | 0 |
-| `gitlab-session-cookie`<br />Discovered a GitLab Session Cookie, posing a risk to unauthorized access to a user account. | - | _gitlab_session= | 3 | 0 | 0 |
-| `gitter-access-token`<br />Uncovered a Gitter Access Token, which may lead to unauthorized access to chat and communication services. | - | gitter | 0 | 0 | 0 |
-| `gocardless-api-token`<br />Detected a GoCardless API token, potentially risking unauthorized direct debit payment operations and financial data exposure. | - | gocardless, live_ | 0 | 0 | 0 |
-| `grafana-api-key`<br />Identified a Grafana API key, which could compromise monitoring dashboards and sensitive data analytics. | - | eyjrijoi | 3 | 0 | 0 |
-| `grafana-cloud-api-token`<br />Found a Grafana cloud API token, risking unauthorized access to cloud-based monitoring services and data exposure. | - | glc_ | 3 | 0 | 0 |
-| `grafana-service-account-token`<br />Discovered a Grafana service account token, posing a risk of compromised monitoring services and data integrity. | - | glsa_ | 3 | 0 | 0 |
-| `harness-api-key`<br />Identified a Harness Access Token (PAT or SAT), risking unauthorized access to a Harness account. | - | pat., sat. | 0 | 0 | 0 |
-| `hashicorp-tf-api-token`<br />Uncovered a HashiCorp Terraform user/org API token, which may lead to unauthorized infrastructure management and security breaches. | - | atlasv1 | 3.5 | 0 | 0 |
-| `hashicorp-tf-password`<br />Identified a HashiCorp Terraform password field, risking unauthorized infrastructure configuration and security breaches. | - | administrator_login_password, password | 2 | 0 | 0 |
-| `heroku-api-key`<br />Detected a Heroku API Key, potentially compromising cloud application deployments and operational security. | - | heroku | 0 | 0 | 0 |
-| `heroku-api-key-v2`<br />Detected a Heroku API Key, potentially compromising cloud application deployments and operational security. | - | hrku-aa | 4 | 0 | 0 |
-| `hubspot-api-key`<br />Found a HubSpot API Token, posing a risk to CRM data integrity and unauthorized marketing operations. | - | hubspot | 0 | 0 | 0 |
-| `huggingface-access-token`<br />Discovered a Hugging Face Access token, which could lead to unauthorized access to AI models and sensitive data. | - | hf_ | 2 | 0 | 0 |
-| `huggingface-organization-api-token`<br />Uncovered a Hugging Face Organization API token, potentially compromising AI organization accounts and associated data. | - | api_org_ | 2 | 0 | 0 |
-| `infracost-api-token`<br />Detected an Infracost API Token, risking unauthorized access to cloud cost estimation tools and financial data. | - | ico- | 3 | 0 | 0 |
-| `intercom-api-key`<br />Identified an Intercom API Token, which could compromise customer communication channels and data privacy. | - | intercom | 0 | 0 | 0 |
-| `intra42-client-secret`<br />Found a Intra42 client secret, which could lead to unauthorized access to the 42School API and sensitive data. | - | intra, s-s4t2af-, s-s4t2ud- | 3 | 0 | 0 |
-| `jfrog-api-key`<br />Found a JFrog API Key, posing a risk of unauthorized access to software artifact repositories and build pipelines. | - | artifactory, bintray, jfrog, xray | 0 | 0 | 0 |
-| `jfrog-identity-token`<br />Discovered a JFrog Identity Token, potentially compromising access to JFrog services and sensitive software artifacts. | - | artifactory, bintray, jfrog, xray | 0 | 0 | 0 |
-| `jwt`<br />Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data. | - | ey | 3 | 0 | 0 |
-| `jwt-base64`<br />Detected a Base64-encoded JSON Web Token, posing a risk of exposing encoded authentication and data exchange information. | - | zxlk | 2 | 0 | 0 |
-| `kraken-access-token`<br />Identified a Kraken Access Token, potentially compromising cryptocurrency trading accounts and financial security. | - | kraken | 0 | 0 | 0 |
-| `kubernetes-secret-yaml`<br />Possible Kubernetes Secret detected, posing a risk of leaking credentials/tokens from your deployments | - | secret | 0 | 0 | 2 |
-| `kucoin-access-token`<br />Found a Kucoin Access Token, risking unauthorized access to cryptocurrency exchange services and transactions. | - | kucoin | 0 | 0 | 0 |
-| `kucoin-secret-key`<br />Discovered a Kucoin Secret Key, which could lead to compromised cryptocurrency operations and financial data breaches. | - | kucoin | 0 | 0 | 0 |
-| `launchdarkly-access-token`<br />Uncovered a Launchdarkly Access Token, potentially compromising feature flag management and application functionality. | - | launchdarkly | 0 | 0 | 0 |
-| `linear-api-key`<br />Detected a Linear API Token, posing a risk to project management tools and sensitive task data. | - | lin_api_ | 2 | 0 | 0 |
-| `linear-client-secret`<br />Identified a Linear Client Secret, which may compromise secure integrations and sensitive project management data. | - | linear | 2 | 0 | 0 |
-| `linkedin-client-id`<br />Found a LinkedIn Client ID, risking unauthorized access to LinkedIn integrations and professional data exposure. | - | linked-in, linked_in, linkedin | 2 | 0 | 0 |
-| `linkedin-client-secret`<br />Discovered a LinkedIn Client secret, potentially compromising LinkedIn application integrations and user data. | - | linked-in, linked_in, linkedin | 2 | 0 | 0 |
-| `lob-api-key`<br />Uncovered a Lob API Key, which could lead to unauthorized access to mailing and address verification services. | - | live_, test_ | 0 | 0 | 0 |
-| `lob-pub-api-key`<br />Detected a Lob Publishable API Key, posing a risk of exposing mail and print service integrations. | - | _pub, live_pub, test_pub | 0 | 0 | 0 |
-| `looker-client-id`<br />Found a Looker Client ID, risking unauthorized access to a Looker account and exposing sensitive data. | - | looker | 0 | 0 | 0 |
-| `looker-client-secret`<br />Found a Looker Client Secret, risking unauthorized access to a Looker account and exposing sensitive data. | - | looker | 0 | 0 | 0 |
-| `mailchimp-api-key`<br />Identified a Mailchimp API key, potentially compromising email marketing campaigns and subscriber data. | - | mailchimp | 0 | 0 | 0 |
-| `mailgun-private-api-token`<br />Found a Mailgun private API token, risking unauthorized email service operations and data breaches. | - | mailgun | 0 | 0 | 0 |
-| `mailgun-pub-key`<br />Discovered a Mailgun public validation key, which could expose email verification processes and associated data. | - | mailgun | 0 | 0 | 0 |
-| `mailgun-signing-key`<br />Uncovered a Mailgun webhook signing key, potentially compromising email automation and data integrity. | - | mailgun | 0 | 0 | 0 |
-| `mapbox-api-token`<br />Detected a MapBox API token, posing a risk to geospatial services and sensitive location data exposure. | - | mapbox | 0 | 0 | 0 |
-| `mattermost-access-token`<br />Identified a Mattermost Access Token, which may compromise team communication channels and data privacy. | - | mattermost | 0 | 0 | 0 |
-| `maxmind-license-key`<br />Discovered a potential MaxMind license key. | - | _mmk | 4 | 0 | 0 |
-| `messagebird-api-token`<br />Found a MessageBird API token, risking unauthorized access to communication platforms and message data. | - | message-bird, message_bird, messagebird | 0 | 0 | 0 |
-| `messagebird-client-id`<br />Discovered a MessageBird client ID, potentially compromising API integrations and sensitive communication data. | - | message-bird, message_bird, messagebird | 0 | 0 | 0 |
-| `microsoft-teams-webhook`<br />Uncovered a Microsoft Teams Webhook, which could lead to unauthorized access to team collaboration tools and data leaks. | - | incomingwebhook, webhook.office.com, webhookb2 | 0 | 0 | 0 |
-| `netlify-access-token`<br />Detected a Netlify Access Token, potentially compromising web hosting services and site management. | - | netlify | 0 | 0 | 0 |
-| `new-relic-browser-api-token`<br />Identified a New Relic ingest browser API token, risking unauthorized access to application performance data and analytics. | - | nrjs- | 0 | 0 | 0 |
-| `new-relic-insert-key`<br />Discovered a New Relic insight insert key, compromising data injection into the platform. | - | nrii- | 0 | 0 | 0 |
-| `new-relic-user-api-id`<br />Found a New Relic user API ID, posing a risk to application monitoring services and data integrity. | - | new-relic, new_relic, newrelic | 0 | 0 | 0 |
-| `new-relic-user-api-key`<br />Discovered a New Relic user API Key, which could lead to compromised application insights and performance monitoring. | - | nrak | 0 | 0 | 0 |
-| `notion-api-token`<br />Notion API token | - | ntn_ | 4 | 0 | 0 |
-| `npm-access-token`<br />Uncovered an npm access token, potentially compromising package management and code repository access. | - | npm_ | 2 | 0 | 0 |
-| `nuget-config-password`<br />Identified a password within a Nuget config file, potentially compromising package management access. | - | <add key= | 1 | 0 | 1 |
-| `nytimes-access-token`<br />Detected a Nytimes Access Token, risking unauthorized access to New York Times APIs and content services. | - | new-york-times, newyorktimes, nytimes | 0 | 0 | 0 |
-| `octopus-deploy-api-key`<br />Discovered a potential Octopus Deploy API key, risking application deployments and operational security. | - | api- | 3 | 0 | 0 |
-| `okta-access-token`<br />Identified an Okta Access Token, which may compromise identity management services and user authentication data. | - | okta | 4 | 0 | 0 |
-| `openai-api-key`<br />Found an OpenAI API Key, posing a risk of unauthorized access to AI services and data manipulation. | - | t3blbkfj | 3 | 0 | 0 |
-| `openshift-user-token`<br />Found an OpenShift user token, potentially compromising an OpenShift/Kubernetes cluster. | - | sha256~ | 3.5 | 0 | 0 |
-| `perplexity-api-key`<br />Detected a Perplexity API key, which could lead to unauthorized access to Perplexity AI services and data exposure. | - | pplx- | 4 | 0 | 0 |
-| `pkcs12-file`<br />Found a PKCS #12 file, which commonly contain bundled private keys. | - | - | 0 | 0 | 0 |
-| `plaid-api-token`<br />Discovered a Plaid API Token, potentially compromising financial data aggregation and banking services. | - | plaid | 0 | 0 | 0 |
-| `plaid-client-id`<br />Uncovered a Plaid Client ID, which could lead to unauthorized financial service integrations and data breaches. | - | plaid | 3.5 | 0 | 0 |
-| `plaid-secret-key`<br />Detected a Plaid Secret key, risking unauthorized access to financial accounts and sensitive transaction data. | - | plaid | 3.5 | 0 | 0 |
-| `planetscale-api-token`<br />Identified a PlanetScale API token, potentially compromising database management and operations. | - | pscale_tkn_ | 3 | 0 | 0 |
-| `planetscale-oauth-token`<br />Found a PlanetScale OAuth token, posing a risk to database access control and sensitive data integrity. | - | pscale_oauth_ | 3 | 0 | 0 |
-| `planetscale-password`<br />Discovered a PlanetScale password, which could lead to unauthorized database operations and data breaches. | - | pscale_pw_ | 3 | 0 | 0 |
-| `postman-api-token`<br />Uncovered a Postman API token, potentially compromising API testing and development workflows. | - | pmak- | 3 | 0 | 0 |
-| `prefect-api-token`<br />Detected a Prefect API token, risking unauthorized access to workflow management and automation services. | - | pnu_ | 2 | 0 | 0 |
-| `private-key`<br />Identified a Private Key, which may compromise cryptographic security and sensitive data encryption. | - | -----begin | 0 | 0 | 0 |
-| `privateai-api-token`<br />Identified a PrivateAI Token, posing a risk of unauthorized access to AI services and data manipulation. | - | private-ai, private_ai, privateai | 3 | 0 | 0 |
-| `pulumi-api-token`<br />Found a Pulumi API token, posing a risk to infrastructure as code services and cloud resource management. | - | pul- | 2 | 0 | 0 |
-| `pypi-upload-token`<br />Discovered a PyPI upload token, potentially compromising Python package distribution and repository integrity. | - | pypi-ageichlwas5vcmc | 3 | 0 | 0 |
-| `rapidapi-access-token`<br />Uncovered a RapidAPI Access Token, which could lead to unauthorized access to various APIs and data services. | - | rapidapi | 0 | 0 | 0 |
-| `readme-api-token`<br />Detected a Readme API token, risking unauthorized documentation management and content exposure. | - | rdme_ | 2 | 0 | 0 |
-| `rubygems-api-token`<br />Identified a Rubygem API token, potentially compromising Ruby library distribution and package management. | - | rubygems_ | 2 | 0 | 0 |
-| `scalingo-api-token`<br />Found a Scalingo API token, posing a risk to cloud platform services and application deployment security. | - | tk-us- | 2 | 0 | 0 |
-| `sendbird-access-id`<br />Discovered a Sendbird Access ID, which could compromise chat and messaging platform integrations. | - | sendbird | 0 | 0 | 0 |
-| `sendbird-access-token`<br />Uncovered a Sendbird Access Token, potentially risking unauthorized access to communication services and user data. | - | sendbird | 0 | 0 | 0 |
-| `sendgrid-api-token`<br />Detected a SendGrid API token, posing a risk of unauthorized email service operations and data exposure. | - | sg. | 2 | 0 | 0 |
-| `sendinblue-api-token`<br />Identified a Sendinblue API token, which may compromise email marketing services and subscriber data privacy. | - | xkeysib- | 2 | 0 | 0 |
-| `sentry-access-token`<br />Found a Sentry.io Access Token (old format), risking unauthorized access to error tracking services and sensitive application data. | - | sentry | 3 | 0 | 0 |
-| `sentry-org-token`<br />Found a Sentry.io Organization Token, risking unauthorized access to error tracking services and sensitive application data. | - | sntrys_eyjpyxqio | 4.5 | 0 | 0 |
-| `sentry-user-token`<br />Found a Sentry.io User Token, risking unauthorized access to error tracking services and sensitive application data. | - | sntryu_ | 3.5 | 0 | 0 |
-| `settlemint-application-access-token`<br />Found a Settlemint Application Access Token. | - | sm_aat | 3 | 0 | 0 |
-| `settlemint-personal-access-token`<br />Found a Settlemint Personal Access Token. | - | sm_pat | 3 | 0 | 0 |
-| `settlemint-service-access-token`<br />Found a Settlemint Service Access Token. | - | sm_sat | 3 | 0 | 0 |
-| `shippo-api-token`<br />Discovered a Shippo API token, potentially compromising shipping services and customer order data. | - | shippo_ | 2 | 0 | 0 |
-| `shopify-access-token`<br />Uncovered a Shopify access token, which could lead to unauthorized e-commerce platform access and data breaches. | - | shpat_ | 2 | 0 | 0 |
-| `shopify-custom-access-token`<br />Detected a Shopify custom access token, potentially compromising custom app integrations and e-commerce data security. | - | shpca_ | 2 | 0 | 0 |
-| `shopify-private-app-access-token`<br />Identified a Shopify private app access token, risking unauthorized access to private app data and store operations. | - | shppa_ | 2 | 0 | 0 |
-| `shopify-shared-secret`<br />Found a Shopify shared secret, posing a risk to application authentication and e-commerce platform security. | - | shpss_ | 2 | 0 | 0 |
-| `sidekiq-secret`<br />Discovered a Sidekiq Secret, which could lead to compromised background job processing and application data breaches. | - | bundle_enterprise__contribsys__com, bundle_gems__contribsys__com | 0 | 0 | 0 |
-| `sidekiq-sensitive-url`<br />Uncovered a Sidekiq Sensitive URL, potentially exposing internal job queues and sensitive operation details. | - | enterprise.contribsys.com, gems.contribsys.com | 0 | 0 | 0 |
-| `slack-app-token`<br />Detected a Slack App-level token, risking unauthorized access to Slack applications and workspace data. | - | xapp | 2 | 0 | 0 |
-| `slack-bot-token`<br />Identified a Slack Bot token, which may compromise bot integrations and communication channel security. | - | xoxb | 3 | 0 | 0 |
-| `slack-config-access-token`<br />Found a Slack Configuration access token, posing a risk to workspace configuration and sensitive data access. | - | xoxe.xoxb-, xoxe.xoxp- | 2 | 0 | 0 |
-| `slack-config-refresh-token`<br />Discovered a Slack Configuration refresh token, potentially allowing prolonged unauthorized access to configuration settings. | - | xoxe- | 2 | 0 | 0 |
-| `slack-legacy-bot-token`<br />Uncovered a Slack Legacy bot token, which could lead to compromised legacy bot operations and data exposure. | - | xoxb | 2 | 0 | 0 |
-| `slack-legacy-token`<br />Detected a Slack Legacy token, risking unauthorized access to older Slack integrations and user data. | - | xoxo, xoxs | 2 | 0 | 0 |
-| `slack-legacy-workspace-token`<br />Identified a Slack Legacy Workspace token, potentially compromising access to workspace data and legacy features. | - | xoxa, xoxr | 2 | 0 | 0 |
-| `slack-user-token`<br />Found a Slack User token, posing a risk of unauthorized user impersonation and data access within Slack workspaces. | - | xoxe-, xoxp- | 2 | 0 | 0 |
-| `slack-webhook-url`<br />Discovered a Slack Webhook, which could lead to unauthorized message posting and data leakage in Slack channels. | - | hooks.slack.com | 0 | 0 | 0 |
-| `snyk-api-token`<br />Uncovered a Snyk API token, potentially compromising software vulnerability scanning and code security. | - | snyk | 0 | 0 | 0 |
-| `sonar-api-token`<br />Uncovered a Sonar API token, potentially compromising software vulnerability scanning and code security. | - | sonar | 0 | 2 | 0 |
-| `sourcegraph-access-token`<br />Sourcegraph is a code search and navigation engine. | - | sgp_, sourcegraph | 3 | 0 | 0 |
-| `square-access-token`<br />Detected a Square Access Token, risking unauthorized payment processing and financial transaction exposure. | - | eaaa, sq0atp- | 2 | 0 | 0 |
-| `squarespace-access-token`<br />Identified a Squarespace Access Token, which may compromise website management and content control on Squarespace. | - | squarespace | 0 | 0 | 0 |
-| `stripe-access-token`<br />Found a Stripe Access Token, posing a risk to payment processing services and sensitive financial data. | - | rk_live, rk_prod, rk_test, sk_live, sk_prod, sk_test | 2 | 0 | 0 |
-| `sumologic-access-id`<br />Discovered a SumoLogic Access ID, potentially compromising log management services and data analytics integrity. | - | sumo | 3 | 0 | 0 |
-| `sumologic-access-token`<br />Uncovered a SumoLogic Access Token, which could lead to unauthorized access to log data and analytics insights. | - | sumo | 3 | 0 | 0 |
-| `telegram-bot-api-token`<br />Detected a Telegram Bot API Token, risking unauthorized bot operations and message interception on Telegram. | - | telegr | 0 | 0 | 0 |
-| `travisci-access-token`<br />Identified a Travis CI Access Token, potentially compromising continuous integration services and codebase security. | - | travis | 0 | 0 | 0 |
-| `twilio-api-key`<br />Found a Twilio API Key, posing a risk to communication services and sensitive customer interaction data. | - | sk | 3 | 0 | 0 |
-| `twitch-api-token`<br />Discovered a Twitch API token, which could compromise streaming services and account integrations. | - | twitch | 0 | 0 | 0 |
-| `twitter-access-secret`<br />Uncovered a Twitter Access Secret, potentially risking unauthorized Twitter integrations and data breaches. | - | twitter | 0 | 0 | 0 |
-| `twitter-access-token`<br />Detected a Twitter Access Token, posing a risk of unauthorized account operations and social media data exposure. | - | twitter | 0 | 0 | 0 |
-| `twitter-api-key`<br />Identified a Twitter API Key, which may compromise Twitter application integrations and user data security. | - | twitter | 0 | 0 | 0 |
-| `twitter-api-secret`<br />Found a Twitter API Secret, risking the security of Twitter app integrations and sensitive data access. | - | twitter | 0 | 0 | 0 |
-| `twitter-bearer-token`<br />Discovered a Twitter Bearer Token, potentially compromising API access and data retrieval from Twitter. | - | twitter | 0 | 0 | 0 |
-| `typeform-api-token`<br />Uncovered a Typeform API token, which could lead to unauthorized survey management and data collection. | - | tfp_ | 0 | 0 | 0 |
-| `vault-batch-token`<br />Detected a Vault Batch Token, risking unauthorized access to secret management services and sensitive data. | - | hvb. | 4 | 0 | 0 |
-| `vault-service-token`<br />Identified a Vault Service Token, potentially compromising infrastructure security and access to sensitive credentials. | - | hvs., s. | 3.5 | 0 | 1 |
-| `yandex-access-token`<br />Found a Yandex Access Token, posing a risk to Yandex service integrations and user data privacy. | - | yandex | 0 | 0 | 0 |
-| `yandex-api-key`<br />Discovered a Yandex API Key, which could lead to unauthorized access to Yandex services and data manipulation. | - | yandex | 0 | 0 | 0 |
-| `yandex-aws-access-token`<br />Uncovered a Yandex AWS Access Token, potentially compromising cloud resource access and data security on Yandex Cloud. | - | yandex | 0 | 0 | 0 |
-| `zendesk-secret-key`<br />Detected a Zendesk Secret Key, risking unauthorized access to customer support services and sensitive ticketing data. | - | zendesk | 0 | 0 | 0 |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>1password-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a possible 1Password secret key, potentially compromising access to secrets in vaults.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>a3-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.8</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>1password-service-account-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a possible 1Password service account token, potentially compromising access to secrets in vaults.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ops_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>adafruit-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a potential Adafruit API Key, which could lead to unauthorized access to Adafruit services and sensitive data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>adafruit</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>adobe-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a pattern that resembles an Adobe OAuth Web Client ID, posing a risk of compromised Adobe integrations and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>adobe</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>adobe-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Adobe Client Secret, which, if exposed, could allow unauthorized Adobe service access and data manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>p8e-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>age-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Age encryption tool secret key, risking data decryption and unauthorized access to sensitive information.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>age-secret-key-1</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>airtable-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a possible Airtable API Key, potentially compromising database access and leading to data leakage or alteration.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>airtable</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>airtable-personnal-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a possible Airtable Personal AccessToken, potentially compromising database access and leading to data leakage or alteration.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>airtable</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>algolia-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified an Algolia API Key, which could result in unauthorized search operations and data exposure on Algolia-managed platforms.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>algolia</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>alibaba-access-key-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected an Alibaba Cloud AccessKey ID, posing a risk of unauthorized cloud resource access and potential data compromise.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ltai</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>alibaba-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Alibaba Cloud Secret Key, potentially allowing unauthorized operations and data access within Alibaba Cloud.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>alibaba</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>anthropic-admin-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected an Anthropic Admin API Key, risking unauthorized access to administrative functions and sensitive AI model configurations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sk-ant-admin01</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>anthropic-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified an Anthropic API Key, which may compromise AI assistant integrations and expose sensitive data to unauthorized access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sk-ant-api03</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>artifactory-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected an Artifactory api key, posing a risk unauthorized access to the central repository.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>akcp</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>artifactory-reference-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected an Artifactory reference token, posing a risk of impersonation and unauthorized access to the central repository.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>cmvmd</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>asana-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Asana Client ID, risking unauthorized access to Asana projects and sensitive task information.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>asana</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>asana-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified an Asana Client Secret, which could lead to compromised project management integrity and unauthorized access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>asana</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>atlassian-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected an Atlassian API token, posing a threat to project management and collaboration tool security and data confidentiality.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>atatt3, atlassian, confluence, jira</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>authress-service-client-access-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a possible Authress Service Client Access Key, which may compromise access control services and sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>authress_, ext_, sc_, scauth_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>aws-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>a3t, abia, acca, akia, asia</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>aws-amazon-bedrock-api-key-long-lived</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a pattern that may indicate long-lived Amazon Bedrock API keys, risking unauthorized Amazon Bedrock usage</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>absk</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>aws-amazon-bedrock-api-key-short-lived</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a pattern that may indicate short-lived Amazon Bedrock API keys, risking unauthorized Amazon Bedrock usage</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>bedrock-api-key-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azure-ad-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Azure AD Client Secret</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>q~</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>beamer-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Beamer API token, potentially compromising content management and exposing sensitive notifications and updates.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>beamer</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>bitbucket-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Bitbucket Client ID, risking unauthorized repository access and potential codebase exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>bitbucket</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>bitbucket-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Bitbucket Client Secret, posing a risk of compromised code repositories and unauthorized access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>bitbucket</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>bittrex-access-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Bittrex Access Key, which could lead to unauthorized access to cryptocurrency trading accounts and financial loss.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>bittrex</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>bittrex-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Bittrex Secret Key, potentially compromising cryptocurrency transactions and financial security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>bittrex</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cisco-meraki-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Cisco Meraki is a cloud-managed IT solution that provides networking, security, and device management through an easy-to-use interface.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>meraki</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>clickhouse-cloud-api-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a pattern that may indicate clickhouse cloud API secret key, risking unauthorized clickhouse cloud api access and data breaches on ClickHouse Cloud platforms.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>4b1d</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>clojars-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a possible Clojars API token, risking unauthorized access to Clojure libraries and potential code manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>clojars_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cloudflare-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Cloudflare API Key, potentially compromising cloud application deployments and operational security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>cloudflare</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cloudflare-global-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Cloudflare Global API Key, potentially compromising cloud application deployments and operational security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>cloudflare</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cloudflare-origin-ca-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Cloudflare Origin CA Key, potentially compromising cloud application deployments and operational security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>cloudflare, v1.0-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>codecov-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a pattern resembling a Codecov Access Token, posing a risk of unauthorized access to code coverage reports and sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>codecov</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cohere-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Cohere Token, posing a risk of unauthorized access to AI services and data manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>co_api_key, cohere</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>coinbase-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Coinbase Access Token, posing a risk of unauthorized access to cryptocurrency accounts and financial transactions.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>coinbase</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>confluent-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Confluent Access Token, which could compromise access to streaming data platforms and sensitive data flow.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>confluent</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>confluent-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Confluent Secret Key, potentially risking unauthorized operations and data access within Confluent services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>confluent</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>contentful-delivery-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Contentful delivery API token, posing a risk to content management systems and data integrity.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>contentful</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>curl-auth-header</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential authorization token provided in a curl command header, which could compromise the curl accessed resource.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>curl</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2.75</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>curl-auth-user</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential basic authorization token provided in a curl command, which could compromise the curl accessed resource.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>curl</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>databricks-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Databricks API token, which may compromise big data analytics platforms and sensitive data processing.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dapi</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>datadog-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Datadog Access Token, potentially risking monitoring and analytics data exposure and manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>datadog</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>defined-networking-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Defined Networking API token, which could lead to unauthorized network operations and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dnkey</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>digitalocean-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a DigitalOcean OAuth Access Token, risking unauthorized cloud resource access and data compromise.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>doo_v1_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>digitalocean-pat</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a DigitalOcean Personal Access Token, posing a threat to cloud infrastructure security and data privacy.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dop_v1_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>digitalocean-refresh-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a DigitalOcean OAuth Refresh Token, which could allow prolonged unauthorized access and resource manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dor_v1_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>discord-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Discord API key, potentially compromising communication channels and user data privacy on Discord.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>discord</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>discord-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Discord client ID, which may lead to unauthorized integrations and data exposure in Discord applications.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>discord</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>discord-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Discord client secret, risking compromised Discord bot integrations and data leaks.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>discord</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>doppler-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Doppler API token, posing a risk to environment and secrets management security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dp.pt.</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>droneci-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Droneci Access Token, potentially compromising continuous integration and deployment workflows.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>droneci</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>dropbox-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Dropbox API secret, which could lead to unauthorized file access and data breaches in Dropbox storage.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dropbox</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>dropbox-long-lived-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Dropbox long-lived API token, risking prolonged unauthorized access to cloud storage and sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dropbox</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>dropbox-short-lived-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Dropbox short-lived API token, posing a risk of temporary but potentially harmful data access and manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dropbox</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>duffel-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Duffel API token, which may compromise travel platform integrations and sensitive customer data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>duffel_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>dynatrace-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Dynatrace API token, potentially risking application performance monitoring and data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>dt0c01.</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>easypost-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified an EasyPost API token, which could lead to unauthorized postal and shipment service access and data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ezak</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>easypost-test-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected an EasyPost test API token, risking exposure of test environments and potentially sensitive shipment data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>eztk</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>etsy-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found an Etsy Access Token, potentially compromising Etsy shop management and customer data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>etsy</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>facebook-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Facebook Access Token, posing a risk of unauthorized access to Facebook accounts and personal data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>facebook</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>facebook-page-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Facebook Page Access Token, posing a risk of unauthorized access to Facebook accounts and personal data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>eaac, eaam</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>facebook-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Facebook Application secret, posing a risk of unauthorized access to Facebook accounts and personal data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>facebook</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>fastly-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Fastly API key, which may compromise CDN and edge cloud services, leading to content delivery and security issues.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>fastly</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>finicity-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Finicity API token, potentially risking financial data access and unauthorized financial operations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>finicity</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>finicity-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Finicity Client Secret, which could lead to compromised financial service integrations and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>finicity</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>finnhub-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Finnhub Access Token, risking unauthorized access to financial market data and analytics.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>finnhub</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>flickr-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Flickr Access Token, posing a risk of unauthorized photo management and potential data leakage.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>flickr</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>flutterwave-encryption-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Flutterwave Encryption Key, which may compromise payment processing and sensitive financial information.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>flwseck_test</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>flutterwave-public-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Finicity Public Key, potentially exposing public cryptographic operations and integrations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>flwpubk_test</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>flutterwave-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Flutterwave Secret Key, risking unauthorized financial transactions and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>flwseck_test</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>flyio-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Fly.io API key</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>fm1, fm2_, fo1_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>frameio-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Frame.io API token, potentially compromising video collaboration and project management.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>fio-u-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>freemius-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Freemius secret key, potentially exposing sensitive information.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>secret_key</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>freshbooks-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Freshbooks Access Token, posing a risk to accounting software access and sensitive financial data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>freshbooks</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gcp-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a GCP API key, which could lead to unauthorized access to Google Cloud services and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>aiza</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>generic-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Generic API Key, potentially exposing access to various services and sensitive operations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>access, api, auth, credential, creds, key, passwd, password, secret, token</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>4</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>github-app-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitHub App Token, which may compromise GitHub application integrations and source code security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ghs_, ghu_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>github-fine-grained-pat</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a GitHub Fine-Grained Personal Access Token, risking unauthorized repository access and code manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>github_pat_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>github-oauth</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a GitHub OAuth Access Token, posing a risk of compromised GitHub account integrations and data leaks.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>gho_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>github-pat</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a GitHub Personal Access Token, potentially leading to unauthorized repository access and sensitive content exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ghp_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>github-refresh-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a GitHub Refresh Token, which could allow prolonged unauthorized access to GitHub services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ghr_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-cicd-job-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab CI/CD Job Token, potential access to projects and some APIs on behalf of a user while the CI job is running.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glcbt-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-deploy-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab Deploy Token, risking access to repositories, packages and containers with write access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>gldt-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-feature-flag-client-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab feature flag client token, risks exposing user lists and features flags used by an application.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glffct-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-feed-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab feed token, risking exposure of user data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glft-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-incoming-mail-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab incoming mail token, risking manipulation of data sent by mail.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glimt-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-kubernetes-agent-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab Kubernetes Agent token, risking access to repos and registry of projects connected via agent.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glagent-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-oauth-app-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab OIDC Application Secret, risking access to apps using GitLab as authentication provider.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>gloas-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-pat</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab Personal Access Token, risking unauthorized access to GitLab repositories and codebase exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glpat-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-pat-routable</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a GitLab Personal Access Token (routable), risking unauthorized access to GitLab repositories and codebase exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glpat-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-ptt</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a GitLab Pipeline Trigger Token, potentially compromising continuous integration workflows and project security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glptt-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-rrt</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a GitLab Runner Registration Token, posing a risk to CI/CD pipeline integrity and unauthorized access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>gr1348941</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-runner-authentication-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a GitLab Runner Authentication Token, posing a risk to CI/CD pipeline integrity and unauthorized access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glrt-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-runner-authentication-token-routable</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a GitLab Runner Authentication Token (Routable), posing a risk to CI/CD pipeline integrity and unauthorized access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glrt-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-scim-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a GitLab SCIM Token, posing a risk to unauthorized access for a organization or instance.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glsoat-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitlab-session-cookie</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a GitLab Session Cookie, posing a risk to unauthorized access to a user account.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>_gitlab_session=</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gitter-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Gitter Access Token, which may lead to unauthorized access to chat and communication services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>gitter</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>gocardless-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a GoCardless API token, potentially risking unauthorized direct debit payment operations and financial data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>gocardless, live_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>grafana-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Grafana API key, which could compromise monitoring dashboards and sensitive data analytics.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>eyjrijoi</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>grafana-cloud-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Grafana cloud API token, risking unauthorized access to cloud-based monitoring services and data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glc_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>grafana-service-account-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Grafana service account token, posing a risk of compromised monitoring services and data integrity.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>glsa_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>harness-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Harness Access Token (PAT or SAT), risking unauthorized access to a Harness account.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pat., sat.</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>hashicorp-tf-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a HashiCorp Terraform user/org API token, which may lead to unauthorized infrastructure management and security breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>atlasv1</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>hashicorp-tf-password</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a HashiCorp Terraform password field, risking unauthorized infrastructure configuration and security breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>administrator_login_password, password</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>heroku-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Heroku API Key, potentially compromising cloud application deployments and operational security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>heroku</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>heroku-api-key-v2</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Heroku API Key, potentially compromising cloud application deployments and operational security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>hrku-aa</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>hubspot-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a HubSpot API Token, posing a risk to CRM data integrity and unauthorized marketing operations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>hubspot</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>huggingface-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Hugging Face Access token, which could lead to unauthorized access to AI models and sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>hf_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>huggingface-organization-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Hugging Face Organization API token, potentially compromising AI organization accounts and associated data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>api_org_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>infracost-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected an Infracost API Token, risking unauthorized access to cloud cost estimation tools and financial data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ico-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>intercom-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified an Intercom API Token, which could compromise customer communication channels and data privacy.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>intercom</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>intra42-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Intra42 client secret, which could lead to unauthorized access to the 42School API and sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>intra, s-s4t2af-, s-s4t2ud-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>jfrog-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a JFrog API Key, posing a risk of unauthorized access to software artifact repositories and build pipelines.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>artifactory, bintray, jfrog, xray</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>jfrog-identity-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a JFrog Identity Token, potentially compromising access to JFrog services and sensitive software artifacts.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>artifactory, bintray, jfrog, xray</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>jwt</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ey</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>jwt-base64</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Base64-encoded JSON Web Token, posing a risk of exposing encoded authentication and data exchange information.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>zxlk</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>kraken-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Kraken Access Token, potentially compromising cryptocurrency trading accounts and financial security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>kraken</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>kubernetes-secret-yaml</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Possible Kubernetes Secret detected, posing a risk of leaking credentials/tokens from your deployments</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>secret</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>2</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>kucoin-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Kucoin Access Token, risking unauthorized access to cryptocurrency exchange services and transactions.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>kucoin</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>kucoin-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Kucoin Secret Key, which could lead to compromised cryptocurrency operations and financial data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>kucoin</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>launchdarkly-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Launchdarkly Access Token, potentially compromising feature flag management and application functionality.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>launchdarkly</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>linear-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Linear API Token, posing a risk to project management tools and sensitive task data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>lin_api_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>linear-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Linear Client Secret, which may compromise secure integrations and sensitive project management data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>linear</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>linkedin-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a LinkedIn Client ID, risking unauthorized access to LinkedIn integrations and professional data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>linked-in, linked_in, linkedin</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>linkedin-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a LinkedIn Client secret, potentially compromising LinkedIn application integrations and user data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>linked-in, linked_in, linkedin</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>lob-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Lob API Key, which could lead to unauthorized access to mailing and address verification services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>live_, test_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>lob-pub-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Lob Publishable API Key, posing a risk of exposing mail and print service integrations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>_pub, live_pub, test_pub</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>looker-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Looker Client ID, risking unauthorized access to a Looker account and exposing sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>looker</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>looker-client-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Looker Client Secret, risking unauthorized access to a Looker account and exposing sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>looker</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>mailchimp-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Mailchimp API key, potentially compromising email marketing campaigns and subscriber data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>mailchimp</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>mailgun-private-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Mailgun private API token, risking unauthorized email service operations and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>mailgun</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>mailgun-pub-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Mailgun public validation key, which could expose email verification processes and associated data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>mailgun</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>mailgun-signing-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Mailgun webhook signing key, potentially compromising email automation and data integrity.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>mailgun</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>mapbox-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a MapBox API token, posing a risk to geospatial services and sensitive location data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>mapbox</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>mattermost-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Mattermost Access Token, which may compromise team communication channels and data privacy.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>mattermost</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>maxmind-license-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential MaxMind license key.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>_mmk</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>messagebird-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a MessageBird API token, risking unauthorized access to communication platforms and message data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>message-bird, message_bird, messagebird</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>messagebird-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a MessageBird client ID, potentially compromising API integrations and sensitive communication data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>message-bird, message_bird, messagebird</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>microsoft-teams-webhook</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Microsoft Teams Webhook, which could lead to unauthorized access to team collaboration tools and data leaks.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>incomingwebhook, webhook.office.com, webhookb2</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>netlify-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Netlify Access Token, potentially compromising web hosting services and site management.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>netlify</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>new-relic-browser-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a New Relic ingest browser API token, risking unauthorized access to application performance data and analytics.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>nrjs-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>new-relic-insert-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a New Relic insight insert key, compromising data injection into the platform.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>nrii-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>new-relic-user-api-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a New Relic user API ID, posing a risk to application monitoring services and data integrity.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>new-relic, new_relic, newrelic</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>new-relic-user-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a New Relic user API Key, which could lead to compromised application insights and performance monitoring.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>nrak</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>notion-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Notion API token</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>ntn_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>npm-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered an npm access token, potentially compromising package management and code repository access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>npm_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>nuget-config-password</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a password within a Nuget config file, potentially compromising package management access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>&lt;add key=</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>1</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>nytimes-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Nytimes Access Token, risking unauthorized access to New York Times APIs and content services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>new-york-times, newyorktimes, nytimes</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>octopus-deploy-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a potential Octopus Deploy API key, risking application deployments and operational security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>api-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>okta-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified an Okta Access Token, which may compromise identity management services and user authentication data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>okta</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>openai-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found an OpenAI API Key, posing a risk of unauthorized access to AI services and data manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>t3blbkfj</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>openshift-user-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found an OpenShift user token, potentially compromising an OpenShift/Kubernetes cluster.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sha256~</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>perplexity-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Perplexity API key, which could lead to unauthorized access to Perplexity AI services and data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pplx-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>pkcs12-file</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a PKCS #12 file, which commonly contain bundled private keys.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>plaid-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Plaid API Token, potentially compromising financial data aggregation and banking services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>plaid</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>plaid-client-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Plaid Client ID, which could lead to unauthorized financial service integrations and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>plaid</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>plaid-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Plaid Secret key, risking unauthorized access to financial accounts and sensitive transaction data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>plaid</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>planetscale-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a PlanetScale API token, potentially compromising database management and operations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pscale_tkn_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>planetscale-oauth-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a PlanetScale OAuth token, posing a risk to database access control and sensitive data integrity.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pscale_oauth_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>planetscale-password</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a PlanetScale password, which could lead to unauthorized database operations and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pscale_pw_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>postman-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Postman API token, potentially compromising API testing and development workflows.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pmak-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>prefect-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Prefect API token, risking unauthorized access to workflow management and automation services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pnu_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>private-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Private Key, which may compromise cryptographic security and sensitive data encryption.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>-----begin</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>privateai-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a PrivateAI Token, posing a risk of unauthorized access to AI services and data manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>private-ai, private_ai, privateai</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>pulumi-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Pulumi API token, posing a risk to infrastructure as code services and cloud resource management.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pul-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>pypi-upload-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a PyPI upload token, potentially compromising Python package distribution and repository integrity.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>pypi-ageichlwas5vcmc</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>rapidapi-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a RapidAPI Access Token, which could lead to unauthorized access to various APIs and data services.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>rapidapi</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>readme-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Readme API token, risking unauthorized documentation management and content exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>rdme_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>rubygems-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Rubygem API token, potentially compromising Ruby library distribution and package management.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>rubygems_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>scalingo-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Scalingo API token, posing a risk to cloud platform services and application deployment security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>tk-us-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sendbird-access-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Sendbird Access ID, which could compromise chat and messaging platform integrations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sendbird</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sendbird-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Sendbird Access Token, potentially risking unauthorized access to communication services and user data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sendbird</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sendgrid-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a SendGrid API token, posing a risk of unauthorized email service operations and data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sg.</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sendinblue-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Sendinblue API token, which may compromise email marketing services and subscriber data privacy.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xkeysib-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sentry-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Sentry.io Access Token (old format), risking unauthorized access to error tracking services and sensitive application data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sentry</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sentry-org-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Sentry.io Organization Token, risking unauthorized access to error tracking services and sensitive application data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sntrys_eyjpyxqio</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sentry-user-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Sentry.io User Token, risking unauthorized access to error tracking services and sensitive application data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sntryu_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>settlemint-application-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Settlemint Application Access Token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sm_aat</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>settlemint-personal-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Settlemint Personal Access Token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sm_pat</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>settlemint-service-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Settlemint Service Access Token.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sm_sat</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>shippo-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Shippo API token, potentially compromising shipping services and customer order data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>shippo_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>shopify-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Shopify access token, which could lead to unauthorized e-commerce platform access and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>shpat_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>shopify-custom-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Shopify custom access token, potentially compromising custom app integrations and e-commerce data security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>shpca_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>shopify-private-app-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Shopify private app access token, risking unauthorized access to private app data and store operations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>shppa_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>shopify-shared-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Shopify shared secret, posing a risk to application authentication and e-commerce platform security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>shpss_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sidekiq-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Sidekiq Secret, which could lead to compromised background job processing and application data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>bundle_enterprise__contribsys__com, bundle_gems__contribsys__com</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sidekiq-sensitive-url</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Sidekiq Sensitive URL, potentially exposing internal job queues and sensitive operation details.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>enterprise.contribsys.com, gems.contribsys.com</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-app-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Slack App-level token, risking unauthorized access to Slack applications and workspace data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xapp</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-bot-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Slack Bot token, which may compromise bot integrations and communication channel security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xoxb</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-config-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Slack Configuration access token, posing a risk to workspace configuration and sensitive data access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xoxe.xoxb-, xoxe.xoxp-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-config-refresh-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Slack Configuration refresh token, potentially allowing prolonged unauthorized access to configuration settings.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xoxe-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-legacy-bot-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Slack Legacy bot token, which could lead to compromised legacy bot operations and data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xoxb</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-legacy-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Slack Legacy token, risking unauthorized access to older Slack integrations and user data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xoxo, xoxs</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-legacy-workspace-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Slack Legacy Workspace token, potentially compromising access to workspace data and legacy features.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xoxa, xoxr</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-user-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Slack User token, posing a risk of unauthorized user impersonation and data access within Slack workspaces.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>xoxe-, xoxp-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>slack-webhook-url</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Slack Webhook, which could lead to unauthorized message posting and data leakage in Slack channels.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>hooks.slack.com</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>snyk-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Snyk API token, potentially compromising software vulnerability scanning and code security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>snyk</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sonar-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Sonar API token, potentially compromising software vulnerability scanning and code security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sonar</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sourcegraph-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Sourcegraph is a code search and navigation engine.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sgp_, sourcegraph</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>square-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Square Access Token, risking unauthorized payment processing and financial transaction exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>eaaa, sq0atp-</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>squarespace-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Squarespace Access Token, which may compromise website management and content control on Squarespace.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>squarespace</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>stripe-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Stripe Access Token, posing a risk to payment processing services and sensitive financial data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>rk_live, rk_prod, rk_test, sk_live, sk_prod, sk_test</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sumologic-access-id</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a SumoLogic Access ID, potentially compromising log management services and data analytics integrity.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sumo</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sumologic-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a SumoLogic Access Token, which could lead to unauthorized access to log data and analytics insights.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sumo</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>telegram-bot-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Telegram Bot API Token, risking unauthorized bot operations and message interception on Telegram.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>telegr</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>travisci-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Travis CI Access Token, potentially compromising continuous integration services and codebase security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>travis</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>twilio-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Twilio API Key, posing a risk to communication services and sensitive customer interaction data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>sk</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>twitch-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Twitch API token, which could compromise streaming services and account integrations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>twitch</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>twitter-access-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Twitter Access Secret, potentially risking unauthorized Twitter integrations and data breaches.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>twitter</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>twitter-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Twitter Access Token, posing a risk of unauthorized account operations and social media data exposure.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>twitter</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>twitter-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Twitter API Key, which may compromise Twitter application integrations and user data security.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>twitter</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>twitter-api-secret</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Twitter API Secret, risking the security of Twitter app integrations and sensitive data access.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>twitter</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>twitter-bearer-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Twitter Bearer Token, potentially compromising API access and data retrieval from Twitter.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>twitter</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>typeform-api-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Typeform API token, which could lead to unauthorized survey management and data collection.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>tfp_</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>vault-batch-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Vault Batch Token, risking unauthorized access to secret management services and sensitive data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>hvb.</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>vault-service-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Identified a Vault Service Token, potentially compromising infrastructure security and access to sensitive credentials.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>hvs., s.</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>3.5</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>1</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>yandex-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Found a Yandex Access Token, posing a risk to Yandex service integrations and user data privacy.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>yandex</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>yandex-api-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Discovered a Yandex API Key, which could lead to unauthorized access to Yandex services and data manipulation.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>yandex</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>yandex-aws-access-token</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Uncovered a Yandex AWS Access Token, potentially compromising cloud resource access and data security on Yandex Cloud.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>yandex</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>zendesk-secret-key</code><span>Gitleaks-compatible</span>
+    </div>
+    <p class="reference-card-description">Detected a Zendesk Secret Key, risking unauthorized access to customer support services and sensitive ticketing data.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Tags</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Keywords</dt>
+        <dd>zendesk</dd>
+      </div>
+      <div>
+        <dt>Entropy</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Secret group</dt>
+        <dd>0</dd>
+      </div>
+      <div>
+        <dt>Allowlists</dt>
+        <dd>0</dd>
+      </div>
+    </dl>
+  </article>
+</div>
