@@ -661,7 +661,51 @@ Native source support:
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
 
-GitHub source support is native Picket behavior, not Gitleaks compatibility behavior. Repository file enumeration is implemented: `--github-repository` selects an `owner/name` repository or repository URL, `--github-token-env` reads the token from an environment variable, `--github-ref` selects a branch, tag, or commit, `--github-pull-request` selects a pull request head for the selected repository, and `--github-source-api-endpoint` supports GitHub Enterprise Server. Organization repository discovery is implemented: `--github-organization` selects the organization login, `--github-repository-type` maps to GitHub's organization repository type filter, and enumeration requests `per_page=100` while following the REST `Link` header for `rel="next"` pages. Public user repository discovery is implemented: `--github-user` selects a user login, `--github-repository-type` maps to GitHub's user repository type filter (`all`, `owner`, or `member`), and enumeration requests `per_page=100` while following the REST `Link` header. Issue source enumeration is implemented through `--github-include-issues` and `--github-issue-state`; it reads issue bodies and comments through the Issues APIs and skips pull request entries returned by the Issues API. Release source enumeration is implemented through `--github-include-releases`; it scans release bodies and release assets, lists releases with pagination, and does not send bearer tokens to redirected release asset downloads. Actions artifact source enumeration is implemented through `--github-include-actions-artifacts`; it scans repository artifact ZIP entries, uses the existing archive safety caps, and does not send bearer tokens to redirected artifact downloads. Gist source enumeration is implemented through `--github-gist`, `--github-gists`, and `--github-user-gists`; it scans gist files and gist comments, fetches detail records for listed gists, and does not send bearer tokens to gist `raw_url` downloads. Picket resolves default branches through the repository metadata, organization repository list, or user repository list APIs, resolves pull request heads through the pull request REST API including fork head repositories when GitHub returns them, lists blobs through the recursive Git Trees API, and downloads bytes through the raw Contents API. Redirects are disabled, responses from injected HTTP handlers that already followed a redirect are rejected, endpoints are guarded before credentials are sent, retryable throttling responses are retried once with bounded `Retry-After` backoff, tree and gist-file-list truncation are reported as warnings, remote downloads are bounded by a 100 decimal MB default cap and by a positive `--max-target-megabytes` value when supplied, paged GitHub REST lists stop at a 1,000-page safety limit with a warning, oversized blobs, Actions artifact ZIPs, and oversized issue/comment/release/gist synthetic files are skipped before or during download, per-file download failures do not abort the repository scan, and per-repository tree failures do not abort an organization or user scan.
+GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
+
+Implemented GitHub entry points:
+
+| Scope | Options | Behavior |
+| --- | --- | --- |
+| Repository files | `--github-repository`, `--github-ref`, `--github-token-env`, `--github-source-api-endpoint` | Scans an `owner/name` repository or repository URL at a branch, tag, or commit. Empty `--github-ref` uses the default branch. |
+| Pull request head | `--github-repository`, `--github-pull-request` | Resolves the pull request head SHA and head repository, including forks when GitHub returns them, then scans that commit. |
+| Organization repositories | `--github-organization`, `--github-repository-type` | Lists visible organization repositories with GitHub's organization repository type filter. |
+| Public user repositories | `--github-user`, `--github-repository-type` | Lists public repositories for a user with the `all`, `owner`, or `member` filter. |
+| Issues and comments | `--github-include-issues`, `--github-issue-state` | Reads issue bodies and comments, and skips entries that contain a pull request marker. |
+| Releases and assets | `--github-include-releases` | Scans release body text as synthetic Markdown and scans release assets. |
+| Actions artifacts | `--github-include-actions-artifacts` | Downloads artifact ZIP archives through GitHub's short-lived redirect and expands entries with the native archive safety caps. |
+| Gists | `--github-gist`, `--github-gists`, `--github-user-gists` | Scans gist files and gist comments, including detail records for listed gists. |
+
+GitHub API flow:
+
+| Source | API behavior |
+| --- | --- |
+| Repository metadata | Resolves default branches for single-repository scans. |
+| Recursive Git Trees | Lists repository blobs for each selected repository. |
+| Raw Contents | Downloads repository blob bytes. |
+| Pull Requests | Resolves `head.sha` and `head.repo.full_name`. |
+| Releases | Lists releases with `per_page=100`, scans embedded assets when present, and falls back to the release-assets API when needed. |
+| Actions Artifacts | Lists repository artifacts with `per_page=100` and fetches redirected ZIP downloads without forwarding the bearer token. |
+| Issues | Lists issues with `per_page=100` and reads issue comments through the issue comments API. |
+| Gists | Uses authenticated-user, user-public, and single-gist APIs; truncated file lists are reported as warnings and truncated files fall back to `raw_url` without forwarding the bearer token. |
+| Repository lists | Organization and user repository-listing modes follow the REST `Link` header while a `rel="next"` page is present. |
+
+GitHub source safety rules:
+
+- Endpoint safety checks run before the first request.
+- Redirects are disabled before credentials are sent.
+- Responses from injected HTTP handlers that already followed a redirect are rejected.
+- Release asset requests use `Accept: application/octet-stream` and handle GitHub `200` or `3xx` responses.
+- Redirected release asset, Actions artifact, and gist raw downloads are fetched without forwarding the bearer token.
+- Retryable throttling responses are retried once with bounded `Retry-After` backoff.
+- Paged GitHub REST lists stop at a 1,000-page safety limit with a warning.
+- Remote downloads use a 100 decimal MB default cap.
+- A positive `--max-target-megabytes` value overrides the default remote cap.
+- Zero keeps its local-scan compatibility meaning, but remote GitHub sources reject zero because remote HTTP bodies are always bounded.
+- Oversized blobs, Actions artifact ZIPs, and issue/comment/release/gist synthetic files are skipped before or during download.
+- Tree and gist-file-list truncation are warnings.
+- Per-file download failures do not abort a repository scan.
+- Per-repository tree failures do not abort an organization or user scan.
 
 GitHub credentials use least-privilege read scopes. Repository enumeration requires Metadata Read plus Contents Read. Hosted GitHub Secret Protection oracle capture requires Secret scanning alerts Read plus Metadata Read. Write, administration, workflow, security-event upload, and secret write scopes are not part of the scanner test contract.
 
