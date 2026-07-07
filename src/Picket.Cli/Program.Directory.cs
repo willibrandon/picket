@@ -559,7 +559,15 @@ internal static partial class Program
                     maxDecodeDepth: maxDecodeDepth,
                     maxTargetBytes: maxTargetBytes,
                     symlinkFile: file.SymlinkDisplayPath,
-                    enableCSharpStringConcatenation: nativeMode));
+                    enableCSharpStringConcatenation: nativeMode,
+                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+                if (IsTimedOut(timeoutTimestamp))
+                {
+                    Console.Error.WriteLine(TimeoutErrorMessage);
+                    hadScanError = true;
+                    break;
+                }
+
                 findings.AddRange(scannedFindings);
                 if (scanCache is not null)
                 {

@@ -283,6 +283,37 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that gzip nesting consumes archive depth instead of bypassing the configured limit.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateHonorsNestedGzipArchiveDepth()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] content = TarTestData.CreateTarBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("token-12345")));
+            for (int i = 0; i < 8; i++)
+            {
+                content = TarTestData.CreateGzipBytes(content);
+            }
+
+            File.WriteAllBytes(Path.Combine(root, "secrets.gz"), content);
+
+            IReadOnlyList<SourceFile> shallowFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxArchiveDepth: 2));
+            IReadOnlyList<SourceFile> recursiveFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root, maxArchiveDepth: 9));
+            string[] shallowDisplayPaths = [.. shallowFiles.Select(file => file.DisplayPath)];
+            string[] recursiveDisplayPaths = [.. recursiveFiles.Select(file => file.DisplayPath)];
+
+            Assert.DoesNotContain("secrets.gz!nested/secret.txt", shallowDisplayPaths);
+            Assert.Contains("secrets.gz!nested/secret.txt", recursiveDisplayPaths);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that unsafe archive entry paths are skipped before they reach reports or scanners.
     /// </summary>
     [TestMethod]
@@ -407,6 +438,37 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that zip size metadata is not trusted for archive byte accounting.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateChargesZipEntriesByActualBytesRead()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] archive = CreateZipBytes(("secret.txt", Encoding.UTF8.GetBytes(new string('x', 1024))));
+            OverwriteZipUncompressedSizes(archive, 1_000_000);
+            File.WriteAllBytes(Path.Combine(root, "secrets.zip"), archive);
+            var warnings = new List<string>();
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxArchiveDepth: 1,
+                maxArchiveBytes: 2_048,
+                warningSink: warnings.Add));
+            SourceFile? file = files.FirstOrDefault(file => file.DisplayPath == "secrets.zip!secret.txt");
+
+            Assert.IsNotNull(file);
+            Assert.AreEqual(1024, file.ReadAllBytes().Length);
+            Assert.IsEmpty(warnings);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that archive enumeration honors the configured compression-ratio safety cap.
     /// </summary>
     [TestMethod]
@@ -504,4 +566,32 @@ public sealed class DirectorySourceTests
         return stream.ToArray();
     }
 
+    private static void OverwriteZipUncompressedSizes(byte[] archive, int uncompressedSize)
+    {
+        for (int i = 0; i <= archive.Length - 4; i++)
+        {
+            if (archive[i] == 0x50
+                && archive[i + 1] == 0x4b
+                && archive[i + 2] == 0x03
+                && archive[i + 3] == 0x04)
+            {
+                WriteUInt32LittleEndian(archive.AsSpan(i + 22, 4), uncompressedSize);
+            }
+            else if (archive[i] == 0x50
+                && archive[i + 1] == 0x4b
+                && archive[i + 2] == 0x01
+                && archive[i + 3] == 0x02)
+            {
+                WriteUInt32LittleEndian(archive.AsSpan(i + 24, 4), uncompressedSize);
+            }
+        }
+    }
+
+    private static void WriteUInt32LittleEndian(Span<byte> destination, int value)
+    {
+        destination[0] = (byte)value;
+        destination[1] = (byte)(value >> 8);
+        destination[2] = (byte)(value >> 16);
+        destination[3] = (byte)(value >> 24);
+    }
 }

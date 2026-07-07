@@ -249,9 +249,26 @@ internal static partial class Program
         }
 
         diagnosticsSession?.RecordScanInput();
-        IReadOnlyList<Finding> findings = baseline.Filter(
-            gitleaksIgnore.Filter(SecretScanner.Scan(new ScanRequest(input, string.Empty, rules, ignoreGitleaksAllow, maxDecodeDepth: maxDecodeDepth, maxTargetBytes: maxTargetBytes))),
-            redactionPercent);
+        IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
+            input,
+            string.Empty,
+            rules,
+            ignoreGitleaksAllow,
+            maxDecodeDepth: maxDecodeDepth,
+            maxTargetBytes: maxTargetBytes,
+            isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+        if (IsTimedOut(timeoutTimestamp))
+        {
+            Console.Error.WriteLine(TimeoutErrorMessage);
+            if (!TryWriteReport([], rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
+            {
+                return CompleteRun(1, diagnosticsSession);
+            }
+
+            return CompleteRun(1, diagnosticsSession);
+        }
+
+        IReadOnlyList<Finding> findings = baseline.Filter(gitleaksIgnore.Filter(scannedFindings), redactionPercent);
         if (nativeMode)
         {
             findings = OfflineSecretValidator.AnnotateAll(findings);

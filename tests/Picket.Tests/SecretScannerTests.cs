@@ -953,6 +953,56 @@ public sealed class SecretScannerTests
         Assert.AreEqual("base64", finding.DecodePath[1]);
     }
 
+    /// <summary>
+    /// Verifies that dense finding position mapping stays responsive on large files.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public void ScanManyFindingsKeepsSourcePositionsResponsive()
+    {
+        const int lineCount = 20_000;
+        var builder = new StringBuilder(lineCount * 12);
+        for (int i = 0; i < lineCount; i++)
+        {
+            builder.Append("token-12345\n");
+        }
+
+        byte[] input = Encoding.UTF8.GetBytes(builder.ToString());
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.HasCount(lineCount, findings);
+        Assert.AreEqual(lineCount, findings[^1].StartLine);
+        Assert.AreEqual(2, findings[^1].StartColumn);
+    }
+
+    /// <summary>
+    /// Verifies that scan cancellation can stop a large file before all matches are processed.
+    /// </summary>
+    [TestMethod]
+    public void ScanStopsWhenCancellationIsRequested()
+    {
+        const int lineCount = 1_000;
+        var builder = new StringBuilder(lineCount * 12);
+        for (int i = 0; i < lineCount; i++)
+        {
+            builder.Append("token-12345\n");
+        }
+
+        byte[] input = Encoding.UTF8.GetBytes(builder.ToString());
+        CompiledRuleSet rules = CompileTokenRule();
+        int checks = 0;
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "secret.txt",
+            rules,
+            isCancellationRequested: () => ++checks > 25));
+
+        Assert.IsLessThan(lineCount, findings.Count);
+    }
+
     private static CompiledRuleSet CompileTokenRule()
     {
         return CompiledRuleSet.Compile(new RuleSet([

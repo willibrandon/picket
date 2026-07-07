@@ -279,8 +279,14 @@ internal static class ArchiveReader
         int innerArchiveKind = IdentifyArchiveKind(decompressedContent);
         if (innerArchiveKind != ArchiveKindNone)
         {
+            int innerArchiveDepth = innerArchiveKind == ArchiveKindGzip ? archiveDepth + 1 : archiveDepth;
+            if (innerArchiveDepth > maxArchiveDepth)
+            {
+                return;
+            }
+
             using var innerStream = new MemoryStream(decompressedContent, writable: false);
-            AddEntries(displayPath, innerStream, innerArchiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth);
+            AddEntries(displayPath, innerStream, innerArchiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, innerArchiveDepth);
             return;
         }
 
@@ -345,22 +351,7 @@ internal static class ArchiveReader
             return false;
         }
 
-        bool reservedKnownLength = length.HasValue;
-        if (reservedKnownLength
-            && compressedLength.HasValue
-            && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, length.GetValueOrDefault()))
-        {
-            bytes = [];
-            return false;
-        }
-
-        if (reservedKnownLength && !budget.TryReserveBytes(archivePath, length.GetValueOrDefault()))
-        {
-            bytes = [];
-            return false;
-        }
-
-        int capacity = length is > 0 and <= int.MaxValue ? (int)length.Value : 0;
+        int capacity = length is > 0 and <= 81920 ? (int)length.Value : 0;
         using var memoryStream = new MemoryStream(capacity);
         byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);
         long totalRead = 0;
@@ -376,9 +367,10 @@ internal static class ArchiveReader
                 }
 
                 totalRead += read;
-                if (IsTooLarge(totalRead, maxBytes)
-                    || (compressedLength.HasValue && !reservedKnownLength && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, totalRead))
-                    || (!reservedKnownLength && !budget.TryConsumeBytes(archivePath, read)))
+                if ((length.HasValue && totalRead > length.GetValueOrDefault())
+                    || IsTooLarge(totalRead, maxBytes)
+                    || (compressedLength.HasValue && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, totalRead))
+                    || !budget.TryConsumeBytes(archivePath, read))
                 {
                     bytes = [];
                     return false;
@@ -390,12 +382,6 @@ internal static class ArchiveReader
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
-        }
-
-        if (reservedKnownLength && totalRead > length.GetValueOrDefault())
-        {
-            bytes = [];
-            return false;
         }
 
         bytes = memoryStream.ToArray();

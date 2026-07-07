@@ -22,11 +22,13 @@ public sealed class SecretScanner
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
         byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
         var blobIdentity = new SourceBlobIdentity(request.Input);
+        SourceLineIndex originalLineIndex = SourceLineIndex.Create(originalInput);
         var findings = new List<Finding>();
 
         ScanPass(
             originalInput,
             originalInput,
+            originalLineIndex,
             null,
             request.FileName,
             fileNameBytes,
@@ -37,9 +39,12 @@ public sealed class SecretScanner
             request.MaxTargetBytes,
             request.SymlinkFile,
             blobIdentity,
-            findings);
+            findings,
+            request.IsCancellationRequested);
 
-        if (request.MaxDecodeDepth == 0 || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes))
+        if (request.MaxDecodeDepth == 0
+            || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes)
+            || IsCancellationRequested(request.IsCancellationRequested))
         {
             return findings;
         }
@@ -59,6 +64,7 @@ public sealed class SecretScanner
             ScanPass(
                 decoded.Bytes,
                 originalInput,
+                originalLineIndex,
                 decoded,
                 request.FileName,
                 fileNameBytes,
@@ -69,8 +75,10 @@ public sealed class SecretScanner
                 request.MaxTargetBytes,
                 request.SymlinkFile,
                 blobIdentity,
-                findings);
-            if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes))
+                findings,
+                request.IsCancellationRequested);
+            if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes)
+                || IsCancellationRequested(request.IsCancellationRequested))
             {
                 break;
             }
@@ -84,6 +92,7 @@ public sealed class SecretScanner
     private static void ScanPass(
         ReadOnlySpan<byte> input,
         ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
@@ -94,14 +103,21 @@ public sealed class SecretScanner
         long? maxTargetBytes,
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
-        List<Finding> findings)
+        List<Finding> findings,
+        Func<bool>? isCancellationRequested)
     {
         foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
         {
+            if (IsCancellationRequested(isCancellationRequested))
+            {
+                return;
+            }
+
             List<CompiledAllowlist> globalAllowlists = GetGlobalAllowlists(ruleSet, compiledRule);
             List<Finding> ruleFindings = ScanCompiledRule(
                 input,
                 originalInput,
+                originalLineIndex,
                 decodedInput,
                 fileName,
                 fileNameBytes,
@@ -113,13 +129,15 @@ public sealed class SecretScanner
                 symlinkFile,
                 blobIdentity,
                 compiledRule,
-                includeSkipReport: false);
+                includeSkipReport: false,
+                isCancellationRequested);
             if (compiledRule.Rule.RequiredRules.Count != 0)
             {
                 ruleFindings = FilterRequiredFindings(
                     ruleFindings,
                     input,
                     originalInput,
+                    originalLineIndex,
                     decodedInput,
                     fileName,
                     fileNameBytes,
@@ -130,16 +148,22 @@ public sealed class SecretScanner
                     maxTargetBytes,
                     symlinkFile,
                     blobIdentity,
-                    compiledRule);
+                    compiledRule,
+                    isCancellationRequested);
             }
 
             findings.AddRange(ruleFindings);
+            if (IsCancellationRequested(isCancellationRequested))
+            {
+                return;
+            }
         }
     }
 
     private static List<Finding> ScanCompiledRule(
         ReadOnlySpan<byte> input,
         ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
@@ -151,10 +175,12 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
-        bool includeSkipReport)
+        bool includeSkipReport,
+        Func<bool>? isCancellationRequested)
     {
         var findings = new List<Finding>();
-        if (compiledRule.Rule.SkipReport && !includeSkipReport)
+        if (IsCancellationRequested(isCancellationRequested)
+            || (compiledRule.Rule.SkipReport && !includeSkipReport))
         {
             return findings;
         }
@@ -200,6 +226,7 @@ public sealed class SecretScanner
                 ScanAwsCredentialPairRule(
                     input,
                     originalInput,
+                    originalLineIndex,
                     decodedInput,
                     fileName,
                     fileNameBytes,
@@ -210,7 +237,8 @@ public sealed class SecretScanner
                     symlinkFile,
                     blobIdentity,
                     compiledRule,
-                    findings);
+                    findings,
+                    isCancellationRequested);
             }
 
             return findings;
@@ -223,6 +251,7 @@ public sealed class SecretScanner
                 ScanGenericApiKeyRule(
                     input,
                     originalInput,
+                    originalLineIndex,
                     decodedInput,
                     fileName,
                     fileNameBytes,
@@ -233,7 +262,8 @@ public sealed class SecretScanner
                     symlinkFile,
                     blobIdentity,
                     compiledRule,
-                    findings);
+                    findings,
+                    isCancellationRequested);
             }
 
             return findings;
@@ -246,6 +276,7 @@ public sealed class SecretScanner
                 ScanGcpServiceAccountKeyRule(
                     input,
                     originalInput,
+                    originalLineIndex,
                     decodedInput,
                     fileName,
                     fileNameBytes,
@@ -256,7 +287,8 @@ public sealed class SecretScanner
                     symlinkFile,
                     blobIdentity,
                     compiledRule,
-                    findings);
+                    findings,
+                    isCancellationRequested);
             }
 
             return findings;
@@ -268,6 +300,7 @@ public sealed class SecretScanner
             ScanRule(
                 input,
                 originalInput,
+                originalLineIndex,
                 decodedInput,
                 fileName,
                 fileNameBytes,
@@ -279,7 +312,8 @@ public sealed class SecretScanner
                 blobIdentity,
                 compiledRule,
                 regex,
-                findings);
+                findings,
+                isCancellationRequested);
         }
 
         return findings;
@@ -289,6 +323,7 @@ public sealed class SecretScanner
         List<Finding> primaryFindings,
         ReadOnlySpan<byte> input,
         ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
@@ -299,9 +334,10 @@ public sealed class SecretScanner
         long? maxTargetBytes,
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
-        CompiledRule primaryRule)
+        CompiledRule primaryRule,
+        Func<bool>? isCancellationRequested)
     {
-        if (primaryFindings.Count == 0)
+        if (primaryFindings.Count == 0 || IsCancellationRequested(isCancellationRequested))
         {
             return primaryFindings;
         }
@@ -322,6 +358,7 @@ public sealed class SecretScanner
                     : ScanCompiledRule(
                         input,
                         originalInput,
+                        originalLineIndex,
                         decodedInput,
                         fileName,
                         fileNameBytes,
@@ -333,7 +370,8 @@ public sealed class SecretScanner
                         symlinkFile,
                         blobIdentity,
                         compiledRequiredRule,
-                        includeSkipReport: true));
+                        includeSkipReport: true,
+                        isCancellationRequested));
         }
 
         var filteredFindings = new List<Finding>(primaryFindings.Count);
@@ -427,6 +465,7 @@ public sealed class SecretScanner
     private static void ScanAwsCredentialPairRule(
         ReadOnlySpan<byte> input,
         ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
@@ -437,12 +476,18 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
-        List<Finding> findings)
+        List<Finding> findings,
+        Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
         while (AwsCredentialPairMatcher.TryFind(input, offset, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
         {
+            if (IsCancellationRequested(isCancellationRequested))
+            {
+                return;
+            }
+
             if (!TryMapMatch(
                 decodedInput,
                 matchStart,
@@ -465,8 +510,8 @@ public sealed class SecretScanner
             }
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
-            SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
+            SourcePosition start = originalLineIndex.FromOffset(reportStart);
+            SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
@@ -524,6 +569,7 @@ public sealed class SecretScanner
     private static void ScanGenericApiKeyRule(
         ReadOnlySpan<byte> input,
         ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
@@ -534,12 +580,18 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
-        List<Finding> findings)
+        List<Finding> findings,
+        Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
         while (GenericApiKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
         {
+            if (IsCancellationRequested(isCancellationRequested))
+            {
+                return;
+            }
+
             if (!TryMapMatch(
                 decodedInput,
                 matchStart,
@@ -562,8 +614,8 @@ public sealed class SecretScanner
             }
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
-            SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
+            SourcePosition start = originalLineIndex.FromOffset(reportStart);
+            SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
@@ -621,6 +673,7 @@ public sealed class SecretScanner
     private static void ScanGcpServiceAccountKeyRule(
         ReadOnlySpan<byte> input,
         ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
@@ -631,12 +684,18 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
-        List<Finding> findings)
+        List<Finding> findings,
+        Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
         while (GcpServiceAccountKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd))
         {
+            if (IsCancellationRequested(isCancellationRequested))
+            {
+                return;
+            }
+
             if (!TryMapMatch(
                 decodedInput,
                 matchStart,
@@ -659,8 +718,8 @@ public sealed class SecretScanner
             }
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
-            SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
+            SourcePosition start = originalLineIndex.FromOffset(reportStart);
+            SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, matchStart);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
@@ -716,6 +775,7 @@ public sealed class SecretScanner
     private static void ScanRule(
         ReadOnlySpan<byte> input,
         ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
         string fileName,
         ReadOnlySpan<byte> fileNameBytes,
@@ -727,12 +787,18 @@ public sealed class SecretScanner
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         ByteRegex regex,
-        List<Finding> findings)
+        List<Finding> findings,
+        Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
         while (offset <= input.Length)
         {
+            if (IsCancellationRequested(isCancellationRequested))
+            {
+                return;
+            }
+
             ByteRegexCaptures? captures = regex.FindCaptures(input, offset);
             if (captures is null)
             {
@@ -763,8 +829,8 @@ public sealed class SecretScanner
             }
 
             ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
-            SourcePosition start = SourcePosition.FromOffset(reportInput, reportStart);
-            SourcePosition end = FromExclusiveEndOffset(reportInput, reportStart, reportEnd);
+            SourcePosition start = originalLineIndex.FromOffset(reportStart);
+            SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = match.Value(input);
             ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
             ReadOnlySpan<byte> allowlistLineBytes = decodedInput is null ? lineBytes : ExtractLine(input, match.Start);
@@ -878,14 +944,14 @@ public sealed class SecretScanner
         return true;
     }
 
-    private static SourcePosition FromExclusiveEndOffset(ReadOnlySpan<byte> input, int startOffset, int endOffset)
-    {
-        return SourcePosition.FromOffset(input, endOffset <= startOffset ? startOffset : endOffset - 1);
-    }
-
     private static double ToGitleaksEntropy(double entropy)
     {
         return (float)entropy;
+    }
+
+    private static bool IsCancellationRequested(Func<bool>? isCancellationRequested)
+    {
+        return isCancellationRequested is not null && isCancellationRequested();
     }
 
     private static List<string> CreateDecodeTags(DecodedEncoding encodings, int depth)

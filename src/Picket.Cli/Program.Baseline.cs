@@ -389,14 +389,23 @@ internal static partial class Program
                 }
 
                 diagnosticsSession?.RecordScanInput();
-                findings.AddRange(SecretScanner.Scan(new ScanRequest(
+                IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
                     input,
                     file.DisplayPath,
                     rules,
                     ignoreGitleaksAllow,
                     maxDecodeDepth: maxDecodeDepth,
                     maxTargetBytes: maxTargetBytes,
-                    symlinkFile: file.SymlinkDisplayPath)));
+                    symlinkFile: file.SymlinkDisplayPath,
+                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+                if (IsTimedOut(timeoutTimestamp))
+                {
+                    Console.Error.WriteLine(TimeoutErrorMessage);
+                    hadScanError = true;
+                    break;
+                }
+
+                findings.AddRange(scannedFindings);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

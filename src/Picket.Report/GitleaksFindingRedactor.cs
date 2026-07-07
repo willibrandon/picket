@@ -45,7 +45,7 @@ public static class GitleaksFindingRedactor
 
         string secret = MaskSecret(finding.Secret, redactionPercent);
         string match = finding.Match.Replace(finding.Secret, secret, StringComparison.Ordinal);
-        string line = finding.Line.Replace(finding.Secret, secret, StringComparison.Ordinal);
+        string line = RedactLine(finding, secret);
         return new Finding(
             finding.RuleID,
             finding.Description,
@@ -72,6 +72,16 @@ public static class GitleaksFindingRedactor
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath);
+    }
+
+    private static string RedactLine(Finding finding, string redactedSecret)
+    {
+        if (finding.DecodePath.Count != 0)
+        {
+            return redactedSecret;
+        }
+
+        return finding.Line.Replace(finding.Secret, redactedSecret, StringComparison.Ordinal);
     }
 
     private static string MaskSecret(string secret, int redactionPercent)

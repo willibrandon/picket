@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Report;
+using Picket.Rules;
 
 namespace Picket.Tests;
 
@@ -81,7 +82,32 @@ public sealed class GitleaksFindingRedactorTests
         Assert.AreSame(finding, redacted);
     }
 
-    private static Finding CreateFinding(string match, string secret)
+    /// <summary>
+    /// Verifies that decoded findings do not keep the recoverable encoded source line after redaction.
+    /// </summary>
+    [TestMethod]
+    public void RedactMasksEncodedLineForDecodedFindings()
+    {
+        const string secret = "token-12345";
+        const string encodedSecret = "dG9rZW4tMTIzNDU=";
+        Finding finding = CreateFinding(secret, secret, $"encoded={encodedSecret}", ["base64"]);
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100);
+        SecretRule rule = SecretRule.Create("rule", "description", "token-[0-9]+");
+        string json = PicketJsonReportWriter.Write([redacted], [rule]);
+
+        Assert.AreEqual("REDACTED", redacted.Line);
+        Assert.DoesNotContain(secret, redacted.Line);
+        Assert.DoesNotContain(encodedSecret, redacted.Line);
+        Assert.DoesNotContain(secret, json);
+        Assert.DoesNotContain(encodedSecret, json);
+    }
+
+    private static Finding CreateFinding(
+        string match,
+        string secret,
+        string line = "",
+        IReadOnlyList<string>? decodePath = null)
     {
         return new Finding(
             "rule",
@@ -102,6 +128,8 @@ public sealed class GitleaksFindingRedactorTests
             string.Empty,
             [],
             "secret.txt:rule:1",
-            link: "https://github.com/example/repo/blob/commit/secret.txt#L1");
+            line,
+            link: "https://github.com/example/repo/blob/commit/secret.txt#L1",
+            decodePath: decodePath);
     }
 }

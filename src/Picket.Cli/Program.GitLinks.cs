@@ -41,7 +41,14 @@ internal static partial class Program
                 ignoreGitleaksAllow,
                 fragment.Commit,
                 maxDecodeDepth,
-                maxTargetBytes));
+                maxTargetBytes,
+                isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+            if (IsTimedOut(timeoutTimestamp))
+            {
+                timedOut = true;
+                break;
+            }
+
             foreach (Finding finding in fragmentFindings)
             {
                 findings.Add(MapGitFinding(finding, fragment, scmPlatform, remoteUrl));

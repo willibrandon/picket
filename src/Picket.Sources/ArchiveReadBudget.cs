@@ -65,11 +65,6 @@ internal sealed class ArchiveReadBudget(
         return TryConsumeBytesCore(archivePath, byteCount);
     }
 
-    internal bool TryReserveBytes(string archivePath, long byteCount)
-    {
-        return TryConsumeBytesCore(archivePath, byteCount);
-    }
-
     internal bool TryConsumeCompressionRatio(string archivePath, long compressedByteCount, long decompressedByteCount)
     {
         if (!TryContinue(archivePath))
