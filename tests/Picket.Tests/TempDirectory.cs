@@ -2,6 +2,8 @@ namespace Picket.Tests;
 
 internal sealed class TempDirectory : IDisposable
 {
+    private const int MaxDeleteAttempts = 5;
+
     internal string Path { get; }
 
     private TempDirectory(string path)
@@ -18,10 +20,27 @@ internal sealed class TempDirectory : IDisposable
 
     void IDisposable.Dispose()
     {
-        if (Directory.Exists(Path))
+        DeleteWithRetry(Path);
+    }
+
+    private static void DeleteWithRetry(string path)
+    {
+        for (int attempt = 1; ; attempt++)
         {
-            NormalizeAttributes(Path);
-            Directory.Delete(Path, recursive: true);
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    NormalizeAttributes(path);
+                    Directory.Delete(path, recursive: true);
+                }
+
+                return;
+            }
+            catch (Exception ex) when (attempt < MaxDeleteAttempts && ex is IOException or UnauthorizedAccessException)
+            {
+                Thread.Sleep(attempt * 50);
+            }
         }
     }
 
