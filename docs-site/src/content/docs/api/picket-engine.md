@@ -130,7 +130,8 @@ ScanRequest(
     int maxDecodeDepth,
     long? maxTargetBytes,
     string symlinkFile,
-    bool enableCSharpStringConcatenation
+    bool enableCSharpStringConcatenation,
+    Func<bool> isCancellationRequested
 )
 ```
 
@@ -148,7 +149,8 @@ ScanRequest(
     int maxDecodeDepth,
     long? maxTargetBytes,
     string symlinkFile,
-    bool enableCSharpStringConcatenation
+    bool enableCSharpStringConcatenation,
+    Func<bool> isCancellationRequested
 )
 ```
 
@@ -162,6 +164,7 @@ Initializes a new scan request and compiles the supplied source rules.
 - `FileName` - Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
 - `IgnoreGitleaksAllow` - Gets a value indicating whether inline gitleaks:allow suppression comments are ignored.
 - `Input` - Gets the input bytes to scan.
+- `IsCancellationRequested` - Gets an optional predicate that stops scanning when it returns .
 - `MaxDecodeDepth` - Gets the maximum recursive decode depth.
 - `MaxTargetBytes` - Gets the maximum content size to scan with content rules, or for no cap.
 - `RuleSet` - Gets the compiled rules used for detection.
