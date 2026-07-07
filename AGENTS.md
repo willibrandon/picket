@@ -158,7 +158,7 @@ Prefer precise, testable statements over marketing claims. If a competitor capab
 - Use `apply_patch` for manual edits.
 - Prefer small, coherent changes with focused tests.
 - Keep files ASCII unless there is a clear reason otherwise.
-- Follow the .NET runtime C# style baseline from `<runtime clone>/docs/coding-guidelines/coding-style.md` when available: Allman braces, four-space indentation, System usings first with all other usings sorted alphabetically, no separated using groups, avoid `this.` unless required, constants in PascalCase, private/internal instance fields as `_camelCase`, private/internal static fields as `s_camelCase`, and primary constructor parameters in normal `camelCase`.
+- Follow the .NET runtime C# style baseline from `<runtime clone>/docs/coding-guidelines/coding-style.md` when available: Allman braces, four-space indentation, one contiguous using block sorted alphabetically across all namespaces (`Picket.*` before `System.*`), no separated using groups, avoid `this.` unless required, constants in PascalCase, private/internal instance fields as `_camelCase`, private/internal static fields as `s_camelCase`, and primary constructor parameters in normal `camelCase`.
 - Keep one explicit type declaration per `.cs` file. Top-level `Program.cs` is allowed for the CLI entry point.
 - All public types and members require triple-slash XML documentation.
 - Do not leave unused usings; `IDE0005` is an error.
