@@ -221,8 +221,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.sarif", documentation);
         Assert.Contains("picket.jsonl", documentation);
         Assert.Contains("breakdowns by rule and by file", documentation);
-        Assert.Contains("CI Smoke", documentation);
-        Assert.Contains("sanitized GitHub secret-scanning fixture", documentation);
+        Assert.Contains("CI Matrix Scan", documentation);
+        Assert.Contains("repository root on every CI runner", documentation);
     }
 
     /// <summary>
@@ -297,12 +297,18 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("rid: linux-x64", workflow);
         Assert.Contains("rid: win-x64", workflow);
         Assert.Contains("rid: osx-arm64", workflow);
-        Assert.Contains("Smoke test GitHub Action", workflow);
+        Assert.Contains("Picket scan", workflow);
         Assert.Contains("uses: ./", workflow);
-        Assert.Contains("path: tests/fixtures/github-secret-scanning", workflow);
+        Assert.Contains("path: .", workflow);
         Assert.Contains("setup-dotnet: \"false\"", workflow);
         Assert.Contains("summary: \"true\"", workflow);
-        Assert.Contains("Verify GitHub Action smoke outputs", workflow);
+        Assert.Contains("annotations: \"false\"", workflow);
+        Assert.Contains("Verify Picket scan outputs", workflow);
+        Assert.Contains("steps.picket-scan.outputs.findings", workflow);
+        Assert.Contains("Picket scan reported no findings.", workflow);
+        Assert.Contains("report-directory: ${{ runner.temp }}/picket-scan", workflow);
+        Assert.DoesNotContain("if: ${{ matrix.os == 'ubuntu-latest' }}", workflow);
+        Assert.DoesNotContain("path: tests/fixtures/github-secret-scanning", workflow);
         Assert.DoesNotContain("Write GitHub Action smoke summary", workflow);
         Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
@@ -319,7 +325,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Native AOT Publish Validation", documentation);
         Assert.Contains("Every CI run also publishes the CLI with `release-speed`", documentation);
         Assert.Contains("normal `dotnet build` is not enough evidence", documentation);
-        Assert.Contains("GitHub Action Smoke Validation", documentation);
+        Assert.Contains("CI Picket Scan Validation", documentation);
         Assert.Contains("both `picket.sarif` and `picket.jsonl`", documentation);
     }
 

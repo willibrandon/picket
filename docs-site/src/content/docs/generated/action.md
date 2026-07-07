@@ -85,9 +85,9 @@ The action writes SARIF and JSONL before the final failure-enforcement step. Thi
 
 `results` and `only-verified` filter the Picket scan result set before SARIF, JSONL, annotations, summary counts, and failure enforcement are evaluated. Use `results` for an explicit comma-separated state list such as `active,structurally-valid`, or `only-verified: true` for the standard verified-state shorthand.
 
-## CI Smoke
+## CI Matrix Scan
 
-The repository CI runs the local composite action on `ubuntu-latest` against the sanitized GitHub secret-scanning fixture. The smoke path disables cache, annotations, SARIF upload, and the Action summary, then asserts a successful exit, zero findings, and both `picket.sarif` and `picket.jsonl` output files.
+The repository CI runs the local composite action against the repository root on every CI runner. The matrix scan disables cache, annotations, and SARIF upload, keeps the Action summary enabled, uses `fail-on: never` for the repository's intentional test fixtures, and asserts that at least one finding plus both `picket.sarif` and `picket.jsonl` output files are produced.
 
 ## Reports And Caching
 
