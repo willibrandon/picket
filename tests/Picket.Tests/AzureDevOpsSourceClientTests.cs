@@ -89,6 +89,91 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that pull request enumeration resolves the source commit before listing repository items.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsPullRequestSourceCommit()
+    {
+        const string Token = "azdo-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": "repo-1",
+                          "name": "web",
+                          "defaultBranch": null,
+                          "project": { "name": "Project One" }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/_apis/git/repositories/repo-1/pullRequests/42?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "pullRequestId": 42,
+                      "sourceRefName": "refs/heads/feature/secret",
+                      "lastMergeSourceCommit": {
+                        "commitId": "abcdef1234567890"
+                      },
+                      "forkSource": {
+                        "repository": {
+                          "id": "fork-repo",
+                          "name": "fork-web",
+                          "project": { "name": "Fork Project" }
+                        }
+                      }
+                    }
+                    """);
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal)
+                && url.Contains("download=true", StringComparison.Ordinal))
+            {
+                return BytesResponse("pr-token-12345");
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"path":"/src/pr.txt","gitObjectType":"blob"}]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            repository: "web",
+            pullRequestId: 42);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("azure-devops/Fork%20Project/fork-web/src/pr.txt", files[0].DisplayPath);
+        Assert.AreEqual("pr-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/pullRequests/42?", requests);
+        Assert.Contains("/repositories/fork-repo/items?", requests);
+        Assert.DoesNotContain("/repositories/repo-1/items?", requests);
+        Assert.Contains("versionDescriptor.version=abcdef1234567890", requests);
+        Assert.Contains("versionDescriptor.versionType=commit", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
     /// Verifies that wiki backing repositories are scanned only when explicitly enabled.
     /// </summary>
     [TestMethod]

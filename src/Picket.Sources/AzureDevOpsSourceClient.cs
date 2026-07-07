@@ -56,7 +56,8 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 continue;
             }
 
-            if (options.Branch.Length == 0
+            if (options.PullRequestId == 0
+                && options.Branch.Length == 0
                 && hasDefaultBranchMetadata
                 && defaultBranch.Length == 0)
             {
@@ -64,7 +65,26 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 continue;
             }
 
-            await AddRepositoryFilesAsync(options, id, name, projectName, sourceFiles, cancellationToken).ConfigureAwait(false);
+            (bool shouldScan, string scanRepositoryId, string scanRepositoryName, string scanProjectName, string version, string versionType) = await ResolveRepositoryVersionAsync(
+                options,
+                id,
+                name,
+                projectName,
+                cancellationToken).ConfigureAwait(false);
+            if (!shouldScan)
+            {
+                continue;
+            }
+
+            await AddRepositoryFilesAsync(
+                options,
+                scanRepositoryId,
+                scanRepositoryName,
+                scanProjectName,
+                version,
+                versionType,
+                sourceFiles,
+                cancellationToken).ConfigureAwait(false);
         }
 
         if (options.IncludeWikis && !IsCancellationRequested(options))
@@ -99,13 +119,15 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         string repositoryId,
         string repositoryName,
         string projectName,
+        string version,
+        string versionType,
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
         string continuationToken = string.Empty;
         do
         {
-            Uri uri = CreateItemListUri(options, projectName, repositoryId, continuationToken);
+            Uri uri = CreateItemListUri(options, projectName, repositoryId, version, versionType, continuationToken);
             using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
@@ -113,10 +135,54 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 return;
             }
 
-            await AddItemFilesAsync(options, response, repositoryId, repositoryName, projectName, sourceFiles, cancellationToken).ConfigureAwait(false);
+            await AddItemFilesAsync(options, response, repositoryId, repositoryName, projectName, version, versionType, sourceFiles, cancellationToken).ConfigureAwait(false);
             continuationToken = ReadContinuationToken(response);
         }
         while (continuationToken.Length != 0 && !IsCancellationRequested(options));
+    }
+
+    private async Task<(bool ShouldScan, string RepositoryId, string RepositoryName, string ProjectName, string Version, string VersionType)> ResolveRepositoryVersionAsync(
+        AzureDevOpsSourceOptions options,
+        string repositoryId,
+        string repositoryName,
+        string projectName,
+        CancellationToken cancellationToken)
+    {
+        if (options.PullRequestId == 0)
+        {
+            return (true, repositoryId, repositoryName, projectName, options.Branch, options.Branch.Length == 0 ? string.Empty : "branch");
+        }
+
+        Uri uri = CreatePullRequestUri(options, projectName, repositoryId);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {repositoryName}");
+            return (false, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
+        }
+
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        (string scanRepositoryId, string scanRepositoryName, string scanProjectName) = ResolvePullRequestSourceRepository(
+            document.RootElement,
+            repositoryId,
+            repositoryName,
+            projectName);
+        string sourceCommitId = GetNestedString(document.RootElement, "lastMergeSourceCommit", "commitId");
+        if (sourceCommitId.Length != 0)
+        {
+            return (true, scanRepositoryId, scanRepositoryName, scanProjectName, sourceCommitId, "commit");
+        }
+
+        string sourceRefName = NormalizeSourceRefName(GetString(document.RootElement, "sourceRefName"));
+        if (sourceRefName.Length != 0)
+        {
+            return (true, scanRepositoryId, scanRepositoryName, scanProjectName, sourceRefName, "branch");
+        }
+
+        options.WarningSink?.Invoke(
+            $"skipping Azure DevOps pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {repositoryName} because its source head was not returned");
+        return (false, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
     }
 
     private async Task AddWikiFilesAsync(
@@ -220,6 +286,8 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         string repositoryId,
         string repositoryName,
         string projectName,
+        string version,
+        string versionType,
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
@@ -244,7 +312,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 continue;
             }
 
-            Uri downloadUri = CreateItemDownloadUri(options, projectName, repositoryId, path);
+            Uri downloadUri = CreateItemDownloadUri(options, projectName, repositoryId, path, version, versionType);
             string displayPath = CreateDisplayPath(projectName, repositoryName, path);
             byte[]? content = await DownloadFileAsync(options, downloadUri, displayPath, cancellationToken).ConfigureAwait(false);
             if (content is not null)
@@ -498,6 +566,8 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         AzureDevOpsSourceOptions options,
         string projectName,
         string repositoryId,
+        string version,
+        string versionType,
         string continuationToken)
     {
         var query = new List<KeyValuePair<string, string>>
@@ -505,9 +575,28 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             new("recursionLevel", "Full"),
             new("includeContentMetadata", "true")
         };
-        AddBranchQuery(options, query);
+        AddVersionDescriptorQuery(version, versionType, query);
         AddApiQuery(query, continuationToken);
         return CreateUri(options.Endpoint, [projectName, "_apis", "git", "repositories", repositoryId, "items"], query);
+    }
+
+    private static Uri CreatePullRequestUri(
+        AzureDevOpsSourceOptions options,
+        string projectName,
+        string repositoryId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            [
+                projectName,
+                "_apis",
+                "git",
+                "repositories",
+                repositoryId,
+                "pullRequests",
+                options.PullRequestId.ToString(CultureInfo.InvariantCulture)
+            ],
+            CreateApiQuery(continuationToken: string.Empty));
     }
 
     private static Uri CreateWikiItemListUri(
@@ -537,14 +626,16 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         AzureDevOpsSourceOptions options,
         string projectName,
         string repositoryId,
-        string path)
+        string path,
+        string version,
+        string versionType)
     {
         var query = new List<KeyValuePair<string, string>>
         {
             new("path", path),
             new("download", "true")
         };
-        AddBranchQuery(options, query);
+        AddVersionDescriptorQuery(version, versionType, query);
         AddApiQuery(query, continuationToken: string.Empty);
         return CreateUri(options.Endpoint, [projectName, "_apis", "git", "repositories", repositoryId, "items"], query);
     }
@@ -582,20 +673,20 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
     }
 
-    private static void AddBranchQuery(AzureDevOpsSourceOptions options, List<KeyValuePair<string, string>> query)
-    {
-        AddBranchQuery(options.Branch, query);
-    }
-
     private static void AddBranchQuery(string branch, List<KeyValuePair<string, string>> query)
     {
-        if (branch.Length == 0)
+        AddVersionDescriptorQuery(branch, branch.Length == 0 ? string.Empty : "branch", query);
+    }
+
+    private static void AddVersionDescriptorQuery(string version, string versionType, List<KeyValuePair<string, string>> query)
+    {
+        if (version.Length == 0)
         {
             return;
         }
 
-        query.Add(new KeyValuePair<string, string>("versionDescriptor.version", branch));
-        query.Add(new KeyValuePair<string, string>("versionDescriptor.versionType", "branch"));
+        query.Add(new KeyValuePair<string, string>("versionDescriptor.version", version));
+        query.Add(new KeyValuePair<string, string>("versionDescriptor.versionType", versionType));
     }
 
     private static Uri CreateUri(
@@ -687,6 +778,55 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
     }
 
+    private static string GetNestedString(JsonElement value, string objectPropertyName, string valuePropertyName)
+    {
+        if (!value.TryGetProperty(objectPropertyName, out JsonElement nested)
+            || nested.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        return GetString(nested, valuePropertyName);
+    }
+
+    private static (string RepositoryId, string RepositoryName, string ProjectName) ResolvePullRequestSourceRepository(
+        JsonElement pullRequest,
+        string repositoryId,
+        string repositoryName,
+        string projectName)
+    {
+        if (!pullRequest.TryGetProperty("forkSource", out JsonElement forkSource)
+            || forkSource.ValueKind != JsonValueKind.Object
+            || !forkSource.TryGetProperty("repository", out JsonElement repository)
+            || repository.ValueKind != JsonValueKind.Object)
+        {
+            return (repositoryId, repositoryName, projectName);
+        }
+
+        string sourceRepositoryId = GetString(repository, "id");
+        if (sourceRepositoryId.Length == 0)
+        {
+            return (repositoryId, repositoryName, projectName);
+        }
+
+        string sourceRepositoryName = GetString(repository, "name");
+        string sourceProjectName = projectName;
+        if (repository.TryGetProperty("project", out JsonElement project)
+            && project.ValueKind == JsonValueKind.Object)
+        {
+            string value = GetString(project, "name");
+            if (value.Length != 0)
+            {
+                sourceProjectName = value;
+            }
+        }
+
+        return (
+            sourceRepositoryId,
+            sourceRepositoryName.Length == 0 ? repositoryName : sourceRepositoryName,
+            sourceProjectName);
+    }
+
     private static bool GetBoolean(JsonElement value, string propertyName)
     {
         return value.TryGetProperty(propertyName, out JsonElement property)
@@ -716,6 +856,15 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
     {
         string normalized = value.Replace('\\', '/').Trim();
         return normalized is "" or "/" ? string.Empty : normalized;
+    }
+
+    private static string NormalizeSourceRefName(string value)
+    {
+        string normalized = value.Trim();
+        const string HeadsPrefix = "refs/heads/";
+        return normalized.StartsWith(HeadsPrefix, StringComparison.OrdinalIgnoreCase)
+            ? normalized[HeadsPrefix.Length..]
+            : normalized;
     }
 
     private static string CreateDisplayPath(string projectName, string repositoryName, string itemPath)

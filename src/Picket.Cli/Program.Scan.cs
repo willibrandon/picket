@@ -23,6 +23,7 @@ internal static partial class Program
         string azureDevOpsBranch = string.Empty;
         string azureDevOpsProject = string.Empty;
         string azureDevOpsRepository = string.Empty;
+        int azureDevOpsPullRequestId = 0;
         Uri? githubSourceApiEndpoint = null;
         string? githubSourceTokenEnvironmentVariable = null;
         string githubSourceOrganization = string.Empty;
@@ -223,6 +224,17 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsAzureDevOpsPullRequestFlag(arg))
+            {
+                if (!TryReadPositiveAzureDevOpsPullRequestFlag(args, ref i, out azureDevOpsPullRequestId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
             if (IsAzureDevOpsIncludeWikisFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--azure-devops-include-wikis", out azureDevOpsIncludeWikis))
@@ -376,6 +388,7 @@ internal static partial class Program
                 azureDevOpsProject,
                 azureDevOpsRepository,
                 azureDevOpsBranch,
+                azureDevOpsPullRequestId,
                 azureDevOpsIncludeWikis,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

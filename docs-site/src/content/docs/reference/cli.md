@@ -196,6 +196,7 @@ Use the grouped index to jump to the workflow you need.
   [--azure-devops-project name]
   [--azure-devops-repository name]
   [--azure-devops-branch name]
+  [--azure-devops-pull-request id]
   [--azure-devops-include-wikis]
   [--allow-non-public-source-endpoints]
   [--allow-insecure-source-endpoints]
@@ -416,6 +417,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Scan this Azure Repos branch.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-pull-request</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Azure Repos pull request source head.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--azure-devops-include-wikis</code></td>

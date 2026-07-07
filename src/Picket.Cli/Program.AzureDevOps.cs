@@ -49,6 +49,12 @@ internal static partial class Program
             || arg.StartsWith("--azure-devops-branch=", StringComparison.Ordinal);
     }
 
+    static bool IsAzureDevOpsPullRequestFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-pull-request", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-pull-request=", StringComparison.Ordinal);
+    }
+
     static bool IsAzureDevOpsIncludeWikisFlag(string arg)
     {
         return arg.Equals("--azure-devops-include-wikis", StringComparison.Ordinal)
@@ -69,9 +75,7 @@ internal static partial class Program
 
     static bool IsUnsupportedAzureDevOpsSourceFlag(string arg)
     {
-        return arg.Equals("--azure-devops-pull-request", StringComparison.Ordinal)
-            || arg.StartsWith("--azure-devops-pull-request=", StringComparison.Ordinal)
-            || arg.Equals("--azure-devops-include-artifacts", StringComparison.Ordinal)
+        return arg.Equals("--azure-devops-include-artifacts", StringComparison.Ordinal)
             || arg.StartsWith("--azure-devops-include-artifacts=", StringComparison.Ordinal)
             || arg.Equals("--azure-devops-include-logs", StringComparison.Ordinal)
             || arg.StartsWith("--azure-devops-include-logs=", StringComparison.Ordinal)
@@ -107,6 +111,22 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadPositiveAzureDevOpsPullRequestFlag(string[] args, ref int index, out int pullRequestId)
+    {
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--azure-devops-pull-request", out pullRequestId))
+        {
+            return false;
+        }
+
+        if (pullRequestId > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--azure-devops-pull-request requires a positive integer value");
+        return false;
+    }
+
     static bool TryReadUnsupportedAzureDevOpsSourceFlag(string[] args, ref int index, string arg)
     {
         if (arg.StartsWith("--azure-devops-include-artifacts", StringComparison.Ordinal)
@@ -139,6 +159,7 @@ internal static partial class Program
         string project,
         string repository,
         string branch,
+        int pullRequestId,
         bool includeWikis,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -196,16 +217,30 @@ internal static partial class Program
                 project,
                 repository,
                 branch,
+                pullRequestId,
                 includeWikis);
             sourceEndpoint = validatedOptions.Endpoint;
             project = validatedOptions.Project;
             repository = validatedOptions.Repository;
             branch = validatedOptions.Branch;
+            pullRequestId = validatedOptions.PullRequestId;
             includeWikis = validatedOptions.IncludeWikis;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
             Console.Error.WriteLine(ex.Message);
+            return false;
+        }
+
+        if (pullRequestId != 0 && branch.Length != 0)
+        {
+            Console.Error.WriteLine("Azure DevOps source scan accepts either --azure-devops-branch or --azure-devops-pull-request, not both");
+            return false;
+        }
+
+        if (pullRequestId != 0 && includeWikis)
+        {
+            Console.Error.WriteLine("Azure DevOps source scan cannot combine --azure-devops-pull-request with --azure-devops-include-wikis");
             return false;
         }
 
@@ -235,6 +270,7 @@ internal static partial class Program
                 project,
                 repository,
                 branch,
+                pullRequestId,
                 includeWikis,
                 maxTargetBytes,
                 Console.Error.WriteLine,

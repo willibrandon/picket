@@ -85,15 +85,15 @@ The native Azure DevOps source model includes:
 
 - Azure Repos Git repositories,
 - project-scoped and organization-scoped repository discovery,
-- pull request refs and target/source branches,
+- pull request source heads and branch scopes,
 - wiki repositories,
 - build artifacts,
 - pipeline logs,
 - release artifacts where the server exposes them safely.
 
-Repository file enumeration is implemented. Wiki backing repository enumeration is implemented behind `--azure-devops-include-wikis`; Picket lists wikis through the Wiki REST API, uses the wiki backing repository and mapped path, and scans wiki blobs through the Git Items API. Pull requests, build artifacts, pipeline logs, release artifacts, and feed/package sources remain planned native source extensions and must remain explicit opt-ins when added.
+Repository file enumeration is implemented. Pull request source-head enumeration is implemented behind `--azure-devops-pull-request`; Picket resolves pull request metadata through the Git Pull Requests API and scans the returned source commit in the source repository, including fork sources when Azure DevOps returns them, falling back to the source branch when a commit is not returned. Wiki backing repository enumeration is implemented behind `--azure-devops-include-wikis`; Picket lists wikis through the Wiki REST API, uses the wiki backing repository and mapped path, and scans wiki blobs through the Git Items API. Build artifacts, pipeline logs, release artifacts, and feed/package sources remain planned native source extensions and must remain explicit opt-ins when added.
 
-Repositories that explicitly report no default branch are skipped unless `--azure-devops-branch` is supplied. If branch metadata is not returned and a repository cannot list items, Picket warns and continues so an empty or unauthorized repository does not fail the rest of an organization or project scan. Disabled wikis, wikis without a backing repository, and wikis without a version are skipped with warnings.
+Repositories that explicitly report no default branch are skipped unless `--azure-devops-branch` or `--azure-devops-pull-request` is supplied. `--azure-devops-pull-request` cannot be combined with `--azure-devops-branch` or `--azure-devops-include-wikis` because the scan scope must resolve to one repository version model at a time. If branch metadata is not returned and a repository cannot list items, Picket warns and continues so an empty or unauthorized repository does not fail the rest of an organization or project scan. Disabled wikis, wikis without a backing repository, and wikis without a version are skipped with warnings.
 
 Provider options include:
 
@@ -106,8 +106,8 @@ Provider options include:
 | `--azure-devops-token-env` | Environment variable containing the PAT or job token. |
 | `--azure-devops-token-kind` | Credential transport: `pat` for personal access tokens or `bearer` for job and Entra tokens. |
 | `--azure-devops-branch` | Optional branch name. |
-| `--azure-devops-include-wikis` | Include Azure DevOps wiki backing repositories. |
 | `--azure-devops-pull-request` | Pull request number or ID to scan. |
+| `--azure-devops-include-wikis` | Include Azure DevOps wiki backing repositories. |
 | `--azure-devops-include-artifacts` | Include build and release artifacts when supported. |
 | `--azure-devops-include-logs` | Include pipeline logs. |
 | `--azure-devops-max-artifact-megabytes` | Per-artifact download cap. |

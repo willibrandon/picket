@@ -9,6 +9,7 @@ namespace Picket.Sources;
 /// <param name="project">An optional project filter.</param>
 /// <param name="repository">An optional repository name filter.</param>
 /// <param name="branch">An optional branch name.</param>
+/// <param name="pullRequestId">An optional pull request ID whose source head should be scanned.</param>
 /// <param name="includeWikis">A value indicating whether wiki backing repositories should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
@@ -20,6 +21,7 @@ public sealed class AzureDevOpsSourceOptions(
     string project = "",
     string repository = "",
     string branch = "",
+    int pullRequestId = 0,
     bool includeWikis = false,
     long? maxFileBytes = null,
     Action<string>? warningSink = null,
@@ -51,6 +53,11 @@ public sealed class AzureDevOpsSourceOptions(
     /// Gets the optional branch name.
     /// </summary>
     public string Branch { get; } = NormalizeOptionalName(branch);
+
+    /// <summary>
+    /// Gets the optional pull request ID whose source head should be scanned.
+    /// </summary>
+    public int PullRequestId { get; } = RequirePullRequestId(pullRequestId);
 
     /// <summary>
     /// Gets a value indicating whether wiki backing repositories should be scanned.
@@ -141,6 +148,12 @@ public sealed class AzureDevOpsSourceOptions(
             ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
         }
 
+        return value;
+    }
+
+    private static int RequirePullRequestId(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 }

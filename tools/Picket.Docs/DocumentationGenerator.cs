@@ -1128,6 +1128,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "--azure-devops-include-wikis" => "Include Azure DevOps wiki backing repositories in native source enumeration.",
             "--azure-devops-organization" => "Use this Azure DevOps Services organization for native source enumeration.",
             "--azure-devops-project" => "Limit Azure DevOps source enumeration to this project.",
+            "--azure-devops-pull-request" => "Scan this Azure Repos pull request source head.",
             "--azure-devops-repository" => "Limit Azure DevOps source enumeration to this repository.",
             "--azure-devops-token-env" => "Read the Azure DevOps PAT or bearer token from this environment variable.",
             "--azure-devops-token-kind" => "Choose PAT basic authentication or bearer-token authentication for Azure DevOps requests.",

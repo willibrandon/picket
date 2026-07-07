@@ -7,6 +7,8 @@ namespace Picket.Tests;
 internal sealed class AzureDevOpsFixtureServer : IDisposable
 {
     private readonly string _content;
+    private readonly List<string> _requestTargets = [];
+    private readonly object _requestTargetsLock = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly TcpListener _listener;
     private readonly Task _serverTask;
@@ -24,6 +26,17 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
     internal Uri Endpoint { get; }
 
     internal string LastAuthorization { get; private set; } = string.Empty;
+
+    internal string RequestTargets
+    {
+        get
+        {
+            lock (_requestTargetsLock)
+            {
+                return string.Join('\n', _requestTargets);
+            }
+        }
+    }
 
     /// <inheritdoc />
     public void Dispose()
@@ -59,6 +72,17 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
         string request = await ReadRequestAsync(stream, cancellationToken).ConfigureAwait(false);
         string target = GetRequestTarget(request);
         LastAuthorization = GetHeaderValue(request, "Authorization");
+        lock (_requestTargetsLock)
+        {
+            _requestTargets.Add(target);
+        }
+
+        if (target.Contains("/_apis/git/repositories/repo-id/pullRequests/42?", StringComparison.Ordinal))
+        {
+            const string PullRequestJson = """{"pullRequestId":42,"sourceRefName":"refs/heads/feature/secret","lastMergeSourceCommit":{"commitId":"abcdef1234567890"}}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PullRequestJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
 
         if (target.Contains("/_apis/git/repositories/wiki-repo/items?", StringComparison.Ordinal)
             && target.Contains("download=true", StringComparison.Ordinal))
