@@ -195,6 +195,7 @@ Use the grouped index to jump to the workflow you need.
   [--github-include-issues]
   [--github-issue-state open|closed|all]
   [--github-include-releases]
+  [--github-include-actions-artifacts]
   [--github-source-api-endpoint uri]
   [--azure-devops-organization org]
   [--azure-devops-endpoint uri]
@@ -418,6 +419,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Include GitHub release bodies and release assets in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-include-actions-artifacts</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include GitHub Actions artifact ZIP contents in native source enumeration.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-source-api-endpoint</code></td>

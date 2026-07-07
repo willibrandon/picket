@@ -1145,6 +1145,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "--github-api-proxy" => "Use this HTTP or HTTPS proxy for live GitHub API requests.",
             "--github-gist" => "Scan a single GitHub gist by ID.",
             "--github-gists" => "Scan the authenticated user's GitHub gists.",
+            "--github-include-actions-artifacts" => "Include GitHub Actions artifact ZIP contents in native source enumeration.",
             "--github-include-issues" => "Include GitHub issue bodies and comments in native source enumeration.",
             "--github-include-releases" => "Include GitHub release bodies and release assets in native source enumeration.",
             "--github-issue-state" => "Filter GitHub issues by state.",

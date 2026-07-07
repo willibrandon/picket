@@ -223,6 +223,47 @@ public sealed class CliGitHubScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate GitHub Actions artifact ZIP entries.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitHubActionsArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitHubFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-source-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--github-repository",
+            "willibrandon/picket",
+            "--github-include-actions-artifacts",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"github/willibrandon/picket/actions/artifacts/build-701.zip!nested/secret.txt\"", result.Stdout);
+        Assert.Contains("/repos/willibrandon/picket/actions/artifacts?", server.RequestTargets);
+        Assert.Contains("/repos/willibrandon/picket/actions/artifacts/701/zip", server.RequestTargets);
+        Assert.Contains("Bearer ", server.LastAuthorization);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate GitHub organization repositories.
     /// </summary>
     [TestMethod]
@@ -404,6 +445,41 @@ public sealed class CliGitHubScanTests
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.Contains("cannot combine --github-pull-request with --github-include-releases", result.Stderr);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub pull request scans cannot also include Actions artifact enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitHubPullRequestAndActionsArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-repository",
+            "willibrandon/picket",
+            "--github-pull-request",
+            "42",
+            "--github-include-actions-artifacts",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.Contains("cannot combine --github-pull-request with --github-include-actions-artifacts", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }

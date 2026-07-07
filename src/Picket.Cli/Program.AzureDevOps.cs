@@ -1,4 +1,3 @@
-using Picket.Engine;
 using Picket.Security;
 using Picket.Sources;
 using System.Diagnostics.CodeAnalysis;
@@ -163,7 +162,7 @@ internal static partial class Program
         bool includeWikis,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
-        [NotNullWhen(true)] out Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider)
+        [NotNullWhen(true)] out RemoteSourceProvider? sourceFileProvider)
     {
         sourceFileProvider = null;
         if (!string.IsNullOrWhiteSpace(organization) && endpoint is not null)
@@ -256,7 +255,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, _, maxTargetBytes, timeoutTimestamp) =>
+        sourceFileProvider = (_, _, maxTargetBytes, _, _, _, _, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(new HttpClientHandler
             {

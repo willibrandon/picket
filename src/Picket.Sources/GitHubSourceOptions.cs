@@ -11,7 +11,13 @@ namespace Picket.Sources;
 /// <param name="includeIssues">A value indicating whether GitHub issue bodies and comments should be scanned.</param>
 /// <param name="issueState">The issue state filter to scan.</param>
 /// <param name="includeReleases">A value indicating whether GitHub release bodies and release assets should be scanned.</param>
+/// <param name="includeActionArtifacts">A value indicating whether GitHub Actions artifact ZIP contents should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
+/// <param name="maxArchiveDepth">The maximum nested artifact archive depth to enumerate.</param>
+/// <param name="maxArchiveEntries">The maximum number of artifact archive entries to enumerate, or 0 for no cap.</param>
+/// <param name="maxArchiveBytes">The maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
+/// <param name="maxArchiveCompressionRatio">The maximum artifact archive expansion ratio, or 0 for no cap.</param>
+/// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when an artifact entry path should be scanned.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 public sealed class GitHubSourceOptions(
@@ -23,7 +29,13 @@ public sealed class GitHubSourceOptions(
     bool includeIssues = false,
     string issueState = GitHubSourceOptions.DefaultIssueState,
     bool includeReleases = false,
+    bool includeActionArtifacts = false,
     long? maxFileBytes = null,
+    int maxArchiveDepth = 1,
+    int maxArchiveEntries = 4096,
+    long? maxArchiveBytes = 512_000_000,
+    int maxArchiveCompressionRatio = 1000,
+    Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
 {
@@ -81,11 +93,38 @@ public sealed class GitHubSourceOptions(
     public bool IncludeReleases { get; } = RequireIncludeReleases(includeReleases, pullRequestNumber);
 
     /// <summary>
+    /// Gets a value indicating whether GitHub Actions artifact ZIP contents should be scanned.
+    /// </summary>
+    public bool IncludeActionArtifacts { get; } = RequireIncludeActionArtifacts(includeActionArtifacts, pullRequestNumber);
+
+    /// <summary>
     /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes);
 
+    /// <summary>
+    /// Gets the maximum nested artifact archive depth to enumerate.
+    /// </summary>
+    public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
+    /// <summary>
+    /// Gets the maximum number of artifact archive entries to enumerate, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveEntries { get; } = RequireMaxArchiveEntries(maxArchiveEntries);
+
+    /// <summary>
+    /// Gets the maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxArchiveBytes { get; } = RequireMaxArchiveBytes(maxArchiveBytes);
+
+    /// <summary>
+    /// Gets the maximum artifact archive expansion ratio, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveCompressionRatio { get; } = RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
+
     internal string Credential => _credential;
+
+    internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
     internal Action<string>? WarningSink { get; } = warningSink;
 
@@ -218,6 +257,44 @@ public sealed class GitHubSourceOptions(
             throw new ArgumentException("GitHub source options accept either release enumeration or a pull request number, not both.", nameof(value));
         }
 
+        return value;
+    }
+
+    private static bool RequireIncludeActionArtifacts(bool value, int pullRequestNumber)
+    {
+        if (value && pullRequestNumber != 0)
+        {
+            throw new ArgumentException("GitHub source options accept either Actions artifact enumeration or a pull request number, not both.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static int RequireMaxArchiveDepth(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static int RequireMaxArchiveEntries(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static long? RequireMaxArchiveBytes(long? value)
+    {
+        if (value.HasValue)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+        }
+
+        return value;
+    }
+
+    private static int RequireMaxArchiveCompressionRatio(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 

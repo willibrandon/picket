@@ -1,4 +1,5 @@
 using Picket.Sources;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 
@@ -61,6 +62,22 @@ public sealed class GitHubSourceClientTests
             includeReleases: true));
 
         Assert.Contains("either release enumeration or a pull request number", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub repository source options reject ambiguous Actions artifact and pull request scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitHubSourceOptionsRejectsActionsArtifactsAndPullRequest()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "github-test-token",
+            pullRequestNumber: 42,
+            includeActionArtifacts: true));
+
+        Assert.Contains("either Actions artifact enumeration or a pull request number", ex.Message);
     }
 
     /// <summary>
@@ -567,6 +584,92 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Actions artifact enumeration reads ZIP entries and follows redirects without forwarding the GitHub token.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsActionsArtifacts()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        byte[] archiveBytes = CreateZipBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("artifact-token-444")));
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            CaptureRequest(request, urls, authorizationHeaders, acceptHeaders);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repos/willibrandon/picket/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/actions/artifacts/701/zip", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers =
+                    {
+                        Location = new Uri("https://productionresultssa1.blob.core.windows.net/actions-results/artifact.zip"),
+                    },
+                };
+            }
+
+            if (url.Equals("https://productionresultssa1.blob.core.windows.net/actions-results/artifact.zip", StringComparison.Ordinal))
+            {
+                return BytesResponse(archiveBytes);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/actions/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "total_count": 1,
+                      "artifacts": [
+                        {
+                          "id": 701,
+                          "name": "build",
+                          "size_in_bytes": 160,
+                          "expired": false,
+                          "archive_download_url": "https://api.github.com/repos/willibrandon/picket/actions/artifacts/701/zip"
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeActionArtifacts: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        int redirectedRequestIndex = urls.IndexOf("https://productionresultssa1.blob.core.windows.net/actions-results/artifact.zip");
+        Assert.HasCount(1, files);
+        Assert.AreEqual("github/willibrandon/picket/actions/artifacts/build-701.zip!nested/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("artifact-token-444", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreNotEqual(-1, redirectedRequestIndex);
+        Assert.Contains("/repos/willibrandon/picket/actions/artifacts?per_page=100", requests);
+        Assert.Contains("/repos/willibrandon/picket/actions/artifacts/701/zip", requests);
+        Assert.Contains("Bearer github-test-token", authorizationHeaders);
+        Assert.Contains("application/vnd.github+json", acceptHeaders);
+        Assert.Contains("application/octet-stream", acceptHeaders);
+        Assert.AreEqual(string.Empty, authorizationHeaders[redirectedRequestIndex]);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
     /// Verifies that tree file sizes are honored before content is downloaded.
     /// </summary>
     [TestMethod]
@@ -798,5 +901,29 @@ public sealed class GitHubSourceClientTests
         {
             Content = new ByteArrayContent(Encoding.UTF8.GetBytes(value)),
         };
+    }
+
+    private static HttpResponseMessage BytesResponse(byte[] value)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(value),
+        };
+    }
+
+    private static byte[] CreateZipBytes(params (string Name, byte[] Content)[] entries)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach ((string name, byte[] content) in entries)
+            {
+                ZipArchiveEntry entry = archive.CreateEntry(name, CompressionLevel.NoCompression);
+                using Stream entryStream = entry.Open();
+                entryStream.Write(content);
+            }
+        }
+
+        return stream.ToArray();
     }
 }

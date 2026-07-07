@@ -33,6 +33,12 @@ Release scans read release bodies and release assets:
 picket scan --github-repository willibrandon/picket --github-include-releases --github-token-env PICKET_GITHUB_SOURCE_TOKEN --report-format jsonl
 ```
 
+Actions artifact scans read artifact ZIP entries through the same archive safety caps used by native filesystem scans:
+
+```powershell
+picket scan --github-repository willibrandon/picket --github-include-actions-artifacts --github-token-env PICKET_GITHUB_SOURCE_TOKEN --report-format jsonl
+```
+
 Issue scans read issue bodies and issue comments. Pull requests returned by GitHub's Issues API are skipped because pull request source is scanned through `--github-pull-request`.
 
 ```powershell
@@ -69,16 +75,17 @@ The token is read from an environment variable and is never passed as a command-
 | `--github-include-issues` | Include GitHub issue bodies and issue comments. Cannot be combined with `--github-pull-request`. |
 | `--github-issue-state` | Issue state filter: `open`, `closed`, or `all`. Supplying this option enables issue enumeration. |
 | `--github-include-releases` | Include GitHub release bodies and release assets. Cannot be combined with `--github-pull-request`. |
+| `--github-include-actions-artifacts` | Include GitHub Actions artifact ZIP contents. Cannot be combined with `--github-pull-request`. |
 | `--github-source-api-endpoint` | GitHub API endpoint used for repository enumeration. |
 | `--github-api-endpoint` | Shared GitHub API endpoint used when a source-specific endpoint is not supplied. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for GitHub Enterprise Server. |
 | `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 
-Single-repository file enumeration uses GitHub's repository metadata API to resolve the default branch. Pull request enumeration uses the pull request REST API to resolve `head.sha` and `head.repo.full_name`, then scans that commit in the returned head repository, including fork repositories when GitHub returns them. Release enumeration uses the releases REST API with `per_page=100`, scans release body text as synthetic Markdown, scans listed release assets, and falls back to the release-assets API when an asset list is not embedded. Release asset requests use `Accept: application/octet-stream` and handle GitHub `200` or `3xx` responses; redirected downloads are fetched without forwarding the bearer token. Issue enumeration uses the repository Issues API with `per_page=100`, skips entries that contain a `pull_request` marker, and reads issue comments through the issue comments API. Organization enumeration uses the list organization repositories REST API with `per_page=100` and follows GitHub's `Link` pagination header while a `rel="next"` page is present. Gist enumeration uses the authenticated-user, user-public, and single-gist REST APIs. Picket fetches each selected gist detail before scanning files, warns when GitHub reports a truncated file list, scans inline gist file content when available, falls back to `raw_url` for truncated files without sending the bearer token to the raw host, and scans gist comments through the gist comments API. For every selected repository, Picket lists blobs through the recursive Git Trees API and downloads bytes through the raw Contents API. Redirects are disabled before credentials are sent. Endpoint safety checks run before the first request. `--max-target-megabytes` caps downloaded file content; oversized tree entries are skipped before download when GitHub returns a size, and oversized issue/comment/release/gist synthetic files are skipped before scanning.
+Single-repository file enumeration uses GitHub's repository metadata API to resolve the default branch. Pull request enumeration uses the pull request REST API to resolve `head.sha` and `head.repo.full_name`, then scans that commit in the returned head repository, including fork repositories when GitHub returns them. Release enumeration uses the releases REST API with `per_page=100`, scans release body text as synthetic Markdown, scans listed release assets, and falls back to the release-assets API when an asset list is not embedded. Release asset requests use `Accept: application/octet-stream` and handle GitHub `200` or `3xx` responses; redirected downloads are fetched without forwarding the bearer token. Actions artifact enumeration uses the repository Actions artifacts API with `per_page=100`, downloads artifact ZIP archives through GitHub's short-lived redirect, fetches redirected ZIPs without forwarding the bearer token, and expands entries with `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`. Issue enumeration uses the repository Issues API with `per_page=100`, skips entries that contain a `pull_request` marker, and reads issue comments through the issue comments API. Organization enumeration uses the list organization repositories REST API with `per_page=100` and follows GitHub's `Link` pagination header while a `rel="next"` page is present. Gist enumeration uses the authenticated-user, user-public, and single-gist REST APIs. Picket fetches each selected gist detail before scanning files, warns when GitHub reports a truncated file list, scans inline gist file content when available, falls back to `raw_url` for truncated files without sending the bearer token to the raw host, and scans gist comments through the gist comments API. For every selected repository, Picket lists blobs through the recursive Git Trees API and downloads bytes through the raw Contents API. Redirects are disabled before credentials are sent. Endpoint safety checks run before the first request. `--max-target-megabytes` caps downloaded file content; oversized tree entries and Actions artifact ZIPs are skipped before download when GitHub returns a size, and oversized issue/comment/release/gist synthetic files are skipped before scanning.
 
 Repository tree truncation and per-file download failures are warnings. Organization scans also treat per-repository tree failures as warnings and continue with the remaining repositories. A single-repository scan still fails when the selected repository tree cannot be read.
 
-The current scope is single-repository file enumeration, repository pull request head enumeration, repository and organization issue body/comment enumeration, repository and organization release body/asset enumeration, organization repository discovery, single gist scans, authenticated-user gist scans, and public user gist scans. User repository discovery, Actions artifacts, packages, and code-search-backed discovery remain planned explicit opt-ins.
+The current scope is single-repository file enumeration, repository pull request head enumeration, repository and organization issue body/comment enumeration, repository and organization release body/asset enumeration, repository and organization Actions artifact enumeration, organization repository discovery, single gist scans, authenticated-user gist scans, and public user gist scans. User repository discovery, packages, and code-search-backed discovery remain planned explicit opt-ins.
 
 Recommended fine-grained token permissions for repository file enumeration are:
 
@@ -86,6 +93,7 @@ Recommended fine-grained token permissions for repository file enumeration are:
 | --- | --- |
 | Metadata | Read |
 | Contents | Read, including release body and release asset enumeration |
+| Actions | Read, only when `--github-include-actions-artifacts` is used |
 | Pull requests | Read, only when `--github-pull-request` is used |
 | Issues | Read, only when `--github-include-issues` or `--github-issue-state` is used |
 | Gists | Fine-grained tokens do not require repository permissions for read-only gist APIs; classic OAuth tokens use the `gist` scope for private user gists |
@@ -117,6 +125,7 @@ Official API references:
 - GitHub gist comments REST API: `https://docs.github.com/rest/gists/comments`
 - GitHub releases REST API: `https://docs.github.com/rest/releases/releases`
 - GitHub release assets REST API: `https://docs.github.com/rest/releases/assets`
+- GitHub Actions artifacts REST API: `https://docs.github.com/rest/actions/artifacts`
 - GitHub REST pagination: `https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api`
 - Git trees REST API: `https://docs.github.com/v3/git/trees`
 - Repository contents REST API: `https://docs.github.com/en/rest/repos/contents`

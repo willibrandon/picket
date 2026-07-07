@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -9,7 +10,7 @@ internal sealed class GitHubFixtureServer : IDisposable
 {
     private readonly string _content;
     private readonly List<string> _requestTargets = [];
-    private readonly object _requestTargetsLock = new();
+    private readonly Lock _requestTargetsLock = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly TcpListener _listener;
     private readonly Task _serverTask;
@@ -174,6 +175,24 @@ internal sealed class GitHubFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v3/repos/willibrandon/picket/actions/artifacts/701/zip", StringComparison.Ordinal))
+        {
+            byte[] archiveBytes = CreateZipBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("artifact-token-666")));
+            await WriteResponseAsync(stream, "application/zip", archiveBytes, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/repos/willibrandon/picket/actions/artifacts?", StringComparison.Ordinal))
+        {
+            string archiveUrl = string.Concat(Endpoint.AbsoluteUri, "repos/willibrandon/picket/actions/artifacts/701/zip");
+            string artifactsJson = string.Concat(
+                "{\"total_count\":1,\"artifacts\":[{\"id\":701,\"name\":\"build\",\"size_in_bytes\":160,\"expired\":false,\"archive_download_url\":\"",
+                archiveUrl,
+                "\"}]}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(artifactsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v3/repos/willibrandon/picket/contents/src/appsettings.txt?", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
@@ -271,5 +290,21 @@ internal sealed class GitHubFixtureServer : IDisposable
             reasonPhrase,
             "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static byte[] CreateZipBytes(params (string Name, byte[] Content)[] entries)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach ((string name, byte[] content) in entries)
+            {
+                ZipArchiveEntry entry = archive.CreateEntry(name, CompressionLevel.NoCompression);
+                using Stream entryStream = entry.Open();
+                entryStream.Write(content);
+            }
+        }
+
+        return stream.ToArray();
     }
 }

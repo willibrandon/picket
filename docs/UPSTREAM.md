@@ -174,7 +174,7 @@ documentation reviewed on 2026-07-06:
 
 ## GitHub Source References
 
-Native GitHub repository, pull request, issue, issue comment, release, release asset, gist, gist comment, and organization source enumeration is based on GitHub REST API documentation reviewed on 2026-07-07:
+Native GitHub repository, pull request, issue, issue comment, release, release asset, Actions artifact, gist, gist comment, and organization source enumeration is based on GitHub REST API documentation reviewed on 2026-07-07:
 
 - GitHub repository metadata REST API: `https://docs.github.com/rest/repos/repos`
 - GitHub pull requests REST API: `https://docs.github.com/rest/pulls/pulls`
@@ -182,6 +182,7 @@ Native GitHub repository, pull request, issue, issue comment, release, release a
 - GitHub issue comments REST API: `https://docs.github.com/rest/issues/comments`
 - GitHub releases REST API: `https://docs.github.com/rest/releases/releases`
 - GitHub release assets REST API: `https://docs.github.com/rest/releases/assets`
+- GitHub Actions artifacts REST API: `https://docs.github.com/rest/actions/artifacts`
 - GitHub gists REST API: `https://docs.github.com/rest/gists/gists`
 - GitHub gist comments REST API: `https://docs.github.com/rest/gists/comments`
 - GitHub REST pagination: `https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api`

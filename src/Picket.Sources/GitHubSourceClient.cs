@@ -13,6 +13,7 @@ namespace Picket.Sources;
 public sealed class GitHubSourceClient(HttpClient httpClient)
 {
     private const string ApiVersion = "2022-11-28";
+    private const int ActionArtifactsPerPage = 100;
     private const int GistCommentsPerPage = 100;
     private const int GistsPerPage = 100;
     private const int IssuesPerPage = 100;
@@ -79,6 +80,11 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         if (options.IncludeReleases && !IsCancellationRequested(options))
         {
             await AddRepositoryReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
+        {
+            await AddRepositoryActionArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
         }
 
         return sourceFiles;
@@ -158,7 +164,13 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 includeIssues: options.IncludeIssues,
                 issueState: options.IssueState,
                 includeReleases: options.IncludeReleases,
+                includeActionArtifacts: options.IncludeActionArtifacts,
                 maxFileBytes: options.MaxFileBytes,
+                maxArchiveDepth: options.MaxArchiveDepth,
+                maxArchiveEntries: options.MaxArchiveEntries,
+                maxArchiveBytes: options.MaxArchiveBytes,
+                maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
+                isPathAllowed: options.IsPathAllowed,
                 warningSink: options.WarningSink,
                 isCancellationRequested: options.IsCancellationRequested);
             if (gitRef.Length != 0)
@@ -174,6 +186,11 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             if (options.IncludeReleases && !IsCancellationRequested(options))
             {
                 await AddRepositoryReleaseFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
+            {
+                await AddRepositoryActionArtifactFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -757,6 +774,125 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         }
     }
 
+    private async Task AddRepositoryActionArtifactFilesAsync(
+        GitHubSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateActionArtifactListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping GitHub Actions artifacts for repository {options.Repository}");
+                return;
+            }
+
+            await AddActionArtifactFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(response);
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddActionArtifactFilesAsync(
+        GitHubSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!document.RootElement.TryGetProperty("artifacts", out JsonElement artifacts)
+            || artifacts.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement artifact in artifacts.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            await AddActionArtifactFileAsync(options, artifact, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddActionArtifactFileAsync(
+        GitHubSourceOptions options,
+        JsonElement artifact,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetJsonInt64(artifact, "id", out long artifactId))
+        {
+            return;
+        }
+
+        string artifactName = GetString(artifact, "name");
+        if (artifactName.Length == 0)
+        {
+            artifactName = artifactId.ToString(CultureInfo.InvariantCulture);
+        }
+
+        string displayPath = CreateActionArtifactArchiveDisplayPath(options, artifactName, artifactId);
+        if (TryGetJsonBoolean(artifact, "expired", out bool expired) && expired)
+        {
+            options.WarningSink?.Invoke($"skipping expired GitHub Actions artifact {displayPath}");
+            return;
+        }
+
+        if (options.MaxFileBytes.HasValue
+            && TryGetJsonInt64(artifact, "size_in_bytes", out long size)
+            && size > options.MaxFileBytes.Value)
+        {
+            options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+            return;
+        }
+
+        Uri uri = CreateActionArtifactDownloadUri(options, artifact, artifactId);
+        byte[]? bytes = await DownloadActionArtifactArchiveAsync(options, uri, displayPath, cancellationToken).ConfigureAwait(false);
+        if (bytes is null)
+        {
+            return;
+        }
+
+        if (options.MaxArchiveDepth == 0)
+        {
+            options.WarningSink?.Invoke($"skipping GitHub Actions artifact {displayPath} because archive traversal is disabled");
+            return;
+        }
+
+        var entries = new List<ArchiveEntry>();
+        if (!ArchiveReader.TryReadBytesEntries(
+            bytes,
+            displayPath,
+            options.MaxArchiveDepth,
+            options.MaxArchiveEntries,
+            options.MaxArchiveBytes,
+            options.MaxArchiveCompressionRatio,
+            options.MaxFileBytes,
+            options.IsPathAllowed,
+            options.WarningSink,
+            options.IsCancellationRequested,
+            entries))
+        {
+            options.WarningSink?.Invoke($"skipping GitHub Actions artifact {displayPath} because it is not a readable archive");
+            return;
+        }
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ArchiveEntry entry = entries[i];
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, entry.DisplayPath, entry.Content));
+        }
+    }
+
     private async Task AddIssueFilesAsync(
         GitHubSourceOptions options,
         HttpResponseMessage response,
@@ -1087,7 +1223,67 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         return await ReadReleaseAssetContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<byte[]?> DownloadActionArtifactArchiveAsync(
+        GitHubSourceOptions options,
+        Uri uri,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAllowedGitHubApiUri(options.Endpoint, uri))
+        {
+            options.WarningSink?.Invoke($"skipping GitHub Actions artifact {displayPath} because the archive URL is not an allowed GitHub API endpoint");
+            return null;
+        }
+
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (IsRedirect(response) && response.Headers.Location is not null)
+        {
+            Uri redirectUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(uri, response.Headers.Location);
+            if (!IsAllowedActionArtifactRedirectUri(options, redirectUri))
+            {
+                options.WarningSink?.Invoke($"skipping GitHub Actions artifact {displayPath} because the redirected download URL is not an allowed GitHub Actions artifact endpoint");
+                return null;
+            }
+
+            using HttpResponseMessage redirectedResponse = await SendUnauthenticatedRawAsync(redirectUri, cancellationToken).ConfigureAwait(false);
+            if (!redirectedResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping GitHub Actions artifact {displayPath}");
+                return null;
+            }
+
+            return await ReadActionArtifactArchiveWithinLimitAsync(redirectedResponse, options, displayPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping GitHub Actions artifact {displayPath}");
+            return null;
+        }
+
+        return await ReadActionArtifactArchiveWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
     private static async Task<byte[]?> ReadReleaseAssetContentWithinLimitAsync(
+        HttpResponseMessage response,
+        GitHubSourceOptions options,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        if (options.MaxFileBytes.HasValue
+            && response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes.Value)
+        {
+            options.WarningSink?.Invoke($"GitHub file byte limit skipped {displayPath}");
+            return null;
+        }
+
+        return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<byte[]?> ReadActionArtifactArchiveWithinLimitAsync(
         HttpResponseMessage response,
         GitHubSourceOptions options,
         string displayPath,
@@ -1231,6 +1427,32 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 new KeyValuePair<string, string>("per_page", ReleaseAssetsPerPage.ToString(CultureInfo.InvariantCulture)),
                 new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
             ]);
+    }
+
+    private static Uri CreateActionArtifactListUri(GitHubSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.RepositoryName, "actions", "artifacts"],
+            [
+                new KeyValuePair<string, string>("per_page", ActionArtifactsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateActionArtifactDownloadUri(GitHubSourceOptions options, JsonElement artifact, long artifactId)
+    {
+        string archiveUrl = GetString(artifact, "archive_download_url");
+        if (archiveUrl.Length != 0
+            && Uri.TryCreate(archiveUrl, UriKind.Absolute, out Uri? archiveUri))
+        {
+            return archiveUri;
+        }
+
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.RepositoryName, "actions", "artifacts", artifactId.ToString(CultureInfo.InvariantCulture), "zip"],
+            []);
     }
 
     private static Uri CreateIssueCommentListUri(GitHubSourceOptions options, int issueNumber, int page)
@@ -1410,6 +1632,23 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             && property.TryGetInt32(out propertyValue);
     }
 
+    private static bool TryGetJsonBoolean(JsonElement value, string propertyName, out bool propertyValue)
+    {
+        propertyValue = false;
+        if (!value.TryGetProperty(propertyName, out JsonElement property))
+        {
+            return false;
+        }
+
+        if (property.ValueKind == JsonValueKind.True)
+        {
+            propertyValue = true;
+            return true;
+        }
+
+        return property.ValueKind == JsonValueKind.False;
+    }
+
     private static string GetString(JsonElement value, string propertyName)
     {
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
@@ -1510,6 +1749,20 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             EscapeDisplaySegment(releaseTag),
             "/assets/",
             EscapeDisplaySegment(assetName));
+    }
+
+    private static string CreateActionArtifactArchiveDisplayPath(GitHubSourceOptions options, string artifactName, long artifactId)
+    {
+        return string.Concat(
+            "github/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.RepositoryName),
+            "/actions/artifacts/",
+            EscapeDisplaySegment(artifactName),
+            "-",
+            artifactId.ToString(CultureInfo.InvariantCulture),
+            ".zip");
     }
 
     private static string CreateGistFileDisplayPath(string owner, string gistId, string fileName)
@@ -1677,6 +1930,31 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 || uri.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase)
                 || uri.Host.EndsWith(".amazonaws.com", StringComparison.OrdinalIgnoreCase));
         return sameHost || subdomainOfEndpoint || publicGitHubAssetHost;
+    }
+
+    private static bool IsAllowedActionArtifactRedirectUri(GitHubSourceOptions options, Uri uri)
+    {
+        if (!uri.IsAbsoluteUri
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || uri.Scheme is not "https" and not "http")
+        {
+            return false;
+        }
+
+        if (uri.Scheme.Equals("http", StringComparison.Ordinal)
+            && !options.Endpoint.Scheme.Equals("http", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        bool sameHost = uri.Host.Equals(options.Endpoint.Host, StringComparison.OrdinalIgnoreCase);
+        bool subdomainOfEndpoint = uri.Host.EndsWith(string.Concat(".", options.Endpoint.Host), StringComparison.OrdinalIgnoreCase);
+        bool publicGitHubArtifactHost = options.Endpoint.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
+            && (uri.Host.Equals("objects.githubusercontent.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".amazonaws.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".blob.core.windows.net", StringComparison.OrdinalIgnoreCase));
+        return sameHost || subdomainOfEndpoint || publicGitHubArtifactHost;
     }
 
     private static string EscapeDisplaySegment(string value)

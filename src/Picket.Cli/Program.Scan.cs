@@ -1,4 +1,3 @@
-using Picket.Engine;
 using Picket.Sources;
 using Picket.Verify;
 
@@ -29,6 +28,7 @@ internal static partial class Program
         string githubSourceGistId = string.Empty;
         string? githubSourceTokenEnvironmentVariable = null;
         string githubSourceOrganization = string.Empty;
+        bool githubSourceIncludeActionsArtifacts = false;
         bool githubSourceIncludeIssues = false;
         bool githubSourceIncludeReleases = false;
         string githubSourceIssueState = GitHubSourceOptions.DefaultIssueState;
@@ -225,6 +225,21 @@ internal static partial class Program
                 }
 
                 if (githubSourceIncludeReleases)
+                {
+                    githubSourceOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitHubIncludeActionsArtifactsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--github-include-actions-artifacts", out githubSourceIncludeActionsArtifacts))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (githubSourceIncludeActionsArtifacts)
                 {
                     githubSourceOptionSpecified = true;
                 }
@@ -471,7 +486,7 @@ internal static partial class Program
             forwardedArgs.Add(source);
         }
 
-        Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider = null;
+        RemoteSourceProvider? sourceFileProvider = null;
         if (azureDevOpsOptionSpecified && githubSourceOptionSpecified)
         {
             Console.Error.WriteLine("scan accepts only one remote source provider at a time");
@@ -511,6 +526,7 @@ internal static partial class Program
                 githubSourceIncludeIssues,
                 githubSourceIssueState,
                 githubSourceIncludeReleases,
+                githubSourceIncludeActionsArtifacts,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

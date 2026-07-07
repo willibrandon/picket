@@ -17,7 +17,7 @@ internal static partial class Program
         bool allowValidationResultFilters = false,
         LiveVerificationConfiguration? liveVerification = null,
         bool allowReportInput = false,
-        Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider = null,
+        RemoteSourceProvider? sourceFileProvider = null,
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null)
     {
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
@@ -467,7 +467,15 @@ internal static partial class Program
             try
             {
                 picketIgnore = PicketIgnore.Empty;
-                files = sourceFileProvider(root, rules, maxTargetBytes, timeoutTimestamp);
+                files = sourceFileProvider(
+                    root,
+                    rules,
+                    maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
+                    timeoutTimestamp);
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
             {

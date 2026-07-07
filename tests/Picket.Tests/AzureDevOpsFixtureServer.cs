@@ -8,7 +8,7 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
 {
     private readonly string _content;
     private readonly List<string> _requestTargets = [];
-    private readonly object _requestTargetsLock = new();
+    private readonly Lock _requestTargetsLock = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly TcpListener _listener;
     private readonly Task _serverTask;

@@ -1,4 +1,3 @@
-using Picket.Engine;
 using Picket.Security;
 using Picket.Sources;
 using System.Diagnostics.CodeAnalysis;
@@ -79,6 +78,12 @@ internal static partial class Program
             || arg.StartsWith("--github-include-releases=", StringComparison.Ordinal);
     }
 
+    static bool IsGitHubIncludeActionsArtifactsFlag(string arg)
+    {
+        return arg.Equals("--github-include-actions-artifacts", StringComparison.Ordinal)
+            || arg.StartsWith("--github-include-actions-artifacts=", StringComparison.Ordinal);
+    }
+
     static bool IsGitHubSourceApiEndpointFlag(string arg)
     {
         return arg.Equals("--github-source-api-endpoint", StringComparison.Ordinal)
@@ -135,9 +140,10 @@ internal static partial class Program
         bool includeIssues,
         string issueState,
         bool includeReleases,
+        bool includeActionArtifacts,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
-        [NotNullWhen(true)] out Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider)
+        [NotNullWhen(true)] out RemoteSourceProvider? sourceFileProvider)
     {
         sourceFileProvider = null;
         bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);
@@ -200,6 +206,12 @@ internal static partial class Program
             return false;
         }
 
+        if (pullRequestNumber != 0 && includeActionArtifacts)
+        {
+            Console.Error.WriteLine("GitHub source scan cannot combine --github-pull-request with --github-include-actions-artifacts");
+            return false;
+        }
+
         if (!repositorySpecified && !organizationSpecified && !string.IsNullOrWhiteSpace(gitRef))
         {
             Console.Error.WriteLine("GitHub source scan accepts --github-ref only with repository or organization scans");
@@ -215,6 +227,12 @@ internal static partial class Program
         if (!repositorySpecified && !organizationSpecified && includeReleases)
         {
             Console.Error.WriteLine("GitHub release source options require --github-repository or --github-organization");
+            return false;
+        }
+
+        if (!repositorySpecified && !organizationSpecified && includeActionArtifacts)
+        {
+            Console.Error.WriteLine("GitHub Actions artifact source options require --github-repository or --github-organization");
             return false;
         }
 
@@ -244,7 +262,8 @@ internal static partial class Program
                     pullRequestNumber,
                     includeIssues,
                     issueState,
-                    includeReleases);
+                    includeReleases,
+                    includeActionArtifacts);
                 sourceEndpoint = validatedOptions.Endpoint;
                 repository = validatedOptions.Repository;
                 gitRef = validatedOptions.Ref;
@@ -252,6 +271,7 @@ internal static partial class Program
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
                 includeReleases = validatedOptions.IncludeReleases;
+                includeActionArtifacts = validatedOptions.IncludeActionArtifacts;
             }
             else if (organizationSpecified)
             {
@@ -263,7 +283,8 @@ internal static partial class Program
                     repositoryType,
                     includeIssues,
                     issueState,
-                    includeReleases);
+                    includeReleases,
+                    includeActionArtifacts);
                 sourceEndpoint = validatedOptions.Endpoint;
                 organization = validatedOptions.Organization;
                 repositoryType = validatedOptions.RepositoryType;
@@ -271,6 +292,7 @@ internal static partial class Program
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
                 includeReleases = validatedOptions.IncludeReleases;
+                includeActionArtifacts = validatedOptions.IncludeActionArtifacts;
             }
             else
             {
@@ -305,7 +327,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, _, maxTargetBytes, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(new HttpClientHandler
             {
@@ -323,7 +345,13 @@ internal static partial class Program
                     includeIssues,
                     issueState,
                     includeReleases,
+                    includeActionArtifacts,
                     maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
+                    rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
             }
@@ -339,7 +367,13 @@ internal static partial class Program
                     includeIssues,
                     issueState,
                     includeReleases,
+                    includeActionArtifacts,
                     maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
+                    rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
             }
