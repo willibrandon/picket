@@ -418,6 +418,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.report.v1", reports);
         Assert.Contains("validation templates", reports);
         Assert.Contains("revocation templates", reports);
+        Assert.Contains("GitLab token families", reports);
         Assert.Contains("picket analyze", reports);
         Assert.Contains("reachable resources", reports);
         Assert.Contains("picket view", reports);

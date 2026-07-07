@@ -146,6 +146,51 @@ public sealed class CredentialAnalyzerTests
     }
 
     /// <summary>
+    /// Verifies that GitLab personal access token findings receive GitLab-specific triage guidance without printing the token.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesGitLabPersonalAccessTokens()
+    {
+        string token = CreateGitLabPat();
+        Finding finding = CreateGitLabPatFinding(token);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("GitLab", analysis.Provider);
+        Assert.AreEqual("GitLab personal access token", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains("gitLabRuleId=gitlab-pat", analysis.Evidence);
+        Assert.Contains("resourceType=personal-access-token", analysis.Evidence);
+        Assert.Contains("Review token scopes", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.Contains("personal_access_tokens/<token-id>", string.Join('\n', analysis.RevocationCommands));
+        Assert.Contains("Identify the owning GitLab user", string.Join('\n', analysis.RevocationGuidance));
+        Assert.DoesNotContain(token, string.Join('\n', analysis.RevocationCommands));
+        Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));
+    }
+
+    /// <summary>
+    /// Verifies that GitLab CI job token findings receive containment guidance without unsafe command templates.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesGitLabCiJobTokens()
+    {
+        string token = CreateGitLabCiJobToken();
+        Finding finding = CreateGitLabCiJobTokenFinding(token);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("GitLab", analysis.Provider);
+        Assert.AreEqual("GitLab CI/CD job token", analysis.CredentialType);
+        Assert.Contains("resourceType=ci-job-token", analysis.Evidence);
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.IsEmpty(analysis.RevocationCommands);
+        Assert.Contains("Cancel the exposing pipeline if it is still running", string.Join('\n', analysis.RevocationGuidance));
+        Assert.DoesNotContain(token, string.Join('\n', analysis.RevocationGuidance));
+        Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));
+    }
+
+    /// <summary>
     /// Verifies that live provider metadata enriches incident-response analysis.
     /// </summary>
     [TestMethod]
@@ -295,6 +340,55 @@ public sealed class CredentialAnalyzerTests
             validationState: validationState);
     }
 
+    private static Finding CreateGitLabPatFinding(string token)
+    {
+        return new Finding(
+            "gitlab-pat",
+            "Identified a GitLab Personal Access Token, risking unauthorized access to GitLab repositories and codebase exposure.",
+            1,
+            1,
+            1,
+            token.Length,
+            token,
+            token,
+            "gitlab.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["gitlab"],
+            "gitlab.txt:gitlab-pat:1",
+            validationState: "structurally-valid");
+    }
+
+    private static Finding CreateGitLabCiJobTokenFinding(string token)
+    {
+        string match = $"CI_JOB_TOKEN={token}";
+        return new Finding(
+            "gitlab-cicd-job-token",
+            "Identified a GitLab CI/CD Job Token, potential access to projects and some APIs on behalf of a user while the CI job is running.",
+            1,
+            1,
+            1,
+            match.Length,
+            match,
+            token,
+            "pipeline.log",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["gitlab", "ci"],
+            "pipeline.log:gitlab-cicd-job-token:1",
+            validationState: "structurally-valid");
+    }
+
     private static string CreateGoogleApiKey()
     {
         return string.Concat("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
@@ -303,6 +397,16 @@ public sealed class CredentialAnalyzerTests
     private static string CreateGitHubPat()
     {
         return CreateGitHubClassicToken("ghp_");
+    }
+
+    private static string CreateGitLabPat()
+    {
+        return string.Concat("glpat-", "0123456789abcdefghijklmnopqrstuv");
+    }
+
+    private static string CreateGitLabCiJobToken()
+    {
+        return string.Concat("glcbt-", "0123456789abcdefghijklmnopqrstuv");
     }
 
     private static string CreateGitHubClassicToken(string prefix)

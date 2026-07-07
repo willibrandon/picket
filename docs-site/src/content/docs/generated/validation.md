@@ -93,6 +93,6 @@ Provider requests must use `Picket.Security` endpoint checks to block loopback, 
 
 Native report writers expose validation state in Picket JSON, JSONL, SARIF, CSV, JUnit, HTML, TOON, and GitLab code-quality outputs where the format supports it. Gitleaks-compatible report writers preserve the compatibility schema and do not add Picket-native validation fields.
 
-Native analysis reports can include provider-specific revocation availability, command templates, and guidance. Revocation is never automatic during scan, verification, or analysis. Command templates must be derived from non-secret identifiers and must never include raw secret values.
+Native analysis reports can include provider-specific revocation availability, command templates, and guidance. Current offline analysis guidance covers AWS, Azure Storage, GCP, GitHub, and GitLab token families; live provider verification remains opt-in and GitHub-focused until additional provider validators have endpoint threat models and tests. Revocation is never automatic during scan, verification, or analysis. Command templates must be derived from non-secret identifiers and must never include raw secret values.
 
 Secrets must be redacted before logs, action annotations, summaries, diagnostics, and crash data. Secret hashes are intended for deduplication and triage, not as proof that a credential is safe to disclose.

@@ -107,6 +107,11 @@ public static class CredentialAnalyzer
             return "GitHub";
         }
 
+        if (IsGitLabRuleId(ruleId))
+        {
+            return "GitLab";
+        }
+
         return ruleId switch
         {
             "aws-access-token" => "AWS",
@@ -152,6 +157,77 @@ public static class CredentialAnalyzer
             return "GitHub token";
         }
 
+        if (ruleId.Equals("gitlab-cicd-job-token", StringComparison.Ordinal))
+        {
+            return "GitLab CI/CD job token";
+        }
+
+        if (ruleId.Equals("gitlab-deploy-token", StringComparison.Ordinal))
+        {
+            return "GitLab deploy token";
+        }
+
+        if (ruleId.Equals("gitlab-feature-flag-client-token", StringComparison.Ordinal))
+        {
+            return "GitLab feature flag client token";
+        }
+
+        if (ruleId.Equals("gitlab-feed-token", StringComparison.Ordinal))
+        {
+            return "GitLab feed token";
+        }
+
+        if (ruleId.Equals("gitlab-incoming-mail-token", StringComparison.Ordinal))
+        {
+            return "GitLab incoming mail token";
+        }
+
+        if (ruleId.Equals("gitlab-kubernetes-agent-token", StringComparison.Ordinal))
+        {
+            return "GitLab Kubernetes agent token";
+        }
+
+        if (ruleId.Equals("gitlab-oauth-app-secret", StringComparison.Ordinal))
+        {
+            return "GitLab OAuth application secret";
+        }
+
+        if (ruleId is "gitlab-pat" or "gitlab-pat-routable"
+            || ruleId.Equals("picket-gitlab-personal-access-token", StringComparison.Ordinal))
+        {
+            return "GitLab personal access token";
+        }
+
+        if (ruleId.Equals("gitlab-ptt", StringComparison.Ordinal))
+        {
+            return "GitLab pipeline trigger token";
+        }
+
+        if (ruleId.Equals("gitlab-rrt", StringComparison.Ordinal))
+        {
+            return "GitLab runner registration token";
+        }
+
+        if (ruleId is "gitlab-runner-authentication-token" or "gitlab-runner-authentication-token-routable")
+        {
+            return "GitLab runner authentication token";
+        }
+
+        if (ruleId.Equals("gitlab-scim-token", StringComparison.Ordinal))
+        {
+            return "GitLab SCIM token";
+        }
+
+        if (ruleId.Equals("gitlab-session-cookie", StringComparison.Ordinal))
+        {
+            return "GitLab session cookie";
+        }
+
+        if (provider.Equals("GitLab", StringComparison.Ordinal))
+        {
+            return "GitLab token";
+        }
+
         return ruleId switch
         {
             "aws-access-token" => "AWS access key ID",
@@ -169,6 +245,12 @@ public static class CredentialAnalyzer
     {
         return ruleId.StartsWith("github-", StringComparison.Ordinal)
             || ruleId.StartsWith("picket-github-", StringComparison.Ordinal);
+    }
+
+    private static bool IsGitLabRuleId(string ruleId)
+    {
+        return ruleId.StartsWith("gitlab-", StringComparison.Ordinal)
+            || ruleId.StartsWith("picket-gitlab-", StringComparison.Ordinal);
     }
 
     private static string GetRisk(string validationState)
@@ -227,6 +309,11 @@ public static class CredentialAnalyzer
                 "Review token scopes, repository access, and recent audit events.",
                 "Search commit history, issues, logs, artifacts, and package metadata for the same credential hash."
             ],
+            "GitLab" => [
+                "Revoke or rotate the GitLab credential in the owning user, project, group, runner, agent, or application.",
+                "Review token scopes, group and project membership, protected branch and tag permissions, package registry access, container registry access, and recent audit events.",
+                "Search repositories, CI variables, pipeline logs, job artifacts, releases, packages, issues, and merge requests for the same credential hash."
+            ],
             "AWS" => [
                 credentialType.Equals("AWS access key pair", StringComparison.Ordinal)
                     ? "Disable or rotate the leaked AWS access key in IAM after dependent workloads are updated."
@@ -264,6 +351,7 @@ public static class CredentialAnalyzer
             "Azure" => credentialType.Equals("Azure Storage account key", StringComparison.Ordinal),
             "GCP" => credentialType is "GCP API key" or "GCP service account key",
             "GitHub" => true,
+            "GitLab" => true,
             _ => false,
         };
     }
@@ -300,6 +388,11 @@ public static class CredentialAnalyzer
             return [
                 "curl -L -X POST -H \"Accept: application/vnd.github+json\" -H \"X-GitHub-Api-Version: 2026-03-10\" https://api.github.com/credentials/revoke -d '{\"credentials\":[\"<github-token>\"]}'"
             ];
+        }
+
+        if (provider.Equals("GitLab", StringComparison.Ordinal))
+        {
+            return CreateGitLabRevocationCommands(credentialType);
         }
 
         if (provider.Equals("GCP", StringComparison.Ordinal)
@@ -356,8 +449,48 @@ public static class CredentialAnalyzer
                 "Create a replacement with required API and application restrictions before updating consumers.",
                 "Delete the exposed key after traffic has moved to the replacement."
             ],
+            "GitLab" => CreateGitLabRevocationGuidance(credentialType),
             _ => [],
         };
+    }
+
+    private static List<string> CreateGitLabRevocationCommands(string credentialType)
+    {
+        return credentialType switch
+        {
+            "GitLab personal access token" => [
+                "curl --request DELETE --header \"PRIVATE-TOKEN: <gitlab-admin-token>\" \"https://gitlab.example.com/api/v4/personal_access_tokens/<token-id>\""
+            ],
+            "GitLab deploy token" => [
+                "curl --request DELETE --header \"PRIVATE-TOKEN: <gitlab-admin-token>\" \"https://gitlab.example.com/api/v4/projects/<project-id>/deploy_tokens/<deploy-token-id>\"",
+                "curl --request DELETE --header \"PRIVATE-TOKEN: <gitlab-admin-token>\" \"https://gitlab.example.com/api/v4/groups/<group-id>/deploy_tokens/<deploy-token-id>\""
+            ],
+            "GitLab pipeline trigger token" => [
+                "curl --request DELETE --header \"PRIVATE-TOKEN: <gitlab-maintainer-token>\" \"https://gitlab.example.com/api/v4/projects/<project-id>/triggers/<trigger-id>\""
+            ],
+            "GitLab runner authentication token" => [
+                "gitlab-runner unregister --url https://gitlab.example.com --token <runner-authentication-token>"
+            ],
+            _ => [],
+        };
+    }
+
+    private static IReadOnlyList<string> CreateGitLabRevocationGuidance(string credentialType)
+    {
+        if (credentialType.Equals("GitLab CI/CD job token", StringComparison.Ordinal))
+        {
+            return [
+                "Cancel the exposing pipeline if it is still running, then review the job token permissions and project allowlist.",
+                "Rotate any CI variables, deploy credentials, package tokens, or registry credentials the job could read.",
+                "Review job logs and artifacts before retention or cleanup removes investigation evidence."
+            ];
+        }
+
+        return [
+            "Identify the owning GitLab user, project, group, runner, agent, or application before revocation.",
+            "Revoke the credential from the narrowest owning surface, then rotate dependent jobs, integrations, runners, and deployments.",
+            "Review GitLab audit events, project access tokens, group access tokens, deploy tokens, pipeline triggers, runners, packages, and registry activity for post-exposure use."
+        ];
     }
 
     private static string CreateIdentity(CredentialAnalysisMetadata? metadata, string validationState)
@@ -428,6 +561,12 @@ public static class CredentialAnalyzer
             evidence.Add($"privateKeyId={privateKeyId}");
         }
 
+        if (IsGitLabRuleId(finding.RuleID))
+        {
+            evidence.Add($"gitLabRuleId={finding.RuleID}");
+            evidence.Add($"resourceType={GetGitLabResourceType(finding.RuleID)}");
+        }
+
         if (metadata is not null)
         {
             for (int i = 0; i < metadata.Evidence.Count; i++)
@@ -437,6 +576,27 @@ public static class CredentialAnalyzer
         }
 
         return evidence;
+    }
+
+    private static string GetGitLabResourceType(string ruleId)
+    {
+        return ruleId switch
+        {
+            "gitlab-cicd-job-token" => "ci-job-token",
+            "gitlab-deploy-token" => "deploy-token",
+            "gitlab-feature-flag-client-token" => "feature-flag-client-token",
+            "gitlab-feed-token" => "feed-token",
+            "gitlab-incoming-mail-token" => "incoming-mail-token",
+            "gitlab-kubernetes-agent-token" => "kubernetes-agent-token",
+            "gitlab-oauth-app-secret" => "oauth-application-secret",
+            "gitlab-pat" or "gitlab-pat-routable" or "picket-gitlab-personal-access-token" => "personal-access-token",
+            "gitlab-ptt" => "pipeline-trigger-token",
+            "gitlab-rrt" => "runner-registration-token",
+            "gitlab-runner-authentication-token" or "gitlab-runner-authentication-token-routable" => "runner-authentication-token",
+            "gitlab-scim-token" => "scim-token",
+            "gitlab-session-cookie" => "session-cookie",
+            _ => "token",
+        };
     }
 
     private static string GetFindingSecretMaterial(Finding finding)
