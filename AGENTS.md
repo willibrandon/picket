@@ -84,6 +84,9 @@ Implementation requirements:
 - Tune IO, GC, SIMD, parallelism, and feature switches by measurement, not assumption.
 - Prefer Scout's SIMD-aware search/regex implementation before adding custom intrinsics.
 - Do not use executable compression by default; only use it when benchmarks prove the size/startup tradeoff is acceptable.
+- Broad optimization work comes near the end of implementation after the relevant feature set is complete. Earlier performance work is limited to measured regressions that block correctness, feasibility, or CI reliability.
+- Fair competitor comparisons must use equivalent scan modes, rule/config scope, source inputs, report formats, cache state, and verification/source-enumeration settings. Record tool versions, commits, hardware, OS, command lines, and cold/warm results.
+- If profiling attributes a material bottleneck to a Scout NuGet package, create a concise Scout issue with a minimal reproducer and benchmark or trace evidence. If the Scout bottleneck blocks Picket progress, pause Picket work and notify the user so Scout can be fixed first.
 
 ## Security and Privacy Requirements
 

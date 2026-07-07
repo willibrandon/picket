@@ -332,6 +332,18 @@ The repository includes `benchmarks/Picket.Benchmarks` for engine-level Benchmar
 
 No optimization lands because it "should be faster." It lands because a benchmark, trace, or size report says it is faster or smaller for a Picket scenario.
 
+Competitive performance work is a late-project hardening gate, not an early implementation driver. After the target feature set is complete, Picket compares end-to-end speed against Gitleaks, TruffleHog, Kingfisher, and other relevant local references only where the comparison can be made fair:
+
+- same repository, fixture, commit range, or source payload,
+- equivalent scan mode, rule scope, path filters, redaction, report format, and output destination,
+- verification, source enumeration, archive traversal, decoding, and history scanning either disabled on both sides or measured as separate scenarios,
+- cold-cache and warm-cache runs reported separately,
+- tool versions, commit SHAs, command lines, hardware, OS, filesystem, .NET SDK, and runner type recorded with the results.
+
+Optimization comes near the end of implementation after behavior is feature complete. Earlier performance work is limited to regressions that block correctness, feasibility, or CI reliability.
+
+If profiling shows a material bottleneck in a Scout NuGet package, Picket creates a concise Scout issue with a minimal reproducer, benchmark or trace evidence, exact package version, command line, input shape, and expected impact. If the Scout issue is critical enough that Picket cannot reasonably proceed without it, Picket work pauses and the maintainer is notified so Scout can be fixed first.
+
 ### 6.13 Microsoft Guidance References
 
 The applied guidance comes from current Microsoft Learn pages. These links are mirrored in `docs/UPSTREAM.md` with access dates and reviewed during runtime upgrades.
@@ -946,7 +958,21 @@ Gate: release workflow produces signed/checksummed artifacts, action smoke tests
 
 Marketplace publishing can be implemented late in the milestone. It is a release-readiness task, not a prerequisite for engine, rule, report, or local CLI work.
 
-### M8: Optional Stretch
+### M8: Performance Hardening and Fair Comparison
+
+- feature-complete benchmark matrix,
+- end-to-end Picket versus Gitleaks comparisons for strict compatibility scenarios,
+- end-to-end native Picket comparisons against TruffleHog, Kingfisher, and other relevant tools only where rules, verification, source enumeration, and history mode are equivalent or explicitly separated,
+- cold-start, warm-start, scan-only, verification, report-writing, and CI-action timings,
+- binary size, package size, peak RSS, allocation, and cache-hit measurements,
+- trace-based bottleneck attribution before optimization,
+- Scout issue creation when a Scout package is the measured bottleneck.
+
+Gate: performance results are reproducible enough to review, behavior is unchanged, and any optimization is justified by measured wins for a named Picket scenario.
+
+Critical Scout performance blockers pause Picket work until the Scout issue is fixed or the design is updated with an acceptable fallback.
+
+### M9: Optional Stretch
 
 - honeytokens,
 - leak-database checks,

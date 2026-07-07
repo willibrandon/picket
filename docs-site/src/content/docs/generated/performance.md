@@ -9,6 +9,10 @@ editUrl: false
 Picket performance work is measured with BenchmarkDotNet for engine-level
 changes and with scanner-oracle scripts for end-to-end behavior.
 
+Optimization is a late-project activity. Do not do broad hot-path rewrites
+until the relevant feature set is complete, unless a measured regression blocks
+correctness, feasibility, or CI reliability.
+
 Run the engine benchmarks with:
 
 ```powershell
@@ -58,3 +62,40 @@ For repository-level comparison:
 - compare native scans against the GitHub alert classes and locations only after
   confirming whether differences are compatibility allowlists, history-only
   alerts, or true rule gaps.
+
+## Fair Competitor Comparisons
+
+End-to-end speed comparisons are useful only after the behavior being compared is
+feature complete. Compare Picket with Gitleaks, TruffleHog, Kingfisher, and other
+local references only when the scenario can be described precisely enough to
+review.
+
+Each comparison must record:
+
+- tool name, version, commit SHA, and command line,
+- Picket commit SHA, build profile, and runtime identifier,
+- OS, CPU, memory, filesystem, runner type, and .NET SDK,
+- source payload, repository commit range, path filters, and ignored paths,
+- rule/config set and whether compatibility or native behavior is selected,
+- output format, report destination, redaction, and baseline/cache settings,
+- whether verification, source enumeration, archive traversal, decoding, and
+  history scanning are enabled,
+- cold-cache and warm-cache timing separately.
+
+Do not compare a scan-only Picket run against a competitor run that also performs
+network verification, source enumeration, archive expansion, or full git history
+unless those costs are explicitly the scenario being measured. When capabilities
+cannot be made equivalent, report them as separate measurements instead of a
+single winner.
+
+## Scout Escalation
+
+Scout remains a dependency through NuGet packages. If profiling attributes a
+material bottleneck to a Scout package, capture a minimal reproducer, benchmark
+or trace, exact package version, command line, input shape, and expected impact.
+Open a concise Scout issue with that evidence.
+
+If the Scout bottleneck is critical enough to block Picket's feature-complete
+path, pause Picket implementation work and fix Scout first. Non-critical Scout
+performance issues stay tracked, but Picket optimization waits until the
+late-project hardening phase.
