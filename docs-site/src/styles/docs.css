@@ -1,3 +1,14 @@
+@media (min-width: 72rem) {
+  :root {
+    --sl-content-width: 64rem;
+  }
+
+  :root:has(.sl-markdown-content .reference-card-list),
+  :root:has(.sl-markdown-content table:not(.cli-reference-table)) {
+    --sl-content-width: 80rem;
+  }
+}
+
 .sl-markdown-content :is(h1, h2, h3, h4, h5, h6) {
   overflow-wrap: anywhere;
 }
@@ -42,7 +53,7 @@
 
 .sl-markdown-content .reference-card-list {
   display: grid;
-  gap: 0.875rem;
+  gap: 1rem;
   margin: 1rem 0 1.5rem;
 }
 
@@ -50,7 +61,7 @@
   background: color-mix(in srgb, var(--sl-color-bg) 94%, var(--sl-color-gray-6));
   border: 1px solid var(--sl-color-gray-5);
   border-radius: 8px;
-  padding: 0.875rem 1rem;
+  padding: 1rem;
 }
 
 .sl-markdown-content .reference-card-heading {
@@ -73,7 +84,6 @@
 .sl-markdown-content .reference-card-heading code {
   overflow-wrap: anywhere;
   white-space: normal;
-  width: fit-content;
 }
 
 .sl-markdown-content .reference-card-description {
@@ -85,7 +95,7 @@
 .sl-markdown-content .reference-card-facts {
   display: grid;
   gap: 0.625rem 0.875rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   margin: 0;
 }
 
@@ -119,6 +129,10 @@
 
 .sl-markdown-content .reference-card-wide {
   grid-column: 1 / -1;
+}
+
+.sl-markdown-content .reference-card-wide dd {
+  max-width: 88ch;
 }
 
 .sl-markdown-content .cli-reference-lede {

@@ -27,7 +27,8 @@ internal sealed partial class DocumentationGenerator
             Path.Combine(outputRoot, "report-schemas.md"),
             "Report Schema Reference",
             "Generated report schema reference for native and compatibility reports.",
-            builder.ToString());
+            builder.ToString(),
+            tableOfContents: false);
     }
 
     private static void AppendNativeReportSchemas(StringBuilder builder, Finding[] findings, SecretRule[] rules)

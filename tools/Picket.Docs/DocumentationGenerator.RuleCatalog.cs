@@ -33,7 +33,8 @@ internal sealed partial class DocumentationGenerator
             Path.Combine(outputRoot, "rule-catalog.md"),
             "Rule Catalog",
             "Generated catalog for embedded Gitleaks-compatible and Picket-native rule packs.",
-            builder.ToString());
+            builder.ToString(),
+            tableOfContents: false);
     }
 
     private static bool IsNativePicketRule(SecretRule rule, HashSet<string> gitleaksRuleIds)

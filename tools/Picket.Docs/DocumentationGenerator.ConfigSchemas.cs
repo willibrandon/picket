@@ -48,7 +48,8 @@ internal sealed partial class DocumentationGenerator
             Path.Combine(outputRoot, "config-schema.md"),
             "Config Schema Reference",
             "Generated config schema reference for Picket-native and Gitleaks-compatible TOML.",
-            builder.ToString());
+            builder.ToString(),
+            tableOfContents: false);
     }
 
     private void VerifyConfigLoaderCoverage()

@@ -73,7 +73,8 @@ internal sealed partial class DocumentationGenerator
             Path.Combine(outputRoot, "release-profiles.md"),
             "Release Profile Reference",
             "Generated release profile and package metadata reference.",
-            builder.ToString());
+            builder.ToString(),
+            tableOfContents: false);
     }
 
     private List<(string Project, string Profile, string RelativePath, Dictionary<string, string> Properties)> ReadReleaseProfiles()

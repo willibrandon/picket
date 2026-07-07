@@ -45,7 +45,8 @@ internal sealed partial class DocumentationGenerator
             Path.Combine(outputRoot, "validation-analyze.md"),
             "Validation and Analyze Reference",
             "Generated reference for validation states, rule metadata, and credential analysis output.",
-            builder.ToString());
+            builder.ToString(),
+            tableOfContents: false);
     }
 
     private static List<SecretRule> GetNativeRules()
@@ -176,8 +177,6 @@ internal sealed partial class DocumentationGenerator
             builder.AppendLine("</span>");
             builder.AppendLine("    </div>");
             builder.AppendLine("    <dl class=\"reference-card-facts\">");
-            AppendReferenceCardFact(builder, templateColumn, template, code: true, wide: false);
-            AppendReferenceCardFact(builder, "Kind", kind, code: false, wide: false);
             AppendReferenceCardFact(builder, "Providers", providers, code: false, wide: false);
             AppendReferenceCardFact(builder, "Rules", ruleCount.ToString(CultureInfo.InvariantCulture), code: false, wide: false);
             AppendReferenceCardFact(builder, "Rule IDs", ruleIds, code: false, wide: true);
@@ -286,9 +285,6 @@ internal sealed partial class DocumentationGenerator
             builder.AppendLine("</code>");
             builder.AppendLine("    </div>");
             builder.AppendLine("    <dl class=\"reference-card-facts\">");
-            AppendReferenceCardFact(builder, "Provider", analysis.Provider, code: false, wide: false);
-            AppendReferenceCardFact(builder, "Credential type", analysis.CredentialType, code: false, wide: false);
-            AppendReferenceCardFact(builder, "Example rule", analysis.RuleId, code: true, wide: false);
             AppendReferenceCardFact(builder, "Risk", analysis.Risk, code: true, wide: false);
             AppendReferenceCardFact(builder, "Revocation", analysis.RevocationAvailable ? "true" : "false", code: false, wide: false);
             AppendReferenceCardFact(builder, "Actions", analysis.RecommendedActions.Count.ToString(CultureInfo.InvariantCulture), code: false, wide: false);
