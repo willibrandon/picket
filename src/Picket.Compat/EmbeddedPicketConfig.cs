@@ -145,6 +145,7 @@ confidence = "high"
 rulePack = "picket-default"
 provider = "Sourcegraph"
 documentationUrl = "https://sourcegraph.com/docs/api"
+validation = ["offline:sourcegraph-access-token"]
 examples = ["{{sourcegraphAccessToken}}"]
 negativeExamples = ["4c232b5014f7618360bd992b4c489cb055881c6b"]
 

@@ -121,6 +121,7 @@ public static class CredentialAnalyzer
             "picket-gcp-service-account-key" => "GCP",
             "picket-azure-storage-connection-string" => "Azure",
             "picket-database-connection-url" => "Database",
+            "picket-sourcegraph-access-token" => "Sourcegraph",
             "private-key" => "Generic",
             _ => "Unknown",
         };
@@ -238,6 +239,7 @@ public static class CredentialAnalyzer
             "picket-gcp-service-account-key" => "GCP service account key",
             "picket-azure-storage-connection-string" => "Azure Storage account key",
             "picket-database-connection-url" => "Database connection URL",
+            "picket-sourcegraph-access-token" => "Sourcegraph access token",
             "private-key" => "Private key",
             _ => "Secret",
         };
@@ -321,6 +323,11 @@ public static class CredentialAnalyzer
                 "Review database authentication logs, connection history, network allowlists, grants, roles, and recent schema or data access.",
                 "Search source history, CI variables, deployment manifests, container images, logs, and artifacts for the same credential hash."
             ],
+            "Sourcegraph" => [
+                "Generate a replacement Sourcegraph access token with the minimum required permissions, update consumers, then revoke the exposed token.",
+                "Review Sourcegraph audit events, API usage, Cody access, batch changes, and code-host permissions for suspicious activity.",
+                "Search repositories, CI variables, deployment manifests, logs, and artifacts for the same credential hash."
+            ],
             "AWS" => [
                 credentialType.Equals("AWS access key pair", StringComparison.Ordinal)
                     ? "Disable or rotate the leaked AWS access key in IAM after dependent workloads are updated."
@@ -360,6 +367,7 @@ public static class CredentialAnalyzer
             "GitHub" => true,
             "GitLab" => true,
             "Database" => credentialType.Equals("Database connection URL", StringComparison.Ordinal),
+            "Sourcegraph" => credentialType.Equals("Sourcegraph access token", StringComparison.Ordinal),
             _ => false,
         };
     }
@@ -462,6 +470,11 @@ public static class CredentialAnalyzer
                 "Identify the database user and owning application from configuration management before rotation.",
                 "Create or assign a replacement credential with the same minimum required privileges, update consumers, then revoke or change the exposed password.",
                 "Review database audit logs, role grants, network access rules, backups, and downstream exports for post-exposure access."
+            ],
+            "Sourcegraph" when credentialType.Equals("Sourcegraph access token", StringComparison.Ordinal) => [
+                "Identify the Sourcegraph user or integration that owns the token before revocation.",
+                "Create a replacement token with least-privilege permissions, update every consumer, then delete the exposed access token from Sourcegraph token settings.",
+                "For self-hosted Sourcegraph, review audit logs, code-host permissions, Cody usage, and batch changes activity during the exposure window."
             ],
             _ => [],
         };
@@ -584,6 +597,12 @@ public static class CredentialAnalyzer
             evidence.Add($"databaseUser={databaseUser}");
         }
 
+        if (finding.RuleID.Equals("picket-sourcegraph-access-token", StringComparison.Ordinal)
+            && TryReadSourcegraphTokenEvidence(GetFindingSecretMaterial(finding), out string sourcegraphTokenVersion))
+        {
+            evidence.Add($"sourcegraphTokenVersion={sourcegraphTokenVersion}");
+        }
+
         if (IsGitLabRuleId(finding.RuleID))
         {
             evidence.Add($"gitLabRuleId={finding.RuleID}");
@@ -621,6 +640,27 @@ public static class CredentialAnalyzer
         scheme = uri.Scheme;
         user = uri.UserInfo[..separator];
         return true;
+    }
+
+    private static bool TryReadSourcegraphTokenEvidence(string secret, out string tokenVersion)
+    {
+        tokenVersion = string.Empty;
+        const string Prefix = "sgp_";
+        if (!secret.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> body = secret.AsSpan(Prefix.Length);
+        int separator = body.IndexOf('_');
+        if (separator < 0)
+        {
+            tokenVersion = "v2";
+            return body.Length == 40;
+        }
+
+        tokenVersion = "v3";
+        return body[(separator + 1)..].Length == 40;
     }
 
     private static string GetGitLabResourceType(string ruleId)

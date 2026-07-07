@@ -309,6 +309,34 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that Sourcegraph access tokens are structurally validated offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesSourcegraphAccessTokenShape()
+    {
+        Finding finding = CreateFinding("picket-sourcegraph-access-token", CreateSourcegraphAccessToken());
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that bare 40-hex values are not accepted as native Sourcegraph tokens.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsBareSourcegraphHexTokenShape()
+    {
+        Finding finding = CreateFinding("picket-sourcegraph-access-token", "0123456789abcdef0123456789abcdef01234567");
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that GCP service account key JSON is structurally validated offline.
     /// </summary>
     [TestMethod]
@@ -445,6 +473,11 @@ public sealed class OfflineSecretValidatorTests
     private static string CreateDatabaseConnectionUrl()
     {
         return "postgresql://app_user:picket-db-password-123@db.internal.local:5432/appdb?sslmode=require";
+    }
+
+    private static string CreateSourcegraphAccessToken()
+    {
+        return string.Concat("sgp_", "0123456789abcdef", "_", "0123456789abcdef0123456789abcdef01234567");
     }
 
     private static string CreateGcpApiKey()

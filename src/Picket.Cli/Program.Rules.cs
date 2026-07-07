@@ -461,6 +461,7 @@ internal static partial class Program
             "offline:jwt" => ruleId.Equals("jwt", StringComparison.Ordinal),
             "offline:jwt-base64" => ruleId.Equals("jwt-base64", StringComparison.Ordinal),
             "offline:private-key-envelope" => ruleId.Equals("private-key", StringComparison.Ordinal),
+            "offline:sourcegraph-access-token" => ruleId.Equals("picket-sourcegraph-access-token", StringComparison.Ordinal),
             "live:github-rest-user-v1" => ContainsRuleId(s_githubLiveTokenRuleIds, ruleId),
             _ => false,
         };

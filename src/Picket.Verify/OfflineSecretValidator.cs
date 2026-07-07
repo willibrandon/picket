@@ -53,6 +53,7 @@ public static class OfflineSecretValidator
             "picket-gcp-service-account-key" => ValidateGcpServiceAccountKeyJson(secret),
             "picket-azure-storage-connection-string" => ValidateAzureStorageConnectionString(finding.Match, secret),
             "picket-database-connection-url" => ValidateDatabaseConnectionUrl(secret),
+            "picket-sourcegraph-access-token" => ValidateSourcegraphAccessToken(secret),
             "private-key" => ValidatePrivateKeyEnvelope(finding.Match),
             _ => Unknown(),
         };
@@ -293,6 +294,16 @@ public static class OfflineSecretValidator
         return StructurallyValid("valid GCP API key shape");
     }
 
+    private static SecretValidationResult ValidateSourcegraphAccessToken(string secret)
+    {
+        if (!IsSourcegraphAccessToken(secret))
+        {
+            return Invalid("invalid Sourcegraph access token shape");
+        }
+
+        return StructurallyValid("valid Sourcegraph access token shape");
+    }
+
     private static SecretValidationResult ValidateGcpServiceAccountKeyJson(string secret)
     {
         if (!TryParseJsonObject(secret, out JsonDocument? document))
@@ -421,6 +432,42 @@ public static class OfflineSecretValidator
     private static bool IsGcpApiKeySuffixCharacter(char value)
     {
         return IsAsciiAlphaNumeric(value) || value is '_' or '-';
+    }
+
+    private static bool IsSourcegraphAccessToken(string secret)
+    {
+        const string Prefix = "sgp_";
+        if (!secret.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> body = secret.AsSpan(Prefix.Length);
+        int separator = body.IndexOf('_');
+        if (separator < 0)
+        {
+            return body.Length == 40 && IsHexSegment(body);
+        }
+
+        ReadOnlySpan<char> instance = body[..separator];
+        ReadOnlySpan<char> token = body[(separator + 1)..];
+        return token.Length == 40
+            && (instance.Equals("local".AsSpan(), StringComparison.OrdinalIgnoreCase)
+                || instance.Length == 16 && IsHexSegment(instance))
+            && IsHexSegment(token);
+    }
+
+    private static bool IsHexSegment(ReadOnlySpan<char> value)
+    {
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (!IsHexCharacter(value[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool TryGetConnectionStringField(
@@ -1113,6 +1160,13 @@ public static class OfflineSecretValidator
     private static bool IsLowerHexCharacter(char value)
     {
         return value is >= '0' and <= '9'
+            or >= 'a' and <= 'f';
+    }
+
+    private static bool IsHexCharacter(char value)
+    {
+        return value is >= '0' and <= '9'
+            or >= 'A' and <= 'F'
             or >= 'a' and <= 'f';
     }
 

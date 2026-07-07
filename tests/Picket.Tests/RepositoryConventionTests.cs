@@ -412,6 +412,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("structurally-valid", validation);
         Assert.Contains("test-credential", validation);
         Assert.Contains("Picket-native validation fields", validation);
+        Assert.Contains("Sourcegraph `sgp_` access token shape checks", validation);
         Assert.Contains("Gitleaks-Compatible Reports", reports);
         Assert.Contains("Picket-Native Reports", reports);
         Assert.Contains("picket.finding.v1", reports);
@@ -420,6 +421,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("revocation templates", reports);
         Assert.Contains("database connection URLs", reports);
         Assert.Contains("GitLab token families", reports);
+        Assert.Contains("Sourcegraph access tokens", reports);
         Assert.Contains("picket analyze", reports);
         Assert.Contains("reachable resources", reports);
         Assert.Contains("picket view", reports);

@@ -79,6 +79,7 @@ Supported validation template identifiers are:
 - `offline:aws-access-key-id`
 - `offline:aws-access-key-pair`
 - `offline:azure-storage-connection-string`
+- `offline:database-connection-url`
 - `offline:gcp-api-key`
 - `offline:gcp-service-account-key-json`
 - `offline:github-classic-token`
@@ -86,6 +87,7 @@ Supported validation template identifiers are:
 - `offline:jwt`
 - `offline:jwt-base64`
 - `offline:private-key-envelope`
+- `offline:sourcegraph-access-token`
 - `live:github-rest-user-v1`
 
 Supported revocation template identifiers are:

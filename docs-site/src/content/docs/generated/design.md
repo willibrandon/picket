@@ -607,6 +607,7 @@ Initial targets:
 - Azure credentials,
 - GitLab tokens,
 - database connection strings,
+- Sourcegraph access tokens,
 - common SaaS API tokens.
 
 Analysis output is separate from scan output and optimized for incident response: identity, scopes, reachable resources, risk summary, recommended rotation/revocation steps, revocation command templates where safe, and evidence.

@@ -296,6 +296,27 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans use the embedded Sourcegraph access token rule.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanUsesEmbeddedSourcegraphAccessTokenRule()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string token = CreateSourcegraphAccessTokenFixture();
+        File.WriteAllText(Path.Combine(root.Path, "settings.env"), $"SOURCEGRAPH_TOKEN=\"{token}\"");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-sourcegraph-access-token\"", result.Stdout);
+        Assert.Contains($"\"secret\":\"{token}\"", result.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-default\"", result.Stdout);
+        Assert.Contains("\"provider\":\"Sourcegraph\"", result.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
+        Assert.Contains("\"documentationUrl\":\"https://sourcegraph.com/docs/api\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans use the embedded GCP service account key rule.
     /// </summary>
     [TestMethod]
@@ -4487,6 +4508,11 @@ public sealed class CliCompatibilityTests
     private static string CreateDatabaseConnectionUrlFixture()
     {
         return "postgresql://app_user:picket-db-password-123@db.internal.local:5432/appdb?sslmode=require";
+    }
+
+    private static string CreateSourcegraphAccessTokenFixture()
+    {
+        return string.Concat("sgp_", "0123456789abcdef", "_", "0123456789abcdef0123456789abcdef01234567");
     }
 
     private static string CreateGcpServiceAccountKeyJsonFixture()

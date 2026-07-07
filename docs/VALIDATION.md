@@ -27,11 +27,13 @@ Current offline coverage includes:
 - AWS access key ID shape and alphabet checks.
 - Native AWS access key pair checks that require a valid access key ID and a 40-character secret access key alphabet.
 - Azure Storage connection-string structure, account name, endpoint suffix, and 512-bit Base64 account-key checks.
+- Database connection URL structure, known database schemes, username, and embedded password checks.
 - GCP API key prefix, length, and alphabet checks.
 - GCP service account key JSON structure, project ID, private key ID, private-key envelope, service account email, and token URI checks.
 - GitHub classic, OAuth, refresh, app, and fine-grained token shape checks.
 - JWT and Base64-wrapped JWT segment, header, payload, algorithm, and signature-shape checks.
 - private-key envelope checks.
+- Sourcegraph `sgp_` access token shape checks.
 - common test, dummy, fake, placeholder, repeated-character, and repeated-pattern suppression signals.
 
 Native rule metadata can list supported validation templates with stable identifiers such as `offline:gcp-api-key` or `live:github-rest-user-v1`. These identifiers document available capability and appear in rich native rule catalogs; they do not enable live provider calls unless the user selects an explicit live-verification command or flag.
@@ -87,6 +89,6 @@ Provider requests must use `Picket.Security` endpoint checks to block loopback, 
 
 Native report writers expose validation state in Picket JSON, JSONL, SARIF, CSV, JUnit, HTML, TOON, and GitLab code-quality outputs where the format supports it. Gitleaks-compatible report writers preserve the compatibility schema and do not add Picket-native validation fields.
 
-Native analysis reports can include provider-specific revocation availability, command templates, and guidance. Current offline analysis guidance covers AWS, Azure Storage, database connection URLs, GCP, GitHub, and GitLab token families; live provider verification remains opt-in and GitHub-focused until additional provider validators have endpoint threat models and tests. Revocation is never automatic during scan, verification, or analysis. Command templates must be derived from non-secret identifiers and must never include raw secret values.
+Native analysis reports can include provider-specific revocation availability, command templates, and guidance. Current offline analysis guidance covers AWS, Azure Storage, database connection URLs, GCP, GitHub, GitLab token families, and Sourcegraph access tokens; live provider verification remains opt-in and GitHub-focused until additional provider validators have endpoint threat models and tests. Revocation is never automatic during scan, verification, or analysis. Command templates must be derived from non-secret identifiers and must never include raw secret values.
 
 Secrets must be redacted before logs, action annotations, summaries, diagnostics, and crash data. Secret hashes are intended for deduplication and triage, not as proof that a credential is safe to disclose.

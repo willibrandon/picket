@@ -170,6 +170,29 @@ public sealed class CredentialAnalyzerTests
     }
 
     /// <summary>
+    /// Verifies that Sourcegraph access token findings receive Sourcegraph-specific triage guidance.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRecognizesSourcegraphAccessTokens()
+    {
+        string token = CreateSourcegraphAccessToken();
+        Finding finding = CreateSourcegraphAccessTokenFinding(token);
+
+        CredentialAnalysis analysis = CredentialAnalyzer.Analyze(finding);
+
+        Assert.AreEqual("Sourcegraph", analysis.Provider);
+        Assert.AreEqual("Sourcegraph access token", analysis.CredentialType);
+        Assert.AreEqual("critical", analysis.Risk);
+        Assert.Contains("sourcegraphTokenVersion=v3", analysis.Evidence);
+        Assert.Contains("Generate a replacement Sourcegraph access token", string.Join('\n', analysis.RecommendedActions));
+        Assert.IsTrue(analysis.RevocationAvailable);
+        Assert.IsEmpty(analysis.RevocationCommands);
+        Assert.Contains("Identify the Sourcegraph user or integration", string.Join('\n', analysis.RevocationGuidance));
+        Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));
+        Assert.DoesNotContain(token, string.Join('\n', analysis.RevocationGuidance));
+    }
+
+    /// <summary>
     /// Verifies that GitLab personal access token findings receive GitLab-specific triage guidance without printing the token.
     /// </summary>
     [TestMethod]
@@ -388,6 +411,30 @@ public sealed class CredentialAnalyzerTests
             validationState: validationState);
     }
 
+    private static Finding CreateSourcegraphAccessTokenFinding(string token)
+    {
+        return new Finding(
+            "picket-sourcegraph-access-token",
+            "Detected a Sourcegraph access token.",
+            1,
+            1,
+            1,
+            token.Length,
+            token,
+            token,
+            "settings.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["picket", "sourcegraph", "access-token"],
+            "settings.txt:picket-sourcegraph-access-token:1",
+            validationState: "structurally-valid");
+    }
+
     private static Finding CreateGitLabPatFinding(string token)
     {
         return new Finding(
@@ -455,6 +502,11 @@ public sealed class CredentialAnalyzerTests
     private static string CreateGitLabCiJobToken()
     {
         return string.Concat("glcbt-", "0123456789abcdefghijklmnopqrstuv");
+    }
+
+    private static string CreateSourcegraphAccessToken()
+    {
+        return string.Concat("sgp_", "0123456789abcdef", "_", "0123456789abcdef0123456789abcdef01234567");
     }
 
     private static string CreateGitHubClassicToken(string prefix)
