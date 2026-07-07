@@ -212,9 +212,10 @@ Native GitHub repository, pull request, issue, issue comment, release, release a
 
 ## GitLab Source References
 
-Native GitLab project repository source enumeration is based on GitLab REST API documentation reviewed on 2026-07-07:
+Native GitLab project repository and merge request source enumeration is based on GitLab REST API documentation reviewed on 2026-07-07:
 
 - GitLab repositories API: `https://docs.gitlab.com/api/repositories/`
+- GitLab merge requests API: `https://docs.gitlab.com/api/merge_requests/`
 - GitLab repository files API: `https://docs.gitlab.com/api/repository_files/`
 - GitLab REST pagination: `https://docs.gitlab.com/api/rest/#pagination`
 

@@ -18,6 +18,12 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-ref=", StringComparison.Ordinal);
     }
 
+    static bool IsGitLabMergeRequestFlag(string arg)
+    {
+        return arg.Equals("--gitlab-merge-request", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-merge-request=", StringComparison.Ordinal);
+    }
+
     static bool IsGitLabTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitlab-token-env", StringComparison.Ordinal)
@@ -30,10 +36,27 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-api-endpoint=", StringComparison.Ordinal);
     }
 
+    static bool TryReadPositiveGitLabMergeRequestFlag(string[] args, ref int index, out int mergeRequestIid)
+    {
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--gitlab-merge-request", out mergeRequestIid))
+        {
+            return false;
+        }
+
+        if (mergeRequestIid > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--gitlab-merge-request requires a positive integer value");
+        return false;
+    }
+
     static bool TryCreateGitLabSourceProvider(
         Uri? endpoint,
         string project,
         string gitRef,
+        int mergeRequestIid,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -66,10 +89,12 @@ internal static partial class Program
                 sourceEndpoint,
                 project,
                 credential,
-                gitRef);
+                gitRef,
+                mergeRequestIid);
             sourceEndpoint = validatedOptions.Endpoint;
             project = validatedOptions.Project;
             gitRef = validatedOptions.Ref;
+            mergeRequestIid = validatedOptions.MergeRequestIid;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -101,6 +126,7 @@ internal static partial class Program
                 project,
                 credential,
                 gitRef,
+                mergeRequestIid,
                 maxTargetBytes,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,

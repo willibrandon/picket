@@ -35,6 +35,20 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
+        if (options.MergeRequestIid != 0)
+        {
+            (bool shouldScan, GitLabSourceOptions sourceOptions, string sourceRef) = await ResolveMergeRequestSourceAsync(
+                options,
+                cancellationToken).ConfigureAwait(false);
+            if (!shouldScan)
+            {
+                return sourceFiles;
+            }
+
+            await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+            return sourceFiles;
+        }
+
         string gitRef = options.Ref;
         if (gitRef.Length == 0)
         {
@@ -48,6 +62,53 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
 
         await AddRepositoryFilesAsync(options, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
         return sourceFiles;
+    }
+
+    private async Task<(bool ShouldScan, GitLabSourceOptions SourceOptions, string SourceRef)> ResolveMergeRequestSourceAsync(
+        GitLabSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreateMergeRequestUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        JsonElement root = document.RootElement;
+        string sourceRef = GetNestedString(root, "diff_refs", "head_sha");
+        if (sourceRef.Length == 0)
+        {
+            sourceRef = GetString(root, "sha");
+        }
+
+        if (sourceRef.Length == 0)
+        {
+            sourceRef = GetString(root, "source_branch");
+        }
+
+        if (sourceRef.Length == 0)
+        {
+            options.WarningSink?.Invoke($"skipping GitLab merge request {options.MergeRequestIid.ToString(CultureInfo.InvariantCulture)} in project {options.Project} because its source ref was not returned");
+            return (false, options, string.Empty);
+        }
+
+        string sourceProject = options.Project;
+        if (TryGetJsonInt64(root, "source_project_id", out long sourceProjectId)
+            && sourceProjectId > 0
+            && (!TryGetJsonInt64(root, "target_project_id", out long targetProjectId) || sourceProjectId != targetProjectId))
+        {
+            sourceProject = sourceProjectId.ToString(CultureInfo.InvariantCulture);
+        }
+
+        var sourceOptions = new GitLabSourceOptions(
+            options.Endpoint,
+            sourceProject,
+            options.Credential,
+            sourceRef,
+            maxFileBytes: options.MaxFileBytes,
+            isPathAllowed: options.IsPathAllowed,
+            warningSink: options.WarningSink,
+            isCancellationRequested: options.IsCancellationRequested);
+        return (true, sourceOptions, sourceRef);
     }
 
     private async Task<string> ReadDefaultBranchAsync(
@@ -220,6 +281,14 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         return CreateUri(options.Endpoint, ["projects", options.Project], []);
     }
 
+    private static Uri CreateMergeRequestUri(GitLabSourceOptions options)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "merge_requests", options.MergeRequestIid.ToString(CultureInfo.InvariantCulture)],
+            []);
+    }
+
     private static Uri CreateTreeUri(GitLabSourceOptions options, string gitRef, int page)
     {
         return CreateUri(
@@ -364,6 +433,17 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
     private static string GetString(JsonElement value, string propertyName)
     {
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
+    }
+
+    private static string GetNestedString(JsonElement value, string firstPropertyName, string secondPropertyName)
+    {
+        if (!value.TryGetProperty(firstPropertyName, out JsonElement firstProperty)
+            || firstProperty.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        return GetString(firstProperty, secondPropertyName);
     }
 
     private static string CreateDisplayPath(GitLabSourceOptions options, string itemPath)

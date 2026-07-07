@@ -87,6 +87,7 @@ internal static class CliOptionMetadata
             "--github-user" => "Scan public repositories for this GitHub user through native source enumeration.",
             "--github-user-gists" => "Scan public GitHub gists for this user.",
             "--gitlab-api-endpoint" => "Use this GitLab API endpoint for native source enumeration.",
+            "--gitlab-merge-request" => "Scan this GitLab merge request source head.",
             "--gitlab-project" => "Scan this GitLab project path or numeric project ID through native source enumeration.",
             "--gitlab-ref" => "Scan this GitLab branch, tag, or commit.",
             "--gitlab-token-env" => "Read the GitLab source enumeration token from this environment variable.",

@@ -7,6 +7,7 @@ namespace Picket.Sources;
 /// <param name="project">The GitLab project path, numeric ID, or project URL.</param>
 /// <param name="credential">The credential used for GitLab API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
+/// <param name="mergeRequestIid">An optional merge request internal ID whose source head should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
@@ -16,6 +17,7 @@ public sealed class GitLabSourceOptions(
     string project,
     string credential,
     string gitRef = "",
+    int mergeRequestIid = 0,
     long? maxFileBytes = null,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
@@ -37,7 +39,12 @@ public sealed class GitLabSourceOptions(
     /// <summary>
     /// Gets the optional branch, tag, or commit reference.
     /// </summary>
-    public string Ref { get; } = NormalizeOptionalText(gitRef);
+    public string Ref { get; } = NormalizeRef(gitRef, mergeRequestIid);
+
+    /// <summary>
+    /// Gets the optional merge request internal ID whose source head should be scanned.
+    /// </summary>
+    public int MergeRequestIid { get; } = RequireMergeRequestIid(mergeRequestIid);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -131,6 +138,23 @@ public sealed class GitLabSourceOptions(
     private static string NormalizeOptionalText(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    }
+
+    private static string NormalizeRef(string value, int mergeRequestIid)
+    {
+        string normalized = NormalizeOptionalText(value);
+        if (mergeRequestIid != 0 && normalized.Length != 0)
+        {
+            throw new ArgumentException("GitLab source options accept either a ref or a merge request ID, not both.", nameof(value));
+        }
+
+        return normalized;
+    }
+
+    private static int RequireMergeRequestIid(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
     }
 
     private static long RequireMaxFileBytes(long? value, string parameterName)

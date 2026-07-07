@@ -45,6 +45,7 @@ internal static partial class Program
         string githubSourceUserGists = string.Empty;
         Uri? gitLabApiEndpoint = null;
         bool gitLabOptionSpecified = false;
+        int gitLabMergeRequestIid = 0;
         string gitLabProject = string.Empty;
         string gitLabRef = string.Empty;
         string? gitLabTokenEnvironmentVariable = null;
@@ -330,6 +331,17 @@ internal static partial class Program
                 }
 
                 gitLabRef = gitRef;
+                gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabMergeRequestFlag(arg))
+            {
+                if (!TryReadPositiveGitLabMergeRequestFlag(args, ref i, out gitLabMergeRequestIid))
+                {
+                    return UnknownFlagExitCode;
+                }
+
                 gitLabOptionSpecified = true;
                 continue;
             }
@@ -743,6 +755,7 @@ internal static partial class Program
                 gitLabApiEndpoint,
                 gitLabProject,
                 gitLabRef,
+                gitLabMergeRequestIid,
                 gitLabTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

@@ -83,9 +83,22 @@ internal sealed class GitLabFixtureServer : IDisposable
             _requestTargets.Add(target);
         }
 
+        if (target.Contains("/api/v4/projects/123/repository/files/src%2Fappsettings.txt/raw?", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/repository/files/src%2Fappsettings.txt/raw?", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/123/repository/tree?", StringComparison.Ordinal))
+        {
+            const string TreeJson = """[{"path":"src/appsettings.txt","type":"blob","size":11},{"path":"src","type":"tree"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(TreeJson), cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -93,6 +106,15 @@ internal sealed class GitLabFixtureServer : IDisposable
         {
             const string TreeJson = """[{"path":"src/appsettings.txt","type":"blob","size":11},{"path":"src","type":"tree"}]""";
             await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(TreeJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/merge_requests/42", StringComparison.Ordinal))
+        {
+            const string MergeRequestJson = """
+                {"iid":42,"source_project_id":123,"target_project_id":456,"source_branch":"feature/scan","sha":"sha-from-merge-request","diff_refs":{"head_sha":"abcdef1234567890"}}
+                """;
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(MergeRequestJson), cancellationToken).ConfigureAwait(false);
             return;
         }
 
