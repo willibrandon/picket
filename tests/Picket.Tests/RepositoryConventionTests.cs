@@ -445,6 +445,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("public class SecretScanBenchmarks", benchmarks);
         Assert.DoesNotContain("public sealed class SecretScanBenchmarks", benchmarks);
         Assert.Contains("ScanGitHubSecretScanningOracleFixtureWithMappedNativeRules", benchmarks);
+        Assert.Contains("CompileNativeDefaultRules", benchmarks);
+        Assert.Contains("CompileGitleaksCompatibilityRules", benchmarks);
+        Assert.Contains("CompileGitHubSecretScanningMappedNativeRules", benchmarks);
         Assert.Contains("picket-google-api-key", benchmarks);
         Assert.Contains("public class ReportWriterBenchmarks", reportWriterBenchmarks);
         Assert.Contains("WritePicketJsonLines", reportWriterBenchmarks);

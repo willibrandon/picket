@@ -21,8 +21,11 @@ public class SecretScanBenchmarks
     private byte[] _credentialAnalyzerTests = [];
     private byte[] _embeddedGitleaksConfig = [];
     private byte[] _githubSecretScanningFixture = [];
+    private RuleSet _gitleaksCompatibilityRuleSet = null!;
     private CompiledRuleSet _gitleaksCompatibilityRules = null!;
+    private RuleSet _nativeDefaultRuleSet = null!;
     private CompiledRuleSet _nativeDefaultRules = null!;
+    private RuleSet _nativeGitHubSecretScanningRuleSet = null!;
     private CompiledRuleSet _nativeGitHubSecretScanningRules = null!;
     private CompiledRuleSet _nativeGoogleApiKeyRule = null!;
 
@@ -37,13 +40,15 @@ public class SecretScanBenchmarks
         _credentialAnalyzerTests = File.ReadAllBytes(Path.Combine(repositoryRoot, "tests", "Picket.Tests", "CredentialAnalyzerTests.cs"));
         _githubSecretScanningFixture = CreateGitHubSecretScanningFixture(repositoryRoot);
 
-        RuleSet nativeRules = PicketConfigLoader.LoadRuleSet(null, "__picket-benchmark__");
-        _nativeDefaultRules = CompiledRuleSet.Compile(nativeRules);
-        _nativeGitHubSecretScanningRules = CompiledRuleSet.Compile(SelectRules(
-            nativeRules,
-            ReadGitHubSecretScanningRuleIds(Path.Combine(repositoryRoot, "tests", "fixtures", "github-secret-scanning", "alerts.json"))));
-        _nativeGoogleApiKeyRule = CompiledRuleSet.Compile(SelectRules(nativeRules, "picket-google-api-key"));
-        _gitleaksCompatibilityRules = CompiledRuleSet.Compile(GitleaksConfigLoader.LoadRuleSet(null, "__picket-benchmark__"));
+        _nativeDefaultRuleSet = PicketConfigLoader.LoadRuleSet(null, "__picket-benchmark__");
+        _gitleaksCompatibilityRuleSet = GitleaksConfigLoader.LoadRuleSet(null, "__picket-benchmark__");
+        _nativeGitHubSecretScanningRuleSet = SelectRules(
+            _nativeDefaultRuleSet,
+            ReadGitHubSecretScanningRuleIds(Path.Combine(repositoryRoot, "tests", "fixtures", "github-secret-scanning", "alerts.json")));
+        _nativeDefaultRules = CompiledRuleSet.Compile(_nativeDefaultRuleSet);
+        _nativeGitHubSecretScanningRules = CompiledRuleSet.Compile(_nativeGitHubSecretScanningRuleSet);
+        _nativeGoogleApiKeyRule = CompiledRuleSet.Compile(SelectRules(_nativeDefaultRuleSet, "picket-google-api-key"));
+        _gitleaksCompatibilityRules = CompiledRuleSet.Compile(_gitleaksCompatibilityRuleSet);
     }
 
     /// <summary>
@@ -95,9 +100,27 @@ public class SecretScanBenchmarks
     /// Compiles the native default rules.
     /// </summary>
     [Benchmark]
-    public static string CompileNativeDefaultRules()
+    public string CompileNativeDefaultRules()
     {
-        return CompiledRuleSet.Compile(PicketConfigLoader.LoadRuleSet(null, "__picket-benchmark__")).Fingerprint;
+        return CompiledRuleSet.Compile(_nativeDefaultRuleSet).Fingerprint;
+    }
+
+    /// <summary>
+    /// Compiles the strict Gitleaks-compatible rules.
+    /// </summary>
+    [Benchmark]
+    public string CompileGitleaksCompatibilityRules()
+    {
+        return CompiledRuleSet.Compile(_gitleaksCompatibilityRuleSet).Fingerprint;
+    }
+
+    /// <summary>
+    /// Compiles the mapped native rules for sanitized GitHub secret-scanning oracle fixtures.
+    /// </summary>
+    [Benchmark]
+    public string CompileGitHubSecretScanningMappedNativeRules()
+    {
+        return CompiledRuleSet.Compile(_nativeGitHubSecretScanningRuleSet).Fingerprint;
     }
 
     private static int Scan(byte[] input, string fileName, CompiledRuleSet rules)

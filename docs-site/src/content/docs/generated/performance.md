@@ -30,7 +30,8 @@ Current benchmark scenarios cover:
 - mapped native rules over the sanitized GitHub secret-scanning oracle fixture
   in `tests/fixtures/github-secret-scanning`,
 - native default rules over credential-analyzer tests,
-- native rule compilation,
+- native default, strict Gitleaks-compatible, and mapped GitHub-alert rule
+  compilation,
 - compatibility JSON report writer throughput,
 - native JSON, JSON Lines, SARIF, HTML, and TOON report writer throughput across
   deterministic 1, 100, and 1000 finding report sizes.
