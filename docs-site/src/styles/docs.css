@@ -7,6 +7,39 @@
   white-space: normal;
 }
 
+.sl-markdown-content table:not(.cli-reference-table) {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  min-width: min(100%, 56rem);
+  overflow-x: auto;
+  table-layout: auto;
+  width: max-content;
+}
+
+.sl-markdown-content table:not(.cli-reference-table) th,
+.sl-markdown-content table:not(.cli-reference-table) td {
+  min-width: 7rem;
+  overflow-wrap: normal;
+  vertical-align: top;
+  word-break: normal;
+}
+
+.sl-markdown-content table:not(.cli-reference-table) th:first-child,
+.sl-markdown-content table:not(.cli-reference-table) td:first-child {
+  min-width: 16rem;
+}
+
+.sl-markdown-content table:not(.cli-reference-table) td:first-child {
+  max-width: 26rem;
+}
+
+.sl-markdown-content table:not(.cli-reference-table) td code,
+.sl-markdown-content table:not(.cli-reference-table) th code {
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
 .sl-markdown-content .cli-reference-lede {
   color: var(--sl-color-gray-2);
   max-width: 68ch;

@@ -371,7 +371,10 @@ internal sealed partial class DocumentationGenerator
             return value;
         }
 
-        return Path.GetFileNameWithoutExtension(value);
+        string normalized = value.Replace('\\', '/');
+        int separatorIndex = normalized.LastIndexOf('/');
+        string fileName = separatorIndex < 0 ? normalized : normalized[(separatorIndex + 1)..];
+        return Path.GetFileNameWithoutExtension(fileName);
     }
 
     private static string NormalizePath(string value)
