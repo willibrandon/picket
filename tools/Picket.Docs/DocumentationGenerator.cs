@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace Picket.Docs;
@@ -62,6 +64,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         GenerateProjectDocumentation(generatedRoot);
         GenerateCliReference(referenceRoot);
         GenerateActionReference(referenceRoot);
+        GenerateAzureDevOpsTaskReference(referenceRoot);
         GenerateConfigSchemaReference(referenceRoot);
         GenerateReportSchemaReference(referenceRoot);
         GenerateApiReference(apiRoot);
@@ -241,6 +244,80 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "GitHub Action Reference",
             "Generated input and output reference for the Picket GitHub Action.",
             builder.ToString());
+    }
+
+    private void GenerateAzureDevOpsTaskReference(string outputRoot)
+    {
+        string taskPath = Path.Combine(_repositoryRoot, "azure-devops", "tasks", "PicketScanV1", "task.json");
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(taskPath));
+        JsonElement root = document.RootElement;
+
+        var builder = new StringBuilder();
+        builder.AppendLine("This page is generated from `azure-devops/tasks/PicketScanV1/task.json`.");
+        builder.AppendLine();
+        builder.Append("Task name: `");
+        builder.Append(EscapeMarkdownText(root.GetProperty("name").GetString() ?? string.Empty));
+        builder.AppendLine("`");
+        builder.AppendLine();
+        builder.Append("Version: `");
+        JsonElement version = root.GetProperty("version");
+        builder.Append(version.GetProperty("Major").GetInt32().ToString(CultureInfo.InvariantCulture));
+        builder.Append('.');
+        builder.Append(version.GetProperty("Minor").GetInt32().ToString(CultureInfo.InvariantCulture));
+        builder.Append('.');
+        builder.Append(version.GetProperty("Patch").GetInt32().ToString(CultureInfo.InvariantCulture));
+        builder.AppendLine("`");
+        builder.AppendLine();
+        AppendAzureDevOpsTaskInputs(builder, root.GetProperty("inputs"));
+        AppendAzureDevOpsTaskOutputs(builder, root.GetProperty("outputVariables"));
+
+        WriteMarkdown(
+            Path.Combine(outputRoot, "azure-devops-task.md"),
+            "Azure DevOps Task Reference",
+            "Generated input and output reference for the Picket Azure DevOps task.",
+            builder.ToString());
+    }
+
+    private static void AppendAzureDevOpsTaskInputs(StringBuilder builder, JsonElement inputs)
+    {
+        builder.AppendLine("## Inputs");
+        builder.AppendLine();
+        builder.AppendLine("| Name | Type | Description | Required | Default |");
+        builder.AppendLine("|---|---|---|---:|---|");
+        foreach (JsonElement input in inputs.EnumerateArray())
+        {
+            builder.Append("| `");
+            builder.Append(EscapeTable(input.GetProperty("name").GetString() ?? string.Empty));
+            builder.Append("` | `");
+            builder.Append(EscapeTable(input.GetProperty("type").GetString() ?? string.Empty));
+            builder.Append("` | ");
+            builder.Append(EscapeTable(input.GetProperty("helpMarkDown").GetString() ?? string.Empty));
+            builder.Append(" | ");
+            builder.Append(input.TryGetProperty("required", out JsonElement required) && required.GetBoolean() ? "true" : "false");
+            builder.Append(" | `");
+            builder.Append(EscapeTable(input.TryGetProperty("defaultValue", out JsonElement defaultValue) ? defaultValue.GetString() ?? string.Empty : string.Empty));
+            builder.AppendLine("` |");
+        }
+
+        builder.AppendLine();
+    }
+
+    private static void AppendAzureDevOpsTaskOutputs(StringBuilder builder, JsonElement outputs)
+    {
+        builder.AppendLine("## Outputs");
+        builder.AppendLine();
+        builder.AppendLine("| Name | Description |");
+        builder.AppendLine("|---|---|");
+        foreach (JsonElement output in outputs.EnumerateArray())
+        {
+            builder.Append("| `");
+            builder.Append(EscapeTable(output.GetProperty("name").GetString() ?? string.Empty));
+            builder.Append("` | ");
+            builder.Append(EscapeTable(output.GetProperty("description").GetString() ?? string.Empty));
+            builder.AppendLine(" |");
+        }
+
+        builder.AppendLine();
     }
 
     private static List<Dictionary<string, string>> ReadActionSection(string[] lines, string sectionName)

@@ -1,0 +1,427 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+  "id": "2d14cf74-221c-4f2f-917a-9c87e1f9718a",
+  "name": "PicketScan",
+  "friendlyName": "Picket scan",
+  "description": "Scan code and pipeline artifacts for secrets with Picket.",
+  "helpMarkDown": "Runs the Picket CLI. Keep live verification and remote source enumeration explicit so pipeline authors can see when provider APIs may be contacted.",
+  "category": "Utility",
+  "author": "willibrandon",
+  "version": {
+    "Major": 1,
+    "Minor": 0,
+    "Patch": 0
+  },
+  "minimumAgentVersion": "3.220.0",
+  "instanceNameFormat": "Picket scan $(target)",
+  "inputs": [
+    {
+      "name": "target",
+      "type": "filePath",
+      "label": "Target",
+      "defaultValue": "$(Build.SourcesDirectory)",
+      "required": true,
+      "helpMarkDown": "File, directory, or checked-out repository path to scan."
+    },
+    {
+      "name": "picketPath",
+      "type": "string",
+      "label": "Picket executable",
+      "defaultValue": "picket",
+      "required": true,
+      "helpMarkDown": "Path to the Picket executable or command name available on PATH."
+    },
+    {
+      "name": "config",
+      "type": "filePath",
+      "label": "Config",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional Picket or Gitleaks-compatible configuration path."
+    },
+    {
+      "name": "profile",
+      "type": "pickList",
+      "label": "Profile",
+      "defaultValue": "picket",
+      "required": true,
+      "options": {
+        "picket": "picket",
+        "gitleaks": "gitleaks"
+      },
+      "helpMarkDown": "Scan profile. Use gitleaks only when strict compatibility behavior is desired."
+    },
+    {
+      "name": "reportFormats",
+      "type": "string",
+      "label": "Report formats",
+      "defaultValue": "sarif,jsonl,html",
+      "required": true,
+      "helpMarkDown": "Comma-separated report formats: json, jsonl, sarif, html, csv, junit, gitlab, toon. JSONL is added internally when omitted so task outputs and annotations stay accurate."
+    },
+    {
+      "name": "reportDirectory",
+      "type": "filePath",
+      "label": "Report directory",
+      "defaultValue": "$(Build.ArtifactStagingDirectory)/picket",
+      "required": true,
+      "helpMarkDown": "Directory where task reports are written."
+    },
+    {
+      "name": "failOn",
+      "type": "pickList",
+      "label": "Fail on",
+      "defaultValue": "findings",
+      "required": true,
+      "options": {
+        "findings": "findings",
+        "errors": "errors",
+        "never": "never"
+      },
+      "helpMarkDown": "Task failure policy."
+    },
+    {
+      "name": "baselinePath",
+      "type": "filePath",
+      "label": "Baseline path",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional baseline report used to suppress known findings."
+    },
+    {
+      "name": "results",
+      "type": "string",
+      "label": "Result filter",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional comma-separated validation states to keep before reports and failure enforcement."
+    },
+    {
+      "name": "onlyVerified",
+      "type": "boolean",
+      "label": "Only verified",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Keep only offline structurally valid findings and live active findings."
+    },
+    {
+      "name": "redact",
+      "type": "string",
+      "label": "Redaction percent",
+      "defaultValue": "100",
+      "required": true,
+      "helpMarkDown": "Redaction percentage from 0 through 100."
+    },
+    {
+      "name": "verify",
+      "type": "boolean",
+      "label": "Live verification",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Enable opt-in live provider verification."
+    },
+    {
+      "name": "annotations",
+      "type": "boolean",
+      "label": "Annotations",
+      "defaultValue": "true",
+      "required": true,
+      "helpMarkDown": "Emit safe Azure DevOps log issues for findings with source locations."
+    },
+    {
+      "name": "annotationLimit",
+      "type": "string",
+      "label": "Annotation limit",
+      "defaultValue": "50",
+      "required": true,
+      "helpMarkDown": "Maximum number of log issues emitted by the task. Use 0 to disable annotation output."
+    },
+    {
+      "name": "publishSarif",
+      "type": "boolean",
+      "label": "Publish SARIF",
+      "defaultValue": "true",
+      "required": true,
+      "helpMarkDown": "Publish the SARIF report as a build artifact when it exists."
+    },
+    {
+      "name": "publishJsonl",
+      "type": "boolean",
+      "label": "Publish JSONL",
+      "defaultValue": "true",
+      "required": true,
+      "helpMarkDown": "Publish the native JSONL report as a build artifact when it exists."
+    },
+    {
+      "name": "publishHtml",
+      "type": "boolean",
+      "label": "Publish HTML",
+      "defaultValue": "true",
+      "required": true,
+      "helpMarkDown": "Publish the HTML report as a build artifact when it exists."
+    },
+    {
+      "name": "cache",
+      "type": "boolean",
+      "label": "Use scan cache",
+      "defaultValue": "true",
+      "required": true,
+      "helpMarkDown": "Pass a native Picket scan cache directory to the CLI."
+    },
+    {
+      "name": "cacheMode",
+      "type": "pickList",
+      "label": "Cache mode",
+      "defaultValue": "secret-hash-only",
+      "required": true,
+      "options": {
+        "secret-hash-only": "secret-hash-only",
+        "raw": "raw"
+      },
+      "helpMarkDown": "Cache storage mode. Use raw only in trusted private jobs."
+    },
+    {
+      "name": "cachePath",
+      "type": "filePath",
+      "label": "Cache path",
+      "defaultValue": "$(Pipeline.Workspace)/.picket/cache",
+      "required": true,
+      "helpMarkDown": "Cache directory passed to the CLI."
+    },
+    {
+      "name": "maxTargetMegabytes",
+      "type": "string",
+      "label": "Max target MB",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional positive maximum file size in decimal MB for content rules."
+    },
+    {
+      "name": "maxArchiveDepth",
+      "type": "string",
+      "label": "Max archive depth",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional maximum nested archive traversal depth."
+    },
+    {
+      "name": "maxArchiveEntries",
+      "type": "string",
+      "label": "Max archive entries",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional maximum number of files extracted from archives."
+    },
+    {
+      "name": "maxArchiveMegabytes",
+      "type": "string",
+      "label": "Max archive MB",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional maximum decompressed archive payload in decimal MB."
+    },
+    {
+      "name": "maxArchiveRatio",
+      "type": "string",
+      "label": "Max archive ratio",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional maximum archive expansion ratio."
+    },
+    {
+      "name": "timeout",
+      "type": "string",
+      "label": "Timeout seconds",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional scan timeout in seconds. Use 0 to disable."
+    },
+    {
+      "name": "azureDevOpsOrganization",
+      "type": "string",
+      "label": "Azure DevOps organization",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional organization name or URL for remote Azure DevOps enumeration."
+    },
+    {
+      "name": "azureDevOpsEndpoint",
+      "type": "string",
+      "label": "Azure DevOps endpoint",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional endpoint override for Azure DevOps Server."
+    },
+    {
+      "name": "azureDevOpsTokenEnv",
+      "type": "string",
+      "label": "Azure DevOps token environment variable",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Environment variable containing the PAT or job token. The token value is not passed on the command line."
+    },
+    {
+      "name": "azureDevOpsTokenKind",
+      "type": "pickList",
+      "label": "Azure DevOps token kind",
+      "defaultValue": "pat",
+      "required": true,
+      "options": {
+        "pat": "pat",
+        "bearer": "bearer"
+      },
+      "helpMarkDown": "Credential transport: pat for personal access tokens or bearer for job and Entra tokens."
+    },
+    {
+      "name": "azureDevOpsProject",
+      "type": "string",
+      "label": "Azure DevOps project",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional project filter."
+    },
+    {
+      "name": "azureDevOpsRepository",
+      "type": "string",
+      "label": "Azure DevOps repository",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional repository filter."
+    },
+    {
+      "name": "azureDevOpsBranch",
+      "type": "string",
+      "label": "Azure DevOps branch",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional branch name."
+    },
+    {
+      "name": "azureDevOpsPullRequest",
+      "type": "string",
+      "label": "Azure DevOps pull request",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional pull request ID to scan."
+    },
+    {
+      "name": "azureDevOpsIncludeWikis",
+      "type": "boolean",
+      "label": "Include wikis",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Include Azure DevOps wiki backing repositories."
+    },
+    {
+      "name": "azureDevOpsBuildId",
+      "type": "string",
+      "label": "Azure DevOps build ID",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Build ID used when scanning build artifacts or build logs."
+    },
+    {
+      "name": "azureDevOpsIncludeArtifacts",
+      "type": "boolean",
+      "label": "Include build artifacts",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Include build artifact contents for the selected build."
+    },
+    {
+      "name": "azureDevOpsIncludeLogs",
+      "type": "boolean",
+      "label": "Include build logs",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Include build logs for the selected build."
+    },
+    {
+      "name": "azureDevOpsReleaseId",
+      "type": "string",
+      "label": "Azure DevOps release ID",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Classic release ID used when scanning release build artifacts."
+    },
+    {
+      "name": "azureDevOpsIncludeReleaseArtifacts",
+      "type": "boolean",
+      "label": "Include release artifacts",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Include build artifact contents referenced by the selected classic release."
+    },
+    {
+      "name": "azureDevOpsMaxArtifactMegabytes",
+      "type": "string",
+      "label": "Max artifact MB",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Positive per-artifact archive download cap."
+    },
+    {
+      "name": "azureDevOpsMaxLogMegabytes",
+      "type": "string",
+      "label": "Max log MB",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Positive per-log download cap."
+    },
+    {
+      "name": "allowNonPublicSourceEndpoints",
+      "type": "boolean",
+      "label": "Allow non-public source endpoints",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Permit private, loopback, link-local, or otherwise non-public endpoint addresses."
+    },
+    {
+      "name": "allowInsecureSourceEndpoints",
+      "type": "boolean",
+      "label": "Allow insecure source endpoints",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments."
+    },
+    {
+      "name": "extraArgs",
+      "type": "multiLine",
+      "label": "Extra arguments",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Additional CLI arguments appended after validated task inputs, one argument per line."
+    }
+  ],
+  "outputVariables": [
+    {
+      "name": "exitCode",
+      "description": "Raw scanner exit code before task failure enforcement."
+    },
+    {
+      "name": "findings",
+      "description": "Number of emitted native JSONL finding records after filters."
+    },
+    {
+      "name": "sarifPath",
+      "description": "Absolute path to the SARIF report when enabled."
+    },
+    {
+      "name": "jsonlPath",
+      "description": "Absolute path to the JSONL report when enabled."
+    },
+    {
+      "name": "htmlPath",
+      "description": "Absolute path to the HTML report when enabled."
+    },
+    {
+      "name": "annotations",
+      "description": "Number of Azure DevOps log issues emitted."
+    }
+  ],
+  "execution": {
+    "Node20_1": {
+      "target": "index.js"
+    }
+  }
+}

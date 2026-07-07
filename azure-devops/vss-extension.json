@@ -1,0 +1,49 @@
+{
+  "manifestVersion": 1,
+  "id": "picket",
+  "name": "Picket",
+  "version": "0.1.0",
+  "publisher": "willibrandon",
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services"
+    }
+  ],
+  "description": "Local-first secrets scanning for Azure Pipelines.",
+  "categories": [
+    "Azure Pipelines"
+  ],
+  "content": {
+    "details": {
+      "path": "README.md"
+    },
+    "license": {
+      "path": "LICENSE"
+    }
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "addressable": true
+    },
+    {
+      "path": "LICENSE",
+      "addressable": true
+    },
+    {
+      "path": "tasks/PicketScanV1"
+    }
+  ],
+  "contributions": [
+    {
+      "id": "PicketScan",
+      "type": "ms.vss-distributed-task.task",
+      "targets": [
+        "ms.vss-distributed-task.tasks"
+      ],
+      "properties": {
+        "name": "tasks/PicketScanV1"
+      }
+    }
+  ]
+}

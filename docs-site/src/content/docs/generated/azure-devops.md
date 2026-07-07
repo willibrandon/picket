@@ -15,7 +15,7 @@ The pipeline task is a distribution wrapper around the same Picket CLI behavior 
 
 ## Pipeline Task Contract
 
-The planned task name is `PicketScan@1`. The default execution scans `$(Build.SourcesDirectory)` with the native scan surface and writes JSONL, SARIF, and HTML reports under a task-controlled report directory.
+The task name is `PicketScan@1`. Task metadata lives in `azure-devops/tasks/PicketScanV1/task.json`, and the Azure DevOps extension manifest lives in `azure-devops/vss-extension.json`. The default execution scans `$(Build.SourcesDirectory)` with the native scan surface and writes JSONL, SARIF, and HTML reports under a task-controlled report directory.
 
 ```yaml
 steps:
@@ -37,11 +37,14 @@ picket scan "$env:BUILD_SOURCESDIRECTORY" --report-path picket-results/picket.js
 
 The task keeps task behavior thin and predictable. Input validation, report writing, baseline handling, validation-result filtering, cache behavior, archive limits, redaction, and scanner exit-code classification come from the CLI. The task's `failOn` policy is wrapper behavior applied after the CLI exits and reports are written.
 
+The current task wrapper invokes an existing `picket` executable through the `picketPath` input. Release packaging can later bundle signed CLI binaries or acquire checksummed release artifacts, but that packaging path must keep the same task inputs and CLI behavior.
+
 ## Inputs
 
 | Input | Default | Description |
 | --- | --- | --- |
 | `target` | `$(Build.SourcesDirectory)` | File, directory, or checked-out repository path to scan. |
+| `picketPath` | `picket` | Path to the Picket executable or command name available on `PATH`. |
 | `config` | empty | Optional Picket or Gitleaks-compatible configuration path. |
 | `profile` | `picket` | Scan profile. Use `gitleaks` only when strict compatibility behavior is desired. |
 | `reportFormats` | `sarif,jsonl,html` | Comma-separated report formats published by the task. |
@@ -51,6 +54,7 @@ The task keeps task behavior thin and predictable. Input validation, report writ
 | `results` | empty | Optional comma-separated validation states to keep before reports and failure enforcement. |
 | `onlyVerified` | `false` | Keep only offline structurally valid findings and live active findings. |
 | `redact` | `100` | Redaction percentage from `0` through `100`. Public pipeline examples use full redaction. |
+| `verify` | `false` | Enable opt-in live provider verification. |
 | `annotations` | `true` | Emit safe Azure DevOps log issues when a finding has a source location that can be reported without leaking secrets. |
 | `annotationLimit` | `50` | Maximum number of log issues emitted by the task. Use `0` to disable annotation output. |
 | `publishSarif` | `true` | Publish SARIF as a build artifact. |
@@ -66,9 +70,27 @@ The task keeps task behavior thin and predictable. Input validation, report writ
 | `maxArchiveMegabytes` | empty | Optional maximum decompressed archive payload in decimal MB. |
 | `maxArchiveRatio` | empty | Optional maximum archive expansion ratio. |
 | `timeout` | empty | Optional scan timeout in seconds. Use `0` to disable. |
+| `azureDevOpsOrganization` | empty | Optional organization name or URL for remote Azure DevOps enumeration. |
+| `azureDevOpsEndpoint` | empty | Optional endpoint override for Azure DevOps Server. |
+| `azureDevOpsTokenEnv` | empty | Environment variable containing the PAT or job token. The token value is not passed on the command line. |
+| `azureDevOpsTokenKind` | `pat` | Credential transport: `pat` for personal access tokens or `bearer` for job and Entra tokens. |
+| `azureDevOpsProject` | empty | Optional project filter. |
+| `azureDevOpsRepository` | empty | Optional repository filter. |
+| `azureDevOpsBranch` | empty | Optional branch name. |
+| `azureDevOpsPullRequest` | empty | Optional pull request ID to scan. |
+| `azureDevOpsIncludeWikis` | `false` | Include Azure DevOps wiki backing repositories. |
+| `azureDevOpsBuildId` | empty | Build ID used when scanning build artifacts or build logs. |
+| `azureDevOpsIncludeArtifacts` | `false` | Include build artifact contents for the selected build. |
+| `azureDevOpsIncludeLogs` | `false` | Include build logs for the selected build. |
+| `azureDevOpsReleaseId` | empty | Classic release ID used when scanning release build artifacts. |
+| `azureDevOpsIncludeReleaseArtifacts` | `false` | Include build artifact contents referenced by the selected classic release. |
+| `azureDevOpsMaxArtifactMegabytes` | empty | Positive per-artifact archive download cap. |
+| `azureDevOpsMaxLogMegabytes` | empty | Positive per-log download cap. |
+| `allowNonPublicSourceEndpoints` | `false` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses. |
+| `allowInsecureSourceEndpoints` | `false` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 | `extraArgs` | empty | Additional CLI arguments appended after validated task inputs. |
 
-The task should reject contradictory inputs before invoking the scanner. Examples include `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support.
+The task rejects contradictory inputs before invoking the scanner. Examples include `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support.
 
 ## Outputs
 
@@ -140,7 +162,7 @@ Current enumeration handles repository continuation tokens, wiki mapped paths, b
 
 ## Authentication
 
-The task uses the job token when workspace scanning is enough. Remote enumeration requires an explicit token input or token environment variable so that API access is visible in pipeline configuration.
+Workspace scanning does not require Azure DevOps API credentials. Remote enumeration requires an explicit token environment variable name so that API access is visible in pipeline configuration without putting token values on the command line.
 
 Azure DevOps credentials are sent only to HTTPS endpoints by default. Loopback HTTP is allowed for local test fixtures. Public HTTP endpoints require the CLI's explicit `--allow-insecure-source-endpoints` opt-in, which maps to an explicit library option for insecure credential transport.
 

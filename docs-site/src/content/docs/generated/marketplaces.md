@@ -8,7 +8,7 @@ editUrl: false
 
 Picket marketplace packages are distribution wrappers around the same CLI, reports, cache behavior, and security controls used by local execution. They must not fork scanner behavior or introduce CI-specific defaults that change strict compatibility mode.
 
-The planned marketplace surfaces are:
+The marketplace surfaces are:
 
 - GitHub Marketplace listing for the repository action,
 - Azure DevOps Marketplace extension for `PicketScan@1`.
@@ -50,6 +50,8 @@ The listing should describe the scanner in terms of local-first secrets scanning
 ## Azure DevOps Marketplace
 
 The Azure DevOps Marketplace extension packages the `PicketScan@1` task and the documentation needed for pipeline authors to use it safely.
+
+The initial extension scaffold lives under `azure-devops/`: `azure-devops/vss-extension.json` declares the marketplace contribution and `azure-devops/tasks/PicketScanV1/task.json` declares the task inputs, outputs, and Node handler. Publishing remains a release-phase step until VSIX validation and hosted-agent smoke tests are wired into release automation.
 
 Package contents:
 

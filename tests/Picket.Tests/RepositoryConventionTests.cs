@@ -12,7 +12,7 @@ namespace Picket.Tests;
 public sealed partial class RepositoryConventionTests
 {
     private static readonly string[] s_fileBasedAppDirectories = ["scripts", ".github/actions"];
-    private static readonly string[] s_portableTextRoots = ["AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "src", "tests"];
+    private static readonly string[] s_portableTextRoots = ["AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "azure-devops", "src", "tests"];
     private static readonly Regex s_typeDeclarationPattern = CreateTypeDeclarationPattern();
 
     /// <summary>
@@ -413,6 +413,71 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Live Azure DevOps", azureDevOps);
         Assert.Contains("AZURE_DEVOPS_TEST_PAT", marketplaces);
         Assert.Contains("manual `Live Azure DevOps` workflow", marketplaces);
+    }
+
+    /// <summary>
+    /// Verifies that the Azure DevOps task metadata exposes the scanner contract without owning scanner behavior.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsTaskMetadataDocumentsScannerContract()
+    {
+        using JsonDocument extension = JsonDocument.Parse(ReadRepositoryFile("azure-devops/vss-extension.json"));
+        using JsonDocument task = JsonDocument.Parse(ReadRepositoryFile("azure-devops/tasks/PicketScanV1/task.json"));
+        string handler = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.js");
+        string readme = ReadRepositoryFile("azure-devops/README.md");
+        string azureDevOps = ReadRepositoryFile("docs/AZURE_DEVOPS.md");
+        string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
+
+        JsonElement extensionRoot = extension.RootElement;
+        Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
+        Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
+        Assert.AreEqual("tasks/PicketScanV1", extensionRoot.GetProperty("contributions")[0].GetProperty("properties").GetProperty("name").GetString());
+
+        JsonElement taskRoot = task.RootElement;
+        Assert.AreEqual("PicketScan", taskRoot.GetProperty("name").GetString());
+        Assert.AreEqual("Picket scan", taskRoot.GetProperty("friendlyName").GetString());
+        Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Major").GetInt32());
+        Assert.AreEqual("index.js", taskRoot.GetProperty("execution").GetProperty("Node20_1").GetProperty("target").GetString());
+
+        HashSet<string> inputNames = ReadJsonNameSet(taskRoot.GetProperty("inputs"));
+        Assert.Contains("target", inputNames);
+        Assert.Contains("picketPath", inputNames);
+        Assert.Contains("profile", inputNames);
+        Assert.Contains("reportFormats", inputNames);
+        Assert.Contains("reportDirectory", inputNames);
+        Assert.Contains("failOn", inputNames);
+        Assert.Contains("baselinePath", inputNames);
+        Assert.Contains("redact", inputNames);
+        Assert.Contains("cacheMode", inputNames);
+        Assert.Contains("azureDevOpsOrganization", inputNames);
+        Assert.Contains("azureDevOpsTokenEnv", inputNames);
+        Assert.Contains("azureDevOpsIncludeArtifacts", inputNames);
+        Assert.Contains("azureDevOpsIncludeReleaseArtifacts", inputNames);
+        Assert.Contains("allowInsecureSourceEndpoints", inputNames);
+
+        HashSet<string> outputNames = ReadJsonNameSet(taskRoot.GetProperty("outputVariables"));
+        Assert.Contains("exitCode", outputNames);
+        Assert.Contains("findings", outputNames);
+        Assert.Contains("sarifPath", outputNames);
+        Assert.Contains("jsonlPath", outputNames);
+        Assert.Contains("htmlPath", outputNames);
+        Assert.Contains("annotations", outputNames);
+
+        Assert.Contains("spawnSync(inputs.picketPath", handler);
+        Assert.Contains("\"scan\"", handler);
+        Assert.Contains("formats.includes(\"jsonl\")", handler);
+        Assert.Contains("--azure-devops-token-env", handler);
+        Assert.Contains("##vso[task.setvariable", handler);
+        Assert.Contains("##vso[task.logissue", handler);
+        Assert.Contains("##vso[artifact.upload", handler);
+        Assert.DoesNotContain("finding.secret", handler);
+        Assert.DoesNotContain("finding.match", handler);
+        Assert.DoesNotContain("finding.line", handler);
+
+        Assert.Contains("tfx extension create", readme);
+        Assert.Contains("PicketScan@1", azureDevOps);
+        Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
+        Assert.Contains("azure-devops/vss-extension.json", marketplaces);
     }
 
     /// <summary>
@@ -1370,7 +1435,7 @@ public sealed partial class RepositoryConventionTests
 
         return Path.GetExtension(file) switch
         {
-            ".cs" or ".json" or ".md" or ".ps1" or ".txt" or ".yaml" or ".yml" => true,
+            ".cs" or ".js" or ".json" or ".md" or ".ps1" or ".txt" or ".yaml" or ".yml" => true,
             _ => false,
         };
     }
@@ -1383,6 +1448,20 @@ public sealed partial class RepositoryConventionTests
     private static XElement ReadProjectFile(string relativePath)
     {
         return XElement.Load(ResolveRepositoryPath(relativePath));
+    }
+
+    private static HashSet<string> ReadJsonNameSet(JsonElement array)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement item in array.EnumerateArray())
+        {
+            if (item.TryGetProperty("name", out JsonElement name))
+            {
+                names.Add(name.GetString() ?? string.Empty);
+            }
+        }
+
+        return names;
     }
 
     private static XElement ReadPublishProfile(string name)
