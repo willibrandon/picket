@@ -23,7 +23,7 @@ internal static class PicketTuiPalette
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 138, 138);
     private static readonly Hex1bColor s_focusBackground = Hex1bColor.White;
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 200, 180);
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(102, 204, 255);
     private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.Black;
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(244, 244, 244);
     private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(132, 180, 255);

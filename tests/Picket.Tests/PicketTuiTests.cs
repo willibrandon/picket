@@ -103,7 +103,7 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that scan-page yanking copies scan context in addition to the focused finding.
+    /// Verifies that scan-page yanking copies scan context without duplicating finding triage details.
     /// </summary>
     [TestMethod]
     public void StateYanksScanContextFromScanView()
@@ -116,9 +116,10 @@ public sealed class PicketTuiTests
         Assert.Contains("Command: picket scan", text);
         Assert.Contains("Report: picket-results/picket-tui.jsonl", text);
         Assert.Contains("Status: Ready to scan", text);
+        Assert.Contains("Timing: not run yet", text);
         Assert.Contains("Summary: 3 findings across 2 files in picket-json", text);
-        Assert.Contains("Focused finding:", text);
-        Assert.Contains("Rule: github-token", text);
+        Assert.DoesNotContain("Focused finding:", text);
+        Assert.DoesNotContain("Rule: github-token", text);
         Assert.Contains("Scanner output:", text);
         Assert.Contains("No scanner output captured.", text);
         Assert.DoesNotContain("Secret", text);
@@ -343,6 +344,9 @@ public sealed class PicketTuiTests
         Assert.AreEqual(1, state.Report.Summary.FindingCount);
         Assert.AreEqual("fake-rule", state.Rows[0].RuleId);
         Assert.AreEqual(PicketTuiView.Scan, state.CurrentView);
+        Assert.IsNotNull(scan.LastStartedAt);
+        Assert.IsNotNull(scan.LastCompletedAt);
+        Assert.IsNotNull(scan.LastElapsed);
         Assert.HasCount(2, scan.CapturedOutputLines);
         Assert.Contains("stderr: 1 finding", scan.CapturedOutputText);
         Assert.Contains("stdout: scan complete", scan.CapturedOutputText);
@@ -590,7 +594,7 @@ public sealed class PicketTuiTests
             .WaitUntil(s => s.ContainsText("Findings"), TimeSpan.FromSeconds(5), "findings to render")
             .Key(Hex1bKey.G)
             .Key(Hex1bKey.S)
-            .WaitUntil(s => s.ContainsText("Latest results"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .WaitUntil(s => s.ContainsText("Scan status"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -607,6 +611,9 @@ public sealed class PicketTuiTests
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
+        Assert.Contains("Findings are loaded. Press g f", screenText);
+        Assert.Contains("Last run: not run yet", screenText);
+        Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("g s scan", screenText);
     }
 
@@ -624,7 +631,7 @@ public sealed class PicketTuiTests
 
         Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
-            .WaitUntil(s => s.ContainsText("Latest results"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .WaitUntil(s => s.ContainsText("Scan status"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -638,7 +645,7 @@ public sealed class PicketTuiTests
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("Latest results", screenText);
+        Assert.Contains("Scan status", screenText);
         Assert.Contains("Command equivalent", screenText);
         Assert.Contains("picket scan", screenText);
         Assert.Contains("Redact", screenText);
@@ -648,6 +655,10 @@ public sealed class PicketTuiTests
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
+        Assert.Contains("Findings are loaded. Press g f", screenText);
+        Assert.Contains("Last run: not run yet", screenText);
+        Assert.DoesNotContain("Latest results", screenText);
+        Assert.DoesNotContain("src/auth.cs", screenText);
         Assert.DoesNotContain("g s scan", screenText);
     }
 
@@ -747,7 +758,14 @@ public sealed class PicketTuiTests
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
             .WaitUntil(s => s.ContainsText("Run scan"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Ctrl().Key(Hex1bKey.R)
-            .WaitUntil(s => s.ContainsText("fake-rule"), TimeSpan.FromSeconds(5), "scan result to load")
+            .WaitUntil(s => s.ContainsText("Scan completed: findings reported"), TimeSpan.FromSeconds(5), "scan result to load")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        Hex1bTerminalSnapshot findingsSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .Key(Hex1bKey.G)
+            .Key(Hex1bKey.F)
+            .WaitUntil(s => s.ContainsText("fake-rule"), TimeSpan.FromSeconds(5), "findings result to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -759,9 +777,15 @@ public sealed class PicketTuiTests
 
         int exitCode = await runTask.ConfigureAwait(false);
         string screenText = snapshot.GetScreenText();
+        string findingsText = findingsSnapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("fake-rule", screenText);
+        Assert.Contains("Findings are loaded. Press g f", screenText);
+        Assert.Contains("Started:", screenText);
+        Assert.Contains("Completed:", screenText);
+        Assert.Contains("Elapsed:", screenText);
+        Assert.DoesNotContain("fake-rule", screenText);
+        Assert.Contains("fake-rule", findingsText);
         Assert.Contains("scan", executor.CapturedArguments);
         Assert.Contains("Scanner output", screenText);
     }

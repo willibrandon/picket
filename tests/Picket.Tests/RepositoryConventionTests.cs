@@ -760,6 +760,8 @@ public sealed partial class RepositoryConventionTests
     {
         string siteConfig = ReadRepositoryFile("docs-site/astro.config.mjs");
         string packageJson = ReadRepositoryFile("docs-site/package.json");
+        string actionReference = ReadRepositoryFile("docs-site/src/content/docs/reference/github-action.md");
+        string azureDevOpsTaskReference = ReadRepositoryFile("docs-site/src/content/docs/reference/azure-devops-task.md");
         string cliReference = ReadRepositoryFile("docs-site/src/content/docs/reference/cli.md");
         string configSchema = ReadRepositoryFile("docs-site/src/content/docs/reference/config-schema.md");
         string releaseProfiles = ReadRepositoryFile("docs-site/src/content/docs/reference/release-profiles.md");
@@ -777,6 +779,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Engine.csproj", packageJson);
         Assert.Contains("Picket.Report.csproj", packageJson);
         Assert.Contains("Picket.Security.csproj", packageJson);
+        Assert.Contains("GitHub Action Reference", actionReference);
+        Assert.Contains("class=\"reference-card-list\"", actionReference);
+        Assert.Contains("class=\"reference-card-description\"", actionReference);
+        Assert.Contains("Azure DevOps Task Reference", azureDevOpsTaskReference);
+        Assert.Contains("class=\"reference-card-list\"", azureDevOpsTaskReference);
+        Assert.Contains("class=\"reference-card-description\"", azureDevOpsTaskReference);
         Assert.Contains("## Commands", cliReference);
         Assert.Contains("## Command Reference", cliReference);
         Assert.Contains("class=\"cli-command-groups\"", cliReference);
@@ -862,6 +870,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("offline:aws-access-key-pair", validationAnalyze);
         Assert.Contains("live:github-rest-user-v1", validationAnalyze);
         Assert.Contains("revocation:github-credentials-api", validationAnalyze);
+        Assert.Contains("class=\"reference-card-list\"", validationAnalyze);
+        Assert.Contains("class=\"reference-card-wide\"", validationAnalyze);
         Assert.Contains("## Analyze Risk Mapping", validationAnalyze);
         Assert.Contains("| `active` | `critical` | `unknown-live`", validationAnalyze);
         Assert.Contains("| `invalid` | `low` | `unknown-offline`", validationAnalyze);

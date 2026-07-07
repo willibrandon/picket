@@ -40,6 +40,87 @@
   white-space: nowrap;
 }
 
+.sl-markdown-content .reference-card-list {
+  display: grid;
+  gap: 0.875rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.sl-markdown-content .reference-card {
+  background: color-mix(in srgb, var(--sl-color-bg) 94%, var(--sl-color-gray-6));
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+}
+
+.sl-markdown-content .reference-card-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.625rem;
+}
+
+.sl-markdown-content .reference-card-heading strong {
+  color: var(--sl-color-white);
+  font-weight: 700;
+}
+
+.sl-markdown-content .reference-card-heading span {
+  color: var(--sl-color-gray-2);
+}
+
+.sl-markdown-content .reference-card-heading code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  width: fit-content;
+}
+
+.sl-markdown-content .reference-card-description {
+  color: var(--sl-color-gray-2);
+  margin: 0 0 0.875rem;
+  max-width: 76ch;
+}
+
+.sl-markdown-content .reference-card-facts {
+  display: grid;
+  gap: 0.625rem 0.875rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  margin: 0;
+}
+
+.sl-markdown-content .reference-card-facts div {
+  border-left: 2px solid var(--sl-color-gray-5);
+  min-width: 0;
+  padding-left: 0.625rem;
+}
+
+.sl-markdown-content .reference-card-facts dt {
+  color: var(--sl-color-gray-3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.15rem;
+  text-transform: uppercase;
+}
+
+.sl-markdown-content .reference-card-facts dd {
+  color: var(--sl-color-gray-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sl-markdown-content .reference-card-facts code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.sl-markdown-content .reference-card-wide {
+  grid-column: 1 / -1;
+}
+
 .sl-markdown-content .cli-reference-lede {
   color: var(--sl-color-gray-2);
   max-width: 68ch;

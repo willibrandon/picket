@@ -34,8 +34,8 @@ internal sealed partial class DocumentationGenerator
         builder.AppendLine("This page is generated from `SecretValidationState`, `SecretValidationResult`, embedded native rule metadata, and `CredentialAnalyzer` output. Values are structural contract data, not live provider responses.");
         builder.AppendLine();
         AppendValidationStates(builder);
-        AppendValidationTemplateTable(builder, nativeRules);
-        AppendRevocationTemplateTable(builder, nativeRules);
+        AppendValidationTemplateReference(builder, nativeRules);
+        AppendRevocationTemplateReference(builder, nativeRules);
         AppendSeverityConfidenceTable(builder, nativeRules);
         AppendAnalysisRiskTable(builder);
         AppendProviderAnalysisTable(builder, analyses);
@@ -98,21 +98,21 @@ internal sealed partial class DocumentationGenerator
         };
     }
 
-    private static void AppendValidationTemplateTable(StringBuilder builder, List<SecretRule> nativeRules)
+    private static void AppendValidationTemplateReference(StringBuilder builder, List<SecretRule> nativeRules)
     {
         builder.AppendLine("## Validation Templates");
         builder.AppendLine();
-        AppendTemplateTable(
+        AppendTemplateReferenceList(
             builder,
             "Validation template",
             CreateTemplateSummaries(nativeRules, static rule => rule.Validation));
     }
 
-    private static void AppendRevocationTemplateTable(StringBuilder builder, List<SecretRule> nativeRules)
+    private static void AppendRevocationTemplateReference(StringBuilder builder, List<SecretRule> nativeRules)
     {
         builder.AppendLine("## Revocation Templates");
         builder.AppendLine();
-        AppendTemplateTable(
+        AppendTemplateReferenceList(
             builder,
             "Revocation template",
             CreateTemplateSummaries(nativeRules, static rule => rule.Revocation));
@@ -159,30 +159,33 @@ internal sealed partial class DocumentationGenerator
         return summaries;
     }
 
-    private static void AppendTemplateTable(
+    private static void AppendTemplateReferenceList(
         StringBuilder builder,
         string templateColumn,
         List<(string Template, string Kind, string Providers, int RuleCount, string RuleIds)> templates)
     {
-        builder.Append("| ");
-        builder.Append(EscapeTable(templateColumn));
-        builder.AppendLine(" | Kind | Providers | Rules | Rule IDs |");
-        builder.AppendLine("|---|---|---|---:|---|");
+        builder.AppendLine("<div class=\"reference-card-list\">");
         foreach ((string template, string kind, string providers, int ruleCount, string ruleIds) in templates)
         {
-            builder.Append("| `");
-            builder.Append(EscapeTable(template));
-            builder.Append("` | ");
-            builder.Append(EscapeTable(kind));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(providers));
-            builder.Append(" | ");
-            builder.Append(ruleCount.ToString(CultureInfo.InvariantCulture));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(ruleIds));
-            builder.AppendLine(" |");
+            builder.AppendLine("  <article class=\"reference-card\">");
+            builder.AppendLine("    <div class=\"reference-card-heading\">");
+            builder.Append("      <code>");
+            builder.Append(EscapeHtmlCode(template));
+            builder.Append("</code><span>");
+            builder.Append(EscapeHtmlText(kind));
+            builder.AppendLine("</span>");
+            builder.AppendLine("    </div>");
+            builder.AppendLine("    <dl class=\"reference-card-facts\">");
+            AppendReferenceCardFact(builder, templateColumn, template, code: true, wide: false);
+            AppendReferenceCardFact(builder, "Kind", kind, code: false, wide: false);
+            AppendReferenceCardFact(builder, "Providers", providers, code: false, wide: false);
+            AppendReferenceCardFact(builder, "Rules", ruleCount.ToString(CultureInfo.InvariantCulture), code: false, wide: false);
+            AppendReferenceCardFact(builder, "Rule IDs", ruleIds, code: false, wide: true);
+            builder.AppendLine("    </dl>");
+            builder.AppendLine("  </article>");
         }
 
+        builder.AppendLine("</div>");
         builder.AppendLine();
     }
 
@@ -266,33 +269,71 @@ internal sealed partial class DocumentationGenerator
     {
         builder.AppendLine("## Provider Analysis Metadata");
         builder.AppendLine();
-        builder.AppendLine("| Provider | Credential type | Example rule | Risk | Revocation | Actions | Guidance | Evidence keys |");
-        builder.AppendLine("|---|---|---|---|---:|---:|---:|---|");
+        builder.AppendLine("<div class=\"reference-card-list\">");
         foreach (CredentialAnalysis analysis in analyses
             .OrderBy(static value => value.Provider, StringComparer.Ordinal)
             .ThenBy(static value => value.CredentialType, StringComparer.Ordinal)
             .ThenBy(static value => value.RuleId, StringComparer.Ordinal))
         {
-            builder.Append("| ");
-            builder.Append(EscapeTable(analysis.Provider));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(analysis.CredentialType));
-            builder.Append(" | `");
-            builder.Append(EscapeTable(analysis.RuleId));
-            builder.Append("` | `");
-            builder.Append(EscapeTable(analysis.Risk));
-            builder.Append("` | ");
-            builder.Append(analysis.RevocationAvailable ? "true" : "false");
-            builder.Append(" | ");
-            builder.Append(analysis.RecommendedActions.Count.ToString(CultureInfo.InvariantCulture));
-            builder.Append(" | ");
-            builder.Append(analysis.RevocationGuidance.Count.ToString(CultureInfo.InvariantCulture));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(FormatEvidenceKeys(analysis)));
-            builder.AppendLine(" |");
+            builder.AppendLine("  <article class=\"reference-card\">");
+            builder.AppendLine("    <div class=\"reference-card-heading\">");
+            builder.Append("      <strong>");
+            builder.Append(EscapeHtmlText(analysis.Provider));
+            builder.Append("</strong><span>");
+            builder.Append(EscapeHtmlText(analysis.CredentialType));
+            builder.Append("</span><code>");
+            builder.Append(EscapeHtmlCode(analysis.RuleId));
+            builder.AppendLine("</code>");
+            builder.AppendLine("    </div>");
+            builder.AppendLine("    <dl class=\"reference-card-facts\">");
+            AppendReferenceCardFact(builder, "Provider", analysis.Provider, code: false, wide: false);
+            AppendReferenceCardFact(builder, "Credential type", analysis.CredentialType, code: false, wide: false);
+            AppendReferenceCardFact(builder, "Example rule", analysis.RuleId, code: true, wide: false);
+            AppendReferenceCardFact(builder, "Risk", analysis.Risk, code: true, wide: false);
+            AppendReferenceCardFact(builder, "Revocation", analysis.RevocationAvailable ? "true" : "false", code: false, wide: false);
+            AppendReferenceCardFact(builder, "Actions", analysis.RecommendedActions.Count.ToString(CultureInfo.InvariantCulture), code: false, wide: false);
+            AppendReferenceCardFact(builder, "Guidance", analysis.RevocationGuidance.Count.ToString(CultureInfo.InvariantCulture), code: false, wide: false);
+            AppendReferenceCardFact(builder, "Evidence keys", FormatEvidenceKeys(analysis), code: false, wide: true);
+            builder.AppendLine("    </dl>");
+            builder.AppendLine("  </article>");
         }
 
+        builder.AppendLine("</div>");
         builder.AppendLine();
+    }
+
+    private static void AppendReferenceCardFact(
+        StringBuilder builder,
+        string label,
+        string value,
+        bool code,
+        bool wide)
+    {
+        builder.Append("      <div");
+        if (wide)
+        {
+            builder.Append(" class=\"reference-card-wide\"");
+        }
+
+        builder.AppendLine(">");
+        builder.Append("        <dt>");
+        builder.Append(EscapeHtmlText(label));
+        builder.AppendLine("</dt>");
+        builder.Append("        <dd>");
+        string displayValue = value.Length == 0 ? "-" : value;
+        if (code && value.Length != 0)
+        {
+            builder.Append("<code>");
+            builder.Append(EscapeHtmlCode(displayValue));
+            builder.Append("</code>");
+        }
+        else
+        {
+            builder.Append(EscapeHtmlText(displayValue));
+        }
+
+        builder.AppendLine("</dd>");
+        builder.AppendLine("      </div>");
     }
 
     private static void AppendAnalysisSchema(StringBuilder builder, List<CredentialAnalysis> analyses)

@@ -23,27 +23,391 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 
 ## Validation Templates
 
-| Validation template | Kind | Providers | Rules | Rule IDs |
-|---|---|---|---:|---|
-| `live:github-rest-user-v1` | Live provider verification | GitHub | 5 | picket-github-app-token, picket-github-fine-grained-personal-access-token, picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token |
-| `offline:aws-access-key-pair` | Offline structural validation | AWS | 1 | picket-aws-access-key-pair |
-| `offline:azure-storage-connection-string` | Offline structural validation | Azure | 1 | picket-azure-storage-connection-string |
-| `offline:database-connection-url` | Offline structural validation | Database | 1 | picket-database-connection-url |
-| `offline:gcp-api-key` | Offline structural validation | GCP | 1 | picket-google-api-key |
-| `offline:gcp-service-account-key-json` | Offline structural validation | GCP | 1 | picket-gcp-service-account-key |
-| `offline:github-classic-token` | Offline structural validation | GitHub | 4 | picket-github-app-token, picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token |
-| `offline:github-fine-grained-pat` | Offline structural validation | GitHub | 1 | picket-github-fine-grained-personal-access-token |
-| `offline:sourcegraph-access-token` | Offline structural validation | Sourcegraph | 1 | picket-sourcegraph-access-token |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>live:github-rest-user-v1</code><span>Live provider verification</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>live:github-rest-user-v1</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Live provider verification</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GitHub</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>5</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-github-app-token, picket-github-fine-grained-personal-access-token, picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:aws-access-key-pair</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:aws-access-key-pair</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>AWS</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-aws-access-key-pair</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:azure-storage-connection-string</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:azure-storage-connection-string</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>Azure</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-azure-storage-connection-string</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:database-connection-url</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:database-connection-url</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>Database</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-database-connection-url</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:gcp-api-key</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:gcp-api-key</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GCP</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-google-api-key</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:gcp-service-account-key-json</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:gcp-service-account-key-json</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GCP</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-gcp-service-account-key</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:github-classic-token</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:github-classic-token</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GitHub</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>4</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-github-app-token, picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:github-fine-grained-pat</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:github-fine-grained-pat</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GitHub</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-github-fine-grained-personal-access-token</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>offline:sourcegraph-access-token</code><span>Offline structural validation</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Validation template</dt>
+        <dd><code>offline:sourcegraph-access-token</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Offline structural validation</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>Sourcegraph</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-sourcegraph-access-token</dd>
+      </div>
+    </dl>
+  </article>
+</div>
 
 ## Revocation Templates
 
-| Revocation template | Kind | Providers | Rules | Rule IDs |
-|---|---|---|---:|---|
-| `revocation:aws-iam-access-key` | Provider revocation guidance | AWS | 1 | picket-aws-access-key-pair |
-| `revocation:azure-storage-account-key` | Provider revocation guidance | Azure | 1 | picket-azure-storage-connection-string |
-| `revocation:gcp-api-key` | Provider revocation guidance | GCP | 1 | picket-google-api-key |
-| `revocation:gcp-service-account-key` | Provider revocation guidance | GCP | 1 | picket-gcp-service-account-key |
-| `revocation:github-credentials-api` | Provider revocation guidance | GitHub | 5 | picket-github-app-token, picket-github-fine-grained-personal-access-token, picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>revocation:aws-iam-access-key</code><span>Provider revocation guidance</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Revocation template</dt>
+        <dd><code>revocation:aws-iam-access-key</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Provider revocation guidance</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>AWS</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-aws-access-key-pair</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>revocation:azure-storage-account-key</code><span>Provider revocation guidance</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Revocation template</dt>
+        <dd><code>revocation:azure-storage-account-key</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Provider revocation guidance</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>Azure</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-azure-storage-connection-string</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>revocation:gcp-api-key</code><span>Provider revocation guidance</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Revocation template</dt>
+        <dd><code>revocation:gcp-api-key</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Provider revocation guidance</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GCP</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-google-api-key</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>revocation:gcp-service-account-key</code><span>Provider revocation guidance</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Revocation template</dt>
+        <dd><code>revocation:gcp-service-account-key</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Provider revocation guidance</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GCP</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>1</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-gcp-service-account-key</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>revocation:github-credentials-api</code><span>Provider revocation guidance</span>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Revocation template</dt>
+        <dd><code>revocation:github-credentials-api</code></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd>Provider revocation guidance</dd>
+      </div>
+      <div>
+        <dt>Providers</dt>
+        <dd>GitHub</dd>
+      </div>
+      <div>
+        <dt>Rules</dt>
+        <dd>5</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Rule IDs</dt>
+        <dd>picket-github-app-token, picket-github-fine-grained-personal-access-token, picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token</dd>
+      </div>
+    </dl>
+  </article>
+</div>
 
 ## Severity and Confidence
 
@@ -66,18 +430,398 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 
 ## Provider Analysis Metadata
 
-| Provider | Credential type | Example rule | Risk | Revocation | Actions | Guidance | Evidence keys |
-|---|---|---|---|---:|---:|---:|---|
-| AWS | AWS access key pair | `picket-aws-access-key-pair` | `critical` | true | 2 | 3 | fingerprint, location, secretSha256, validationState |
-| Azure | Azure Storage account key | `picket-azure-storage-connection-string` | `critical` | true | 3 | 3 | fingerprint, location, secretSha256, validationState |
-| Database | Database connection URL | `picket-database-connection-url` | `critical` | true | 3 | 3 | fingerprint, location, secretSha256, validationState |
-| GCP | GCP API key | `picket-google-api-key` | `critical` | true | 3 | 3 | fingerprint, location, secretSha256, validationState |
-| GCP | GCP service account key | `picket-gcp-service-account-key` | `critical` | true | 3 | 3 | fingerprint, location, secretSha256, validationState |
-| Generic | Private key | `private-key` | `critical` | false | 3 | 0 | fingerprint, location, secretSha256, validationState |
-| GitHub | GitHub personal access token | `picket-github-personal-access-token` | `critical` | true | 3 | 3 | endpoint, fingerprint, location, provider, secretSha256, validationState |
-| GitLab | GitLab personal access token | `gitlab-pat` | `critical` | true | 3 | 3 | fingerprint, gitLabRuleId, location, resourceType, secretSha256, validationState |
-| Sourcegraph | Sourcegraph access token | `picket-sourcegraph-access-token` | `critical` | true | 3 | 3 | fingerprint, location, secretSha256, validationState |
-| Unknown | Secret | `example-unknown-rule` | `critical` | false | 3 | 0 | fingerprint, location, secretSha256, validationState |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>AWS</strong><span>AWS access key pair</span><code>picket-aws-access-key-pair</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>AWS</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>AWS access key pair</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>picket-aws-access-key-pair</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>2</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>Azure</strong><span>Azure Storage account key</span><code>picket-azure-storage-connection-string</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>Azure</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>Azure Storage account key</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>picket-azure-storage-connection-string</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>Database</strong><span>Database connection URL</span><code>picket-database-connection-url</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>Database</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>Database connection URL</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>picket-database-connection-url</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>GCP</strong><span>GCP API key</span><code>picket-google-api-key</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>GCP</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>GCP API key</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>picket-google-api-key</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>GCP</strong><span>GCP service account key</span><code>picket-gcp-service-account-key</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>GCP</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>GCP service account key</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>picket-gcp-service-account-key</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>Generic</strong><span>Private key</span><code>private-key</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>Generic</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>Private key</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>private-key</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>0</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>GitHub</strong><span>GitHub personal access token</span><code>picket-github-personal-access-token</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>GitHub</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>GitHub personal access token</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>picket-github-personal-access-token</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>endpoint, fingerprint, location, provider, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>GitLab</strong><span>GitLab personal access token</span><code>gitlab-pat</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>GitLab</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>GitLab personal access token</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>gitlab-pat</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, gitLabRuleId, location, resourceType, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>Sourcegraph</strong><span>Sourcegraph access token</span><code>picket-sourcegraph-access-token</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>Sourcegraph</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>Sourcegraph access token</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>picket-sourcegraph-access-token</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>3</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <strong>Unknown</strong><span>Secret</span><code>example-unknown-rule</code>
+    </div>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Provider</dt>
+        <dd>Unknown</dd>
+      </div>
+      <div>
+        <dt>Credential type</dt>
+        <dd>Secret</dd>
+      </div>
+      <div>
+        <dt>Example rule</dt>
+        <dd><code>example-unknown-rule</code></dd>
+      </div>
+      <div>
+        <dt>Risk</dt>
+        <dd><code>critical</code></dd>
+      </div>
+      <div>
+        <dt>Revocation</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Actions</dt>
+        <dd>3</dd>
+      </div>
+      <div>
+        <dt>Guidance</dt>
+        <dd>0</dd>
+      </div>
+      <div class="reference-card-wide">
+        <dt>Evidence keys</dt>
+        <dd>fingerprint, location, secretSha256, validationState</dd>
+      </div>
+    </dl>
+  </article>
+</div>
 
 ## Analysis Report Shape
 

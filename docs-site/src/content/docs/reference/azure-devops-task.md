@@ -14,61 +14,1162 @@ Version: `1.0.0`
 
 ## Inputs
 
-| Name | Type | Description | Required | Default |
-|---|---|---|---:|---|
-| `target` | `filePath` | File, directory, or checked-out repository path to scan. | true | `$(Build.SourcesDirectory)` |
-| `picketPath` | `string` | Path to the Picket executable or command name available on PATH. | true | `picket` |
-| `config` | `filePath` | Optional Picket or Gitleaks-compatible configuration path. | false | `` |
-| `profile` | `pickList` | Scan profile. Use gitleaks only when strict compatibility behavior is desired. | true | `picket` |
-| `reportFormats` | `string` | Comma-separated report formats: json, jsonl, sarif, html, csv, junit, gitlab, toon. JSONL is added internally when omitted so task outputs and annotations stay accurate. | true | `sarif,jsonl,html` |
-| `reportDirectory` | `filePath` | Directory where task reports are written. | true | `$(Build.ArtifactStagingDirectory)/picket` |
-| `failOn` | `pickList` | Task failure policy. | true | `findings` |
-| `baselinePath` | `filePath` | Optional baseline report used to suppress known findings. | false | `` |
-| `results` | `string` | Optional comma-separated validation states to keep before reports and failure enforcement. | false | `` |
-| `onlyVerified` | `boolean` | Keep only offline structurally valid findings and live active findings. | true | `false` |
-| `redact` | `string` | Redaction percentage from 0 through 100. | true | `100` |
-| `verify` | `boolean` | Enable opt-in live provider verification. | true | `false` |
-| `annotations` | `boolean` | Emit safe Azure DevOps log issues for findings with source locations. | true | `true` |
-| `annotationLimit` | `string` | Maximum number of log issues emitted by the task. Use 0 to disable annotation output. | true | `50` |
-| `publishSarif` | `boolean` | Publish the SARIF report as a build artifact when it exists. | true | `true` |
-| `publishJsonl` | `boolean` | Publish the native JSONL report as a build artifact when it exists. | true | `true` |
-| `publishHtml` | `boolean` | Publish the HTML report as a build artifact when it exists. | true | `true` |
-| `cache` | `boolean` | Pass a native Picket scan cache directory to the CLI. | true | `true` |
-| `cacheMode` | `pickList` | Cache storage mode. Use raw only in trusted private jobs. | true | `secret-hash-only` |
-| `cachePath` | `filePath` | Cache directory passed to the CLI. | true | `$(Pipeline.Workspace)/.picket/cache` |
-| `maxTargetMegabytes` | `string` | Optional positive maximum file size in decimal MB for content rules. | false | `` |
-| `maxArchiveDepth` | `string` | Optional maximum nested archive traversal depth. | false | `` |
-| `maxArchiveEntries` | `string` | Optional maximum number of files extracted from archives. | false | `` |
-| `maxArchiveMegabytes` | `string` | Optional maximum decompressed archive payload in decimal MB. | false | `` |
-| `maxArchiveRatio` | `string` | Optional maximum archive expansion ratio. | false | `` |
-| `timeout` | `string` | Optional scan timeout in seconds. Use 0 to disable. | false | `` |
-| `azureDevOpsOrganization` | `string` | Optional organization name or URL for remote Azure DevOps enumeration. | false | `` |
-| `azureDevOpsEndpoint` | `string` | Optional endpoint override for Azure DevOps Server. | false | `` |
-| `azureDevOpsTokenEnv` | `string` | Environment variable containing the PAT or job token. The token value is not passed on the command line. | false | `` |
-| `azureDevOpsTokenKind` | `pickList` | Credential transport: pat for personal access tokens or bearer for job and Entra tokens. | true | `pat` |
-| `azureDevOpsProject` | `string` | Optional project filter. | false | `` |
-| `azureDevOpsRepository` | `string` | Optional repository filter. | false | `` |
-| `azureDevOpsBranch` | `string` | Optional branch name. | false | `` |
-| `azureDevOpsPullRequest` | `string` | Optional pull request ID to scan. | false | `` |
-| `azureDevOpsIncludeWikis` | `boolean` | Include Azure DevOps wiki backing repositories. | true | `false` |
-| `azureDevOpsBuildId` | `string` | Build ID used when scanning build artifacts or build logs. | false | `` |
-| `azureDevOpsIncludeArtifacts` | `boolean` | Include build artifact contents for the selected build. | true | `false` |
-| `azureDevOpsIncludeLogs` | `boolean` | Include build logs for the selected build. | true | `false` |
-| `azureDevOpsReleaseId` | `string` | Classic release ID used when scanning release build artifacts. | false | `` |
-| `azureDevOpsIncludeReleaseArtifacts` | `boolean` | Include build artifact contents referenced by the selected classic release. | true | `false` |
-| `azureDevOpsMaxArtifactMegabytes` | `string` | Positive per-artifact archive download cap. | false | `` |
-| `azureDevOpsMaxLogMegabytes` | `string` | Positive per-log download cap. | false | `` |
-| `allowNonPublicSourceEndpoints` | `boolean` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses. | true | `false` |
-| `allowInsecureSourceEndpoints` | `boolean` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. | true | `false` |
-| `extraArgs` | `multiLine` | Additional CLI arguments appended after validated task inputs, one argument per line. | false | `` |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>target</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">File, directory, or checked-out repository path to scan.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>target</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>filePath</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>$(Build.SourcesDirectory)</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>picketPath</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Path to the Picket executable or command name available on PATH.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>picketPath</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>picket</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>config</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">Optional Picket or Gitleaks-compatible configuration path.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>config</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>filePath</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>profile</code><span>pickList</span>
+    </div>
+    <p class="reference-card-description">Scan profile. Use gitleaks only when strict compatibility behavior is desired.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>profile</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>pickList</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>picket</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>reportFormats</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Comma-separated report formats: json, jsonl, sarif, html, csv, junit, gitlab, toon. JSONL is added internally when omitted so task outputs and annotations stay accurate.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>reportFormats</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>sarif,jsonl,html</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>reportDirectory</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">Directory where task reports are written.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>reportDirectory</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>filePath</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>$(Build.ArtifactStagingDirectory)/picket</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>failOn</code><span>pickList</span>
+    </div>
+    <p class="reference-card-description">Task failure policy.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>failOn</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>pickList</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>findings</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>baselinePath</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">Optional baseline report used to suppress known findings.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>baselinePath</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>filePath</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>results</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional comma-separated validation states to keep before reports and failure enforcement.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>results</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>onlyVerified</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Keep only offline structurally valid findings and live active findings.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>onlyVerified</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>redact</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Redaction percentage from 0 through 100.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>redact</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>100</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>verify</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Enable opt-in live provider verification.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>verify</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>annotations</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Emit safe Azure DevOps log issues for findings with source locations.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>annotations</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>annotationLimit</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Maximum number of log issues emitted by the task. Use 0 to disable annotation output.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>annotationLimit</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>50</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>publishSarif</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Publish the SARIF report as a build artifact when it exists.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>publishSarif</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>publishJsonl</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Publish the native JSONL report as a build artifact when it exists.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>publishJsonl</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>publishHtml</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Publish the HTML report as a build artifact when it exists.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>publishHtml</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cache</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Pass a native Picket scan cache directory to the CLI.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>cache</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cacheMode</code><span>pickList</span>
+    </div>
+    <p class="reference-card-description">Cache storage mode. Use raw only in trusted private jobs.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>cacheMode</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>pickList</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>secret-hash-only</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cachePath</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">Cache directory passed to the CLI.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>cachePath</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>filePath</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>$(Pipeline.Workspace)/.picket/cache</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>maxTargetMegabytes</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional positive maximum file size in decimal MB for content rules.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>maxTargetMegabytes</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>maxArchiveDepth</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional maximum nested archive traversal depth.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>maxArchiveDepth</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>maxArchiveEntries</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional maximum number of files extracted from archives.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>maxArchiveEntries</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>maxArchiveMegabytes</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional maximum decompressed archive payload in decimal MB.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>maxArchiveMegabytes</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>maxArchiveRatio</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional maximum archive expansion ratio.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>maxArchiveRatio</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>timeout</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional scan timeout in seconds. Use 0 to disable.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>timeout</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsOrganization</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional organization name or URL for remote Azure DevOps enumeration.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsOrganization</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsEndpoint</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional endpoint override for Azure DevOps Server.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsEndpoint</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsTokenEnv</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Environment variable containing the PAT or job token. The token value is not passed on the command line.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsTokenEnv</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsTokenKind</code><span>pickList</span>
+    </div>
+    <p class="reference-card-description">Credential transport: pat for personal access tokens or bearer for job and Entra tokens.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsTokenKind</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>pickList</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>pat</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsProject</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional project filter.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsProject</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsRepository</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional repository filter.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsRepository</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsBranch</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional branch name.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsBranch</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsPullRequest</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional pull request ID to scan.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsPullRequest</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsIncludeWikis</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Include Azure DevOps wiki backing repositories.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsIncludeWikis</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsBuildId</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Build ID used when scanning build artifacts or build logs.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsBuildId</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsIncludeArtifacts</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Include build artifact contents for the selected build.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsIncludeArtifacts</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsIncludeLogs</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Include build logs for the selected build.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsIncludeLogs</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsReleaseId</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Classic release ID used when scanning release build artifacts.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsReleaseId</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsIncludeReleaseArtifacts</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Include build artifact contents referenced by the selected classic release.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsIncludeReleaseArtifacts</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsMaxArtifactMegabytes</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Positive per-artifact archive download cap.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsMaxArtifactMegabytes</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsMaxLogMegabytes</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Positive per-log download cap.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>azureDevOpsMaxLogMegabytes</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>string</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>allowNonPublicSourceEndpoints</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Permit private, loopback, link-local, or otherwise non-public endpoint addresses.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>allowNonPublicSourceEndpoints</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>allowInsecureSourceEndpoints</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>allowInsecureSourceEndpoints</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>boolean</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>extraArgs</code><span>multiLine</span>
+    </div>
+    <p class="reference-card-description">Additional CLI arguments appended after validated task inputs, one argument per line.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>extraArgs</code></dd>
+      </div>
+      <div>
+        <dt>Type</dt>
+        <dd><code>multiLine</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+</div>
 
 ## Outputs
 
-| Name | Description |
-|---|---|
-| `exitCode` | Raw scanner exit code before task failure enforcement. |
-| `findings` | Number of emitted native JSONL finding records after filters. |
-| `sarifPath` | Absolute path to the SARIF report when enabled. |
-| `jsonlPath` | Absolute path to the JSONL report when enabled. |
-| `htmlPath` | Absolute path to the HTML report when enabled. |
-| `annotations` | Number of Azure DevOps log issues emitted. |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>exitCode</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Raw scanner exit code before task failure enforcement.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>exitCode</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>findings</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Number of emitted native JSONL finding records after filters.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>findings</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sarifPath</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Absolute path to the SARIF report when enabled.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>sarifPath</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>jsonlPath</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Absolute path to the JSONL report when enabled.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>jsonlPath</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>htmlPath</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Absolute path to the HTML report when enabled.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>htmlPath</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>annotations</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Number of Azure DevOps log issues emitted.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>annotations</code></dd>
+      </div>
+    </dl>
+  </article>
+</div>

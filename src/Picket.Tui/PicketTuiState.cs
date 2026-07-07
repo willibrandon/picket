@@ -162,7 +162,6 @@ internal sealed class PicketTuiState
     internal void SetView(PicketTuiView view)
     {
         CurrentView = view;
-        StatusMessage = string.Concat("View: ", GetViewLabel(view));
     }
 
     /// <summary>
@@ -624,6 +623,7 @@ internal sealed class PicketTuiState
             string.Concat("Report: ", Report.Path),
             string.Concat("Status: ", StatusMessage),
             string.Concat("Scan: ", ScanWorkspace.Status),
+            string.Concat("Scan timing: ", FormatScanTiming(ScanWorkspace)),
             string.Concat("Last run: ", ScanWorkspace.LastMessage),
             string.Concat("Scanner output:", Environment.NewLine, ScanWorkspace.CapturedOutputText),
             string.Concat("Filter: ", SearchText.Length == 0 ? "none" : SearchText));
@@ -643,17 +643,45 @@ internal sealed class PicketTuiState
             string.Concat("Command: ", ScanWorkspace.BuildCommandLinePreview()),
             string.Concat("Report: ", ScanWorkspace.ReportPath),
             string.Concat("Status: ", ScanWorkspace.Status),
+            string.Concat("Timing: ", FormatScanTiming(ScanWorkspace)),
             string.Concat("Summary: ", GetSummaryLine()),
         };
 
-        if (FocusedFinding is { } row)
-        {
-            lines.Add("Focused finding:");
-            lines.Add(FormatFindingYank(row, Report.Path));
-        }
-
         lines.Add(string.Concat("Scanner output:", Environment.NewLine, ScanWorkspace.CapturedOutputText));
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string FormatScanTiming(PicketTuiScanWorkspace scan)
+    {
+        if (!scan.LastStartedAt.HasValue)
+        {
+            return "not run yet";
+        }
+
+        if (!scan.LastCompletedAt.HasValue)
+        {
+            return string.Concat("started ", FormatTimestamp(scan.LastStartedAt.GetValueOrDefault()), ", still running");
+        }
+
+        return string.Concat(
+            "started ",
+            FormatTimestamp(scan.LastStartedAt.GetValueOrDefault()),
+            ", completed ",
+            FormatTimestamp(scan.LastCompletedAt.GetValueOrDefault()),
+            ", elapsed ",
+            FormatElapsed(scan.LastElapsed.GetValueOrDefault()));
+    }
+
+    private static string FormatTimestamp(DateTimeOffset value)
+    {
+        return value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatElapsed(TimeSpan value)
+    {
+        return value.TotalSeconds < 1
+            ? string.Create(CultureInfo.InvariantCulture, $"{value.TotalMilliseconds:0} ms")
+            : string.Create(CultureInfo.InvariantCulture, $"{value.TotalSeconds:0.0} s");
     }
 
     private List<KeyValuePair<string, int>> CountBy(Func<PicketTuiFindingRow, string> keySelector, int limit)

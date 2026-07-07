@@ -115,7 +115,7 @@ internal static class PicketTuiApp
             v.Separator(),
             BuildScanSettings(v, scan),
             v.Separator(),
-            BuildScanResults(v, state).Fill()
+            BuildScanStatusPanel(v, state).Fill()
         ]).Fill();
     }
 
@@ -320,17 +320,69 @@ internal static class PicketTuiApp
         ]);
     }
 
-    private static VStackWidget BuildScanResults<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
+    private static VStackWidget BuildScanStatusPanel<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildStatusText(v, "Latest results", PicketTuiPalette.InfoForeground),
-            BuildFindingsTable(v, state).Fill(),
+            BuildStatusText(v, "Scan status", PicketTuiPalette.InfoForeground),
+            v.Text(GetScanOutcomeLine(state)).Wrap(),
+            v.Text(FormatScanTiming(state.ScanWorkspace)).Wrap(),
+            v.Text(string.Concat("Report: ", state.Report.Path)).Ellipsis(),
+            v.Text(GetScanReviewLine(state)).Wrap(),
             v.Separator(),
-            v.VStack(details => BuildFindingDetails(details, state.FocusedFinding)).FixedHeight(5),
-            v.Separator(),
-            v.VStack(output => BuildScanOutput(output, state.ScanWorkspace)).FixedHeight(3)
+            v.VStack(output => BuildScanOutput(output, state.ScanWorkspace)).Fill()
         ]).Fill();
+    }
+
+    private static string GetScanOutcomeLine(PicketTuiState state)
+    {
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        if (scan.IsRunning)
+        {
+            return string.Concat("Running. ", scan.LastMessage);
+        }
+
+        return string.Concat(state.GetSummaryLine(), ". ", scan.LastMessage);
+    }
+
+    private static string GetScanReviewLine(PicketTuiState state)
+    {
+        return state.Rows.Count == 0
+            ? "No findings are loaded. Run a scan to populate the Findings tab."
+            : "Findings are loaded. Press g f to review and filter them.";
+    }
+
+    private static string FormatScanTiming(PicketTuiScanWorkspace scan)
+    {
+        if (!scan.LastStartedAt.HasValue)
+        {
+            return "Last run: not run yet";
+        }
+
+        if (!scan.LastCompletedAt.HasValue)
+        {
+            return string.Concat("Started: ", FormatTimestamp(scan.LastStartedAt.GetValueOrDefault()), " (running)");
+        }
+
+        return string.Concat(
+            "Started: ",
+            FormatTimestamp(scan.LastStartedAt.GetValueOrDefault()),
+            "  Completed: ",
+            FormatTimestamp(scan.LastCompletedAt.GetValueOrDefault()),
+            "  Elapsed: ",
+            FormatElapsed(scan.LastElapsed.GetValueOrDefault()));
+    }
+
+    private static string FormatTimestamp(DateTimeOffset value)
+    {
+        return value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatElapsed(TimeSpan value)
+    {
+        return value.TotalSeconds < 1
+            ? string.Create(CultureInfo.InvariantCulture, $"{value.TotalMilliseconds:0} ms")
+            : string.Create(CultureInfo.InvariantCulture, $"{value.TotalSeconds:0.0} s");
     }
 
     private static ThemePanelWidget BuildStatusText<TParent>(WidgetContext<TParent> ctx, string text, Hex1bColor color)
@@ -550,7 +602,6 @@ internal static class PicketTuiApp
         {
             var hints = new List<IInfoBarChild>
             {
-                s.Section(PicketTuiState.GetViewLabel(state.CurrentView)).FixedWidth(9),
                 s.Section(status).FillWidth(),
             };
 

@@ -285,23 +285,29 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     {
         builder.AppendLine("## Inputs");
         builder.AppendLine();
-        builder.AppendLine("| Name | Type | Description | Required | Default |");
-        builder.AppendLine("|---|---|---|---:|---|");
+        builder.AppendLine("<div class=\"reference-card-list\">");
         foreach (JsonElement input in inputs.EnumerateArray())
         {
-            builder.Append("| `");
-            builder.Append(EscapeTable(input.GetProperty("name").GetString() ?? string.Empty));
-            builder.Append("` | `");
-            builder.Append(EscapeTable(input.GetProperty("type").GetString() ?? string.Empty));
-            builder.Append("` | ");
-            builder.Append(EscapeTable(input.GetProperty("helpMarkDown").GetString() ?? string.Empty));
-            builder.Append(" | ");
-            builder.Append(input.TryGetProperty("required", out JsonElement required) && required.GetBoolean() ? "true" : "false");
-            builder.Append(" | `");
-            builder.Append(EscapeTable(input.TryGetProperty("defaultValue", out JsonElement defaultValue) ? defaultValue.GetString() ?? string.Empty : string.Empty));
-            builder.AppendLine("` |");
+            string name = input.GetProperty("name").GetString() ?? string.Empty;
+            string type = input.GetProperty("type").GetString() ?? string.Empty;
+            string description = input.GetProperty("helpMarkDown").GetString() ?? string.Empty;
+            string required = input.TryGetProperty("required", out JsonElement requiredElement) && requiredElement.GetBoolean() ? "true" : "false";
+            string defaultValue = input.TryGetProperty("defaultValue", out JsonElement defaultValueElement) ? defaultValueElement.GetString() ?? string.Empty : string.Empty;
+
+            AppendReferenceCard(
+                builder,
+                name,
+                type,
+                description,
+                [
+                    ("Name", name, true, false),
+                    ("Type", type, true, false),
+                    ("Required", required, false, false),
+                    ("Default", defaultValue, true, false),
+                ]);
         }
 
+        builder.AppendLine("</div>");
         builder.AppendLine();
     }
 
@@ -309,17 +315,23 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     {
         builder.AppendLine("## Outputs");
         builder.AppendLine();
-        builder.AppendLine("| Name | Description |");
-        builder.AppendLine("|---|---|");
+        builder.AppendLine("<div class=\"reference-card-list\">");
         foreach (JsonElement output in outputs.EnumerateArray())
         {
-            builder.Append("| `");
-            builder.Append(EscapeTable(output.GetProperty("name").GetString() ?? string.Empty));
-            builder.Append("` | ");
-            builder.Append(EscapeTable(output.GetProperty("description").GetString() ?? string.Empty));
-            builder.AppendLine(" |");
+            string name = output.GetProperty("name").GetString() ?? string.Empty;
+            string description = output.GetProperty("description").GetString() ?? string.Empty;
+
+            AppendReferenceCard(
+                builder,
+                name,
+                "Output",
+                description,
+                [
+                    ("Name", name, true, false),
+                ]);
         }
 
+        builder.AppendLine("</div>");
         builder.AppendLine();
     }
 
@@ -379,26 +391,60 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     {
         builder.AppendLine($"## {title}");
         builder.AppendLine();
-        builder.AppendLine("| Name | Description | Required | Default or Value |");
-        builder.AppendLine("|---|---|---:|---|");
+        builder.AppendLine("<div class=\"reference-card-list\">");
         foreach (Dictionary<string, string> item in items)
         {
             string name = item["name"];
             string description = item.GetValueOrDefault("description", string.Empty);
             string required = item.GetValueOrDefault("required", string.Empty);
             string defaultValue = item.GetValueOrDefault("default", item.GetValueOrDefault("value", string.Empty));
-            builder.Append("| `");
-            builder.Append(EscapeTable(name));
-            builder.Append("` | ");
-            builder.Append(EscapeTable(description));
-            builder.Append(" | ");
-            builder.Append(EscapeTable(required));
-            builder.Append(" | `");
-            builder.Append(EscapeTable(defaultValue));
-            builder.AppendLine("` |");
+
+            AppendReferenceCard(
+                builder,
+                name,
+                title.EndsWith('s') ? title[..^1] : title,
+                description,
+                [
+                    ("Name", name, true, false),
+                    ("Required", required, false, false),
+                    ("Default or value", defaultValue, true, false),
+                ]);
         }
 
+        builder.AppendLine("</div>");
         builder.AppendLine();
+    }
+
+    private static void AppendReferenceCard(
+        StringBuilder builder,
+        string title,
+        string subtitle,
+        string description,
+        ReadOnlySpan<(string Label, string Value, bool Code, bool Wide)> facts)
+    {
+        builder.AppendLine("  <article class=\"reference-card\">");
+        builder.AppendLine("    <div class=\"reference-card-heading\">");
+        builder.Append("      <code>");
+        builder.Append(EscapeHtmlCode(title));
+        builder.Append("</code><span>");
+        builder.Append(EscapeHtmlText(subtitle));
+        builder.AppendLine("</span>");
+        builder.AppendLine("    </div>");
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            builder.Append("    <p class=\"reference-card-description\">");
+            builder.Append(EscapeHtmlText(description));
+            builder.AppendLine("</p>");
+        }
+
+        builder.AppendLine("    <dl class=\"reference-card-facts\">");
+        for (int i = 0; i < facts.Length; i++)
+        {
+            AppendReferenceCardFact(builder, facts[i].Label, facts[i].Value, facts[i].Code, facts[i].Wide);
+        }
+
+        builder.AppendLine("    </dl>");
+        builder.AppendLine("  </article>");
     }
 
     private List<List<string>> ReadCliReferenceHelpBlocks()

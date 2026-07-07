@@ -10,39 +10,590 @@ This page is generated from `action.yml`.
 
 ## Inputs
 
-| Name | Description | Required | Default or Value |
-|---|---|---:|---|
-| `path` | Repository path to scan. | false | `.` |
-| `config-path` | Optional Gitleaks-compatible config path. | false | `` |
-| `baseline-path` | Optional Gitleaks-compatible baseline path. | false | `` |
-| `cache` | Restore and save the native Picket scan cache. | false | `true` |
-| `cache-mode` | Native scan cache storage mode. Use secret-hash-only for public CI safety or raw for exact cached report replay in trusted jobs. | false | `secret-hash-only` |
-| `cache-path` | Native Picket scan cache directory. | false | `.picket/cache` |
-| `cache-key` | Optional explicit cache key. | false | `` |
-| `report-directory` | Directory where SARIF and JSONL reports are written. | false | `picket-results` |
-| `fail-on` | Failure mode. Use findings, errors, or never. | false | `findings` |
-| `summary` | Write the Picket scan job summary. | false | `true` |
-| `results` | Optional comma-separated validation result states to keep before reports, annotations, and failure enforcement. | false | `` |
-| `only-verified` | Keep only structurally valid offline findings and active live-verification findings. | false | `false` |
-| `upload-sarif` | Upload the SARIF report through GitHub code scanning. | false | `false` |
-| `annotations` | Emit safe GitHub workflow annotations from JSONL findings. | false | `true` |
-| `annotation-limit` | Maximum number of workflow annotations to emit. | false | `50` |
-| `redact` | Redaction percentage from 0 through 100. Defaults to full redaction for public CI safety. | false | `100` |
-| `max-target-megabytes` | Optional maximum file size in decimal MB for content rules. | false | `` |
-| `timeout` | Optional scan timeout in seconds. Use 0 to disable. | false | `` |
-| `max-archive-depth` | Optional maximum nested archive traversal depth. Use 0 to disable. | false | `` |
-| `max-archive-entries` | Optional maximum number of files extracted from archives. Use 0 to disable. | false | `` |
-| `max-archive-megabytes` | Optional maximum decompressed archive payload in decimal MB. | false | `` |
-| `max-archive-ratio` | Optional maximum archive expansion ratio. Use 0 to disable. | false | `` |
-| `dotnet-version` | .NET SDK version used to run the source-based action. | false | `10.0.301` |
-| `setup-dotnet` | Install the configured .NET SDK before running Picket. | false | `true` |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>path</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Repository path to scan.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>path</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>.</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>config-path</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional Gitleaks-compatible config path.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>config-path</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>baseline-path</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional Gitleaks-compatible baseline path.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>baseline-path</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cache</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Restore and save the native Picket scan cache.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>cache</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cache-mode</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Native scan cache storage mode. Use secret-hash-only for public CI safety or raw for exact cached report replay in trusted jobs.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>cache-mode</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>secret-hash-only</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cache-path</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Native Picket scan cache directory.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>cache-path</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>.picket/cache</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>cache-key</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional explicit cache key.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>cache-key</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>report-directory</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Directory where SARIF and JSONL reports are written.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>report-directory</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>picket-results</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>fail-on</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Failure mode. Use findings, errors, or never.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>fail-on</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>findings</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>summary</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Write the Picket scan job summary.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>summary</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>results</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional comma-separated validation result states to keep before reports, annotations, and failure enforcement.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>results</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>only-verified</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Keep only structurally valid offline findings and active live-verification findings.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>only-verified</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>upload-sarif</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Upload the SARIF report through GitHub code scanning.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>upload-sarif</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>annotations</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Emit safe GitHub workflow annotations from JSONL findings.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>annotations</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>annotation-limit</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Maximum number of workflow annotations to emit.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>annotation-limit</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>50</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>redact</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Redaction percentage from 0 through 100. Defaults to full redaction for public CI safety.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>redact</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>100</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>max-target-megabytes</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional maximum file size in decimal MB for content rules.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>max-target-megabytes</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>timeout</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional scan timeout in seconds. Use 0 to disable.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>timeout</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>max-archive-depth</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional maximum nested archive traversal depth. Use 0 to disable.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>max-archive-depth</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>max-archive-entries</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional maximum number of files extracted from archives. Use 0 to disable.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>max-archive-entries</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>max-archive-megabytes</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional maximum decompressed archive payload in decimal MB.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>max-archive-megabytes</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>max-archive-ratio</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional maximum archive expansion ratio. Use 0 to disable.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>max-archive-ratio</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>dotnet-version</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">.NET SDK version used to run the source-based action.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>dotnet-version</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>10.0.301</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>setup-dotnet</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Install the configured .NET SDK before running Picket.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>setup-dotnet</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>true</code></dd>
+      </div>
+    </dl>
+  </article>
+</div>
 
 ## Outputs
 
-| Name | Description | Required | Default or Value |
-|---|---|---:|---|
-| `exit-code` | Raw Picket scanner exit code. |  | `${{ steps.run.outputs.exit-code }}` |
-| `findings` | Number of JSONL finding records emitted by Picket. |  | `${{ steps.run.outputs.findings }}` |
-| `sarif-path` | SARIF report path. |  | `${{ steps.run.outputs.sarif-path }}` |
-| `jsonl-path` | JSONL report path. |  | `${{ steps.run.outputs.jsonl-path }}` |
-| `annotations` | Number of workflow annotations emitted. |  | `${{ steps.run.outputs.annotations }}` |
+<div class="reference-card-list">
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>exit-code</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Raw Picket scanner exit code.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>exit-code</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>${{ steps.run.outputs.exit-code }}</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>findings</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Number of JSONL finding records emitted by Picket.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>findings</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>${{ steps.run.outputs.findings }}</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>sarif-path</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">SARIF report path.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>sarif-path</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>${{ steps.run.outputs.sarif-path }}</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>jsonl-path</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">JSONL report path.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>jsonl-path</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>${{ steps.run.outputs.jsonl-path }}</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>annotations</code><span>Output</span>
+    </div>
+    <p class="reference-card-description">Number of workflow annotations emitted.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Name</dt>
+        <dd><code>annotations</code></dd>
+      </div>
+      <div>
+        <dt>Required</dt>
+        <dd>-</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>${{ steps.run.outputs.annotations }}</code></dd>
+      </div>
+    </dl>
+  </article>
+</div>

@@ -328,6 +328,23 @@ internal sealed class PicketTuiScanWorkspace
     internal int? LastExitCode { get; private set; }
 
     /// <summary>
+    /// Gets the time the last scan started.
+    /// </summary>
+    internal DateTimeOffset? LastStartedAt { get; private set; }
+
+    /// <summary>
+    /// Gets the time the last scan completed.
+    /// </summary>
+    internal DateTimeOffset? LastCompletedAt { get; private set; }
+
+    /// <summary>
+    /// Gets the elapsed time for the last completed scan.
+    /// </summary>
+    internal TimeSpan? LastElapsed => LastStartedAt.HasValue && LastCompletedAt.HasValue
+        ? LastCompletedAt.GetValueOrDefault() - LastStartedAt.GetValueOrDefault()
+        : null;
+
+    /// <summary>
     /// Gets the last scan status text.
     /// </summary>
     internal string Status { get; private set; } = "Ready to scan";
@@ -375,6 +392,8 @@ internal sealed class PicketTuiScanWorkspace
         ArgumentException.ThrowIfNullOrWhiteSpace(reportPath);
         ClearCapturedOutput();
         LastExitCode = null;
+        LastStartedAt = null;
+        LastCompletedAt = null;
         Status = findingCount == 0
             ? "Loaded previous scan: no findings"
             : "Loaded previous scan: findings loaded";
@@ -849,28 +868,35 @@ internal sealed class PicketTuiScanWorkspace
             Status = "Scan request is invalid";
             LastMessage = error;
             LastExitCode = null;
+            LastStartedAt = null;
+            LastCompletedAt = null;
             CaptureMessageOutput("validation", error);
             return null;
         }
 
         if (!TryEnsureReportDirectory(ReportPath, out string directoryError))
         {
+            DateTimeOffset failedAt = DateTimeOffset.UtcNow;
             Status = "Scan failed: could not prepare report path";
             LastMessage = directoryError;
             LastExitCode = 126;
+            LastStartedAt = failedAt;
+            LastCompletedAt = failedAt;
             return new PicketTuiScanExecutionResult(
                 126,
                 ReportPath,
                 string.Empty,
                 directoryError,
-                DateTimeOffset.UtcNow,
-                DateTimeOffset.UtcNow);
+                failedAt,
+                failedAt);
         }
 
         IsRunning = true;
         Status = string.Concat("Running: ", BuildTargetDescription());
         LastMessage = BuildCommandLinePreview();
         LastExitCode = null;
+        LastStartedAt = DateTimeOffset.UtcNow;
+        LastCompletedAt = null;
         ClearCapturedOutput();
 
         try
@@ -895,6 +921,7 @@ internal sealed class PicketTuiScanWorkspace
                 _ => string.Concat("Scan failed: exit ", result.ExitCode.ToString(CultureInfo.InvariantCulture)),
             };
             LastMessage = CreateResultMessage(result);
+            SetLastRunTiming(result);
             CaptureResultOutputIfEmpty(result);
             return result;
         }
@@ -903,22 +930,26 @@ internal sealed class PicketTuiScanWorkspace
             Status = "Scan cancelled";
             LastMessage = "The running scan was cancelled.";
             LastExitCode = 130;
+            LastCompletedAt = DateTimeOffset.UtcNow;
             CaptureMessageOutput("status", LastMessage);
             throw;
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException or UnauthorizedAccessException)
         {
+            DateTimeOffset failedAt = DateTimeOffset.UtcNow;
             Status = "Scan failed: could not start scanner";
             LastMessage = ex.Message;
             LastExitCode = 126;
+            LastStartedAt ??= failedAt;
+            LastCompletedAt = failedAt;
             CaptureMessageOutput("error", ex.Message);
             return new PicketTuiScanExecutionResult(
                 126,
                 ReportPath,
                 string.Empty,
                 ex.Message,
-                DateTimeOffset.UtcNow,
-                DateTimeOffset.UtcNow);
+                LastStartedAt.GetValueOrDefault(),
+                failedAt);
         }
         finally
         {
@@ -935,6 +966,12 @@ internal sealed class PicketTuiScanWorkspace
         }
 
         return string.Concat(stream, ": ", trimmed);
+    }
+
+    private void SetLastRunTiming(PicketTuiScanExecutionResult result)
+    {
+        LastStartedAt = result.StartedAt;
+        LastCompletedAt = result.CompletedAt;
     }
 
     private void CaptureMessageOutput(string stream, string message)
