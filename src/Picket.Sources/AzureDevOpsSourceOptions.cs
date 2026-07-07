@@ -14,6 +14,8 @@ namespace Picket.Sources;
 /// <param name="buildId">An optional Azure Pipelines build ID whose artifacts or logs should be scanned.</param>
 /// <param name="includeArtifacts">A value indicating whether build artifacts should be scanned.</param>
 /// <param name="includeLogs">A value indicating whether build logs should be scanned.</param>
+/// <param name="releaseId">An optional classic Azure DevOps release ID whose build artifacts should be scanned.</param>
+/// <param name="includeReleaseArtifacts">A value indicating whether classic release build artifacts should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="maxArtifactBytes">The maximum build artifact archive bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="maxLogBytes">The maximum build log bytes to download, or <see langword="null" /> for the default cap.</param>
@@ -37,6 +39,8 @@ public sealed class AzureDevOpsSourceOptions(
     int buildId = 0,
     bool includeArtifacts = false,
     bool includeLogs = false,
+    int releaseId = 0,
+    bool includeReleaseArtifacts = false,
     long? maxFileBytes = null,
     long? maxArtifactBytes = null,
     long? maxLogBytes = null,
@@ -57,6 +61,11 @@ public sealed class AzureDevOpsSourceOptions(
     public Uri Endpoint { get; } = RequireCredentialTransport(NormalizeEndpoint(endpoint), RequireCredentialKind(credentialKind), allowInsecureCredentialTransport);
 
     /// <summary>
+    /// Gets the normalized classic release API endpoint.
+    /// </summary>
+    public Uri ReleaseEndpoint { get; } = RequireCredentialTransport(NormalizeReleaseEndpoint(NormalizeEndpoint(endpoint)), RequireCredentialKind(credentialKind), allowInsecureCredentialTransport);
+
+    /// <summary>
     /// Gets the credential transport kind.
     /// </summary>
     public AzureDevOpsCredentialKind CredentialKind { get; } = RequireCredentialKind(credentialKind);
@@ -64,7 +73,7 @@ public sealed class AzureDevOpsSourceOptions(
     /// <summary>
     /// Gets the optional project filter.
     /// </summary>
-    public string Project { get; } = RequireBuildScope(NormalizeOptionalName(project), buildId, includeArtifacts, includeLogs);
+    public string Project { get; } = RequireRemoteScope(NormalizeOptionalName(project), buildId, includeArtifacts, includeLogs, releaseId, includeReleaseArtifacts);
 
     /// <summary>
     /// Gets the optional repository name filter.
@@ -100,6 +109,16 @@ public sealed class AzureDevOpsSourceOptions(
     /// Gets a value indicating whether build logs should be scanned.
     /// </summary>
     public bool IncludeLogs { get; } = includeLogs;
+
+    /// <summary>
+    /// Gets the optional classic Azure DevOps release ID whose build artifacts should be scanned.
+    /// </summary>
+    public int ReleaseId { get; } = RequireReleaseId(releaseId);
+
+    /// <summary>
+    /// Gets a value indicating whether classic release build artifacts should be scanned.
+    /// </summary>
+    public bool IncludeReleaseArtifacts { get; } = includeReleaseArtifacts;
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -186,6 +205,44 @@ public sealed class AzureDevOpsSourceOptions(
         }
 
         return new Uri(normalized, UriKind.Absolute);
+    }
+
+    private static Uri NormalizeReleaseEndpoint(Uri endpoint)
+    {
+        if (endpoint.Host.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase))
+        {
+            string[] segments = endpoint.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+            {
+                return endpoint;
+            }
+
+            var builder = new UriBuilder(endpoint)
+            {
+                Host = "vsrm.dev.azure.com",
+                Path = string.Concat("/", segments[0], "/"),
+            };
+            return builder.Uri;
+        }
+
+        const string VisualStudioSuffix = ".visualstudio.com";
+        if (!endpoint.Host.EndsWith(VisualStudioSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return endpoint;
+        }
+
+        string organization = endpoint.Host[..^VisualStudioSuffix.Length];
+        if (organization.Length == 0 || organization.Contains('.', StringComparison.Ordinal))
+        {
+            return endpoint;
+        }
+
+        var visualStudioBuilder = new UriBuilder(endpoint)
+        {
+            Host = "vsrm.dev.azure.com",
+            Path = string.Concat("/", organization, "/"),
+        };
+        return visualStudioBuilder.Uri;
     }
 
     private static string RequireCredential(string value)
@@ -277,21 +334,38 @@ public sealed class AzureDevOpsSourceOptions(
         return value;
     }
 
-    private static string RequireBuildScope(string project, int buildId, bool includeArtifacts, bool includeLogs)
+    private static int RequireReleaseId(int value)
     {
-        if (!includeArtifacts && !includeLogs)
-        {
-            return project;
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
 
-        if (project.Length == 0)
+    private static string RequireRemoteScope(
+        string project,
+        int buildId,
+        bool includeArtifacts,
+        bool includeLogs,
+        int releaseId,
+        bool includeReleaseArtifacts)
+    {
+        if ((includeArtifacts || includeLogs) && project.Length == 0)
         {
             throw new ArgumentException("Azure DevOps build artifact and log scanning requires --azure-devops-project.", nameof(project));
         }
 
-        if (buildId <= 0)
+        if ((includeArtifacts || includeLogs) && buildId <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(buildId), "Azure DevOps build artifact and log scanning requires --azure-devops-build-id.");
+        }
+
+        if (includeReleaseArtifacts && project.Length == 0)
+        {
+            throw new ArgumentException("Azure DevOps classic release artifact scanning requires --azure-devops-project.", nameof(project));
+        }
+
+        if (includeReleaseArtifacts && releaseId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(releaseId), "Azure DevOps classic release artifact scanning requires --azure-devops-release-id.");
         }
 
         return project;

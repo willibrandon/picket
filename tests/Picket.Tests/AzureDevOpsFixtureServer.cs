@@ -137,6 +137,33 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/_apis/release/releases/88?", StringComparison.Ordinal))
+        {
+            const string ReleaseJson = """
+                {"id":88,"artifacts":[{"alias":"release-drop","type":"Build","definitionReference":{"version":{"id":"99"},"project":{"name":"test"}}}]}
+                """;
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(ReleaseJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/build/builds/99/artifacts?", StringComparison.Ordinal)
+            && target.Contains("artifactName=release-drop", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/zip", CreateZipBytes("release/artifact.txt", "release-token-8642"), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/build/builds/99/artifacts?", StringComparison.Ordinal))
+        {
+            string artifactsJson = string.Concat(
+                "{\"value\":[{\"id\":13,\"name\":\"release-drop\",\"resource\":{\"downloadUrl\":\"",
+                Endpoint.AbsoluteUri,
+                "test/_apis/build/builds/99/artifacts?artifactName=release-drop&api-version=7.1",
+                "\"}}]}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(artifactsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/_apis/git/repositories/repo-id/items?", StringComparison.Ordinal)
             && target.Contains("download=true", StringComparison.Ordinal))
         {

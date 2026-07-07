@@ -78,6 +78,18 @@ internal static partial class Program
             || arg.StartsWith("--azure-devops-include-logs=", StringComparison.Ordinal);
     }
 
+    static bool IsAzureDevOpsReleaseIdFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-release-id", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-release-id=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsIncludeReleaseArtifactsFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-include-release-artifacts", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-include-release-artifacts=", StringComparison.Ordinal);
+    }
+
     static bool IsAzureDevOpsMaxArtifactMegabytesFlag(string arg)
     {
         return arg.Equals("--azure-devops-max-artifact-megabytes", StringComparison.Ordinal)
@@ -160,6 +172,22 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadPositiveAzureDevOpsReleaseIdFlag(string[] args, ref int index, out int releaseId)
+    {
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--azure-devops-release-id", out releaseId))
+        {
+            return false;
+        }
+
+        if (releaseId > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--azure-devops-release-id requires a positive integer value");
+        return false;
+    }
+
     static bool TryCreateAzureDevOpsSourceProvider(
         string? organization,
         Uri? endpoint,
@@ -173,6 +201,8 @@ internal static partial class Program
         int buildId,
         bool includeArtifacts,
         bool includeLogs,
+        int releaseId,
+        bool includeReleaseArtifacts,
         long? maxArtifactBytes,
         long? maxLogBytes,
         bool allowNonPublicSourceEndpoints,
@@ -222,6 +252,7 @@ internal static partial class Program
             return false;
         }
 
+        Uri? releaseEndpoint = null;
         try
         {
             var validatedOptions = new AzureDevOpsSourceOptions(
@@ -235,8 +266,12 @@ internal static partial class Program
                 includeWikis,
                 buildId,
                 includeArtifacts,
-                includeLogs);
+                includeLogs,
+                releaseId,
+                includeReleaseArtifacts,
+                allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
             sourceEndpoint = validatedOptions.Endpoint;
+            releaseEndpoint = validatedOptions.ReleaseEndpoint;
             project = validatedOptions.Project;
             repository = validatedOptions.Repository;
             branch = validatedOptions.Branch;
@@ -245,6 +280,8 @@ internal static partial class Program
             buildId = validatedOptions.BuildId;
             includeArtifacts = validatedOptions.IncludeArtifacts;
             includeLogs = validatedOptions.IncludeLogs;
+            releaseId = validatedOptions.ReleaseId;
+            includeReleaseArtifacts = validatedOptions.IncludeReleaseArtifacts;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -276,6 +313,16 @@ internal static partial class Program
             return false;
         }
 
+        if (includeReleaseArtifacts && releaseEndpoint is not null)
+        {
+            EndpointGuardResult releaseEndpointGuardResult = EndpointGuard.Evaluate(releaseEndpoint, endpointGuardOptions);
+            if (!releaseEndpointGuardResult.IsAllowed)
+            {
+                Console.Error.WriteLine($"blocked Azure DevOps release endpoint: {releaseEndpointGuardResult.Message}");
+                return false;
+            }
+        }
+
         sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(new HttpClientHandler
@@ -295,6 +342,8 @@ internal static partial class Program
                 buildId,
                 includeArtifacts,
                 includeLogs,
+                releaseId,
+                includeReleaseArtifacts,
                 maxTargetBytes,
                 maxArtifactBytes ?? maxTargetBytes,
                 maxLogBytes ?? maxTargetBytes,

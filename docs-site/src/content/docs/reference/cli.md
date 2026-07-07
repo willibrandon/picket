@@ -210,6 +210,8 @@ Use the grouped index to jump to the workflow you need.
   [--azure-devops-build-id id]
   [--azure-devops-include-artifacts]
   [--azure-devops-include-logs]
+  [--azure-devops-release-id id]
+  [--azure-devops-include-release-artifacts]
   [--azure-devops-max-artifact-megabytes n]
   [--azure-devops-max-log-megabytes n]
   [--allow-non-public-source-endpoints]
@@ -515,6 +517,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Include Azure Pipelines build logs in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-release-id</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan build artifacts referenced by this classic Azure DevOps release ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-include-release-artifacts</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include classic Azure DevOps release build artifact contents in native source enumeration.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--azure-devops-max-artifact-megabytes</code></td>

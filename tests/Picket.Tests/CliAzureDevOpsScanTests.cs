@@ -228,6 +228,50 @@ public sealed class CliAzureDevOpsScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can include classic Azure DevOps release artifacts.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsAzureDevOpsReleaseArtifactsWhenEnabled()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new AzureDevOpsFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-project",
+            "test",
+            "--azure-devops-release-id",
+            "88",
+            "--azure-devops-include-release-artifacts",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"azure-devops/test/picket/src/appsettings.txt\"", result.Stdout);
+        Assert.Contains("\"file\":\"azure-devops-release/test/88/artifacts/release-drop/release-drop.zip!release/artifact.txt\"", result.Stdout);
+        Assert.Contains("/_apis/release/releases/88?", server.RequestTargets);
+        Assert.Contains("/_apis/build/builds/99/artifacts?", server.RequestTargets);
+        Assert.Contains("Basic ", server.LastAuthorization);
+        Assert.DoesNotContain("test-pat-secret", result.Stdout);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that branch and pull request source scopes are mutually exclusive.
     /// </summary>
     [TestMethod]

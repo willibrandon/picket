@@ -1,0 +1,129 @@
+namespace Picket;
+
+internal static class CliOptionMetadata
+{
+    internal static string GetArgumentDescription(string command, string syntax)
+    {
+        string argument = syntax.Trim('<', '>');
+        return argument switch
+        {
+            "path" when command.Equals("picket dir", StringComparison.Ordinal) => "Directory path to scan.",
+            "path" => "Filesystem path to scan. Defaults to the current directory when omitted.",
+            "repo" => "Git repository to scan. Defaults to the current directory when omitted.",
+            "source" => "Source key or path used for cache and rule operations.",
+            "report" => "Report file to summarize or open.",
+            "rule-id" => "Rule identifier to test.",
+            "input" => "Literal sample text scanned by the selected rule.",
+            "pre-commit|pre-push|pre-receive|all" => "Hook to install. Defaults to pre-commit when omitted.",
+            _ => "Command argument.",
+        };
+    }
+
+    internal static string GetOptionDescription(string command, string option)
+    {
+        if (option.Equals("--offline / --live", StringComparison.Ordinal))
+        {
+            return "Choose local validation or opt-in live provider verification.";
+        }
+
+        string key = GetOptionKey(option);
+        return key switch
+        {
+            "--" => "End option parsing before literal input.",
+            "-b" => "Load a baseline report and suppress matching findings.",
+            "-c" => "Load a config file.",
+            "-f" => "Select report format.",
+            "-i" => "Load a Gitleaks ignore file.",
+            "-l" => "Set the log level.",
+            "-r" => "Write a report to this path.",
+            "-v" => "Enable verbose logging.",
+            "--allow-non-public-endpoints" => "Allow guarded live validation endpoints that are not public internet addresses.",
+            "--allow-insecure-source-endpoints" => "Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments.",
+            "--allow-non-public-source-endpoints" => "Allow source-host endpoints that resolve to private, loopback, link-local, or otherwise non-public addresses.",
+            "--azure-devops-branch" => "Scan this Azure Repos branch.",
+            "--azure-devops-build-id" => "Scan artifacts or logs from this Azure Pipelines build ID.",
+            "--azure-devops-endpoint" => "Use this Azure DevOps Server or organization endpoint for native source enumeration.",
+            "--azure-devops-include-artifacts" => "Include Azure Pipelines build artifact contents in native source enumeration.",
+            "--azure-devops-include-logs" => "Include Azure Pipelines build logs in native source enumeration.",
+            "--azure-devops-include-release-artifacts" => "Include classic Azure DevOps release build artifact contents in native source enumeration.",
+            "--azure-devops-include-wikis" => "Include Azure DevOps wiki backing repositories in native source enumeration.",
+            "--azure-devops-max-artifact-megabytes" => "Limit each Azure Pipelines artifact archive download in decimal megabytes; 0 disables the artifact-specific cap.",
+            "--azure-devops-max-log-megabytes" => "Limit each Azure Pipelines log download in decimal megabytes; 0 disables the log-specific cap.",
+            "--azure-devops-organization" => "Use this Azure DevOps Services organization for native source enumeration.",
+            "--azure-devops-project" => "Limit Azure DevOps source enumeration to this project.",
+            "--azure-devops-pull-request" => "Scan this Azure Repos pull request source head.",
+            "--azure-devops-release-id" => "Scan build artifacts referenced by this classic Azure DevOps release ID.",
+            "--azure-devops-repository" => "Limit Azure DevOps source enumeration to this repository.",
+            "--azure-devops-token-env" => "Read the Azure DevOps PAT or bearer token from this environment variable.",
+            "--azure-devops-token-kind" => "Choose PAT basic authentication or bearer-token authentication for Azure DevOps requests.",
+            "--cache-dir" => "Read or write scanner cache data in this directory.",
+            "--cache-mode" => "Choose whether scan cache entries store raw evidence or secret and match hashes only.",
+            "--command" => "Use this command path in generated hook scripts.",
+            "--diagnostics" => "Write structured diagnostics for the selected modes.",
+            "--diagnostics-dir" => "Write diagnostics artifacts to this directory.",
+            "--enable-rule" => "Enable an additional rule by ID.",
+            "--exit-code" => "Exit with this code when findings are present.",
+            "--follow-symlinks" => "Follow symlinks while scanning directories.",
+            "--force" => "Overwrite existing hook files.",
+            "--github-api-endpoint" => "Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.",
+            "--github-api-proxy" => "Use this HTTP or HTTPS proxy for live GitHub API requests.",
+            "--github-gist" => "Scan a single GitHub gist by ID.",
+            "--github-gists" => "Scan the authenticated user's GitHub gists.",
+            "--github-include-actions-artifacts" => "Include GitHub Actions artifact ZIP contents in native source enumeration.",
+            "--github-include-issues" => "Include GitHub issue bodies and comments in native source enumeration.",
+            "--github-include-releases" => "Include GitHub release bodies and release assets in native source enumeration.",
+            "--github-issue-state" => "Filter GitHub issues by state.",
+            "--github-organization" => "Scan repositories visible in this GitHub organization through native source enumeration.",
+            "--github-pull-request" => "Scan this GitHub pull request head.",
+            "--github-ref" => "Scan this GitHub branch, tag, or commit.",
+            "--github-repository" => "Scan this GitHub repository through native source enumeration.",
+            "--github-repository-type" => "Filter organization or user repository listings by GitHub type.",
+            "--github-source-api-endpoint" => "Use this GitHub API endpoint for native source enumeration.",
+            "--github-token-env" => "Read the GitHub source enumeration token from this environment variable.",
+            "--github-user" => "Scan public repositories for this GitHub user through native source enumeration.",
+            "--github-user-gists" => "Scan public GitHub gists for this user.",
+            "--ignore-gitleaks-allow" => "Do not honor gitleaks:allow comments.",
+            "--ignore-path" => "Load additional ignore patterns from this file.",
+            "--input" => "Read a portable cache archive from this path.",
+            "--live-provider-rate-limit-ms" => "Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.",
+            "--live-rate-limit-ms" => "Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.",
+            "--live-tls-mode" => "Choose the TLS policy for live provider requests.",
+            "--log-opts" => "Pass git log options for compatibility scans.",
+            "--max-archive-depth" => "Limit nested archive traversal depth.",
+            "--max-archive-entries" => "Limit files extracted from each archive.",
+            "--max-archive-megabytes" => "Limit uncompressed archive size.",
+            "--max-archive-ratio" => "Limit archive expansion ratio.",
+            "--max-decode-depth" => "Limit recursive decoding passes.",
+            "--max-target-megabytes" => "Skip files larger than this size.",
+            "--no-banner" => "Suppress the startup banner.",
+            "--no-color" => "Disable colored console output.",
+            "--no-ignore" => "Do not apply ignore files.",
+            "--older-than-days" => "Prune cache entries older than this age.",
+            "--only-verified" => "Keep structurally-valid offline findings and active live-verification findings.",
+            "--open" => "Open an HTML report in the default browser.",
+            "--other-keys" => "Prune cache entries for config or source keys other than the selected key.",
+            "--output" => "Write a portable cache archive to this path.",
+            "--path" => "Set the synthetic path used for sample input.",
+            "--platform" => "Set compatibility platform metadata.",
+            "--pre-commit" => "Scan the pre-commit diff range.",
+            "--print-config" => "Print the resolved config.",
+            "--profile" => "Use the named rule/profile mode.",
+            "--redact" => "Redact secret text in reports. The optional value is 0 through 100.",
+            "--repo" => "Install hook scripts into this repository.",
+            "--report-template" => "Render template reports with this template file.",
+            "--results" => "Keep findings with the selected validation result states.",
+            "--source" => "Override the source label stored in findings and fingerprints.",
+            "--staged" => "Scan staged changes.",
+            "--timeout" => "Stop scanning after this many seconds. Use 0 to disable.",
+            "--verify" => "Run opt-in live provider verification for supported findings.",
+            _ => command.Length == 0 ? "Command option." : "Command-specific option.",
+        };
+    }
+
+    private static string GetOptionKey(string option)
+    {
+        string key = option.Split(" / ", StringSplitOptions.None)[0];
+        int valueSeparator = key.IndexOf(' ', StringComparison.Ordinal);
+        return valueSeparator > 0 ? key[..valueSeparator] : key;
+    }
+}

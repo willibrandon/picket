@@ -445,10 +445,90 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
-    /// Verifies that build artifacts and logs require an explicit project and build ID.
+    /// Verifies that classic Azure DevOps release artifacts are scanned only when explicitly enabled.
     /// </summary>
     [TestMethod]
-    public void AzureDevOpsSourceOptionsRejectsBuildSourcesWithoutBuildScope()
+    public async Task EnumerateRepositoryFilesReadsClassicReleaseArtifactsWhenEnabled()
+    {
+        const string Token = "azdo-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[]}""");
+            }
+
+            if (url.Contains("/_apis/release/releases/88?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "id": 88,
+                      "artifacts": [
+                        {
+                          "alias": "drop",
+                          "type": "Build",
+                          "definitionReference": {
+                            "version": { "id": "99" },
+                            "project": { "name": "Project One" }
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("artifactName=release-drop", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("release/artifact.txt", "release-token-12345"));
+            }
+
+            if (url.Contains("/_apis/build/builds/99/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "name": "release-drop",
+                          "resource": {
+                            "downloadUrl": "https://dev.azure.com/picket/Project%20One/_apis/build/builds/99/artifacts?artifactName=release-drop&api-version=7.1"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            releaseId: 88,
+            includeReleaseArtifacts: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("azure-devops-release/Project%20One/88/artifacts/drop/release-drop.zip!release/artifact.txt", files[0].DisplayPath);
+        Assert.AreEqual("release-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("https://vsrm.dev.azure.com/picket/Project One/_apis/release/releases/88?", requests);
+        Assert.Contains("https://dev.azure.com/picket/Project One/_apis/build/builds/99/artifacts?", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that build artifacts, logs, and release artifacts require explicit source scope.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsSourceOptionsRejectsRemoteArtifactsWithoutRequiredScope()
     {
         Assert.ThrowsExactly<ArgumentException>(() => new AzureDevOpsSourceOptions(
             AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
@@ -460,6 +540,16 @@ public sealed class AzureDevOpsSourceClientTests
             "token",
             project: "Project One",
             includeLogs: true));
+        Assert.ThrowsExactly<ArgumentException>(() => new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "token",
+            releaseId: 88,
+            includeReleaseArtifacts: true));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "token",
+            project: "Project One",
+            includeReleaseArtifacts: true));
     }
 
     /// <summary>

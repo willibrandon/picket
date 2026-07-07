@@ -6,6 +6,7 @@
     <RootNamespace>Picket.Docs</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\..\src\Picket.Cli\CliOptionMetadata.cs" Link="CliOptionMetadata.cs" />
     <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />
   </ItemGroup>
 </Project>

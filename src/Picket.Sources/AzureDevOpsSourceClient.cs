@@ -98,6 +98,11 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             await AddBuildFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
         }
 
+        if (options.IncludeReleaseArtifacts && !IsCancellationRequested(options))
+        {
+            await AddReleaseArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
         return sourceFiles;
     }
 
@@ -318,12 +323,23 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
 
         string displayPath = CreateBuildArtifactDisplayPath(options, artifactName);
+        await AddArtifactContentAsync(options, artifact, displayPath, "artifact", sourceFiles, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task AddArtifactContentAsync(
+        AzureDevOpsSourceOptions options,
+        JsonElement artifact,
+        string displayPath,
+        string limitName,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
         if (!artifact.TryGetProperty("resource", out JsonElement resource)
             || resource.ValueKind != JsonValueKind.Object
             || !TryGetJsonString(resource, "downloadUrl", out string downloadUrl)
             || !Uri.TryCreate(downloadUrl, UriKind.Absolute, out Uri? downloadUri))
         {
-            options.WarningSink?.Invoke($"skipping Azure DevOps build artifact {displayPath} because the artifact API did not return a download URL");
+            options.WarningSink?.Invoke($"skipping Azure DevOps {limitName} {displayPath} because the artifact API did not return a download URL");
             return;
         }
 
@@ -332,7 +348,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             downloadUri,
             displayPath,
             options.MaxArtifactBytes,
-            "artifact",
+            limitName,
             cancellationToken).ConfigureAwait(false);
         if (content is null)
         {
@@ -370,6 +386,98 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             }
 
             await AddBuildLogFileAsync(options, log, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddReleaseArtifactFilesAsync(
+        AzureDevOpsSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreateReleaseUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(
+                options,
+                response,
+                $"skipping Azure DevOps release artifacts for release {options.ReleaseId.ToString(CultureInfo.InvariantCulture)}");
+            return;
+        }
+
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!document.RootElement.TryGetProperty("artifacts", out JsonElement artifacts)
+            || artifacts.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement artifact in artifacts.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            await AddReleaseArtifactFileAsync(options, artifact, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddReleaseArtifactFileAsync(
+        AzureDevOpsSourceOptions options,
+        JsonElement releaseArtifact,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string alias = GetString(releaseArtifact, "alias");
+        if (alias.Length == 0)
+        {
+            alias = "artifact";
+        }
+
+        string artifactType = GetString(releaseArtifact, "type");
+        if (!artifactType.Equals("Build", StringComparison.OrdinalIgnoreCase))
+        {
+            options.WarningSink?.Invoke($"skipping Azure DevOps release artifact {alias} because artifact type {artifactType} is not supported");
+            return;
+        }
+
+        if (!TryGetReleaseArtifactBuildId(releaseArtifact, out int buildId))
+        {
+            options.WarningSink?.Invoke($"skipping Azure DevOps release artifact {alias} because it did not include a build version ID");
+            return;
+        }
+
+        string projectName = GetReleaseArtifactProjectName(options, releaseArtifact);
+        Uri uri = CreateBuildArtifactListUri(options, projectName, buildId);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(
+                options,
+                response,
+                $"skipping Azure DevOps release artifact {alias} for release {options.ReleaseId.ToString(CultureInfo.InvariantCulture)}");
+            return;
+        }
+
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!TryGetJsonArray(document.RootElement, out JsonElement artifacts))
+        {
+            return;
+        }
+
+        foreach (JsonElement buildArtifact in artifacts.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string buildArtifactName = GetArtifactName(buildArtifact);
+            string displayPath = CreateReleaseArtifactDisplayPath(options, alias, buildArtifactName);
+            await AddArtifactContentAsync(options, buildArtifact, displayPath, "release artifact", sourceFiles, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -965,9 +1073,22 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 
     private static Uri CreateBuildArtifactListUri(AzureDevOpsSourceOptions options)
     {
+        return CreateBuildArtifactListUri(options, options.Project, options.BuildId);
+    }
+
+    private static Uri CreateBuildArtifactListUri(AzureDevOpsSourceOptions options, string projectName, int buildId)
+    {
         return CreateUri(
             options.Endpoint,
-            [options.Project, "_apis", "build", "builds", options.BuildId.ToString(CultureInfo.InvariantCulture), "artifacts"],
+            [projectName, "_apis", "build", "builds", buildId.ToString(CultureInfo.InvariantCulture), "artifacts"],
+            CreateApiQuery(continuationToken: string.Empty));
+    }
+
+    private static Uri CreateReleaseUri(AzureDevOpsSourceOptions options)
+    {
+        return CreateUri(
+            options.ReleaseEndpoint,
+            [options.Project, "_apis", "release", "releases", options.ReleaseId.ToString(CultureInfo.InvariantCulture)],
             CreateApiQuery(continuationToken: string.Empty));
     }
 
@@ -1197,6 +1318,49 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             && property.TryGetInt32(out propertyValue);
     }
 
+    private static bool TryGetReleaseArtifactBuildId(JsonElement artifact, out int buildId)
+    {
+        buildId = 0;
+        if (!artifact.TryGetProperty("definitionReference", out JsonElement definitionReference)
+            || definitionReference.ValueKind != JsonValueKind.Object
+            || !definitionReference.TryGetProperty("version", out JsonElement version)
+            || version.ValueKind != JsonValueKind.Object
+            || !TryGetJsonString(version, "id", out string value))
+        {
+            return false;
+        }
+
+        return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out buildId)
+            && buildId > 0;
+    }
+
+    private static string GetReleaseArtifactProjectName(AzureDevOpsSourceOptions options, JsonElement artifact)
+    {
+        if (artifact.TryGetProperty("definitionReference", out JsonElement definitionReference)
+            && definitionReference.ValueKind == JsonValueKind.Object
+            && definitionReference.TryGetProperty("project", out JsonElement project)
+            && project.ValueKind == JsonValueKind.Object
+            && TryGetJsonString(project, "name", out string projectName))
+        {
+            return projectName;
+        }
+
+        return options.Project;
+    }
+
+    private static string GetArtifactName(JsonElement artifact)
+    {
+        string artifactName = GetString(artifact, "name");
+        if (artifactName.Length != 0)
+        {
+            return artifactName;
+        }
+
+        return TryGetJsonInt32(artifact, "id", out int artifactId)
+            ? artifactId.ToString(CultureInfo.InvariantCulture)
+            : "artifact";
+    }
+
     private static string GetFirstWikiVersion(JsonElement wiki)
     {
         if (!wiki.TryGetProperty("versions", out JsonElement versions)
@@ -1262,6 +1426,23 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             options.BuildId.ToString(CultureInfo.InvariantCulture),
             "/artifacts/",
             EscapeDisplaySegment(artifactName),
+            ".zip");
+    }
+
+    private static string CreateReleaseArtifactDisplayPath(
+        AzureDevOpsSourceOptions options,
+        string releaseArtifactAlias,
+        string buildArtifactName)
+    {
+        return string.Concat(
+            "azure-devops-release/",
+            EscapeDisplaySegment(options.Project),
+            "/",
+            options.ReleaseId.ToString(CultureInfo.InvariantCulture),
+            "/artifacts/",
+            EscapeDisplaySegment(releaseArtifactAlias),
+            "/",
+            EscapeDisplaySegment(buildArtifactName),
             ".zip");
     }
 

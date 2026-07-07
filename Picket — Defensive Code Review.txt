@@ -1,0 +1,45 @@
+Picket Defensive Code Review Tracker
+Last updated: 2026-07-07
+
+Status key:
+Resolved - code and regression coverage are present.
+Accepted compatibility - behavior is intentionally preserved for strict Gitleaks compatibility; native behavior is hardened where applicable.
+Open - still needs code, tests, or a product decision.
+
+High
+H1 Resolved - decoded finding redaction no longer leaves the encoded source line recoverable. Covered by GitleaksFindingRedactorTests.RedactMasksEncodedLineForDecodedFindings.
+H2 Resolved - archive reading now enforces actual decompressed bytes, compression ratio, and declared-size mismatch checks instead of trusting archive metadata. Covered by DirectorySourceTests.EnumerateRejectsZipEntryWithUnderstatedUncompressedSize and compression-ratio tests.
+H3 Resolved - source position mapping uses a line index instead of rescanning from offset zero for every finding, and scanning supports cancellation inside match loops. Covered by SecretScannerTests.ScanManyFindingsKeepsSourcePositionsResponsive and cancellation tests.
+
+Medium
+M1 Resolved - live verification uses guarded connect-time address checks so DNS rebinding cannot pass the preflight guard and then connect to a non-public address. Covered by SecretLiveVerifierTests and GitHubSecretLiveValidatorTests connect-time non-public tests.
+M2 Resolved - scan cache defaults to SecretHashOnly, authenticates entries, and creates owner-only cache files on Unix-like systems. Covered by PicketScanCacheTests and CliCompatibilityTests.NativeScanCacheDefaultsToSecretHashOnlyMode.
+M3 Resolved for native reports; accepted compatibility for Gitleaks CSV - native CSV neutralizes spreadsheet formula prefixes. The Gitleaks-shaped writer intentionally preserves compatibility output. Covered by PicketCsvReportWriterTests.WriteNeutralizesFormulaPrefixes.
+M4 Resolved for native reports; accepted compatibility for Gitleaks redaction rounding - native redaction requires non-zero percentages to mask at least one character and hashes redacted evidence. Gitleaks-compatible reports keep Gitleaks rounding. Covered by GitleaksFindingRedactorTests.
+M5 Resolved - live GitHub proxy endpoints are guarded before use and unsafe proxy endpoints are rejected. Covered by CliCompatibilityTests.NativeScanVerifyBlocksUnsafeProviderProxy.
+M6 Resolved - unsafe git log option injection is rejected before invoking git. Covered by GitSourceTests.EnumerateRejectsUnsafeLogOptionsWithoutCreatingOutput.
+M7 Resolved - nested gzip layers consume archive depth and stop at configured depth. Covered by DirectorySourceTests.EnumerateHonorsNestedGzipArchiveDepth.
+M8 Resolved - remote GitHub and Azure DevOps downloads have default byte ceilings even when the caller does not set MaxFileBytes. Covered by GitHubSourceClientTests and AzureDevOpsSourceClientTests default-limit coverage.
+M9 Resolved - endpoint guarding treats IPv4-compatible, NAT64, and 6to4 IPv6 addresses with embedded non-public IPv4 addresses as non-public. Covered by EndpointGuardTests.
+M10 Resolved - scan cache entries are authenticated, tampered entries are rejected, and cache import is bounded and path-confined. Covered by PicketScanCacheTests.TryReadRejectsTamperedEntry and import hardening tests.
+
+Low
+L1 Resolved - compatibility diagnostics HTTP server uses guarded loopback access with per-run protection rather than an unauthenticated fixed public surface. Covered by CLI diagnostics tests.
+L2 Resolved - view --open rejects unsafe report extensions before shell opening. Covered by CliCompatibilityTests.ViewOpenRejectsUnsafeReportExtension.
+L3 Resolved - JUnit writers replace invalid XML control characters. Covered by GitleaksJunitReportWriterTests and PicketJunitReportWriterTests.
+L4 Resolved - malformed negative report positions are handled as invalid report data instead of leaking ArgumentOutOfRangeException. Covered by ReportSummaryReaderTests.
+L5 Resolved - followed symlink files are constrained to the scan root. Covered by DirectorySourceTests.EnumerateDoesNotFollowSymlinkFilesOutsideRoot.
+L6 Resolved for native reports; accepted compatibility for Gitleaks reports - native redaction hashes redacted evidence. Compatibility reports preserve Gitleaks-shaped fields where required.
+L7 Resolved - remote source clients reject responses that indicate an injected handler or caller followed a redirect before the client could enforce credential-safe redirect handling. Covered by GitHubSourceClientTests and AzureDevOpsSourceClientTests.
+L8 Resolved - Azure DevOps source options reject credentials over HTTP unless insecure source endpoints are explicitly allowed. Covered by CLI Azure DevOps endpoint tests.
+L9 Resolved - GitHub and Azure DevOps pagination loops have safety limits and warnings. Covered by GitHubSourceClientTests.EnumerateOrganizationRepositoryFilesStopsAtPaginationLimit and AzureDevOpsSourceClientTests.EnumerateRepositoryFilesStopsAtContinuationLimit.
+L10 Resolved - local config extend paths are depth-limited and cycle-checked. Covered by GitleaksConfigLoaderTests.
+L11 Resolved - .gitleaksignore fingerprint parsing handles Windows drive-letter colons. Covered by GitleaksIgnoreTests.FromLinesParsesWindowsDriveLetterFingerprints.
+L12 Accepted compatibility - Gitleaks-compatible fingerprints remain Gitleaks-shaped. Native stable fingerprints use the native metadata model and symlink-aware paths.
+L13 Resolved - remote item display paths are normalized so traversal-like segments are not emitted as raw presentation paths. Covered by GitHubSourceClientTests and AzureDevOpsSourceClientTests path-normalization coverage.
+L14 Resolved - scan cache write lock contention is treated as a non-fatal cache miss/write skip. Covered by PicketScanCacheTests lock-contention coverage.
+L15 Resolved - cache import enforces per-entry decompressed-size limits and rejects traversal entries. Covered by PicketScanCacheTests.ImportRejectsEntriesAboveConfiguredDecompressedSize and traversal import tests.
+L16 Resolved - validation-cache pruning removes expired stale-fingerprint entries. Covered by SecretValidationCacheTests.PruneExpiredDeletesStaleFingerprintEntries.
+
+Remaining from this review:
+No open high, medium, or low findings remain from the 2026-07-06 defensive review. The remaining non-resolved notes are compatibility acceptances for strict Gitleaks output behavior, with hardened native behavior where Picket controls the contract.

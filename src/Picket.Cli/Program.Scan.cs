@@ -24,6 +24,7 @@ internal static partial class Program
         string azureDevOpsRepository = string.Empty;
         int azureDevOpsBuildId = 0;
         int azureDevOpsPullRequestId = 0;
+        int azureDevOpsReleaseId = 0;
         long? azureDevOpsMaxArtifactBytes = null;
         long? azureDevOpsMaxLogBytes = null;
         Uri? githubSourceApiEndpoint = null;
@@ -46,6 +47,7 @@ internal static partial class Program
         bool allowNonPublicSourceEndpoints = false;
         bool azureDevOpsIncludeArtifacts = false;
         bool azureDevOpsIncludeLogs = false;
+        bool azureDevOpsIncludeReleaseArtifacts = false;
         bool azureDevOpsIncludeWikis = false;
         bool azureDevOpsOptionSpecified = false;
         bool githubApiEndpointSpecified = false;
@@ -423,6 +425,32 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsAzureDevOpsReleaseIdFlag(arg))
+            {
+                if (!TryReadPositiveAzureDevOpsReleaseIdFlag(args, ref i, out azureDevOpsReleaseId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureDevOpsIncludeReleaseArtifactsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--azure-devops-include-release-artifacts", out azureDevOpsIncludeReleaseArtifacts))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (azureDevOpsIncludeReleaseArtifacts)
+                {
+                    azureDevOpsOptionSpecified = true;
+                }
+
+                continue;
+            }
+
             if (IsAzureDevOpsMaxArtifactMegabytesFlag(arg))
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-artifact-megabytes", out azureDevOpsMaxArtifactBytes))
@@ -592,6 +620,8 @@ internal static partial class Program
                 azureDevOpsBuildId,
                 azureDevOpsIncludeArtifacts,
                 azureDevOpsIncludeLogs,
+                azureDevOpsReleaseId,
+                azureDevOpsIncludeReleaseArtifacts,
                 azureDevOpsMaxArtifactBytes,
                 azureDevOpsMaxLogBytes,
                 allowNonPublicSourceEndpoints,

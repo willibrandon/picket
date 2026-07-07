@@ -197,7 +197,8 @@ Native GitHub repository, pull request, issue, issue comment, release, release a
 
 ## Azure DevOps Source References
 
-Native Azure DevOps repository and wiki source enumeration is based on
+Native Azure DevOps repository, wiki, build artifact, build log, and release
+artifact source enumeration is based on
 Microsoft Learn REST API documentation reviewed on 2026-07-07:
 
 - Azure DevOps repositories list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list?view=azure-devops-rest-7.1`
@@ -207,6 +208,7 @@ Microsoft Learn REST API documentation reviewed on 2026-07-07:
 - Azure DevOps build artifact file REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/artifacts/get-file?view=azure-devops-rest-7.1`
 - Azure DevOps build logs list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-logs?view=azure-devops-rest-7.1`
 - Azure DevOps build log REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-log?view=azure-devops-rest-7.1`
+- Azure DevOps release get REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/release/releases/get-release?view=azure-devops-rest-7.1`
 
 ## GitHub Secret Scanning Oracle
 
