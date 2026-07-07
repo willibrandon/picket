@@ -58,7 +58,7 @@ Use the narrowest repository selection possible. Organization scans require acce
 
 ## Hosted Alert Oracle
 
-GitHub Secret Protection secret scanning is proprietary hosted behavior, so Picket treats it as an alert oracle rather than an implementation reference. `scripts/Capture-GitHubSecretScanningOracle.ps1` captures sanitized alert metadata through `gh api`; it does not write raw secret values. `scripts/Compare-GitHubSecretScanningOracle.ps1` compares a native Picket JSONL report to the sanitized alert metadata by mapped alert type and location.
+GitHub Secret Protection secret scanning is proprietary hosted behavior, so Picket treats it as an alert oracle rather than an implementation reference. `scripts/Capture-GitHubSecretScanningOracle.cs` captures sanitized alert metadata through `gh api`; it does not write raw secret values. `scripts/Compare-GitHubSecretScanningOracle.cs` compares a native Picket JSONL report to the sanitized alert metadata by mapped alert type and location.
 
 The manual `Live GitHub Secret Scanning Oracle` workflow uses `PICKET_GITHUB_SECRET_SCANNING_PAT` to capture alerts for `willibrandon/picket` by default, optionally compares them to a redacted native git-history scan of the checkout, and uploads sanitized artifacts.
 

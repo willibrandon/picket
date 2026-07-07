@@ -41,13 +41,49 @@ clone next to this repository.
 Refresh the table from local clones with:
 
 ```powershell
-pwsh ./scripts/Capture-UpstreamPins.ps1 -Update
+dotnet run --file ./scripts/Capture-UpstreamPins.cs -- -Update
 ```
 
 Print the captured table without editing docs with:
 
 ```powershell
-pwsh ./scripts/Capture-UpstreamPins.ps1
+dotnet run --file ./scripts/Capture-UpstreamPins.cs --
+```
+
+## File-Based Utility Apps
+
+The oracle utilities under `scripts/` are .NET file-based apps. They are kept
+outside project directories and have a local `scripts/Directory.Build.props` so
+utility settings are isolated from package metadata used by shipped projects.
+
+Run one-off commands with `dotnet run --file` and put script arguments after
+`--`:
+
+```powershell
+dotnet run --file ./scripts/Capture-UpstreamPins.cs -- -AllowMissing
+```
+
+For CI, repeated runs, or parallel work, build first and run without rebuilding:
+
+```powershell
+dotnet build ./scripts/Capture-UpstreamPins.cs --nologo --verbosity quiet
+dotnet run --file ./scripts/Capture-UpstreamPins.cs --no-build -- -AllowMissing
+```
+
+If the SDK cache gets stale or contested, use `dotnet clean file-based-apps`.
+To force one app to rebuild, use `dotnet clean ./scripts/<app>.cs` followed by
+`dotnet build ./scripts/<app>.cs`.
+
+Repository convention tests build every executable utility app and run fake-input
+coverage for the GitHub hosted-alert capture and comparison utilities.
+
+The executable utility files use the documented Unix shebang form
+`#!/usr/bin/env -S dotnet --`, and repository line endings are LF through
+`.gitattributes`. On Unix-like systems, direct execution passes arguments
+without an extra separator:
+
+```bash
+./scripts/Capture-UpstreamPins.cs -AllowMissing
 ```
 
 ## Gitleaks Compatibility
@@ -77,9 +113,9 @@ gitleaks stdin --config <config> --report-format json --report-path <out>
 Capture pinned Gitleaks oracle outputs with:
 
 ```powershell
-pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode dir -Source <fixture-path> -Config <config> -ReportFormat json,sarif
-pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode git -Source <repo> -Config <config> -ReportFormat json
-pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode stdin -StdinPath <input-file> -Config <config> -ReportFormat json
+dotnet run --file ./scripts/Capture-GitleaksOracle.cs -- -Mode dir -Source <fixture-path> -Config <config> -ReportFormat json,sarif
+dotnet run --file ./scripts/Capture-GitleaksOracle.cs -- -Mode git -Source <repo> -Config <config> -ReportFormat json
+dotnet run --file ./scripts/Capture-GitleaksOracle.cs -- -Mode stdin -StdinPath <input-file> -Config <config> -ReportFormat json
 ```
 
 For directory fixtures where report paths must stay relative, run from an
@@ -87,7 +123,7 @@ explicit fixture working directory and pass the same relative command arguments
 that Gitleaks should see:
 
 ```powershell
-pwsh ./scripts/Capture-GitleaksOracle.ps1 -Mode dir -WorkingDirectory <fixture-root> -Source . -Config .gitleaks.toml -ReportFormat json
+dotnet run --file ./scripts/Capture-GitleaksOracle.cs -- -Mode dir -WorkingDirectory <fixture-root> -Source . -Config .gitleaks.toml -ReportFormat json
 ```
 
 The script resolves the executable from `-GitleaksPath`, `PICKET_GITLEAKS_BIN`,
@@ -102,8 +138,8 @@ reviewed them for use as committed golden files.
 Capture a side-by-side Gitleaks/Picket compatibility bundle with:
 
 ```powershell
-pwsh ./scripts/Capture-CompatibilityOracle.ps1 -Mode dir -Source <fixture-path> -Config <config> -ReportFormat json,sarif
-pwsh ./scripts/Capture-CompatibilityOracle.ps1 -Mode dir -WorkingDirectory <fixture-root> -Source . -Config .gitleaks.toml -ReportFormat json
+dotnet run --file ./scripts/Capture-CompatibilityOracle.cs -- -Mode dir -Source <fixture-path> -Config <config> -ReportFormat json,sarif
+dotnet run --file ./scripts/Capture-CompatibilityOracle.cs -- -Mode dir -WorkingDirectory <fixture-root> -Source . -Config .gitleaks.toml -ReportFormat json
 ```
 
 The wrapper writes `gitleaks/`, `picket/`, and `comparison.json` under
@@ -115,7 +151,7 @@ Promote a reviewed compatibility bundle into source-controlled golden fixtures
 with:
 
 ```powershell
-pwsh ./scripts/Promote-CompatibilityOracle.ps1 -Name <case-name> -RedactionMapPath <redactions.json>
+dotnet run --file ./scripts/Promote-CompatibilityOracle.cs -- -Name <case-name> -RedactionMapPath <redactions.json>
 ```
 
 The promotion step writes normalized files under `tests/fixtures/oracles` and a
@@ -175,7 +211,7 @@ patterns and alert scope in its public docs:
 Capture sanitized GitHub alert metadata with:
 
 ```powershell
-pwsh ./scripts/Capture-GitHubSecretScanningOracle.ps1 -Repository owner/name -State open -IncludeLocations
+dotnet run --file ./scripts/Capture-GitHubSecretScanningOracle.cs -- -Repository owner/name -State open -IncludeLocations
 ```
 
 The script uses `gh api` and writes
@@ -201,7 +237,7 @@ useful, but it is not evidence for hosted historical alert parity.
 Compare the hosted-alert oracle with:
 
 ```powershell
-pwsh ./scripts/Compare-GitHubSecretScanningOracle.ps1 `
+dotnet run --file ./scripts/Compare-GitHubSecretScanningOracle.cs -- `
   -OraclePath artifacts/oracles/github-secret-scanning/alerts.json `
   -PicketReportPath artifacts/oracles/github-secret-scanning/picket-git.jsonl `
   -OutputPath artifacts/oracles/github-secret-scanning/comparison.json
