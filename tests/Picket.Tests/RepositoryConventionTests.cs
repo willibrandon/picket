@@ -876,8 +876,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("offline:aws-access-key-pair", validationAnalyze);
         Assert.Contains("live:github-rest-user-v1", validationAnalyze);
         Assert.Contains("revocation:github-credentials-api", validationAnalyze);
-        Assert.Contains("class=\"reference-card-list\"", validationAnalyze);
-        Assert.Contains("class=\"reference-card-wide\"", validationAnalyze);
+        Assert.Contains("class=\"reference-summary-list\"", validationAnalyze);
+        Assert.Contains("class=\"reference-summary-detail\"", validationAnalyze);
         Assert.Contains("## Analyze Risk Mapping", validationAnalyze);
         Assert.Contains("| `active` | `critical` | `unknown-live`", validationAnalyze);
         Assert.Contains("| `invalid` | `low` | `unknown-offline`", validationAnalyze);
