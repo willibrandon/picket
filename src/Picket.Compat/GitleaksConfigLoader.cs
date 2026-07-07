@@ -53,6 +53,15 @@ public static class GitleaksConfigLoader
     }
 
     /// <summary>
+    /// Loads the embedded Gitleaks-compatible default rule set without reading environment variables or target-local configuration files.
+    /// </summary>
+    /// <returns>The embedded Gitleaks-compatible default rule set.</returns>
+    public static RuleSet LoadDefaultRuleSet()
+    {
+        return s_defaultRuleSet.Value;
+    }
+
+    /// <summary>
     /// Loads rules from a Gitleaks TOML file.
     /// </summary>
     /// <param name="path">The TOML file path.</param>

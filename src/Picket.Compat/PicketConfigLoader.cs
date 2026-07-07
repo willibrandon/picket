@@ -63,6 +63,15 @@ public static class PicketConfigLoader
         return s_defaultRuleSet.Value;
     }
 
+    /// <summary>
+    /// Loads the embedded Picket-native default rule set without reading environment variables or target-local configuration files.
+    /// </summary>
+    /// <returns>The embedded Picket-native default rule set.</returns>
+    public static RuleSet LoadDefaultRuleSet()
+    {
+        return s_defaultRuleSet.Value;
+    }
+
     private static RuleSet LoadEmbeddedDefaultRuleSet()
     {
         RuleSet ruleSet = GitleaksConfigLoader.FromToml(

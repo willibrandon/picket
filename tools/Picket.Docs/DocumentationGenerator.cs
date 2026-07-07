@@ -65,6 +65,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         GenerateCliReference(referenceRoot);
         GenerateActionReference(referenceRoot);
         GenerateAzureDevOpsTaskReference(referenceRoot);
+        GenerateRuleCatalogReference(referenceRoot);
         GenerateConfigSchemaReference(referenceRoot);
         GenerateReportSchemaReference(referenceRoot);
         GenerateApiReference(apiRoot);

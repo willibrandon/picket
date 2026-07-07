@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\src\Picket.Cli\CliOptionMetadata.cs" Link="CliOptionMetadata.cs" />
+    <ProjectReference Include="..\..\src\Picket.Compat\Picket.Compat.csproj" />
     <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />
   </ItemGroup>
 </Project>

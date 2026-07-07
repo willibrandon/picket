@@ -763,6 +763,7 @@ public sealed partial class RepositoryConventionTests
         string cliReference = ReadRepositoryFile("docs-site/src/content/docs/reference/cli.md");
         string configSchema = ReadRepositoryFile("docs-site/src/content/docs/reference/config-schema.md");
         string reportSchemas = ReadRepositoryFile("docs-site/src/content/docs/reference/report-schemas.md");
+        string ruleCatalog = ReadRepositoryFile("docs-site/src/content/docs/reference/rule-catalog.md");
         string rulesApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-rules.md");
         string engineApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-engine.md");
         string reportApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-report.md");
@@ -804,6 +805,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secretGroup", configSchema);
         Assert.Contains("examples", configSchema);
         Assert.Contains("negativeExamples", configSchema);
+        Assert.Contains("validation", configSchema);
+        Assert.Contains("revocation", configSchema);
+        Assert.Contains("deprecated", configSchema);
         Assert.Contains("[[allowlists]]", configSchema);
         Assert.Contains("targetRules", configSchema);
         Assert.Contains("regexTarget", configSchema);
@@ -820,6 +824,17 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Gitleaks-compatible SARIF result object", reportSchemas);
         Assert.Contains("secretSha256", reportSchemas);
         Assert.Contains("RuleID", reportSchemas);
+        Assert.Contains("Rule Catalog", ruleCatalog);
+        Assert.Contains("Gitleaks-compatible default", ruleCatalog);
+        Assert.Contains("Picket-native additions", ruleCatalog);
+        Assert.Contains("picket-aws-access-key-pair", ruleCatalog);
+        Assert.Contains("picket-github-fine-grained-personal-access-token", ruleCatalog);
+        Assert.Contains("offline:aws-access-key-pair", ruleCatalog);
+        Assert.Contains("live:github-rest-user-v1", ruleCatalog);
+        Assert.Contains("revocation:github-credentials-api", ruleCatalog);
+        Assert.Contains("Gitleaks-Compatible Rules", ruleCatalog);
+        Assert.Contains("aws-access-token", ruleCatalog);
+        Assert.DoesNotContain("EXAMPLEEXAMPLE", ruleCatalog);
         Assert.Contains("Picket.Rules API", rulesApi);
         Assert.Contains("SecretRule", rulesApi);
         Assert.Contains("Picket.Engine API", engineApi);

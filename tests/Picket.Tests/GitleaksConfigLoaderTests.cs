@@ -311,6 +311,53 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that deterministic default rule loading bypasses environment configuration.
+    /// </summary>
+    [TestMethod]
+    public void LoadDefaultRuleSetBypassesEnvironmentConfiguration()
+    {
+        string root = CreateTempDirectory();
+        string gitleaksConfigPath = Path.Combine(root, "gitleaks.toml");
+        string picketConfigPath = Path.Combine(root, "picket.toml");
+        string? previousPicketConfigPath = Environment.GetEnvironmentVariable("PICKET_CONFIG");
+        string? previousPicketConfigToml = Environment.GetEnvironmentVariable("PICKET_CONFIG_TOML");
+        string? previousGitleaksConfigPath = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG");
+        string? previousGitleaksConfigToml = Environment.GetEnvironmentVariable("GITLEAKS_CONFIG_TOML");
+        try
+        {
+            File.WriteAllText(gitleaksConfigPath, CreateRuleConfig("environment-gitleaks-rule", "environment-gitleaks-[0-9]+"));
+            File.WriteAllText(picketConfigPath, CreateRuleConfig("environment-picket-rule", "environment-picket-[0-9]+"));
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", picketConfigPath);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", CreateRuleConfig("environment-picket-inline-rule", "environment-picket-inline-[0-9]+"));
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", gitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", CreateRuleConfig("environment-gitleaks-inline-rule", "environment-gitleaks-inline-[0-9]+"));
+
+            RuleSet gitleaksDefault = GitleaksConfigLoader.LoadDefaultRuleSet();
+            RuleSet picketDefault = PicketConfigLoader.LoadDefaultRuleSet();
+            List<string> gitleaksRuleIds = [.. gitleaksDefault.Rules.Select(rule => rule.Id)];
+            List<string> picketRuleIds = [.. picketDefault.Rules.Select(rule => rule.Id)];
+
+            Assert.HasCount(222, gitleaksDefault.Rules);
+            Assert.HasCount(227, picketDefault.Rules);
+            Assert.Contains("aws-access-token", gitleaksRuleIds);
+            Assert.Contains("aws-access-token", picketRuleIds);
+            Assert.Contains("picket-google-api-key", picketRuleIds);
+            Assert.DoesNotContain("environment-gitleaks-rule", gitleaksRuleIds);
+            Assert.DoesNotContain("environment-gitleaks-inline-rule", gitleaksRuleIds);
+            Assert.DoesNotContain("environment-picket-rule", picketRuleIds);
+            Assert.DoesNotContain("environment-picket-inline-rule", picketRuleIds);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PICKET_CONFIG", previousPicketConfigPath);
+            Environment.SetEnvironmentVariable("PICKET_CONFIG_TOML", previousPicketConfigToml);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG", previousGitleaksConfigPath);
+            Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", previousGitleaksConfigToml);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that strict compatibility config loading ignores Picket-native environment variables.
     /// </summary>
     [TestMethod]

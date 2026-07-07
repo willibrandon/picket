@@ -200,6 +200,9 @@ internal sealed partial class DocumentationGenerator
             ("rulePack", "string", "native metadata", "Native rule pack name."),
             ("provider", "string", "native metadata", "Provider or ecosystem that owns the rule."),
             ("documentationUrl", "string", "native metadata", "Rule documentation URL."),
+            ("validation", "string[]", "native metadata", "Stable validation template identifiers supported by the rule."),
+            ("revocation", "string[]", "native metadata", "Stable revocation template identifiers supported by the rule."),
+            ("deprecated", "bool", "native metadata", "Marks a rule as deprecated while keeping it parseable for compatibility and migration workflows."),
             ("examples", "string[]", "native rule QA", "Positive examples that must produce findings during `picket rules check`."),
             ("negativeExamples", "string[]", "native rule QA", "Negative examples that must not produce findings during `picket rules check`."),
         ];
