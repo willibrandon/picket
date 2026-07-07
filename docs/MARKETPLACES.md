@@ -110,6 +110,8 @@ Repository and environment secrets should be narrowly scoped:
 | `PICKET_GITHUB_SECRET_SCANNING_PAT` | Optional hosted-alert oracle capture for the Picket repository. GitHub Actions secret names cannot start with `GITHUB_`. |
 | `AZURE_DEVOPS_TEST_PAT` | Optional live Azure DevOps integration tests against a dedicated test organization. |
 
+`AZURE_DEVOPS_TEST_PAT` is consumed by the manual `Live Azure DevOps` workflow, not by default push or pull-request CI.
+
 GitHub Releases, GitHub Pages, artifact attestations, and normal action publishing should use built-in GitHub workflow credentials wherever possible.
 
 ## Gates

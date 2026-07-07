@@ -1,0 +1,148 @@
+name: Live Azure DevOps
+
+on:
+  workflow_dispatch:
+    inputs:
+      endpoint:
+        description: Azure DevOps organization or server endpoint.
+        required: true
+        default: https://dev.azure.com/willibrandon
+      project:
+        description: Azure DevOps project to scan.
+        required: true
+        default: test
+      repository:
+        description: Optional Azure Repos repository name filter.
+        required: false
+        default: ""
+      branch:
+        description: Optional branch name.
+        required: false
+        default: ""
+      token-kind:
+        description: Azure DevOps credential transport.
+        required: true
+        type: choice
+        options:
+          - pat
+          - bearer
+        default: pat
+      max-target-megabytes:
+        description: Maximum source file size in decimal MB.
+        required: true
+        default: "10"
+      fail-on-findings:
+        description: Fail the workflow when Picket finds secrets.
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+
+jobs:
+  scan:
+    name: Live Azure DevOps scan
+    runs-on: ubuntu-latest
+    env:
+      AZURE_DEVOPS_ENDPOINT: ${{ inputs.endpoint }}
+      AZURE_DEVOPS_PROJECT: ${{ inputs.project }}
+      AZURE_DEVOPS_REPOSITORY: ${{ inputs.repository }}
+      AZURE_DEVOPS_BRANCH: ${{ inputs.branch }}
+      AZURE_DEVOPS_TOKEN_KIND: ${{ inputs['token-kind'] }}
+      PICKET_FAIL_ON_FINDINGS: ${{ inputs['fail-on-findings'] }}
+      PICKET_MAX_TARGET_MEGABYTES: ${{ inputs['max-target-megabytes'] }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.301
+
+      - name: Restore
+        run: dotnet restore Picket.slnx
+
+      - name: Run live Azure DevOps scan
+        id: scan
+        shell: pwsh
+        env:
+          AZURE_DEVOPS_TEST_PAT: ${{ secrets.AZURE_DEVOPS_TEST_PAT }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AZURE_DEVOPS_TEST_PAT)) {
+            throw 'AZURE_DEVOPS_TEST_PAT is not configured.'
+          }
+
+          $reportDirectory = Join-Path $env:RUNNER_TEMP 'picket-azure-devops-live'
+          New-Item -ItemType Directory -Force -Path $reportDirectory | Out-Null
+          $jsonlPath = Join-Path $reportDirectory 'picket.azure-devops.jsonl'
+
+          $scanArgs = @(
+            'scan',
+            '--azure-devops-endpoint', $env:AZURE_DEVOPS_ENDPOINT,
+            '--azure-devops-token-env', 'AZURE_DEVOPS_TEST_PAT',
+            '--azure-devops-token-kind', $env:AZURE_DEVOPS_TOKEN_KIND,
+            '--azure-devops-project', $env:AZURE_DEVOPS_PROJECT,
+            '--max-target-megabytes', $env:PICKET_MAX_TARGET_MEGABYTES,
+            '--timeout', '300',
+            '--redact=100',
+            '-f', 'jsonl',
+            '--report-path', $jsonlPath
+          )
+
+          if (![string]::IsNullOrWhiteSpace($env:AZURE_DEVOPS_REPOSITORY)) {
+            $scanArgs += @('--azure-devops-repository', $env:AZURE_DEVOPS_REPOSITORY)
+          }
+
+          if (![string]::IsNullOrWhiteSpace($env:AZURE_DEVOPS_BRANCH)) {
+            $scanArgs += @('--azure-devops-branch', $env:AZURE_DEVOPS_BRANCH)
+          }
+
+          if ($env:PICKET_FAIL_ON_FINDINGS -ne 'true') {
+            $scanArgs += @('--exit-code', '0')
+          }
+
+          dotnet run --project src/Picket.Cli/Picket.Cli.csproj --configuration Release -- @scanArgs
+          $exitCode = $LASTEXITCODE
+
+          $findings = 0
+          if (Test-Path -LiteralPath $jsonlPath -PathType Leaf) {
+            $findings = (Get-Content -LiteralPath $jsonlPath | Where-Object { $_.Length -ne 0 } | Measure-Object).Count
+          }
+
+          "exit-code=$exitCode" >> $env:GITHUB_OUTPUT
+          "findings=$findings" >> $env:GITHUB_OUTPUT
+          "report-path=$jsonlPath" >> $env:GITHUB_OUTPUT
+
+          $summary = @(
+            '# Azure DevOps live scan',
+            '',
+            '| Field | Value |',
+            '| --- | --- |',
+            "| Endpoint | $env:AZURE_DEVOPS_ENDPOINT |",
+            "| Project | $env:AZURE_DEVOPS_PROJECT |",
+            "| Repository | $(if ([string]::IsNullOrWhiteSpace($env:AZURE_DEVOPS_REPOSITORY)) { 'all readable repositories' } else { $env:AZURE_DEVOPS_REPOSITORY }) |",
+            "| Branch | $(if ([string]::IsNullOrWhiteSpace($env:AZURE_DEVOPS_BRANCH)) { 'default branch' } else { $env:AZURE_DEVOPS_BRANCH }) |",
+            "| Findings | $findings |",
+            "| Scanner exit code | $exitCode |"
+          )
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+          if ($exitCode -ne 0) {
+            exit $exitCode
+          }
+
+      - name: Upload redacted live report
+        if: ${{ always() && steps.scan.outputs['report-path'] != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: picket-azure-devops-live-jsonl
+          path: ${{ steps.scan.outputs['report-path'] }}
+          if-no-files-found: ignore

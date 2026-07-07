@@ -254,6 +254,30 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that live Azure DevOps source scans stay opt-in and use the dedicated test secret.
+    /// </summary>
+    [TestMethod]
+    public void LiveAzureDevOpsWorkflowIsManualOnly()
+    {
+        string workflow = ReadRepositoryFile(".github/workflows/live-azure-devops.yml");
+        string azureDevOps = ReadRepositoryFile("docs/AZURE_DEVOPS.md");
+        string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
+
+        Assert.Contains("workflow_dispatch:", workflow);
+        Assert.DoesNotContain("pull_request:", workflow);
+        Assert.DoesNotContain("push:", workflow);
+        Assert.Contains("AZURE_DEVOPS_TEST_PAT", workflow);
+        Assert.Contains("--azure-devops-endpoint", workflow);
+        Assert.Contains("--azure-devops-token-env", workflow);
+        Assert.Contains("--redact=100", workflow);
+        Assert.Contains("actions/upload-artifact@v7", workflow);
+        Assert.DoesNotContain("outputs.report-path", workflow);
+        Assert.Contains("Live Azure DevOps", azureDevOps);
+        Assert.Contains("AZURE_DEVOPS_TEST_PAT", marketplaces);
+        Assert.Contains("manual `Live Azure DevOps` workflow", marketplaces);
+    }
+
+    /// <summary>
     /// Verifies that release automation creates checksummed and attested artifacts.
     /// </summary>
     [TestMethod]

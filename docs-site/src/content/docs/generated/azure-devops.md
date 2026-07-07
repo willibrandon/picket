@@ -142,6 +142,12 @@ Recommended PAT scopes for the dedicated integration-test organization are:
 
 Do not grant write, execute, manage, service-connection, agent-pool, token-administration, or full-access scopes for normal scanner tests.
 
+## Live Smoke Workflow
+
+The `Live Azure DevOps` GitHub Actions workflow is manual-only. It uses `AZURE_DEVOPS_TEST_PAT` to scan `https://dev.azure.com/willibrandon/test` by default with native Azure DevOps repository enumeration and writes a fully redacted JSONL report artifact. The workflow accepts endpoint, project, repository, branch, token-kind, file-size cap, and fail-on-findings inputs.
+
+This workflow is for connector smoke testing against the dedicated test organization. It must not become a required pull-request or push gate unless it is converted to recorded responses or local fakes.
+
 Credential handling requirements:
 
 - no telemetry,
