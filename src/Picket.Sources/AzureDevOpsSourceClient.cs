@@ -263,7 +263,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
         }
 
         return memory.ToArray();

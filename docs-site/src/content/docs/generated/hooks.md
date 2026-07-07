@@ -1,5 +1,5 @@
 ---
-title: "HOOKS"
+title: "Git Hooks"
 description: "Generated from docs/HOOKS.md."
 editUrl: false
 ---

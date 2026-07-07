@@ -1,5 +1,5 @@
 ---
-title: "PERFORMANCE"
+title: "Performance"
 description: "Generated from docs/PERFORMANCE.md."
 editUrl: false
 ---

@@ -183,6 +183,10 @@ Use the grouped index to jump to the workflow you need.
   [--live-rate-limit-ms n]
   [--live-provider-rate-limit-ms n]
   [--allow-non-public-endpoints]
+  [--github-repository owner/name]
+  [--github-token-env name]
+  [--github-ref ref]
+  [--github-source-api-endpoint uri]
   [--azure-devops-organization org]
   [--azure-devops-endpoint uri]
   [--azure-devops-token-env name]
@@ -300,7 +304,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-endpoint</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+              <td data-label="Description">Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-api-proxy</code></td>
@@ -331,6 +335,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Allow guarded live validation endpoints that are not public internet addresses.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-repository</code></td>
+              <td data-label="Value"><code>owner/name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this GitHub repository through native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the GitHub source enumeration token from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-ref</code></td>
+              <td data-label="Value"><code>ref</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this GitHub branch, tag, or commit.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-source-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this GitHub API endpoint for native source enumeration.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--azure-devops-organization</code></td>
@@ -584,7 +612,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-endpoint</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+              <td data-label="Description">Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-api-proxy</code></td>
@@ -814,7 +842,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--github-api-endpoint</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Override the GitHub API endpoint used by live validation.</td>
+              <td data-label="Description">Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-api-proxy</code></td>

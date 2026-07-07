@@ -112,6 +112,8 @@ Repository and environment secrets should be narrowly scoped:
 
 `AZURE_DEVOPS_TEST_PAT` is consumed by the manual `Live Azure DevOps` workflow, not by default push or pull-request CI.
 
+`PICKET_GITHUB_SECRET_SCANNING_PAT` is consumed by the manual `Live GitHub Secret Scanning Oracle` workflow, not by default push or pull-request CI.
+
 GitHub Releases, GitHub Pages, artifact attestations, and normal action publishing should use built-in GitHub workflow credentials wherever possible.
 
 ## Gates

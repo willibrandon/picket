@@ -1,5 +1,5 @@
 ---
-title: "RULES"
+title: "Rule Authoring"
 description: "Generated from docs/RULES.md."
 editUrl: false
 ---

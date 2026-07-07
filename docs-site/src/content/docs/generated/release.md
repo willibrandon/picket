@@ -1,5 +1,5 @@
 ---
-title: "RELEASE"
+title: "Release Profiles"
 description: "Generated from docs/RELEASE.md."
 editUrl: false
 ---

@@ -136,6 +136,15 @@ documentation reviewed on 2026-07-06:
 - GCP API key delete command: `https://docs.cloud.google.com/sdk/gcloud/reference/services/api-keys/delete`
 - GCP service-account key delete command: `https://docs.cloud.google.com/sdk/gcloud/reference/iam/service-accounts/keys/delete`
 
+## GitHub Source References
+
+Native GitHub repository source enumeration is based on GitHub REST API
+documentation reviewed on 2026-07-06:
+
+- GitHub repository metadata REST API: `https://docs.github.com/rest/repos/repos`
+- Git trees REST API: `https://docs.github.com/v3/git/trees`
+- Repository contents REST API: `https://docs.github.com/en/rest/repos/contents`
+
 ## GitHub Secret Scanning Oracle
 
 GitHub Secret Protection secret scanning is a hosted proprietary system, not a
@@ -145,6 +154,7 @@ patterns and alert scope in its public docs:
 
 - `https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns`
 - `https://docs.github.com/en/code-security/reference/secret-security/secret-scanning-scope`
+- `https://docs.github.com/en/rest/secret-scanning/secret-scanning`
 
 Capture sanitized GitHub alert metadata with:
 

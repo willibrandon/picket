@@ -11,7 +11,6 @@ internal static partial class Program
         var forwardedArgs = new List<string>();
         bool allowNonPublicProviderEndpoints = false;
         bool liveVerification = false;
-        bool providerOptionSpecified = false;
         Uri? githubApiEndpoint = null;
         Uri? githubApiProxyEndpoint = null;
         GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
@@ -24,10 +23,18 @@ internal static partial class Program
         string azureDevOpsBranch = string.Empty;
         string azureDevOpsProject = string.Empty;
         string azureDevOpsRepository = string.Empty;
+        Uri? githubSourceApiEndpoint = null;
+        string? githubSourceTokenEnvironmentVariable = null;
+        string githubSourceRef = string.Empty;
+        string githubSourceRepository = string.Empty;
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
         bool azureDevOpsOptionSpecified = false;
+        bool githubApiEndpointSpecified = false;
+        bool githubSourceOptionSpecified = false;
+        bool liveProviderOptionSpecified = false;
+        bool sourceEndpointPolicySpecified = false;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -60,6 +67,52 @@ internal static partial class Program
                     liveVerification = true;
                 }
 
+                continue;
+            }
+
+            if (IsGitHubRepositoryFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-repository", out string? repository))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceRepository = repository;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-token-env", out githubSourceTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubRefFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--github-ref", out string? gitRef))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceRef = gitRef;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubSourceApiEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--github-source-api-endpoint", out githubSourceApiEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                githubSourceOptionSpecified = true;
                 continue;
             }
 
@@ -150,7 +203,7 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
-                azureDevOpsOptionSpecified = true;
+                sourceEndpointPolicySpecified = true;
                 continue;
             }
 
@@ -161,7 +214,7 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
-                azureDevOpsOptionSpecified = true;
+                sourceEndpointPolicySpecified = true;
                 continue;
             }
 
@@ -183,7 +236,7 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
-                providerOptionSpecified = true;
+                githubApiEndpointSpecified = true;
                 continue;
             }
 
@@ -194,7 +247,7 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
-                providerOptionSpecified = true;
+                liveProviderOptionSpecified = true;
                 continue;
             }
 
@@ -206,7 +259,7 @@ internal static partial class Program
                 }
 
                 githubApiTlsMode = value;
-                providerOptionSpecified = true;
+                liveProviderOptionSpecified = true;
                 continue;
             }
 
@@ -218,7 +271,7 @@ internal static partial class Program
                 }
 
                 minimumRequestInterval = value;
-                providerOptionSpecified = true;
+                liveProviderOptionSpecified = true;
                 continue;
             }
 
@@ -230,7 +283,7 @@ internal static partial class Program
                 }
 
                 minimumRequestIntervalPerProvider = value;
-                providerOptionSpecified = true;
+                liveProviderOptionSpecified = true;
                 continue;
             }
 
@@ -241,16 +294,22 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
-                providerOptionSpecified = true;
+                liveProviderOptionSpecified = true;
                 continue;
             }
 
             forwardedArgs.Add(arg);
         }
 
-        if (providerOptionSpecified && !liveVerification)
+        if ((liveProviderOptionSpecified || (githubApiEndpointSpecified && !githubSourceOptionSpecified)) && !liveVerification)
         {
             Console.Error.WriteLine("live provider options require --verify");
+            return UnknownFlagExitCode;
+        }
+
+        if (sourceEndpointPolicySpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified)
+        {
+            Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
         }
 
@@ -260,6 +319,12 @@ internal static partial class Program
         }
 
         Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider = null;
+        if (azureDevOpsOptionSpecified && githubSourceOptionSpecified)
+        {
+            Console.Error.WriteLine("scan accepts only one remote source provider at a time");
+            return UnknownFlagExitCode;
+        }
+
         if (azureDevOpsOptionSpecified
             && !TryCreateAzureDevOpsSourceProvider(
                 azureDevOpsOrganization,
@@ -269,6 +334,19 @@ internal static partial class Program
                 azureDevOpsProject,
                 azureDevOpsRepository,
                 azureDevOpsBranch,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (githubSourceOptionSpecified
+            && !TryCreateGitHubSourceProvider(
+                githubSourceApiEndpoint ?? githubApiEndpoint,
+                githubSourceRepository,
+                githubSourceTokenEnvironmentVariable,
+                githubSourceRef,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

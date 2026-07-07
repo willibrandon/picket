@@ -1,5 +1,5 @@
 ---
-title: "PARITY"
+title: "Picket Compatibility Ledger"
 description: "Generated from docs/PARITY.md."
 editUrl: false
 ---

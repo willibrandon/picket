@@ -278,6 +278,31 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that hosted GitHub secret-scanning oracle capture stays opt-in and uses the dedicated secret.
+    /// </summary>
+    [TestMethod]
+    public void LiveGitHubSecretScanningOracleWorkflowIsManualOnly()
+    {
+        string workflow = ReadRepositoryFile(".github/workflows/live-github-secret-scanning.yml");
+        string gitHub = ReadRepositoryFile("docs/GITHUB.md");
+        string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
+        string upstream = ReadRepositoryFile("docs/UPSTREAM.md");
+
+        Assert.Contains("workflow_dispatch:", workflow);
+        Assert.DoesNotContain("pull_request:", workflow);
+        Assert.DoesNotContain("push:", workflow);
+        Assert.Contains("PICKET_GITHUB_SECRET_SCANNING_PAT", workflow);
+        Assert.Contains("GH_TOKEN", workflow);
+        Assert.Contains("Capture-GitHubSecretScanningOracle.ps1", workflow);
+        Assert.Contains("Compare-GitHubSecretScanningOracle.ps1", workflow);
+        Assert.Contains("--redact=100", workflow);
+        Assert.Contains("actions/upload-artifact@v7", workflow);
+        Assert.Contains("Secret scanning alerts", gitHub);
+        Assert.Contains("Repository contents REST API", upstream);
+        Assert.Contains("manual `Live GitHub Secret Scanning Oracle` workflow", marketplaces);
+    }
+
+    /// <summary>
     /// Verifies that release automation creates checksummed and attested artifacts.
     /// </summary>
     [TestMethod]

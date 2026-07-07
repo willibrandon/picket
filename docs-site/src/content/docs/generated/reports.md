@@ -1,5 +1,5 @@
 ---
-title: "REPORTS"
+title: "Reports"
 description: "Generated from docs/REPORTS.md."
 editUrl: false
 ---

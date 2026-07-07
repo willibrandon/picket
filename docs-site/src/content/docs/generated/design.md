@@ -1,5 +1,5 @@
 ---
-title: "DESIGN"
+title: "Picket Design"
 description: "Generated from docs/DESIGN.md."
 editUrl: false
 ---
@@ -648,6 +648,10 @@ Native source support:
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
 
+GitHub source support is native Picket behavior, not Gitleaks compatibility behavior. Repository file enumeration is implemented first: `--github-repository` selects an `owner/name` repository or repository URL, `--github-token-env` reads the token from an environment variable, `--github-ref` selects a branch, tag, or commit, and `--github-source-api-endpoint` supports GitHub Enterprise Server. Picket resolves the default branch through the repository metadata API, lists blobs through the recursive Git Trees API, and downloads bytes through the raw Contents API. Redirects are disabled, endpoints are guarded before credentials are sent, tree truncation is reported as a warning, oversized blobs honor `--max-target-megabytes`, and per-file download failures do not abort the whole repository scan.
+
+GitHub credentials use least-privilege read scopes. Repository enumeration requires Metadata Read plus Contents Read. Hosted GitHub Secret Protection oracle capture requires Secret scanning alerts Read plus Metadata Read. Write, administration, workflow, security-event upload, and secret write scopes are not part of the scanner test contract.
+
 Azure DevOps source support is native Picket behavior, not Gitleaks compatibility behavior. It supports both cloud and self-hosted endpoints, project-scoped and organization-scoped enumeration, PAT and job-token authentication where each is appropriate, continuation tokens, branch and pull-request scope controls, artifact size caps, log redaction before diagnostics, and clear handling for repositories or projects the token cannot read. Pipeline task defaults scan the job's checked-out workspace unless the user explicitly opts into remote Azure DevOps enumeration.
 
 Azure DevOps credentials use least-privilege read scopes. Repository enumeration requires Project and Team Read plus Code Read; build logs and artifacts require Build Read; classic releases require Release Read; wikis require Wiki Read; package/feed scanning requires Packaging Read. Write, execute, manage, service-connection, agent-pool, token-administration, and full-access scopes are not part of the scanner test contract.
@@ -1003,6 +1007,7 @@ Required before v1:
 - `docs/VALIDATION.md`: privacy and egress model,
 - `docs/REPORTS.md`: compatibility and native schemas,
 - `docs/ACTION.md`: CI action behavior and security posture,
+- `docs/GITHUB.md`: GitHub source enumeration, hosted-alert oracle capture, and permission guidance,
 - `docs/AZURE_DEVOPS.md`: Azure DevOps task, source enumeration, artifact scanning, and marketplace behavior,
 - `docs/MARKETPLACES.md`: GitHub Marketplace and Azure DevOps Marketplace packaging, release, and rollback guidance,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,

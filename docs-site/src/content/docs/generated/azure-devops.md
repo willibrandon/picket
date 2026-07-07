@@ -1,5 +1,5 @@
 ---
-title: "AZURE DEVOPS"
+title: "Azure DevOps"
 description: "Generated from docs/AZURE_DEVOPS.md."
 editUrl: false
 ---

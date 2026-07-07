@@ -1,5 +1,5 @@
 ---
-title: "ACTION"
+title: "GitHub Action"
 description: "Generated from docs/ACTION.md."
 editUrl: false
 ---

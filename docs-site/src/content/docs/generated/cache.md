@@ -1,5 +1,5 @@
 ---
-title: "CACHE"
+title: "Native Scan Cache"
 description: "Generated from docs/CACHE.md."
 editUrl: false
 ---

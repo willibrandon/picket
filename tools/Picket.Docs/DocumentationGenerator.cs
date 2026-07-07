@@ -81,8 +81,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         foreach (string sourcePath in Directory.EnumerateFiles(_docsRoot, "*.md").Order(StringComparer.OrdinalIgnoreCase))
         {
             string fileName = Path.GetFileNameWithoutExtension(sourcePath);
-            string title = CreateTitle(fileName);
             string content = File.ReadAllText(sourcePath);
+            string title = ReadFirstHeading(content, fileName);
             content = RemoveFirstHeading(content);
 
             WriteMarkdown(
@@ -1139,8 +1139,12 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "--exit-code" => "Exit with this code when findings are present.",
             "--follow-symlinks" => "Follow symlinks while scanning directories.",
             "--force" => "Overwrite existing hook files.",
-            "--github-api-endpoint" => "Override the GitHub API endpoint used by live validation.",
+            "--github-api-endpoint" => "Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.",
             "--github-api-proxy" => "Use this HTTP or HTTPS proxy for live GitHub API requests.",
+            "--github-ref" => "Scan this GitHub branch, tag, or commit.",
+            "--github-repository" => "Scan this GitHub repository through native source enumeration.",
+            "--github-source-api-endpoint" => "Use this GitHub API endpoint for native source enumeration.",
+            "--github-token-env" => "Read the GitHub source enumeration token from this environment variable.",
             "--ignore-gitleaks-allow" => "Do not honor gitleaks:allow comments.",
             "--ignore-path" => "Load additional ignore patterns from this file.",
             "--input" => "Read a portable cache archive from this path.",
@@ -1534,6 +1538,23 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         }
 
         return content;
+    }
+
+    private static string ReadFirstHeading(string content, string fileName)
+    {
+        foreach (string line in NormalizeLineEndings(content).Split('\n'))
+        {
+            if (line.StartsWith("# ", StringComparison.Ordinal))
+            {
+                string heading = line[2..].Trim();
+                if (heading.Length != 0)
+                {
+                    return heading;
+                }
+            }
+        }
+
+        return CreateTitle(fileName);
     }
 
     private static string CreateTitle(string fileName)

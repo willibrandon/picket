@@ -1,5 +1,5 @@
 ---
-title: "EMBEDDING"
+title: "Embedding Picket"
 description: "Generated from docs/EMBEDDING.md."
 editUrl: false
 ---

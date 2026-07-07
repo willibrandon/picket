@@ -1,5 +1,5 @@
 ---
-title: "VALIDATION"
+title: "Validation and Privacy"
 description: "Generated from docs/VALIDATION.md."
 editUrl: false
 ---
