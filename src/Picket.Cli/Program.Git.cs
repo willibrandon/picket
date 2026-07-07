@@ -10,6 +10,12 @@ internal static partial class Program
 {
     static int RunGit(string[] args)
     {
+        if (ContainsHelp(args))
+        {
+            WriteGitHelp();
+            return 0;
+        }
+
         if (!TryResolveNativeProfile(args, defaultNativeProfile: false, out bool nativeMode))
         {
             return UnknownFlagExitCode;

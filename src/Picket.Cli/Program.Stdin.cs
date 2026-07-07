@@ -9,6 +9,12 @@ internal static partial class Program
 {
     static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
     {
+        if (ContainsHelp(args))
+        {
+            WriteStdinHelp();
+            return 0;
+        }
+
         if (!TryResolveNativeProfile(args, defaultNativeProfile: false, out bool nativeMode))
         {
             return UnknownFlagExitCode;

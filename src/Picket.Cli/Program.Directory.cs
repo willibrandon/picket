@@ -20,6 +20,12 @@ internal static partial class Program
         RemoteSourceProvider? sourceFileProvider = null,
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null)
     {
+        if (ContainsHelp(args))
+        {
+            WriteDirectoryHelp(nativeReportFormats);
+            return 0;
+        }
+
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
         {
             return UnknownFlagExitCode;

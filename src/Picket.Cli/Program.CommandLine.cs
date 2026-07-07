@@ -953,34 +953,8 @@ internal static partial class Program
             return TryReadBooleanFlag(arg, "--no-banner", out _);
         }
 
-        if (IsMaxArchiveDepthFlag(arg))
-        {
-            return TryReadUnsupportedPositiveIntFlag(args, ref index, "--max-archive-depth");
-        }
-
-        if (IsTimeoutFlag(arg))
-        {
-            return TryReadUnsupportedPositiveIntFlag(args, ref index, "--timeout");
-        }
-
         handled = false;
         return true;
-    }
-
-    static bool TryReadUnsupportedPositiveIntFlag(string[] args, ref int index, string longName)
-    {
-        if (!TryReadNonNegativeIntFlag(args, ref index, longName, out int value))
-        {
-            return false;
-        }
-
-        if (value == 0)
-        {
-            return true;
-        }
-
-        Console.Error.WriteLine($"{longName} is not implemented yet");
-        return false;
     }
 
     static bool IsRedactFlag(string arg)

@@ -4,6 +4,12 @@ internal static partial class Program
 {
     static async Task<int> RunDetectAsync(string[] args)
     {
+        if (ContainsHelp(args))
+        {
+            WriteDetectHelp();
+            return 0;
+        }
+
         var forwardedArgs = new List<string>();
         string? logOptions = null;
         string? platform = null;
@@ -112,6 +118,12 @@ internal static partial class Program
 
     static int RunProtect(string[] args)
     {
+        if (ContainsHelp(args))
+        {
+            WriteProtectHelp();
+            return 0;
+        }
+
         var forwardedArgs = new List<string>();
         string source = ".";
         bool staged = false;

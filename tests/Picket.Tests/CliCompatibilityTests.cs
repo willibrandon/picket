@@ -978,6 +978,30 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that Gitleaks-compatible commands expose command-local help.
+    /// </summary>
+    [TestMethod]
+    public async Task CompatibilityCommandsExposeCommandLocalHelp()
+    {
+        CliResult git = await RunCliAsync("git", "--help").ConfigureAwait(false);
+        CliResult directory = await RunCliAsync("dir", "--help").ConfigureAwait(false);
+        CliResult stdin = await RunCliAsync("stdin", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, git.ExitCode);
+        Assert.Contains("picket git", git.Stdout);
+        Assert.Contains("--log-opts", git.Stdout);
+        Assert.Contains("--timeout", git.Stdout);
+        Assert.AreEqual(0, directory.ExitCode);
+        Assert.Contains("picket dir", directory.Stdout);
+        Assert.Contains("--follow-symlinks", directory.Stdout);
+        Assert.Contains("--max-archive-depth", directory.Stdout);
+        Assert.AreEqual(0, stdin.ExitCode);
+        Assert.Contains("picket stdin", stdin.Stdout);
+        Assert.Contains("--max-decode-depth", stdin.Stdout);
+        Assert.Contains("--timeout", stdin.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native analysis writes offline incident-response JSON without leaking the raw secret.
     /// </summary>
     [TestMethod]

@@ -108,6 +108,52 @@ internal static partial class Program
         Console.Out.WriteLine("  picket cache import [source] --cache-dir path --input path [-c path] [--cache-mode raw|secret-hash-only] [--max-decode-depth n] [--max-target-megabytes n] [--ignore-gitleaks-allow]");
     }
 
+    static void WriteGitHelp()
+    {
+        Console.Out.WriteLine("picket git - scan git history using the Gitleaks-compatible patch model");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine("Usage:");
+        Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
+    }
+
+    static void WriteDirectoryHelp(bool nativeReportFormats)
+    {
+        Console.Out.WriteLine("picket dir - scan a directory or file path");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine("Usage:");
+        if (nativeReportFormats)
+        {
+            Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--enable-rule id] [--verify] [--results value] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
+            return;
+        }
+
+        Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
+    }
+
+    static void WriteStdinHelp()
+    {
+        Console.Out.WriteLine("picket stdin - scan piped input");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine("Usage:");
+        Console.Out.WriteLine("  picket stdin [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--max-decode-depth n] [--max-archive-depth n] [--max-target-megabytes n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
+    }
+
+    static void WriteDetectHelp()
+    {
+        Console.Out.WriteLine("picket detect - deprecated Gitleaks-compatible detection shim");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine("Usage:");
+        Console.Out.WriteLine("  picket detect [--source path] [--no-git] [--pipe] [-c path] [-f json|csv|junit|sarif|template] [-r path] [--log-opts value] [--platform value] [--follow-symlinks] [--max-target-megabytes n] [--max-archive-depth n] [--timeout n] [--redact[=n]]");
+    }
+
+    static void WriteProtectHelp()
+    {
+        Console.Out.WriteLine("picket protect - deprecated Gitleaks-compatible pre-commit shim");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine("Usage:");
+        Console.Out.WriteLine("  picket protect [--source path] [--staged] [-c path] [-f json|csv|junit|sarif|template] [-r path] [--max-target-megabytes n] [--max-archive-depth n] [--timeout n] [--redact[=n]]");
+    }
+
     static void WriteViewHelp()
     {
         Console.Out.WriteLine("picket view - summarize or open a local report");

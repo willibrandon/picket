@@ -104,6 +104,32 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that public source does not retain user-facing placeholder implementation messages.
+    /// </summary>
+    [TestMethod]
+    public void SourceFilesDoNotExposePlaceholderImplementationMessages()
+    {
+        string root = FindRepositoryRoot();
+        List<string> violations = [];
+
+        foreach (string file in Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories))
+        {
+            if (!IsRepositoryCSharpFile(root, file))
+            {
+                continue;
+            }
+
+            string text = File.ReadAllText(file);
+            if (text.Contains("not implemented yet", StringComparison.OrdinalIgnoreCase))
+            {
+                violations.Add(Path.GetRelativePath(root, file));
+            }
+        }
+
+        Assert.IsEmpty(violations);
+    }
+
+    /// <summary>
     /// Verifies that the GitHub Action metadata exposes the security scanner contract.
     /// </summary>
     [TestMethod]
