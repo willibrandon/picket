@@ -14,13 +14,14 @@ namespace Picket.Sources;
 /// <param name="buildId">An optional Azure Pipelines build ID whose artifacts or logs should be scanned.</param>
 /// <param name="includeArtifacts">A value indicating whether build artifacts should be scanned.</param>
 /// <param name="includeLogs">A value indicating whether build logs should be scanned.</param>
-/// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
-/// <param name="maxArtifactBytes">The maximum build artifact archive bytes to download, or <see langword="null" /> for no cap.</param>
-/// <param name="maxLogBytes">The maximum build log bytes to download, or <see langword="null" /> for no cap.</param>
+/// <param name="maxFileBytes">The maximum file content bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
+/// <param name="maxArtifactBytes">The maximum build artifact archive bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
+/// <param name="maxLogBytes">The maximum build log bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
 /// <param name="maxArchiveDepth">The maximum nested archive depth to inspect for build artifacts.</param>
 /// <param name="maxArchiveEntries">The maximum number of archive entries to inspect for build artifacts.</param>
 /// <param name="maxArchiveBytes">The maximum decompressed archive bytes to inspect for build artifacts.</param>
 /// <param name="maxArchiveCompressionRatio">The maximum archive compression ratio to allow for build artifacts.</param>
+/// <param name="allowInsecureCredentialTransport">A value indicating whether credentials may be sent to non-loopback HTTP endpoints.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a path should be ignored.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
@@ -43,6 +44,7 @@ public sealed class AzureDevOpsSourceOptions(
     int maxArchiveEntries = 4096,
     long? maxArchiveBytes = 512_000_000,
     int maxArchiveCompressionRatio = 1000,
+    bool allowInsecureCredentialTransport = false,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
@@ -52,7 +54,7 @@ public sealed class AzureDevOpsSourceOptions(
     /// <summary>
     /// Gets the normalized Azure DevOps organization or collection endpoint.
     /// </summary>
-    public Uri Endpoint { get; } = NormalizeEndpoint(endpoint);
+    public Uri Endpoint { get; } = RequireCredentialTransport(NormalizeEndpoint(endpoint), RequireCredentialKind(credentialKind), allowInsecureCredentialTransport);
 
     /// <summary>
     /// Gets the credential transport kind.
@@ -203,6 +205,18 @@ public sealed class AzureDevOpsSourceOptions(
         return value;
     }
 
+    private static Uri RequireCredentialTransport(Uri endpoint, AzureDevOpsCredentialKind credentialKind, bool allowInsecureCredentialTransport)
+    {
+        if (endpoint.Scheme.Equals("http", StringComparison.Ordinal)
+            && !endpoint.IsLoopback
+            && !allowInsecureCredentialTransport)
+        {
+            throw new ArgumentException($"Azure DevOps {credentialKind} credentials require HTTPS unless insecure credential transport is explicitly enabled.", nameof(endpoint));
+        }
+
+        return endpoint;
+    }
+
     private static string NormalizeOptionalName(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
@@ -210,9 +224,19 @@ public sealed class AzureDevOpsSourceOptions(
 
     private static long? RequireMaxFileBytes(long? value)
     {
-        if (value.HasValue)
+        if (!value.HasValue)
         {
-            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+            return GitHubSourceOptions.DefaultMaxFileBytes;
+        }
+
+        if (value.Value == 0)
+        {
+            return null;
+        }
+
+        if (value.Value < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value));
         }
 
         return value;

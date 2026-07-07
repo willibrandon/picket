@@ -200,6 +200,25 @@ public sealed class ReportSummaryReaderTests
         Assert.Contains("format of the file", exception.Message);
     }
 
+    /// <summary>
+    /// Verifies malformed reports with invalid line numbers fail with a format error.
+    /// </summary>
+    [TestMethod]
+    public void ReadRejectsInvalidLineNumberAsMalformedReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            [{"RuleID":"rule","File":"secret.txt","StartLine":-1,"Fingerprint":"fp"}]
+            """);
+
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => ReportSummaryReader.Read(reportPath));
+
+        Assert.Contains("format of the file", exception.Message);
+    }
+
     private static string WriteReport(string root, string fileName, string contents)
     {
         string reportPath = Path.Combine(root, fileName);

@@ -190,6 +190,33 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies followed directory symlinks do not escape the scan root.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateDoesNotFollowSymlinkFilesOutsideRoot()
+    {
+        string root = CreateTempDirectory();
+        string outsideRoot = CreateTempDirectory();
+        try
+        {
+            string outsidePath = Path.Combine(outsideRoot, "outside.txt");
+            string linkPath = Path.Combine(root, "outside-link.txt");
+            File.WriteAllText(outsidePath, "token-12345");
+            File.CreateSymbolicLink(linkPath, outsidePath);
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, followSymbolicLinks: true));
+
+            Assert.DoesNotContain("outside-link.txt", files.Select(file => file.SymlinkDisplayPath));
+            Assert.DoesNotContain("../", string.Join('\n', files.Select(file => file.DisplayPath)));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+            Directory.Delete(outsideRoot, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that archive containers are skipped when archive traversal is disabled.
     /// </summary>
     [TestMethod]
@@ -459,7 +486,7 @@ public sealed class DirectorySourceTests
             SourceFile? file = files.FirstOrDefault(file => file.DisplayPath == "secrets.zip!secret.txt");
 
             Assert.IsNotNull(file);
-            Assert.AreEqual(1024, file.ReadAllBytes().Length);
+            Assert.HasCount(1024, file.ReadAllBytes());
             Assert.IsEmpty(warnings);
         }
         finally

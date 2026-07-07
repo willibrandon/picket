@@ -18,23 +18,25 @@ as deliberate.
 - **Picket behavior:** Picket `--diagnostics=cpu,mem,trace` writes AOT-safe
   structured diagnostics (`cpu.json`, `mem.json`, `trace.jsonl`) to
   `--diagnostics-dir` or the current directory. `--diagnostics=http` starts a
-  loopback-only diagnostics server at `http://localhost:6060/debug/pprof/`, but
-  serves Picket JSON/JSONL snapshots instead of Go pprof profiles.
+  loopback-only diagnostics server on a random local port and writes a tokened
+  startup URL to stderr, but serves Picket JSON/JSONL snapshots instead of Go
+  pprof profiles.
 - **Mode/profile affected:** Gitleaks-compatible CLI commands.
 - **Reason:** Go pprof artifacts are not a native .NET diagnostic format.
   Picket's default Native AOT artifact needs deterministic, trim-safe, low-risk
   diagnostics that do not require dynamic runtime infrastructure.
 - **User impact:** Automation that only needs the flag to collect local
-  diagnostics works, and `http` mode exposes live CPU, heap, and trace
-  snapshots while the process is running. Consumers expecting Go pprof file or
-  wire formats need to use Picket's JSON/JSONL diagnostics instead.
+  diagnostics works, and `http` mode exposes live CPU, heap, and trace snapshots
+  while the process is running to callers that use the printed URL. Consumers
+  expecting Go pprof file or wire formats need to use Picket's JSON/JSONL
+  diagnostics instead.
 - **Test name:** `DirectoryScanWritesDiagnosticsArtifacts`,
   `StdinScanServesHttpDiagnostics`, `DirectoryScanRejectsHttpDiagnosticsDirectory`,
   `DirectoryScanRejectsMixedHttpDiagnostics`.
 - **Migration guidance:** Use `--diagnostics=cpu,mem,trace` with
   `--diagnostics-dir <dir>` and collect `cpu.json`, `mem.json`, and
   `trace.jsonl`, or use `--diagnostics=http` and read
-  `/debug/pprof/profile`, `/debug/pprof/heap`, and `/debug/pprof/trace`.
+  the printed tokened URL, then follow the endpoint paths listed in the index.
 
 ## Native Google API Key Coverage
 

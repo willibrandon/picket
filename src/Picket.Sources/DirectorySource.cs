@@ -55,12 +55,22 @@ public sealed class DirectorySource
 
             if (entry.IsSymbolicLink)
             {
+                if (!options.FollowSymbolicLinks)
+                {
+                    continue;
+                }
+
                 if (!TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
                 {
                     continue;
                 }
 
                 symlinkDisplayPath = displayPath;
+                if (!IsPathWithinRoot(options.Root, scanFullPath))
+                {
+                    continue;
+                }
+
                 displayPath = CreateDisplayPath(options.Root, scanFullPath);
             }
 
@@ -231,6 +241,24 @@ public sealed class DirectorySource
     {
         return isPathAllowed is not null && isPathAllowed(displayPath);
     }
+
+    private static bool IsPathWithinRoot(string root, string path)
+    {
+        string fullRoot = EnsureTrailingDirectorySeparator(Path.GetFullPath(root));
+        string fullPath = Path.GetFullPath(path);
+        return fullPath.StartsWith(fullRoot, PathComparison);
+    }
+
+    private static string EnsureTrailingDirectorySeparator(string path)
+    {
+        return Path.EndsInDirectorySeparator(path)
+            ? path
+            : string.Concat(path, Path.DirectorySeparatorChar);
+    }
+
+    private static StringComparison PathComparison => OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 
     private static bool IsCancellationRequested(DirectoryScanOptions options)
     {

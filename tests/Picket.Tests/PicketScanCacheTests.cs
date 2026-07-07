@@ -2,6 +2,7 @@ using Picket.Engine;
 using Picket.Rules;
 using Picket.Store;
 using System.IO.Compression;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace Picket.Tests;
@@ -74,6 +75,7 @@ public sealed class PicketScanCacheTests
         Assert.Contains("createdUnixTimeSeconds\t", entry);
         Assert.Contains("storageMode\tSecretHashOnly", entry);
         Assert.Contains("findingCount\t1", entry);
+        Assert.Contains("mac\t", entry);
         Assert.AreEqual(root.Path, stats.RootPath);
         Assert.AreEqual(1, stats.EntryCount);
         Assert.AreEqual(1, stats.CurrentKeyEntryCount);
@@ -84,13 +86,12 @@ public sealed class PicketScanCacheTests
     /// Verifies cache directories and entry files are owner-only on Unix-like systems.
     /// </summary>
     [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    [SupportedOSPlatform("freebsd")]
     public void WriteCreatesOwnerOnlyCacheFilesOnUnix()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         using TempDirectory root = TempDirectory.Create();
         PicketScanCache cache = CreateCache(root.Path);
         byte[] content = Encoding.UTF8.GetBytes("token-12345");
@@ -104,10 +105,10 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
-    /// Verifies entries written before cache metadata was added remain readable.
+    /// Verifies entries written before cache authentication was added are treated as misses.
     /// </summary>
     [TestMethod]
-    public void TryReadAcceptsLegacyEntryWithoutMetadata()
+    public void TryReadRejectsLegacyEntryWithoutAuthentication()
     {
         using TempDirectory root = TempDirectory.Create();
         PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.Raw);
@@ -122,12 +123,8 @@ public sealed class PicketScanCacheTests
 
         bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
 
-        Assert.IsTrue(hit);
-        Assert.IsNotNull(cachedFindings);
-        Assert.HasCount(1, cachedFindings);
-        Assert.AreEqual("token-12345", cachedFindings[0].Secret);
-        Assert.AreEqual(blobHash, cachedFindings[0].BlobSha256);
-        Assert.IsEmpty(cachedFindings[0].DecodePath);
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
     }
 
     /// <summary>
@@ -220,6 +217,45 @@ public sealed class PicketScanCacheTests
 
         Assert.IsFalse(hit);
         Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
+    /// Verifies cache reads reject entries edited after they were written.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsTamperedEntry()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        string entryPath = GetSingleEntryPath(root.Path);
+        string entryText = File.ReadAllText(entryPath)
+            .Replace("findingCount\t1", "findingCount\t0", StringComparison.Ordinal)
+            .Replace("finding\t", "tampered\t", StringComparison.Ordinal);
+        File.WriteAllText(entryPath, entryText);
+
+        bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
+    /// Verifies cache writes are non-fatal when another process holds the entry lock.
+    /// </summary>
+    [TestMethod]
+    public void WriteTreatsLockContentionAsNonFatal()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        using FileStream _ = new(GetSingleLockPath(root.Path), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
     }
 
     /// <summary>
@@ -497,6 +533,34 @@ public sealed class PicketScanCacheTests
         Assert.IsFalse(File.Exists(Path.Combine(root.Path, "evil.cache")));
     }
 
+    /// <summary>
+    /// Verifies cache import rejects entries that exceed the decompressed entry budget.
+    /// </summary>
+    [TestMethod]
+    public void ImportRejectsEntriesAboveConfiguredDecompressedSize()
+    {
+        using TempDirectory sourceRoot = TempDirectory.Create();
+        using TempDirectory destinationRoot = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache sourceCache = CreateCache(sourceRoot.Path);
+        PicketScanCache destinationCache = CreateCache(destinationRoot.Path);
+        string exportedArchivePath = Path.Combine(sourceRoot.Path, "cache.zip");
+        string oversizedArchivePath = Path.Combine(sourceRoot.Path, "oversized-cache.zip");
+
+        sourceCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        Assert.AreEqual(1, sourceCache.Export(exportedArchivePath));
+        using (ZipArchive exportedArchive = ZipFile.OpenRead(exportedArchivePath))
+        {
+            Assert.HasCount(1, exportedArchive.Entries);
+            WriteZipEntry(oversizedArchivePath, exportedArchive.Entries[0].FullName, new string('x', 33));
+        }
+
+        FormatException exception = Assert.ThrowsExactly<FormatException>(() => destinationCache.Import(oversizedArchivePath, maxEntryBytes: 32));
+
+        Assert.Contains("exceeds maximum decompressed size", exception.Message);
+        Assert.IsEmpty(Directory.GetFiles(Path.Combine(destinationRoot.Path, "entries"), "*.cache", SearchOption.AllDirectories));
+    }
+
     private static PicketScanCache CreateCache(
         string root,
         string pattern = "token-[0-9]+",
@@ -571,6 +635,13 @@ public sealed class PicketScanCacheTests
     private static string GetSingleEntryPath(string root)
     {
         string[] entries = Directory.GetFiles(Path.Combine(root, "entries"), "*.cache", SearchOption.AllDirectories);
+        Assert.HasCount(1, entries);
+        return entries[0];
+    }
+
+    private static string GetSingleLockPath(string root)
+    {
+        string[] entries = Directory.GetFiles(Path.Combine(root, "locks"), "*.lock", SearchOption.AllDirectories);
         Assert.HasCount(1, entries);
         return entries[0];
     }

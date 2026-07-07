@@ -37,7 +37,7 @@ public static class ReportSummaryReader
         {
             throw new IOException($"could not open {path}", exception);
         }
-        catch (Exception exception) when (exception is JsonException or InvalidDataException or InvalidOperationException or FormatException)
+        catch (Exception exception) when (exception is JsonException or InvalidDataException or InvalidOperationException or FormatException or ArgumentOutOfRangeException)
         {
             throw new InvalidDataException($"the format of the file {path} is not supported", exception);
         }

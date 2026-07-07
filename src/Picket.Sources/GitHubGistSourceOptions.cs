@@ -8,7 +8,7 @@ namespace Picket.Sources;
 /// <param name="gistId">An optional single gist identifier to scan.</param>
 /// <param name="includeAuthenticatedGists">A value indicating whether the authenticated user's gists should be scanned.</param>
 /// <param name="userName">An optional GitHub user login whose public gists should be scanned.</param>
-/// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
+/// <param name="maxFileBytes">The maximum file content bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 public sealed class GitHubGistSourceOptions(

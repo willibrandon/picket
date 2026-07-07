@@ -64,6 +64,23 @@ public sealed class GitleaksJunitReportWriterTests
         Assert.Contains("line \\&#34;containing\\&#34; \\u003csecret\\u003e", xml);
     }
 
+    /// <summary>
+    /// Verifies Gitleaks-shaped JUnit replaces XML-disallowed control characters.
+    /// </summary>
+    [TestMethod]
+    public void WriteReplacesInvalidXmlControlCharacters()
+    {
+        Finding finding = CreateFinding(
+            description: "rule\u0001description",
+            file: "auth\u0002.py");
+
+        string xml = GitleaksJunitReportWriter.Write([finding]);
+
+        Assert.DoesNotContain("\u0001", xml);
+        Assert.DoesNotContain("\u0002", xml);
+        Assert.Contains("&#xFFFD;", xml);
+    }
+
     private static Finding CreateFinding(
         string description = "Test Rule",
         string file = "auth.py",

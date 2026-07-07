@@ -810,6 +810,37 @@ public sealed class GitleaksConfigLoaderTests
         }
     }
 
+    /// <summary>
+    /// Verifies that local extend paths cannot create cycles.
+    /// </summary>
+    [TestMethod]
+    public void LoadFileRejectsExtendPathCycles()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string configPath = Path.Combine(root, "self.toml");
+            File.WriteAllText(
+                configPath,
+                $$"""
+                [extend]
+                path = {{CreateTomlLiteral(configPath)}}
+
+                [[rules]]
+                id = "local-token"
+                regex = '''local-[0-9]+'''
+                """);
+
+            InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.LoadFile(configPath));
+
+            Assert.Contains("extend.path cycle detected", exception.Message);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateRuleConfig(string id, string pattern)
     {
         return $$"""

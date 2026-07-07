@@ -5,6 +5,7 @@ using Picket.Rules;
 using Picket.Verify;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -2279,6 +2280,28 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that view --open refuses to shell-open non-report file extensions.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewOpenRejectsUnsafeReportExtension()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string jsonReportPath = Path.Combine(root.Path, "report.json");
+        string executableReportPath = Path.Combine(root.Path, "report.cmd");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", jsonReportPath).ConfigureAwait(false);
+        File.Copy(jsonReportPath, executableReportPath);
+
+        CliResult view = await RunCliAsync("view", executableReportPath, "--open").ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(1, view.ExitCode);
+        Assert.Contains("format: picket-json", view.Stdout);
+        Assert.Contains("refusing to open report: unsupported report extension: .cmd", view.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that view summarizes TruffleHog JSONL without printing secret fields.
     /// </summary>
     [TestMethod]
@@ -2626,9 +2649,10 @@ public sealed class CliCompatibilityTests
     public async Task DirectoryScanReportsSymlinkFileWhenFollowingSymlinks()
     {
         using TempDirectory root = TempDirectory.Create();
-        using TempDirectory targetRoot = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
-        string targetPath = Path.Combine(targetRoot.Path, "target.txt");
+        string hiddenPath = Path.Combine(root.Path, ".hidden");
+        Directory.CreateDirectory(hiddenPath);
+        string targetPath = Path.Combine(hiddenPath, "target.txt");
         string linkPath = Path.Combine(root.Path, "link.txt");
         File.WriteAllText(targetPath, "token-12345");
         File.CreateSymbolicLink(linkPath, targetPath);
@@ -2636,8 +2660,8 @@ public sealed class CliCompatibilityTests
         CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
         CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--follow-symlinks").ConfigureAwait(false);
 
-        Assert.AreEqual(0, disabled.ExitCode);
-        Assert.AreEqual("[]\n", disabled.Stdout);
+        Assert.AreEqual(1, disabled.ExitCode);
+        Assert.DoesNotContain("\"SymlinkFile\": \"link.txt\"", disabled.Stdout);
         Assert.AreEqual(1, enabled.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", enabled.Stdout);
         Assert.Contains("\"SymlinkFile\": \"link.txt\"", enabled.Stdout);
@@ -2835,11 +2859,20 @@ public sealed class CliCompatibilityTests
 
         process.Start();
         string firstErrorLine = await process.StandardError.ReadLineAsync(TestContext.CancellationToken).ConfigureAwait(false) ?? string.Empty;
-        Assert.Contains("diagnostics server started at http://localhost:6060/debug/pprof/", firstErrorLine);
+        const string DiagnosticsStartedPrefix = "diagnostics server started at ";
+        Assert.StartsWith(DiagnosticsStartedPrefix, firstErrorLine);
+        var diagnosticsUri = new Uri(firstErrorLine[DiagnosticsStartedPrefix.Length..]);
+        var profileUriBuilder = new UriBuilder(diagnosticsUri)
+        {
+            Path = "/debug/pprof/profile",
+        };
 
         using var client = new HttpClient();
-        string index = await client.GetStringAsync(new Uri("http://localhost:6060/debug/pprof/"), TestContext.CancellationToken).ConfigureAwait(false);
-        string cpu = await client.GetStringAsync(new Uri("http://localhost:6060/debug/pprof/profile"), TestContext.CancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage unauthorized = await client.GetAsync(
+            new Uri($"{diagnosticsUri.GetLeftPart(UriPartial.Path)}"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+        string index = await client.GetStringAsync(diagnosticsUri, TestContext.CancellationToken).ConfigureAwait(false);
+        string cpu = await client.GetStringAsync(profileUriBuilder.Uri, TestContext.CancellationToken).ConfigureAwait(false);
 
         await process.StandardInput.WriteAsync("token-12345".AsMemory(), TestContext.CancellationToken).ConfigureAwait(false);
         await process.StandardInput.FlushAsync(TestContext.CancellationToken).ConfigureAwait(false);
@@ -2850,6 +2883,7 @@ public sealed class CliCompatibilityTests
         await process.WaitForExitAsync(TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(1, process.ExitCode);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
         Assert.Contains("\"diagnostic\": \"http\"", index);
         Assert.Contains("\"endpoints\"", index);
         Assert.Contains("\"diagnostic\": \"cpu\"", cpu);

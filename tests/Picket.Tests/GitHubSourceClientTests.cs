@@ -97,6 +97,57 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitHub source options default to bounded remote downloads.
+    /// </summary>
+    [TestMethod]
+    public void GitHubSourceOptionsDefaultsToBoundedRemoteDownloads()
+    {
+        var repositoryOptions = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "github-test-token");
+        var organizationOptions = new GitHubOrganizationSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            "github-test-token");
+        var gistOptions = new GitHubGistSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "github-test-token",
+            "gist-one");
+
+        Assert.AreEqual(100_000_000, repositoryOptions.MaxFileBytes);
+        Assert.AreEqual(100_000_000, organizationOptions.MaxFileBytes);
+        Assert.AreEqual(100_000_000, gistOptions.MaxFileBytes);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub source options can explicitly disable remote download size caps.
+    /// </summary>
+    [TestMethod]
+    public void GitHubSourceOptionsAcceptsZeroForUnboundedRemoteDownloads()
+    {
+        var repositoryOptions = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "github-test-token",
+            maxFileBytes: 0);
+        var organizationOptions = new GitHubOrganizationSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            "github-test-token",
+            maxFileBytes: 0);
+        var gistOptions = new GitHubGistSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "github-test-token",
+            "gist-one",
+            maxFileBytes: 0);
+
+        Assert.IsNull(repositoryOptions.MaxFileBytes);
+        Assert.IsNull(organizationOptions.MaxFileBytes);
+        Assert.IsNull(gistOptions.MaxFileBytes);
+    }
+
+    /// <summary>
     /// Verifies that GitHub gist source options reject ambiguous selectors.
     /// </summary>
     [TestMethod]
@@ -711,6 +762,82 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that default GitHub file byte limits skip oversized remote blobs.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesAppliesDefaultFileByteLimit()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"large.txt","type":"blob","size":100000001}]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("GitHub file byte limit skipped github/willibrandon/picket/large.txt", warnings[0]);
+        Assert.DoesNotContain("/contents/large.txt", string.Join('\n', urls));
+    }
+
+    /// <summary>
+    /// Verifies provider-supplied repository paths are normalized before they become report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesNormalizesUnsafeDisplayPathSegments()
+    {
+        const string Token = "github-test-token";
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"../secret.txt","type":"blob","size":11}]}""");
+            }
+
+            if (url.Contains("/contents/", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(GitHubSourceOptions.CreateDefaultEndpoint(), "willibrandon/picket", Token);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("github/willibrandon/picket/_/secret.txt", files[0].DisplayPath);
+    }
+
+    /// <summary>
     /// Verifies that per-file download failures are warnings rather than whole-source failures.
     /// </summary>
     [TestMethod]
@@ -874,6 +1001,37 @@ public sealed class GitHubSourceClientTests
         Assert.Contains("skipping GitHub repository willibrandon/empty because it does not have a default branch", warnings[0]);
         Assert.Contains("skipping GitHub repository willibrandon/denied", warnings[1]);
         Assert.Contains("403 Forbidden", warnings[1]);
+    }
+
+    /// <summary>
+    /// Verifies organization repository pagination stops at the safety limit.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateOrganizationRepositoryFilesStopsAtPaginationLimit()
+    {
+        const string Token = "github-test-token";
+        int requestCount = 0;
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            HttpResponseMessage response = JsonResponse("[]");
+            response.Headers.TryAddWithoutValidation("Link", "<https://api.github.com/orgs/willibrandon/repos?page=2>; rel=\"next\"");
+            return response;
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubOrganizationSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateOrganizationRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(1000, requestCount);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("pagination safety limit", warnings[0]);
     }
 
     private static void CaptureRequest(

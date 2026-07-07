@@ -1,6 +1,8 @@
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Picket.Tests;
 
@@ -70,6 +72,22 @@ public sealed class GitleaksFindingRedactorTests
         Assert.AreEqual("abcdefghij...", compatible.Secret);
         Assert.AreEqual("abcdefghi...", strict.Secret);
         Assert.DoesNotContain("abcdefghij", strict.Secret);
+    }
+
+    /// <summary>
+    /// Verifies native redaction does not keep hashes of the original evidence.
+    /// </summary>
+    [TestMethod]
+    public void RedactStrictHashesRedactedEvidence()
+    {
+        Finding finding = CreateFinding("line containing secret", "secret");
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100, requirePartialMask: true);
+
+        Assert.AreEqual(CreateSha256("REDACTED"), redacted.SecretSha256);
+        Assert.AreEqual(CreateSha256("line containing REDACTED"), redacted.MatchSha256);
+        Assert.AreNotEqual(CreateSha256("secret"), redacted.SecretSha256);
+        Assert.AreNotEqual(CreateSha256("line containing secret"), redacted.MatchSha256);
     }
 
     /// <summary>
@@ -147,5 +165,11 @@ public sealed class GitleaksFindingRedactorTests
             line,
             link: "https://github.com/example/repo/blob/commit/secret.txt#L1",
             decodePath: decodePath);
+    }
+
+    private static string CreateSha256(string value)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexStringLower(hash);
     }
 }

@@ -60,7 +60,7 @@ public static class GitleaksConfigLoader
     public static RuleSet LoadFile(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return LoadFile(path, 0);
+        return LoadFile(path, 0, []);
     }
 
     /// <summary>
@@ -71,15 +71,28 @@ public static class GitleaksConfigLoader
     /// <returns>The loaded rules.</returns>
     public static RuleSet FromToml(string toml, string sourceName)
     {
-        return FromToml(toml, sourceName, 0);
+        return FromToml(toml, sourceName, 0, null);
     }
 
-    private static RuleSet LoadFile(string path, int extendDepth)
+    private static RuleSet LoadFile(string path, int extendDepth, HashSet<string> visitedPaths)
     {
-        return FromToml(File.ReadAllText(path), path, extendDepth);
+        string fullPath = Path.GetFullPath(path);
+        if (!visitedPaths.Add(fullPath))
+        {
+            throw new InvalidDataException($"{path}: extend.path cycle detected");
+        }
+
+        try
+        {
+            return FromToml(File.ReadAllText(fullPath), fullPath, extendDepth, visitedPaths);
+        }
+        finally
+        {
+            visitedPaths.Remove(fullPath);
+        }
     }
 
-    private static RuleSet FromToml(string toml, string sourceName, int extendDepth)
+    private static RuleSet FromToml(string toml, string sourceName, int extendDepth, HashSet<string>? visitedPaths)
     {
         ArgumentNullException.ThrowIfNull(toml);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
@@ -630,11 +643,11 @@ public static class GitleaksConfigLoader
             {
                 try
                 {
-                    extendedRuleSet = LoadFile(extendPath, extendDepth + 1);
+                    extendedRuleSet = LoadFile(extendPath, extendDepth + 1, visitedPaths ?? []);
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
                 {
-                    throw new InvalidDataException($"{sourceName}: failed to load extended config '{extendPath}'", exception);
+                    throw new InvalidDataException($"{sourceName}: failed to load extended config '{extendPath}': {exception.Message}", exception);
                 }
             }
 
@@ -1196,7 +1209,8 @@ public static class GitleaksConfigLoader
         RuleSet ruleSet = FromToml(
             EmbeddedGitleaksConfig.Toml,
             $"embedded Gitleaks config {EmbeddedGitleaksConfig.SourceVersion} ({EmbeddedGitleaksConfig.SourceCommit})",
-            MaxExtendDepth);
+            MaxExtendDepth,
+            null);
         return new RuleSet(ruleSet.Rules, ruleSet.Allowlists, regexesPrevalidated: true);
     }
 }

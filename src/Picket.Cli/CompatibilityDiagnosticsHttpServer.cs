@@ -1,24 +1,30 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Picket;
 
 internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
 {
-    private const int Port = 6060;
     private const int MaxRequestHeaderBytes = 8192;
+    private const int TokenByteLength = 16;
     private readonly Func<string, CompatibilityDiagnosticsHttpResponse> _responseFactory;
     private readonly TcpListener _listener;
     private readonly Thread _thread;
+    private readonly string _token;
     private bool _disposed;
 
     private CompatibilityDiagnosticsHttpServer(Func<string, CompatibilityDiagnosticsHttpResponse> responseFactory)
     {
         _responseFactory = responseFactory;
-        _listener = new TcpListener(IPAddress.Loopback, Port);
+        _token = CreateToken();
+        _listener = new TcpListener(IPAddress.Loopback, port: 0);
         _listener.Start();
+        var endpoint = (IPEndPoint)_listener.LocalEndpoint;
+        AuthenticationQueryString = $"token={_token}";
+        DiagnosticsUri = $"http://127.0.0.1:{endpoint.Port.ToString(CultureInfo.InvariantCulture)}/debug/pprof/?{AuthenticationQueryString}";
         _thread = new Thread(Listen)
         {
             IsBackground = true,
@@ -32,6 +38,10 @@ internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
         ArgumentNullException.ThrowIfNull(responseFactory);
         return new CompatibilityDiagnosticsHttpServer(responseFactory);
     }
+
+    internal string DiagnosticsUri { get; }
+
+    internal string AuthenticationQueryString { get; }
 
     public void Dispose()
     {
@@ -81,9 +91,15 @@ internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
         client.SendTimeout = 1000;
         using NetworkStream stream = client.GetStream();
         string request = ReadRequest(stream);
-        if (!TryParseRequest(request, out string method, out string path))
+        if (!TryParseRequest(request, out string method, out string path, out string token))
         {
             WriteResponse(stream, new CompatibilityDiagnosticsHttpResponse("text/plain; charset=utf-8", "bad request\n", 400), writeBody: true);
+            return;
+        }
+
+        if (!IsAuthorized(token))
+        {
+            WriteResponse(stream, new CompatibilityDiagnosticsHttpResponse("text/plain; charset=utf-8", "unauthorized\n", 401), writeBody: true);
             return;
         }
 
@@ -124,10 +140,11 @@ internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
         return Encoding.ASCII.GetString(bytes, 0, count);
     }
 
-    private static bool TryParseRequest(string request, out string method, out string path)
+    private static bool TryParseRequest(string request, out string method, out string path, out string token)
     {
         method = string.Empty;
         path = string.Empty;
+        token = string.Empty;
         int lineEnd = request.IndexOf("\r\n", StringComparison.Ordinal);
         string requestLine = lineEnd < 0 ? request : request[..lineEnd];
         string[] parts = requestLine.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
@@ -137,19 +154,55 @@ internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
         }
 
         method = parts[0];
-        path = NormalizePath(parts[1]);
+        path = NormalizePath(parts[1], out token);
         return method.Length != 0 && path.Length != 0;
     }
 
-    private static string NormalizePath(string value)
+    private static string NormalizePath(string value, out string token)
     {
+        token = string.Empty;
         int queryIndex = value.IndexOf('?');
         if (queryIndex >= 0)
         {
+            token = ExtractToken(value[(queryIndex + 1)..]);
             value = value[..queryIndex];
         }
 
         return value.Length == 0 ? "/" : value;
+    }
+
+    private bool IsAuthorized(string token)
+    {
+        return token.Length == _token.Length
+            && CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(token),
+                Encoding.ASCII.GetBytes(_token));
+    }
+
+    private static string ExtractToken(string query)
+    {
+        string[] parameters = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            string parameter = parameters[i];
+            int separator = parameter.IndexOf('=');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            if (parameter[..separator].Equals("token", StringComparison.Ordinal))
+            {
+                return parameter[(separator + 1)..];
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string CreateToken()
+    {
+        return Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(TokenByteLength));
     }
 
     private static void WriteResponse(NetworkStream stream, CompatibilityDiagnosticsHttpResponse response, bool writeBody)
@@ -180,6 +233,7 @@ internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
         {
             200 => "OK",
             400 => "Bad Request",
+            401 => "Unauthorized",
             404 => "Not Found",
             405 => "Method Not Allowed",
             _ => "OK",

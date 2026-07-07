@@ -17,6 +17,62 @@ public sealed class AzureDevOpsSourceClientTests
     public TestContext TestContext { get; set; } = null!;
 
     /// <summary>
+    /// Verifies that Azure DevOps source options default to bounded remote downloads.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsSourceOptionsDefaultsToBoundedRemoteDownloads()
+    {
+        var options = new AzureDevOpsSourceOptions(AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"), "azdo-test-token");
+
+        Assert.AreEqual(100_000_000, options.MaxFileBytes);
+        Assert.AreEqual(100_000_000, options.MaxArtifactBytes);
+        Assert.AreEqual(100_000_000, options.MaxLogBytes);
+    }
+
+    /// <summary>
+    /// Verifies that Azure DevOps source options can explicitly disable remote download size caps.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsSourceOptionsAcceptsZeroForUnboundedRemoteDownloads()
+    {
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "azdo-test-token",
+            maxFileBytes: 0,
+            maxArtifactBytes: 0,
+            maxLogBytes: 0);
+
+        Assert.IsNull(options.MaxFileBytes);
+        Assert.IsNull(options.MaxArtifactBytes);
+        Assert.IsNull(options.MaxLogBytes);
+    }
+
+    /// <summary>
+    /// Verifies Azure DevOps source options reject credentials over public HTTP by default.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsSourceOptionsRejectsPublicHttpCredentialTransportByDefault()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => new AzureDevOpsSourceOptions(
+            new Uri("http://dev.azure.com/picket/"),
+            "azdo-test-token"));
+    }
+
+    /// <summary>
+    /// Verifies Azure DevOps source options require an explicit opt-in for public HTTP credential transport.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsSourceOptionsAcceptsExplicitPublicHttpCredentialTransport()
+    {
+        var options = new AzureDevOpsSourceOptions(
+            new Uri("http://dev.azure.com/picket/"),
+            "azdo-test-token",
+            allowInsecureCredentialTransport: true);
+
+        Assert.AreEqual("http://dev.azure.com/picket/", options.Endpoint.AbsoluteUri);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration follows Azure DevOps continuation tokens and downloads blob content.
     /// </summary>
     [TestMethod]
@@ -583,6 +639,146 @@ public sealed class AzureDevOpsSourceClientTests
         Assert.HasCount(1, warnings);
         Assert.Contains("Azure DevOps file byte limit skipped azure-devops/Project%20One/web/large.txt", warnings[0]);
         Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that default Azure DevOps file byte limits skip oversized remote downloads.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesAppliesDefaultFileByteLimit()
+    {
+        const string Token = "azdo-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": "repo-1",
+                          "name": "web",
+                          "project": { "name": "Project One" }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal)
+                && url.Contains("download=true", StringComparison.Ordinal))
+            {
+                HttpResponseMessage response = BytesResponse("short");
+                response.Content.Headers.ContentLength = 100_000_001;
+                return response;
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"path":"/large.txt","gitObjectType":"blob"}]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            repository: "web",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Azure DevOps file byte limit skipped azure-devops/Project%20One/web/large.txt", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies provider-supplied repository paths are normalized before they become report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesNormalizesUnsafeDisplayPathSegments()
+    {
+        const string Token = "azdo-test-token";
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": "repo-1",
+                          "name": "web",
+                          "project": { "name": "Project One" }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal)
+                && url.Contains("download=true", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            if (url.Contains("/items?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"path":"../secret.txt","gitObjectType":"blob"}]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            repository: "web");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("azure-devops/Project%20One/web/_/secret.txt", files[0].DisplayPath);
+    }
+
+    /// <summary>
+    /// Verifies repository continuation-token pagination stops at the safety limit.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesStopsAtContinuationLimit()
+    {
+        const string Token = "azdo-test-token";
+        int requestCount = 0;
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            HttpResponseMessage response = JsonResponse("""{"value":[]}""");
+            response.Headers.TryAddWithoutValidation("x-ms-continuationtoken", "next");
+            return response;
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(1000, requestCount);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("pagination safety limit", warnings[0]);
     }
 
     private static void CaptureRequest(

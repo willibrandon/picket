@@ -20,6 +20,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     private const int ReleaseAssetsPerPage = 100;
     private const int ReleasesPerPage = 100;
     private const int RepositoriesPerPage = 100;
+    private const int MaxPaginationPages = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-github-remote");
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
@@ -262,7 +263,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             await AddOrganizationRepositoriesAsync(options, response, repositories, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub organization {options.Organization} repository enumeration");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -330,7 +331,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
 
             await AddPagedGistFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, "GitHub gist enumeration");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -500,7 +501,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
 
             await AddGistCommentFilesAsync(options, owner, gistId, response, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub gist {gistId} comment enumeration");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -609,7 +610,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
 
             await AddIssueFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub issue enumeration for {options.Repository}");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -633,7 +634,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
 
             await AddReleaseFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub release enumeration for {options.Repository}");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -714,7 +715,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 await AddReleaseAssetFilesAsync(options, releaseTag, document.RootElement, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
 
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub release asset enumeration for {options.Repository}@{releaseTag}");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -792,7 +793,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
 
             await AddActionArtifactFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub Actions artifact enumeration for {options.Repository}");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -952,7 +953,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             }
 
             await AddIssueCommentFilesAsync(options, issueNumber, response, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(response);
+            hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub issue comment enumeration for {options.Repository}#{issueNumber.ToString(CultureInfo.InvariantCulture)}");
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -1572,10 +1573,21 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             response.StatusCode));
     }
 
-    private static bool HasNextPage(HttpResponseMessage response)
+    private static bool HasNextPage(HttpResponseMessage response, int page, Action<string>? warningSink, string target)
     {
-        return response.Headers.TryGetValues("Link", out IEnumerable<string>? values)
-            && values.Any(value => value.Contains("rel=\"next\"", StringComparison.OrdinalIgnoreCase));
+        if (!response.Headers.TryGetValues("Link", out IEnumerable<string>? values)
+            || !values.Any(value => value.Contains("rel=\"next\"", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (page >= MaxPaginationPages)
+        {
+            warningSink?.Invoke($"{target} stopped at the pagination safety limit");
+            return false;
+        }
+
+        return true;
     }
 
     private static bool IsRedirect(HttpResponseMessage response)
@@ -1690,14 +1702,13 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
 
     private static string CreateDisplayPath(GitHubSourceOptions options, string itemPath)
     {
-        string normalizedItemPath = itemPath.Replace('\\', '/').TrimStart('/');
         return string.Concat(
             "github/",
             EscapeDisplaySegment(options.Owner),
             "/",
             EscapeDisplaySegment(options.RepositoryName),
             "/",
-            normalizedItemPath);
+            NormalizeRemoteItemPath(itemPath));
     }
 
     private static string CreateIssueDisplayPath(GitHubSourceOptions options, int issueNumber)
@@ -1767,14 +1778,13 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
 
     private static string CreateGistFileDisplayPath(string owner, string gistId, string fileName)
     {
-        string normalizedFileName = fileName.Replace('\\', '/').TrimStart('/');
         return string.Concat(
             "github/gists/",
             EscapeDisplaySegment(owner),
             "/",
             EscapeDisplaySegment(gistId),
             "/",
-            normalizedFileName);
+            NormalizeRemoteItemPath(fileName));
     }
 
     private static string CreateGistCommentDisplayPath(string owner, string gistId, long commentId)
@@ -1960,6 +1970,34 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     private static string EscapeDisplaySegment(string value)
     {
         return Uri.EscapeDataString(value).Replace("%2F", "_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeRemoteItemPath(string value)
+    {
+        string[] segments = value.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            return "_";
+        }
+
+        var builder = new StringBuilder();
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (i != 0)
+            {
+                builder.Append('/');
+            }
+
+            builder.Append(EscapeDisplaySegment(IsUnsafePathSegment(segments[i]) ? "_" : segments[i]));
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsUnsafePathSegment(string value)
+    {
+        return value.Equals(".", StringComparison.Ordinal)
+            || value.Equals("..", StringComparison.Ordinal);
     }
 
     private static bool IsCancellationRequested(GitHubSourceOptions options)

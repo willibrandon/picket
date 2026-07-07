@@ -68,6 +68,23 @@ public sealed class PicketJunitReportWriterTests
     }
 
     /// <summary>
+    /// Verifies native JUnit replaces XML-disallowed control characters.
+    /// </summary>
+    [TestMethod]
+    public void WriteReplacesInvalidXmlControlCharacters()
+    {
+        Finding finding = CreateFinding(
+            description: "rule\u0001description",
+            file: "auth\u0002.py");
+
+        string xml = PicketJunitReportWriter.Write([finding]);
+
+        Assert.DoesNotContain("\u0001", xml);
+        Assert.DoesNotContain("\u0002", xml);
+        Assert.Contains("&#xFFFD;", xml);
+    }
+
+    /// <summary>
     /// Verifies that symlink paths are used as the displayed location.
     /// </summary>
     [TestMethod]

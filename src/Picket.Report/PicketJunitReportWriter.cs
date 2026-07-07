@@ -127,7 +127,7 @@ public static class PicketJunitReportWriter
                     builder.Append("&#x9;");
                     break;
                 default:
-                    builder.Append(rune.ToString());
+                    AppendXmlRune(builder, rune);
                     break;
             }
         }
@@ -164,9 +164,27 @@ public static class PicketJunitReportWriter
                     builder.Append("&#x9;");
                     break;
                 default:
-                    builder.Append(rune.ToString());
+                    AppendXmlRune(builder, rune);
                     break;
             }
         }
+    }
+
+    private static void AppendXmlRune(StringBuilder builder, Rune rune)
+    {
+        if (IsInvalidXmlCharacter(rune.Value))
+        {
+            builder.Append("&#xFFFD;");
+            return;
+        }
+
+        builder.Append(rune.ToString());
+    }
+
+    private static bool IsInvalidXmlCharacter(int value)
+    {
+        return value < 0x20
+            || value is > 0xD7FF and < 0xE000
+            || value > 0x10FFFF;
     }
 }

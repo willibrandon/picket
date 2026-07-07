@@ -102,6 +102,29 @@ public sealed class SecretValidationCacheTests
     }
 
     /// <summary>
+    /// Verifies expired validation entries are pruned even when their fingerprint is stale.
+    /// </summary>
+    [TestMethod]
+    public void PruneExpiredDeletesStaleFingerprintEntries()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        SecretValidationCacheKey key = SecretValidationCacheKey.FromFinding(
+            "github",
+            "v1",
+            CreateFinding(),
+            new Uri("https://api.github.com/user"));
+        SecretValidationCache staleCache = SecretValidationCache.Open(temp.Path, "rules:old");
+        SecretValidationCache activeCache = SecretValidationCache.Open(temp.Path, "rules:new");
+        staleCache.Write(key, new SecretValidationResult(SecretValidationState.Inactive), now.AddSeconds(-1));
+
+        int pruned = activeCache.PruneExpired(now);
+
+        Assert.AreEqual(1, pruned);
+        Assert.IsEmpty(Directory.EnumerateFiles(temp.Path, "*.cache", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
     /// Verifies that callers cannot accidentally use raw secret material as the key secret hash.
     /// </summary>
     [TestMethod]

@@ -116,7 +116,7 @@ public sealed class GitleaksIgnore(IEnumerable<string> fingerprints)
             return true;
         }
 
-        return finding.Commit.Length != 0 && _fingerprints.Contains(finding.Fingerprint);
+        return finding.Commit.Length != 0 && _fingerprints.Contains(NormalizeFingerprint(finding.Fingerprint));
     }
 
     private static void AddLine(HashSet<string> fingerprints, string line)
@@ -132,18 +132,31 @@ public sealed class GitleaksIgnore(IEnumerable<string> fingerprints)
 
     private static string NormalizeFingerprint(string fingerprint)
     {
-        string[] parts = fingerprint.Split(':');
-        switch (parts.Length)
+        int lineSeparator = fingerprint.LastIndexOf(':');
+        if (lineSeparator <= 0)
         {
-            case 3:
-                parts[0] = NormalizePath(parts[0]);
-                break;
-            case 4:
-                parts[1] = NormalizePath(parts[1]);
-                break;
+            return fingerprint;
         }
 
-        return string.Join(':', parts);
+        int ruleSeparator = fingerprint.LastIndexOf(':', lineSeparator - 1);
+        if (ruleSeparator <= 0)
+        {
+            return fingerprint;
+        }
+
+        string leading = fingerprint[..ruleSeparator];
+        string suffix = fingerprint[ruleSeparator..];
+        int commitSeparator = leading.IndexOf(':', StringComparison.Ordinal);
+        if (commitSeparator > 0 && IsCommitSha(leading.AsSpan(0, commitSeparator)))
+        {
+            return string.Concat(
+                leading.AsSpan(0, commitSeparator),
+                ":",
+                NormalizePath(leading[(commitSeparator + 1)..]),
+                suffix);
+        }
+
+        return string.Concat(NormalizePath(leading), suffix);
     }
 
     private static string CreateGlobalFingerprint(Finding finding)
@@ -154,6 +167,25 @@ public sealed class GitleaksIgnore(IEnumerable<string> fingerprints)
     private static string NormalizePath(string path)
     {
         return path.Replace('\\', '/');
+    }
+
+    private static bool IsCommitSha(ReadOnlySpan<char> value)
+    {
+        if (value.Length is not (7 or 40))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            char ch = value[i];
+            if (ch is not (>= '0' and <= '9') and not (>= 'a' and <= 'f') and not (>= 'A' and <= 'F'))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static HashSet<string> CreateFingerprintSet(IEnumerable<string> fingerprints)

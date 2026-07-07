@@ -123,7 +123,7 @@ public sealed class SecretValidationCache
     }
 
     /// <summary>
-    /// Deletes expired cache entries for the active cache fingerprint.
+    /// Deletes expired cache entries.
     /// </summary>
     /// <param name="now">The current time used for expiration checks.</param>
     /// <returns>The number of deleted entries.</returns>
@@ -134,7 +134,7 @@ public sealed class SecretValidationCache
         {
             try
             {
-                if (IsExpiredCurrentFingerprintEntry(entryPath, now) && TryDelete(entryPath))
+                if (IsExpiredEntry(entryPath, now) && TryDelete(entryPath))
                 {
                     deleted++;
                 }
@@ -353,12 +353,10 @@ public sealed class SecretValidationCache
             && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) > now;
     }
 
-    private bool IsExpiredCurrentFingerprintEntry(string entryPath, DateTimeOffset now)
+    private static bool IsExpiredEntry(string entryPath, DateTimeOffset now)
     {
         string[] lines = File.ReadAllLines(entryPath);
         return TryReadHeaders(lines, out Dictionary<string, string>? headers)
-            && headers.TryGetValue(CacheFingerprintHeader, out string? cacheFingerprint)
-            && cacheFingerprint.Equals(CacheFingerprintSha256, StringComparison.Ordinal)
             && headers.TryGetValue(ExpiresUnixTimeSecondsHeader, out string? expiresValue)
             && long.TryParse(expiresValue, CultureInfo.InvariantCulture, out long expiresUnixTimeSeconds)
             && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) <= now;

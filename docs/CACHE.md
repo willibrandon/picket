@@ -27,9 +27,10 @@ Current entries include:
 - cache address mode,
 - cache storage mode,
 - finding count,
-- cached finding rows.
+- cached finding rows,
+- entry authentication tag.
 
-Older entries for the legacy raw/path mode without creation, address-mode, storage-mode, and finding-count metadata remain readable. Corrupt entries are treated as misses and are not allowed to fail a scan.
+Entries use the authenticated `picket.scan-cache.v2` format. Picket signs each entry body with HMAC-SHA-256 using a per-user key stored outside the cache root. Edited entries, unsigned legacy entries, and imports that cannot authenticate under the current user profile are treated as invalid cache misses. This keeps cache export/import useful across cache roots for the same build identity while preventing an untrusted archive or writable cache directory from silently suppressing findings.
 
 ## Privacy
 
@@ -51,7 +52,7 @@ Baseline suppression still works with secret-hash-only cache hits. Picket compar
 
 `PicketScanCache.Export(...)` writes entries for the active scanner configuration key to a portable zip archive.
 
-`PicketScanCache.Import(...)` restores entries for the active scanner configuration key from a portable zip archive. Import validates archive paths and cache entry contents before writing files under the cache root.
+`PicketScanCache.Import(...)` restores entries for the active scanner configuration key from a portable zip archive. Import validates archive paths, caps each decompressed cache entry at 100 decimal MB by default, authenticates entries, and validates cache entry contents before writing files under the cache root.
 
 The native CLI wraps the same APIs:
 

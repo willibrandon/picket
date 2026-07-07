@@ -1,7 +1,9 @@
 using Picket.Engine;
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Picket.Store;
@@ -11,9 +13,11 @@ namespace Picket.Store;
 /// </summary>
 public sealed class PicketScanCache
 {
+    private const int AuthenticationKeyByteLength = 32;
     private const int Sha256HexLength = 64;
+    private const long DefaultMaxImportEntryBytes = 100_000_000;
     private const string CacheEntryExtension = ".cache";
-    private const string SchemaLine = "picket.scan-cache.v1";
+    private const string AuthenticationKeyFileName = "scan-cache-auth.key";
     private const string AddressModeHeader = "addressMode";
     private const string ContentAddressDiscriminator = "content";
     private const string CreatedUnixTimeSecondsHeader = "createdUnixTimeSeconds";
@@ -21,18 +25,23 @@ public sealed class PicketScanCache
     private const string ExtensionAddressPrefix = "extension:";
     private const string FindingCountHeader = "findingCount";
     private const string LocksDirectoryName = "locks";
+    private const string MacHeader = "mac";
+    private const string ProductDirectoryName = "Picket";
+    private const string SchemaLine = "picket.scan-cache.v2";
     private const string StorageModeHeader = "storageMode";
     private const UnixFileMode OwnerOnlyDirectoryMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
     private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
 
     private readonly string _entriesPath;
     private readonly string _locksPath;
+    private readonly byte[] _authenticationKey;
     private static readonly UTF8Encoding s_utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private PicketScanCache(string rootPath, ScanCacheKey key)
     {
         RootPath = Path.GetFullPath(rootPath);
         Key = key;
+        _authenticationKey = LoadOrCreateAuthenticationKey();
         _entriesPath = Path.Combine(RootPath, EntriesDirectoryName);
         _locksPath = Path.Combine(RootPath, LocksDirectoryName);
         CreateOwnerOnlyDirectory(RootPath);
@@ -106,27 +115,36 @@ public sealed class PicketScanCache
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentNullException.ThrowIfNull(findings);
 
-        string blobHash = BlobHasher.ComputeSha256Hex(content);
-        string addressHash = CreateAddressHash(fileName);
-        string entryPath = CreateEntryPath(blobHash, addressHash);
-        string? entryDirectory = Path.GetDirectoryName(entryPath);
-        if (entryDirectory is not null)
-        {
-            CreateOwnerOnlyDirectory(entryDirectory);
-        }
-
-        string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
-        using FileStream _ = OpenLock(lockPath);
-        string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
         try
         {
-            WriteOwnerOnlyText(tempPath, CreateEntry(blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode, findings));
-            File.Move(tempPath, entryPath, overwrite: true);
-            SetOwnerOnlyFile(entryPath);
+            string blobHash = BlobHasher.ComputeSha256Hex(content);
+            string addressHash = CreateAddressHash(fileName);
+            string entryPath = CreateEntryPath(blobHash, addressHash);
+            string? entryDirectory = Path.GetDirectoryName(entryPath);
+            if (entryDirectory is not null)
+            {
+                CreateOwnerOnlyDirectory(entryDirectory);
+            }
+
+            string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
+            using FileStream _ = OpenLock(lockPath);
+            string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
+            try
+            {
+                WriteOwnerOnlyText(tempPath, CreateAuthenticatedEntry(blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode, findings));
+                File.Move(tempPath, entryPath, overwrite: true);
+                SetOwnerOnlyFile(entryPath);
+            }
+            finally
+            {
+                TryDelete(tempPath);
+            }
         }
-        finally
+        catch (IOException)
         {
-            TryDelete(tempPath);
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 
@@ -196,7 +214,19 @@ public sealed class PicketScanCache
     /// <returns>The number of imported entries.</returns>
     public int Import(string archivePath)
     {
+        return Import(archivePath, DefaultMaxImportEntryBytes);
+    }
+
+    /// <summary>
+    /// Imports current scanner-key cache entries from a portable zip archive.
+    /// </summary>
+    /// <param name="archivePath">The source archive path.</param>
+    /// <param name="maxEntryBytes">The maximum decompressed bytes allowed for a single imported entry.</param>
+    /// <returns>The number of imported entries.</returns>
+    public int Import(string archivePath, long maxEntryBytes)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(archivePath);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxEntryBytes, 0);
 
         int imported = 0;
         using var archiveStream = new FileStream(Path.GetFullPath(archivePath), FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -223,6 +253,11 @@ public sealed class PicketScanCache
                 continue;
             }
 
+            if (archiveEntry.Length > maxEntryBytes)
+            {
+                throw new FormatException($"Cache archive entry exceeds maximum decompressed size: {archiveEntry.FullName}");
+            }
+
             string entryPath = Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, addressHash, Key.Fingerprint));
             string fullEntryPath = Path.GetFullPath(entryPath);
             if (!IsWithinDirectory(fullEntryPath, _entriesPath))
@@ -244,7 +279,7 @@ public sealed class PicketScanCache
                 using (Stream input = archiveEntry.Open())
                 using (FileStream output = OpenOwnerOnlyNewFile(tempPath))
                 {
-                    input.CopyTo(output);
+                    CopyArchiveEntryWithinLimit(input, output, maxEntryBytes, archiveEntry.FullName);
                 }
 
                 if (!IsValidEntryFile(tempPath, blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
@@ -264,6 +299,31 @@ public sealed class PicketScanCache
         }
 
         return imported;
+    }
+
+    private static void CopyArchiveEntryWithinLimit(Stream input, Stream output, long maxBytes, string entryName)
+    {
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);
+        try
+        {
+            long totalRead = 0;
+            int read;
+            while ((read = input.Read(buffer)) != 0)
+            {
+                long projectedTotal = totalRead + read;
+                if (projectedTotal > maxBytes)
+                {
+                    throw new FormatException($"Cache archive entry exceeds maximum decompressed size: {entryName}");
+                }
+
+                output.Write(buffer.AsSpan(0, read));
+                totalRead = projectedTotal;
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
     }
 
     /// <summary>
@@ -324,6 +384,91 @@ public sealed class PicketScanCache
         return stream;
     }
 
+    private static byte[] LoadOrCreateAuthenticationKey()
+    {
+        string keyPath = GetAuthenticationKeyPath();
+        string? keyDirectory = Path.GetDirectoryName(keyPath);
+        if (!string.IsNullOrEmpty(keyDirectory))
+        {
+            CreateOwnerOnlyDirectory(keyDirectory);
+        }
+
+        try
+        {
+            if (File.Exists(keyPath))
+            {
+                byte[] existing = File.ReadAllBytes(keyPath);
+                if (existing.Length == AuthenticationKeyByteLength)
+                {
+                    SetOwnerOnlyFile(keyPath);
+                    return existing;
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        byte[] key = RandomNumberGenerator.GetBytes(AuthenticationKeyByteLength);
+        string tempPath = CreateTempPath(keyPath);
+        try
+        {
+            using (FileStream stream = OpenOwnerOnlyNewFile(tempPath))
+            {
+                stream.Write(key);
+            }
+
+            try
+            {
+                File.Move(tempPath, keyPath, overwrite: false);
+                SetOwnerOnlyFile(keyPath);
+                return key;
+            }
+            catch (IOException)
+            {
+                byte[] existing = File.ReadAllBytes(keyPath);
+                if (existing.Length == AuthenticationKeyByteLength)
+                {
+                    SetOwnerOnlyFile(keyPath);
+                    return existing;
+                }
+
+                File.Move(tempPath, keyPath, overwrite: true);
+                SetOwnerOnlyFile(keyPath);
+                return key;
+            }
+        }
+        finally
+        {
+            TryDelete(tempPath);
+        }
+    }
+
+    private static string GetAuthenticationKeyPath()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            string? stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
+            if (!string.IsNullOrWhiteSpace(stateHome))
+            {
+                return Path.Combine(stateHome, "picket", AuthenticationKeyFileName);
+            }
+        }
+
+        string basePath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(basePath))
+        {
+            basePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        if (string.IsNullOrWhiteSpace(basePath))
+        {
+            basePath = Path.GetTempPath();
+        }
+
+        return Path.Combine(basePath, ProductDirectoryName, AuthenticationKeyFileName);
+    }
+
     private static FileStream OpenOwnerOnlyNewFile(string path)
     {
         return OpenOwnerOnlyFile(path, FileMode.CreateNew, FileAccess.Write);
@@ -375,7 +520,18 @@ public sealed class PicketScanCache
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 81920, FileOptions.SequentialScan);
     }
 
-    private static string CreateEntry(
+    private string CreateAuthenticatedEntry(
+        string blobHash,
+        string keyFingerprint,
+        ScanCacheAddressMode addressMode,
+        ScanCacheStorageMode storageMode,
+        IReadOnlyList<Finding> findings)
+    {
+        string body = CreateEntryBody(blobHash, keyFingerprint, addressMode, storageMode, findings);
+        return string.Concat(body, MacHeader, '\t', ComputeEntryMac(body), '\n');
+    }
+
+    private static string CreateEntryBody(
         string blobHash,
         string keyFingerprint,
         ScanCacheAddressMode addressMode,
@@ -423,8 +579,9 @@ public sealed class PicketScanCache
         [NotNullWhen(true)] out List<Finding>? findings)
     {
         findings = null;
-        string[] lines = File.ReadAllLines(entryPath);
-        if (lines.Length < 3 || !lines[0].Equals(SchemaLine, StringComparison.Ordinal))
+        if (!TryReadAuthenticatedEntryLines(entryPath, out string[]? lines)
+            || lines.Length < 3
+            || !lines[0].Equals(SchemaLine, StringComparison.Ordinal))
         {
             return false;
         }
@@ -724,7 +881,7 @@ public sealed class PicketScanCache
         return IsSha256Hex(blobHash) && IsSha256Hex(addressHash) && IsSha256Hex(keyFingerprint);
     }
 
-    private static bool IsValidEntryFile(
+    private bool IsValidEntryFile(
         string entryPath,
         string blobHash,
         string keyFingerprint,
@@ -733,8 +890,8 @@ public sealed class PicketScanCache
     {
         try
         {
-            string[] lines = File.ReadAllLines(entryPath);
-            if (lines.Length < 3
+            if (!TryReadAuthenticatedEntryLines(entryPath, out string[]? lines)
+                || lines.Length < 3
                 || !lines[0].Equals(SchemaLine, StringComparison.Ordinal)
                 || !TryReadHeader(lines[1], "key", out string storedKeyFingerprint)
                 || !storedKeyFingerprint.Equals(keyFingerprint, StringComparison.Ordinal)
@@ -784,6 +941,67 @@ public sealed class PicketScanCache
         {
             return false;
         }
+    }
+
+    private bool TryReadAuthenticatedEntryLines(string entryPath, [NotNullWhen(true)] out string[]? lines)
+    {
+        lines = null;
+        string text = File.ReadAllText(entryPath);
+        if (!TrySplitAuthenticatedEntry(text, out string body, out string mac))
+        {
+            return false;
+        }
+
+        string expectedMac = ComputeEntryMac(body);
+        if (!FixedTimeEqualsHex(expectedMac, mac))
+        {
+            return false;
+        }
+
+        lines = body.Split('\n');
+        return true;
+    }
+
+    private static bool TrySplitAuthenticatedEntry(string text, out string body, out string mac)
+    {
+        body = string.Empty;
+        mac = string.Empty;
+        if (text.Length == 0 || text[^1] != '\n')
+        {
+            return false;
+        }
+
+        int macLineStart = text.LastIndexOf('\n', text.Length - 2) + 1;
+        if (macLineStart <= 0)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> macLine = text.AsSpan(macLineStart, text.Length - macLineStart - 1);
+        string header = string.Concat(MacHeader, "\t");
+        if (!macLine.StartsWith(header, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        body = text[..macLineStart];
+        mac = macLine[header.Length..].ToString();
+        return IsSha256Hex(mac);
+    }
+
+    private string ComputeEntryMac(string body)
+    {
+        byte[] bodyBytes = s_utf8NoBom.GetBytes(body);
+        byte[] macBytes = HMACSHA256.HashData(_authenticationKey, bodyBytes);
+        return Convert.ToHexStringLower(macBytes);
+    }
+
+    private static bool FixedTimeEqualsHex(string expected, string actual)
+    {
+        return expected.Length == actual.Length
+            && CryptographicOperations.FixedTimeEquals(
+                s_utf8NoBom.GetBytes(expected),
+                s_utf8NoBom.GetBytes(actual));
     }
 
     private static bool IsSha256Hex(ReadOnlySpan<char> value)

@@ -230,7 +230,7 @@ internal sealed class CompatibilityDiagnosticsSession
         try
         {
             _httpServer = CompatibilityDiagnosticsHttpServer.Start(CreateHttpDiagnosticsResponse);
-            error.WriteLine("diagnostics server started at http://localhost:6060/debug/pprof/");
+            error.WriteLine($"diagnostics server started at {_httpServer.DiagnosticsUri}");
             return true;
         }
         catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException)
@@ -280,9 +280,22 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendString(builder, "command", _command);
         AppendString(builder, "startedAtUtc", FormatTimestamp(_startedAt));
         AppendString(builder, "note", "Picket serves AOT-safe JSON diagnostics here instead of Go pprof profiles.");
-        builder.Append("  \"endpoints\": [\"/debug/pprof/profile\", \"/debug/pprof/heap\", \"/debug/pprof/trace\"]\n");
+        builder.Append("  \"endpoints\": [\"");
+        builder.Append(CreateHttpDiagnosticsPath("/debug/pprof/profile"));
+        builder.Append("\", \"");
+        builder.Append(CreateHttpDiagnosticsPath("/debug/pprof/heap"));
+        builder.Append("\", \"");
+        builder.Append(CreateHttpDiagnosticsPath("/debug/pprof/trace"));
+        builder.Append("\"]\n");
         builder.Append("}\n");
         return builder.ToString();
+    }
+
+    private string CreateHttpDiagnosticsPath(string path)
+    {
+        return _httpServer is null
+            ? path
+            : string.Concat(path, '?', _httpServer.AuthenticationQueryString);
     }
 
     private string CreateCpuSnapshot()

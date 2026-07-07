@@ -178,7 +178,12 @@ internal static partial class Program
     {
         try
         {
-            _ = Process.Start(new ProcessStartInfo(Path.GetFullPath(reportPath))
+            if (!TryValidateOpenReportPath(reportPath, out string? fullPath))
+            {
+                return false;
+            }
+
+            _ = Process.Start(new ProcessStartInfo(fullPath)
             {
                 UseShellExecute = true,
             });
@@ -189,5 +194,52 @@ internal static partial class Program
             Console.Error.WriteLine($"failed to open report: {ex.Message}");
             return false;
         }
+    }
+
+    static bool TryValidateOpenReportPath(string reportPath, [NotNullWhen(true)] out string? fullPath)
+    {
+        fullPath = null;
+        try
+        {
+            fullPath = Path.GetFullPath(reportPath);
+            if (!File.Exists(fullPath))
+            {
+                Console.Error.WriteLine($"refusing to open report: file does not exist: {reportPath}");
+                return false;
+            }
+
+            FileAttributes attributes = File.GetAttributes(fullPath);
+            if ((attributes & FileAttributes.Directory) != 0 || (attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                Console.Error.WriteLine($"refusing to open report: expected a regular file: {reportPath}");
+                return false;
+            }
+
+            if (!HasOpenableReportExtension(fullPath))
+            {
+                Console.Error.WriteLine($"refusing to open report: unsupported report extension: {Path.GetExtension(reportPath)}");
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or PathTooLongException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"refusing to open report: {ex.Message}");
+            return false;
+        }
+    }
+
+    static bool HasOpenableReportExtension(string reportPath)
+    {
+        string extension = Path.GetExtension(reportPath);
+        return extension.Equals(".csv", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".html", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".json", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jsonl", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".sarif", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".toon", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".xml", StringComparison.OrdinalIgnoreCase);
     }
 }

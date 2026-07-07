@@ -302,6 +302,7 @@ internal static partial class Program
                 maxArchiveEntries,
                 maxArchiveBytes,
                 maxArchiveCompressionRatio,
+                allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
                 () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();

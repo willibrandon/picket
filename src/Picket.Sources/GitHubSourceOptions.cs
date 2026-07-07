@@ -12,7 +12,7 @@ namespace Picket.Sources;
 /// <param name="issueState">The issue state filter to scan.</param>
 /// <param name="includeReleases">A value indicating whether GitHub release bodies and release assets should be scanned.</param>
 /// <param name="includeActionArtifacts">A value indicating whether GitHub Actions artifact ZIP contents should be scanned.</param>
-/// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
+/// <param name="maxFileBytes">The maximum file content bytes to download, <see langword="null" /> for the default cap, or 0 for no cap.</param>
 /// <param name="maxArchiveDepth">The maximum nested artifact archive depth to enumerate.</param>
 /// <param name="maxArchiveEntries">The maximum number of artifact archive entries to enumerate, or 0 for no cap.</param>
 /// <param name="maxArchiveBytes">The maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
@@ -39,6 +39,8 @@ public sealed class GitHubSourceOptions(
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
 {
+    internal const long DefaultMaxFileBytes = 100_000_000;
+
     /// <summary>
     /// Gets the default GitHub issue state filter.
     /// </summary>
@@ -226,9 +228,19 @@ public sealed class GitHubSourceOptions(
 
     internal static long? RequireMaxFileBytes(long? value)
     {
-        if (value.HasValue)
+        if (!value.HasValue)
         {
-            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+            return DefaultMaxFileBytes;
+        }
+
+        if (value.Value == 0)
+        {
+            return null;
+        }
+
+        if (value.Value < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value));
         }
 
         return value;

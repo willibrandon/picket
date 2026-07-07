@@ -34,6 +34,21 @@ public sealed class GitleaksIgnoreTests
     }
 
     /// <summary>
+    /// Verifies Windows drive-letter colons are preserved as part of the ignored path.
+    /// </summary>
+    [TestMethod]
+    public void FromLinesParsesWindowsDriveLetterFingerprints()
+    {
+        GitleaksIgnore ignore = GitleaksIgnore.FromLines([
+            @"C:\repo\secret.txt:rule:12",
+            @"abcdef0:C:\repo\history.txt:rule:13",
+        ]);
+
+        Assert.IsTrue(ignore.IsIgnored(CreateFinding("C:/repo/secret.txt", "rule", 12)));
+        Assert.IsTrue(ignore.IsIgnored(CreateFinding(@"C:\repo\history.txt", "rule", 13, "abcdef0")));
+    }
+
+    /// <summary>
     /// Verifies commitless fingerprints suppress findings before commit-qualified fingerprints are checked.
     /// </summary>
     [TestMethod]

@@ -14,6 +14,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 {
     private const string ApiVersion = "7.1";
     private const string ContinuationTokenHeader = "x-ms-continuationtoken";
+    private const int MaxContinuationPages = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-azure-devops-remote");
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
@@ -106,15 +107,22 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
     {
         var repositories = new List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)>();
         string continuationToken = string.Empty;
+        int pageCount = 0;
         do
         {
+            pageCount++;
             Uri uri = CreateRepositoryListUri(options, continuationToken);
             using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             await AddRepositoriesAsync(response, repositories, cancellationToken).ConfigureAwait(false);
             continuationToken = ReadContinuationToken(response);
         }
-        while (continuationToken.Length != 0 && !IsCancellationRequested(options));
+        while (continuationToken.Length != 0 && pageCount < MaxContinuationPages && !IsCancellationRequested(options));
+
+        if (continuationToken.Length != 0 && pageCount >= MaxContinuationPages)
+        {
+            options.WarningSink?.Invoke("Azure DevOps repository enumeration stopped at the pagination safety limit");
+        }
 
         return repositories;
     }
@@ -130,8 +138,10 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         CancellationToken cancellationToken)
     {
         string continuationToken = string.Empty;
+        int pageCount = 0;
         do
         {
+            pageCount++;
             Uri uri = CreateItemListUri(options, projectName, repositoryId, version, versionType, continuationToken);
             using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -143,7 +153,12 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             await AddItemFilesAsync(options, response, repositoryId, repositoryName, projectName, version, versionType, sourceFiles, cancellationToken).ConfigureAwait(false);
             continuationToken = ReadContinuationToken(response);
         }
-        while (continuationToken.Length != 0 && !IsCancellationRequested(options));
+        while (continuationToken.Length != 0 && pageCount < MaxContinuationPages && !IsCancellationRequested(options));
+
+        if (continuationToken.Length != 0 && pageCount >= MaxContinuationPages)
+        {
+            options.WarningSink?.Invoke($"Azure DevOps repository {repositoryName} item enumeration stopped at the pagination safety limit");
+        }
     }
 
     private async Task<(bool ShouldScan, string RepositoryId, string RepositoryName, string ProjectName, string Version, string VersionType)> ResolveRepositoryVersionAsync(
@@ -414,8 +429,10 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         CancellationToken cancellationToken)
     {
         string continuationToken = string.Empty;
+        int pageCount = 0;
         do
         {
+            pageCount++;
             Uri uri = CreateWikiItemListUri(options, projectName, repositoryId, mappedPath, version, continuationToken);
             using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -427,7 +444,12 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             await AddWikiItemFilesAsync(options, response, projectName, wikiName, repositoryId, version, sourceFiles, cancellationToken).ConfigureAwait(false);
             continuationToken = ReadContinuationToken(response);
         }
-        while (continuationToken.Length != 0 && !IsCancellationRequested(options));
+        while (continuationToken.Length != 0 && pageCount < MaxContinuationPages && !IsCancellationRequested(options));
+
+        if (continuationToken.Length != 0 && pageCount >= MaxContinuationPages)
+        {
+            options.WarningSink?.Invoke($"Azure DevOps wiki {wikiName} item enumeration stopped at the pagination safety limit");
+        }
     }
 
     private async Task AddItemFilesAsync(
@@ -1191,26 +1213,24 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 
     private static string CreateDisplayPath(string projectName, string repositoryName, string itemPath)
     {
-        string normalizedItemPath = itemPath.Replace('\\', '/').TrimStart('/');
         return string.Concat(
             "azure-devops/",
             EscapeDisplaySegment(projectName),
             "/",
             EscapeDisplaySegment(repositoryName),
             "/",
-            normalizedItemPath);
+            NormalizeRemoteItemPath(itemPath));
     }
 
     private static string CreateWikiDisplayPath(string projectName, string wikiName, string itemPath)
     {
-        string normalizedItemPath = itemPath.Replace('\\', '/').TrimStart('/');
         return string.Concat(
             "azure-devops-wiki/",
             EscapeDisplaySegment(projectName),
             "/",
             EscapeDisplaySegment(wikiName),
             "/",
-            normalizedItemPath);
+            NormalizeRemoteItemPath(itemPath));
     }
 
     private static string CreateBuildArtifactDisplayPath(AzureDevOpsSourceOptions options, string artifactName)
@@ -1292,6 +1312,34 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
     private static string EscapeDisplaySegment(string value)
     {
         return Uri.EscapeDataString(value).Replace("%2F", "_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeRemoteItemPath(string value)
+    {
+        string[] segments = value.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            return "_";
+        }
+
+        var builder = new StringBuilder();
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (i != 0)
+            {
+                builder.Append('/');
+            }
+
+            builder.Append(EscapeDisplaySegment(IsUnsafePathSegment(segments[i]) ? "_" : segments[i]));
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsUnsafePathSegment(string value)
+    {
+        return value.Equals(".", StringComparison.Ordinal)
+            || value.Equals("..", StringComparison.Ordinal);
     }
 
     private static bool IsCancellationRequested(AzureDevOpsSourceOptions options)

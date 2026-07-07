@@ -90,7 +90,7 @@ single winner.
 
 ## Scout Escalation
 
-Scout remains a dependency through NuGet packages. If profiling attributes a
+Scout is a dependency through NuGet packages. If profiling attributes a
 material bottleneck to a Scout package, capture a minimal reproducer, benchmark
 or trace, exact package version, command line, input shape, and expected impact.
 Open a concise Scout issue with that evidence.

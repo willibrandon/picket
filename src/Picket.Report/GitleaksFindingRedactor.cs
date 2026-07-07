@@ -70,6 +70,12 @@ public static class GitleaksFindingRedactor
         string secret = MaskSecret(finding.Secret, redactionPercent, requirePartialMask);
         string match = finding.Match.Replace(finding.Secret, secret, StringComparison.Ordinal);
         string line = RedactLine(finding, secret);
+        string secretSha256 = requirePartialMask
+            ? PicketFindingMetadata.CreateSha256(secret)
+            : finding.SecretSha256.Length == 0 ? PicketFindingMetadata.CreateSha256(finding.Secret) : finding.SecretSha256;
+        string matchSha256 = requirePartialMask
+            ? PicketFindingMetadata.CreateSha256(match)
+            : finding.MatchSha256.Length == 0 ? PicketFindingMetadata.CreateSha256(finding.Match) : finding.MatchSha256;
         return new Finding(
             finding.RuleID,
             finding.Description,
@@ -91,8 +97,8 @@ public static class GitleaksFindingRedactor
             finding.Fingerprint,
             line,
             finding.Link,
-            finding.SecretSha256.Length == 0 ? PicketFindingMetadata.CreateSha256(finding.Secret) : finding.SecretSha256,
-            finding.MatchSha256.Length == 0 ? PicketFindingMetadata.CreateSha256(finding.Match) : finding.MatchSha256,
+            secretSha256,
+            matchSha256,
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath);
