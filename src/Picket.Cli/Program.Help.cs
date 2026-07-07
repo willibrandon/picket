@@ -116,17 +116,11 @@ internal static partial class Program
         Console.Out.WriteLine("  picket git [repo] [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--ignore-gitleaks-allow] [--log-opts value] [--platform value] [--staged] [--pre-commit] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
     }
 
-    static void WriteDirectoryHelp(bool nativeReportFormats)
+    static void WriteDirectoryHelp()
     {
         Console.Out.WriteLine("picket dir - scan a directory or file path");
         Console.Out.WriteLine();
         Console.Out.WriteLine("Usage:");
-        if (nativeReportFormats)
-        {
-            Console.Out.WriteLine("  picket scan [path] [-c path] [-f json|jsonl|csv|junit|html|gitlab|sarif|toon] [-r path]... [--profile picket] [--source path] [--ignore-path path] [--no-ignore] [--cache-dir path] [--cache-mode raw|secret-hash-only] [--enable-rule id] [--verify] [--results value] [--only-verified] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path]");
-            return;
-        }
-
         Console.Out.WriteLine("  picket dir <path> [-b path] [-c path] [-f json|csv|junit|sarif|template] [-r path] [-i path] [-l level] [-v] [--profile picket] [--no-color] [--no-banner] [--report-template path] [--enable-rule id] [--exit-code n] [--follow-symlinks] [--ignore-gitleaks-allow] [--max-target-megabytes n] [--max-archive-depth n] [--max-archive-entries n] [--max-archive-megabytes n] [--max-archive-ratio n] [--timeout n] [--diagnostics mode[,mode]] [--diagnostics-dir path] [--redact[=n]]");
     }
 

@@ -99,19 +99,19 @@ Use the grouped index to jump to the workflow you need.
       <li>
         <a class="cli-command-link" href="#picket-git">
           <code>picket git</code>
-          <span>Gitleaks-compatible git history scan.</span>
+          <span>Scan git history using the Gitleaks-compatible patch model.</span>
         </a>
       </li>
       <li>
         <a class="cli-command-link" href="#picket-dir">
           <code>picket dir</code>
-          <span>Gitleaks-compatible directory scan.</span>
+          <span>Scan a directory or file path.</span>
         </a>
       </li>
       <li>
         <a class="cli-command-link" href="#picket-stdin">
           <code>picket stdin</code>
-          <span>Gitleaks-compatible stdin scan.</span>
+          <span>Scan piped input.</span>
         </a>
       </li>
       <li>
@@ -1659,7 +1659,7 @@ Use the grouped index to jump to the workflow you need.
       <dd>Gitleaks compatibility</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Gitleaks-compatible git history scan.</p>
+  <p class="cli-command-summary">Scan git history using the Gitleaks-compatible patch model.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
@@ -1910,7 +1910,7 @@ Use the grouped index to jump to the workflow you need.
       <dd>Gitleaks compatibility</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Gitleaks-compatible directory scan.</p>
+  <p class="cli-command-summary">Scan a directory or file path.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
@@ -2140,7 +2140,7 @@ Use the grouped index to jump to the workflow you need.
       <dd>Gitleaks compatibility</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Gitleaks-compatible stdin scan.</p>
+  <p class="cli-command-summary">Scan piped input.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>

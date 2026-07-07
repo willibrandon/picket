@@ -22,7 +22,7 @@ internal static partial class Program
     {
         if (ContainsHelp(args))
         {
-            WriteDirectoryHelp(nativeReportFormats);
+            WriteDirectoryHelp();
             return 0;
         }
 
