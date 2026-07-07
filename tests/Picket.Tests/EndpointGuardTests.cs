@@ -70,6 +70,11 @@ public sealed class EndpointGuardTests
             IPAddress.Parse("fe80::1"),
             IPAddress.Parse("fc00::1"),
             IPAddress.Parse("2001:db8::1"),
+            IPAddress.Parse("::127.0.0.1"),
+            IPAddress.Parse("::10.0.0.1"),
+            IPAddress.Parse("64:ff9b::7f00:1"),
+            IPAddress.Parse("64:ff9b::0a00:1"),
+            IPAddress.Parse("2002:0a00:0001::"),
         ];
 
         for (int i = 0; i < blockedAddresses.Length; i++)

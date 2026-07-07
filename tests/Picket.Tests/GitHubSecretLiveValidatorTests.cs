@@ -1,11 +1,8 @@
 using Picket.Engine;
 using Picket.Verify;
-using System.Globalization;
 using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Authentication;
-using System.Text;
 
 namespace Picket.Tests;
 
@@ -209,7 +206,18 @@ public sealed class GitHubSecretLiveValidatorTests
     {
         GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
 
-        Assert.ThrowsExactly<ArgumentException>(() => options.ProxyEndpoint = new Uri("http://user:password@proxy.example.test:8080"));
+        Assert.ThrowsExactly<ArgumentException>(() => options.ProxyEndpoint = new Uri("https://user:password@proxy.example.test:8080"));
+    }
+
+    /// <summary>
+    /// Verifies that plaintext HTTP proxies are rejected by default.
+    /// </summary>
+    [TestMethod]
+    public void ProxyEndpointRejectsHttpByDefault()
+    {
+        GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
+
+        Assert.ThrowsExactly<ArgumentException>(() => options.ProxyEndpoint = new Uri("http://proxy.example.test:8080"));
     }
 
     /// <summary>
@@ -231,33 +239,34 @@ public sealed class GitHubSecretLiveValidatorTests
     {
         GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
         options.TlsMode = GitHubSecretLiveValidatorTlsMode.Tls12OrLater;
-        using HttpClientHandler handler = CreateHttpClientHandler(options);
+        using SocketsHttpHandler handler = CreateHttpClientHandler(options);
 
-        Assert.AreEqual(SslProtocols.Tls12 | SslProtocols.Tls13, handler.SslProtocols);
+        Assert.AreEqual(SslProtocols.Tls12 | SslProtocols.Tls13, handler.SslOptions.EnabledSslProtocols);
     }
 
     /// <summary>
-    /// Verifies that GitHub verification can use an explicitly configured HTTP proxy.
+    /// Verifies that the default HTTP handler blocks non-public addresses resolved at connect time.
     /// </summary>
     [TestMethod]
     [Timeout(5000, CooperativeCancellation = true)]
-    public async Task VerifyAsyncUsesConfiguredHttpProxy()
+    public async Task VerifyAsyncBlocksNonPublicAddressResolvedAtConnectTime()
     {
-        using var proxy = new TcpListener(IPAddress.Loopback, 0);
-        proxy.Start();
-        int proxyPort = ((IPEndPoint)proxy.LocalEndpoint).Port;
-        Task<string> requestLine = ReadProxyRequestLineAsync(proxy, TestContext.CancellationToken);
         GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
-        options.UserEndpoint = new Uri("http://api.github.test/user");
-        options.ProxyEndpoint = new Uri(string.Concat("http://127.0.0.1:", proxyPort.ToString(CultureInfo.InvariantCulture)));
+        options.UserEndpoint = new Uri("https://8.8.8.8/user");
         options.MaxRetryAttempts = 0;
+        int resolverCalls = 0;
+        options.SetAddressResolver((_, _) =>
+        {
+            resolverCalls++;
+            return new ValueTask<IPAddress[]>([IPAddress.Loopback]);
+        });
         GitHubSecretLiveValidator validator = new(options);
 
         SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), TestContext.CancellationToken);
 
-        Assert.AreEqual(SecretValidationState.Active, result.State);
-        Assert.AreEqual("octocat", result.Identity);
-        Assert.StartsWith("GET http://api.github.test/user HTTP/", await requestLine.ConfigureAwait(false), StringComparison.Ordinal);
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.Contains("GitHub verification request failed", result.Reason);
+        Assert.AreEqual(1, resolverCalls);
     }
 
     private static GitHubSecretLiveValidator CreateValidator(
@@ -271,39 +280,14 @@ public sealed class GitHubSecretLiveValidatorTests
         return new GitHubSecretLiveValidator(options);
     }
 
-    private static HttpClientHandler CreateHttpClientHandler(GitHubSecretLiveValidatorOptions options)
+    private static SocketsHttpHandler CreateHttpClientHandler(GitHubSecretLiveValidatorOptions options)
     {
         MethodInfo method = typeof(GitHubSecretLiveValidatorOptions).GetMethod(
             "CreateHttpClientHandler",
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("Expected GitHub options to expose an HTTP handler factory.");
-        return method.Invoke(options, null) as HttpClientHandler
-            ?? throw new InvalidOperationException("Expected GitHub options to create an HttpClientHandler.");
-    }
-
-    private static async Task<string> ReadProxyRequestLineAsync(TcpListener listener, CancellationToken cancellationToken)
-    {
-        using TcpClient client = await listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
-        using NetworkStream stream = client.GetStream();
-        using var reader = new StreamReader(
-            stream,
-            Encoding.ASCII,
-            detectEncodingFromByteOrderMarks: false,
-            bufferSize: 1024,
-            leaveOpen: true);
-
-        string requestLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) ?? string.Empty;
-        string? headerLine;
-        do
-        {
-            headerLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-        }
-        while (!string.IsNullOrEmpty(headerLine));
-
-        byte[] response = Encoding.ASCII.GetBytes(
-            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 19\r\nConnection: close\r\n\r\n{\"login\":\"octocat\"}");
-        await stream.WriteAsync(response, cancellationToken).ConfigureAwait(false);
-        return requestLine;
+        return method.Invoke(options, null) as SocketsHttpHandler
+            ?? throw new InvalidOperationException("Expected GitHub options to create a SocketsHttpHandler.");
     }
 
     private static Finding CreateFinding(string? secret = null, string ruleId = "github-pat")

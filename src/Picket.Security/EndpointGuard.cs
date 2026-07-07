@@ -145,7 +145,7 @@ public static class EndpointGuard
         return false;
     }
 
-    private static bool IsNonPublicIPv4(byte[] bytes)
+    private static bool IsNonPublicIPv4(ReadOnlySpan<byte> bytes)
     {
         return bytes[0] switch
         {
@@ -172,7 +172,10 @@ public static class EndpointGuard
             || bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80
             || bytes[0] == 0xFF
             || IsIPv6DocumentationAddress(bytes)
-            || IsIPv4MappedNonPublicAddress(bytes);
+            || IsIPv4MappedNonPublicAddress(bytes)
+            || IsIPv4CompatibleNonPublicAddress(bytes)
+            || IsNat64NonPublicAddress(bytes)
+            || Is6To4NonPublicAddress(bytes);
     }
 
     private static bool IsIPv6DocumentationAddress(byte[] bytes)
@@ -195,6 +198,47 @@ public static class EndpointGuard
 
         return bytes[10] == 0xFF
             && bytes[11] == 0xFF
-            && IsNonPublicIPv4(bytes[12..16]);
+            && IsNonPublicIPv4(bytes.AsSpan(12, 4));
+    }
+
+    private static bool IsIPv4CompatibleNonPublicAddress(byte[] bytes)
+    {
+        for (int i = 0; i < 12; i++)
+        {
+            if (bytes[i] != 0)
+            {
+                return false;
+            }
+        }
+
+        return IsNonPublicIPv4(bytes.AsSpan(12, 4));
+    }
+
+    private static bool IsNat64NonPublicAddress(byte[] bytes)
+    {
+        if (bytes[0] != 0x00
+            || bytes[1] != 0x64
+            || bytes[2] != 0xFF
+            || bytes[3] != 0x9B)
+        {
+            return false;
+        }
+
+        for (int i = 4; i < 12; i++)
+        {
+            if (bytes[i] != 0)
+            {
+                return false;
+            }
+        }
+
+        return IsNonPublicIPv4(bytes.AsSpan(12, 4));
+    }
+
+    private static bool Is6To4NonPublicAddress(byte[] bytes)
+    {
+        return bytes[0] == 0x20
+            && bytes[1] == 0x02
+            && IsNonPublicIPv4(bytes.AsSpan(2, 4));
     }
 }

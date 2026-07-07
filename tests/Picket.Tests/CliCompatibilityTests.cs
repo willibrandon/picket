@@ -685,6 +685,28 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native live verification blocks unsafe provider proxies before a proxy can see requests.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanVerifyBlocksUnsafeProviderProxy()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "--verify",
+            "--github-api-proxy",
+            "http://127.0.0.1:8080",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("blocked GitHub API proxy endpoint", result.Stderr);
+        Assert.Contains("endpoint URI must use HTTPS", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that scan provider endpoint options require explicit live verification.
     /// </summary>
     [TestMethod]

@@ -1,6 +1,7 @@
 using Picket.Engine;
 using Picket.Security;
 using Picket.Verify;
+using System.Net;
 
 namespace Picket.Tests;
 
@@ -59,6 +60,33 @@ public sealed class SecretLiveVerifierTests
         Assert.DoesNotContain("cacheHit=request", result.Evidence);
         Assert.DoesNotContain("cacheHit=persistent", result.Evidence);
         Assert.AreEqual(0, validator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that the provider HTTP layer rechecks the exact address used for the socket connection.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncBlocksConnectTimeNonPublicAddress()
+    {
+        GitHubSecretLiveValidatorOptions validatorOptions = GitHubSecretLiveValidatorOptions.CreateDefault();
+        validatorOptions.UserEndpoint = new Uri("https://8.8.8.8/user");
+        validatorOptions.MaxRetryAttempts = 0;
+        int resolverCalls = 0;
+        validatorOptions.SetAddressResolver((_, _) =>
+        {
+            resolverCalls++;
+            return new ValueTask<IPAddress[]>([IPAddress.Loopback]);
+        });
+        using var verifier = new SecretLiveVerifier([new GitHubSecretLiveValidator(validatorOptions)]);
+
+        SecretValidationResult result = await verifier.VerifyAsync(CreateFinding(), TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.Contains("GitHub verification request failed", result.Reason);
+        Assert.Contains("endpointPolicy=allowed", result.Evidence);
+        Assert.Contains("providerContacted=true", result.Evidence);
+        Assert.AreEqual(1, resolverCalls);
     }
 
     /// <summary>

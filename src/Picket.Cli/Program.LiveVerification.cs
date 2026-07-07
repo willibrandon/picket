@@ -17,6 +17,11 @@ internal static partial class Program
     {
         liveVerifier = null;
         var githubOptions = GitHubSecretLiveValidatorOptions.CreateDefault();
+        var endpointGuardOptions = new EndpointGuardOptions
+        {
+            AllowNonPublicAddresses = configuration.AllowNonPublicProviderEndpoints,
+        };
+        githubOptions.EndpointGuardOptions = endpointGuardOptions;
         if (configuration.GitHubApiEndpoint is not null)
         {
             try
@@ -32,6 +37,13 @@ internal static partial class Program
 
         if (configuration.GitHubApiProxyEndpoint is not null)
         {
+            EndpointGuardResult proxyGuardResult = EndpointGuard.Evaluate(configuration.GitHubApiProxyEndpoint, endpointGuardOptions);
+            if (!proxyGuardResult.IsAllowed)
+            {
+                Console.Error.WriteLine($"blocked GitHub API proxy endpoint: {proxyGuardResult.Message}");
+                return false;
+            }
+
             try
             {
                 githubOptions.ProxyEndpoint = configuration.GitHubApiProxyEndpoint;
@@ -49,10 +61,7 @@ internal static partial class Program
         }
 
         var verifierOptions = SecretLiveVerifierOptions.CreateDefault();
-        verifierOptions.EndpointGuardOptions = new EndpointGuardOptions
-        {
-            AllowNonPublicAddresses = configuration.AllowNonPublicProviderEndpoints,
-        };
+        verifierOptions.EndpointGuardOptions = endpointGuardOptions;
         if (configuration.MinimumRequestInterval.HasValue)
         {
             verifierOptions.MinimumRequestInterval = configuration.MinimumRequestInterval.Value;
