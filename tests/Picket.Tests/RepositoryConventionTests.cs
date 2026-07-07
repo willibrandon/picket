@@ -376,6 +376,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Security/Picket.Security.csproj", workflow);
+        Assert.Contains("Validate Azure DevOps VSIX package", workflow);
+        Assert.Contains("tfx-cli@0.23.3", workflow);
+        Assert.Contains("--manifest-globs vss-extension.json", workflow);
+        Assert.Contains("working-directory: azure-devops", workflow);
         Assert.Contains("--no-build", workflow);
         Assert.Contains("shell: pwsh", workflow);
         Assert.Contains("ubuntu-latest", workflow);
@@ -387,6 +391,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Native AOT Publish Validation", documentation);
         Assert.Contains("Every CI run also publishes `picket` and `picket-tui` with `release-speed`", documentation);
         Assert.Contains("normal `dotnet build` is not enough evidence", documentation);
+        Assert.Contains("Azure DevOps VSIX Validation", documentation);
+        Assert.Contains("CI packages the Azure DevOps Marketplace scaffold", documentation);
         Assert.Contains("CI Picket Scan Validation", documentation);
         Assert.Contains("both `picket.sarif` and `picket.jsonl`", documentation);
     }

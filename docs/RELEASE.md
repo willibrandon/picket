@@ -44,6 +44,10 @@ Every CI run also publishes `picket` and `picket-tui` with `release-speed` for t
 
 This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced.
 
+## Azure DevOps VSIX Validation
+
+CI packages the Azure DevOps Marketplace scaffold on Ubuntu with `tfx-cli` and `azure-devops/vss-extension.json`. This validates the extension manifest, `PicketScan@1` task metadata, included files, and VSIX layout before release automation attempts to publish the same wrapper.
+
 ## CI Picket Scan Validation
 
 CI runs the local composite action against the repository root on Windows, Linux, and macOS with cache, annotations, and SARIF upload disabled. The scan step keeps the Action summary enabled, uses `fail-on: never` for the repository's intentional test fixtures, and asserts that the action reports at least one finding and writes both `picket.sarif` and `picket.jsonl`.

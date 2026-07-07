@@ -69,6 +69,11 @@ jobs:
           dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release --no-build -o $packageOutput
           dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release --no-build -o $packageOutput
 
+      - name: Validate Azure DevOps VSIX package
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: azure-devops
+        run: npx --yes tfx-cli@0.23.3 extension create --manifest-globs vss-extension.json --output-path "${{ runner.temp }}/azure-devops-extension" --rev-version false
+
       - name: Picket scan
         id: picket-scan
         uses: ./
