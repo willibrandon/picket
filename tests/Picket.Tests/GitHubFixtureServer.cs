@@ -157,6 +157,23 @@ internal sealed class GitHubFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v3/repos/willibrandon/picket/releases/assets/501", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes("asset-token-555"), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/repos/willibrandon/picket/releases?", StringComparison.Ordinal))
+        {
+            string assetUrl = string.Concat(Endpoint.AbsoluteUri, "repos/willibrandon/picket/releases/assets/501");
+            string releasesJson = string.Concat(
+                "[{\"id\":100,\"tag_name\":\"v1.0.0\",\"name\":\"Release token-444\",\"body\":\"body-token-444\",\"assets\":[{\"id\":501,\"name\":\"artifact.txt\",\"size\":15,\"url\":\"",
+                assetUrl,
+                "\"}]}]");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(releasesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v3/repos/willibrandon/picket/contents/src/appsettings.txt?", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);

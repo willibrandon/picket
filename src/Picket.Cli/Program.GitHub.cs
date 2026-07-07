@@ -73,6 +73,12 @@ internal static partial class Program
             || arg.StartsWith("--github-issue-state=", StringComparison.Ordinal);
     }
 
+    static bool IsGitHubIncludeReleasesFlag(string arg)
+    {
+        return arg.Equals("--github-include-releases", StringComparison.Ordinal)
+            || arg.StartsWith("--github-include-releases=", StringComparison.Ordinal);
+    }
+
     static bool IsGitHubSourceApiEndpointFlag(string arg)
     {
         return arg.Equals("--github-source-api-endpoint", StringComparison.Ordinal)
@@ -128,6 +134,7 @@ internal static partial class Program
         int pullRequestNumber,
         bool includeIssues,
         string issueState,
+        bool includeReleases,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
         [NotNullWhen(true)] out Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider)
@@ -187,6 +194,12 @@ internal static partial class Program
             return false;
         }
 
+        if (pullRequestNumber != 0 && includeReleases)
+        {
+            Console.Error.WriteLine("GitHub source scan cannot combine --github-pull-request with --github-include-releases");
+            return false;
+        }
+
         if (!repositorySpecified && !organizationSpecified && !string.IsNullOrWhiteSpace(gitRef))
         {
             Console.Error.WriteLine("GitHub source scan accepts --github-ref only with repository or organization scans");
@@ -196,6 +209,12 @@ internal static partial class Program
         if (!repositorySpecified && !organizationSpecified && includeIssues)
         {
             Console.Error.WriteLine("GitHub issue source options require --github-repository or --github-organization");
+            return false;
+        }
+
+        if (!repositorySpecified && !organizationSpecified && includeReleases)
+        {
+            Console.Error.WriteLine("GitHub release source options require --github-repository or --github-organization");
             return false;
         }
 
@@ -224,13 +243,15 @@ internal static partial class Program
                     gitRef,
                     pullRequestNumber,
                     includeIssues,
-                    issueState);
+                    issueState,
+                    includeReleases);
                 sourceEndpoint = validatedOptions.Endpoint;
                 repository = validatedOptions.Repository;
                 gitRef = validatedOptions.Ref;
                 pullRequestNumber = validatedOptions.PullRequestNumber;
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
+                includeReleases = validatedOptions.IncludeReleases;
             }
             else if (organizationSpecified)
             {
@@ -241,13 +262,15 @@ internal static partial class Program
                     gitRef,
                     repositoryType,
                     includeIssues,
-                    issueState);
+                    issueState,
+                    includeReleases);
                 sourceEndpoint = validatedOptions.Endpoint;
                 organization = validatedOptions.Organization;
                 repositoryType = validatedOptions.RepositoryType;
                 gitRef = validatedOptions.Ref;
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
+                includeReleases = validatedOptions.IncludeReleases;
             }
             else
             {
@@ -299,6 +322,7 @@ internal static partial class Program
                     pullRequestNumber,
                     includeIssues,
                     issueState,
+                    includeReleases,
                     maxTargetBytes,
                     Console.Error.WriteLine,
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
@@ -314,6 +338,7 @@ internal static partial class Program
                     repositoryType,
                     includeIssues,
                     issueState,
+                    includeReleases,
                     maxTargetBytes,
                     Console.Error.WriteLine,
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();

@@ -48,6 +48,22 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitHub repository source options reject ambiguous release and pull request scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitHubSourceOptionsRejectsReleasesAndPullRequest()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "github-test-token",
+            pullRequestNumber: 42,
+            includeReleases: true));
+
+        Assert.Contains("either release enumeration or a pull request number", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that GitHub repository source options reject invalid issue states.
     /// </summary>
     [TestMethod]
@@ -385,6 +401,168 @@ public sealed class GitHubSourceClientTests
         Assert.Contains("/raw/gists/gist-one/raw.txt", requests);
         Assert.Contains("Bearer github-test-token", authorizationHeaders);
         Assert.AreEqual(string.Empty, authorizationHeaders[2]);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that release enumeration reads release notes and release asset content.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsReleasesAndAssets()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            CaptureRequest(request, urls, authorizationHeaders, acceptHeaders);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repos/willibrandon/picket/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/releases/assets/501", StringComparison.Ordinal))
+            {
+                return BytesResponse("asset-token-222");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "id": 100,
+                        "tag_name": "v1.0.0",
+                        "name": "Release token-111",
+                        "body": "body-token-111",
+                        "assets": [
+                          {
+                            "id": 501,
+                            "name": "artifact.txt",
+                            "size": 15,
+                            "url": "https://api.github.com/repos/willibrandon/picket/releases/assets/501"
+                          }
+                        ]
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeReleases: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(2, files);
+        Assert.AreEqual("github/willibrandon/picket/releases/v1.0.0.md", files[0].DisplayPath);
+        Assert.Contains("Release token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("body-token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("github/willibrandon/picket/releases/v1.0.0/assets/artifact.txt", files[1].DisplayPath);
+        Assert.AreEqual("asset-token-222", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("/repos/willibrandon/picket/releases?per_page=100", requests);
+        Assert.Contains("/repos/willibrandon/picket/releases/assets/501", requests);
+        Assert.Contains("Bearer github-test-token", authorizationHeaders);
+        Assert.Contains("application/octet-stream", acceptHeaders);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that release asset redirects are downloaded without forwarding the GitHub token.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsRedirectedReleaseAssetsWithoutAuthorization()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            CaptureRequest(request, urls, authorizationHeaders, acceptHeaders);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repos/willibrandon/picket/git/trees/main?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/releases/assets/501", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers =
+                    {
+                        Location = new Uri("https://objects.githubusercontent.com/release-assets/artifact.txt"),
+                    },
+                };
+            }
+
+            if (url.Equals("https://objects.githubusercontent.com/release-assets/artifact.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("redirect-token-333");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "id": 100,
+                        "tag_name": "v1.0.0",
+                        "assets": [
+                          {
+                            "id": 501,
+                            "name": "artifact.txt",
+                            "size": 18,
+                            "url": "https://api.github.com/repos/willibrandon/picket/releases/assets/501"
+                          }
+                        ]
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeReleases: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        int redirectedRequestIndex = urls.IndexOf("https://objects.githubusercontent.com/release-assets/artifact.txt");
+        Assert.HasCount(2, files);
+        Assert.AreEqual("github/willibrandon/picket/releases/v1.0.0/assets/artifact.txt", files[1].DisplayPath);
+        Assert.AreEqual("redirect-token-333", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.AreNotEqual(-1, redirectedRequestIndex);
+        Assert.Contains("/repos/willibrandon/picket/releases/assets/501", requests);
+        Assert.Contains("Bearer github-test-token", authorizationHeaders);
+        Assert.Contains("application/octet-stream", acceptHeaders);
+        Assert.AreEqual(string.Empty, authorizationHeaders[redirectedRequestIndex]);
         Assert.DoesNotContain(Token, requests);
     }
 

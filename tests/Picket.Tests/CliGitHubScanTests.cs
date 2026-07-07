@@ -181,6 +181,48 @@ public sealed class CliGitHubScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate GitHub release bodies and release assets.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitHubReleaseBodiesAndAssets()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitHubFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-source-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--github-repository",
+            "willibrandon/picket",
+            "--github-include-releases",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"github/willibrandon/picket/releases/v1.0.0.md\"", result.Stdout);
+        Assert.Contains("\"file\":\"github/willibrandon/picket/releases/v1.0.0/assets/artifact.txt\"", result.Stdout);
+        Assert.Contains("/repos/willibrandon/picket/releases?", server.RequestTargets);
+        Assert.Contains("/repos/willibrandon/picket/releases/assets/501", server.RequestTargets);
+        Assert.Contains("Bearer ", server.LastAuthorization);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate GitHub organization repositories.
     /// </summary>
     [TestMethod]
@@ -327,6 +369,41 @@ public sealed class CliGitHubScanTests
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.Contains("GitHub issue source options require --github-repository or --github-organization", result.Stderr);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub pull request scans cannot also include release enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitHubPullRequestAndReleases()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-repository",
+            "willibrandon/picket",
+            "--github-pull-request",
+            "42",
+            "--github-include-releases",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.Contains("cannot combine --github-pull-request with --github-include-releases", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }

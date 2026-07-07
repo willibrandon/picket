@@ -30,6 +30,7 @@ internal static partial class Program
         string? githubSourceTokenEnvironmentVariable = null;
         string githubSourceOrganization = string.Empty;
         bool githubSourceIncludeIssues = false;
+        bool githubSourceIncludeReleases = false;
         string githubSourceIssueState = GitHubSourceOptions.DefaultIssueState;
         int githubSourcePullRequestNumber = 0;
         string githubSourceRef = string.Empty;
@@ -213,6 +214,21 @@ internal static partial class Program
 
                 githubSourceIncludeIssues = true;
                 githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubIncludeReleasesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--github-include-releases", out githubSourceIncludeReleases))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (githubSourceIncludeReleases)
+                {
+                    githubSourceOptionSpecified = true;
+                }
+
                 continue;
             }
 
@@ -494,6 +510,7 @@ internal static partial class Program
                 githubSourcePullRequestNumber,
                 githubSourceIncludeIssues,
                 githubSourceIssueState,
+                githubSourceIncludeReleases,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

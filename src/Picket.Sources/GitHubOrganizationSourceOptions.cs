@@ -10,6 +10,7 @@ namespace Picket.Sources;
 /// <param name="repositoryType">The organization repository type filter.</param>
 /// <param name="includeIssues">A value indicating whether GitHub issue bodies and comments should be scanned.</param>
 /// <param name="issueState">The issue state filter to scan.</param>
+/// <param name="includeReleases">A value indicating whether GitHub release bodies and release assets should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
@@ -21,6 +22,7 @@ public sealed class GitHubOrganizationSourceOptions(
     string repositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType,
     bool includeIssues = false,
     string issueState = GitHubSourceOptions.DefaultIssueState,
+    bool includeReleases = false,
     long? maxFileBytes = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
@@ -61,6 +63,11 @@ public sealed class GitHubOrganizationSourceOptions(
     /// Gets the issue state filter.
     /// </summary>
     public string IssueState { get; } = GitHubSourceOptions.NormalizeIssueState(issueState);
+
+    /// <summary>
+    /// Gets a value indicating whether GitHub release bodies and release assets should be scanned.
+    /// </summary>
+    public bool IncludeReleases { get; } = includeReleases;
 
     /// <summary>
     /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.

@@ -1146,6 +1146,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "--github-gist" => "Scan a single GitHub gist by ID.",
             "--github-gists" => "Scan the authenticated user's GitHub gists.",
             "--github-include-issues" => "Include GitHub issue bodies and comments in native source enumeration.",
+            "--github-include-releases" => "Include GitHub release bodies and release assets in native source enumeration.",
             "--github-issue-state" => "Filter GitHub issues by state.",
             "--github-organization" => "Scan repositories visible in this GitHub organization through native source enumeration.",
             "--github-pull-request" => "Scan this GitHub pull request head.",
