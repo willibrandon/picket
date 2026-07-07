@@ -35,6 +35,20 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
+        if (options.PullRequestNumber != 0)
+        {
+            (bool shouldScan, GitHubSourceOptions sourceOptions, string sourceRef) = await ResolvePullRequestSourceAsync(
+                options,
+                cancellationToken).ConfigureAwait(false);
+            if (!shouldScan)
+            {
+                return sourceFiles;
+            }
+
+            await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
+            return sourceFiles;
+        }
+
         string gitRef = options.Ref;
         if (gitRef.Length == 0)
         {
@@ -48,6 +62,39 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
 
         await AddRepositoryFilesAsync(options, gitRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
         return sourceFiles;
+    }
+
+    private async Task<(bool ShouldScan, GitHubSourceOptions SourceOptions, string SourceRef)> ResolvePullRequestSourceAsync(
+        GitHubSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreatePullRequestUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        string sourceSha = GetNestedString(document.RootElement, "head", "sha");
+        if (sourceSha.Length == 0)
+        {
+            options.WarningSink?.Invoke($"skipping GitHub pull request {options.PullRequestNumber.ToString(CultureInfo.InvariantCulture)} in repository {options.Repository} because its head SHA was not returned");
+            return (false, options, string.Empty);
+        }
+
+        string sourceRepository = GetNestedString(document.RootElement, "head", "repo", "full_name");
+        if (sourceRepository.Length == 0)
+        {
+            sourceRepository = options.Repository;
+        }
+
+        var sourceOptions = new GitHubSourceOptions(
+            options.Endpoint,
+            sourceRepository,
+            options.Credential,
+            sourceSha,
+            maxFileBytes: options.MaxFileBytes,
+            warningSink: options.WarningSink,
+            isCancellationRequested: options.IsCancellationRequested);
+        return (true, sourceOptions, sourceSha);
     }
 
     /// <summary>
@@ -89,9 +136,9 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 string.Concat(options.Organization, "/", name),
                 options.Credential,
                 gitRef,
-                options.MaxFileBytes,
-                options.WarningSink,
-                options.IsCancellationRequested);
+                maxFileBytes: options.MaxFileBytes,
+                warningSink: options.WarningSink,
+                isCancellationRequested: options.IsCancellationRequested);
             await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
         }
 
@@ -345,6 +392,14 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             ]);
     }
 
+    private static Uri CreatePullRequestUri(GitHubSourceOptions options)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.RepositoryName, "pulls", options.PullRequestNumber.ToString(CultureInfo.InvariantCulture)],
+            []);
+    }
+
     private static Uri CreateTreeUri(GitHubSourceOptions options, string gitRef)
     {
         return CreateUri(
@@ -466,6 +521,34 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
     private static string GetString(JsonElement value, string propertyName)
     {
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
+    }
+
+    private static string GetNestedString(JsonElement value, string objectPropertyName, string valuePropertyName)
+    {
+        if (!value.TryGetProperty(objectPropertyName, out JsonElement nested)
+            || nested.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        return GetString(nested, valuePropertyName);
+    }
+
+    private static string GetNestedString(
+        JsonElement value,
+        string firstObjectPropertyName,
+        string secondObjectPropertyName,
+        string valuePropertyName)
+    {
+        if (!value.TryGetProperty(firstObjectPropertyName, out JsonElement firstNested)
+            || firstNested.ValueKind != JsonValueKind.Object
+            || !firstNested.TryGetProperty(secondObjectPropertyName, out JsonElement secondNested)
+            || secondNested.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        return GetString(secondNested, valuePropertyName);
     }
 
     private static bool GetBoolean(JsonElement value, string propertyName)

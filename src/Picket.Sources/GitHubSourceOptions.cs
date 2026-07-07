@@ -7,6 +7,7 @@ namespace Picket.Sources;
 /// <param name="repository">The repository selector in owner/name form, or a GitHub repository URL.</param>
 /// <param name="credential">The credential used for GitHub API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
+/// <param name="pullRequestNumber">An optional pull request number whose head should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for no cap.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
@@ -15,6 +16,7 @@ public sealed class GitHubSourceOptions(
     string repository,
     string credential,
     string gitRef = "",
+    int pullRequestNumber = 0,
     long? maxFileBytes = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
@@ -45,7 +47,12 @@ public sealed class GitHubSourceOptions(
     /// <summary>
     /// Gets the optional branch, tag, or commit reference.
     /// </summary>
-    public string Ref { get; } = NormalizeOptionalText(gitRef);
+    public string Ref { get; } = NormalizeRef(gitRef, pullRequestNumber);
+
+    /// <summary>
+    /// Gets the optional pull request number whose head should be scanned.
+    /// </summary>
+    public int PullRequestNumber { get; } = RequirePullRequestNumber(pullRequestNumber);
 
     /// <summary>
     /// Gets the maximum file content bytes to download, or <see langword="null" /> for no cap.
@@ -141,6 +148,17 @@ public sealed class GitHubSourceOptions(
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
+    private static string NormalizeRef(string value, int pullRequestNumber)
+    {
+        string normalized = NormalizeOptionalText(value);
+        if (pullRequestNumber != 0 && normalized.Length != 0)
+        {
+            throw new ArgumentException("GitHub source options accept either a ref or a pull request number, not both.", nameof(value));
+        }
+
+        return normalized;
+    }
+
     internal static long? RequireMaxFileBytes(long? value)
     {
         if (value.HasValue)
@@ -148,6 +166,12 @@ public sealed class GitHubSourceOptions(
             ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
         }
 
+        return value;
+    }
+
+    private static int RequirePullRequestNumber(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 }

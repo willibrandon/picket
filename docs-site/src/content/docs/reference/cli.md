@@ -188,6 +188,7 @@ Use the grouped index to jump to the workflow you need.
   [--github-repository-type all|public|private|forks|sources|member]
   [--github-token-env name]
   [--github-ref ref]
+  [--github-pull-request id]
   [--github-source-api-endpoint uri]
   [--azure-devops-organization org]
   [--azure-devops-endpoint uri]
@@ -369,6 +370,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>ref</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Scan this GitHub branch, tag, or commit.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-pull-request</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this GitHub pull request head.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--github-source-api-endpoint</code></td>

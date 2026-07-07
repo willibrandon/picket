@@ -27,6 +27,7 @@ internal static partial class Program
         Uri? githubSourceApiEndpoint = null;
         string? githubSourceTokenEnvironmentVariable = null;
         string githubSourceOrganization = string.Empty;
+        int githubSourcePullRequestNumber = 0;
         string githubSourceRef = string.Empty;
         string githubSourceRepository = string.Empty;
         string githubSourceRepositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType;
@@ -129,6 +130,17 @@ internal static partial class Program
                 }
 
                 githubSourceRef = gitRef;
+                githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitHubPullRequestFlag(arg))
+            {
+                if (!TryReadPositiveGitHubPullRequestFlag(args, ref i, out githubSourcePullRequestNumber))
+                {
+                    return UnknownFlagExitCode;
+                }
+
                 githubSourceOptionSpecified = true;
                 continue;
             }
@@ -405,6 +417,7 @@ internal static partial class Program
                 githubSourceRepositoryType,
                 githubSourceTokenEnvironmentVariable,
                 githubSourceRef,
+                githubSourcePullRequestNumber,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

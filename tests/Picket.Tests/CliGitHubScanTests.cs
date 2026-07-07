@@ -91,6 +91,50 @@ public sealed class CliGitHubScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate a GitHub pull request head repository.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitHubPullRequestHeadFiles()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitHubFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-source-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--github-repository",
+            "willibrandon/picket",
+            "--github-pull-request",
+            "42",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"github/forker/picket-fork/src/appsettings.txt\"", result.Stdout);
+        Assert.Contains("/repos/willibrandon/picket/pulls/42", server.RequestTargets);
+        Assert.Contains("/repos/forker/picket-fork/git/trees/abcdef1234567890?", server.RequestTargets);
+        Assert.Contains("ref=abcdef1234567890", server.RequestTargets);
+        Assert.Contains("Bearer ", server.LastAuthorization);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate GitHub organization repositories.
     /// </summary>
     [TestMethod]
@@ -127,6 +171,42 @@ public sealed class CliGitHubScanTests
         Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
         Assert.Contains("\"file\":\"github/willibrandon/picket/src/appsettings.txt\"", result.Stdout);
         Assert.Contains("Bearer ", server.LastAuthorization);
+        Assert.DoesNotContain("github-source-secret", result.Stdout);
+        Assert.DoesNotContain("github-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub pull request scans cannot also pin a separate ref.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitHubRefAndPullRequest()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITHUB_SOURCE_TEST_TOKEN"] = "github-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--github-repository",
+            "willibrandon/picket",
+            "--github-ref",
+            "main",
+            "--github-pull-request",
+            "42",
+            "--github-token-env",
+            "PICKET_GITHUB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.Contains("either --github-ref or --github-pull-request", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }

@@ -16,6 +16,22 @@ public sealed class GitHubSourceClientTests
     public TestContext TestContext { get; set; } = null!;
 
     /// <summary>
+    /// Verifies that GitHub repository source options reject ambiguous ref and pull request scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitHubSourceOptionsRejectsRefAndPullRequest()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "github-test-token",
+            "main",
+            pullRequestNumber: 42));
+
+        Assert.Contains("either a ref or a pull request number", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration reads the recursive tree and downloads raw blob content.
     /// </summary>
     [TestMethod]
@@ -102,6 +118,66 @@ public sealed class GitHubSourceClientTests
         Assert.IsEmpty(files);
         Assert.HasCount(1, urls);
         Assert.DoesNotContain("/repos/willibrandon/picket?", string.Join('\n', urls));
+    }
+
+    /// <summary>
+    /// Verifies that pull request enumeration resolves the head repository and SHA before reading source files.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsPullRequestHeadRepository()
+    {
+        const string Token = "github-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repos/willibrandon/picket/pulls/42", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "number": 42,
+                      "head": {
+                        "sha": "abcdef1234567890",
+                        "repo": {
+                          "full_name": "forker/picket-fork"
+                        }
+                      }
+                    }
+                    """);
+            }
+
+            if (url.Contains("/repos/forker/picket-fork/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"src/pr.txt","type":"blob","size":14}]}""");
+            }
+
+            if (url.Contains("/repos/forker/picket-fork/contents/src/pr.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("pr-token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            pullRequestNumber: 42);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("github/forker/picket-fork/src/pr.txt", files[0].DisplayPath);
+        Assert.AreEqual("pr-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/repos/willibrandon/picket/pulls/42", requests);
+        Assert.Contains("/repos/forker/picket-fork/git/trees/abcdef1234567890?", requests);
+        Assert.Contains("ref=abcdef1234567890", requests);
+        Assert.DoesNotContain("/repos/willibrandon/picket/git/trees/", requests);
+        Assert.DoesNotContain(Token, requests);
     }
 
     /// <summary>

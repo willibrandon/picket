@@ -7,6 +7,8 @@ namespace Picket.Tests;
 internal sealed class GitHubFixtureServer : IDisposable
 {
     private readonly string _content;
+    private readonly List<string> _requestTargets = [];
+    private readonly object _requestTargetsLock = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly TcpListener _listener;
     private readonly Task _serverTask;
@@ -26,6 +28,17 @@ internal sealed class GitHubFixtureServer : IDisposable
     internal string LastAuthorization { get; private set; } = string.Empty;
 
     internal string LastAccept { get; private set; } = string.Empty;
+
+    internal string RequestTargets
+    {
+        get
+        {
+            lock (_requestTargetsLock)
+            {
+                return string.Join('\n', _requestTargets);
+            }
+        }
+    }
 
     /// <inheritdoc />
     public void Dispose()
@@ -62,11 +75,35 @@ internal sealed class GitHubFixtureServer : IDisposable
         string target = GetRequestTarget(request);
         LastAuthorization = GetHeaderValue(request, "Authorization");
         LastAccept = GetHeaderValue(request, "Accept");
+        lock (_requestTargetsLock)
+        {
+            _requestTargets.Add(target);
+        }
 
         if (target.Contains("/api/v3/orgs/willibrandon/repos?", StringComparison.Ordinal))
         {
             const string RepositoriesJson = """[{"name":"picket","default_branch":"main"}]""";
             await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(RepositoriesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/repos/willibrandon/picket/pulls/42", StringComparison.Ordinal))
+        {
+            const string PullRequestJson = """{"number":42,"head":{"sha":"abcdef1234567890","repo":{"full_name":"forker/picket-fork"}}}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PullRequestJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/repos/forker/picket-fork/contents/src/appsettings.txt?", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v3/repos/forker/picket-fork/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+        {
+            const string TreeJson = """{"tree":[{"path":"src/appsettings.txt","type":"blob","size":11}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(TreeJson), cancellationToken).ConfigureAwait(false);
             return;
         }
 

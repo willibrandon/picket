@@ -174,10 +174,11 @@ documentation reviewed on 2026-07-06:
 
 ## GitHub Source References
 
-Native GitHub repository and organization source enumeration is based on GitHub
+Native GitHub repository, pull request, and organization source enumeration is based on GitHub
 REST API documentation reviewed on 2026-07-07:
 
 - GitHub repository metadata REST API: `https://docs.github.com/rest/repos/repos`
+- GitHub pull requests REST API: `https://docs.github.com/rest/pulls/pulls`
 - GitHub REST pagination: `https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api`
 - Git trees REST API: `https://docs.github.com/v3/git/trees`
 - Repository contents REST API: `https://docs.github.com/en/rest/repos/contents`

@@ -37,10 +37,32 @@ internal static partial class Program
             || arg.StartsWith("--github-ref=", StringComparison.Ordinal);
     }
 
+    static bool IsGitHubPullRequestFlag(string arg)
+    {
+        return arg.Equals("--github-pull-request", StringComparison.Ordinal)
+            || arg.StartsWith("--github-pull-request=", StringComparison.Ordinal);
+    }
+
     static bool IsGitHubSourceApiEndpointFlag(string arg)
     {
         return arg.Equals("--github-source-api-endpoint", StringComparison.Ordinal)
             || arg.StartsWith("--github-source-api-endpoint=", StringComparison.Ordinal);
+    }
+
+    static bool TryReadPositiveGitHubPullRequestFlag(string[] args, ref int index, out int pullRequestNumber)
+    {
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--github-pull-request", out pullRequestNumber))
+        {
+            return false;
+        }
+
+        if (pullRequestNumber > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--github-pull-request requires a positive integer value");
+        return false;
     }
 
     static bool TryCreateGitHubSourceProvider(
@@ -50,6 +72,7 @@ internal static partial class Program
         string repositoryType,
         string? tokenEnvironmentVariable,
         string gitRef,
+        int pullRequestNumber,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
         [NotNullWhen(true)] out Func<string, CompiledRuleSet, long?, long, List<SourceFile>>? sourceFileProvider)
@@ -60,6 +83,18 @@ internal static partial class Program
         if (repositorySpecified == organizationSpecified)
         {
             Console.Error.WriteLine("GitHub source scan requires exactly one of --github-repository or --github-organization");
+            return false;
+        }
+
+        if (pullRequestNumber != 0 && !repositorySpecified)
+        {
+            Console.Error.WriteLine("GitHub pull request source scan requires --github-repository");
+            return false;
+        }
+
+        if (pullRequestNumber != 0 && !string.IsNullOrWhiteSpace(gitRef))
+        {
+            Console.Error.WriteLine("GitHub source scan accepts either --github-ref or --github-pull-request, not both");
             return false;
         }
 
@@ -85,10 +120,12 @@ internal static partial class Program
                     sourceEndpoint,
                     repository,
                     credential,
-                    gitRef);
+                    gitRef,
+                    pullRequestNumber);
                 sourceEndpoint = validatedOptions.Endpoint;
                 repository = validatedOptions.Repository;
                 gitRef = validatedOptions.Ref;
+                pullRequestNumber = validatedOptions.PullRequestNumber;
             }
             else
             {
@@ -136,6 +173,7 @@ internal static partial class Program
                     repository,
                     credential,
                     gitRef,
+                    pullRequestNumber,
                     maxTargetBytes,
                     Console.Error.WriteLine,
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
