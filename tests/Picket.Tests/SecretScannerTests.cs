@@ -845,6 +845,26 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that a plain match abutting a decoded segment does not inherit that segment's decode metadata.
+    /// </summary>
+    [TestMethod]
+    public void ScanDoesNotTagPlainSecretAbuttingDecodedSegment()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("aGVsbG8td29ybGQ=token-12345");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.IsNotEmpty(findings);
+        foreach (Finding finding in findings)
+        {
+            Assert.AreEqual("token-12345", finding.Secret);
+            Assert.DoesNotContain("decoded:base64", finding.Tags);
+            Assert.IsEmpty(finding.DecodePath);
+        }
+    }
+
+    /// <summary>
     /// Verifies that long non-decoding base64-like tokens do not cause repeated decoder probes.
     /// </summary>
     [TestMethod]

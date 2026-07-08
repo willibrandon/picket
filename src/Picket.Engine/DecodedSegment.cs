@@ -25,6 +25,6 @@ internal readonly struct DecodedSegment(
 
     internal bool OverlapsDecoded(int start, int end)
     {
-        return start <= DecodedEnd && end >= DecodedStart;
+        return start < DecodedEnd && end > DecodedStart;
     }
 }
