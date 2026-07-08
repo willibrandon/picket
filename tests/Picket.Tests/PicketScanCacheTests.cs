@@ -571,6 +571,48 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies cache import does not keep staged entries when a later current-key entry is invalid.
+    /// </summary>
+    [TestMethod]
+    public void ImportRejectsInvalidCurrentKeyEntryWithoutPartialImport()
+    {
+        using TempDirectory sourceRoot = TempDirectory.Create();
+        using TempDirectory destinationRoot = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache sourceCache = CreateCache(sourceRoot.Path);
+        PicketScanCache destinationCache = CreateCache(destinationRoot.Path);
+        string exportedArchivePath = Path.Combine(sourceRoot.Path, "cache.zip");
+        string invalidArchivePath = Path.Combine(sourceRoot.Path, "invalid-cache.zip");
+
+        sourceCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        Assert.AreEqual(1, sourceCache.Export(exportedArchivePath));
+        string entryName;
+        byte[] entryBytes;
+        using (ZipArchive exportedArchive = ZipFile.OpenRead(exportedArchivePath))
+        {
+            Assert.HasCount(1, exportedArchive.Entries);
+            ZipArchiveEntry exportedEntry = exportedArchive.Entries[0];
+            entryName = exportedEntry.FullName;
+            using Stream input = exportedEntry.Open();
+            using var output = new MemoryStream();
+            input.CopyTo(output);
+            entryBytes = output.ToArray();
+        }
+
+        using (FileStream archiveStream = File.Create(invalidArchivePath))
+        using (var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create))
+        {
+            WriteZipEntryBytes(archive, entryName, entryBytes);
+            WriteZipEntryBytes(archive, entryName, Encoding.UTF8.GetBytes("not a valid cache entry"));
+        }
+
+        FormatException exception = Assert.ThrowsExactly<FormatException>(() => destinationCache.Import(invalidArchivePath));
+
+        Assert.Contains("Invalid cache archive entry content", exception.Message);
+        Assert.IsEmpty(Directory.GetFiles(Path.Combine(destinationRoot.Path, "entries"), "*.cache", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
     /// Verifies cache import rejects archive paths that could escape the cache root.
     /// </summary>
     [TestMethod]
@@ -777,6 +819,13 @@ public sealed class PicketScanCacheTests
         ZipArchiveEntry entry = archive.CreateEntry(entryName);
         using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         writer.Write(content);
+    }
+
+    private static void WriteZipEntryBytes(ZipArchive archive, string entryName, byte[] content)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(entryName);
+        using Stream output = entry.Open();
+        output.Write(content);
     }
 
     private static void Append(StringBuilder builder, string value)

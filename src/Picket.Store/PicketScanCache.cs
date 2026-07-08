@@ -28,6 +28,7 @@ public sealed class PicketScanCache
     private const string EntriesDirectoryName = "entries";
     private const string ExtensionAddressPrefix = "extension:";
     private const string FindingCountHeader = "findingCount";
+    private const string ImportStagingDirectoryPrefix = ".import-";
     private const string LocksDirectoryName = "locks";
     private const string MacHeader = "mac";
     private const string ProductDirectoryName = "Picket";
@@ -248,67 +249,62 @@ public sealed class PicketScanCache
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxEntries, 0);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxTotalBytes, 0);
 
-        int imported = 0;
         int entryCount = 0;
         long totalImportedBytes = 0;
+        string stagingPath = CreateImportStagingPath();
+        var stagedEntries = new List<(string TempPath, string FullEntryPath, string LockPath, DateTimeOffset LastWriteTime)>();
         using var archiveStream = new FileStream(Path.GetFullPath(archivePath), FileMode.Open, FileAccess.Read, FileShare.Read);
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
-        foreach (ZipArchiveEntry archiveEntry in archive.Entries)
+        CreateOwnerOnlyDirectory(stagingPath);
+        try
         {
-            if (IsDirectoryArchiveEntry(archiveEntry))
+            foreach (ZipArchiveEntry archiveEntry in archive.Entries)
             {
-                continue;
-            }
+                if (IsDirectoryArchiveEntry(archiveEntry))
+                {
+                    continue;
+                }
 
-            entryCount++;
-            if (entryCount > maxEntries)
-            {
-                throw new FormatException($"Cache archive exceeds maximum entry count: {maxEntries.ToString(CultureInfo.InvariantCulture)}");
-            }
+                entryCount++;
+                if (entryCount > maxEntries)
+                {
+                    throw new FormatException($"Cache archive exceeds maximum entry count: {maxEntries.ToString(CultureInfo.InvariantCulture)}");
+                }
 
-            if (!TryParseArchiveEntryName(
-                archiveEntry.FullName,
-                out string blobHash,
-                out string addressHash,
-                out string shard,
-                out bool isCurrentKey))
-            {
-                throw new FormatException($"Invalid cache archive entry path: {archiveEntry.FullName}");
-            }
+                if (!TryParseArchiveEntryName(
+                    archiveEntry.FullName,
+                    out string blobHash,
+                    out string addressHash,
+                    out string shard,
+                    out bool isCurrentKey))
+                {
+                    throw new FormatException($"Invalid cache archive entry path: {archiveEntry.FullName}");
+                }
 
-            if (!isCurrentKey)
-            {
-                continue;
-            }
+                if (!isCurrentKey)
+                {
+                    continue;
+                }
 
-            if (archiveEntry.Length > maxEntryBytes)
-            {
-                throw new FormatException($"Cache archive entry exceeds maximum decompressed size: {archiveEntry.FullName}");
-            }
+                if (archiveEntry.Length > maxEntryBytes)
+                {
+                    throw new FormatException($"Cache archive entry exceeds maximum decompressed size: {archiveEntry.FullName}");
+                }
 
-            if (ExceedsBudget(totalImportedBytes, archiveEntry.Length, maxTotalBytes))
-            {
-                throw new FormatException($"Cache archive exceeds maximum decompressed size: {archiveEntry.FullName}");
-            }
+                if (ExceedsBudget(totalImportedBytes, archiveEntry.Length, maxTotalBytes))
+                {
+                    throw new FormatException($"Cache archive exceeds maximum decompressed size: {archiveEntry.FullName}");
+                }
 
-            string entryPath = Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, addressHash, Key.Fingerprint));
-            string fullEntryPath = Path.GetFullPath(entryPath);
-            if (!IsWithinDirectory(fullEntryPath, _entriesPath))
-            {
-                throw new FormatException($"Invalid cache archive entry path: {archiveEntry.FullName}");
-            }
+                string entryPath = Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, addressHash, Key.Fingerprint));
+                string fullEntryPath = Path.GetFullPath(entryPath);
+                if (!IsWithinDirectory(fullEntryPath, _entriesPath))
+                {
+                    throw new FormatException($"Invalid cache archive entry path: {archiveEntry.FullName}");
+                }
 
-            string? entryDirectory = Path.GetDirectoryName(fullEntryPath);
-            if (entryDirectory is not null)
-            {
-                CreateOwnerOnlyDirectory(entryDirectory);
-            }
-
-            string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
-            using FileStream _ = OpenLock(lockPath);
-            string tempPath = CreateTempPath(fullEntryPath);
-            try
-            {
+                string lockPath = Path.Combine(_locksPath, string.Concat(blobHash, "-", addressHash, ".lock"));
+                string tempPath = Path.Combine(stagingPath, string.Concat(stagedEntries.Count.ToString(CultureInfo.InvariantCulture), CacheEntryExtension));
                 long copiedBytes;
                 using (Stream input = archiveEntry.Open())
                 using (FileStream output = OpenOwnerOnlyNewFile(tempPath))
@@ -326,19 +322,37 @@ public sealed class PicketScanCache
                     throw new FormatException($"Invalid cache archive entry content: {archiveEntry.FullName}");
                 }
 
-                File.Move(tempPath, fullEntryPath, overwrite: true);
-                SetOwnerOnlyFile(fullEntryPath);
-                TrySetLastWriteTimeUtc(fullEntryPath, archiveEntry);
-                imported++;
+                stagedEntries.Add((tempPath, fullEntryPath, lockPath, archiveEntry.LastWriteTime));
                 totalImportedBytes += copiedBytes;
             }
-            finally
+
+            int imported = 0;
+            foreach ((string tempPath, string fullEntryPath, string lockPath, DateTimeOffset lastWriteTime) in stagedEntries)
+            {
+                string? entryDirectory = Path.GetDirectoryName(fullEntryPath);
+                if (entryDirectory is not null)
+                {
+                    CreateOwnerOnlyDirectory(entryDirectory);
+                }
+
+                using FileStream _ = OpenLock(lockPath);
+                File.Move(tempPath, fullEntryPath, overwrite: true);
+                SetOwnerOnlyFile(fullEntryPath);
+                TrySetLastWriteTimeUtc(fullEntryPath, lastWriteTime);
+                imported++;
+            }
+
+            return imported;
+        }
+        finally
+        {
+            foreach ((string tempPath, _, _, _) in stagedEntries)
             {
                 TryDelete(tempPath);
             }
-        }
 
-        return imported;
+            TryDeleteImportStagingDirectory(stagingPath);
+        }
     }
 
     private static long CopyArchiveEntryWithinLimit(Stream input, Stream output, long maxBytes, string entryName)
@@ -941,6 +955,17 @@ public sealed class PicketScanCache
             ".tmp");
     }
 
+    private string CreateImportStagingPath()
+    {
+        return Path.Combine(
+            RootPath,
+            string.Concat(
+                ImportStagingDirectoryPrefix,
+                Environment.ProcessId.ToString(CultureInfo.InvariantCulture),
+                "-",
+                Guid.NewGuid().ToString("N")));
+    }
+
     private static bool TryParseEntryFileName(
         string fileName,
         out string blobHash,
@@ -1135,14 +1160,34 @@ public sealed class PicketScanCache
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
 
-    private static void TrySetLastWriteTimeUtc(string path, ZipArchiveEntry archiveEntry)
+    private static void TrySetLastWriteTimeUtc(string path, DateTimeOffset lastWriteTime)
     {
         try
         {
-            File.SetLastWriteTimeUtc(path, archiveEntry.LastWriteTime.UtcDateTime);
+            File.SetLastWriteTimeUtc(path, lastWriteTime.UtcDateTime);
         }
         catch (ArgumentOutOfRangeException)
         {
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private void TryDeleteImportStagingDirectory(string stagingPath)
+    {
+        try
+        {
+            string fullStagingPath = Path.GetFullPath(stagingPath);
+            if (Directory.Exists(fullStagingPath)
+                && IsWithinDirectory(fullStagingPath, RootPath)
+                && Path.GetFileName(fullStagingPath).StartsWith(ImportStagingDirectoryPrefix, StringComparison.Ordinal))
+            {
+                Directory.Delete(fullStagingPath, recursive: true);
+            }
         }
         catch (IOException)
         {
