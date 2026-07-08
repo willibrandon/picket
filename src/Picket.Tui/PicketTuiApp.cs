@@ -121,7 +121,7 @@ internal static class PicketTuiApp
         ])
         .OnSelectionChanged(e => state.SetViewByIndex(e.SelectedIndex))
         .Full()
-        .FixedHeight(2);
+        .FixedHeight(3);
     }
 
     private static VStackWidget BuildCurrentView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
@@ -163,11 +163,14 @@ internal static class PicketTuiApp
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
         return ctx.VStack(v => [
             BuildScanActionRow(v, state),
+            BuildBlankLine(v),
             BuildCommandPreview(v, scan),
-            BuildScanStatusPanel(v, state).FixedHeight(4),
-            v.Separator(),
+            BuildBlankLine(v),
+            BuildScanStatusPanel(v, state).FixedHeight(5),
+            BuildBlankLine(v),
             BuildScanSettings(v, scan),
-            BuildScannerOutputPreview(v, scan).FixedHeight(7)
+            BuildBlankLine(v),
+            BuildScannerOutputPreview(v, scan).Fill()
         ]).Fill();
     }
 
@@ -182,12 +185,15 @@ internal static class PicketTuiApp
         ]).FixedHeight(1);
     }
 
-    private static ThemePanelWidget BuildCommandPreview<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+    private static VStackWidget BuildCommandPreview<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
-        return ctx.ThemePanel(
-            theme => theme.Set(GlobalTheme.ForegroundColor, PicketTuiPalette.CommandForeground),
-            ctx.Text(string.Concat("Command equivalent: ", scan.BuildCommandLinePreview())).Ellipsis());
+        return ctx.VStack(v => [
+            BuildStatusText(v, "Command equivalent", PicketTuiPalette.CommandForeground),
+            v.ThemePanel(
+                theme => theme.Set(GlobalTheme.ForegroundColor, PicketTuiPalette.CommandForeground),
+                v.Text(scan.BuildCommandLinePreview()).Ellipsis())
+        ]).FixedHeight(2);
     }
 
     private static HStackWidget BuildTargetModeRow<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
@@ -206,6 +212,7 @@ internal static class PicketTuiApp
     {
         return ctx.VStack(v => [
             BuildScanSectionRow(v, scan),
+            BuildBlankLine(v),
             .. BuildSelectedScanSection(v, scan)
         ]);
     }
@@ -229,23 +236,29 @@ internal static class PicketTuiApp
             PicketTuiScanSection.Output =>
             [
                 BuildSectionTitle(ctx, "Output"),
+                BuildBlankLine(ctx),
                 BuildOutputFields(ctx, scan),
+                BuildBlankLine(ctx),
                 BuildOutputPathFields(ctx, scan),
             ],
             PicketTuiScanSection.Rules =>
             [
                 BuildSectionTitle(ctx, "Rules and filters"),
+                BuildBlankLine(ctx),
                 BuildFilterFields(ctx, scan),
             ],
             PicketTuiScanSection.Limits =>
             [
                 BuildSectionTitle(ctx, "Limits"),
+                BuildBlankLine(ctx),
                 BuildLimitFields(ctx, scan),
             ],
             _ =>
             [
                 BuildSectionTitle(ctx, "Target"),
+                BuildBlankLine(ctx),
                 BuildTargetModeRow(ctx, scan),
+                BuildBlankLine(ctx),
                 .. BuildPrimaryTargetFields(ctx, scan),
             ],
         };
@@ -257,16 +270,20 @@ internal static class PicketTuiApp
         return BuildStatusText(ctx, text, PicketTuiPalette.InfoForeground);
     }
 
-    private static HStackWidget BuildOutputFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+    private static TextBlockWidget BuildBlankLine<TParent>(WidgetContext<TParent> ctx)
         where TParent : Hex1bWidget
     {
-        return ctx.HStack(h => [
-            BuildChoiceField(h, "Format", PicketTuiScanWorkspace.ReportFormats, scan.ReportFormatIndex, scan.SetReportFormatByIndex).FillWidth(),
-            h.Text("  "),
-            BuildTextField(h, "Redact", scan.RedactionPercent, scan.SetRedactionPercent).FixedWidth(24),
-            h.Text("  "),
-            BuildBooleanField(h, "Verify", scan.Verify, scan.SetVerify).FixedWidth(24)
-        ]).FixedHeight(1);
+        return ctx.Text("").FixedHeight(1);
+    }
+
+    private static VStackWidget BuildOutputFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.VStack(v => [
+            BuildChoiceField(v, "Format", PicketTuiScanWorkspace.ReportFormats, scan.ReportFormatIndex, scan.SetReportFormatByIndex),
+            BuildTextField(v, "Redact", scan.RedactionPercent, scan.SetRedactionPercent),
+            BuildBooleanField(v, "Verify", scan.Verify, scan.SetVerify)
+        ]);
     }
 
     private static VStackWidget BuildOutputPathFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
@@ -274,13 +291,9 @@ internal static class PicketTuiApp
     {
         return ctx.VStack(v => [
             BuildTextField(v, "Report", scan.ReportPath, scan.SetReportPath),
-            v.HStack(h => [
-                BuildTextField(h, "Profile", scan.Profile, scan.SetProfile).FixedWidth(34),
-                h.Text("  "),
-                BuildTextField(h, "Config", scan.ConfigPath, scan.SetConfigPath).FillWidth(),
-                h.Text("  "),
-                BuildTextField(h, "Ignore", scan.IgnorePath, scan.SetIgnorePath).FillWidth()
-            ]).FixedHeight(1)
+            BuildTextField(v, "Profile", scan.Profile, scan.SetProfile),
+            BuildTextField(v, "Config", scan.ConfigPath, scan.SetConfigPath),
+            BuildTextField(v, "Ignore", scan.IgnorePath, scan.SetIgnorePath)
         ]);
     }
 
@@ -288,11 +301,8 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            v.HStack(h => [
-                BuildBooleanField(h, "No ignore", scan.NoIgnore, scan.SetNoIgnore).FixedWidth(28),
-                h.Text("  "),
-                BuildBooleanField(h, "Only valid", scan.OnlyVerified, scan.SetOnlyVerified).FixedWidth(30)
-            ]).FixedHeight(1),
+            BuildBooleanField(v, "No ignore", scan.NoIgnore, scan.SetNoIgnore),
+            BuildBooleanField(v, "Only valid", scan.OnlyVerified, scan.SetOnlyVerified),
             BuildChoiceField(v, "Results", PicketTuiScanWorkspace.ResultFilters, scan.ResultFilterIndex, scan.SetResultFilterByIndex)
         ]);
     }
@@ -305,86 +315,60 @@ internal static class PicketTuiApp
             PicketTuiScanTargetMode.GitHub =>
             [
                 BuildTextField(ctx, "Repository", scan.GitHubRepository, scan.SetGitHubRepository),
+                BuildTextField(ctx, "Org", scan.GitHubOrganization, scan.SetGitHubOrganization),
+                BuildTextField(ctx, "User", scan.GitHubUser, scan.SetGitHubUser),
+                BuildTextField(ctx, "Token env", scan.GitHubTokenEnvironmentVariable, scan.SetGitHubTokenEnvironmentVariable),
+                BuildTextField(ctx, "Gist", scan.GitHubGist, scan.SetGitHubGist),
+                BuildTextField(ctx, "User gists", scan.GitHubUserGists, scan.SetGitHubUserGists),
+                BuildTextField(ctx, "Endpoint", scan.GitHubSourceApiEndpoint, scan.SetGitHubSourceApiEndpoint),
+                BuildTextField(ctx, "Ref", scan.GitHubRef, scan.SetGitHubRef),
+                BuildTextField(ctx, "PR", scan.GitHubPullRequest, scan.SetGitHubPullRequest),
+                BuildChoiceField(ctx, "Repo type", PicketTuiScanWorkspace.GitHubRepositoryTypes, scan.GitHubRepositoryTypeIndex, scan.SetGitHubRepositoryTypeByIndex),
+                BuildChoiceField(ctx, "Issue state", PicketTuiScanWorkspace.GitHubIssueStates, scan.GitHubIssueStateIndex, scan.SetGitHubIssueStateByIndex),
                 ctx.HStack(h => [
-                    BuildTextField(h, "Org", scan.GitHubOrganization, scan.SetGitHubOrganization).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "User", scan.GitHubUser, scan.SetGitHubUser).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "Token env", scan.GitHubTokenEnvironmentVariable, scan.SetGitHubTokenEnvironmentVariable).FillWidth()
+                    BuildBooleanField(h, "Issues", scan.IncludeGitHubIssues, scan.SetIncludeGitHubIssues).FillWidth(),
+                    h.Text("    "),
+                    BuildBooleanField(h, "Releases", scan.IncludeGitHubReleases, scan.SetIncludeGitHubReleases).FillWidth()
                 ]).FixedHeight(1),
                 ctx.HStack(h => [
-                    BuildTextField(h, "Gist", scan.GitHubGist, scan.SetGitHubGist).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "User gists", scan.GitHubUserGists, scan.SetGitHubUserGists).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "Endpoint", scan.GitHubSourceApiEndpoint, scan.SetGitHubSourceApiEndpoint).FillWidth()
+                    BuildBooleanField(h, "Actions", scan.IncludeGitHubActionsArtifacts, scan.SetIncludeGitHubActionsArtifacts).FillWidth(),
+                    h.Text("    "),
+                    BuildBooleanField(h, "Gists", scan.IncludeGitHubGists, scan.SetIncludeGitHubGists).FillWidth()
                 ]).FixedHeight(1),
                 ctx.HStack(h => [
-                    BuildTextField(h, "Ref", scan.GitHubRef, scan.SetGitHubRef).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "PR", scan.GitHubPullRequest, scan.SetGitHubPullRequest).FillWidth(),
-                    h.Text("  "),
-                    BuildChoiceField(h, "Repo type", PicketTuiScanWorkspace.GitHubRepositoryTypes, scan.GitHubRepositoryTypeIndex, scan.SetGitHubRepositoryTypeByIndex).FillWidth(),
-                    h.Text("  "),
-                    BuildChoiceField(h, "Issue state", PicketTuiScanWorkspace.GitHubIssueStates, scan.GitHubIssueStateIndex, scan.SetGitHubIssueStateByIndex).FillWidth()
-                ]).FixedHeight(1),
-                ctx.HStack(h => [
-                    BuildBooleanField(h, "Issues", scan.IncludeGitHubIssues, scan.SetIncludeGitHubIssues).FixedWidth(24),
-                    h.Text("  "),
-                    BuildBooleanField(h, "Releases", scan.IncludeGitHubReleases, scan.SetIncludeGitHubReleases).FixedWidth(26),
-                    h.Text("  "),
-                    BuildBooleanField(h, "Actions", scan.IncludeGitHubActionsArtifacts, scan.SetIncludeGitHubActionsArtifacts).FixedWidth(24),
-                    h.Text("  "),
-                    BuildBooleanField(h, "Gists", scan.IncludeGitHubGists, scan.SetIncludeGitHubGists).FixedWidth(22)
-                ]).FixedHeight(1),
-                ctx.HStack(h => [
-                    BuildBooleanField(h, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints).FixedWidth(28),
-                    h.Text("  "),
-                    BuildBooleanField(h, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints).FixedWidth(22)
+                    BuildBooleanField(h, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints).FillWidth(),
+                    h.Text("    "),
+                    BuildBooleanField(h, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints).FillWidth()
                 ]).FixedHeight(1),
             ],
             PicketTuiScanTargetMode.AzureDevOps =>
             [
+                BuildTextField(ctx, "Org", scan.AzureDevOpsOrganization, scan.SetAzureDevOpsOrganization),
+                BuildTextField(ctx, "Endpoint", scan.AzureDevOpsEndpoint, scan.SetAzureDevOpsEndpoint),
+                BuildTextField(ctx, "Token env", scan.AzureDevOpsTokenEnvironmentVariable, scan.SetAzureDevOpsTokenEnvironmentVariable),
+                BuildTextField(ctx, "Project", scan.AzureDevOpsProject, scan.SetAzureDevOpsProject),
+                BuildTextField(ctx, "Repo", scan.AzureDevOpsRepository, scan.SetAzureDevOpsRepository),
+                BuildTextField(ctx, "Branch", scan.AzureDevOpsBranch, scan.SetAzureDevOpsBranch),
+                BuildTextField(ctx, "PR", scan.AzureDevOpsPullRequest, scan.SetAzureDevOpsPullRequest),
+                BuildTextField(ctx, "Build ID", scan.AzureDevOpsBuildId, scan.SetAzureDevOpsBuildId),
+                BuildTextField(ctx, "Release ID", scan.AzureDevOpsReleaseId, scan.SetAzureDevOpsReleaseId),
+                BuildChoiceField(ctx, "Token", PicketTuiScanWorkspace.AzureDevOpsTokenKinds, scan.AzureDevOpsTokenKindIndex, scan.SetAzureDevOpsTokenKindByIndex),
                 ctx.HStack(h => [
-                    BuildTextField(h, "Org", scan.AzureDevOpsOrganization, scan.SetAzureDevOpsOrganization).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "Endpoint", scan.AzureDevOpsEndpoint, scan.SetAzureDevOpsEndpoint).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "Token env", scan.AzureDevOpsTokenEnvironmentVariable, scan.SetAzureDevOpsTokenEnvironmentVariable).FillWidth()
+                    BuildBooleanField(h, "Wikis", scan.IncludeAzureDevOpsWikis, scan.SetIncludeAzureDevOpsWikis).FillWidth(),
+                    h.Text("    "),
+                    BuildBooleanField(h, "Artifacts", scan.IncludeAzureDevOpsArtifacts, scan.SetIncludeAzureDevOpsArtifacts).FillWidth()
                 ]).FixedHeight(1),
                 ctx.HStack(h => [
-                    BuildTextField(h, "Project", scan.AzureDevOpsProject, scan.SetAzureDevOpsProject).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "Repo", scan.AzureDevOpsRepository, scan.SetAzureDevOpsRepository).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "Branch", scan.AzureDevOpsBranch, scan.SetAzureDevOpsBranch).FillWidth(),
-                    h.Text("  "),
-                    BuildTextField(h, "PR", scan.AzureDevOpsPullRequest, scan.SetAzureDevOpsPullRequest).FillWidth()
+                    BuildBooleanField(h, "Logs", scan.IncludeAzureDevOpsLogs, scan.SetIncludeAzureDevOpsLogs).FillWidth(),
+                    h.Text("    "),
+                    BuildBooleanField(h, "Releases", scan.IncludeAzureDevOpsReleaseArtifacts, scan.SetIncludeAzureDevOpsReleaseArtifacts).FillWidth()
                 ]).FixedHeight(1),
+                BuildTextField(ctx, "Artifact MB", scan.AzureDevOpsMaxArtifactMegabytes, scan.SetAzureDevOpsMaxArtifactMegabytes),
+                BuildTextField(ctx, "Log MB", scan.AzureDevOpsMaxLogMegabytes, scan.SetAzureDevOpsMaxLogMegabytes),
                 ctx.HStack(h => [
-                    BuildCompactTextField(h, "Build ID", scan.AzureDevOpsBuildId, scan.SetAzureDevOpsBuildId).FillWidth(),
-                    h.Text("  "),
-                    BuildCompactTextField(h, "Release ID", scan.AzureDevOpsReleaseId, scan.SetAzureDevOpsReleaseId).FillWidth(),
-                    h.Text("  "),
-                    BuildChoiceField(h, "Token", PicketTuiScanWorkspace.AzureDevOpsTokenKinds, scan.AzureDevOpsTokenKindIndex, scan.SetAzureDevOpsTokenKindByIndex).FillWidth()
-                ]).FixedHeight(1),
-                ctx.HStack(h => [
-                    BuildBooleanField(h, "Wikis", scan.IncludeAzureDevOpsWikis, scan.SetIncludeAzureDevOpsWikis).FixedWidth(22),
-                    h.Text("  "),
-                    BuildBooleanField(h, "Artifacts", scan.IncludeAzureDevOpsArtifacts, scan.SetIncludeAzureDevOpsArtifacts).FixedWidth(28),
-                    h.Text("  "),
-                    BuildBooleanField(h, "Logs", scan.IncludeAzureDevOpsLogs, scan.SetIncludeAzureDevOpsLogs).FixedWidth(22),
-                    h.Text("  "),
-                    BuildBooleanField(h, "Releases", scan.IncludeAzureDevOpsReleaseArtifacts, scan.SetIncludeAzureDevOpsReleaseArtifacts).FixedWidth(28)
-                ]).FixedHeight(1),
-                ctx.HStack(h => [
-                    BuildCompactTextField(h, "Artifact MB", scan.AzureDevOpsMaxArtifactMegabytes, scan.SetAzureDevOpsMaxArtifactMegabytes).FillWidth(),
-                    h.Text("  "),
-                    BuildCompactTextField(h, "Log MB", scan.AzureDevOpsMaxLogMegabytes, scan.SetAzureDevOpsMaxLogMegabytes).FillWidth(),
-                    h.Text("  "),
-                    BuildBooleanField(h, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints).FixedWidth(28),
-                    h.Text("  "),
-                    BuildBooleanField(h, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints).FixedWidth(22)
+                    BuildBooleanField(h, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints).FillWidth(),
+                    h.Text("    "),
+                    BuildBooleanField(h, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints).FillWidth()
                 ]).FixedHeight(1),
             ],
             _ =>
@@ -398,20 +382,12 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            v.HStack(h => [
-                BuildCompactTextField(h, "Max MB", scan.MaxTargetMegabytes, scan.SetMaxTargetMegabytes).FillWidth(),
-                h.Text("  "),
-                BuildCompactTextField(h, "Depth", scan.MaxArchiveDepth, scan.SetMaxArchiveDepth).FillWidth(),
-                h.Text("  "),
-                BuildCompactTextField(h, "Entries", scan.MaxArchiveEntries, scan.SetMaxArchiveEntries).FillWidth()
-            ]).FixedHeight(1),
-            v.HStack(h => [
-                BuildCompactTextField(h, "Archive MB", scan.MaxArchiveMegabytes, scan.SetMaxArchiveMegabytes).FillWidth(),
-                h.Text("  "),
-                BuildCompactTextField(h, "Ratio", scan.MaxArchiveRatio, scan.SetMaxArchiveRatio).FillWidth(),
-                h.Text("  "),
-                BuildCompactTextField(h, "Timeout", scan.TimeoutSeconds, scan.SetTimeoutSeconds).FillWidth()
-            ]).FixedHeight(1)
+            BuildTextField(v, "Max MB", scan.MaxTargetMegabytes, scan.SetMaxTargetMegabytes),
+            BuildTextField(v, "Depth", scan.MaxArchiveDepth, scan.SetMaxArchiveDepth),
+            BuildTextField(v, "Entries", scan.MaxArchiveEntries, scan.SetMaxArchiveEntries),
+            BuildTextField(v, "Archive MB", scan.MaxArchiveMegabytes, scan.SetMaxArchiveMegabytes),
+            BuildTextField(v, "Ratio", scan.MaxArchiveRatio, scan.SetMaxArchiveRatio),
+            BuildTextField(v, "Timeout", scan.TimeoutSeconds, scan.SetTimeoutSeconds)
         ]);
     }
 
@@ -431,8 +407,8 @@ internal static class PicketTuiApp
     {
         IReadOnlyList<string> lines = scan.CapturedOutputLines;
         return ctx.VStack(v => [
-            v.Separator(),
             BuildSectionTitle(v, "Scanner output"),
+            BuildBlankLine(v),
             .. BuildScannerOutputLines(v, lines)
         ]);
     }
@@ -524,7 +500,7 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(14),
+            h.Text(label).FixedWidth(16),
             h.ToggleSwitch(s_booleanOptions, value ? 1 : 0)
                 .OnSelectionChanged(e => setValue(e.SelectedIndex == 1))
                 .FillWidth()
@@ -540,7 +516,7 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(14),
+            h.Text(label).FixedWidth(16),
             h.ToggleSwitch(options, selectedIndex)
                 .OnSelectionChanged(e => setValue(e.SelectedIndex))
                 .FillWidth()
@@ -555,22 +531,7 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(14),
-            h.TextBox(value)
-                .OnTextChanged(e => setValue(e.NewText))
-                .FillWidth()
-        ]).FixedHeight(1);
-    }
-
-    private static HStackWidget BuildCompactTextField<TParent>(
-        WidgetContext<TParent> ctx,
-        string label,
-        string value,
-        Action<string> setValue)
-        where TParent : Hex1bWidget
-    {
-        return ctx.HStack(h => [
-            h.Text(label).FixedWidth(11),
+            h.Text(label).FixedWidth(16),
             h.TextBox(value)
                 .OnTextChanged(e => setValue(e.NewText))
                 .FillWidth()
@@ -588,10 +549,11 @@ internal static class PicketTuiApp
                     .OnTextChanged(e => state.SetSearchText(e.NewText))
                     .FillWidth()
             ]).FixedHeight(1),
+            BuildBlankLine(v),
             v.Responsive(r => [
                 r.WhenMinWidth(110, wide => wide.HStack(h => [
                     BuildFindingsList(h, state).FixedWidth(58),
-                    h.Text("  "),
+                    h.Text("    "),
                     BuildFindingDetailsPanel(h, state.FocusedFinding).Fill()
                 ]).Fill()),
                 r.Otherwise(narrow => narrow.VStack(stack => [
@@ -607,7 +569,7 @@ internal static class PicketTuiApp
     {
         int focusedIndex = Math.Max(0, state.IndexOfVisibleRowKey(state.FocusedFindingKey));
         ListWidget<PicketTuiFindingRow> list = ctx.List(state.VisibleRows)
-            .ItemHeight(2)
+            .ItemHeight(3)
             .ItemKey(row => row.Key)
             .FocusedIndex(focusedIndex)
             .OnFocusChanged(e => state.FocusFinding(e.FocusedItem.Key))
@@ -649,7 +611,8 @@ internal static class PicketTuiApp
                 v.HStack(h => [
                     h.Text("      ").FixedWidth(6),
                     h.Text(TrimMiddle(row.Location, 72)).FillWidth()
-                ]).FixedHeight(1)
+                ]).FixedHeight(1),
+                BuildBlankLine(v)
             ]));
     }
 
@@ -660,6 +623,7 @@ internal static class PicketTuiApp
         {
             return ctx.VStack(v => [
                 BuildSectionTitle(v, "Selected finding"),
+                BuildBlankLine(v),
                 v.Text("No finding selected."),
                 v.Text("Run a scan or adjust the filter.")
             ]).Fill();
@@ -667,6 +631,7 @@ internal static class PicketTuiApp
 
         return ctx.VStack(v => [
             BuildSectionTitle(v, "Selected finding"),
+            BuildBlankLine(v),
             BuildMetadataLine(v, "Rule", row.RuleId),
             BuildMetadataLine(v, "Path", TrimEnd(row.Path, DetailLimit)),
             BuildMetadataLine(v, "Line", row.Line),

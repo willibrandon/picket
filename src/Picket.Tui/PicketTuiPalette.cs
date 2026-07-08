@@ -21,10 +21,10 @@ internal static class PicketTuiPalette
     private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(90, 100, 115);
     private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(245, 197, 92);
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 128, 128);
-    private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(125, 183, 255);
+    private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(80, 190, 220);
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(78, 100, 112);
-    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.FromRgb(248, 250, 252);
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(80, 190, 220);
+    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.Black;
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(229, 234, 240);
     private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(125, 183, 255);
     private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(166, 176, 186);
@@ -165,8 +165,8 @@ internal static class PicketTuiPalette
             .Set(TableTheme.BorderColor, Border)
             .Set(TableTheme.EmptyTextForeground, MutedForeground)
             .Set(TableTheme.FocusedBorderColor, Border)
-            .Set(TableTheme.FocusedRowBackground, Background)
-            .Set(TableTheme.FocusedRowForeground, Foreground)
+            .Set(TableTheme.FocusedRowBackground, FocusedRowBackground)
+            .Set(TableTheme.FocusedRowForeground, FocusedRowForeground)
             .Set(TableTheme.HeaderBackground, PanelBackground)
             .Set(TableTheme.HeaderForeground, Foreground)
             .Set(TableTheme.LoadingTextForeground, MutedForeground)
@@ -181,9 +181,9 @@ internal static class PicketTuiPalette
             .Set(TabBarTheme.SelectedForegroundColor, PrimaryActionForeground)
             .Set(TabBarTheme.ArrowForegroundColor, MutedForeground)
             .Set(TabBarTheme.ArrowDisabledColor, Background)
-            .Set(ToggleSwitchTheme.FocusedSelectedBackgroundColor, InfoForeground)
+            .Set(ToggleSwitchTheme.FocusedSelectedBackgroundColor, PrimaryActionBackground)
             .Set(ToggleSwitchTheme.FocusedSelectedForegroundColor, FocusForeground)
-            .Set(ToggleSwitchTheme.UnfocusedSelectedBackgroundColor, InfoForeground)
+            .Set(ToggleSwitchTheme.UnfocusedSelectedBackgroundColor, PrimaryActionBackground)
             .Set(ToggleSwitchTheme.UnfocusedSelectedForegroundColor, FocusForeground)
             .Set(ToggleSwitchTheme.UnselectedBackgroundColor, PanelBackground)
             .Set(ToggleSwitchTheme.UnselectedForegroundColor, Foreground)

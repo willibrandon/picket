@@ -465,15 +465,16 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that table focus chrome stays neutral while cell renderers provide the visible selected-row highlight.
+    /// Verifies that table focus chrome uses the same selected-row highlight as list rows.
     /// </summary>
     [TestMethod]
-    public void PaletteKeepsTableFocusChromeNeutral()
+    public void PaletteKeepsTableFocusChromeConsistent()
     {
         Hex1bTheme theme = PicketTuiPalette.CreateTheme();
 
         Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.FocusedBorderColor));
-        Assert.AreEqual(PicketTuiPalette.Background, theme.Get(TableTheme.FocusedRowBackground));
+        Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, theme.Get(TableTheme.FocusedRowBackground));
+        Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, theme.Get(TableTheme.FocusedRowForeground));
         Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.ScrollbarThumbColor));
         Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.TableFocusedBorderColor));
     }
