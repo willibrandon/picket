@@ -58,7 +58,7 @@ Baseline suppression still works with secret-hash-only cache hits. Picket compar
 
 `PicketScanCache.Export(...)` writes entries for the active scanner configuration key to a portable zip archive.
 
-`PicketScanCache.Import(...)` restores entries for the active scanner configuration key from a portable zip archive. Import validates archive paths, caps each decompressed cache entry at 100 decimal MB by default, authenticates entries, and validates cache entry contents before writing files under the cache root.
+`PicketScanCache.Import(...)` restores entries for the active scanner configuration key from a portable zip archive. Import validates archive paths, caps each decompressed cache entry at 100 decimal MB by default, caps archives at 100,000 non-directory entries and 1,000 decimal MB of imported decompressed entry data by default, authenticates entries, and validates cache entry contents before writing files under the cache root.
 
 The native CLI wraps the same APIs:
 

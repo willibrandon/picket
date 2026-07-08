@@ -670,7 +670,7 @@ Design requirements:
 - concurrent CI-safe locking,
 - secret-hash-only scan cache storage by default, explicit raw mode for trusted private replay, owner-only POSIX cache permissions, and storage mode participation in the cache key,
 - GC and retention policy,
-- portable cache export/import with per-entry decompressed-size caps,
+- portable cache export/import with per-entry decompressed-size caps, archive entry-count caps, and aggregate imported-byte caps,
 - provenance-preserving reports.
 
 Dedup skips duplicate matching work where rule and decoder semantics make it safe, but it does not collapse compatibility reports. If Gitleaks would report the same blob at multiple commits/paths, compatibility mode still reports every provenance.
