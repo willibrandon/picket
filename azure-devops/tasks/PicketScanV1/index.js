@@ -16,7 +16,9 @@ const reportExtensions = new Map([
   ["toon", "toon"]
 ]);
 
-main();
+if (require.main === module) {
+  main();
+}
 
 function main() {
   try {
@@ -465,3 +467,9 @@ function escapeMessage(value) {
     .replace(/\r/g, "%0D")
     .replace(/\n/g, "%0A");
 }
+
+module.exports = {
+  emitAnnotations,
+  escapeMessage,
+  escapeProperty
+};

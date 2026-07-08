@@ -440,8 +440,10 @@ public sealed partial class RepositoryConventionTests
         string taskMetadata = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/task.json");
         using JsonDocument task = JsonDocument.Parse(taskMetadata);
         string handler = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.js");
+        string handlerTests = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.test.js");
         string readme = ReadRepositoryFile("azure-devops/README.md");
         string azureDevOps = ReadRepositoryFile("docs/AZURE_DEVOPS.md");
+        string workflow = ReadRepositoryFile(".github/workflows/ci.yml");
         string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
 
         JsonElement extensionRoot = extension.RootElement;
@@ -494,6 +496,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("##vso[task.setvariable", handler);
         Assert.Contains("##vso[task.logissue", handler);
         Assert.Contains("##vso[artifact.upload", handler);
+        Assert.Contains("require.main === module", handler);
+        Assert.Contains("module.exports", handler);
+        Assert.Contains("emitAnnotations", handlerTests);
+        Assert.Contains("escapeProperty", handlerTests);
+        Assert.Contains("node --test azure-devops/tasks/PicketScanV1/index.test.js", workflow);
         Assert.DoesNotContain("finding.secret", handler);
         Assert.DoesNotContain("finding.match", handler);
         Assert.DoesNotContain("finding.line", handler);

@@ -39,6 +39,11 @@ jobs:
             9.0.x
             10.0.301
 
+      - name: Set up Node
+        uses: actions/setup-node@v6.0.0
+        with:
+          node-version: 20
+
       - name: Restore
         run: dotnet restore Picket.slnx
 
@@ -50,6 +55,9 @@ jobs:
 
       - name: Test
         run: dotnet test --solution Picket.slnx --configuration Release --no-restore
+
+      - name: Test Azure DevOps task
+        run: node --test azure-devops/tasks/PicketScanV1/index.test.js
 
       - name: Publish Native AOT binaries
         shell: pwsh
