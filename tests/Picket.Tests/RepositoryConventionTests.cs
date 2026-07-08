@@ -412,12 +412,14 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("pull_request:", workflow);
         Assert.DoesNotContain("push:", workflow);
         Assert.Contains("AZURE_DEVOPS_TEST_PAT", workflow);
+        Assert.Contains("default: picket", workflow);
         Assert.Contains("--azure-devops-endpoint", workflow);
         Assert.Contains("--azure-devops-token-env", workflow);
         Assert.Contains("--redact=100", workflow);
         Assert.Contains("actions/upload-artifact@v7", workflow);
         Assert.DoesNotContain("outputs.report-path", workflow);
         Assert.Contains("Live Azure DevOps", azureDevOps);
+        Assert.Contains("https://dev.azure.com/willibrandon/picket", azureDevOps);
         Assert.Contains("AZURE_DEVOPS_TEST_PAT", marketplaces);
         Assert.Contains("manual `Live Azure DevOps` workflow", marketplaces);
     }

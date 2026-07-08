@@ -10,7 +10,7 @@ on:
       project:
         description: Azure DevOps project to scan.
         required: true
-        default: test
+        default: picket
       repository:
         description: Optional Azure Repos repository name filter.
         required: false
