@@ -27,11 +27,25 @@ public static class OfflineSecretValidator
             return Unknown();
         }
 
-        if (IsTestCredential(secret))
+        SecretValidationResult result = ValidateKnownProvider(finding, secret);
+        if (result.State == SecretValidationState.StructurallyValid)
         {
-            return new SecretValidationResult(SecretValidationState.TestCredential, "known test or placeholder marker");
+            return IsKnownProviderTestCredential(finding, secret)
+                ? TestCredential("known provider test credential")
+                : result;
         }
 
+        if (result.State is (SecretValidationState.Unknown or SecretValidationState.Invalid)
+            && IsTestCredential(secret))
+        {
+            return TestCredential("known test or placeholder marker");
+        }
+
+        return result;
+    }
+
+    private static SecretValidationResult ValidateKnownProvider(Finding finding, string secret)
+    {
         return finding.RuleID switch
         {
             "picket-aws-access-key-pair" => ValidateAwsAccessKeyPair(finding.Match, secret),
@@ -113,11 +127,6 @@ public static class OfflineSecretValidator
 
     private static SecretValidationResult ValidateAwsAccessKeyPair(string match, string secret)
     {
-        if (IsTestCredential(match))
-        {
-            return TestCredential("known test or placeholder marker");
-        }
-
         if (!TryFindAwsAccessKeyId(match, out string accessKeyId)
             || !IsAwsAccessKeyId(accessKeyId))
         {
@@ -332,6 +341,28 @@ public static class OfflineSecretValidator
         }
 
         return StructurallyValid("valid GCP service account key shape");
+    }
+
+    private static bool IsKnownProviderTestCredential(Finding finding, string secret)
+    {
+        return finding.RuleID switch
+        {
+            "aws-access-token" => IsKnownAwsExampleAccessKeyId(secret),
+            "picket-aws-access-key-pair" => IsKnownAwsExampleSecretAccessKey(secret)
+                || (TryFindAwsAccessKeyId(finding.Match, out string accessKeyId)
+                    && IsKnownAwsExampleAccessKeyId(accessKeyId)),
+            _ => false,
+        };
+    }
+
+    private static bool IsKnownAwsExampleAccessKeyId(string secret)
+    {
+        return secret.Equals("AKIAIOSFODNN7EXAMPLE", StringComparison.Ordinal);
+    }
+
+    private static bool IsKnownAwsExampleSecretAccessKey(string secret)
+    {
+        return secret.Equals("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", StringComparison.Ordinal);
     }
 
     private static bool TryParseJsonObject(string json, [NotNullWhen(true)] out JsonDocument? document)

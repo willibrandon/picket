@@ -76,10 +76,10 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
-    /// Verifies that known placeholder markers are identified before provider-specific validation.
+    /// Verifies that exact known provider examples are identified as test credentials.
     /// </summary>
     [TestMethod]
-    public void ValidateRecognizesTestCredentialMarkers()
+    public void ValidateRecognizesKnownProviderExampleCredential()
     {
         Finding finding = CreateFinding("aws-access-token", CreateAwsExampleAccessKeyId());
 
@@ -90,12 +90,40 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
-    /// Verifies that repeated-pattern fixture credentials are identified before provider-specific validation.
+    /// Verifies that broad placeholder heuristics do not override valid provider token structure.
     /// </summary>
     [TestMethod]
-    public void ValidateRecognizesRepeatedPatternTestCredentials()
+    public void ValidateKeepsStructurallyValidProviderTokenWithPlaceholderSubstring()
+    {
+        Finding finding = CreateFinding("github-pat", string.Concat("ghp_", "0123456789fakeABCDEFGHIJKLMNOPQRSTUV"));
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that broad repeated-pattern heuristics do not override valid provider token structure.
+    /// </summary>
+    [TestMethod]
+    public void ValidateKeepsStructurallyValidProviderTokenWithRepeatedPattern()
     {
         Finding finding = CreateFinding("github-pat", string.Concat("ghp_", "abcabcabcabcabcabcabcabcabcabcabcabc"));
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that repeated-pattern fixture values are still identified when no provider structure applies.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesRepeatedPatternUnknownCredentials()
+    {
+        Finding finding = CreateFinding("custom-token", "abcabcabcabcabcabcabcabcabcabcabcabc");
 
         SecretValidationResult result = OfflineSecretValidator.Validate(finding);
 
