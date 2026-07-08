@@ -515,11 +515,14 @@ public sealed partial class RepositoryConventionTests
     public void AzurePipelinesSmokeTestUsesSelfHostedWindowsAgent()
     {
         string pipeline = ReadRepositoryFile("azure-pipelines.yml");
+        string normalizedPipeline = pipeline.ReplaceLineEndings("\n");
 
         Assert.Contains("name: Windows-SelfHosted", pipeline);
         Assert.Contains("Agent.OS -equals Windows_NT", pipeline);
         Assert.Contains("PicketScan@1", pipeline);
         Assert.Contains("picket.exe", pipeline);
+        Assert.Contains("pr: none", normalizedPipeline);
+        Assert.DoesNotContain("pr:\n- main", normalizedPipeline);
         Assert.Contains("pwsh:", pipeline);
         Assert.DoesNotContain("vmImage:", pipeline);
         Assert.DoesNotContain("chmod +x", pipeline);
