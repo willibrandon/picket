@@ -57,6 +57,38 @@ public sealed class GitleaksJsonReportWriterTests
     }
 
     /// <summary>
+    /// Verifies that compatibility JSON escapes HTML-sensitive characters like Go's JSON encoder.
+    /// </summary>
+    [TestMethod]
+    public void WriteEscapesHtmlSensitiveCharactersLikeGitleaks()
+    {
+        var finding = new Finding(
+            "rule",
+            "a<b>&c\u2028d\u2029e",
+            1,
+            1,
+            2,
+            8,
+            "a<b>&c\u2028d\u2029e",
+            "secret",
+            "stdin",
+            string.Empty,
+            string.Empty,
+            2.5,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            ["a<b>&c\u2028d\u2029e"],
+            "stdin:rule:1");
+
+        string json = GitleaksJsonReportWriter.Write([finding]);
+
+        Assert.Contains("a\\u003cb\\u003e\\u0026c\\u2028d\\u2029e", json);
+        Assert.DoesNotContain("a<b>&c", json);
+    }
+
+    /// <summary>
     /// Verifies that non-empty tag arrays use Gitleaks JSON indentation.
     /// </summary>
     [TestMethod]

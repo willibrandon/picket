@@ -176,6 +176,21 @@ public static class GitleaksJsonReportWriter
                 case '\t':
                     builder.Append("\\t");
                     break;
+                case '<':
+                    builder.Append("\\u003c");
+                    break;
+                case '>':
+                    builder.Append("\\u003e");
+                    break;
+                case '&':
+                    builder.Append("\\u0026");
+                    break;
+                case 0x2028:
+                    builder.Append("\\u2028");
+                    break;
+                case 0x2029:
+                    builder.Append("\\u2029");
+                    break;
                 default:
                     if (rune.Value < 0x20)
                     {
