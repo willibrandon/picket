@@ -1,17 +1,75 @@
-# ASP.NET Core
-# Build and test ASP.NET Core projects targeting .NET Core.
-# Add steps that run tests, create a NuGet package, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
-
 trigger:
+- main
+
+pr:
 - main
 
 pool:
   vmImage: ubuntu-latest
 
 variables:
-  buildConfiguration: 'Release'
+  buildConfiguration: Release
+  cliPublishDirectory: $(Pipeline.Workspace)/picket-cli
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
 steps:
-- script: dotnet build --configuration $(buildConfiguration)
-  displayName: 'dotnet build $(buildConfiguration)'
+- checkout: self
+  fetchDepth: 0
+
+- task: UseDotNet@2
+  displayName: Use .NET SDK
+  inputs:
+    packageType: sdk
+    version: 10.0.301
+
+- script: dotnet restore Picket.slnx
+  displayName: Restore
+
+- script: dotnet build Picket.slnx --configuration $(buildConfiguration) --no-restore
+  displayName: Build
+
+- script: dotnet test --solution Picket.slnx --configuration $(buildConfiguration) --no-build --verbosity minimal
+  displayName: Test
+
+- script: >
+    dotnet publish src/Picket.Cli/Picket.Cli.csproj
+    --configuration $(buildConfiguration)
+    --framework net10.0
+    --no-restore
+    --output "$(cliPublishDirectory)"
+    -p:PublishAot=false
+    -p:SelfContained=false
+    -p:UseAppHost=true
+  displayName: Publish local Picket CLI
+
+- script: |
+    chmod +x "$(cliPublishDirectory)/picket"
+    "$(cliPublishDirectory)/picket" version
+  displayName: Verify local Picket CLI
+
+- task: PicketScan@1
+  name: picketScan
+  displayName: Picket extension smoke test
+  inputs:
+    target: $(Build.SourcesDirectory)
+    picketPath: $(cliPublishDirectory)/picket
+    profile: picket
+    reportFormats: sarif,jsonl,html
+    reportDirectory: $(Build.ArtifactStagingDirectory)/picket
+    failOn: never
+    redact: 100
+    cache: false
+    annotations: true
+    annotationLimit: 25
+    publishSarif: true
+    publishJsonl: true
+    publishHtml: true
+
+- script: |
+    test -f "$(Build.ArtifactStagingDirectory)/picket/picket.sarif"
+    test -f "$(Build.ArtifactStagingDirectory)/picket/picket.jsonl"
+    test -f "$(Build.ArtifactStagingDirectory)/picket/picket.html"
+    echo "Picket findings: $(picketScan.findings)"
+    echo "Picket annotations: $(picketScan.annotations)"
+  displayName: Verify Picket extension outputs
