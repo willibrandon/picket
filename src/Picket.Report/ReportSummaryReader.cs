@@ -474,7 +474,7 @@ public static class ReportSummaryReader
             return string.Empty;
         }
 
-        return property.GetString() ?? string.Empty;
+        return property.ValueKind == JsonValueKind.String ? property.GetString() ?? string.Empty : string.Empty;
     }
 
     private static string FindString(JsonElement element, params string[] names)

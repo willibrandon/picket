@@ -219,6 +219,30 @@ public sealed class ReportSummaryReaderTests
         Assert.Contains("format of the file", exception.Message);
     }
 
+    /// <summary>
+    /// Verifies type-confused string fields do not reject otherwise readable summaries.
+    /// </summary>
+    [TestMethod]
+    public void ReadSummarizesReportWithNonStringScalarFields()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            [{"RuleID":123,"File":"secret.txt","StartLine":7,"Fingerprint":false}]
+            """);
+
+        ReportSummary summary = ReportSummaryReader.Read(reportPath);
+
+        Assert.AreEqual("gitleaks-json", summary.Format);
+        Assert.HasCount(1, summary.Findings);
+        Assert.IsEmpty(summary.Findings[0].RuleId);
+        Assert.AreEqual("secret.txt", summary.Findings[0].Path);
+        Assert.AreEqual(7, summary.Findings[0].Line);
+        Assert.IsEmpty(summary.Findings[0].Fingerprint);
+    }
+
     private static string WriteReport(string root, string fileName, string contents)
     {
         string reportPath = Path.Combine(root, fileName);
