@@ -507,6 +507,24 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that the Azure Pipelines smoke test targets the self-hosted Windows extension environment.
+    /// </summary>
+    [TestMethod]
+    public void AzurePipelinesSmokeTestUsesSelfHostedWindowsAgent()
+    {
+        string pipeline = ReadRepositoryFile("azure-pipelines.yml");
+
+        Assert.Contains("name: Default", pipeline);
+        Assert.Contains("Agent.OS -equals Windows_NT", pipeline);
+        Assert.Contains("PicketScan@1", pipeline);
+        Assert.Contains("picket.exe", pipeline);
+        Assert.Contains("pwsh:", pipeline);
+        Assert.DoesNotContain("vmImage:", pipeline);
+        Assert.DoesNotContain("chmod +x", pipeline);
+        Assert.DoesNotContain("/picket", pipeline);
+    }
+
+    /// <summary>
     /// Verifies that hosted GitHub secret-scanning oracle capture stays opt-in and uses the dedicated secret.
     /// </summary>
     [TestMethod]

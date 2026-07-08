@@ -5,11 +5,13 @@ pr:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  name: Default
+  demands:
+  - Agent.OS -equals Windows_NT
 
 variables:
   buildConfiguration: Release
-  cliPublishDirectory: $(Pipeline.Workspace)/picket-cli
+  cliPublishDirectory: $(Pipeline.Workspace)\picket-cli
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
@@ -23,29 +25,21 @@ steps:
     packageType: sdk
     version: 10.0.301
 
-- script: dotnet restore Picket.slnx
+- pwsh: dotnet restore Picket.slnx
   displayName: Restore
 
-- script: dotnet build Picket.slnx --configuration $(buildConfiguration) --no-restore
+- pwsh: dotnet build Picket.slnx --configuration $(buildConfiguration) --no-restore
   displayName: Build
 
-- script: dotnet test --solution Picket.slnx --configuration $(buildConfiguration) --no-build --verbosity minimal
+- pwsh: dotnet test --solution Picket.slnx --configuration $(buildConfiguration) --no-build --verbosity minimal
   displayName: Test
 
-- script: >
-    dotnet publish src/Picket.Cli/Picket.Cli.csproj
-    --configuration $(buildConfiguration)
-    --framework net10.0
-    --no-restore
-    --output "$(cliPublishDirectory)"
-    -p:PublishAot=false
-    -p:SelfContained=false
-    -p:UseAppHost=true
+- pwsh: >
+    dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration $(buildConfiguration) --framework net10.0 --no-restore --output "$(cliPublishDirectory)" -p:PublishAot=false -p:SelfContained=false -p:UseAppHost=true
   displayName: Publish local Picket CLI
 
-- script: |
-    chmod +x "$(cliPublishDirectory)/picket"
-    "$(cliPublishDirectory)/picket" version
+- pwsh: |
+    & "$(cliPublishDirectory)\picket.exe" version
   displayName: Verify local Picket CLI
 
 - task: PicketScan@1
@@ -53,10 +47,10 @@ steps:
   displayName: Picket extension smoke test
   inputs:
     target: $(Build.SourcesDirectory)
-    picketPath: $(cliPublishDirectory)/picket
+    picketPath: $(cliPublishDirectory)\picket.exe
     profile: picket
     reportFormats: sarif,jsonl,html
-    reportDirectory: $(Build.ArtifactStagingDirectory)/picket
+    reportDirectory: $(Build.ArtifactStagingDirectory)\picket
     failOn: never
     redact: 100
     cache: false
@@ -66,10 +60,17 @@ steps:
     publishJsonl: true
     publishHtml: true
 
-- script: |
-    test -f "$(Build.ArtifactStagingDirectory)/picket/picket.sarif"
-    test -f "$(Build.ArtifactStagingDirectory)/picket/picket.jsonl"
-    test -f "$(Build.ArtifactStagingDirectory)/picket/picket.html"
-    echo "Picket findings: $(picketScan.findings)"
-    echo "Picket annotations: $(picketScan.annotations)"
+- pwsh: |
+    $reports = @(
+        "$(Build.ArtifactStagingDirectory)\picket\picket.sarif",
+        "$(Build.ArtifactStagingDirectory)\picket\picket.jsonl",
+        "$(Build.ArtifactStagingDirectory)\picket\picket.html")
+    foreach ($report in $reports) {
+        if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
+            throw "Missing Picket report: $report"
+        }
+    }
+
+    Write-Host "Picket findings: $(picketScan.findings)"
+    Write-Host "Picket annotations: $(picketScan.annotations)"
   displayName: Verify Picket extension outputs
