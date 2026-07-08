@@ -95,6 +95,47 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies partial redaction handles secrets large enough to overflow unchecked integer percentage math.
+    /// </summary>
+    [TestMethod]
+    public void RedactHandlesVeryLargeSecretWithoutOverflow()
+    {
+        const int SecretLength = 22_000_000;
+
+        string secret = new('a', SecretLength);
+        Finding finding = new(
+            "rule",
+            "description",
+            1,
+            1,
+            1,
+            6,
+            "marker",
+            secret,
+            "secret.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "secret.txt:rule:1",
+            "encoded secret",
+            secretSha256: new string('0', 64),
+            matchSha256: new string('1', 64),
+            decodePath: ["base64"]);
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 1);
+
+        int expectedVisibleLength = (int)Math.Round((double)SecretLength * 99 / 100.0, MidpointRounding.ToEven);
+        Assert.AreEqual(expectedVisibleLength + 3, redacted.Secret.Length);
+        Assert.AreEqual("...", redacted.Secret[^3..]);
+        Assert.AreEqual("marker", redacted.Match);
+    }
+
+    /// <summary>
     /// Verifies native redaction does not keep hashes of the original evidence.
     /// </summary>
     [TestMethod]

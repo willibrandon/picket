@@ -121,7 +121,8 @@ public static class GitleaksFindingRedactor
             return "REDACTED";
         }
 
-        int visibleLength = (int)Math.Round(secret.Length * (100 - redactionPercent) / 100.0, MidpointRounding.ToEven);
+        double visibleLengthValue = Math.Round((double)secret.Length * (100 - redactionPercent) / 100.0, MidpointRounding.ToEven);
+        int visibleLength = (int)Math.Clamp(visibleLengthValue, 0, secret.Length);
         if (requirePartialMask && redactionPercent > 0 && visibleLength >= secret.Length)
         {
             visibleLength = secret.Length - 1;
