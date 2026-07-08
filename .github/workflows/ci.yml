@@ -44,6 +44,11 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Azure DevOps packaging dependencies
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: azure-devops
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Restore
         run: dotnet restore Picket.slnx
 
@@ -80,7 +85,7 @@ jobs:
       - name: Validate Azure DevOps VSIX package
         if: matrix.os == 'ubuntu-latest'
         working-directory: azure-devops
-        run: npx --yes tfx-cli@0.23.3 extension create --manifest-globs vss-extension.json --output-path "${{ runner.temp }}/azure-devops-extension" --rev-version false
+        run: npm exec -- tfx extension create --manifest-globs vss-extension.json --output-path "${{ runner.temp }}/azure-devops-extension" --rev-version false
 
       - name: Picket scan
         id: picket-scan

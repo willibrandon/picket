@@ -356,6 +356,8 @@ public sealed partial class RepositoryConventionTests
     {
         string workflow = ReadRepositoryFile(".github/workflows/ci.yml");
         string documentation = ReadRepositoryFile("docs/RELEASE.md");
+        string azureDevOpsPackage = ReadRepositoryFile("azure-devops/package.json");
+        string azureDevOpsLock = ReadRepositoryFile("azure-devops/package-lock.json");
 
         Assert.Contains("Pack public packages", workflow);
         Assert.Contains("Publish Native AOT binaries", workflow);
@@ -384,7 +386,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Security/Picket.Security.csproj", workflow);
         Assert.Contains("Validate Azure DevOps VSIX package", workflow);
-        Assert.Contains("tfx-cli@0.23.3", workflow);
+        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", workflow);
+        Assert.Contains("npm exec -- tfx extension create", workflow);
+        Assert.DoesNotContain("npx --yes", workflow);
+        Assert.Contains("\"tfx-cli\": \"0.23.3\"", azureDevOpsPackage);
+        Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
         Assert.Contains("--manifest-globs vss-extension.json", workflow);
         Assert.Contains("working-directory: azure-devops", workflow);
         Assert.Contains("--no-build", workflow);
@@ -402,6 +408,29 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("CI packages the Azure DevOps Marketplace scaffold", documentation);
         Assert.Contains("CI Picket Scan Validation", documentation);
         Assert.Contains("both `picket.sarif` and `picket.jsonl`", documentation);
+    }
+
+    /// <summary>
+    /// Verifies that mutable third-party workflow dependencies are pinned or resolved through repository lockfiles.
+    /// </summary>
+    [TestMethod]
+    public void WorkflowsPinThirdPartySetupAndPackagingDependencies()
+    {
+        const string PnpmActionSetupPinnedRef = "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9";
+        string ci = ReadRepositoryFile(".github/workflows/ci.yml");
+        string docs = ReadRepositoryFile(".github/workflows/docs.yml");
+        string release = ReadRepositoryFile(".github/workflows/release.yml");
+        string azureDevOpsLock = ReadRepositoryFile("azure-devops/package-lock.json");
+
+        Assert.Contains(PnpmActionSetupPinnedRef, docs);
+        Assert.Contains(PnpmActionSetupPinnedRef, release);
+        Assert.DoesNotContain("pnpm/action-setup@v", docs);
+        Assert.DoesNotContain("pnpm/action-setup@v", release);
+        Assert.DoesNotContain("npx --yes", ci);
+        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", ci);
+        Assert.Contains("npm exec -- tfx extension create", ci);
+        Assert.Contains("\"lockfileVersion\": 3", azureDevOpsLock);
+        Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
     }
 
     /// <summary>

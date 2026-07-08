@@ -1,0 +1,13 @@
+{
+  "name": "picket-azure-devops-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Packaging tools for the Picket Azure DevOps extension.",
+  "license": "MIT",
+  "scripts": {
+    "package:vsix": "tfx extension create --manifest-globs vss-extension.json --output-path ../artifacts/azure-devops --rev-version false"
+  },
+  "devDependencies": {
+    "tfx-cli": "0.23.3"
+  }
+}
