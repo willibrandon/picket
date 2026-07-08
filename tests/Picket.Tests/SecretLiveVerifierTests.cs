@@ -231,6 +231,44 @@ public sealed class SecretLiveVerifierTests
     }
 
     /// <summary>
+    /// Verifies that transient verifier errors are not cached for duplicate findings during the same scan.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncNonCacheableDuplicateSecretRecontactsProvider()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        SecretValidationResult[] results =
+        [
+            new SecretValidationResult(
+                SecretValidationState.Error,
+                "provider temporarily failed",
+                evidence: ["errorKind=transient"],
+                isPersistentCacheable: false),
+            new SecretValidationResult(SecretValidationState.Active, "provider accepted token"),
+        ];
+        int resultIndex = 0;
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Error),
+            verifyAsync: (_, _) => ValueTask.FromResult(results[resultIndex++]));
+        var verifier = new SecretLiveVerifier([validator], options: options);
+        Finding finding = CreateFinding();
+
+        SecretValidationResult first = await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult second = await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Error, first.State);
+        Assert.Contains("errorKind=transient", first.Evidence);
+        Assert.AreEqual(SecretValidationState.Active, second.State);
+        Assert.Contains("providerContacted=true", second.Evidence);
+        Assert.DoesNotContain("cacheHit=request", second.Evidence);
+        Assert.AreEqual(2, validator.VerifyCount);
+    }
+
+    /// <summary>
     /// Verifies that the per-provider request limit is enforced before provider code runs.
     /// </summary>
     [TestMethod]
