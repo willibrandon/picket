@@ -136,6 +136,22 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.StartsWith("/api/v1/repos/willibrandon/picket/releases?", StringComparison.Ordinal))
+        {
+            string releasesJson = string.Concat(
+                "[{\"id\":100,\"tag_name\":\"v1.0.0\",\"name\":\"Release token-111\",\"body\":\"body-token-111\",\"assets\":[{\"id\":501,\"name\":\"artifact.txt\",\"size\":15,\"browser_download_url\":\"",
+                Endpoint.GetLeftPart(UriPartial.Authority),
+                "/downloads/artifact.txt\"}]}]");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(releasesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/downloads/artifact.txt", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes("asset-token-222"), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/api/v1/repos/willibrandon/picket/raw/src/appsettings.txt?ref=main", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);

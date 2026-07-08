@@ -48,6 +48,22 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Gitea repository source options reject ambiguous pull request and release scopes.
+    /// </summary>
+    [TestMethod]
+    public void GiteaSourceOptionsRejectsPullRequestAndReleases()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GiteaSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitea-test-token",
+            pullRequestId: 7,
+            includeReleases: true));
+
+        Assert.Contains("cannot combine pull request and release enumeration", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that Gitea repository source options reject unknown issue states.
     /// </summary>
     [TestMethod]
@@ -127,6 +143,157 @@ public sealed class GiteaSourceClientTests
         Assert.Contains("/repos/forker/picket-fork/raw/src/pr.txt?", requests);
         Assert.DoesNotContain("/repos/willibrandon/picket/git/trees/", requests);
         Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that release enumeration reads release notes and assets without forwarding the token to asset downloads.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsReleasesAndAssetsWithoutAuthorization()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            authorizationHeaders.Add(request.Headers.TryGetValues("Authorization", out IEnumerable<string>? values) ? string.Join(',', values) : string.Empty);
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"abcdef1234567890"}}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[],"truncated":false,"page":1,"total_count":0}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "id": 100,
+                        "tag_name": "v1.0.0",
+                        "name": "Release token-111",
+                        "body": "body-token-111",
+                        "assets": [
+                          {
+                            "id": 501,
+                            "name": "artifact.txt",
+                            "size": 15,
+                            "browser_download_url": "https://gitea.example/downloads/artifact.txt"
+                          }
+                        ]
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Equals("https://gitea.example/downloads/artifact.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("asset-token-222");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main","empty":false}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon/picket",
+            Token,
+            includeReleases: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        int assetRequestIndex = urls.IndexOf("https://gitea.example/downloads/artifact.txt");
+        Assert.HasCount(2, files);
+        Assert.AreEqual("gitea/willibrandon/picket/releases/v1.0.0.md", files[0].DisplayPath);
+        Assert.Contains("Release token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("body-token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("gitea/willibrandon/picket/releases/v1.0.0/assets/artifact.txt", files[1].DisplayPath);
+        Assert.AreEqual("asset-token-222", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("/repos/willibrandon/picket/releases?page=1&limit=100", requests);
+        Assert.AreNotEqual(-1, assetRequestIndex);
+        Assert.Contains("token gitea-test-token", authorizationHeaders);
+        Assert.AreEqual(string.Empty, authorizationHeaders[assetRequestIndex]);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that release enumeration does not fetch arbitrary asset URLs returned by the Gitea API.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesSkipsUnexpectedReleaseAssetHosts()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"abcdef1234567890"}}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[],"truncated":false,"page":1,"total_count":0}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "id": 100,
+                        "tag_name": "v1.0.0",
+                        "body": "body-token-111",
+                        "assets": [
+                          {
+                            "name": "artifact.txt",
+                            "size": 15,
+                            "browser_download_url": "https://other.example/downloads/artifact.txt"
+                          }
+                        ]
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main","empty":false}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon/picket",
+            Token,
+            warningSink: warnings.Add,
+            includeReleases: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitea/willibrandon/picket/releases/v1.0.0.md", files[0].DisplayPath);
+        Assert.DoesNotContain("https://other.example/downloads/artifact.txt", requests);
+        Assert.Contains("not an allowed Gitea asset endpoint", string.Join('\n', warnings));
     }
 
     /// <summary>

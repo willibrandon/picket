@@ -15,6 +15,7 @@ namespace Picket.Sources;
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 /// <param name="pullRequestId">An optional pull request ID whose source head should be scanned.</param>
+/// <param name="includeReleases">A value indicating whether Gitea release notes and assets should be scanned.</param>
 public sealed class GiteaSourceOptions(
     Uri endpoint,
     string repository,
@@ -27,7 +28,8 @@ public sealed class GiteaSourceOptions(
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null,
-    int pullRequestId = 0)
+    int pullRequestId = 0,
+    bool includeReleases = false)
 {
     /// <summary>
     /// The default Gitea issue state filter.
@@ -76,6 +78,11 @@ public sealed class GiteaSourceOptions(
     public string IssueState { get; } = NormalizeIssueState(issueState);
 
     /// <summary>
+    /// Gets a value indicating whether Gitea release notes and assets should be scanned.
+    /// </summary>
+    public bool IncludeReleases { get; } = RequireIncludeReleases(includeReleases, pullRequestId);
+
+    /// <summary>
     /// Gets the optional pull request ID whose source head should be scanned.
     /// </summary>
     public int PullRequestId { get; } = RequirePullRequestId(pullRequestId);
@@ -116,7 +123,8 @@ public sealed class GiteaSourceOptions(
             allowInsecureCredentialTransport: AllowInsecureCredentialTransport,
             isPathAllowed: IsPathAllowed,
             warningSink: WarningSink,
-            isCancellationRequested: IsCancellationRequested);
+            isCancellationRequested: IsCancellationRequested,
+            includeReleases: IncludeReleases);
     }
 
     internal static Uri NormalizeEndpoint(Uri endpoint)
@@ -187,6 +195,16 @@ public sealed class GiteaSourceOptions(
         if (value && pullRequestId != 0)
         {
             throw new ArgumentException("Gitea source options cannot combine pull request and issue enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static bool RequireIncludeReleases(bool value, int pullRequestId)
+    {
+        if (value && pullRequestId != 0)
+        {
+            throw new ArgumentException("Gitea source options cannot combine pull request and release enumeration.", nameof(value));
         }
 
         return value;

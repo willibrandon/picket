@@ -418,6 +418,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Filter Gitea issues by state.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitea-include-releases</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include Gitea release notes and assets in native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitea-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

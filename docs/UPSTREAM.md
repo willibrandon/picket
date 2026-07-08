@@ -229,8 +229,11 @@ tree enumeration with `per_page=1000`, the raw repository file endpoint for
 selected file bytes, and pull request metadata to resolve source-head commits
 and source repositories. Issue scans use repository issue lists with `type=issues`
 and repository issue-comment lists, filtering comments back to selected issue
-numbers through `issue_url`. Tokens are read from environment variables, sent as
-`Authorization: token ...`, and are not logged.
+numbers through `issue_url`. Release scans use repository release lists and
+release asset metadata; returned browser download URLs are fetched without
+forwarding the token, but must stay on the configured Gitea host or one of its
+subdomains. Tokens are read from environment variables, sent as an
+`Authorization: token ...` header, and are not logged.
 
 ## Bitbucket Source References
 

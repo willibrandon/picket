@@ -15,6 +15,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 {
     private const int IssuesPerPage = 100;
     private const int MaxPaginationPages = 1000;
+    private const int ReleasesPerPage = 100;
     private const int TreeEntriesPerPage = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-gitea-remote");
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -70,6 +71,11 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             if (options.IncludeIssues && !IsCancellationRequested(options))
             {
                 await AddRepositoryIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeReleases && !IsCancellationRequested(options))
+            {
+                await AddRepositoryReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (RemoteMetadataTooLargeException)
@@ -389,6 +395,157 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return commentCount;
     }
 
+    private async Task AddRepositoryReleaseFilesAsync(
+        GiteaSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateReleaseListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Gitea releases for repository {options.Repository}");
+                return;
+            }
+
+            int releaseCount = await AddReleaseFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextListPage(response, page, releaseCount, ReleasesPerPage, options.WarningSink, $"Gitea release enumeration for {options.Repository}");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task<int> AddReleaseFilesAsync(
+        GiteaSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int releaseCount = 0;
+        foreach (JsonElement release in document.RootElement.EnumerateArray())
+        {
+            releaseCount++;
+            if (IsCancellationRequested(options))
+            {
+                return releaseCount;
+            }
+
+            if (!TryGetJsonInt64(release, "id", out long releaseId))
+            {
+                continue;
+            }
+
+            string releaseTag = GetString(release, "tag_name");
+            if (releaseTag.Length == 0)
+            {
+                releaseTag = releaseId.ToString(CultureInfo.InvariantCulture);
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateReleaseDisplayPath(options, releaseTag),
+                CreateReleaseContent(releaseTag, GetString(release, "name"), GetString(release, "body")),
+                sourceFiles);
+
+            if (release.TryGetProperty("assets", out JsonElement assets)
+                && assets.ValueKind == JsonValueKind.Array)
+            {
+                await AddReleaseAssetFilesAsync(options, releaseTag, assets, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+            else if (!IsCancellationRequested(options))
+            {
+                await AddReleaseAssetFilesAsync(options, releaseId, releaseTag, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return releaseCount;
+    }
+
+    private async Task AddReleaseAssetFilesAsync(
+        GiteaSourceOptions options,
+        long releaseId,
+        string releaseTag,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreateReleaseAssetListUri(options, releaseId);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Gitea release assets for {options.Repository}@{releaseTag}");
+            return;
+        }
+
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            await AddReleaseAssetFilesAsync(options, releaseTag, document.RootElement, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddReleaseAssetFilesAsync(
+        GiteaSourceOptions options,
+        string releaseTag,
+        JsonElement assets,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        foreach (JsonElement asset in assets.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            await AddReleaseAssetFileAsync(options, releaseTag, asset, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddReleaseAssetFileAsync(
+        GiteaSourceOptions options,
+        string releaseTag,
+        JsonElement asset,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string assetName = GetString(asset, "name");
+        if (assetName.Length == 0)
+        {
+            assetName = "asset";
+        }
+
+        string displayPath = CreateReleaseAssetDisplayPath(options, releaseTag, assetName);
+        if (TryGetJsonInt64(asset, "size", out long size)
+            && size > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"Gitea file byte limit skipped {displayPath}");
+            return;
+        }
+
+        string downloadUrl = GetString(asset, "browser_download_url");
+        if (downloadUrl.Length == 0 || !Uri.TryCreate(downloadUrl, UriKind.Absolute, out Uri? uri))
+        {
+            options.WarningSink?.Invoke($"skipping Gitea release asset {displayPath} because the release API did not return a browser download URL");
+            return;
+        }
+
+        byte[]? bytes = await DownloadReleaseAssetAsync(options, uri, displayPath, cancellationToken).ConfigureAwait(false);
+        if (bytes is not null)
+        {
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, bytes));
+        }
+    }
+
     private static void AddSyntheticTextFile(
         GiteaSourceOptions options,
         string displayPath,
@@ -428,6 +585,68 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<byte[]?> DownloadReleaseAssetAsync(
+        GiteaSourceOptions options,
+        Uri uri,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAllowedReleaseAssetUri(options, uri))
+        {
+            options.WarningSink?.Invoke($"skipping Gitea release asset {displayPath} because the asset URL is not an allowed Gitea asset endpoint");
+            return null;
+        }
+
+        using HttpResponseMessage response = await SendUnauthenticatedRawAsync(uri, cancellationToken).ConfigureAwait(false);
+        if (IsRedirect(response) && response.Headers.Location is not null)
+        {
+            Uri redirectUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(uri, response.Headers.Location);
+            if (!IsAllowedReleaseAssetUri(options, redirectUri))
+            {
+                options.WarningSink?.Invoke($"skipping Gitea release asset {displayPath} because the redirected download URL is not an allowed Gitea asset endpoint");
+                return null;
+            }
+
+            using HttpResponseMessage redirectedResponse = await SendUnauthenticatedRawAsync(redirectUri, cancellationToken).ConfigureAwait(false);
+            if (!redirectedResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping Gitea release asset {displayPath}");
+                return null;
+            }
+
+            return await ReadContentWithinLimitAsync(redirectedResponse, options, displayPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Gitea release asset {displayPath}");
+            return null;
+        }
+
+        return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool IsAllowedReleaseAssetUri(GiteaSourceOptions options, Uri uri)
+    {
+        if (!uri.IsAbsoluteUri
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || uri.Scheme is not "https" and not "http")
+        {
+            return false;
+        }
+
+        if (uri.Scheme.Equals("http", StringComparison.Ordinal)
+            && !options.Endpoint.Scheme.Equals("http", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return uri.Host.Equals(options.Endpoint.Host, StringComparison.OrdinalIgnoreCase)
+            || uri.Host.EndsWith(string.Concat(".", options.Endpoint.Host), StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<HttpResponseMessage> SendAsync(
         GiteaSourceOptions options,
         Uri uri,
@@ -442,6 +661,21 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/octet-stream" : "application/json"));
                 request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
                 request.Headers.TryAddWithoutValidation("Authorization", string.Concat("token ", options.Credential));
+                return request;
+            },
+            RemoteSourceHttpRetry.IsGenericRetryableResponse,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendUnauthenticatedRawAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        return await RemoteSourceHttpRetry.SendAsync(
+            _httpClient,
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+                request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
                 return request;
             },
             RemoteSourceHttpRetry.IsGenericRetryableResponse,
@@ -523,6 +757,25 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             Query = CreateQuery([new KeyValuePair<string, string>("ref", gitRef)]),
         };
         return builder.Uri;
+    }
+
+    private static Uri CreateReleaseListUri(GiteaSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.Name, "releases"],
+            [
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("limit", ReleasesPerPage.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateReleaseAssetListUri(GiteaSourceOptions options, long releaseId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.Name, "releases", releaseId.ToString(CultureInfo.InvariantCulture), "assets"],
+            []);
     }
 
     private static Uri CreateRepositoryIssueListUri(GiteaSourceOptions options, int page)
@@ -624,6 +877,15 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture),
             " ",
             response.StatusCode));
+    }
+
+    private static bool IsRedirect(HttpResponseMessage response)
+    {
+        return response.StatusCode is HttpStatusCode.Moved
+            or HttpStatusCode.Found
+            or HttpStatusCode.SeeOther
+            or HttpStatusCode.TemporaryRedirect
+            or HttpStatusCode.PermanentRedirect;
     }
 
     private static bool HasNextTreePage(JsonElement root, int page, int entryCount, Action<string>? warningSink, string target)
@@ -831,6 +1093,31 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             ".md");
     }
 
+    private static string CreateReleaseDisplayPath(GiteaSourceOptions options, string releaseTag)
+    {
+        return string.Concat(
+            "gitea/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.Name),
+            "/releases/",
+            EscapeDisplaySegment(releaseTag),
+            ".md");
+    }
+
+    private static string CreateReleaseAssetDisplayPath(GiteaSourceOptions options, string releaseTag, string assetName)
+    {
+        return string.Concat(
+            "gitea/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.Name),
+            "/releases/",
+            EscapeDisplaySegment(releaseTag),
+            "/assets/",
+            EscapeDisplaySegment(assetName));
+    }
+
     private static string CreateIssueContent(int issueNumber, string title, string body)
     {
         var builder = new StringBuilder();
@@ -859,6 +1146,27 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         builder.Append(issueNumber.ToString(CultureInfo.InvariantCulture));
         builder.Append(" comment ");
         builder.Append(commentId.ToString(CultureInfo.InvariantCulture));
+        builder.AppendLine();
+        builder.AppendLine();
+        if (body.Length != 0)
+        {
+            builder.AppendLine(body);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string CreateReleaseContent(string releaseTag, string name, string body)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Release ");
+        builder.Append(releaseTag);
+        if (name.Length != 0)
+        {
+            builder.Append(": ");
+            builder.Append(name);
+        }
+
         builder.AppendLine();
         builder.AppendLine();
         if (body.Length != 0)

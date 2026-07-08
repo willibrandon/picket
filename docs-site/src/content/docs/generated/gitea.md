@@ -32,6 +32,12 @@ Issue scans read issue bodies and comments. Pull-request issues returned by Gite
 picket scan --gitea-repository willibrandon/picket --gitea-include-issues --gitea-issue-state all --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
 ```
 
+Release scans read release notes and release assets. Asset download URLs returned by Gitea are fetched without forwarding the token.
+
+```powershell
+picket scan --gitea-repository willibrandon/picket --gitea-include-releases --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
+```
+
 Self-hosted Gitea instances use an explicit API endpoint:
 
 ```powershell
@@ -53,6 +59,7 @@ The token is read from an environment variable and is never passed as a command-
 | `--gitea-pull-request` | Optional pull request ID. Resolves and scans the source head. Cannot be combined with `--gitea-ref`. |
 | `--gitea-include-issues` | Include Gitea issue bodies and comments. Cannot be combined with `--gitea-pull-request`. |
 | `--gitea-issue-state` | Issue state filter: `open`, `closed`, or `all`. Supplying this option enables issue enumeration. |
+| `--gitea-include-releases` | Include Gitea release notes and release assets. Cannot be combined with `--gitea-pull-request`. |
 | `--gitea-token-env` | Environment variable containing the Gitea token. |
 | `--gitea-api-endpoint` | Gitea API endpoint used for repository enumeration. Defaults to `https://gitea.com/api/v1/`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-managed Gitea. |
@@ -67,6 +74,8 @@ The token is read from an environment variable and is never passed as a command-
 | Pull request metadata | Resolves the source commit hash, source branch fallback, and source repository when `--gitea-pull-request` is used. |
 | Issues | Lists repository issues with `page`, `limit=100`, `type=issues`, and the selected state; skips entries that contain a `pull_request` marker. |
 | Issue comments | Lists repository issue comments with `page` and `limit=100`, then keeps comments whose `issue_url` belongs to a selected non-pull-request issue. |
+| Releases | Lists releases with `page` and `limit=100`, scans release body text as synthetic Markdown, and scans embedded release assets. |
+| Release assets | Downloads `browser_download_url` values without forwarding the Gitea token. Asset URLs must stay on the configured Gitea host or one of its subdomains, and HTTPS endpoints cannot redirect assets to HTTP. |
 | Repository tree | Lists repository blobs with recursive git tree enumeration and `per_page=1000`. |
 | Raw file content | Downloads selected file bytes through the raw repository file endpoint with `ref` set to the selected branch, tag, or commit. |
 
@@ -90,9 +99,9 @@ Picket sends the configured token as an `Authorization: token ...` header. It do
 
 ## Permissions
 
-Use the narrowest repository selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Pull request scans also need read-only access to pull request metadata. Issue scans need read-only issue and issue-comment access. Write, owner, organization administration, package, runner, and token-administration scopes are not needed for source enumeration.
+Use the narrowest repository selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Pull request scans also need read-only access to pull request metadata. Issue scans need read-only issue and issue-comment access. Release scans need read-only release metadata and access to the selected release asset download URLs. Write, owner, organization administration, package, runner, and token-administration scopes are not needed for source enumeration.
 
-Organization/user discovery, releases, packages, and Actions artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+Organization/user discovery, packages, and Actions artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
 
 ## References
 

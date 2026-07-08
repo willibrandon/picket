@@ -36,6 +36,12 @@ internal static partial class Program
             || arg.StartsWith("--gitea-issue-state=", StringComparison.Ordinal);
     }
 
+    static bool IsGiteaIncludeReleasesFlag(string arg)
+    {
+        return arg.Equals("--gitea-include-releases", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-include-releases=", StringComparison.Ordinal);
+    }
+
     static bool IsGiteaTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitea-token-env", StringComparison.Ordinal)
@@ -91,6 +97,7 @@ internal static partial class Program
         int pullRequestId,
         bool includeIssues,
         string issueState,
+        bool includeReleases,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -112,6 +119,12 @@ internal static partial class Program
         if (pullRequestId != 0 && includeIssues)
         {
             Console.Error.WriteLine("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-issues");
+            return false;
+        }
+
+        if (pullRequestId != 0 && includeReleases)
+        {
+            Console.Error.WriteLine("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-releases");
             return false;
         }
 
@@ -139,12 +152,14 @@ internal static partial class Program
                 includeIssues,
                 issueState,
                 pullRequestId: pullRequestId,
+                includeReleases: includeReleases,
                 allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
             sourceEndpoint = validatedOptions.Endpoint;
             repository = validatedOptions.Repository;
             gitRef = validatedOptions.Ref;
             includeIssues = validatedOptions.IncludeIssues;
             issueState = validatedOptions.IssueState;
+            includeReleases = validatedOptions.IncludeReleases;
             pullRequestId = validatedOptions.PullRequestId;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -184,7 +199,8 @@ internal static partial class Program
                 isPathAllowed: rules.IsGlobalPathAllowed,
                 warningSink: Console.Error.WriteLine,
                 isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
-                pullRequestId: pullRequestId)).GetAwaiter().GetResult();
+                pullRequestId: pullRequestId,
+                includeReleases: includeReleases)).GetAwaiter().GetResult();
         };
         return true;
     }
