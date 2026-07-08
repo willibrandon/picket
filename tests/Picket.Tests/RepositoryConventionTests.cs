@@ -11,6 +11,9 @@ namespace Picket.Tests;
 [TestClass]
 public sealed partial class RepositoryConventionTests
 {
+    private const string MacOsStripSymbolsCondition = "'$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64'";
+    private const string NonMacOsStripSymbolsCondition = "'$(RuntimeIdentifier)' != 'osx-arm64' and '$(RuntimeIdentifier)' != 'osx-x64'";
+
     private static readonly string[] s_fileBasedAppDirectories = ["scripts", ".github/actions"];
     private static readonly string[] s_portableTextRoots = ["AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "azure-devops", "src", "tests"];
     private static readonly string[] s_remoteSourceClientFiles =
@@ -297,10 +300,10 @@ public sealed partial class RepositoryConventionTests
         AssertCommonNativeAotProfile(tuiMinSize);
         AssertCommonNativeAotProfile(tuiDiagnostics);
         AssertProfileProperty(speed, "OptimizationPreference", "Speed");
-        AssertProfileProperty(speed, "StripSymbols", "true");
+        AssertProfileStripSymbolsExceptMacOs(speed);
         AssertProfileProperty(speed, "DebuggerSupport", "false");
         AssertProfileProperty(minSize, "OptimizationPreference", "Size");
-        AssertProfileProperty(minSize, "StripSymbols", "true");
+        AssertProfileStripSymbolsExceptMacOs(minSize);
         AssertProfileProperty(minSize, "DebuggerSupport", "false");
         AssertProfileProperty(minSize, "EventSourceSupport", "false");
         AssertProfileProperty(minSize, "MetricsSupport", "false");
@@ -313,10 +316,10 @@ public sealed partial class RepositoryConventionTests
         AssertProfileProperty(diagnostics, "MetricsSupport", "true");
         AssertProfileProperty(diagnostics, "StackTraceSupport", "true");
         AssertProfileProperty(tuiSpeed, "OptimizationPreference", "Speed");
-        AssertProfileProperty(tuiSpeed, "StripSymbols", "true");
+        AssertProfileStripSymbolsExceptMacOs(tuiSpeed);
         AssertProfileProperty(tuiSpeed, "DebuggerSupport", "false");
         AssertProfileProperty(tuiMinSize, "OptimizationPreference", "Size");
-        AssertProfileProperty(tuiMinSize, "StripSymbols", "true");
+        AssertProfileStripSymbolsExceptMacOs(tuiMinSize);
         AssertProfileProperty(tuiMinSize, "DebuggerSupport", "false");
         AssertProfileProperty(tuiMinSize, "EventSourceSupport", "false");
         AssertProfileProperty(tuiMinSize, "MetricsSupport", "false");
@@ -1738,6 +1741,22 @@ public sealed partial class RepositoryConventionTests
     private static void AssertProfileProperty(XElement profile, string name, string expected)
     {
         AssertProjectProperty(profile, name, expected);
+    }
+
+    private static void AssertProfileProperty(XElement profile, string name, string condition, string expected)
+    {
+        XElement[] properties = profile.Element("PropertyGroup")?
+            .Elements(name)
+            .Where(element => string.Equals((string?)element.Attribute("Condition"), condition, StringComparison.Ordinal))
+            .ToArray() ?? [];
+        Assert.HasCount(1, properties, $"Unexpected project property {name} with condition {condition}.");
+        Assert.AreEqual(expected, properties[0].Value, $"Unexpected project property {name} with condition {condition}.");
+    }
+
+    private static void AssertProfileStripSymbolsExceptMacOs(XElement profile)
+    {
+        AssertProfileProperty(profile, "StripSymbols", MacOsStripSymbolsCondition, "false");
+        AssertProfileProperty(profile, "StripSymbols", NonMacOsStripSymbolsCondition, "true");
     }
 
     private static void AssertEmbeddablePackage(string relativePath, string packageId)
