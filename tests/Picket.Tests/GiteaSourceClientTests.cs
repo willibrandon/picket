@@ -146,6 +146,151 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that organization enumeration lists repositories and scans each repository default branch.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateOrganizationRepositoryFilesReadsRepositoryFiles()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/orgs/acme/repos?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "full_name": "acme/alpha",
+                        "name": "alpha",
+                        "default_branch": "main"
+                      },
+                      {
+                        "name": "beta",
+                        "owner": { "login": "acme" },
+                        "default_branch": "trunk"
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/repos/acme/alpha/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"alpha-sha"}}""");
+            }
+
+            if (url.Contains("/repos/acme/beta/branches/trunk", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"trunk","commit":{"id":"beta-sha"}}""");
+            }
+
+            if (url.Contains("/repos/acme/alpha/git/trees/alpha-sha?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"alpha.txt","type":"blob","size":15}],"truncated":false,"page":1,"total_count":1}""");
+            }
+
+            if (url.Contains("/repos/acme/beta/git/trees/beta-sha?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"beta.txt","type":"blob","size":14}],"truncated":false,"page":1,"total_count":1}""");
+            }
+
+            if (url.Contains("/repos/acme/alpha/raw/alpha.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("alpha-token-111");
+            }
+
+            if (url.Contains("/repos/acme/beta/raw/beta.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("beta-token-222");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaOrganizationSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "acme",
+            Token);
+
+        List<SourceFile> files = await client.EnumerateOrganizationRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(2, files);
+        Assert.AreEqual("gitea/acme/alpha/alpha.txt", files[0].DisplayPath);
+        Assert.AreEqual("alpha-token-111", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("gitea/acme/beta/beta.txt", files[1].DisplayPath);
+        Assert.AreEqual("beta-token-222", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("/orgs/acme/repos?page=1&limit=100", requests);
+        Assert.Contains("/repos/acme/alpha/git/trees/alpha-sha?", requests);
+        Assert.Contains("/repos/acme/beta/git/trees/beta-sha?", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that user enumeration lists repositories and uses the explicit ref when supplied.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateUserRepositoryFilesReadsRepositoriesAtExplicitRef()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/users/octo/repos?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "name": "alpha",
+                        "owner": { "username": "octo" },
+                        "default_branch": "main"
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/repos/octo/alpha/branches/release", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"release","commit":{"id":"release-sha"}}""");
+            }
+
+            if (url.Contains("/repos/octo/alpha/git/trees/release-sha?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"release.txt","type":"blob","size":17}],"truncated":false,"page":1,"total_count":1}""");
+            }
+
+            if (url.Contains("/repos/octo/alpha/raw/release.txt?", StringComparison.Ordinal))
+            {
+                return BytesResponse("release-token-333");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaUserSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "octo",
+            Token,
+            "release");
+
+        List<SourceFile> files = await client.EnumerateUserRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitea/octo/alpha/release.txt", files[0].DisplayPath);
+        Assert.AreEqual("release-token-333", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/users/octo/repos?page=1&limit=100", requests);
+        Assert.Contains("/repos/octo/alpha/branches/release", requests);
+        Assert.DoesNotContain("/repos/octo/alpha/branches/main", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
     /// Verifies that release enumeration reads release notes and assets without forwarding the token to asset downloads.
     /// </summary>
     [TestMethod]

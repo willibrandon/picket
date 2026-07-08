@@ -210,7 +210,7 @@ public sealed class GiteaSourceOptions(
         return value;
     }
 
-    private static Uri RequireCredentialTransport(Uri endpoint, bool allowInsecureCredentialTransport)
+    internal static Uri RequireCredentialTransport(Uri endpoint, bool allowInsecureCredentialTransport)
     {
         if (!allowInsecureCredentialTransport && endpoint.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
         {
@@ -255,7 +255,7 @@ public sealed class GiteaSourceOptions(
         return string.Concat(segments[0], "/", segments[1]);
     }
 
-    private static string RequireCredential(string value)
+    internal static string RequireCredential(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         return value.Trim();
@@ -279,7 +279,7 @@ public sealed class GiteaSourceOptions(
         return value;
     }
 
-    private static long RequireMaxFileBytes(long? value, string parameterName)
+    internal static long RequireMaxFileBytes(long? value, string parameterName)
     {
         if (!value.HasValue)
         {

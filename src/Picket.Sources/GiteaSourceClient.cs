@@ -15,6 +15,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 {
     private const int IssuesPerPage = 100;
     private const int MaxPaginationPages = 1000;
+    private const int RepositoriesPerPage = 100;
     private const int ReleasesPerPage = 100;
     private const int TreeEntriesPerPage = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-gitea-remote");
@@ -66,16 +67,57 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
                 }
             }
 
-            string treeRef = await ResolveTreeRefAsync(options, gitRef, cancellationToken).ConfigureAwait(false);
-            await AddRepositoryFilesAsync(options, gitRef, treeRef, sourceFiles, cancellationToken).ConfigureAwait(false);
-            if (options.IncludeIssues && !IsCancellationRequested(options))
-            {
-                await AddRepositoryIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
+            await AddSelectedRepositoryFilesAsync(options, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
+            return sourceFiles;
+        }
 
-            if (options.IncludeReleases && !IsCancellationRequested(options))
+        return sourceFiles;
+    }
+
+    /// <summary>
+    /// Enumerates files from repositories visible in the supplied Gitea organization.
+    /// </summary>
+    /// <param name="options">The Gitea organization source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateOrganizationRepositoryFilesAsync(
+        GiteaOrganizationSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        try
+        {
+            List<(string Repository, string DefaultBranch)> repositories = await ListOrganizationRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < repositories.Count; i++)
             {
-                await AddRepositoryReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+                if (IsCancellationRequested(options))
+                {
+                    break;
+                }
+
+                (string repository, string defaultBranch) = repositories[i];
+                string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
+                if (gitRef.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping Gitea repository {repository} because it does not have a default branch");
+                    continue;
+                }
+
+                if (TryCreateRepositoryOptions(options, repository, gitRef, out GiteaSourceOptions? repositoryOptions)
+                    && repositoryOptions is not null)
+                {
+                    await AddSelectedRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
         catch (RemoteMetadataTooLargeException)
@@ -84,6 +126,192 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         }
 
         return sourceFiles;
+    }
+
+    /// <summary>
+    /// Enumerates files from repositories visible for the supplied Gitea user.
+    /// </summary>
+    /// <param name="options">The Gitea user source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateUserRepositoryFilesAsync(
+        GiteaUserSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        try
+        {
+            List<(string Repository, string DefaultBranch)> repositories = await ListUserRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < repositories.Count; i++)
+            {
+                if (IsCancellationRequested(options))
+                {
+                    break;
+                }
+
+                (string repository, string defaultBranch) = repositories[i];
+                string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
+                if (gitRef.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping Gitea repository {repository} because it does not have a default branch");
+                    continue;
+                }
+
+                if (TryCreateRepositoryOptions(options, repository, gitRef, out GiteaSourceOptions? repositoryOptions)
+                    && repositoryOptions is not null)
+                {
+                    await AddSelectedRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
+            return sourceFiles;
+        }
+
+        return sourceFiles;
+    }
+
+    private async Task<List<(string Repository, string DefaultBranch)>> ListOrganizationRepositoriesAsync(
+        GiteaOrganizationSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        var repositories = new List<(string Repository, string DefaultBranch)>();
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateOrganizationRepositoryListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options.Credential, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options.WarningSink, response, $"skipping Gitea organization {options.Organization} repositories");
+                return repositories;
+            }
+
+            int repositoryCount = await AddRepositoryListEntriesAsync(response, options.Organization, repositories, options.WarningSink, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextListPage(response, page, repositoryCount, RepositoriesPerPage, options.WarningSink, $"Gitea organization {options.Organization} repository enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+
+        return repositories;
+    }
+
+    private async Task<List<(string Repository, string DefaultBranch)>> ListUserRepositoriesAsync(
+        GiteaUserSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        var repositories = new List<(string Repository, string DefaultBranch)>();
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateUserRepositoryListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options.Credential, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options.WarningSink, response, $"skipping Gitea user {options.UserName} repositories");
+                return repositories;
+            }
+
+            int repositoryCount = await AddRepositoryListEntriesAsync(response, options.UserName, repositories, options.WarningSink, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextListPage(response, page, repositoryCount, RepositoriesPerPage, options.WarningSink, $"Gitea user {options.UserName} repository enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+
+        return repositories;
+    }
+
+    private static async Task<int> AddRepositoryListEntriesAsync(
+        HttpResponseMessage response,
+        string fallbackOwner,
+        List<(string Repository, string DefaultBranch)> repositories,
+        Action<string>? warningSink,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", warningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int repositoryCount = 0;
+        foreach (JsonElement repository in document.RootElement.EnumerateArray())
+        {
+            repositoryCount++;
+            if (TryCreateRepositoryIdentifier(repository, fallbackOwner, out string repositoryIdentifier))
+            {
+                repositories.Add((repositoryIdentifier, GetString(repository, "default_branch")));
+            }
+        }
+
+        return repositoryCount;
+    }
+
+    private async Task AddSelectedRepositoryFilesAsync(
+        GiteaSourceOptions options,
+        string gitRef,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string treeRef = await ResolveTreeRefAsync(options, gitRef, cancellationToken).ConfigureAwait(false);
+        await AddRepositoryFilesAsync(options, gitRef, treeRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+        if (options.IncludeIssues && !IsCancellationRequested(options))
+        {
+            await AddRepositoryIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (options.IncludeReleases && !IsCancellationRequested(options))
+        {
+            await AddRepositoryReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static bool TryCreateRepositoryOptions(
+        GiteaOrganizationSourceOptions options,
+        string repository,
+        string gitRef,
+        out GiteaSourceOptions? repositoryOptions)
+    {
+        try
+        {
+            repositoryOptions = options.CreateRepositoryOptions(repository, gitRef);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
+        {
+            options.WarningSink?.Invoke($"skipping Gitea repository {repository} because it was invalid: {ex.Message}");
+            repositoryOptions = null;
+            return false;
+        }
+    }
+
+    private static bool TryCreateRepositoryOptions(
+        GiteaUserSourceOptions options,
+        string repository,
+        string gitRef,
+        out GiteaSourceOptions? repositoryOptions)
+    {
+        try
+        {
+            repositoryOptions = options.CreateRepositoryOptions(repository, gitRef);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
+        {
+            options.WarningSink?.Invoke($"skipping Gitea repository {repository} because it was invalid: {ex.Message}");
+            repositoryOptions = null;
+            return false;
+        }
     }
 
     private async Task<(bool ShouldScan, GiteaSourceOptions SourceOptions, string SourceRef)> ResolvePullRequestSourceAsync(
@@ -653,6 +881,15 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         bool acceptRaw,
         CancellationToken cancellationToken)
     {
+        return await SendAsync(options.Credential, uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        string credential,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
         return await RemoteSourceHttpRetry.SendAsync(
             _httpClient,
             () =>
@@ -660,7 +897,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
                 var request = new HttpRequestMessage(HttpMethod.Get, uri);
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/octet-stream" : "application/json"));
                 request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
-                request.Headers.TryAddWithoutValidation("Authorization", string.Concat("token ", options.Credential));
+                request.Headers.TryAddWithoutValidation("Authorization", string.Concat("token ", credential));
                 return request;
             },
             RemoteSourceHttpRetry.IsGenericRetryableResponse,
@@ -757,6 +994,28 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             Query = CreateQuery([new KeyValuePair<string, string>("ref", gitRef)]),
         };
         return builder.Uri;
+    }
+
+    private static Uri CreateOrganizationRepositoryListUri(GiteaOrganizationSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["orgs", options.Organization, "repos"],
+            [
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("limit", RepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateUserRepositoryListUri(GiteaUserSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["users", options.UserName, "repos"],
+            [
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("limit", RepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
+            ]);
     }
 
     private static Uri CreateReleaseListUri(GiteaSourceOptions options, int page)
@@ -871,7 +1130,15 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         HttpResponseMessage response,
         string target)
     {
-        options.WarningSink?.Invoke(string.Concat(
+        WarnUnsuccessfulResponse(options.WarningSink, response, target);
+    }
+
+    private static void WarnUnsuccessfulResponse(
+        Action<string>? warningSink,
+        HttpResponseMessage response,
+        string target)
+    {
+        warningSink?.Invoke(string.Concat(
             target,
             " because Gitea returned ",
             ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture),
@@ -1058,6 +1325,35 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             && int.TryParse(issueUrl.AsSpan(separator + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out issueNumber);
     }
 
+    private static bool TryCreateRepositoryIdentifier(JsonElement repository, string fallbackOwner, out string repositoryIdentifier)
+    {
+        repositoryIdentifier = GetString(repository, "full_name");
+        if (repositoryIdentifier.Length != 0)
+        {
+            return true;
+        }
+
+        string name = GetString(repository, "name");
+        if (name.Length == 0)
+        {
+            return false;
+        }
+
+        string owner = GetNestedString(repository, "owner", "login");
+        if (owner.Length == 0)
+        {
+            owner = GetNestedString(repository, "owner", "username");
+        }
+
+        if (owner.Length == 0)
+        {
+            owner = fallbackOwner;
+        }
+
+        repositoryIdentifier = string.Concat(owner, "/", name);
+        return true;
+    }
+
     private static string CreateDisplayPath(GiteaSourceOptions options, string itemPath)
     {
         return string.Concat(
@@ -1211,6 +1507,16 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
     }
 
     private static bool IsCancellationRequested(GiteaSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(GiteaOrganizationSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(GiteaUserSourceOptions options)
     {
         return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }

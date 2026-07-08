@@ -56,10 +56,12 @@ internal static partial class Program
         bool giteaIncludeReleases = false;
         string giteaIssueState = GiteaSourceOptions.DefaultIssueState;
         bool giteaOptionSpecified = false;
+        string giteaOrganization = string.Empty;
         int giteaPullRequestId = 0;
         string giteaRef = string.Empty;
         string giteaRepository = string.Empty;
         string? giteaTokenEnvironmentVariable = null;
+        string giteaUser = string.Empty;
         Uri? gitLabApiEndpoint = null;
         string gitLabGroup = string.Empty;
         bool gitLabIncludeSubgroups = false;
@@ -450,6 +452,30 @@ internal static partial class Program
                 }
 
                 giteaRepository = repository;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaOrganizationFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-organization", out string? organization))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaOrganization = organization;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaUserFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-user", out string? userName))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaUser = userName;
                 giteaOptionSpecified = true;
                 continue;
             }
@@ -1274,6 +1300,8 @@ internal static partial class Program
             && !TryCreateGiteaSourceProvider(
                 giteaApiEndpoint,
                 giteaRepository,
+                giteaOrganization,
+                giteaUser,
                 giteaRef,
                 giteaPullRequestId,
                 giteaIncludeIssues,

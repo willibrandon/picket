@@ -20,6 +20,13 @@ Repository scans resolve the default branch when `--gitea-ref` is omitted, list 
 picket scan --gitea-repository willibrandon/picket --gitea-ref main --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
 ```
 
+Organization and user scans list repositories first, then scan each returned repository at `--gitea-ref` or its returned default branch:
+
+```powershell
+picket scan --gitea-organization willibrandon --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
+picket scan --gitea-user willibrandon --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
+```
+
 Pull request scans resolve the source commit through the Gitea pull request API, switch to the returned source repository when the pull request comes from a fork, and then scan that source commit:
 
 ```powershell
@@ -55,6 +62,8 @@ The token is read from an environment variable and is never passed as a command-
 | Option | Purpose |
 | --- | --- |
 | `--gitea-repository` | Repository to scan as an owner/name path or repository URL. |
+| `--gitea-organization` | Organization whose repositories should be listed and scanned. |
+| `--gitea-user` | User whose owned repositories should be listed and scanned. |
 | `--gitea-ref` | Optional branch, tag, or commit SHA. Empty uses the repository default branch. |
 | `--gitea-pull-request` | Optional pull request ID. Resolves and scans the source head. Cannot be combined with `--gitea-ref`. |
 | `--gitea-include-issues` | Include Gitea issue bodies and comments. Cannot be combined with `--gitea-pull-request`. |
@@ -69,6 +78,8 @@ The token is read from an environment variable and is never passed as a command-
 
 | Source | API behavior |
 | --- | --- |
+| Organization repositories | Lists organization repositories with `page` and `limit=100`, then scans each returned `full_name` or `owner/name` repository. |
+| User repositories | Lists user-owned repositories with `page` and `limit=100`, then scans each returned `full_name` or `owner/name` repository. |
 | Repository metadata | Resolves the default branch when `--gitea-ref` is omitted. |
 | Branch metadata | Resolves branch names to commit IDs before git tree enumeration when Gitea returns branch metadata. |
 | Pull request metadata | Resolves the source commit hash, source branch fallback, and source repository when `--gitea-pull-request` is used. |
@@ -99,9 +110,9 @@ Picket sends the configured token as an `Authorization: token ...` header. It do
 
 ## Permissions
 
-Use the narrowest repository selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Pull request scans also need read-only access to pull request metadata. Issue scans need read-only issue and issue-comment access. Release scans need read-only release metadata and access to the selected release asset download URLs. Write, owner, organization administration, package, runner, and token-administration scopes are not needed for source enumeration.
+Use the narrowest repository selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Organization and user scans also need read-only access to repository lists for the selected account. Pull request scans also need read-only access to pull request metadata. Issue scans need read-only issue and issue-comment access. Release scans need read-only release metadata and access to the selected release asset download URLs. Write, owner, organization administration, package, runner, and token-administration scopes are not needed for source enumeration.
 
-Organization/user discovery, packages, and Actions artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+Packages and Actions artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
 
 ## References
 

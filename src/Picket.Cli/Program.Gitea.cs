@@ -12,6 +12,18 @@ internal static partial class Program
             || arg.StartsWith("--gitea-repository=", StringComparison.Ordinal);
     }
 
+    static bool IsGiteaOrganizationFlag(string arg)
+    {
+        return arg.Equals("--gitea-organization", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-organization=", StringComparison.Ordinal);
+    }
+
+    static bool IsGiteaUserFlag(string arg)
+    {
+        return arg.Equals("--gitea-user", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-user=", StringComparison.Ordinal);
+    }
+
     static bool IsGiteaRefFlag(string arg)
     {
         return arg.Equals("--gitea-ref", StringComparison.Ordinal)
@@ -93,6 +105,8 @@ internal static partial class Program
     static bool TryCreateGiteaSourceProvider(
         Uri? endpoint,
         string repository,
+        string organization,
+        string userName,
         string gitRef,
         int pullRequestId,
         bool includeIssues,
@@ -104,9 +118,34 @@ internal static partial class Program
         [NotNullWhen(true)] out NativeSourceProvider? sourceFileProvider)
     {
         sourceFileProvider = null;
-        if (string.IsNullOrWhiteSpace(repository))
+        bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);
+        bool organizationSpecified = !string.IsNullOrWhiteSpace(organization);
+        bool userSpecified = !string.IsNullOrWhiteSpace(userName);
+        int sourceSelectorCount = 0;
+        if (repositorySpecified)
         {
-            Console.Error.WriteLine("Gitea source scan requires --gitea-repository");
+            sourceSelectorCount++;
+        }
+
+        if (organizationSpecified)
+        {
+            sourceSelectorCount++;
+        }
+
+        if (userSpecified)
+        {
+            sourceSelectorCount++;
+        }
+
+        if (sourceSelectorCount != 1)
+        {
+            Console.Error.WriteLine("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, or --gitea-user");
+            return false;
+        }
+
+        if (pullRequestId != 0 && !repositorySpecified)
+        {
+            Console.Error.WriteLine("Gitea pull request source scan requires --gitea-repository");
             return false;
         }
 
@@ -144,23 +183,62 @@ internal static partial class Program
         Uri sourceEndpoint = endpoint ?? GiteaSourceOptions.CreateDefaultEndpoint();
         try
         {
-            var validatedOptions = new GiteaSourceOptions(
-                sourceEndpoint,
-                repository,
-                credential,
-                gitRef,
-                includeIssues,
-                issueState,
-                pullRequestId: pullRequestId,
-                includeReleases: includeReleases,
-                allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
-            sourceEndpoint = validatedOptions.Endpoint;
-            repository = validatedOptions.Repository;
-            gitRef = validatedOptions.Ref;
-            includeIssues = validatedOptions.IncludeIssues;
-            issueState = validatedOptions.IssueState;
-            includeReleases = validatedOptions.IncludeReleases;
-            pullRequestId = validatedOptions.PullRequestId;
+            if (repositorySpecified)
+            {
+                var validatedOptions = new GiteaSourceOptions(
+                    sourceEndpoint,
+                    repository,
+                    credential,
+                    gitRef,
+                    includeIssues,
+                    issueState,
+                    pullRequestId: pullRequestId,
+                    includeReleases: includeReleases,
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                sourceEndpoint = validatedOptions.Endpoint;
+                repository = validatedOptions.Repository;
+                gitRef = validatedOptions.Ref;
+                includeIssues = validatedOptions.IncludeIssues;
+                issueState = validatedOptions.IssueState;
+                includeReleases = validatedOptions.IncludeReleases;
+                pullRequestId = validatedOptions.PullRequestId;
+            }
+            else if (organizationSpecified)
+            {
+                var validatedOptions = new GiteaOrganizationSourceOptions(
+                    sourceEndpoint,
+                    organization,
+                    credential,
+                    gitRef,
+                    includeIssues,
+                    issueState,
+                    includeReleases,
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                sourceEndpoint = validatedOptions.Endpoint;
+                organization = validatedOptions.Organization;
+                gitRef = validatedOptions.Ref;
+                includeIssues = validatedOptions.IncludeIssues;
+                issueState = validatedOptions.IssueState;
+                includeReleases = validatedOptions.IncludeReleases;
+            }
+            else
+            {
+                var validatedOptions = new GiteaUserSourceOptions(
+                    sourceEndpoint,
+                    userName,
+                    credential,
+                    gitRef,
+                    includeIssues,
+                    issueState,
+                    includeReleases,
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                sourceEndpoint = validatedOptions.Endpoint;
+                userName = validatedOptions.UserName;
+                gitRef = validatedOptions.Ref;
+                includeIssues = validatedOptions.IncludeIssues;
+                issueState = validatedOptions.IssueState;
+                includeReleases = validatedOptions.IncludeReleases;
+            }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -187,20 +265,54 @@ internal static partial class Program
                 EndpointGuardOptions = endpointGuardOptions,
             }), disposeHandler: true);
             var client = new GiteaSourceClient(httpClient);
-            return client.EnumerateRepositoryFilesAsync(new GiteaSourceOptions(
+            if (repositorySpecified)
+            {
+                return client.EnumerateRepositoryFilesAsync(new GiteaSourceOptions(
+                    sourceEndpoint,
+                    repository,
+                    credential,
+                    gitRef,
+                    includeIssues,
+                    issueState,
+                    maxFileBytes: maxTargetBytes,
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints,
+                    isPathAllowed: rules.IsGlobalPathAllowed,
+                    warningSink: Console.Error.WriteLine,
+                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
+                    pullRequestId: pullRequestId,
+                    includeReleases: includeReleases)).GetAwaiter().GetResult();
+            }
+
+            if (organizationSpecified)
+            {
+                return client.EnumerateOrganizationRepositoryFilesAsync(new GiteaOrganizationSourceOptions(
+                    sourceEndpoint,
+                    organization,
+                    credential,
+                    gitRef,
+                    includeIssues,
+                    issueState,
+                    includeReleases,
+                    maxTargetBytes,
+                    allowInsecureSourceEndpoints,
+                    rules.IsGlobalPathAllowed,
+                    Console.Error.WriteLine,
+                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+            }
+
+            return client.EnumerateUserRepositoryFilesAsync(new GiteaUserSourceOptions(
                 sourceEndpoint,
-                repository,
+                userName,
                 credential,
                 gitRef,
                 includeIssues,
                 issueState,
-                maxFileBytes: maxTargetBytes,
-                allowInsecureCredentialTransport: allowInsecureSourceEndpoints,
-                isPathAllowed: rules.IsGlobalPathAllowed,
-                warningSink: Console.Error.WriteLine,
-                isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
-                pullRequestId: pullRequestId,
-                includeReleases: includeReleases)).GetAwaiter().GetResult();
+                includeReleases,
+                maxTargetBytes,
+                allowInsecureSourceEndpoints,
+                rules.IsGlobalPathAllowed,
+                Console.Error.WriteLine,
+                () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
         };
         return true;
     }

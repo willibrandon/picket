@@ -95,6 +95,14 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.StartsWith("/api/v1/orgs/willibrandon/repos?", StringComparison.Ordinal)
+            || target.StartsWith("/api/v1/users/willibrandon/repos?", StringComparison.Ordinal))
+        {
+            const string RepositoriesJson = """[{"full_name":"willibrandon/picket","name":"picket","default_branch":"main"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(RepositoriesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/api/v1/repos/willibrandon/picket/pulls/7", StringComparison.Ordinal))
         {
             const string PullRequestJson = """{"number":7,"head":{"sha":"pr-head-sha","ref":"feature/secrets","repo":{"full_name":"forker/picket-fork"}}}""";

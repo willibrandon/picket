@@ -473,6 +473,8 @@ internal static partial class Program
     private static void AddGiteaSourceOptions(Command command, string commandName)
     {
         command.Options.Add(CreateValueOption(commandName, "--gitea-repository", "owner/name"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-organization", "org"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-user", "login"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-ref", "ref"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-pull-request", "id"));
         command.Options.Add(CreateFlagOption(commandName, "--gitea-include-issues"));

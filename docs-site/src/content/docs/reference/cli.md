@@ -394,6 +394,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan this Gitea repository through native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitea-organization</code></td>
+              <td data-label="Value"><code>org</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan repositories in this Gitea organization.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-user</code></td>
+              <td data-label="Value"><code>login</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan repositories owned by this Gitea user.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitea-ref</code></td>
               <td data-label="Value"><code>ref</code></td>
               <td data-label="Required">Optional</td>
