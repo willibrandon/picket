@@ -560,6 +560,8 @@ public static class GitSource
             end++;
         }
 
-        return end == start ? 0 : int.Parse(line.AsSpan(start, end - start), CultureInfo.InvariantCulture);
+        return end != start && int.TryParse(line.AsSpan(start, end - start), CultureInfo.InvariantCulture, out int startLine)
+            ? startLine
+            : 0;
     }
 }

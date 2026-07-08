@@ -1,6 +1,7 @@
 using Picket.Sources;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Reflection;
 using System.Text;
 
 namespace Picket.Tests;
@@ -249,6 +250,23 @@ public sealed class GitSourceTests
 
         Assert.Contains("unsafe git log option: --output=", exception.Message);
         Assert.IsFalse(File.Exists(outputPath));
+    }
+
+    /// <summary>
+    /// Verifies malformed hunk headers with oversized line numbers do not abort patch parsing.
+    /// </summary>
+    [TestMethod]
+    public void ParseNewStartLineTreatsOverflowAsInvalidHunk()
+    {
+        MethodInfo method = typeof(GitSource).GetMethod(
+            "ParseNewStartLine",
+            BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Expected GitSource to expose the hunk parser.");
+
+        int startLine = method.Invoke(null, ["@@ -1 +2147483648 @@"]) as int?
+            ?? throw new InvalidOperationException("Expected GitSource hunk parser to return a line number.");
+
+        Assert.AreEqual(0, startLine);
     }
 
     private static async Task InitializeGitRepositoryAsync(string root)

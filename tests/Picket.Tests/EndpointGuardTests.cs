@@ -72,6 +72,8 @@ public sealed class EndpointGuardTests
             IPAddress.Parse("100.64.0.1"),
             IPAddress.Parse("198.18.0.1"),
             IPAddress.Parse("::1"),
+            IPAddress.Parse("fe00::1"),
+            IPAddress.Parse("fe7f::1"),
             IPAddress.Parse("fe80::1"),
             IPAddress.Parse("fc00::1"),
             IPAddress.Parse("fec0::1"),

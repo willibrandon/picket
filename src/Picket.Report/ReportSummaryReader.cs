@@ -588,7 +588,7 @@ public static class ReportSummaryReader
             return 0;
         }
 
-        return property.GetInt32();
+        return GetScalarInt32(property);
     }
 
     private static int GetOptionalInt32(JsonElement element, string name)

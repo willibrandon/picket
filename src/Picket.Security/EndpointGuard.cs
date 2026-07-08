@@ -169,8 +169,7 @@ public static class EndpointGuard
     private static bool IsNonPublicIPv6(byte[] bytes)
     {
         return (bytes[0] & 0xFE) == 0xFC
-            || bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80
-            || bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0xC0
+            || bytes[0] == 0xFE
             || bytes[0] == 0xFF
             || IsIPv6DocumentationAddress(bytes)
             || IsIPv4MappedNonPublicAddress(bytes)

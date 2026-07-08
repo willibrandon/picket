@@ -243,6 +243,27 @@ public sealed class ReportSummaryReaderTests
         Assert.IsEmpty(summary.Findings[0].Fingerprint);
     }
 
+    /// <summary>
+    /// Verifies type-confused line fields default to zero instead of rejecting otherwise readable summaries.
+    /// </summary>
+    [TestMethod]
+    public void ReadTreatsNonNumericLineFieldsAsZero()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            [{"RuleID":"rule","File":"secret.txt","StartLine":false,"Fingerprint":"fp"}]
+            """);
+
+        ReportSummary summary = ReportSummaryReader.Read(reportPath);
+
+        Assert.AreEqual("gitleaks-json", summary.Format);
+        Assert.HasCount(1, summary.Findings);
+        Assert.AreEqual(0, summary.Findings[0].Line);
+    }
+
     private static string WriteReport(string root, string fileName, string contents)
     {
         string reportPath = Path.Combine(root, fileName);
