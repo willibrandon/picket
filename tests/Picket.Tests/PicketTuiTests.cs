@@ -582,11 +582,11 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that the selected finding row uses the Picket focus color without falling back to table chrome.
+    /// Verifies that the selected finding row uses the Picket table focus color.
     /// </summary>
     [TestMethod]
     [Timeout(10000, CooperativeCancellation = true)]
-    public async Task Hex1bFullScreenConsoleKeepsSelectedRowChromeNeutral()
+    public async Task Hex1bFullScreenConsoleKeepsSelectedRowChromeConsistent()
     {
         PicketTuiState state = CreateState();
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
@@ -606,29 +606,29 @@ public sealed class PicketTuiTests
 
         int exitCode = await runTask.ConfigureAwait(false);
         string[] lines = snapshot.GetScreenText().Split('\n');
-        int rowY = Array.FindIndex(lines, line => line.Contains("github-token", StringComparison.Ordinal));
-        int locationY = Array.FindIndex(lines, line => line.Contains("src/auth.cs:12", StringComparison.Ordinal));
+        int rowY = Array.FindIndex(lines, line =>
+            line.Contains("github-token", StringComparison.Ordinal)
+            && line.Contains("src/auth.cs:12", StringComparison.Ordinal));
         Assert.AreEqual(0, exitCode);
         Assert.IsGreaterThanOrEqualTo(0, rowY);
-        Assert.IsGreaterThanOrEqualTo(0, locationY);
 
-        int markerX = lines[rowY].IndexOf('>');
         int textX = lines[rowY].IndexOf("github-token", StringComparison.Ordinal);
-        int nextRowY = Array.FindIndex(lines, line => line.Contains("src/auth.cs:18", StringComparison.Ordinal));
-        int nextRuleY = Array.FindIndex(lines, line => line.Contains("github-token", StringComparison.Ordinal) && line != lines[rowY]);
-        Assert.IsGreaterThanOrEqualTo(0, markerX);
+        int locationX = lines[rowY].IndexOf("src/auth.cs:12", StringComparison.Ordinal);
+        int nextRowY = Array.FindIndex(lines, line =>
+            line.Contains("github-token", StringComparison.Ordinal)
+            && line.Contains("src/auth.cs:18", StringComparison.Ordinal));
         Assert.IsGreaterThanOrEqualTo(0, textX);
+        Assert.IsGreaterThanOrEqualTo(0, locationX);
         Assert.IsGreaterThanOrEqualTo(0, nextRowY);
-        Assert.IsGreaterThanOrEqualTo(0, nextRuleY);
 
-        TerminalCell markerCell = snapshot.GetCell(markerX, rowY);
         TerminalCell textCell = snapshot.GetCell(textX, rowY);
-        TerminalCell nextRowCell = snapshot.GetCell(lines[nextRuleY].IndexOf("github-token", StringComparison.Ordinal), nextRuleY);
+        TerminalCell locationCell = snapshot.GetCell(locationX, rowY);
+        TerminalCell nextRowCell = snapshot.GetCell(lines[nextRowY].IndexOf("github-token", StringComparison.Ordinal), nextRowY);
 
-        Assert.AreEqual(PicketTuiPalette.FocusForeground, markerCell.Foreground);
-        Assert.AreEqual(PicketTuiPalette.FocusBackground, markerCell.Background);
-        Assert.AreEqual(PicketTuiPalette.InfoForeground, textCell.Foreground);
-        Assert.AreEqual(PicketTuiPalette.Background, textCell.Background);
+        Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, textCell.Foreground);
+        Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, textCell.Background);
+        Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, locationCell.Foreground);
+        Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, locationCell.Background);
         Assert.AreEqual(PicketTuiPalette.Foreground, nextRowCell.Foreground);
         Assert.AreEqual(PicketTuiPalette.Background, nextRowCell.Background);
     }
