@@ -179,8 +179,8 @@ Picket ships multiple publish profiles because "fastest" and "smallest" are not 
 
 | Profile | Purpose | Defaults |
 |---|---|---|
-| `release-speed` | Primary CLI artifact. Fast startup and fastest scan throughput while remaining small. | `PublishAot=true`, `SelfContained=true`, RID-specific publish, `OptimizationPreference=Speed`, symbols stripped into sidecar files, invariant globalization if conformance tests pass. |
-| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | `OptimizationPreference=Size`, diagnostics disabled, stack trace support disabled, resource-key exception messages enabled, invariant globalization, no optional network/XML/HTTP3 features unless needed. |
+| `release-speed` | Primary CLI artifact. Fast startup and fastest scan throughput while remaining small. | `PublishAot=true`, `SelfContained=true`, RID-specific publish, `OptimizationPreference=Speed`, symbols stripped into sidecar files except current macOS RIDs, invariant globalization if conformance tests pass. |
+| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | `OptimizationPreference=Size`, diagnostics disabled, stack trace support disabled, resource-key exception messages enabled, invariant globalization, symbols stripped except current macOS RIDs, no optional network/XML/HTTP3 features unless needed. |
 | `release-diagnostics` | Support artifact for bug reports and performance investigations. | Same code as `release-speed`, but keeps diagnostics, metrics/EventSource support, stack traces, and richer symbols where the runtime supports them. |
 | `framework-dev` | Developer/test artifact. | Framework-dependent build with normal JIT, tiered compilation, Dynamic PGO defaults, and full diagnostics for inner-loop debugging. Not the shipped CLI. |
 
@@ -194,7 +194,7 @@ The CLI project uses Native AOT as the primary deployment model:
 - `SelfContained=true`
 - explicit `RuntimeIdentifier` per supported platform
 - `PublishSingleFile=true` only where it adds useful SDK analysis or packaging behavior; Native AOT already produces a native executable
-- `StripSymbols=true` with debug symbols published as separate artifacts
+- `StripSymbols=true` with debug symbols published as separate artifacts, except `osx-arm64` and `osx-x64` temporarily use `StripSymbols=false` while the runtime pack carries transient Swift module-cache debug paths
 - no runtime JIT dependency, no dynamic code generation, no dynamic plugin loading
 - no reflection-only serializer paths
 - no dependency that emits unresolved trim, single-file, or AOT warnings

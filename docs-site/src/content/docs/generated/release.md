@@ -21,11 +21,13 @@ dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj -p:PublishProfile=releas
 
 | Profile | Purpose | Key settings |
 | --- | --- | --- |
-| `release-speed` | Default public CLI and TUI companion artifacts. | Native AOT, self-contained, single-file publish, speed optimization, stripped symbols, diagnostics reduced. |
-| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | Native AOT, size optimization, stripped symbols, stack traces off, EventSource and metrics off, resource-key exception messages. |
+| `release-speed` | Default public CLI and TUI companion artifacts. | Native AOT, self-contained, single-file publish, speed optimization, stripped symbols except current macOS RIDs, diagnostics reduced. |
+| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | Native AOT, size optimization, stripped symbols except current macOS RIDs, stack traces off, EventSource and metrics off, resource-key exception messages. |
 | `release-diagnostics` | Support artifact for bug reports and performance investigations. | Native AOT, speed optimization, symbols kept, debugger support, EventSource, metrics, stack traces, and HTTP activity propagation enabled. |
 
 All profiles keep unsafe BinaryFormatter serialization, UTF-7, metadata update support, XML resolver networking by default, and HTTP/3 disabled. These switches are explicit so size and diagnostics tradeoffs are visible in review.
+
+For `osx-arm64` and `osx-x64`, release builds set `StripSymbols=false` until the .NET runtime pack includes the Apple Native AOT Swift module debug-info fix tracked by dotnet/runtime#123687 and dotnet/runtime#124336. This keeps native debug information embedded in the binary and avoids transient clang module-cache `.pcm` warnings from macOS symbol splitting.
 
 `release-minsize` must not change scanner findings, rule behavior, reports, validation states, or exit-code classification. It may reduce diagnostic richness only.
 

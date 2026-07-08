@@ -20,6 +20,9 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <OptimizationPreference>Speed</OptimizationPreference>
     <StripSymbols>true</StripSymbols>
+    <!-- Work around dotnet/runtime#123687 and dotnet/runtime#124336: macOS Native AOT symbol splitting can warn
+         or fail when dsymutil resolves transient Swift module-cache .pcm paths from the runtime pack. -->
+    <StripSymbols Condition="'$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64'">false</StripSymbols>
   </PropertyGroup>
 
   <ItemGroup>
