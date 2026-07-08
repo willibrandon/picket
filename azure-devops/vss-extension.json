@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "picket",
   "name": "Picket",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "willibrandon",
   "targets": [
     {

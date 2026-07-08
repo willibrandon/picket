@@ -50,6 +50,11 @@ function main() {
     publishReports(inputs, reportPaths);
     writeSummary(inputs, exitCode, findings, annotations, reportPaths);
 
+    if (isScannerError(exitCode, findings)) {
+      complete("Failed", "Picket scan failed before producing findings.");
+      process.exit(1);
+    }
+
     if (shouldFail(inputs.failOn, exitCode, findings)) {
       complete("Failed", `Picket scan failed with policy '${inputs.failOn}'.`);
       process.exit(1);
@@ -64,6 +69,7 @@ function main() {
 }
 
 function readInputs() {
+  const target = getInput("target", process.env.BUILD_SOURCESDIRECTORY || ".");
   const reportFormats = parseList(getInput("reportFormats", "sarif,jsonl,html")).map(format => format.toLowerCase());
   if (reportFormats.length === 0) {
     throw new Error("reportFormats must include at least one report format.");
@@ -86,14 +92,14 @@ function readInputs() {
   const annotationLimit = getInteger("annotationLimit", 50, 0, Number.MAX_SAFE_INTEGER);
 
   return {
-    target: getInput("target", process.env.BUILD_SOURCESDIRECTORY || "."),
+    target,
     picketPath: getInput("picketPath", "picket"),
-    config: getInput("config", ""),
+    config: getOptionalFileInput("config", target),
     profile: getChoice("profile", "picket", ["picket", "gitleaks"]),
     reportFormats,
     reportDirectory: path.resolve(getInput("reportDirectory", defaultReportDirectory())),
     failOn,
-    baselinePath: getInput("baselinePath", ""),
+    baselinePath: getOptionalFileInput("baselinePath", target),
     results,
     onlyVerified,
     redact,
@@ -301,6 +307,10 @@ function shouldFail(failOn, exitCode, findings) {
   return exitCode !== 0 && findings === 0;
 }
 
+function isScannerError(exitCode, findings) {
+  return exitCode !== 0 && findings === 0;
+}
+
 function setOutput(name, value) {
   console.log(`##vso[task.setvariable variable=${escapeProperty(name)};isOutput=true;]${escapeMessage(value)}`);
 }
@@ -318,6 +328,28 @@ function getInput(name, fallback) {
   }
 
   return value.trim();
+}
+
+function getOptionalFileInput(name, defaultDirectory) {
+  const value = getInput(name, "");
+  if (value.length === 0) {
+    return "";
+  }
+
+  if (isDefaultInputDirectory(value, defaultDirectory)) {
+    return "";
+  }
+
+  return value;
+}
+
+function isDefaultInputDirectory(value, defaultDirectory) {
+  if (!isDirectory(value)) {
+    return false;
+  }
+
+  return pathEquals(value, defaultDirectory)
+    || pathEquals(value, process.env.BUILD_SOURCESDIRECTORY || "");
 }
 
 function getBoolean(name, fallback) {
@@ -396,6 +428,23 @@ function defaultCachePath() {
   return process.env.PIPELINE_WORKSPACE
     ? path.join(process.env.PIPELINE_WORKSPACE, ".picket", "cache")
     : path.resolve(".picket", "cache");
+}
+
+function pathEquals(left, right) {
+  if (!left || !right) {
+    return false;
+  }
+
+  return path.resolve(left) === path.resolve(right);
+}
+
+function isDirectory(value) {
+  try {
+    return fs.statSync(value).isDirectory();
+  }
+  catch {
+    return false;
+  }
 }
 
 function toInputEnvironmentName(name) {

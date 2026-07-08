@@ -11,7 +11,7 @@ This page is generated from `azure-devops/tasks/PicketScanV1/task.json`.
 
 Task name: `PicketScan`
 
-Version: `1.0.0`
+Version: `1.0.1`
 
 ## Inputs
 
@@ -116,7 +116,7 @@ Version: `1.0.0`
     <div class="reference-card-heading">
       <code>failOn</code><span>pickList</span>
     </div>
-    <p class="reference-card-description">Task failure policy.</p>
+    <p class="reference-card-description">Task failure policy. Scanner execution errors always fail the task; never only suppresses finding-based failure.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>

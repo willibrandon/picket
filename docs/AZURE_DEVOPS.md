@@ -43,7 +43,7 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `profile` | `picket` | Scan profile. Use `gitleaks` only when strict compatibility behavior is desired. |
 | `reportFormats` | `sarif,jsonl,html` | Comma-separated report formats published by the task. |
 | `reportDirectory` | `$(Build.ArtifactStagingDirectory)/picket` | Directory where task reports are written. |
-| `failOn` | `findings` | Failure policy: `findings`, `errors`, or `never`. |
+| `failOn` | `findings` | Failure policy: `findings`, `errors`, or `never`. Scanner execution errors always fail the task; `never` only suppresses finding-based failure. |
 | `baselinePath` | empty | Optional baseline report used to suppress known findings. |
 | `results` | empty | Optional comma-separated validation states to keep before reports and failure enforcement. |
 | `onlyVerified` | `false` | Keep only offline structurally valid findings and live active findings. |
@@ -54,10 +54,9 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `publishSarif` | `true` | Publish SARIF as a build artifact. |
 | `publishJsonl` | `true` | Publish native JSONL as a build artifact. |
 | `publishHtml` | `true` | Publish the HTML report as a build artifact. |
-| `cache` | `true` | Restore and save the native Picket scan cache. |
+| `cache` | `true` | Pass a native Picket scan cache directory to the CLI. |
 | `cacheMode` | `secret-hash-only` | Cache storage mode. Use `raw` only in trusted private jobs. |
-| `cacheKey` | empty | Optional explicit cache key. Empty uses a task-generated key scoped to OS, cache mode, branch, and scanner configuration. |
-| `cachePath` | `$(Pipeline.Workspace)/.picket/cache` | Cache directory passed to the CLI and used with pipeline cache. |
+| `cachePath` | `$(Pipeline.Workspace)/.picket/cache` | Cache directory passed to the CLI. |
 | `maxTargetMegabytes` | empty | Optional maximum file size in decimal MB for content rules. |
 | `maxArchiveDepth` | empty | Optional maximum nested archive traversal depth. |
 | `maxArchiveEntries` | empty | Optional maximum number of files extracted from archives. |
@@ -84,7 +83,7 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `allowInsecureSourceEndpoints` | `false` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 | `extraArgs` | empty | Additional CLI arguments appended after validated task inputs. |
 
-The task rejects contradictory inputs before invoking the scanner. Examples include `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support.
+The task rejects contradictory inputs before invoking the scanner. Examples include `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support. Optional `config` and `baselinePath` inputs are forwarded only when they name files rather than the checkout directory supplied by an empty Azure Pipelines file-path control.
 
 ## Outputs
 

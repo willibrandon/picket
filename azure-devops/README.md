@@ -20,3 +20,5 @@ steps:
 ```
 
 Use `picketPath` when the executable is not named `picket` or is not available on `PATH`. Live verification and remote Azure DevOps enumeration are opt-in task inputs.
+
+`failOn: never` suppresses finding-based failure only. Scanner execution errors still fail the task.

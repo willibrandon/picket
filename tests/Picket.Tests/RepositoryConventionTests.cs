@@ -429,7 +429,8 @@ public sealed partial class RepositoryConventionTests
     public void AzureDevOpsTaskMetadataDocumentsScannerContract()
     {
         using JsonDocument extension = JsonDocument.Parse(ReadRepositoryFile("azure-devops/vss-extension.json"));
-        using JsonDocument task = JsonDocument.Parse(ReadRepositoryFile("azure-devops/tasks/PicketScanV1/task.json"));
+        string taskMetadata = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/task.json");
+        using JsonDocument task = JsonDocument.Parse(taskMetadata);
         string handler = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.js");
         string readme = ReadRepositoryFile("azure-devops/README.md");
         string azureDevOps = ReadRepositoryFile("docs/AZURE_DEVOPS.md");
@@ -438,12 +439,14 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
+        Assert.AreEqual("0.1.1", extensionRoot.GetProperty("version").GetString());
         Assert.AreEqual("tasks/PicketScanV1", extensionRoot.GetProperty("contributions")[0].GetProperty("properties").GetProperty("name").GetString());
 
         JsonElement taskRoot = task.RootElement;
         Assert.AreEqual("PicketScan", taskRoot.GetProperty("name").GetString());
         Assert.AreEqual("Picket scan", taskRoot.GetProperty("friendlyName").GetString());
         Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Major").GetInt32());
+        Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
         Assert.AreEqual("index.js", taskRoot.GetProperty("execution").GetProperty("Node20_1").GetProperty("target").GetString());
 
         HashSet<string> inputNames = ReadJsonNameSet(taskRoot.GetProperty("inputs"));
@@ -473,6 +476,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("spawnSync(inputs.picketPath", handler);
         Assert.Contains("\"scan\"", handler);
         Assert.Contains("formats.includes(\"jsonl\")", handler);
+        Assert.Contains("getOptionalFileInput(\"config\", target)", handler);
+        Assert.Contains("getOptionalFileInput(\"baselinePath\", target)", handler);
+        Assert.Contains("isDefaultInputDirectory(value, defaultDirectory)", handler);
+        Assert.Contains("process.env.BUILD_SOURCESDIRECTORY", handler);
+        Assert.Contains("isScannerError(exitCode, findings)", handler);
+        Assert.Contains("Picket scan failed before producing findings.", handler);
         Assert.Contains("--azure-devops-token-env", handler);
         Assert.Contains("##vso[task.setvariable", handler);
         Assert.Contains("##vso[task.logissue", handler);
@@ -480,15 +489,20 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("finding.secret", handler);
         Assert.DoesNotContain("finding.match", handler);
         Assert.DoesNotContain("finding.line", handler);
+        Assert.Contains("Scanner execution errors always fail the task", taskMetadata);
 
         Assert.Contains("Picket for Azure Pipelines", readme);
         Assert.Contains("PicketScan@1", readme);
         Assert.Contains("task: PicketScan@1", readme);
         Assert.Contains("picketPath", readme);
+        Assert.Contains("failOn: never", readme);
+        Assert.Contains("Scanner execution errors still fail the task.", readme);
         Assert.DoesNotContain("This folder", readme);
         Assert.DoesNotContain("Before publishing", readme);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
+        Assert.Contains("Scanner execution errors always fail the task", azureDevOps);
+        Assert.Contains("Optional `config` and `baselinePath` inputs are forwarded only when they name files", azureDevOps);
         Assert.Contains("azure-devops/vss-extension.json", marketplaces);
     }
 

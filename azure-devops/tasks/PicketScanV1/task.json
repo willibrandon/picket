@@ -10,7 +10,7 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 0
+    "Patch": 1
   },
   "minimumAgentVersion": "3.220.0",
   "instanceNameFormat": "Picket scan $(target)",
@@ -78,7 +78,7 @@
         "errors": "errors",
         "never": "never"
       },
-      "helpMarkDown": "Task failure policy."
+      "helpMarkDown": "Task failure policy. Scanner execution errors always fail the task; never only suppresses finding-based failure."
     },
     {
       "name": "baselinePath",
