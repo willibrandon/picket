@@ -104,6 +104,7 @@ internal static class CliOptionMetadata
             "--github-user" => "Scan public repositories for this GitHub user through native source enumeration.",
             "--github-user-gists" => "Scan public GitHub gists for this user.",
             "--gitea-api-endpoint" => "Use this Gitea API endpoint for native source enumeration.",
+            "--gitea-pull-request" => "Scan this Gitea pull request source head.",
             "--gitea-ref" => "Scan this Gitea branch, tag, or commit.",
             "--gitea-repository" => "Scan this Gitea repository through native source enumeration.",
             "--gitea-token-env" => "Read the Gitea source enumeration token from this environment variable.",

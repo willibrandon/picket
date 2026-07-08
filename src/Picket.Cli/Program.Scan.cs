@@ -53,6 +53,7 @@ internal static partial class Program
         string githubSourceUserGists = string.Empty;
         Uri? giteaApiEndpoint = null;
         bool giteaOptionSpecified = false;
+        int giteaPullRequestId = 0;
         string giteaRef = string.Empty;
         string giteaRepository = string.Empty;
         string? giteaTokenEnvironmentVariable = null;
@@ -458,6 +459,17 @@ internal static partial class Program
                 }
 
                 giteaRef = gitRef;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaPullRequestFlag(arg))
+            {
+                if (!TryReadPositiveGiteaPullRequestFlag(args, ref i, out giteaPullRequestId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
                 giteaOptionSpecified = true;
                 continue;
             }
@@ -1218,6 +1230,7 @@ internal static partial class Program
                 giteaApiEndpoint,
                 giteaRepository,
                 giteaRef,
+                giteaPullRequestId,
                 giteaTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

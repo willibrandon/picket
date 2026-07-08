@@ -95,6 +95,13 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.Equals("/api/v1/repos/willibrandon/picket/pulls/7", StringComparison.Ordinal))
+        {
+            const string PullRequestJson = """{"number":7,"head":{"sha":"pr-head-sha","ref":"feature/secrets","repo":{"full_name":"forker/picket-fork"}}}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PullRequestJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.StartsWith("/api/v1/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
         {
             string treeJson = string.Concat(
@@ -105,7 +112,23 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.StartsWith("/api/v1/repos/forker/picket-fork/git/trees/pr-head-sha?", StringComparison.Ordinal))
+        {
+            string treeJson = string.Concat(
+                "{\"tree\":[{\"path\":\"src/pr.txt\",\"type\":\"blob\",\"size\":",
+                Encoding.UTF8.GetByteCount(_content).ToString(CultureInfo.InvariantCulture),
+                "}],\"truncated\":false,\"page\":1,\"total_count\":1}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(treeJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/api/v1/repos/willibrandon/picket/raw/src/appsettings.txt?ref=main", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/api/v1/repos/forker/picket-fork/raw/src/pr.txt?ref=pr-head-sha", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
             return;

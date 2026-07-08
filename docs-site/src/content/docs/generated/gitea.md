@@ -20,6 +20,12 @@ Repository scans resolve the default branch when `--gitea-ref` is omitted, list 
 picket scan --gitea-repository willibrandon/picket --gitea-ref main --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
 ```
 
+Pull request scans resolve the source commit through the Gitea pull request API, switch to the returned source repository when the pull request comes from a fork, and then scan that source commit:
+
+```powershell
+picket scan --gitea-repository willibrandon/picket --gitea-pull-request 7 --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
+```
+
 Self-hosted Gitea instances use an explicit API endpoint:
 
 ```powershell
@@ -38,6 +44,7 @@ The token is read from an environment variable and is never passed as a command-
 | --- | --- |
 | `--gitea-repository` | Repository to scan as an owner/name path or repository URL. |
 | `--gitea-ref` | Optional branch, tag, or commit SHA. Empty uses the repository default branch. |
+| `--gitea-pull-request` | Optional pull request ID. Resolves and scans the source head. Cannot be combined with `--gitea-ref`. |
 | `--gitea-token-env` | Environment variable containing the Gitea token. |
 | `--gitea-api-endpoint` | Gitea API endpoint used for repository enumeration. Defaults to `https://gitea.com/api/v1/`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-managed Gitea. |
@@ -49,6 +56,7 @@ The token is read from an environment variable and is never passed as a command-
 | --- | --- |
 | Repository metadata | Resolves the default branch when `--gitea-ref` is omitted. |
 | Branch metadata | Resolves branch names to commit IDs before git tree enumeration when Gitea returns branch metadata. |
+| Pull request metadata | Resolves the source commit hash, source branch fallback, and source repository when `--gitea-pull-request` is used. |
 | Repository tree | Lists repository blobs with recursive git tree enumeration and `per_page=1000`. |
 | Raw file content | Downloads selected file bytes through the raw repository file endpoint with `ref` set to the selected branch, tag, or commit. |
 
@@ -72,9 +80,9 @@ Picket sends the configured token as an `Authorization: token ...` header. It do
 
 ## Permissions
 
-Use the narrowest repository selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Write, owner, organization administration, package, runner, and token-administration scopes are not needed for source enumeration.
+Use the narrowest repository selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Pull request scans also need read-only access to pull request metadata. Write, owner, organization administration, package, runner, and token-administration scopes are not needed for source enumeration.
 
-Organization/user discovery, pull requests, issues, releases, packages, and Actions artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+Organization/user discovery, issues, releases, packages, and Actions artifacts remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
 
 ## References
 

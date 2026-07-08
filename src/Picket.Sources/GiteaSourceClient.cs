@@ -38,6 +38,21 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 
         try
         {
+            if (options.PullRequestId != 0)
+            {
+                (bool shouldScan, GiteaSourceOptions sourceOptions, string sourceRef) = await ResolvePullRequestSourceAsync(
+                    options,
+                    cancellationToken).ConfigureAwait(false);
+                if (!shouldScan)
+                {
+                    return sourceFiles;
+                }
+
+                string sourceTreeRef = await ResolveTreeRefAsync(sourceOptions, sourceRef, cancellationToken).ConfigureAwait(false);
+                await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceTreeRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+                return sourceFiles;
+            }
+
             string gitRef = options.Ref;
             if (gitRef.Length == 0)
             {
@@ -58,6 +73,52 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         }
 
         return sourceFiles;
+    }
+
+    private async Task<(bool ShouldScan, GiteaSourceOptions SourceOptions, string SourceRef)> ResolvePullRequestSourceAsync(
+        GiteaSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreatePullRequestUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(
+                options,
+                response,
+                $"skipping Gitea pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {options.Repository}");
+            return (false, options, string.Empty);
+        }
+
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        string sourceRef = GetNestedString(document.RootElement, "head", "sha");
+        if (sourceRef.Length == 0)
+        {
+            sourceRef = GetNestedString(document.RootElement, "head", "ref");
+        }
+
+        if (sourceRef.Length == 0)
+        {
+            options.WarningSink?.Invoke($"skipping Gitea pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {options.Repository} because its source head was not returned");
+            return (false, options, string.Empty);
+        }
+
+        GiteaSourceOptions sourceOptions = options;
+        string sourceRepository = GetNestedString(document.RootElement, "head", "repo", "full_name");
+        if (sourceRepository.Length != 0 && !sourceRepository.Equals(options.Repository, StringComparison.Ordinal))
+        {
+            try
+            {
+                sourceOptions = options.CreateForRepository(sourceRepository);
+            }
+            catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
+            {
+                options.WarningSink?.Invoke($"skipping Gitea pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {options.Repository} because its source repository was invalid: {ex.Message}");
+                return (false, options, string.Empty);
+            }
+        }
+
+        return (true, sourceOptions, sourceRef);
     }
 
     private async Task<string> ReadDefaultBranchAsync(
@@ -275,6 +336,14 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return CreateUri(options.Endpoint, ["repos", options.Owner, options.Name, "branches", gitRef], []);
     }
 
+    private static Uri CreatePullRequestUri(GiteaSourceOptions options)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.Name, "pulls", options.PullRequestId.ToString(CultureInfo.InvariantCulture)],
+            []);
+    }
+
     private static Uri CreateTreeUri(GiteaSourceOptions options, string treeRef, int page)
     {
         return CreateUri(
@@ -460,6 +529,27 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         }
 
         return GetString(firstProperty, secondPropertyName);
+    }
+
+    private static string GetNestedString(
+        JsonElement value,
+        string firstPropertyName,
+        string secondPropertyName,
+        string thirdPropertyName)
+    {
+        if (!value.TryGetProperty(firstPropertyName, out JsonElement firstProperty)
+            || firstProperty.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        if (!firstProperty.TryGetProperty(secondPropertyName, out JsonElement secondProperty)
+            || secondProperty.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        return GetString(secondProperty, thirdPropertyName);
     }
 
     private static string CreateDisplayPath(GiteaSourceOptions options, string itemPath)

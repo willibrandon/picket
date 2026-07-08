@@ -12,6 +12,7 @@ namespace Picket.Sources;
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
+/// <param name="pullRequestId">An optional pull request ID whose source head should be scanned.</param>
 public sealed class GiteaSourceOptions(
     Uri endpoint,
     string repository,
@@ -21,7 +22,8 @@ public sealed class GiteaSourceOptions(
     bool allowInsecureCredentialTransport = false,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    int pullRequestId = 0)
 {
     internal const long DefaultMaxFileBytes = 100_000_000;
     private readonly string _credential = RequireCredential(credential);
@@ -52,7 +54,12 @@ public sealed class GiteaSourceOptions(
     /// <summary>
     /// Gets the optional branch, tag, or commit reference.
     /// </summary>
-    public string Ref { get; } = NormalizeOptionalText(gitRef);
+    public string Ref { get; } = NormalizeRef(gitRef, pullRequestId);
+
+    /// <summary>
+    /// Gets the optional pull request ID whose source head should be scanned.
+    /// </summary>
+    public int PullRequestId { get; } = RequirePullRequestId(pullRequestId);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -60,6 +67,8 @@ public sealed class GiteaSourceOptions(
     public long MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes, nameof(maxFileBytes));
 
     internal string Credential => _credential;
+
+    internal bool AllowInsecureCredentialTransport { get; } = allowInsecureCredentialTransport;
 
     internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
@@ -74,6 +83,19 @@ public sealed class GiteaSourceOptions(
     public static Uri CreateDefaultEndpoint()
     {
         return new Uri("https://gitea.com/api/v1/", UriKind.Absolute);
+    }
+
+    internal GiteaSourceOptions CreateForRepository(string repository)
+    {
+        return new GiteaSourceOptions(
+            Endpoint,
+            repository,
+            Credential,
+            maxFileBytes: MaxFileBytes,
+            allowInsecureCredentialTransport: AllowInsecureCredentialTransport,
+            isPathAllowed: IsPathAllowed,
+            warningSink: WarningSink,
+            isCancellationRequested: IsCancellationRequested);
     }
 
     internal static Uri NormalizeEndpoint(Uri endpoint)
@@ -103,6 +125,17 @@ public sealed class GiteaSourceOptions(
     internal static string NormalizeOptionalText(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    }
+
+    private static string NormalizeRef(string value, int pullRequestId)
+    {
+        string normalized = NormalizeOptionalText(value);
+        if (pullRequestId != 0 && normalized.Length != 0)
+        {
+            throw new ArgumentException("Gitea source options accept either a ref or a pull request ID, not both.", nameof(value));
+        }
+
+        return normalized;
     }
 
     private static Uri RequireCredentialTransport(Uri endpoint, bool allowInsecureCredentialTransport)
@@ -166,6 +199,12 @@ public sealed class GiteaSourceOptions(
     {
         int separator = repository.IndexOf('/');
         return repository[(separator + 1)..];
+    }
+
+    private static int RequirePullRequestId(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
     }
 
     private static long RequireMaxFileBytes(long? value, string parameterName)

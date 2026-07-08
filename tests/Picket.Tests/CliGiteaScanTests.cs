@@ -61,6 +61,86 @@ public sealed class CliGiteaScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate Gitea pull request source files.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGiteaPullRequestSourceFiles()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GiteaFixtureServer("pr-token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitea-repository",
+            "willibrandon/picket",
+            "--gitea-pull-request",
+            "7",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitea/forker/picket-fork/src/pr.txt\"", result.Stdout);
+        Assert.Contains("/api/v1/repos/willibrandon/picket/pulls/7", server.RequestTargets);
+        Assert.Contains("/api/v1/repos/forker/picket-fork/git/trees/pr-head-sha?", server.RequestTargets);
+        Assert.Contains("/api/v1/repos/forker/picket-fork/raw/src/pr.txt?ref=pr-head-sha", server.RequestTargets);
+        Assert.DoesNotContain("/api/v1/repos/willibrandon/picket/git/trees/", server.RequestTargets);
+        Assert.DoesNotContain("gitea-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects ambiguous Gitea ref and pull request selectors.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGiteaRefAndPullRequest()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-repository",
+            "willibrandon/picket",
+            "--gitea-ref",
+            "main",
+            "--gitea-pull-request",
+            "7",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Gitea source scan accepts either --gitea-ref or --gitea-pull-request, not both", result.Stderr);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that Gitea remote source scans reject unbounded download caps.
     /// </summary>
     [TestMethod]
