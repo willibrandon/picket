@@ -181,6 +181,12 @@ public sealed class GitHubSecretLiveValidatorOptions
     /// <summary>
     /// Sets a custom message handler factory for tests and controlled hosts.
     /// </summary>
+    /// <remarks>
+    /// A custom message handler replaces the default guarded transport. The default transport uses
+    /// <see cref="EndpointGuardHttpHandlerFactory" /> to re-check the endpoint at socket connect time,
+    /// disable automatic redirects, and apply TLS and proxy policy. Callers that set a custom handler are
+    /// responsible for enforcing an equivalent endpoint guard boundary before sending secret-bearing requests.
+    /// </remarks>
     /// <param name="messageHandlerFactory">The message handler factory.</param>
     public void SetMessageHandlerFactory(Func<HttpMessageHandler> messageHandlerFactory)
     {

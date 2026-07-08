@@ -680,6 +680,26 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that custom live-verifier handlers document the endpoint-guard responsibility transfer.
+    /// </summary>
+    [TestMethod]
+    public void CustomLiveVerifierHandlersDocumentEndpointGuardBoundary()
+    {
+        string source = ReadRepositoryFile("src/Picket.Verify/GitHubSecretLiveValidatorOptions.cs");
+        int methodIndex = source.IndexOf("public void SetMessageHandlerFactory", StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, methodIndex);
+        int documentationStart = source.LastIndexOf("/// <summary>", methodIndex, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, documentationStart);
+        string methodDocumentation = source[documentationStart..methodIndex];
+
+        Assert.Contains("replaces the default guarded transport", methodDocumentation);
+        Assert.Contains("EndpointGuardHttpHandlerFactory", methodDocumentation);
+        Assert.Contains("socket connect time", methodDocumentation);
+        Assert.Contains("disable automatic redirects", methodDocumentation);
+        Assert.Contains("responsible for enforcing an equivalent endpoint guard boundary", methodDocumentation);
+    }
+
+    /// <summary>
     /// Verifies that required v1 documentation deliverables exist and cover their contracts.
     /// </summary>
     [TestMethod]
