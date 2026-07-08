@@ -1,7 +1,9 @@
 using Picket.Compat;
 using Picket.Engine;
+using Picket.Report;
 using Picket.Rules;
 using System.Text;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -47,6 +49,45 @@ public sealed class SecretScannerTests
         Assert.AreEqual(18, findings[0].EndColumn);
         Assert.AreEqual(9, findings[1].StartColumn);
         Assert.AreEqual(19, findings[1].EndColumn);
+    }
+
+    /// <summary>
+    /// Verifies invalid UTF-8 bytes are decoded with replacement characters before reporting.
+    /// </summary>
+    [TestMethod]
+    public void ScanDecodesInvalidUtf8AsReplacementCharacter()
+    {
+        byte[] input =
+        [
+            (byte)'p',
+            (byte)'r',
+            (byte)'e',
+            0xC3,
+            0x01,
+            (byte)' ',
+            (byte)'t',
+            (byte)'o',
+            (byte)'k',
+            (byte)'e',
+            (byte)'n',
+            (byte)'-',
+            (byte)'1',
+            (byte)'2',
+            (byte)'3',
+            (byte)'4',
+        ];
+        SecretRule rule = SecretRule.Create("token", "Token", "token-[0-9]+");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([rule]));
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.bin", rules));
+        string json = PicketJsonReportWriter.Write(findings, [rule]);
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("token-1234", findings[0].Secret);
+        Assert.Contains("\uFFFD", findings[0].Line);
+        Assert.Contains("\\u0001", json);
+        using JsonDocument document = JsonDocument.Parse(json);
+        Assert.AreEqual("picket.report.v1", document.RootElement.GetProperty("schema").GetString());
     }
 
     /// <summary>
