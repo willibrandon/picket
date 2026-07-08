@@ -16,6 +16,7 @@ public sealed partial class RepositoryConventionTests
     private static readonly string[] s_remoteSourceClientFiles =
     [
         "src/Picket.Sources/AzureDevOpsSourceClient.cs",
+        "src/Picket.Sources/BitbucketSourceClient.cs",
         "src/Picket.Sources/GcsSourceClient.cs",
         "src/Picket.Sources/GiteaSourceClient.cs",
         "src/Picket.Sources/GitHubSourceClient.cs",

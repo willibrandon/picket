@@ -681,7 +681,7 @@ Native source support:
 - GitHub repos, orgs, users, PRs, issues, gists, releases, and Actions artifacts,
 - GitLab groups/projects/MRs/snippets/artifacts,
 - Gitea repositories,
-- Bitbucket,
+- Bitbucket Cloud repositories,
 - Azure DevOps Services and Azure DevOps Server sources, including Azure Repos Git repositories, projects, organizations, pull requests, wiki repositories, build artifacts, pipeline logs, and release artifacts where APIs expose them safely,
 - S3, GCS, Azure Blob,
 - Docker/OCI images and tarballs.
@@ -697,7 +697,7 @@ Local container archive scanning is native Picket behavior, not Gitleaks compati
 
 Picket treats the image archive as a source envelope, scans metadata files such as manifests and configs, expands layer tarballs and gzip-compressed layer blobs through the same archive safety caps as local archives, and reports provenance paths such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
 
-Container archive flags cannot be combined with GitHub, Gitea, GitLab, Azure DevOps, or object-store source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+Container archive flags cannot be combined with GitHub, Gitea, GitLab, Bitbucket, Azure DevOps, or object-store source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
 
 Azure Blob source support is native Picket behavior, not Gitleaks compatibility behavior.
 
@@ -843,6 +843,38 @@ Gitea source safety rules:
 - Organization/user discovery, pull requests, issues, releases, packages, and Actions artifacts remain planned explicit source selectors.
 
 Gitea credentials are read from the environment and sent as `Authorization: token ...` request headers for repository scans. Least-privilege repository enumeration requires read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Write, owner, organization administration, package, runner, and token-administration scopes are not part of the scanner test contract.
+
+Bitbucket Cloud source support is native Picket behavior, not Gitleaks compatibility behavior.
+
+Implemented Bitbucket entry points:
+
+| Scope | Options | Behavior |
+| --- | --- | --- |
+| Repository files | `--bitbucket-repository`, `--bitbucket-ref`, `--bitbucket-token-env`, `--bitbucket-token-kind`, `--bitbucket-username-env`, `--bitbucket-api-endpoint` | Scans a `workspace/repository` repository path or repository URL at a branch, tag, or commit. Empty `--bitbucket-ref` uses the repository main branch. Bearer-token auth is the default; app-password basic auth is explicit. |
+
+Bitbucket API flow:
+
+| Source | API behavior |
+| --- | --- |
+| Repository metadata | Resolves the main branch when `--bitbucket-ref` is omitted. |
+| Directory listings | Lists repository directory contents page by page with `pagelen=100`. Picket walks returned `commit_directory` entries instead of relying on `max_depth`. |
+| Raw repository files | Downloads raw bytes for returned `commit_file` entries. |
+
+Bitbucket source safety rules:
+
+- Endpoint safety checks run before the first request.
+- Redirects are disabled before credentials are sent.
+- Responses from injected HTTP handlers that already followed a redirect are rejected.
+- Retryable throttling and service responses are retried once with bounded `Retry-After` backoff.
+- Bitbucket directory pagination follows the `next` response field and stops at a 1,000-page safety limit per paged list with a warning.
+- Remote downloads use a 100 decimal MB default cap.
+- Provider metadata JSON responses are capped at 10 decimal MB and skipped with a warning when the cap is exceeded.
+- A positive `--max-target-megabytes` value overrides the default remote cap.
+- Zero keeps its local-scan compatibility meaning, but remote Bitbucket sources reject zero because remote HTTP bodies are always bounded.
+- Oversized directory entries are skipped before download when Bitbucket returns a size.
+- Pull requests, downloads, pipelines, artifacts, snippets, workspaces, projects, and Bitbucket Data Center/Server remain planned explicit source selectors.
+
+Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository enumeration requires read-only repository access for repository metadata, source directory listings, and raw source file content. For OAuth-style tokens, Bitbucket documents the `repository` scope. For API tokens, Bitbucket documents `read:repository:bitbucket`.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 

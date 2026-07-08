@@ -235,6 +235,21 @@ tree enumeration with `per_page=1000`, and the raw repository file endpoint for
 selected file bytes. Tokens are read from environment variables, sent as
 `Authorization: token ...`, and are not logged.
 
+## Bitbucket Source References
+
+Native Bitbucket Cloud repository source enumeration is based on Atlassian
+Bitbucket Cloud REST API documentation reviewed on 2026-07-08:
+
+- Bitbucket Cloud REST API: `https://developer.atlassian.com/cloud/bitbucket/rest/`
+- Bitbucket source API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/`
+- Bitbucket repository API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/`
+
+Picket uses Bitbucket repository metadata to resolve the main branch, paged
+source directory listings with `pagelen=100`, explicit directory walking instead
+of the `max_depth` parameter, and raw source file responses for selected file
+bytes. Bearer tokens and app passwords are read from environment variables and
+are not logged.
+
 ## Azure DevOps Source References
 
 Native Azure DevOps repository, wiki, build artifact, build log, and release

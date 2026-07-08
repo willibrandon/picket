@@ -15,6 +15,13 @@ internal static partial class Program
         GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
         TimeSpan? minimumRequestInterval = null;
         TimeSpan? minimumRequestIntervalPerProvider = null;
+        Uri? bitbucketApiEndpoint = null;
+        BitbucketCredentialKind bitbucketCredentialKind = BitbucketCredentialKind.BearerToken;
+        bool bitbucketOptionSpecified = false;
+        string bitbucketRef = string.Empty;
+        string bitbucketRepository = string.Empty;
+        string? bitbucketTokenEnvironmentVariable = null;
+        string? bitbucketUsernameEnvironmentVariable = null;
         AzureDevOpsCredentialKind azureDevOpsCredentialKind = AzureDevOpsCredentialKind.PersonalAccessToken;
         Uri? azureDevOpsEndpoint = null;
         string? azureDevOpsOrganization = null;
@@ -336,6 +343,74 @@ internal static partial class Program
                 }
 
                 githubSourceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketRepositoryFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-repository", out string? repository))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketRepository = repository;
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketRefFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-ref", out string? gitRef))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketRef = gitRef;
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-token-env", out bitbucketTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketUsernameEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-username-env", out bitbucketUsernameEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketTokenKindFlag(arg))
+            {
+                if (!TryReadBitbucketCredentialKindFlag(args, ref i, out bitbucketCredentialKind))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketApiEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--bitbucket-api-endpoint", out bitbucketApiEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketOptionSpecified = true;
                 continue;
             }
 
@@ -974,7 +1049,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -989,6 +1064,7 @@ internal static partial class Program
         int sourceProviderCount = 0;
         sourceProviderCount += azureBlobOptionSpecified ? 1 : 0;
         sourceProviderCount += azureDevOpsOptionSpecified ? 1 : 0;
+        sourceProviderCount += bitbucketOptionSpecified ? 1 : 0;
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
         sourceProviderCount += gcsOptionSpecified ? 1 : 0;
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
@@ -1001,7 +1077,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || gcsOptionSpecified || githubSourceOptionSpecified || giteaOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
+        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || bitbucketOptionSpecified || gcsOptionSpecified || githubSourceOptionSpecified || giteaOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
             && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
@@ -1023,6 +1099,21 @@ internal static partial class Program
                 azureBlobPrefix,
                 azureBlobTokenEnvironmentVariable,
                 azureBlobCredentialKind,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (bitbucketOptionSpecified
+            && !TryCreateBitbucketSourceProvider(
+                bitbucketApiEndpoint,
+                bitbucketRepository,
+                bitbucketRef,
+                bitbucketTokenEnvironmentVariable,
+                bitbucketUsernameEnvironmentVariable,
+                bitbucketCredentialKind,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

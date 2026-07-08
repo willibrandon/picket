@@ -460,6 +460,42 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this GitLab API endpoint for native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--bitbucket-repository</code></td>
+              <td data-label="Value"><code>workspace/repo</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Bitbucket repository through native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-ref</code></td>
+              <td data-label="Value"><code>ref</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Bitbucket branch, tag, or commit.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Bitbucket source enumeration token or app password from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-username-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Bitbucket username for app-password authentication from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-token-kind</code></td>
+              <td data-label="Value"><code>kind</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose bearer-token authentication or app-password basic authentication for Bitbucket requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Bitbucket Cloud API endpoint for native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--azure-blob-endpoint</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
