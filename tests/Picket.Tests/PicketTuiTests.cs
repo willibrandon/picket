@@ -479,6 +479,25 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that selected toggle choices do not change color when the field receives focus.
+    /// </summary>
+    [TestMethod]
+    public void PaletteKeepsToggleSelectionColorStableWhenFocused()
+    {
+        Hex1bTheme theme = PicketTuiPalette.CreateTheme();
+
+        Assert.AreEqual(
+            theme.Get(ToggleSwitchTheme.UnfocusedSelectedBackgroundColor),
+            theme.Get(ToggleSwitchTheme.FocusedSelectedBackgroundColor));
+        Assert.AreEqual(
+            theme.Get(ToggleSwitchTheme.UnfocusedSelectedForegroundColor),
+            theme.Get(ToggleSwitchTheme.FocusedSelectedForegroundColor));
+        Assert.AreEqual(
+            PicketTuiPalette.PrimaryActionBackground,
+            theme.Get(TabBarTheme.SelectedBackgroundColor));
+    }
+
+    /// <summary>
     /// Verifies that yanking briefly flashes the focused row before leaving only the footer notification.
     /// </summary>
     [TestMethod]
@@ -936,18 +955,43 @@ public sealed class PicketTuiTests
 
     private static async Task<CliResult> RunTuiCliAsync(params string[] arguments)
     {
+        string repositoryRoot = FindRepositoryRoot();
+        using TempDirectory outputRoot = TempDirectory.Create();
+        string outputPath = Path.Combine(outputRoot.Path, "picket-tui-cli");
+
+        CliResult build = await RunProcessAsync(
+            "dotnet",
+            [
+                "build",
+                Path.Combine("src", "Picket.Tui.Cli", "Picket.Tui.Cli.csproj"),
+                "--no-restore",
+                "--output",
+                outputPath,
+            ],
+            repositoryRoot).ConfigureAwait(false);
+
+        if (build.ExitCode != 0)
+        {
+            return build;
+        }
+
+        string executablePath = Path.Combine(outputPath, OperatingSystem.IsWindows() ? "picket-tui.exe" : "picket-tui");
+        return await RunProcessAsync(executablePath, arguments, repositoryRoot).ConfigureAwait(false);
+    }
+
+    private static async Task<CliResult> RunProcessAsync(
+        string fileName,
+        string[] arguments,
+        string workingDirectory)
+    {
         using var process = new Process();
-        process.StartInfo = new ProcessStartInfo("dotnet")
+        process.StartInfo = new ProcessStartInfo(fileName)
         {
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
-            WorkingDirectory = FindRepositoryRoot(),
+            WorkingDirectory = workingDirectory,
         };
-        process.StartInfo.ArgumentList.Add("run");
-        process.StartInfo.ArgumentList.Add("--project");
-        process.StartInfo.ArgumentList.Add(Path.Combine("src", "Picket.Tui.Cli"));
-        process.StartInfo.ArgumentList.Add("--");
         for (int i = 0; i < arguments.Length; i++)
         {
             process.StartInfo.ArgumentList.Add(arguments[i]);
