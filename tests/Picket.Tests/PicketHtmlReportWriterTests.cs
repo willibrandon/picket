@@ -54,10 +54,13 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("<span>Findings</span><strong>1</strong>", html);
         Assert.Contains("<span>Rules</span><strong>1</strong>", html);
         Assert.Contains("<span>Files</span><strong>1</strong>", html);
-        Assert.Contains(".metadata-cell{min-width:220px}", html);
+        Assert.Contains(".findings-table{min-width:1680px}.rules-table{min-width:1360px}", html);
+        Assert.Contains(".metadata-cell{min-width:320px}", html);
+        Assert.Contains(".metadata-item{display:grid;grid-template-columns:minmax(88px,max-content) minmax(176px,1fr)", html);
         Assert.Contains(".metadata dt{margin:0;color:#596052;white-space:nowrap}", html);
-        Assert.Contains("<div class=\"table-wrap\"><table>", html);
-        Assert.Contains("<td class=\"metadata-cell\"><dl class=\"metadata\">", html);
+        Assert.Contains("<div class=\"table-wrap\"><table class=\"findings-table\">", html);
+        Assert.Contains("<div class=\"table-wrap\"><table class=\"rules-table\">", html);
+        Assert.Contains("<td class=\"metadata-cell\"><dl class=\"metadata\"><div class=\"metadata-item\">", html);
         Assert.Contains("<td class=\"tags-cell\">", html);
         Assert.Contains("rule&lt;script&gt;", html);
         Assert.Contains("A &lt;test&gt; &quot;rule&quot;", html);
