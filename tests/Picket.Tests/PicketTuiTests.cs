@@ -619,7 +619,7 @@ public sealed class PicketTuiTests
             .WaitUntil(s => s.ContainsText("Findings"), TimeSpan.FromSeconds(5), "findings to render")
             .Key(Hex1bKey.G)
             .Key(Hex1bKey.S)
-            .WaitUntil(s => s.ContainsText("Command equivalent"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .WaitUntil(s => s.ContainsText("Scan request"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -637,6 +637,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
         Assert.Contains("Use g f to review", screenText);
+        Assert.Contains("Scan request", screenText);
         Assert.Contains("Last run: not run yet", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("g s scan", screenText);
@@ -672,7 +673,7 @@ public sealed class PicketTuiTests
         Assert.AreEqual(0, exitCode);
         Assert.Contains("Command equivalent", screenText);
         Assert.Contains("picket scan", screenText);
-        Assert.Contains("Options", screenText);
+        Assert.Contains("Edit", screenText);
         Assert.Contains("Target", screenText);
         Assert.Contains("Output", screenText);
         Assert.Contains("Rules", screenText);
