@@ -619,7 +619,7 @@ public sealed class PicketTuiTests
             .WaitUntil(s => s.ContainsText("Findings"), TimeSpan.FromSeconds(5), "findings to render")
             .Key(Hex1bKey.G)
             .Key(Hex1bKey.S)
-            .WaitUntil(s => s.ContainsText("Setup"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .WaitUntil(s => s.ContainsText("Source"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -636,8 +636,8 @@ public sealed class PicketTuiTests
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
-        Assert.Contains("Use g f to review", screenText);
-        Assert.Contains("Setup", screenText);
+        Assert.DoesNotContain("Use g f to review", screenText);
+        Assert.Contains("Source", screenText);
         Assert.Contains("Last run: not run yet", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("g s scan", screenText);
@@ -672,9 +672,8 @@ public sealed class PicketTuiTests
 
         Assert.AreEqual(0, exitCode);
         Assert.Contains("picket scan", screenText);
-        Assert.Contains("Setup", screenText);
-        Assert.Contains("Section", screenText);
         Assert.Contains("Target", screenText);
+        Assert.Contains("Source", screenText);
         Assert.Contains("Output", screenText);
         Assert.Contains("Rules", screenText);
         Assert.Contains("Limits", screenText);
@@ -682,10 +681,10 @@ public sealed class PicketTuiTests
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
-        Assert.Contains("Use g f to review", screenText);
+        Assert.DoesNotContain("Use g f to review", screenText);
         Assert.Contains("Last run: not run yet", screenText);
-        Assert.DoesNotContain("Redact", screenText);
-        Assert.DoesNotContain("Max MB", screenText);
+        Assert.Contains("Redact", screenText);
+        Assert.Contains("Max MB", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("src/auth.cs", screenText);
         Assert.DoesNotContain("g s scan", screenText);
@@ -700,7 +699,6 @@ public sealed class PicketTuiTests
     {
         PicketTuiState state = CreateState();
         state.SetView(PicketTuiView.Scan);
-        state.ScanWorkspace.SetScanSection(1);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
 
@@ -728,7 +726,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Profile", screenText);
         Assert.Contains("Config", screenText);
         Assert.Contains("Ignore", screenText);
-        Assert.DoesNotContain("Max MB", screenText);
+        Assert.Contains("Max MB", screenText);
     }
 
     /// <summary>
@@ -740,7 +738,6 @@ public sealed class PicketTuiTests
     {
         PicketTuiState state = CreateState();
         state.SetView(PicketTuiView.Scan);
-        state.ScanWorkspace.SetScanSection(2);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
 
@@ -760,13 +757,13 @@ public sealed class PicketTuiTests
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("Rules and filters", screenText);
+        Assert.Contains("Rules", screenText);
         Assert.Contains("No ignore", screenText);
         Assert.Contains("Only valid", screenText);
         Assert.Contains("Results", screenText);
         Assert.Contains("structurally-valid", screenText);
-        Assert.DoesNotContain("Redact", screenText);
-        Assert.DoesNotContain("Max MB", screenText);
+        Assert.Contains("Redact", screenText);
+        Assert.Contains("Max MB", screenText);
     }
 
     /// <summary>
@@ -778,7 +775,6 @@ public sealed class PicketTuiTests
     {
         PicketTuiState state = CreateState();
         state.SetView(PicketTuiView.Scan);
-        state.ScanWorkspace.SetScanSection(3);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
 
@@ -805,7 +801,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Archive MB", screenText);
         Assert.Contains("Ratio", screenText);
         Assert.Contains("Timeout", screenText);
-        Assert.DoesNotContain("Redact", screenText);
+        Assert.Contains("Redact", screenText);
     }
 
     /// <summary>
@@ -926,7 +922,7 @@ public sealed class PicketTuiTests
         string findingsText = findingsSnapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("Use g f to review", screenText);
+        Assert.DoesNotContain("Use g f to review", screenText);
         Assert.Contains("Started:", screenText);
         Assert.Contains("Completed:", screenText);
         Assert.Contains("Elapsed:", screenText);

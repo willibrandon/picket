@@ -18,7 +18,6 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_githubRepositoryTypes = ["all", "public", "private", "forks", "sources", "owner", "member"];
     private static readonly string[] s_reportFormats = ["jsonl", "json", "sarif", "html", "csv", "junit", "gitlab", "toon"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
-    private static readonly string[] s_scanSectionLabels = ["Target", "Output", "Rules", "Limits"];
     private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
@@ -59,11 +58,6 @@ internal sealed class PicketTuiScanWorkspace
     internal static IReadOnlyList<string> ResultFilters => s_resultFilters;
 
     /// <summary>
-    /// Gets the selectable scan workspace sections.
-    /// </summary>
-    internal static IReadOnlyList<string> ScanSectionLabels => s_scanSectionLabels;
-
-    /// <summary>
     /// Gets the selectable target mode labels.
     /// </summary>
     internal static IReadOnlyList<string> TargetModeLabels => s_targetModeLabels;
@@ -72,11 +66,6 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selected scan target mode.
     /// </summary>
     internal PicketTuiScanTargetMode TargetMode { get; private set; }
-
-    /// <summary>
-    /// Gets the active scan workspace section.
-    /// </summary>
-    internal PicketTuiScanSection ScanSection { get; private set; }
 
     /// <summary>
     /// Gets the local filesystem path to scan.
@@ -442,18 +431,6 @@ internal sealed class PicketTuiScanWorkspace
     };
 
     /// <summary>
-    /// Gets the selected scan workspace section index.
-    /// </summary>
-    internal int ScanSectionIndex => ScanSection switch
-    {
-        PicketTuiScanSection.Target => 0,
-        PicketTuiScanSection.Output => 1,
-        PicketTuiScanSection.Rules => 2,
-        PicketTuiScanSection.Limits => 3,
-        _ => 0,
-    };
-
-    /// <summary>
     /// Gets the selected GitHub issue state index.
     /// </summary>
     internal int GitHubIssueStateIndex => IndexOf(s_githubIssueStates, GitHubIssueState);
@@ -489,21 +466,6 @@ internal sealed class PicketTuiScanWorkspace
             1 => PicketTuiScanTargetMode.GitHub,
             2 => PicketTuiScanTargetMode.AzureDevOps,
             _ => PicketTuiScanTargetMode.Local,
-        };
-    }
-
-    /// <summary>
-    /// Sets the active scan workspace section by index.
-    /// </summary>
-    /// <param name="index">The scan section index.</param>
-    internal void SetScanSection(int index)
-    {
-        ScanSection = index switch
-        {
-            1 => PicketTuiScanSection.Output,
-            2 => PicketTuiScanSection.Rules,
-            3 => PicketTuiScanSection.Limits,
-            _ => PicketTuiScanSection.Target,
         };
     }
 
