@@ -10,12 +10,14 @@ namespace Picket.Verify;
 public sealed class GitHubSecretLiveValidatorOptions
 {
     private const int DefaultMaxResponseBytes = 65_536;
+    private static readonly TimeSpan s_defaultResponseBodyReadTimeout = TimeSpan.FromSeconds(10);
 
     private EndpointGuardOptions _endpointGuardOptions = EndpointGuardOptions.CreateDefault();
     private Func<string, CancellationToken, ValueTask<IPAddress[]>>? _addressResolver;
     private Func<HttpMessageHandler>? _messageHandlerFactory;
     private int _maxResponseBytes = DefaultMaxResponseBytes;
     private int _maxRetryAttempts = 1;
+    private TimeSpan _responseBodyReadTimeout = s_defaultResponseBodyReadTimeout;
     private TimeSpan _retryDelay = TimeSpan.FromMilliseconds(250);
     private TimeSpan _timeout = TimeSpan.FromSeconds(10);
     private Uri? _proxyEndpoint;
@@ -96,6 +98,19 @@ public sealed class GitHubSecretLiveValidatorOptions
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
             _maxResponseBytes = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum time spent draining the bounded provider response body.
+    /// </summary>
+    public TimeSpan ResponseBodyReadTimeout
+    {
+        get => _responseBodyReadTimeout;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
+            _responseBodyReadTimeout = value;
         }
     }
 

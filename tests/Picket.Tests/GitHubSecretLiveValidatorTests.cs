@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Verify;
+using System.Diagnostics;
 using System.Net;
 using System.Reflection;
 using System.Security.Authentication;
@@ -151,6 +152,36 @@ public sealed class GitHubSecretLiveValidatorTests
         Assert.Contains("retryAttempts=1", result.Evidence);
         Assert.IsFalse(result.IsPersistentCacheable);
         Assert.AreEqual(2, handler.RequestCount);
+    }
+
+    /// <summary>
+    /// Verifies that a response body that stalls after headers is bounded even when no caller timeout is provided.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncResponseBodyStallsReturnsErrorWithinBound()
+    {
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new StallingReadStream()),
+        });
+        GitHubSecretLiveValidator validator = CreateValidator(
+            handler,
+            options =>
+            {
+                options.MaxRetryAttempts = 0;
+                options.ResponseBodyReadTimeout = TimeSpan.FromMilliseconds(100);
+            });
+        Stopwatch stopwatch = Stopwatch.StartNew();
+
+        SecretValidationResult result = await validator.VerifyAsync(CreateFinding(), TestContext.CancellationToken);
+
+        stopwatch.Stop();
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.Contains("timed out", result.Reason);
+        Assert.IsFalse(result.IsPersistentCacheable);
+        Assert.IsLessThan(2_000, stopwatch.ElapsedMilliseconds);
+        Assert.AreEqual(1, handler.RequestCount);
     }
 
     /// <summary>

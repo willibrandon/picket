@@ -272,13 +272,15 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
             return string.Empty;
         }
 
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using CancellationTokenSource readTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        readTimeout.CancelAfter(_options.ResponseBodyReadTimeout);
+        using Stream stream = await response.Content.ReadAsStreamAsync(readTimeout.Token).ConfigureAwait(false);
         byte[] buffer = new byte[Math.Min(_options.MaxResponseBytes, 4096)];
         int remaining = _options.MaxResponseBytes;
         using var output = new MemoryStream(Math.Min(_options.MaxResponseBytes, 4096));
         while (remaining > 0)
         {
-            int read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)), cancellationToken).ConfigureAwait(false);
+            int read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)), readTimeout.Token).ConfigureAwait(false);
             if (read == 0)
             {
                 break;
