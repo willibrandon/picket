@@ -583,18 +583,18 @@ public sealed class PicketTuiTests
 
         int exitCode = await runTask.ConfigureAwait(false);
         string[] lines = snapshot.GetScreenText().Split('\n');
-        int rowY = Array.FindIndex(lines, line => line.Contains("github-token", StringComparison.Ordinal)
-            && line.Contains("src/auth.cs", StringComparison.Ordinal));
+        int rowY = Array.FindIndex(lines, line => line.Contains('>')
+            && line.Contains("github-token", StringComparison.Ordinal));
         Assert.AreEqual(0, exitCode);
         Assert.IsGreaterThanOrEqualTo(0, rowY);
 
         int textX = lines[rowY].IndexOf("github-token", StringComparison.Ordinal);
-        int nextRowY = Array.FindIndex(lines, line => line.Contains("fp-auth-2", StringComparison.Ordinal));
+        int nextRowY = Array.FindIndex(lines, line => line.Contains("src/auth.cs:18", StringComparison.Ordinal));
         Assert.IsGreaterThanOrEqualTo(0, textX);
         Assert.IsGreaterThanOrEqualTo(0, nextRowY);
 
         TerminalCell textCell = snapshot.GetCell(textX, rowY);
-        TerminalCell nextRowCell = snapshot.GetCell(lines[nextRowY].IndexOf("fp-auth-2", StringComparison.Ordinal), nextRowY);
+        TerminalCell nextRowCell = snapshot.GetCell(lines[nextRowY].IndexOf("src/auth.cs:18", StringComparison.Ordinal), nextRowY);
 
         Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, textCell.Foreground);
         Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, textCell.Background);

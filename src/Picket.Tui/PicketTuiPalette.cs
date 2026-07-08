@@ -21,9 +21,9 @@ internal static class PicketTuiPalette
     private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(88, 96, 105);
     private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(255, 224, 130);
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 138, 138);
-    private static readonly Hex1bColor s_focusBackground = Hex1bColor.White;
+    private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(102, 204, 255);
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(52, 111, 143);
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(44, 116, 154);
     private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.FromRgb(244, 244, 244);
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(244, 244, 244);
     private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(132, 180, 255);
@@ -144,14 +144,14 @@ internal static class PicketTuiPalette
             .Set(ButtonTheme.FocusedForegroundColor, FocusForeground)
             .Set(ButtonTheme.HoveredBackgroundColor, FocusBackground)
             .Set(ButtonTheme.HoveredForegroundColor, FocusForeground)
-            .Set(InfoBarTheme.BackgroundColor, Foreground)
-            .Set(InfoBarTheme.ForegroundColor, PanelBackground)
+            .Set(InfoBarTheme.BackgroundColor, PanelBackground)
+            .Set(InfoBarTheme.ForegroundColor, Foreground)
             .Set(ListTheme.BackgroundColor, Background)
             .Set(ListTheme.ForegroundColor, Foreground)
-            .Set(ListTheme.SelectedBackgroundColor, FocusBackground)
-            .Set(ListTheme.SelectedForegroundColor, FocusForeground)
-            .Set(ListTheme.HoveredBackgroundColor, FocusBackground)
-            .Set(ListTheme.HoveredForegroundColor, FocusForeground)
+            .Set(ListTheme.SelectedBackgroundColor, FocusedRowBackground)
+            .Set(ListTheme.SelectedForegroundColor, FocusedRowForeground)
+            .Set(ListTheme.HoveredBackgroundColor, FocusedRowBackground)
+            .Set(ListTheme.HoveredForegroundColor, FocusedRowForeground)
             .Set(MenuBarTheme.BackgroundColor, Foreground)
             .Set(MenuBarTheme.ForegroundColor, FocusForeground)
             .Set(MenuBarTheme.FocusedBackgroundColor, Background)
