@@ -80,6 +80,8 @@ Repository tree enumeration follows GitLab pagination while `X-Next-Page` or a `
 
 Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes` overrides that cap with a positive value. Zero keeps its local-scan compatibility meaning, but remote GitLab sources reject zero because remote HTTP bodies are always bounded.
 
+Provider metadata JSON responses are separately capped at 10 decimal MB and skipped with a warning when the cap is exceeded, including responses without a reliable `Content-Length`.
+
 Oversized tree entries are skipped before download when GitLab returns a size.
 
 ## Redirect And Credential Safety

@@ -37,40 +37,47 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        if (options.MergeRequestIid != 0)
+        try
         {
-            (bool shouldScan, GitLabSourceOptions sourceOptions, string sourceRef) = await ResolveMergeRequestSourceAsync(
-                options,
-                cancellationToken).ConfigureAwait(false);
-            if (!shouldScan)
+            if (options.MergeRequestIid != 0)
             {
+                (bool shouldScan, GitLabSourceOptions sourceOptions, string sourceRef) = await ResolveMergeRequestSourceAsync(
+                    options,
+                    cancellationToken).ConfigureAwait(false);
+                if (!shouldScan)
+                {
+                    return sourceFiles;
+                }
+
+                await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceFiles, cancellationToken).ConfigureAwait(false);
                 return sourceFiles;
             }
 
-            await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceFiles, cancellationToken).ConfigureAwait(false);
-            return sourceFiles;
-        }
-
-        string gitRef = options.Ref;
-        bool hasRepositoryFiles = true;
-        if (gitRef.Length == 0)
-        {
-            gitRef = await ReadDefaultBranchAsync(options, cancellationToken).ConfigureAwait(false);
+            string gitRef = options.Ref;
+            bool hasRepositoryFiles = true;
             if (gitRef.Length == 0)
             {
-                options.WarningSink?.Invoke($"skipping GitLab project {options.Project} because it does not have a default branch");
-                hasRepositoryFiles = false;
+                gitRef = await ReadDefaultBranchAsync(options, cancellationToken).ConfigureAwait(false);
+                if (gitRef.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping GitLab project {options.Project} because it does not have a default branch");
+                    hasRepositoryFiles = false;
+                }
+            }
+
+            if (hasRepositoryFiles)
+            {
+                await AddRepositoryFilesAsync(options, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeSnippets && !IsCancellationRequested(options))
+            {
+                await AddProjectSnippetFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
         }
-
-        if (hasRepositoryFiles)
+        catch (RemoteMetadataTooLargeException)
         {
-            await AddRepositoryFilesAsync(options, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (options.IncludeSnippets && !IsCancellationRequested(options))
-        {
-            await AddProjectSnippetFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            return sourceFiles;
         }
 
         return sourceFiles;
@@ -94,23 +101,30 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        int page = 1;
-        bool hasNextPage;
-        do
+        try
         {
-            Uri groupProjectsUri = CreateGroupProjectsUri(options, page);
-            using HttpResponseMessage groupProjectsResponse = await SendAsync(options, groupProjectsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
-            if (!groupProjectsResponse.IsSuccessStatusCode)
+            int page = 1;
+            bool hasNextPage;
+            do
             {
-                options.WarningSink?.Invoke($"skipping GitLab group {options.Group} projects because GitLab returned {((int)groupProjectsResponse.StatusCode).ToString(CultureInfo.InvariantCulture)} {groupProjectsResponse.StatusCode}");
-                return sourceFiles;
-            }
+                Uri groupProjectsUri = CreateGroupProjectsUri(options, page);
+                using HttpResponseMessage groupProjectsResponse = await SendAsync(options, groupProjectsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+                if (!groupProjectsResponse.IsSuccessStatusCode)
+                {
+                    options.WarningSink?.Invoke($"skipping GitLab group {options.Group} projects because GitLab returned {((int)groupProjectsResponse.StatusCode).ToString(CultureInfo.InvariantCulture)} {groupProjectsResponse.StatusCode}");
+                    return sourceFiles;
+                }
 
-            await AddGroupProjectFilesAsync(options, groupProjectsResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(groupProjectsResponse, page, options.WarningSink, $"GitLab group {options.Group} project enumeration");
-            page++;
+                await AddGroupProjectFilesAsync(options, groupProjectsResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+                hasNextPage = HasNextPage(groupProjectsResponse, page, options.WarningSink, $"GitLab group {options.Group} project enumeration");
+                page++;
+            }
+            while (hasNextPage && !IsCancellationRequested(options));
         }
-        while (hasNextPage && !IsCancellationRequested(options));
+        catch (RemoteMetadataTooLargeException)
+        {
+            return sourceFiles;
+        }
 
         return sourceFiles;
     }
@@ -122,8 +136,7 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         Uri uri = CreateMergeRequestUri(options);
         using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         JsonElement root = document.RootElement;
         string sourceRef = GetNestedString(root, "diff_refs", "head_sha");
         if (sourceRef.Length == 0)
@@ -168,8 +181,7 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -234,8 +246,7 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -275,8 +286,7 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         Uri uri = CreateProjectUri(options);
         using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         return GetString(document.RootElement, "default_branch");
     }
 
@@ -312,8 +322,7 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;

@@ -187,6 +187,56 @@ public sealed class GitHubSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that oversized repository metadata responses are skipped instead of parsed.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesSkipsOversizedMetadataResponse()
+    {
+        const string Token = "github-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(_ => OversizedJsonMetadataResponse()));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("remote metadata response reported 10000001 bytes", warnings[0]);
+        Assert.Contains("metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that oversized streaming metadata responses are capped even when no content length is available.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesSkipsOversizedStreamingMetadataResponse()
+    {
+        const string Token = "github-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(_ => OversizedStreamingJsonMetadataResponse()));
+        var client = new GitHubSourceClient(httpClient);
+        var options = new GitHubSourceOptions(
+            GitHubSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("GitHub source metadata", warnings[0]);
+        Assert.Contains("remote metadata response exceeded the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration reads the recursive tree and downloads raw blob content.
     /// </summary>
     [TestMethod]
@@ -1319,6 +1369,27 @@ public sealed class GitHubSourceClientTests
         {
             Content = new ByteArrayContent(value),
         };
+    }
+
+    private static HttpResponseMessage OversizedJsonMetadataResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent([]),
+        };
+        response.Content.Headers.ContentLength = 10_000_001;
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        return response;
+    }
+
+    private static HttpResponseMessage OversizedStreamingJsonMetadataResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new RepeatingReadStream(10_000_001, (byte)' ')),
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        return response;
     }
 
     private static HttpResponseMessage AutoRedirectedBytesResponse(string value, string redirectedUri)

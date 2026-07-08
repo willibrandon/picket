@@ -13,6 +13,12 @@ public sealed partial class RepositoryConventionTests
 {
     private static readonly string[] s_fileBasedAppDirectories = ["scripts", ".github/actions"];
     private static readonly string[] s_portableTextRoots = ["AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "azure-devops", "src", "tests"];
+    private static readonly string[] s_remoteSourceClientFiles =
+    [
+        "src/Picket.Sources/AzureDevOpsSourceClient.cs",
+        "src/Picket.Sources/GitHubSourceClient.cs",
+        "src/Picket.Sources/GitLabSourceClient.cs",
+    ];
     private static readonly SemaphoreSlim s_fileBasedAppBuildLock = new(1, 1);
     private static readonly Regex s_typeDeclarationPattern = CreateTypeDeclarationPattern();
 
@@ -705,6 +711,24 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that remote source clients use the bounded metadata JSON reader.
+    /// </summary>
+    [TestMethod]
+    public void RemoteSourceClientsUseBoundedMetadataJsonReader()
+    {
+        foreach (string file in s_remoteSourceClientFiles)
+        {
+            string source = ReadRepositoryFile(file);
+            Assert.DoesNotContain("JsonDocument.ParseAsync", source);
+            Assert.Contains("RemoteJsonDocumentReader.ReadAsync", source);
+        }
+
+        string reader = ReadRepositoryFile("src/Picket.Sources/RemoteJsonDocumentReader.cs");
+        Assert.Contains("DefaultMaxMetadataBytes = 10_000_000", reader);
+        Assert.Contains("CappedReadStream", reader);
+    }
+
+    /// <summary>
     /// Verifies that required v1 documentation deliverables exist and cover their contracts.
     /// </summary>
     [TestMethod]
@@ -976,7 +1000,7 @@ public sealed partial class RepositoryConventionTests
         string workflow = ReadRepositoryFile(".github/workflows/docs.yml");
         string normalizedWorkflow = workflow.ReplaceLineEndings("\n");
 
-        Assert.AreEqual(1, Regex.Count(normalizedWorkflow, "pages: write"));
+        Assert.AreEqual(1, PagesWritePattern().Count(normalizedWorkflow));
         Assert.Contains("deploy:\n    name: Deploy docs", normalizedWorkflow);
         Assert.Contains("permissions:\n      pages: write\n      id-token: write", normalizedWorkflow);
         Assert.DoesNotContain("build:\n    name: Build docs\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      pages: write", normalizedWorkflow);
@@ -1507,6 +1531,9 @@ public sealed partial class RepositoryConventionTests
         @"^\s*(?:(?:public|internal|private|protected|file)\s+)*(?:(?:abstract|sealed|static|partial|readonly|ref|unsafe)\s+)*(?:record\s+)?(?:class|struct|interface|enum|delegate)\s+",
         RegexOptions.Multiline | RegexOptions.CultureInvariant)]
     private static partial Regex CreateTypeDeclarationPattern();
+
+    [GeneratedRegex("pages: write", RegexOptions.CultureInvariant)]
+    private static partial Regex PagesWritePattern();
 
     private static string FindRepositoryRoot()
     {

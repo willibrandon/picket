@@ -43,50 +43,57 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        if (options.PullRequestNumber != 0)
+        try
         {
-            (bool shouldScan, GitHubSourceOptions sourceOptions, string sourceRef) = await ResolvePullRequestSourceAsync(
-                options,
-                cancellationToken).ConfigureAwait(false);
-            if (!shouldScan)
+            if (options.PullRequestNumber != 0)
             {
+                (bool shouldScan, GitHubSourceOptions sourceOptions, string sourceRef) = await ResolvePullRequestSourceAsync(
+                    options,
+                    cancellationToken).ConfigureAwait(false);
+                if (!shouldScan)
+                {
+                    return sourceFiles;
+                }
+
+                await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
                 return sourceFiles;
             }
 
-            await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
-            return sourceFiles;
-        }
-
-        string gitRef = options.Ref;
-        bool hasRepositoryFiles = true;
-        if (gitRef.Length == 0)
-        {
-            gitRef = await ReadDefaultBranchAsync(options, cancellationToken).ConfigureAwait(false);
+            string gitRef = options.Ref;
+            bool hasRepositoryFiles = true;
             if (gitRef.Length == 0)
             {
-                options.WarningSink?.Invoke($"skipping GitHub repository {options.Repository} because it does not have a default branch");
-                hasRepositoryFiles = false;
+                gitRef = await ReadDefaultBranchAsync(options, cancellationToken).ConfigureAwait(false);
+                if (gitRef.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping GitHub repository {options.Repository} because it does not have a default branch");
+                    hasRepositoryFiles = false;
+                }
+            }
+
+            if (hasRepositoryFiles)
+            {
+                await AddRepositoryFilesAsync(options, gitRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeIssues && !IsCancellationRequested(options))
+            {
+                await AddRepositoryIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeReleases && !IsCancellationRequested(options))
+            {
+                await AddRepositoryReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
+            {
+                await AddRepositoryActionArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
         }
-
-        if (hasRepositoryFiles)
+        catch (RemoteMetadataTooLargeException)
         {
-            await AddRepositoryFilesAsync(options, gitRef, sourceFiles, failOnTreeError: true, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (options.IncludeIssues && !IsCancellationRequested(options))
-        {
-            await AddRepositoryIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (options.IncludeReleases && !IsCancellationRequested(options))
-        {
-            await AddRepositoryReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
-        {
-            await AddRepositoryActionArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            return sourceFiles;
         }
 
         return sourceFiles;
@@ -99,8 +106,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         Uri uri = CreatePullRequestUri(options);
         using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         string sourceSha = GetNestedString(document.RootElement, "head", "sha");
         if (sourceSha.Length == 0)
         {
@@ -143,57 +149,64 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        List<(string Name, string DefaultBranch)> repositories = await ListOrganizationRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
-        for (int i = 0; i < repositories.Count; i++)
+        try
         {
-            if (IsCancellationRequested(options))
+            List<(string Name, string DefaultBranch)> repositories = await ListOrganizationRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < repositories.Count; i++)
             {
-                break;
-            }
+                if (IsCancellationRequested(options))
+                {
+                    break;
+                }
 
-            (string name, string defaultBranch) = repositories[i];
-            string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
-            if (gitRef.Length == 0)
-            {
-                options.WarningSink?.Invoke($"skipping GitHub repository {options.Organization}/{name} because it does not have a default branch");
-            }
+                (string name, string defaultBranch) = repositories[i];
+                string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
+                if (gitRef.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping GitHub repository {options.Organization}/{name} because it does not have a default branch");
+                }
 
-            var repositoryOptions = new GitHubSourceOptions(
-                options.Endpoint,
-                string.Concat(options.Organization, "/", name),
-                options.Credential,
-                gitRef,
-                includeIssues: options.IncludeIssues,
-                issueState: options.IssueState,
-                includeReleases: options.IncludeReleases,
-                includeActionArtifacts: options.IncludeActionArtifacts,
-                maxFileBytes: options.MaxFileBytes,
-                maxArchiveDepth: options.MaxArchiveDepth,
-                maxArchiveEntries: options.MaxArchiveEntries,
-                maxArchiveBytes: options.MaxArchiveBytes,
-                maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
-                isPathAllowed: options.IsPathAllowed,
-                warningSink: options.WarningSink,
-                isCancellationRequested: options.IsCancellationRequested);
-            if (gitRef.Length != 0)
-            {
-                await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
-            }
+                var repositoryOptions = new GitHubSourceOptions(
+                    options.Endpoint,
+                    string.Concat(options.Organization, "/", name),
+                    options.Credential,
+                    gitRef,
+                    includeIssues: options.IncludeIssues,
+                    issueState: options.IssueState,
+                    includeReleases: options.IncludeReleases,
+                    includeActionArtifacts: options.IncludeActionArtifacts,
+                    maxFileBytes: options.MaxFileBytes,
+                    maxArchiveDepth: options.MaxArchiveDepth,
+                    maxArchiveEntries: options.MaxArchiveEntries,
+                    maxArchiveBytes: options.MaxArchiveBytes,
+                    maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
+                    isPathAllowed: options.IsPathAllowed,
+                    warningSink: options.WarningSink,
+                    isCancellationRequested: options.IsCancellationRequested);
+                if (gitRef.Length != 0)
+                {
+                    await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
+                }
 
-            if (options.IncludeIssues && !IsCancellationRequested(options))
-            {
-                await AddRepositoryIssueFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
+                if (options.IncludeIssues && !IsCancellationRequested(options))
+                {
+                    await AddRepositoryIssueFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
 
-            if (options.IncludeReleases && !IsCancellationRequested(options))
-            {
-                await AddRepositoryReleaseFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
+                if (options.IncludeReleases && !IsCancellationRequested(options))
+                {
+                    await AddRepositoryReleaseFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
 
-            if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
-            {
-                await AddRepositoryActionArtifactFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
+                {
+                    await AddRepositoryActionArtifactFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
             }
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
+            return sourceFiles;
         }
 
         return sourceFiles;
@@ -217,57 +230,64 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        List<(string Repository, string DefaultBranch)> repositories = await ListUserRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
-        for (int i = 0; i < repositories.Count; i++)
+        try
         {
-            if (IsCancellationRequested(options))
+            List<(string Repository, string DefaultBranch)> repositories = await ListUserRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < repositories.Count; i++)
             {
-                break;
-            }
+                if (IsCancellationRequested(options))
+                {
+                    break;
+                }
 
-            (string repository, string defaultBranch) = repositories[i];
-            string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
-            if (gitRef.Length == 0)
-            {
-                options.WarningSink?.Invoke($"skipping GitHub repository {repository} because it does not have a default branch");
-            }
+                (string repository, string defaultBranch) = repositories[i];
+                string gitRef = options.Ref.Length == 0 ? defaultBranch : options.Ref;
+                if (gitRef.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping GitHub repository {repository} because it does not have a default branch");
+                }
 
-            var repositoryOptions = new GitHubSourceOptions(
-                options.Endpoint,
-                repository,
-                options.Credential,
-                gitRef,
-                includeIssues: options.IncludeIssues,
-                issueState: options.IssueState,
-                includeReleases: options.IncludeReleases,
-                includeActionArtifacts: options.IncludeActionArtifacts,
-                maxFileBytes: options.MaxFileBytes,
-                maxArchiveDepth: options.MaxArchiveDepth,
-                maxArchiveEntries: options.MaxArchiveEntries,
-                maxArchiveBytes: options.MaxArchiveBytes,
-                maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
-                isPathAllowed: options.IsPathAllowed,
-                warningSink: options.WarningSink,
-                isCancellationRequested: options.IsCancellationRequested);
-            if (gitRef.Length != 0)
-            {
-                await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
-            }
+                var repositoryOptions = new GitHubSourceOptions(
+                    options.Endpoint,
+                    repository,
+                    options.Credential,
+                    gitRef,
+                    includeIssues: options.IncludeIssues,
+                    issueState: options.IssueState,
+                    includeReleases: options.IncludeReleases,
+                    includeActionArtifacts: options.IncludeActionArtifacts,
+                    maxFileBytes: options.MaxFileBytes,
+                    maxArchiveDepth: options.MaxArchiveDepth,
+                    maxArchiveEntries: options.MaxArchiveEntries,
+                    maxArchiveBytes: options.MaxArchiveBytes,
+                    maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
+                    isPathAllowed: options.IsPathAllowed,
+                    warningSink: options.WarningSink,
+                    isCancellationRequested: options.IsCancellationRequested);
+                if (gitRef.Length != 0)
+                {
+                    await AddRepositoryFilesAsync(repositoryOptions, gitRef, sourceFiles, failOnTreeError: false, cancellationToken).ConfigureAwait(false);
+                }
 
-            if (options.IncludeIssues && !IsCancellationRequested(options))
-            {
-                await AddRepositoryIssueFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
+                if (options.IncludeIssues && !IsCancellationRequested(options))
+                {
+                    await AddRepositoryIssueFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
 
-            if (options.IncludeReleases && !IsCancellationRequested(options))
-            {
-                await AddRepositoryReleaseFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
+                if (options.IncludeReleases && !IsCancellationRequested(options))
+                {
+                    await AddRepositoryReleaseFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
 
-            if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
-            {
-                await AddRepositoryActionArtifactFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
+                {
+                    await AddRepositoryActionArtifactFilesAsync(repositoryOptions, sourceFiles, cancellationToken).ConfigureAwait(false);
+                }
             }
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
+            return sourceFiles;
         }
 
         return sourceFiles;
@@ -292,13 +312,21 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        if (options.GistId.Length != 0)
+        try
         {
-            await AddGistFilesAsync(options, options.GistId, sourceFiles, cancellationToken).ConfigureAwait(false);
+            if (options.GistId.Length != 0)
+            {
+                await AddGistFilesAsync(options, options.GistId, sourceFiles, cancellationToken).ConfigureAwait(false);
+                return sourceFiles;
+            }
+
+            await AddPagedGistFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
             return sourceFiles;
         }
 
-        await AddPagedGistFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
         return sourceFiles;
     }
 
@@ -352,8 +380,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<(string Name, string DefaultBranch)> repositories,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -403,8 +430,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<(string Repository, string DefaultBranch)> repositories,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -438,8 +464,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         Uri uri = CreateRepositoryUri(options);
         using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         return GetString(document.RootElement, "default_branch");
     }
 
@@ -475,8 +500,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -522,8 +546,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Object)
         {
             return;
@@ -646,8 +669,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -680,8 +702,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (GetBoolean(document.RootElement, "truncated"))
         {
             options.WarningSink?.Invoke($"GitHub tree for {options.Repository} was truncated by the API");
@@ -776,8 +797,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -838,8 +858,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 return;
             }
 
-            using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
             if (document.RootElement.ValueKind == JsonValueKind.Array)
             {
                 await AddReleaseAssetFilesAsync(options, releaseTag, document.RootElement, sourceFiles, cancellationToken).ConfigureAwait(false);
@@ -934,8 +953,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!document.RootElement.TryGetProperty("artifacts", out JsonElement artifacts)
             || artifacts.ValueKind != JsonValueKind.Array)
         {
@@ -1028,8 +1046,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;
@@ -1094,8 +1111,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitHub source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
             return;

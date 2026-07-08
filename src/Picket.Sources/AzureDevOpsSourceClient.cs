@@ -36,71 +36,78 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)> repositories = await ListRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
-        for (int i = 0; i < repositories.Count; i++)
+        try
         {
-            if (IsCancellationRequested(options))
+            List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)> repositories = await ListRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < repositories.Count; i++)
             {
-                break;
+                if (IsCancellationRequested(options))
+                {
+                    break;
+                }
+
+                (string id, string name, string projectName, string defaultBranch, bool hasDefaultBranchMetadata) = repositories[i];
+                if (options.Repository.Length != 0
+                    && !name.Equals(options.Repository, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (projectName.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because its project name was not returned");
+                    continue;
+                }
+
+                if (options.PullRequestId == 0
+                    && options.Branch.Length == 0
+                    && hasDefaultBranchMetadata
+                    && defaultBranch.Length == 0)
+                {
+                    options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because it does not have a default branch");
+                    continue;
+                }
+
+                (bool shouldScan, string scanRepositoryId, string scanRepositoryName, string scanProjectName, string version, string versionType) = await ResolveRepositoryVersionAsync(
+                    options,
+                    id,
+                    name,
+                    projectName,
+                    cancellationToken).ConfigureAwait(false);
+                if (!shouldScan)
+                {
+                    continue;
+                }
+
+                await AddRepositoryFilesAsync(
+                    options,
+                    scanRepositoryId,
+                    scanRepositoryName,
+                    scanProjectName,
+                    version,
+                    versionType,
+                    sourceFiles,
+                    cancellationToken).ConfigureAwait(false);
             }
 
-            (string id, string name, string projectName, string defaultBranch, bool hasDefaultBranchMetadata) = repositories[i];
-            if (options.Repository.Length != 0
-                && !name.Equals(options.Repository, StringComparison.OrdinalIgnoreCase))
+            if (options.IncludeWikis && !IsCancellationRequested(options))
             {
-                continue;
+                await AddWikiFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
 
-            if (projectName.Length == 0)
+            if ((options.IncludeArtifacts || options.IncludeLogs) && !IsCancellationRequested(options))
             {
-                options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because its project name was not returned");
-                continue;
+                await AddBuildFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
 
-            if (options.PullRequestId == 0
-                && options.Branch.Length == 0
-                && hasDefaultBranchMetadata
-                && defaultBranch.Length == 0)
+            if (options.IncludeReleaseArtifacts && !IsCancellationRequested(options))
             {
-                options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because it does not have a default branch");
-                continue;
+                await AddReleaseArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
-
-            (bool shouldScan, string scanRepositoryId, string scanRepositoryName, string scanProjectName, string version, string versionType) = await ResolveRepositoryVersionAsync(
-                options,
-                id,
-                name,
-                projectName,
-                cancellationToken).ConfigureAwait(false);
-            if (!shouldScan)
-            {
-                continue;
-            }
-
-            await AddRepositoryFilesAsync(
-                options,
-                scanRepositoryId,
-                scanRepositoryName,
-                scanProjectName,
-                version,
-                versionType,
-                sourceFiles,
-                cancellationToken).ConfigureAwait(false);
         }
-
-        if (options.IncludeWikis && !IsCancellationRequested(options))
+        catch (RemoteMetadataTooLargeException)
         {
-            await AddWikiFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-        }
-
-        if ((options.IncludeArtifacts || options.IncludeLogs) && !IsCancellationRequested(options))
-        {
-            await AddBuildFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (options.IncludeReleaseArtifacts && !IsCancellationRequested(options))
-        {
-            await AddReleaseArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            return sourceFiles;
         }
 
         return sourceFiles;
@@ -119,7 +126,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             Uri uri = CreateRepositoryListUri(options, continuationToken);
             using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: true, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
-            await AddRepositoriesAsync(response, repositories, cancellationToken).ConfigureAwait(false);
+            await AddRepositoriesAsync(options, response, repositories, cancellationToken).ConfigureAwait(false);
             continuationToken = ReadContinuationToken(response);
         }
         while (continuationToken.Length != 0 && pageCount < MaxContinuationPages && !IsCancellationRequested(options));
@@ -186,8 +193,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return (false, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
         }
 
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         (string scanRepositoryId, string scanRepositoryName, string scanProjectName) = ResolvePullRequestSourceRepository(
             document.RootElement,
             repositoryId,
@@ -290,8 +296,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return;
         }
 
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!TryGetJsonArray(document.RootElement, out JsonElement artifacts))
         {
             return;
@@ -371,8 +376,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return;
         }
 
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!TryGetJsonArray(document.RootElement, out JsonElement logs))
         {
             return;
@@ -405,8 +409,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return;
         }
 
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!document.RootElement.TryGetProperty("artifacts", out JsonElement artifacts)
             || artifacts.ValueKind != JsonValueKind.Array)
         {
@@ -461,8 +464,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return;
         }
 
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!TryGetJsonArray(document.RootElement, out JsonElement artifacts))
         {
             return;
@@ -571,8 +573,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!document.RootElement.TryGetProperty("value", out JsonElement values)
             || values.ValueKind != JsonValueKind.Array)
         {
@@ -612,8 +613,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!document.RootElement.TryGetProperty("value", out JsonElement values)
             || values.ValueKind != JsonValueKind.Array)
         {
@@ -795,12 +795,12 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
     }
 
     private static async Task AddRepositoriesAsync(
+        AzureDevOpsSourceOptions options,
         HttpResponseMessage response,
         List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)> repositories,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!document.RootElement.TryGetProperty("value", out JsonElement values)
             || values.ValueKind != JsonValueKind.Array)
         {
@@ -839,8 +839,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         List<(string Name, string ProjectName, string RepositoryId, string MappedPath, string Version, bool IsDisabled)> wikis,
         CancellationToken cancellationToken)
     {
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Azure DevOps source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         if (!document.RootElement.TryGetProperty("value", out JsonElement values)
             || values.ValueKind != JsonValueKind.Array)
         {

@@ -124,6 +124,8 @@ Additional source kinds are implemented behind explicit options:
 
 Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes`, `--azure-devops-max-artifact-megabytes`, and `--azure-devops-max-log-megabytes` can tighten the relevant caps with positive values. Zero keeps its local-scan compatibility meaning, but remote Azure DevOps sources reject zero because remote HTTP bodies are always bounded.
 
+Provider metadata JSON responses are separately capped at 10 decimal MB and skipped with a warning when the cap is exceeded, including responses without a reliable `Content-Length`.
+
 Feed/package sources remain planned native source extensions and must remain explicit opt-ins when added.
 
 Repositories that explicitly report no default branch are skipped unless `--azure-devops-branch` or `--azure-devops-pull-request` is supplied. `--azure-devops-pull-request` cannot be combined with `--azure-devops-branch` or `--azure-devops-include-wikis` because the scan scope must resolve to one repository version model at a time. If branch metadata is not returned and a repository cannot list items, Picket warns and continues so an empty or unauthorized repository does not fail the rest of an organization or project scan. Disabled wikis, wikis without a backing repository, and wikis without a version are skipped with warnings.

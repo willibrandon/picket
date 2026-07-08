@@ -101,6 +101,8 @@ Repository-listing modes follow GitHub's `Link` pagination header while a `rel="
 
 Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes` overrides that cap with a positive value. Zero keeps its local-scan compatibility meaning, but remote GitHub sources reject zero because remote HTTP bodies are always bounded.
 
+Provider metadata JSON responses are separately capped at 10 decimal MB and skipped with a warning when the cap is exceeded, including responses without a reliable `Content-Length`.
+
 Oversized tree entries and Actions artifact ZIPs are skipped before download when GitHub returns a size. Oversized issue, comment, release, and gist synthetic files are skipped before scanning.
 
 ### Redirect And Credential Safety
