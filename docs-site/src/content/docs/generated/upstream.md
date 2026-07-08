@@ -221,6 +221,20 @@ Native GitLab group project, project repository, merge request source, and proje
 - GitLab repository files API: `https://docs.gitlab.com/api/repository_files/`
 - GitLab REST pagination: `https://docs.gitlab.com/api/rest/#pagination`
 
+## Gitea Source References
+
+Native Gitea repository source enumeration is based on Gitea API documentation
+reviewed on 2026-07-08:
+
+- Gitea API documentation: `https://docs.gitea.com/api/`
+- Gitea live swagger: `https://gitea.com/swagger.v1.json`
+
+Picket uses Gitea REST repository metadata to resolve the default branch, branch
+metadata to resolve branch names to commit IDs when available, recursive git
+tree enumeration with `per_page=1000`, and the raw repository file endpoint for
+selected file bytes. Tokens are read from environment variables, sent as
+`Authorization: token ...`, and are not logged.
+
 ## Azure DevOps Source References
 
 Native Azure DevOps repository, wiki, build artifact, build log, and release

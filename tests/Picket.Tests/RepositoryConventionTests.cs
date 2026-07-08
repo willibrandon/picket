@@ -17,6 +17,7 @@ public sealed partial class RepositoryConventionTests
     [
         "src/Picket.Sources/AzureDevOpsSourceClient.cs",
         "src/Picket.Sources/GcsSourceClient.cs",
+        "src/Picket.Sources/GiteaSourceClient.cs",
         "src/Picket.Sources/GitHubSourceClient.cs",
         "src/Picket.Sources/GitLabSourceClient.cs",
     ];

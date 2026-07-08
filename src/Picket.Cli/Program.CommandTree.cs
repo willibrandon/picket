@@ -65,6 +65,7 @@ internal static partial class Program
         AddNativeScanOptions(command, "picket scan");
         AddLiveVerificationOptions(command, "picket scan", includeModeSwitches: false);
         AddGitHubSourceOptions(command, "picket scan");
+        AddGiteaSourceOptions(command, "picket scan");
         AddGitLabSourceOptions(command, "picket scan");
         AddAzureBlobSourceOptions(command, "picket scan");
         AddGcsSourceOptions(command, "picket scan");
@@ -466,6 +467,14 @@ internal static partial class Program
         command.Options.Add(CreateFlagOption(commandName, "--github-include-releases"));
         command.Options.Add(CreateFlagOption(commandName, "--github-include-actions-artifacts"));
         command.Options.Add(CreateValueOption(commandName, "--github-source-api-endpoint", "uri"));
+    }
+
+    private static void AddGiteaSourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--gitea-repository", "owner/name"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-ref", "ref"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-token-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-api-endpoint", "uri"));
     }
 
     private static void AddAzureDevOpsSourceOptions(Command command, string commandName)

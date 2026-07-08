@@ -388,6 +388,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this GitHub API endpoint for native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitea-repository</code></td>
+              <td data-label="Value"><code>owner/name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Gitea repository through native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-ref</code></td>
+              <td data-label="Value"><code>ref</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Gitea branch, tag, or commit.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Gitea source enumeration token from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Gitea API endpoint for native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitlab-project</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>

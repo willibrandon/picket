@@ -680,7 +680,8 @@ Native source support:
 - archives,
 - GitHub repos, orgs, users, PRs, issues, gists, releases, and Actions artifacts,
 - GitLab groups/projects/MRs/snippets/artifacts,
-- Bitbucket and Gitea,
+- Gitea repositories,
+- Bitbucket,
 - Azure DevOps Services and Azure DevOps Server sources, including Azure Repos Git repositories, projects, organizations, pull requests, wiki repositories, build artifacts, pipeline logs, and release artifacts where APIs expose them safely,
 - S3, GCS, Azure Blob,
 - Docker/OCI images and tarballs.
@@ -696,7 +697,7 @@ Local container archive scanning is native Picket behavior, not Gitleaks compati
 
 Picket treats the image archive as a source envelope, scans metadata files such as manifests and configs, expands layer tarballs and gzip-compressed layer blobs through the same archive safety caps as local archives, and reports provenance paths such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
 
-Container archive flags cannot be combined with GitHub, GitLab, Azure DevOps, or object-store source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+Container archive flags cannot be combined with GitHub, Gitea, GitLab, Azure DevOps, or object-store source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
 
 Azure Blob source support is native Picket behavior, not Gitleaks compatibility behavior.
 
@@ -809,6 +810,39 @@ GitLab source safety rules:
 - Jobs, pipelines, packages, and artifacts remain planned explicit source selectors.
 
 GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, and project snippet scans. Least-privilege group project, project repository, merge request, and snippet enumeration requires read-only repository/API access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
+
+Gitea source support is native Picket behavior, not Gitleaks compatibility behavior.
+
+Implemented Gitea entry points:
+
+| Scope | Options | Behavior |
+| --- | --- | --- |
+| Repository files | `--gitea-repository`, `--gitea-ref`, `--gitea-token-env`, `--gitea-api-endpoint` | Scans an `owner/name` repository or repository URL at a branch, tag, or commit. Empty `--gitea-ref` uses the default branch. |
+
+Gitea API flow:
+
+| Source | API behavior |
+| --- | --- |
+| Repository metadata | Resolves the default branch when `--gitea-ref` is omitted. |
+| Branch metadata | Resolves branch names to commit IDs before tree enumeration when Gitea returns branch metadata. |
+| Repository tree | Lists repository blobs with recursive git tree enumeration and `per_page=1000`. |
+| Raw repository files | Downloads file bytes through the raw repository file endpoint. |
+
+Gitea source safety rules:
+
+- Endpoint safety checks run before the first request.
+- Redirects are disabled before credentials are sent.
+- Responses from injected HTTP handlers that already followed a redirect are rejected.
+- Retryable throttling and service responses are retried once with bounded `Retry-After` backoff.
+- Gitea REST pagination stops at a 1,000-page safety limit with a warning.
+- Remote downloads use a 100 decimal MB default cap.
+- Provider metadata JSON responses are capped at 10 decimal MB and skipped with a warning when the cap is exceeded.
+- A positive `--max-target-megabytes` value overrides the default remote cap.
+- Zero keeps its local-scan compatibility meaning, but remote Gitea sources reject zero because remote HTTP bodies are always bounded.
+- Oversized tree entries are skipped before download when Gitea returns a size.
+- Organization/user discovery, pull requests, issues, releases, packages, and Actions artifacts remain planned explicit source selectors.
+
+Gitea credentials are read from the environment and sent as `Authorization: token ...` request headers for repository scans. Least-privilege repository enumeration requires read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Write, owner, organization administration, package, runner, and token-administration scopes are not part of the scanner test contract.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 

@@ -43,6 +43,11 @@ internal static partial class Program
         string githubSourceRepositoryType = GitHubOrganizationSourceOptions.DefaultRepositoryType;
         string githubSourceUser = string.Empty;
         string githubSourceUserGists = string.Empty;
+        Uri? giteaApiEndpoint = null;
+        bool giteaOptionSpecified = false;
+        string giteaRef = string.Empty;
+        string giteaRepository = string.Empty;
+        string? giteaTokenEnvironmentVariable = null;
         Uri? gitLabApiEndpoint = null;
         string gitLabGroup = string.Empty;
         bool gitLabIncludeSubgroups = false;
@@ -343,6 +348,52 @@ internal static partial class Program
 
                 gitLabProject = project;
                 gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaRepositoryFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-repository", out string? repository))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaRepository = repository;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaRefFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-ref", out string? gitRef))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaRef = gitRef;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-token-env", out giteaTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaApiEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--gitea-api-endpoint", out giteaApiEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaOptionSpecified = true;
                 continue;
             }
 
@@ -923,7 +974,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -941,6 +992,7 @@ internal static partial class Program
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
         sourceProviderCount += gcsOptionSpecified ? 1 : 0;
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
+        sourceProviderCount += giteaOptionSpecified ? 1 : 0;
         sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
         sourceProviderCount += s3OptionSpecified ? 1 : 0;
         if (sourceProviderCount > 1)
@@ -949,7 +1001,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || gcsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
+        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || gcsOptionSpecified || githubSourceOptionSpecified || giteaOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
             && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
@@ -1050,6 +1102,19 @@ internal static partial class Program
                 githubSourceIssueState,
                 githubSourceIncludeReleases,
                 githubSourceIncludeActionsArtifacts,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (giteaOptionSpecified
+            && !TryCreateGiteaSourceProvider(
+                giteaApiEndpoint,
+                giteaRepository,
+                giteaRef,
+                giteaTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
