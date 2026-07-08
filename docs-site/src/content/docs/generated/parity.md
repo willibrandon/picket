@@ -155,3 +155,27 @@ as deliberate.
 - **Test name:** `EnumerateRejectsUnsafeLogOptionsWithoutCreatingOutput`.
 - **Migration guidance:** Pass revision ranges directly through `--log-opts`.
   Avoid using `--log-opts` as a general `git log` escape hatch.
+
+## Local `extend.path` Resolution
+
+- **Upstream behavior:** The pinned Gitleaks loader passes local
+  `[extend] path` values to Viper as local file paths. Absolute paths are
+  accepted, and relative paths resolve from the process current working
+  directory.
+- **Picket behavior:** Strict compatibility keeps the same local-file path
+  semantics. Picket adds a 10 MiB per-file read cap, a two-level extend-depth
+  cap, and cycle detection.
+- **Mode/profile affected:** Gitleaks-compatible config loading.
+- **Reason:** Existing Gitleaks configs can rely on this path resolution model.
+  Changing it in compatibility mode would make otherwise-valid configs fail or
+  load different base rules.
+- **User impact:** Target-local configs that contain local `extend.path` values
+  are trusted scanner configuration. They are not confined to the scan root.
+  Native config loading can add a stricter mode later, but strict compatibility
+  must preserve the pinned oracle behavior.
+- **Test name:** `LoadFileExtendsPathAndMergesRuleOverrides`,
+  `LoadFileRejectsExtendPathCycles`, `LoadFileRejectsOversizedConfig`.
+- **Migration guidance:** Prefer explicit absolute paths or run Picket from the
+  expected working directory when using relative `extend.path` values. Treat
+  repository-provided configs the same way you treat any executable CI scanner
+  configuration.

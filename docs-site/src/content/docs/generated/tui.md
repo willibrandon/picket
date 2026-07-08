@@ -36,13 +36,14 @@ The initial console uses only non-secret fields: rule IDs, detector names, paths
 The full-screen console is designed as a scanner console:
 
 - a top command strip with view switching and Run scan,
-- a sectioned Scan page for target selection, output settings, rule filters, limits, command preview, status, scan timing, report path, result counts, and scanner output,
-- a findings table with stable row focus,
+- a sectioned Scan page for target selection, output settings, validation filters, limits, command preview, status, scan timing, report path, and result counts,
+- a findings triage list with stable row focus,
 - focused-finding details,
 - rule and file frequency views,
+- scanner output on the Logs view,
 - a compact status footer with non-wrapping command hints.
 
-Opening without a report starts on the Scan page. Opening an existing report with findings starts on the Findings page. The interface favors dense tables, predictable keyboard navigation, and text status over decorative layout.
+Opening without a report starts on the Scan page. Opening an existing report with findings starts on the Findings page. The interface favors readable scanner-console density, predictable keyboard navigation, and text status over decorative layout.
 
 ## Native AOT Packaging
 
@@ -52,7 +53,7 @@ Keeping the TUI in `picket-tui` prevents Hex1b terminal UI code and terminal-nat
 
 ## Scan Workspace
 
-The TUI includes a scan workspace for running native scans interactively. It builds and displays the command-equivalent `picket scan` request, then invokes the same scanner executable rather than reimplementing scan behavior inside the TUI.
+The TUI includes a scan workspace for running native scans interactively. It builds and displays the command-equivalent `picket scan` request, then runs the scanner executable.
 
 The workspace keeps the normal path short: choose a target, check the command preview, press Run scan, then jump to Findings when row triage is needed. It exposes commonly changed options directly:
 
@@ -65,13 +66,13 @@ The workspace keeps the normal path short: choose a target, check the command pr
 - redaction,
 - report formats and output paths.
 
-The Scan page groups controls into Target, Output, Rules, and Limits sections so the default view stays readable while every scan option remains reachable.
+The Scan page groups controls into Source, Output, Validation, and Limits sections so the default view stays readable while every scan option remains reachable.
 
 For GitHub targets, the workspace includes repository, organization, user, gist, authenticated-gist, and user-gist selectors; repository type and issue state filters; issue, release, and Actions artifact toggles; token environment variable; ref and pull request selectors; source API endpoint override; and explicit source endpoint policy toggles.
 
 For Azure DevOps targets, the workspace includes endpoint, organization, project, repository, branch, pull request, token environment variable, token kind, build ID, release ID, wiki/artifact/log/release-artifact toggles, artifact and log size caps, and explicit source endpoint policy toggles.
 
-During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, streamed stdout/stderr scanner output, and cancellation status. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console. It prepares the report output directory before launch, writes normal Picket reports, reloads the generated report summary when the scan completes, and shows the loaded finding count and report path on the Scan page. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
+During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr so the Scan page does not compete with finding triage. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console. It prepares the report output directory before launch, writes normal Picket reports, reloads the generated report summary when the scan completes, and shows the loaded finding count and report path on the Scan page. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
 
 ## Inline Flow Mode
 
