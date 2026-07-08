@@ -157,6 +157,37 @@ public sealed class GitleaksFindingRedactorTests
         Assert.DoesNotContain(encodedSecret, json);
     }
 
+    /// <summary>
+    /// Verifies native report writers do not reintroduce raw or encoded secret evidence after redaction.
+    /// </summary>
+    [TestMethod]
+    public void RedactedDecodedFindingLeavesNoSecretInAnyNativeFormat()
+    {
+        const string secret = "token-12345";
+        const string encodedSecret = "dG9rZW4tMTIzNDU=";
+        Finding finding = CreateFinding(secret, secret, $"encoded={encodedSecret}", ["base64"]);
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100, requirePartialMask: true);
+        SecretRule rule = SecretRule.Create("rule", "description", "token-[0-9]+");
+        string[] reports =
+        [
+            PicketJsonReportWriter.Write([redacted], [rule]),
+            PicketJsonlReportWriter.Write([redacted], [rule]),
+            PicketCsvReportWriter.Write([redacted], [rule]),
+            PicketJunitReportWriter.Write([redacted], [rule]),
+            PicketHtmlReportWriter.Write([redacted], [rule]),
+            PicketGitLabCodeQualityReportWriter.Write([redacted]),
+            PicketSarifReportWriter.Write([redacted], [rule]),
+            PicketToonReportWriter.Write([redacted], [rule]),
+        ];
+
+        foreach (string report in reports)
+        {
+            Assert.DoesNotContain(secret, report);
+            Assert.DoesNotContain(encodedSecret, report);
+            Assert.DoesNotContain(CreateSha256(secret), report);
+        }
+    }
+
     private static Finding CreateFinding(
         string match,
         string secret,
