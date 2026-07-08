@@ -966,6 +966,21 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that pull-request documentation builds do not receive Pages deployment permissions.
+    /// </summary>
+    [TestMethod]
+    public void DocsWorkflowLimitsPagesPermissionToDeployJob()
+    {
+        string workflow = ReadRepositoryFile(".github/workflows/docs.yml");
+        string normalizedWorkflow = workflow.ReplaceLineEndings("\n");
+
+        Assert.AreEqual(1, Regex.Count(normalizedWorkflow, "pages: write"));
+        Assert.Contains("deploy:\n    name: Deploy docs", normalizedWorkflow);
+        Assert.Contains("permissions:\n      pages: write\n      id-token: write", normalizedWorkflow);
+        Assert.DoesNotContain("build:\n    name: Build docs\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      pages: write", normalizedWorkflow);
+    }
+
+    /// <summary>
     /// Verifies that committed docs and automation do not contain machine-specific reference clone paths.
     /// </summary>
     [TestMethod]
