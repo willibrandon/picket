@@ -62,23 +62,23 @@ public static class PicketHtmlReportWriter
         builder.Append(".metric strong{display:block;margin-top:2px;font-size:24px}");
         builder.Append(".table-wrap{overflow-x:auto;border:1px solid #d9ddd2;border-radius:6px;background:#fff}");
         builder.Append("table{width:100%;border-collapse:collapse;background:#fff}");
-        builder.Append(".findings-table{min-width:1680px}.rules-table{min-width:1360px}");
+        builder.Append(".findings-table{min-width:1280px}.rules-table{min-width:1200px}");
         builder.Append("th,td{padding:10px 12px;border-bottom:1px solid #e6e9df;text-align:left;vertical-align:top;font-size:14px}");
         builder.Append("th{background:#edf0e8;color:#30352c;font-weight:650}");
         builder.Append("tr:last-child td{border-bottom:0}");
-        builder.Append(".findings-table .rule-column{width:13%}.findings-table .location-column{width:17%}.findings-table .secret-column{width:10%}.findings-table .match-column{width:16%}.findings-table .fingerprint-column{width:17%}.findings-table .metadata-column{width:23%}.findings-table .tags-column{width:4%}");
-        builder.Append(".rules-table .rule-id-column{width:13%}.rules-table .description-column{width:20%}.rules-table .pattern-column{width:38%}.rules-table .metadata-column{width:24%}.rules-table .tags-column{width:5%}");
-        builder.Append(".metadata-cell{min-width:320px}.tags-cell{min-width:120px}.pattern-cell code{overflow-wrap:anywhere}");
+        builder.Append(".findings-table .rule-column{width:13%}.findings-table .location-column{width:18%}.findings-table .secret-column{width:9%}.findings-table .match-column{width:12%}.findings-table .fingerprint-column{width:20%}.findings-table .metadata-column{width:22%}.findings-table .tags-column{width:6%}");
+        builder.Append(".rules-table .rule-id-column{width:14%}.rules-table .description-column{width:22%}.rules-table .pattern-column{width:30%}.rules-table .metadata-column{width:27%}.rules-table .tags-column{width:7%}");
+        builder.Append(".metadata-cell{min-width:260px}.tags-cell{min-width:96px}.pattern-cell code{overflow-wrap:anywhere}");
         builder.Append("code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,\"Liberation Mono\",monospace}");
         builder.Append("code{font-size:13px}");
         builder.Append("pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.45}");
         builder.Append(".empty{border:1px solid #d9ddd2;background:#fff;border-radius:6px;padding:20px;color:#596052}");
         builder.Append(".tags{display:flex;flex-wrap:wrap;gap:6px}");
         builder.Append(".tag{border:1px solid #cfd5c6;background:#f4f6ef;border-radius:999px;padding:2px 8px;font-size:12px;color:#30352c}");
-        builder.Append(".metadata{margin:0;display:grid;gap:8px;font-size:13px}");
-        builder.Append(".metadata-item{display:grid;grid-template-columns:minmax(88px,max-content) minmax(176px,1fr);gap:12px;align-items:start}");
-        builder.Append(".metadata dt{margin:0;color:#596052;white-space:nowrap}.metadata dd{margin:0;min-width:0}.metadata dd code{overflow-wrap:anywhere;word-break:normal}");
-        builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,.table-wrap,table,.empty{background:#1d211a;border-color:#3a4233}th{background:#293023;color:#f1f4eb}td,th{border-color:#333b2d}.eyebrow,.metric span,.empty{color:#b5bcae}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
+        builder.Append(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 16px;font-size:13px;line-height:1.35}");
+        builder.Append(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}");
+        builder.Append(".metadata dt{margin:0 0 3px;color:#596052;font-size:11px;font-weight:650;line-height:1.2;text-transform:uppercase;white-space:normal}.metadata dd{margin:0;min-width:0}.metadata dd code{white-space:normal;overflow-wrap:break-word;word-break:normal}");
+        builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,.table-wrap,table,.empty{background:#1d211a;border-color:#3a4233}th{background:#293023;color:#f1f4eb}td,th{border-color:#333b2d}.eyebrow,.metric span,.empty,.metadata dt{color:#b5bcae}.metadata-item{border-color:#3a4233}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
         builder.Append("</style>\n");
         builder.Append("</head>\n");
     }
@@ -207,15 +207,23 @@ public static class PicketHtmlReportWriter
         builder.Append("<dl class=\"metadata\">");
         WriteMetadata(builder, "Severity", PicketFindingMetadata.CreateSeverity(rule));
         WriteMetadata(builder, "Confidence", PicketFindingMetadata.CreateConfidence(rule));
-        WriteMetadata(builder, "Rule Pack", PicketFindingMetadata.CreateRulePack(rule));
-        WriteMetadata(builder, "Provider", PicketFindingMetadata.CreateProvider(rule));
-        WriteMetadata(builder, "Docs", PicketFindingMetadata.CreateDocumentationUrl(rule));
+        WriteOptionalMetadata(builder, "Rule Pack", PicketFindingMetadata.CreateRulePack(rule));
+        WriteOptionalMetadata(builder, "Provider", PicketFindingMetadata.CreateProvider(rule));
+        WriteOptionalMetadata(builder, "Docs", PicketFindingMetadata.CreateDocumentationUrl(rule));
         WriteMetadata(builder, "Validation", PicketFindingMetadata.CreateValidationState(finding));
         WriteMetadata(builder, "Provenance", PicketFindingMetadata.CreateProvenanceType(finding));
-        WriteMetadata(builder, "Secret SHA-256", PicketFindingMetadata.CreateSecretSha256(finding));
-        WriteMetadata(builder, "Blob SHA-256", PicketFindingMetadata.CreateBlobSha256(finding));
-        WriteMetadata(builder, "Decode Path", string.Join(" > ", PicketFindingMetadata.CreateDecodePath(finding)));
+        WriteOptionalMetadata(builder, "Secret SHA-256", PicketFindingMetadata.CreateSecretSha256(finding));
+        WriteOptionalMetadata(builder, "Blob SHA-256", PicketFindingMetadata.CreateBlobSha256(finding));
+        WriteOptionalMetadata(builder, "Decode Path", string.Join(" > ", PicketFindingMetadata.CreateDecodePath(finding)));
         builder.Append("</dl>");
+    }
+
+    private static void WriteOptionalMetadata(StringBuilder builder, string name, string value)
+    {
+        if (value.Length != 0)
+        {
+            WriteMetadata(builder, name, value);
+        }
     }
 
     private static void WriteMetadata(StringBuilder builder, string name, string value)
@@ -272,9 +280,9 @@ public static class PicketHtmlReportWriter
         builder.Append("<dl class=\"metadata\">");
         WriteMetadata(builder, "Severity", PicketFindingMetadata.CreateSeverity(rule));
         WriteMetadata(builder, "Confidence", PicketFindingMetadata.CreateConfidence(rule));
-        WriteMetadata(builder, "Rule Pack", PicketFindingMetadata.CreateRulePack(rule));
-        WriteMetadata(builder, "Provider", PicketFindingMetadata.CreateProvider(rule));
-        WriteMetadata(builder, "Docs", PicketFindingMetadata.CreateDocumentationUrl(rule));
+        WriteOptionalMetadata(builder, "Rule Pack", PicketFindingMetadata.CreateRulePack(rule));
+        WriteOptionalMetadata(builder, "Provider", PicketFindingMetadata.CreateProvider(rule));
+        WriteOptionalMetadata(builder, "Docs", PicketFindingMetadata.CreateDocumentationUrl(rule));
         builder.Append("</dl>");
     }
 

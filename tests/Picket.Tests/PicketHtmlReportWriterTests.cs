@@ -54,13 +54,14 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("<span>Findings</span><strong>1</strong>", html);
         Assert.Contains("<span>Rules</span><strong>1</strong>", html);
         Assert.Contains("<span>Files</span><strong>1</strong>", html);
-        Assert.Contains(".findings-table{min-width:1680px}.rules-table{min-width:1360px}", html);
-        Assert.Contains(".metadata-cell{min-width:320px}", html);
-        Assert.Contains(".metadata-item{display:grid;grid-template-columns:minmax(88px,max-content) minmax(176px,1fr)", html);
-        Assert.Contains(".metadata dt{margin:0;color:#596052;white-space:nowrap}", html);
+        Assert.Contains(".findings-table{min-width:1280px}.rules-table{min-width:1200px}", html);
+        Assert.Contains(".metadata-cell{min-width:260px}", html);
+        Assert.Contains(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))", html);
+        Assert.Contains(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}", html);
+        Assert.Contains(".metadata dd code{white-space:normal;overflow-wrap:break-word;word-break:normal}", html);
         Assert.Contains("<div class=\"table-wrap\"><table class=\"findings-table\">", html);
         Assert.Contains("<div class=\"table-wrap\"><table class=\"rules-table\">", html);
-        Assert.Contains("<td class=\"metadata-cell\"><dl class=\"metadata\"><div class=\"metadata-item\">", html);
+        Assert.Contains("<td class=\"metadata-cell\"><dl class=\"metadata\"><div class=\"metadata-item\"><dt>Severity</dt>", html);
         Assert.Contains("<td class=\"tags-cell\">", html);
         Assert.Contains("rule&lt;script&gt;", html);
         Assert.Contains("A &lt;test&gt; &quot;rule&quot;", html);
@@ -74,6 +75,7 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains(BlobSha256, html);
         Assert.Contains("<dt>Decode Path</dt><dd><code>base64</code></dd>", html);
         Assert.Contains("<dt>Validation</dt><dd><code>unknown</code></dd>", html);
+        Assert.DoesNotContain("<dt>Docs</dt><dd><code></code></dd>", html);
         Assert.Contains("sec&lt;ret&gt;", html);
         Assert.DoesNotContain("<script>", html);
     }
