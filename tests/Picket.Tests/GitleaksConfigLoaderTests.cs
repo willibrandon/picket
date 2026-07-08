@@ -182,6 +182,43 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that TOML Unicode escapes are parsed in basic strings.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlParsesUnicodeEscapes()
+    {
+        RuleSet ruleSet = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "unicode-token"
+            description = "snowman \u2603 and face \U0001F600"
+            regex = '''token-[0-9]+'''
+            """,
+            "memory");
+
+        Assert.HasCount(1, ruleSet.Rules);
+        Assert.AreEqual("snowman \u2603 and face \U0001F600", ruleSet.Rules[0].Description);
+    }
+
+    /// <summary>
+    /// Verifies that generated configs can be loaded after the writer emits Unicode escape sequences.
+    /// </summary>
+    [TestMethod]
+    public void WriteThenLoadRoundTripsControlCharacterInRuleField()
+    {
+        var sourceRuleSet = new RuleSet([
+            SecretRule.Create("control-token", "control\u0001description", "token-[0-9]+"),
+        ]);
+
+        string toml = GitleaksConfigWriter.Write(sourceRuleSet);
+        RuleSet loadedRuleSet = GitleaksConfigLoader.FromToml(toml, "memory");
+
+        Assert.Contains("\\u0001", toml);
+        Assert.HasCount(1, loadedRuleSet.Rules);
+        Assert.AreEqual("control\u0001description", loadedRuleSet.Rules[0].Description);
+    }
+
+    /// <summary>
     /// Verifies that valid top-level Gitleaks minVersion values are accepted.
     /// </summary>
     [TestMethod]

@@ -1123,20 +1123,81 @@ public static class GitleaksConfigLoader
                 throw new InvalidDataException($"{sourceName}: invalid escape in '{key}'");
             }
 
-            builder.Append(value[i] switch
+            switch (value[i])
             {
-                'b' => '\b',
-                't' => '\t',
-                'n' => '\n',
-                'f' => '\f',
-                'r' => '\r',
-                '"' => '"',
-                '\\' => '\\',
-                _ => throw new InvalidDataException($"{sourceName}: unsupported escape in '{key}'"),
-            });
+                case 'b':
+                    builder.Append('\b');
+                    break;
+                case 't':
+                    builder.Append('\t');
+                    break;
+                case 'n':
+                    builder.Append('\n');
+                    break;
+                case 'f':
+                    builder.Append('\f');
+                    break;
+                case 'r':
+                    builder.Append('\r');
+                    break;
+                case '"':
+                    builder.Append('"');
+                    break;
+                case '\\':
+                    builder.Append('\\');
+                    break;
+                case 'u':
+                    builder.Append(ReadUnicodeEscape(value, i + 1, 4, sourceName, key));
+                    i += 4;
+                    break;
+                case 'U':
+                    builder.Append(ReadUnicodeEscape(value, i + 1, 8, sourceName, key));
+                    i += 8;
+                    break;
+                default:
+                    throw new InvalidDataException($"{sourceName}: unsupported escape in '{key}'");
+            }
         }
 
         return builder.ToString();
+    }
+
+    private static string ReadUnicodeEscape(string value, int start, int digitCount, string sourceName, string key)
+    {
+        if (start + digitCount > value.Length)
+        {
+            throw new InvalidDataException($"{sourceName}: invalid unicode escape in '{key}'");
+        }
+
+        uint codePoint = 0;
+        for (int i = start; i < start + digitCount; i++)
+        {
+            int digit = HexDigitValue(value[i]);
+            if (digit < 0)
+            {
+                throw new InvalidDataException($"{sourceName}: invalid unicode escape in '{key}'");
+            }
+
+            codePoint = (codePoint << 4) | (uint)digit;
+        }
+
+        if (codePoint > 0x10FFFF || codePoint is >= 0xD800 and <= 0xDFFF)
+        {
+            throw new InvalidDataException($"{sourceName}: invalid unicode scalar in '{key}'");
+        }
+
+        return char.ConvertFromUtf32((int)codePoint);
+    }
+
+    private static int HexDigitValue(char value)
+    {
+        return value switch
+        {
+            >= '0' and <= '9' => value - '0',
+            >= 'A' and <= 'F' => value - 'A' + 10,
+            >= 'a' and <= 'f' => value - 'a' + 10,
+            _ => -1,
+        };
     }
 
     private static bool IsEscaped(string value, int index)
