@@ -30,7 +30,7 @@ The initial console uses only non-secret fields: rule IDs, detector names, paths
 The full-screen console is designed as a scanner console:
 
 - a top command strip with view switching and Run scan,
-- a Scan page for target selection, command preview, status, scan timing, report path, result counts, and scanner output,
+- a sectioned Scan page for target selection, output settings, rule filters, limits, command preview, status, scan timing, report path, result counts, and scanner output,
 - a findings table with stable row focus,
 - focused-finding details,
 - rule and file frequency views,
@@ -58,6 +58,8 @@ The workspace keeps the normal path short: choose a target, check the command pr
 - archive and target-size limits,
 - redaction,
 - report formats and output paths.
+
+The Scan page groups controls into Target, Output, Rules, and Limits sections so the default view stays readable while every scan option remains reachable.
 
 For GitHub targets, the workspace includes repository, organization, user, gist, authenticated-gist, and user-gist selectors; repository type and issue state filters; issue, release, and Actions artifact toggles; token environment variable; ref and pull request selectors; source API endpoint override; and explicit source endpoint policy toggles.
 

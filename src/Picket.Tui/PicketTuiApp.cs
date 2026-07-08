@@ -205,17 +205,50 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildSectionTitle(v, "Target"),
-            BuildTargetModeRow(v, scan),
-            .. BuildPrimaryTargetFields(v, scan),
-            BuildSectionTitle(v, "Output"),
-            BuildOutputFields(v, scan),
-            BuildOutputPathFields(v, scan),
-            BuildSectionTitle(v, "Rules and filters"),
-            BuildFilterFields(v, scan),
-            BuildSectionTitle(v, "Limits"),
-            BuildLimitFields(v, scan)
+            BuildScanSectionRow(v, scan),
+            .. BuildSelectedScanSection(v, scan)
         ]);
+    }
+
+    private static HStackWidget BuildScanSectionRow<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.Text("Options").FixedWidth(10),
+            h.ToggleSwitch(PicketTuiScanWorkspace.ScanSectionLabels, scan.ScanSectionIndex)
+                .OnSelectionChanged(e => scan.SetScanSection(e.SelectedIndex))
+                .FillWidth()
+        ]).FixedHeight(1);
+    }
+
+    private static Hex1bWidget[] BuildSelectedScanSection<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return scan.ScanSection switch
+        {
+            PicketTuiScanSection.Output =>
+            [
+                BuildSectionTitle(ctx, "Output"),
+                BuildOutputFields(ctx, scan),
+                BuildOutputPathFields(ctx, scan),
+            ],
+            PicketTuiScanSection.Rules =>
+            [
+                BuildSectionTitle(ctx, "Rules and filters"),
+                BuildFilterFields(ctx, scan),
+            ],
+            PicketTuiScanSection.Limits =>
+            [
+                BuildSectionTitle(ctx, "Limits"),
+                BuildLimitFields(ctx, scan),
+            ],
+            _ =>
+            [
+                BuildSectionTitle(ctx, "Target"),
+                BuildTargetModeRow(ctx, scan),
+                .. BuildPrimaryTargetFields(ctx, scan),
+            ],
+        };
     }
 
     private static ThemePanelWidget BuildSectionTitle<TParent>(WidgetContext<TParent> ctx, string text)

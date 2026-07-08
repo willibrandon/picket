@@ -671,18 +671,139 @@ public sealed class PicketTuiTests
         Assert.AreEqual(0, exitCode);
         Assert.Contains("Command equivalent", screenText);
         Assert.Contains("picket scan", screenText);
-        Assert.Contains("Redact", screenText);
-        Assert.Contains("Max MB", screenText);
-        Assert.Contains("Archive MB", screenText);
-        Assert.Contains("Timeout", screenText);
+        Assert.Contains("Options", screenText);
+        Assert.Contains("Target", screenText);
+        Assert.Contains("Output", screenText);
+        Assert.Contains("Rules", screenText);
+        Assert.Contains("Limits", screenText);
+        Assert.Contains("Path", screenText);
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
         Assert.Contains("Use g f to review", screenText);
         Assert.Contains("Last run: not run yet", screenText);
+        Assert.DoesNotContain("Redact", screenText);
+        Assert.DoesNotContain("Max MB", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("src/auth.cs", screenText);
         Assert.DoesNotContain("g s scan", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace output section renders report and verification options.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersScanOutputSection()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetScanSection(1);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Redact"), TimeSpan.FromSeconds(5), "output section to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Output", screenText);
+        Assert.Contains("Format", screenText);
+        Assert.Contains("Redact", screenText);
+        Assert.Contains("Verify", screenText);
+        Assert.Contains("Report", screenText);
+        Assert.Contains("Profile", screenText);
+        Assert.Contains("Config", screenText);
+        Assert.Contains("Ignore", screenText);
+        Assert.DoesNotContain("Max MB", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rules section renders ignore and result-filter options.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersScanRulesSection()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetScanSection(2);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Results"), TimeSpan.FromSeconds(5), "rules section to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Rules and filters", screenText);
+        Assert.Contains("No ignore", screenText);
+        Assert.Contains("Only valid", screenText);
+        Assert.Contains("Results", screenText);
+        Assert.Contains("structurally-valid", screenText);
+        Assert.DoesNotContain("Redact", screenText);
+        Assert.DoesNotContain("Max MB", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace limits section renders archive and timeout options.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersScanLimitsSection()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetScanSection(3);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Archive MB"), TimeSpan.FromSeconds(5), "limits section to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Limits", screenText);
+        Assert.Contains("Max MB", screenText);
+        Assert.Contains("Depth", screenText);
+        Assert.Contains("Entries", screenText);
+        Assert.Contains("Archive MB", screenText);
+        Assert.Contains("Ratio", screenText);
+        Assert.Contains("Timeout", screenText);
+        Assert.DoesNotContain("Redact", screenText);
     }
 
     /// <summary>
