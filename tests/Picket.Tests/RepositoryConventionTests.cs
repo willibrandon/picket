@@ -13,6 +13,7 @@ public sealed partial class RepositoryConventionTests
 {
     private static readonly string[] s_fileBasedAppDirectories = ["scripts", ".github/actions"];
     private static readonly string[] s_portableTextRoots = ["AGENTS.md", "docs", "docs-site/src/content/docs", "scripts", ".github", "azure-devops", "src", "tests"];
+    private static readonly SemaphoreSlim s_fileBasedAppBuildLock = new(1, 1);
     private static readonly Regex s_typeDeclarationPattern = CreateTypeDeclarationPattern();
 
     /// <summary>
@@ -1270,17 +1271,25 @@ public sealed partial class RepositoryConventionTests
 
     private async Task BuildFileBasedAppAsync(string relativePath)
     {
-        using Process process = CreateDotNetProcess();
-        process.StartInfo.ArgumentList.Add("build");
-        process.StartInfo.ArgumentList.Add(ResolveRepositoryPath(relativePath));
-        process.StartInfo.ArgumentList.Add("--nologo");
-        process.StartInfo.ArgumentList.Add("--verbosity");
-        process.StartInfo.ArgumentList.Add("quiet");
+        await s_fileBasedAppBuildLock.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        try
+        {
+            using Process process = CreateDotNetProcess();
+            process.StartInfo.ArgumentList.Add("build");
+            process.StartInfo.ArgumentList.Add(ResolveRepositoryPath(relativePath));
+            process.StartInfo.ArgumentList.Add("--nologo");
+            process.StartInfo.ArgumentList.Add("--verbosity");
+            process.StartInfo.ArgumentList.Add("quiet");
 
-        Assert.IsTrue(process.Start(), "Could not start dotnet.");
-        (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+            Assert.IsTrue(process.Start(), "Could not start dotnet.");
+            (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
 
-        Assert.AreEqual(0, process.ExitCode, string.Concat(relativePath, Environment.NewLine, stdout, stderr));
+            Assert.AreEqual(0, process.ExitCode, string.Concat(relativePath, Environment.NewLine, stdout, stderr));
+        }
+        finally
+        {
+            s_fileBasedAppBuildLock.Release();
+        }
     }
 
     private static Process CreateFileBasedAppProcess(string relativePath, bool noBuild)
