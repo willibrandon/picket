@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Report;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -210,5 +211,38 @@ public sealed class GitleaksJsonReportWriterTests
 
         Assert.DoesNotContain("\"Link\"", jsonWithoutLink);
         Assert.Contains("\"Link\": \"https://github.com/example/repo/blob/commit/stdin#L1\"", jsonWithLink);
+    }
+
+    /// <summary>
+    /// Verifies compatibility JSON reports render non-finite entropy values as valid JSON numbers.
+    /// </summary>
+    [TestMethod]
+    public void WriteRendersNonFiniteEntropyAsValidJson()
+    {
+        var finding = new Finding(
+            "rule",
+            "desc",
+            1,
+            1,
+            2,
+            8,
+            "x",
+            "secret",
+            "stdin",
+            string.Empty,
+            string.Empty,
+            double.PositiveInfinity,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "stdin:rule:1");
+
+        string json = GitleaksJsonReportWriter.Write([finding]);
+        using JsonDocument document = JsonDocument.Parse(json);
+
+        Assert.AreEqual(0, document.RootElement[0].GetProperty("Entropy").GetDouble());
+        Assert.DoesNotContain("Infinity", json);
     }
 }

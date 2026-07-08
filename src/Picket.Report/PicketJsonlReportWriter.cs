@@ -116,7 +116,7 @@ public static class PicketJsonlReportWriter
     private static void WriteNumber(StringBuilder builder, string name, double value, bool comma)
     {
         WritePropertyName(builder, name);
-        builder.Append(value.ToString("G17", CultureInfo.InvariantCulture));
+        builder.Append(ReportNumberFormatter.FormatJsonDouble(value));
         WriteComma(builder, comma);
     }
 

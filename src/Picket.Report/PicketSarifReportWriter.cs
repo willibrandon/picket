@@ -385,7 +385,7 @@ public static class PicketSarifReportWriter
     {
         WritePropertyName(builder, depth, name);
         builder.Append(' ');
-        builder.Append(value.ToString("G17", CultureInfo.InvariantCulture));
+        builder.Append(ReportNumberFormatter.FormatJsonDouble(value));
         WriteComma(builder, comma);
         builder.Append('\n');
     }

@@ -1,6 +1,7 @@
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -135,6 +136,40 @@ public sealed class PicketJsonReportWriterTests
         string json = PicketJsonReportWriter.Write([finding], [rule]);
 
         Assert.Contains("\"validationState\":\"structurally-valid\"", json);
+    }
+
+    /// <summary>
+    /// Verifies native JSON reports render non-finite entropy values as valid JSON numbers.
+    /// </summary>
+    [TestMethod]
+    public void WriteRendersNonFiniteEntropyAsValidJson()
+    {
+        var finding = new Finding(
+            "rule",
+            "desc",
+            1,
+            1,
+            1,
+            6,
+            "secret",
+            "secret",
+            "secret.txt",
+            string.Empty,
+            string.Empty,
+            double.NaN,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "secret.txt:rule:1");
+
+        string json = PicketJsonReportWriter.Write([finding], []);
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement findingElement = document.RootElement.GetProperty("findings")[0];
+
+        Assert.AreEqual(0, findingElement.GetProperty("entropy").GetDouble());
+        Assert.DoesNotContain("NaN", json);
     }
 
     private static string CreateGitHubPat()

@@ -1,5 +1,7 @@
 using Picket.Engine;
 using Picket.Report;
+using System.Text.Json;
+using System.Xml.Linq;
 
 namespace Picket.Tests;
 
@@ -79,6 +81,23 @@ public sealed class GitleaksJunitReportWriterTests
         Assert.DoesNotContain("\u0001", xml);
         Assert.DoesNotContain("\u0002", xml);
         Assert.Contains("&#xFFFD;", xml);
+    }
+
+    /// <summary>
+    /// Verifies compatibility JUnit reports render embedded non-finite entropy values as valid JSON numbers.
+    /// </summary>
+    [TestMethod]
+    public void WriteRendersNonFiniteEntropyAsValidEmbeddedJson()
+    {
+        Finding finding = CreateFinding(entropy: double.NaN);
+
+        string xml = GitleaksJunitReportWriter.Write([finding]);
+        XDocument document = XDocument.Parse(xml);
+        XElement failure = document.Root!.Element("testsuite")!.Element("testcase")!.Element("failure")!;
+        using JsonDocument embedded = JsonDocument.Parse(failure.Value);
+
+        Assert.AreEqual(0, embedded.RootElement.GetProperty("Entropy").GetDouble());
+        Assert.DoesNotContain("NaN", xml);
     }
 
     private static Finding CreateFinding(

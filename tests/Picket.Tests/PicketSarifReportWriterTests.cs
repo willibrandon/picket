@@ -1,6 +1,7 @@
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -94,7 +95,24 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains($"\"picketFingerprint\": \"{StableFindingFingerprint.Create(finding)}\"", sarif);
     }
 
-    private static Finding CreateFinding(string symlinkFile = "", string fingerprint = "fingerprint")
+    /// <summary>
+    /// Verifies native SARIF reports render non-finite entropy values as valid JSON numbers.
+    /// </summary>
+    [TestMethod]
+    public void WriteRendersNonFiniteEntropyAsValidJson()
+    {
+        Finding finding = CreateFinding(entropy: double.NegativeInfinity);
+
+        string sarif = PicketSarifReportWriter.Write([finding], []);
+        using JsonDocument document = JsonDocument.Parse(sarif);
+        JsonElement result = document.RootElement.GetProperty("runs")[0].GetProperty("results")[0];
+        JsonElement properties = result.GetProperty("properties");
+
+        Assert.AreEqual(0, properties.GetProperty("entropy").GetDouble());
+        Assert.DoesNotContain("Infinity", sarif);
+    }
+
+    private static Finding CreateFinding(string symlinkFile = "", string fingerprint = "fingerprint", double entropy = 2.5)
     {
         return new Finding(
             "test-rule",
@@ -108,7 +126,7 @@ public sealed class PicketSarifReportWriterTests
             "auth.py",
             symlinkFile,
             "0000000000000000",
-            2.5,
+            entropy,
             "John Doe",
             "johndoe@example.com",
             "2026-07-05",

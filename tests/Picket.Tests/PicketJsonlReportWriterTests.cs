@@ -1,6 +1,7 @@
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -101,13 +102,29 @@ public sealed class PicketJsonlReportWriterTests
         Assert.Contains("\"remediationLinks\":[\"https://example.invalid/rules/rule\"]", jsonl);
     }
 
+    /// <summary>
+    /// Verifies native JSONL reports render non-finite entropy values as valid JSON numbers.
+    /// </summary>
+    [TestMethod]
+    public void WriteRendersNonFiniteEntropyAsValidJson()
+    {
+        Finding finding = CreateFinding("rule", "stdin", entropy: double.PositiveInfinity);
+
+        string jsonl = PicketJsonlReportWriter.Write([finding]);
+        using JsonDocument document = JsonDocument.Parse(jsonl);
+
+        Assert.AreEqual(0, document.RootElement.GetProperty("entropy").GetDouble());
+        Assert.DoesNotContain("Infinity", jsonl);
+    }
+
     private static Finding CreateFinding(
         string ruleId,
         string file,
         string match = "line containing secret",
         string secret = "a secret",
         IReadOnlyList<string>? tags = null,
-        string link = "")
+        string link = "",
+        double entropy = 2.5)
     {
         return new Finding(
             ruleId,
@@ -121,7 +138,7 @@ public sealed class PicketJsonlReportWriterTests
             file,
             string.Empty,
             "0000000000000000",
-            2.5,
+            entropy,
             "John Doe",
             "johndoe@example.com",
             "10-19-2003",
