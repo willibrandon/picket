@@ -39,7 +39,6 @@ internal sealed class PicketTuiState
         Report = report;
         LoadReport(report);
         ScanWorkspace = new PicketTuiScanWorkspace(scanExecutor ?? PicketTuiProcessScanExecutor.CreateDefault());
-        FindingDataSource = new PicketTuiFindingTableDataSource(this);
         CurrentView = _rows.Count == 0 ? PicketTuiView.Dashboard : PicketTuiView.Findings;
     }
 
@@ -52,11 +51,6 @@ internal sealed class PicketTuiState
     /// Gets the native scan workspace state.
     /// </summary>
     internal PicketTuiScanWorkspace ScanWorkspace { get; }
-
-    /// <summary>
-    /// Gets the virtualized table data source for visible findings.
-    /// </summary>
-    internal PicketTuiFindingTableDataSource FindingDataSource { get; }
 
     /// <summary>
     /// Gets the current scanner-console view.
@@ -396,7 +390,6 @@ internal sealed class PicketTuiState
         _visibleRows = null;
         IReadOnlyList<PicketTuiFindingRow> visibleRows = VisibleRows;
         FocusedFindingKey = visibleRows.Count == 0 ? null : visibleRows[0].Key;
-        FindingDataSource.Refresh();
         StatusMessage = searchText.Length == 0
             ? "Search cleared"
             : string.Concat("Filter: ", searchText);

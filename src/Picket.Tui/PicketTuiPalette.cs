@@ -23,8 +23,8 @@ internal static class PicketTuiPalette
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 128, 128);
     private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(0, 200, 180);
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 120, 136);
-    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.White;
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 200, 180);
+    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.Black;
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(229, 234, 240);
     private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(120, 232, 216);
     private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(166, 176, 186);
@@ -160,7 +160,7 @@ internal static class PicketTuiPalette
             .Set(MenuBarTheme.HoveredForegroundColor, Foreground)
             .Set(SplitterTheme.DividerColor, Border)
             .Set(SplitterTheme.FocusedDividerColor, FocusBackground)
-            .Set(TableTheme.AlternateRowBackground, PanelBackground)
+            .Set(TableTheme.AlternateRowBackground, Background)
             .Set(TableTheme.BackgroundColor, Background)
             .Set(TableTheme.BorderColor, Border)
             .Set(TableTheme.EmptyTextForeground, MutedForeground)

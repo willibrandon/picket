@@ -679,7 +679,7 @@ public sealed class PicketTuiTests
 
         Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
-            .WaitUntil(s => s.ContainsText("picket scan"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .WaitUntil(s => s.ContainsText("Ready to scan"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -693,7 +693,7 @@ public sealed class PicketTuiTests
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("picket scan", screenText);
+        Assert.Contains("Ready to scan", screenText);
         Assert.Contains("Target", screenText);
         Assert.Contains("Source", screenText);
         Assert.Contains("Output", screenText);
@@ -782,7 +782,7 @@ public sealed class PicketTuiTests
         Assert.Contains("No ignore", screenText);
         Assert.Contains("Only valid", screenText);
         Assert.Contains("Results", screenText);
-        Assert.Contains("structurally-valid", screenText);
+        Assert.Contains("Result value", screenText);
         Assert.Contains("Verify", screenText);
     }
 

@@ -17,6 +17,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_githubIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubRepositoryTypes = ["all", "public", "private", "forks", "sources", "owner", "member"];
     private static readonly string[] s_reportFormats = ["jsonl", "json", "sarif", "html", "csv", "junit", "gitlab", "toon"];
+    private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
     private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps"];
@@ -57,6 +58,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selectable result filters.
     /// </summary>
     internal static IReadOnlyList<string> ResultFilters => s_resultFilters;
+
+    /// <summary>
+    /// Gets compact result filter labels for terminal display.
+    /// </summary>
+    internal static IReadOnlyList<string> ResultFilterDisplayLabels => s_resultFilterDisplayLabels;
 
     /// <summary>
     /// Gets the selectable scan settings pages.
