@@ -147,14 +147,21 @@ internal static partial class Program
             _ => throw new InvalidOperationException($"unsupported analyze report format: {resolvedReportFormat}"),
         };
 
-        return TryWriteTextReport(report, reportPath);
+        return TryWriteTextReport(report, reportPath, announceReportPath: true);
     }
 
     static bool TryResolveAnalysisReportFormat(string? reportPath, string? reportFormat, [NotNullWhen(true)] out string? resolvedReportFormat)
     {
         if (!string.IsNullOrWhiteSpace(reportFormat))
         {
-            resolvedReportFormat = reportFormat.ToLowerInvariant();
+            resolvedReportFormat = reportFormat.Trim().ToLowerInvariant();
+            if (resolvedReportFormat.StartsWith('.'))
+            {
+                resolvedReportFormat = resolvedReportFormat.Equals(".txt", StringComparison.Ordinal)
+                    ? "text"
+                    : resolvedReportFormat[1..];
+            }
+
             if (resolvedReportFormat is "json" or "jsonl" or "text")
             {
                 return true;
@@ -221,10 +228,10 @@ internal static partial class Program
             return false;
         }
 
-        return TryWriteTextReport(report, reportPath);
+        return TryWriteTextReport(report, reportPath, announceReportPath: nativeReportFormats);
     }
 
-    static bool TryWriteTextReport(string report, string? reportPath)
+    static bool TryWriteTextReport(string report, string? reportPath, bool announceReportPath = false)
     {
         if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
         {
@@ -235,6 +242,11 @@ internal static partial class Program
         try
         {
             File.WriteAllText(reportPath, report);
+            if (announceReportPath)
+            {
+                Console.Error.WriteLine($"report written: {reportPath}");
+            }
+
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -348,6 +360,22 @@ internal static partial class Program
     static bool TryNormalizeReportFormat(string reportFormat, bool nativeReportFormats, [NotNullWhen(true)] out string? resolvedReportFormat)
     {
         string normalizedReportFormat = reportFormat.Trim().ToLowerInvariant();
+        if (nativeReportFormats && normalizedReportFormat.StartsWith('.'))
+        {
+            if (normalizedReportFormat.Equals(".junit.xml", StringComparison.Ordinal))
+            {
+                normalizedReportFormat = "junit";
+            }
+            else if (normalizedReportFormat.Equals(".htm", StringComparison.Ordinal))
+            {
+                normalizedReportFormat = "html";
+            }
+            else
+            {
+                normalizedReportFormat = normalizedReportFormat[1..];
+            }
+        }
+
         if (nativeReportFormats && IsGitLabCodeQualityReportFormat(normalizedReportFormat))
         {
             resolvedReportFormat = "gitlab";

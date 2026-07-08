@@ -68,7 +68,9 @@ Revocation command templates never include raw secret values. Picket emits concr
 
 ## Report Selection
 
-When `--report-format` is provided, it controls the writer. Without `--report-format`, Picket infers the writer from `--report-path`:
+When `--report-format` is provided, it controls the writer. The canonical format values do not include a leading dot: `json`, `jsonl`, `csv`, `junit`, `html`, `gitlab`, `sarif`, `toon`, and `template` where supported. Native commands also accept extension aliases such as `.html`, `.htm`, `.jsonl`, and `.sarif` for convenience.
+
+Without `--report-format`, Picket infers the writer from `--report-path`:
 
 - `.csv` selects CSV.
 - `.json` selects JSON.
@@ -80,6 +82,8 @@ When `--report-format` is provided, it controls the writer. Without `--report-fo
 - `gl-code-quality-report.json` or `*.gitlab-code-quality.json` selects GitLab code-quality for native commands.
 
 When no path or format is supplied, JSON is written to standard output.
+
+Native commands print `report written: <path>` to standard error after saving a report file. Standard output remains reserved for report content when no report path is supplied or when `--report-path -` is used.
 
 ## Report Input
 

@@ -51,7 +51,7 @@ public static class PicketHtmlReportWriter
         builder.Append("<style>");
         builder.Append(":root{color-scheme:light dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;background:#f7f7f4;color:#161814}");
         builder.Append("body{margin:0;background:#f7f7f4;color:#161814}");
-        builder.Append("main{max-width:1200px;margin:0 auto;padding:32px 24px 48px}");
+        builder.Append("main{max-width:1440px;margin:0 auto;padding:32px 24px 48px}");
         builder.Append("header{margin-bottom:24px}");
         builder.Append(".eyebrow{margin:0 0 4px;color:#596052;font-size:13px;text-transform:uppercase}");
         builder.Append("h1{margin:0;font-size:32px;line-height:1.15;font-weight:700}");
@@ -60,19 +60,23 @@ public static class PicketHtmlReportWriter
         builder.Append(".metric{border:1px solid #d9ddd2;background:#fff;border-radius:6px;padding:14px 16px}");
         builder.Append(".metric span{display:block;color:#596052;font-size:13px}");
         builder.Append(".metric strong{display:block;margin-top:2px;font-size:24px}");
-        builder.Append("table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d9ddd2;border-radius:6px;overflow:hidden}");
+        builder.Append(".table-wrap{overflow-x:auto;border:1px solid #d9ddd2;border-radius:6px;background:#fff}");
+        builder.Append("table{width:100%;min-width:1120px;border-collapse:collapse;background:#fff}");
         builder.Append("th,td{padding:10px 12px;border-bottom:1px solid #e6e9df;text-align:left;vertical-align:top;font-size:14px}");
         builder.Append("th{background:#edf0e8;color:#30352c;font-weight:650}");
         builder.Append("tr:last-child td{border-bottom:0}");
+        builder.Append(".rule-column{width:14%}.location-column{width:18%}.secret-column{width:10%}.match-column{width:18%}.fingerprint-column{width:18%}.metadata-column{width:18%}.tags-column{width:4%}");
+        builder.Append(".rule-id-column{width:14%}.description-column{width:22%}.pattern-column{width:40%}");
+        builder.Append(".metadata-cell{min-width:220px}.tags-cell{min-width:120px}.pattern-cell code{overflow-wrap:anywhere}");
         builder.Append("code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,\"Liberation Mono\",monospace}");
         builder.Append("code{font-size:13px}");
         builder.Append("pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.45}");
         builder.Append(".empty{border:1px solid #d9ddd2;background:#fff;border-radius:6px;padding:20px;color:#596052}");
         builder.Append(".tags{display:flex;flex-wrap:wrap;gap:6px}");
         builder.Append(".tag{border:1px solid #cfd5c6;background:#f4f6ef;border-radius:999px;padding:2px 8px;font-size:12px;color:#30352c}");
-        builder.Append(".metadata{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:4px 8px;font-size:13px}");
-        builder.Append(".metadata dt{margin:0;color:#596052}.metadata dd{margin:0;word-break:break-word}");
-        builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,table,.empty{background:#1d211a;border-color:#3a4233}th{background:#293023;color:#f1f4eb}td,th{border-color:#333b2d}.eyebrow,.metric span,.empty{color:#b5bcae}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
+        builder.Append(".metadata{margin:0;display:grid;grid-template-columns:max-content minmax(8rem,1fr);gap:4px 12px;font-size:13px}");
+        builder.Append(".metadata dt{margin:0;color:#596052;white-space:nowrap}.metadata dd{margin:0;min-width:0}.metadata dd code{overflow-wrap:anywhere;word-break:normal}");
+        builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,.table-wrap,table,.empty{background:#1d211a;border-color:#3a4233}th{background:#293023;color:#f1f4eb}td,th{border-color:#333b2d}.eyebrow,.metric span,.empty{color:#b5bcae}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
         builder.Append("</style>\n");
         builder.Append("</head>\n");
     }
@@ -151,7 +155,8 @@ public static class PicketHtmlReportWriter
             return;
         }
 
-        builder.Append("<table>\n");
+        builder.Append("<div class=\"table-wrap\"><table>\n");
+        builder.Append("<colgroup><col class=\"rule-column\"><col class=\"location-column\"><col class=\"secret-column\"><col class=\"match-column\"><col class=\"fingerprint-column\"><col class=\"metadata-column\"><col class=\"tags-column\"></colgroup>\n");
         builder.Append("<thead><tr><th>Rule</th><th>Location</th><th>Secret</th><th>Match</th><th>Fingerprint</th><th>Metadata</th><th>Tags</th></tr></thead>\n");
         builder.Append("<tbody>\n");
         for (int i = 0; i < findings.Count; i++)
@@ -160,7 +165,7 @@ public static class PicketHtmlReportWriter
         }
 
         builder.Append("</tbody>\n");
-        builder.Append("</table>\n");
+        builder.Append("</table></div>\n");
         builder.Append("</section>\n");
     }
 
@@ -188,9 +193,9 @@ public static class PicketHtmlReportWriter
         AppendHtml(builder, finding.Match);
         builder.Append("</pre></td><td><code>");
         AppendHtml(builder, CreateFingerprint(finding));
-        builder.Append("</code></td><td>");
+        builder.Append("</code></td><td class=\"metadata-cell\">");
         WriteFindingMetadata(builder, finding, rule);
-        builder.Append("</td><td>");
+        builder.Append("</td><td class=\"tags-cell\">");
         WriteTags(builder, finding.Tags);
         builder.Append("</td></tr>\n");
     }
@@ -231,7 +236,8 @@ public static class PicketHtmlReportWriter
             return;
         }
 
-        builder.Append("<table>\n");
+        builder.Append("<div class=\"table-wrap\"><table>\n");
+        builder.Append("<colgroup><col class=\"rule-id-column\"><col class=\"description-column\"><col class=\"pattern-column\"><col class=\"metadata-column\"><col class=\"tags-column\"></colgroup>\n");
         builder.Append("<thead><tr><th>ID</th><th>Description</th><th>Pattern</th><th>Metadata</th><th>Tags</th></tr></thead>\n");
         builder.Append("<tbody>\n");
         for (int i = 0; i < rules.Count; i++)
@@ -240,7 +246,7 @@ public static class PicketHtmlReportWriter
         }
 
         builder.Append("</tbody>\n");
-        builder.Append("</table>\n");
+        builder.Append("</table></div>\n");
         builder.Append("</section>\n");
     }
 
@@ -250,11 +256,11 @@ public static class PicketHtmlReportWriter
         AppendHtml(builder, rule.Id);
         builder.Append("</code></td><td>");
         AppendHtml(builder, rule.Description);
-        builder.Append("</td><td><code>");
+        builder.Append("</td><td class=\"pattern-cell\"><code>");
         AppendHtml(builder, rule.Pattern);
-        builder.Append("</code></td><td>");
+        builder.Append("</code></td><td class=\"metadata-cell\">");
         WriteRuleMetadata(builder, rule);
-        builder.Append("</td><td>");
+        builder.Append("</td><td class=\"tags-cell\">");
         WriteTags(builder, rule.Tags);
         builder.Append("</td></tr>\n");
     }
