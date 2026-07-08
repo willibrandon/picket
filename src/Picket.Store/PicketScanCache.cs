@@ -329,17 +329,26 @@ public sealed class PicketScanCache
             int imported = 0;
             foreach ((string tempPath, string fullEntryPath, string lockPath, DateTimeOffset lastWriteTime) in stagedEntries)
             {
-                string? entryDirectory = Path.GetDirectoryName(fullEntryPath);
-                if (entryDirectory is not null)
+                try
                 {
-                    CreateOwnerOnlyDirectory(entryDirectory);
-                }
+                    string? entryDirectory = Path.GetDirectoryName(fullEntryPath);
+                    if (entryDirectory is not null)
+                    {
+                        CreateOwnerOnlyDirectory(entryDirectory);
+                    }
 
-                using FileStream _ = OpenLock(lockPath);
-                File.Move(tempPath, fullEntryPath, overwrite: true);
-                SetOwnerOnlyFile(fullEntryPath);
-                TrySetLastWriteTimeUtc(fullEntryPath, lastWriteTime);
-                imported++;
+                    using FileStream _ = OpenLock(lockPath);
+                    File.Move(tempPath, fullEntryPath, overwrite: true);
+                    SetOwnerOnlyFile(fullEntryPath);
+                    TrySetLastWriteTimeUtc(fullEntryPath, lastWriteTime);
+                    imported++;
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
             }
 
             return imported;
@@ -398,19 +407,41 @@ public sealed class PicketScanCache
         long totalBytes = 0;
         foreach (string entryPath in EnumerateEntryFiles())
         {
+            if (!TryGetFileLength(entryPath, out long length))
+            {
+                continue;
+            }
+
             entryCount++;
             if (IsCurrentKeyEntryPath(entryPath))
             {
                 currentKeyEntryCount++;
             }
 
-            long length = new FileInfo(entryPath).Length;
             totalBytes = long.MaxValue - totalBytes < length
                 ? long.MaxValue
                 : totalBytes + length;
         }
 
         return new PicketScanCacheStats(RootPath, entryCount, currentKeyEntryCount, totalBytes);
+    }
+
+    private static bool TryGetFileLength(string path, out long length)
+    {
+        try
+        {
+            length = new FileInfo(path).Length;
+            return true;
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        length = 0;
+        return false;
     }
 
     /// <summary>

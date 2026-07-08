@@ -2,6 +2,7 @@ using Picket.Engine;
 using Picket.Rules;
 using Picket.Store;
 using System.IO.Compression;
+using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
 
@@ -311,6 +312,25 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies cache statistics skip entries whose length cannot be read.
+    /// </summary>
+    [TestMethod]
+    public void TryGetFileLengthReturnsFalseForDeletedEntry()
+    {
+        MethodInfo method = typeof(PicketScanCache).GetMethod(
+            "TryGetFileLength",
+            BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Expected scan cache to expose a length probe.");
+        object?[] arguments = [Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), 0L];
+
+        bool success = method.Invoke(null, arguments) as bool?
+            ?? throw new InvalidOperationException("Expected scan cache length probe to return a Boolean.");
+
+        Assert.IsFalse(success);
+        Assert.AreEqual(0L, arguments[1]);
+    }
+
+    /// <summary>
     /// Verifies content-addressed cache entries are reused across logical paths.
     /// </summary>
     [TestMethod]
@@ -571,6 +591,37 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies cache import skips entries whose lock is held by another writer.
+    /// </summary>
+    [TestMethod]
+    public void ImportSkipsEntryWhenLockHeld()
+    {
+        using TempDirectory sourceRoot = TempDirectory.Create();
+        using TempDirectory destinationRoot = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache sourceCache = CreateCache(sourceRoot.Path);
+        PicketScanCache destinationCache = CreateCache(destinationRoot.Path);
+        string archivePath = Path.Combine(sourceRoot.Path, "cache.zip");
+
+        sourceCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        Assert.AreEqual(1, sourceCache.Export(archivePath));
+        string lockPath = GetSingleArchiveEntryLockPath(destinationRoot.Path, archivePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
+        using (FileStream _ = new(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+        {
+            int importedWhileLocked = destinationCache.Import(archivePath);
+
+            Assert.AreEqual(0, importedWhileLocked);
+            Assert.IsEmpty(Directory.GetFiles(Path.Combine(destinationRoot.Path, "entries"), "*.cache", SearchOption.AllDirectories));
+        }
+
+        int importedAfterLockReleased = destinationCache.Import(archivePath);
+
+        Assert.AreEqual(1, importedAfterLockReleased);
+        Assert.IsTrue(destinationCache.TryRead(content, "secret.txt", string.Empty, out _));
+    }
+
+    /// <summary>
     /// Verifies cache import does not keep staged entries when a later current-key entry is invalid.
     /// </summary>
     [TestMethod]
@@ -778,6 +829,16 @@ public sealed class PicketScanCacheTests
         string[] entries = Directory.GetFiles(Path.Combine(root, "entries"), "*.cache", SearchOption.AllDirectories);
         Assert.HasCount(1, entries);
         return entries[0];
+    }
+
+    private static string GetSingleArchiveEntryLockPath(string cacheRoot, string archivePath)
+    {
+        using ZipArchive archive = ZipFile.OpenRead(archivePath);
+        Assert.HasCount(1, archive.Entries);
+        string fileName = Path.GetFileName(archive.Entries[0].FullName);
+        string[] parts = fileName.Split('-');
+        Assert.HasCount(3, parts);
+        return Path.Combine(cacheRoot, "locks", string.Concat(parts[0], "-", parts[1], ".lock"));
     }
 
     private static long GetLargestArchiveEntryLength(string archivePath)
