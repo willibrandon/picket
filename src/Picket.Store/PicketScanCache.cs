@@ -14,8 +14,10 @@ namespace Picket.Store;
 public sealed class PicketScanCache
 {
     private const int AuthenticationKeyByteLength = 32;
+    private const int DefaultMaxImportEntries = 100_000;
     private const int Sha256HexLength = 64;
     private const long DefaultMaxImportEntryBytes = 100_000_000;
+    private const long DefaultMaxImportTotalBytes = 1_000_000_000;
     private const string CacheEntryExtension = ".cache";
     private const string AuthenticationKeyFileName = "scan-cache-auth.key";
     private const string AddressHashHeader = "addressHash";
@@ -217,7 +219,7 @@ public sealed class PicketScanCache
     /// <returns>The number of imported entries.</returns>
     public int Import(string archivePath)
     {
-        return Import(archivePath, DefaultMaxImportEntryBytes);
+        return Import(archivePath, DefaultMaxImportEntryBytes, DefaultMaxImportEntries, DefaultMaxImportTotalBytes);
     }
 
     /// <summary>
@@ -228,10 +230,27 @@ public sealed class PicketScanCache
     /// <returns>The number of imported entries.</returns>
     public int Import(string archivePath, long maxEntryBytes)
     {
+        return Import(archivePath, maxEntryBytes, DefaultMaxImportEntries, DefaultMaxImportTotalBytes);
+    }
+
+    /// <summary>
+    /// Imports current scanner-key cache entries from a portable zip archive.
+    /// </summary>
+    /// <param name="archivePath">The source archive path.</param>
+    /// <param name="maxEntryBytes">The maximum decompressed bytes allowed for a single imported entry.</param>
+    /// <param name="maxEntries">The maximum non-directory entries allowed in the archive.</param>
+    /// <param name="maxTotalBytes">The maximum aggregate decompressed bytes allowed for imported current-key entries.</param>
+    /// <returns>The number of imported entries.</returns>
+    public int Import(string archivePath, long maxEntryBytes, int maxEntries, long maxTotalBytes)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(archivePath);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxEntryBytes, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxEntries, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxTotalBytes, 0);
 
         int imported = 0;
+        int entryCount = 0;
+        long totalImportedBytes = 0;
         using var archiveStream = new FileStream(Path.GetFullPath(archivePath), FileMode.Open, FileAccess.Read, FileShare.Read);
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
         foreach (ZipArchiveEntry archiveEntry in archive.Entries)
@@ -239,6 +258,12 @@ public sealed class PicketScanCache
             if (IsDirectoryArchiveEntry(archiveEntry))
             {
                 continue;
+            }
+
+            entryCount++;
+            if (entryCount > maxEntries)
+            {
+                throw new FormatException($"Cache archive exceeds maximum entry count: {maxEntries.ToString(CultureInfo.InvariantCulture)}");
             }
 
             if (!TryParseArchiveEntryName(
@@ -261,6 +286,11 @@ public sealed class PicketScanCache
                 throw new FormatException($"Cache archive entry exceeds maximum decompressed size: {archiveEntry.FullName}");
             }
 
+            if (ExceedsBudget(totalImportedBytes, archiveEntry.Length, maxTotalBytes))
+            {
+                throw new FormatException($"Cache archive exceeds maximum decompressed size: {archiveEntry.FullName}");
+            }
+
             string entryPath = Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, addressHash, Key.Fingerprint));
             string fullEntryPath = Path.GetFullPath(entryPath);
             if (!IsWithinDirectory(fullEntryPath, _entriesPath))
@@ -279,10 +309,16 @@ public sealed class PicketScanCache
             string tempPath = CreateTempPath(fullEntryPath);
             try
             {
+                long copiedBytes;
                 using (Stream input = archiveEntry.Open())
                 using (FileStream output = OpenOwnerOnlyNewFile(tempPath))
                 {
-                    CopyArchiveEntryWithinLimit(input, output, maxEntryBytes, archiveEntry.FullName);
+                    copiedBytes = CopyArchiveEntryWithinLimit(input, output, maxEntryBytes, archiveEntry.FullName);
+                }
+
+                if (ExceedsBudget(totalImportedBytes, copiedBytes, maxTotalBytes))
+                {
+                    throw new FormatException($"Cache archive exceeds maximum decompressed size: {archiveEntry.FullName}");
                 }
 
                 if (!IsValidEntryFile(tempPath, blobHash, addressHash, shard, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
@@ -294,6 +330,7 @@ public sealed class PicketScanCache
                 SetOwnerOnlyFile(fullEntryPath);
                 TrySetLastWriteTimeUtc(fullEntryPath, archiveEntry);
                 imported++;
+                totalImportedBytes += copiedBytes;
             }
             finally
             {
@@ -304,7 +341,7 @@ public sealed class PicketScanCache
         return imported;
     }
 
-    private static void CopyArchiveEntryWithinLimit(Stream input, Stream output, long maxBytes, string entryName)
+    private static long CopyArchiveEntryWithinLimit(Stream input, Stream output, long maxBytes, string entryName)
     {
         byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);
         try
@@ -322,11 +359,18 @@ public sealed class PicketScanCache
                 output.Write(buffer.AsSpan(0, read));
                 totalRead = projectedTotal;
             }
+
+            return totalRead;
         }
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
         }
+    }
+
+    private static bool ExceedsBudget(long current, long addition, long max)
+    {
+        return addition > max || current > max - addition;
     }
 
     /// <summary>

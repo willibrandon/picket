@@ -589,6 +589,53 @@ public sealed class PicketScanCacheTests
         Assert.IsEmpty(Directory.GetFiles(Path.Combine(destinationRoot.Path, "entries"), "*.cache", SearchOption.AllDirectories));
     }
 
+    /// <summary>
+    /// Verifies cache import rejects archives that exceed the entry-count budget.
+    /// </summary>
+    [TestMethod]
+    public void ImportRejectsArchivesAboveConfiguredEntryCount()
+    {
+        using TempDirectory sourceRoot = TempDirectory.Create();
+        using TempDirectory destinationRoot = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache sourceCache = CreateCache(sourceRoot.Path);
+        PicketScanCache destinationCache = CreateCache(destinationRoot.Path);
+        string archivePath = Path.Combine(sourceRoot.Path, "cache.zip");
+
+        sourceCache.Write(content, "first.txt", [CreateFinding("first.txt")]);
+        sourceCache.Write(content, "second.txt", [CreateFinding("second.txt")]);
+        Assert.AreEqual(2, sourceCache.Export(archivePath));
+
+        FormatException exception = Assert.ThrowsExactly<FormatException>(
+            () => destinationCache.Import(archivePath, maxEntryBytes: 100_000_000, maxEntries: 1, maxTotalBytes: 1_000_000_000));
+
+        Assert.Contains("maximum entry count", exception.Message);
+    }
+
+    /// <summary>
+    /// Verifies cache import rejects archives that exceed the aggregate decompressed-byte budget.
+    /// </summary>
+    [TestMethod]
+    public void ImportRejectsArchivesAboveConfiguredTotalDecompressedSize()
+    {
+        using TempDirectory sourceRoot = TempDirectory.Create();
+        using TempDirectory destinationRoot = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache sourceCache = CreateCache(sourceRoot.Path);
+        PicketScanCache destinationCache = CreateCache(destinationRoot.Path);
+        string archivePath = Path.Combine(sourceRoot.Path, "cache.zip");
+
+        sourceCache.Write(content, "first.txt", [CreateFinding("first.txt")]);
+        sourceCache.Write(content, "second.txt", [CreateFinding("second.txt")]);
+        Assert.AreEqual(2, sourceCache.Export(archivePath));
+        long largestEntryBytes = GetLargestArchiveEntryLength(archivePath);
+
+        FormatException exception = Assert.ThrowsExactly<FormatException>(
+            () => destinationCache.Import(archivePath, maxEntryBytes: 100_000_000, maxEntries: 100, maxTotalBytes: largestEntryBytes));
+
+        Assert.Contains("maximum decompressed size", exception.Message);
+    }
+
     private static PicketScanCache CreateCache(
         string root,
         string pattern = "token-[0-9]+",
@@ -665,6 +712,18 @@ public sealed class PicketScanCacheTests
         string[] entries = Directory.GetFiles(Path.Combine(root, "entries"), "*.cache", SearchOption.AllDirectories);
         Assert.HasCount(1, entries);
         return entries[0];
+    }
+
+    private static long GetLargestArchiveEntryLength(string archivePath)
+    {
+        long largestEntryLength = 0;
+        using ZipArchive archive = ZipFile.OpenRead(archivePath);
+        foreach (ZipArchiveEntry entry in archive.Entries)
+        {
+            largestEntryLength = Math.Max(largestEntryLength, entry.Length);
+        }
+
+        return largestEntryLength;
     }
 
     private static string GetSingleLockPath(string root)
