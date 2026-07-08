@@ -771,6 +771,7 @@ public sealed partial class RepositoryConventionTests
     public void RequiredDocumentationDeliverablesCoverCurrentContracts()
     {
         string rules = ReadRepositoryFile("docs/RULES.md");
+        string parity = ReadRepositoryFile("docs/PARITY.md");
         string validation = ReadRepositoryFile("docs/VALIDATION.md");
         string reports = ReadRepositoryFile("docs/REPORTS.md");
         string cache = ReadRepositoryFile("docs/CACHE.md");
@@ -791,6 +792,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("revocation", rules);
         Assert.Contains("deprecated", rules);
         Assert.Contains("Scout `ByteRegex`", rules);
+        Assert.Contains("[extend] path", rules);
+        Assert.Contains("process current working directory", rules);
+        Assert.Contains("trusted scanner configuration", rules);
+        Assert.Contains("Local `extend.path` Resolution", parity);
+        Assert.Contains("10 MiB per-file read cap", parity);
+        Assert.Contains("not confined to the scan root", parity);
         Assert.Contains("Offline validation", validation);
         Assert.Contains("Live network verification is disabled by default", validation);
         Assert.Contains("picket verify --live", validation);

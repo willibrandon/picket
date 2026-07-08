@@ -23,8 +23,8 @@ internal static class PicketTuiPalette
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 128, 128);
     private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(0, 200, 180);
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 200, 180);
-    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.Black;
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 112, 130);
+    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.FromRgb(248, 252, 255);
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(229, 234, 240);
     private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(120, 232, 216);
     private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(166, 176, 186);
@@ -190,10 +190,12 @@ internal static class PicketTuiPalette
             .Set(TextBoxTheme.BackgroundColor, PanelBackground)
             .Set(TextBoxTheme.CursorBackgroundColor, FocusBackground)
             .Set(TextBoxTheme.CursorForegroundColor, FocusForeground)
-            .Set(TextBoxTheme.FocusedFillBackgroundColor, PanelBackground)
+            .Set(TextBoxTheme.FillBackgroundColor, PanelBackground)
+            .Set(TextBoxTheme.FocusedFillBackgroundColor, Hex1bColor.FromRgb(23, 32, 41))
             .Set(TextBoxTheme.FocusedForegroundColor, Foreground)
             .Set(TextBoxTheme.ForegroundColor, Foreground)
             .Set(TextBoxTheme.SelectionBackgroundColor, FocusedRowBackground)
+            .Set(TextBoxTheme.SelectionForegroundColor, FocusedRowForeground)
             .Set(ProgressTheme.EmptyForegroundColor, Border)
             .Set(ProgressTheme.FilledForegroundColor, SuccessForeground)
             .Set(ProgressTheme.IndeterminateForegroundColor, InfoForeground);
