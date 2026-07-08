@@ -252,7 +252,8 @@ public sealed class PicketScanCache
         int entryCount = 0;
         long totalImportedBytes = 0;
         string stagingPath = CreateImportStagingPath();
-        var stagedEntries = new List<(string TempPath, string FullEntryPath, string LockPath, DateTimeOffset LastWriteTime)>();
+        DateTimeOffset importTime = DateTimeOffset.UtcNow;
+        var stagedEntries = new List<(string TempPath, string FullEntryPath, string LockPath)>();
         using var archiveStream = new FileStream(Path.GetFullPath(archivePath), FileMode.Open, FileAccess.Read, FileShare.Read);
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
         CreateOwnerOnlyDirectory(stagingPath);
@@ -322,12 +323,12 @@ public sealed class PicketScanCache
                     throw new FormatException($"Invalid cache archive entry content: {archiveEntry.FullName}");
                 }
 
-                stagedEntries.Add((tempPath, fullEntryPath, lockPath, archiveEntry.LastWriteTime));
+                stagedEntries.Add((tempPath, fullEntryPath, lockPath));
                 totalImportedBytes += copiedBytes;
             }
 
             int imported = 0;
-            foreach ((string tempPath, string fullEntryPath, string lockPath, DateTimeOffset lastWriteTime) in stagedEntries)
+            foreach ((string tempPath, string fullEntryPath, string lockPath) in stagedEntries)
             {
                 try
                 {
@@ -340,7 +341,7 @@ public sealed class PicketScanCache
                     using FileStream _ = OpenLock(lockPath);
                     File.Move(tempPath, fullEntryPath, overwrite: true);
                     SetOwnerOnlyFile(fullEntryPath);
-                    TrySetLastWriteTimeUtc(fullEntryPath, lastWriteTime);
+                    TrySetLastWriteTimeUtc(fullEntryPath, importTime);
                     imported++;
                 }
                 catch (IOException)
@@ -355,7 +356,7 @@ public sealed class PicketScanCache
         }
         finally
         {
-            foreach ((string tempPath, _, _, _) in stagedEntries)
+            foreach ((string tempPath, _, _) in stagedEntries)
             {
                 TryDelete(tempPath);
             }

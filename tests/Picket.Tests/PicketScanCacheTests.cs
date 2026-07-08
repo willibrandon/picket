@@ -591,6 +591,32 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies cache import does not let archive-supplied timestamps make new entries immediately pruneable.
+    /// </summary>
+    [TestMethod]
+    public void ImportDoesNotTrustArchiveEntryTimestampsForPruning()
+    {
+        using TempDirectory sourceRoot = TempDirectory.Create();
+        using TempDirectory destinationRoot = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache sourceCache = CreateCache(sourceRoot.Path);
+        PicketScanCache destinationCache = CreateCache(destinationRoot.Path);
+        string archivePath = Path.Combine(sourceRoot.Path, "cache.zip");
+
+        sourceCache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        File.SetLastWriteTimeUtc(GetSingleEntryPath(sourceRoot.Path), DateTime.UtcNow - TimeSpan.FromDays(30));
+        Assert.AreEqual(1, sourceCache.Export(archivePath));
+
+        int imported = destinationCache.Import(archivePath);
+        int pruned = destinationCache.PruneOlderThan(TimeSpan.FromDays(1));
+
+        Assert.AreEqual(1, imported);
+        Assert.AreEqual(0, pruned);
+        Assert.AreEqual(1, destinationCache.GetStats().EntryCount);
+        Assert.IsTrue(destinationCache.TryRead(content, "secret.txt", string.Empty, out _));
+    }
+
+    /// <summary>
     /// Verifies cache import skips entries whose lock is held by another writer.
     /// </summary>
     [TestMethod]
