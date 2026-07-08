@@ -18,13 +18,13 @@ internal static class PicketTuiPalette
     internal const double UiContrastMinimum = 3.0;
 
     private static readonly Hex1bColor s_background = Hex1bColor.FromRgb(12, 14, 16);
-    private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(144, 152, 160);
+    private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(88, 96, 105);
     private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(255, 224, 130);
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 138, 138);
     private static readonly Hex1bColor s_focusBackground = Hex1bColor.White;
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(102, 204, 255);
-    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.Black;
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(52, 111, 143);
+    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.FromRgb(244, 244, 244);
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(244, 244, 244);
     private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(132, 180, 255);
     private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(190, 198, 206);

@@ -394,6 +394,8 @@ internal sealed class PicketTuiState
     {
         SearchText = searchText;
         _visibleRows = null;
+        IReadOnlyList<PicketTuiFindingRow> visibleRows = VisibleRows;
+        FocusedFindingKey = visibleRows.Count == 0 ? null : visibleRows[0].Key;
         FindingDataSource.Refresh();
         StatusMessage = searchText.Length == 0
             ? "Search cleared"

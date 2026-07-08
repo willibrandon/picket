@@ -559,7 +559,7 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that the selected finding row uses cell-level highlighting without painting table separators.
+    /// Verifies that the selected finding row uses the Picket focus color without falling back to table chrome.
     /// </summary>
     [TestMethod]
     [Timeout(10000, CooperativeCancellation = true)]
@@ -589,17 +589,17 @@ public sealed class PicketTuiTests
         Assert.IsGreaterThanOrEqualTo(0, rowY);
 
         int textX = lines[rowY].IndexOf("github-token", StringComparison.Ordinal);
-        int separatorX = lines[rowY].IndexOf('┃');
+        int nextRowY = Array.FindIndex(lines, line => line.Contains("fp-auth-2", StringComparison.Ordinal));
         Assert.IsGreaterThanOrEqualTo(0, textX);
-        Assert.IsGreaterThanOrEqualTo(0, separatorX);
+        Assert.IsGreaterThanOrEqualTo(0, nextRowY);
 
         TerminalCell textCell = snapshot.GetCell(textX, rowY);
-        TerminalCell separatorCell = snapshot.GetCell(separatorX, rowY);
+        TerminalCell nextRowCell = snapshot.GetCell(lines[nextRowY].IndexOf("fp-auth-2", StringComparison.Ordinal), nextRowY);
 
         Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, textCell.Foreground);
         Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, textCell.Background);
-        Assert.AreEqual(PicketTuiPalette.Border, separatorCell.Foreground);
-        Assert.AreEqual(PicketTuiPalette.Background, separatorCell.Background);
+        Assert.AreEqual(PicketTuiPalette.Foreground, nextRowCell.Foreground);
+        Assert.AreEqual(PicketTuiPalette.Background, nextRowCell.Background);
     }
 
     /// <summary>
@@ -635,7 +635,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
-        Assert.Contains("Findings are loaded. Press g f", screenText);
+        Assert.Contains("Use g f to review", screenText);
         Assert.Contains("Last run: not run yet", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("g s scan", screenText);
@@ -678,7 +678,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
-        Assert.Contains("Findings are loaded. Press g f", screenText);
+        Assert.Contains("Use g f to review", screenText);
         Assert.Contains("Last run: not run yet", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("src/auth.cs", screenText);
@@ -803,7 +803,7 @@ public sealed class PicketTuiTests
         string findingsText = findingsSnapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("Findings are loaded. Press g f", screenText);
+        Assert.Contains("Use g f to review", screenText);
         Assert.Contains("Started:", screenText);
         Assert.Contains("Completed:", screenText);
         Assert.Contains("Elapsed:", screenText);
