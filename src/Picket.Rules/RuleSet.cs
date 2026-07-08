@@ -12,9 +12,14 @@ public sealed class RuleSet(
     bool regexesPrevalidated = false)
 {
     /// <summary>
+    /// Gets the maximum number of rules accepted in a single rule set.
+    /// </summary>
+    public const int MaxRuleCount = 10_000;
+
+    /// <summary>
     /// Gets the rules in deterministic evaluation order.
     /// </summary>
-    public IReadOnlyList<SecretRule> Rules { get; } = rules ?? throw new ArgumentNullException(nameof(rules));
+    public IReadOnlyList<SecretRule> Rules { get; } = RequireRules(rules);
 
     /// <summary>
     /// Gets global allowlists used to suppress findings.
@@ -25,4 +30,11 @@ public sealed class RuleSet(
     /// Gets a value indicating whether rule and allowlist regexes are already validated and can be compiled lazily.
     /// </summary>
     public bool RegexesPrevalidated { get; } = regexesPrevalidated;
+
+    private static IReadOnlyList<SecretRule> RequireRules(IReadOnlyList<SecretRule> rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(rules.Count, MaxRuleCount, nameof(rules));
+        return rules;
+    }
 }

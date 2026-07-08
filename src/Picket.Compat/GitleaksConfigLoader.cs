@@ -626,6 +626,11 @@ public static class GitleaksConfigLoader
                 return;
             }
 
+            if (rules.Count >= RuleSet.MaxRuleCount)
+            {
+                throw new InvalidDataException($"{sourceName}: rule count exceeds maximum of {RuleSet.MaxRuleCount.ToString(CultureInfo.InvariantCulture)} entries");
+            }
+
             if (string.IsNullOrWhiteSpace(id))
             {
                 throw new InvalidDataException($"{sourceName}: {GitleaksRuleDefinition.CreateMissingIdMessage(description, pattern, pathPattern)}");
@@ -719,7 +724,16 @@ public static class GitleaksConfigLoader
             }
 
             rules = [.. mergedRules.Values.OrderBy(rule => rule.Id, StringComparer.Ordinal)];
+            ValidateRuleCount();
             globalAllowlists.AddRange(extendedRuleSet.Allowlists);
+        }
+
+        void ValidateRuleCount()
+        {
+            if (rules.Count > RuleSet.MaxRuleCount)
+            {
+                throw new InvalidDataException($"{sourceName}: rule count exceeds maximum of {RuleSet.MaxRuleCount.ToString(CultureInfo.InvariantCulture)} entries");
+            }
         }
 
         void ApplyTargetedGlobalAllowlists()

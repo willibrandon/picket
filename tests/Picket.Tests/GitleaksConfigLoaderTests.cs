@@ -912,6 +912,28 @@ public sealed class GitleaksConfigLoaderTests
     }
 
     /// <summary>
+    /// Verifies that untrusted configs cannot force unbounded rule compilation work.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void FromTomlRejectsExcessiveRuleCount()
+    {
+        var builder = new StringBuilder((RuleSet.MaxRuleCount + 1) * 64);
+        for (int i = 0; i <= RuleSet.MaxRuleCount; i++)
+        {
+            builder.AppendLine("[[rules]]");
+            builder.Append("id = \"rule-");
+            builder.Append(i);
+            builder.AppendLine("\"");
+            builder.AppendLine("regex = '''token-[0-9]+'''");
+        }
+
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(builder.ToString(), "memory"));
+
+        Assert.Contains($"rule count exceeds maximum of {RuleSet.MaxRuleCount} entries", exception.Message);
+    }
+
+    /// <summary>
     /// Verifies that extended configuration files are read with a bounded byte limit.
     /// </summary>
     [TestMethod]

@@ -157,6 +157,7 @@ internal sealed partial class DocumentationGenerator
         builder.AppendLine("- `secretGroup` must reference an existing capture group when `regex` is present.");
         builder.AppendLine("- `extend.path` and `extend.useDefault` cannot both be set.");
         builder.AppendLine("- `extend.url` is parsed and ignored in strict compatibility mode because the pinned local Gitleaks behavior does not load URL extends.");
+        builder.AppendLine("- Resolved configs are capped at 10,000 rules.");
         builder.AppendLine("- `targetRules` is valid only on global allowlists and every target rule ID must exist after extend resolution.");
         builder.AppendLine("- Each allowlist must include at least one of `commits`, `paths`, `regexes`, or `stopwords`.");
         builder.AppendLine("- Every `[[rules.required]]` ID must refer to another configured rule.");

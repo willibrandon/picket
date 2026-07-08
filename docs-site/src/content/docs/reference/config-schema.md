@@ -121,6 +121,7 @@ Required-rule entries make a rule conditional on another rule being present near
 - `secretGroup` must reference an existing capture group when `regex` is present.
 - `extend.path` and `extend.useDefault` cannot both be set.
 - `extend.url` is parsed and ignored in strict compatibility mode because the pinned local Gitleaks behavior does not load URL extends.
+- Resolved configs are capped at 10,000 rules.
 - `targetRules` is valid only on global allowlists and every target rule ID must exist after extend resolution.
 - Each allowlist must include at least one of `commits`, `paths`, `regexes`, or `stopwords`.
 - Every `[[rules.required]]` ID must refer to another configured rule.

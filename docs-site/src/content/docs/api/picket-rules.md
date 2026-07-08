@@ -78,6 +78,10 @@ Immutable collection of secret detection rules.
 - `RegexesPrevalidated` - Gets a value indicating whether rule and allowlist regexes are already validated and can be compiled lazily.
 - `Rules` - Gets the rules in deterministic evaluation order.
 
+### Fields
+
+- `MaxRuleCount` - Gets the maximum number of rules accepted in a single rule set.
+
 ## SecretAllowlist
 
 `Picket.Rules.SecretAllowlist`
