@@ -638,16 +638,16 @@ internal sealed class PicketTuiState
 
     private string GetScanYankText()
     {
-        var lines = new List<string>
-        {
+        List<string> lines =
+        [
             string.Concat("Command: ", ScanWorkspace.BuildCommandLinePreview()),
             string.Concat("Report: ", ScanWorkspace.ReportPath),
             string.Concat("Status: ", ScanWorkspace.Status),
             string.Concat("Timing: ", FormatScanTiming(ScanWorkspace)),
             string.Concat("Summary: ", GetSummaryLine()),
-        };
+            string.Concat("Scanner output:", Environment.NewLine, ScanWorkspace.CapturedOutputText),
+        ];
 
-        lines.Add(string.Concat("Scanner output:", Environment.NewLine, ScanWorkspace.CapturedOutputText));
         return string.Join(Environment.NewLine, lines);
     }
 

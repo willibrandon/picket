@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Picket.Analyze\Picket.Analyze.csproj" />
-    <ProjectReference Include="..\..\src\Picket.Cli\Picket.Cli.csproj" AdditionalProperties="PicketCliReferenceBuild=true" />
     <ProjectReference Include="..\..\src\Picket.Compat\Picket.Compat.csproj" />
     <ProjectReference Include="..\..\src\Picket.Engine\Picket.Engine.csproj" />
     <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />

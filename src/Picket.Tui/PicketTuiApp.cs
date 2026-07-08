@@ -38,7 +38,7 @@ internal static class PicketTuiApp
                     context => CancelScanFromUi(state, context.Invalidate),
                     "Cancel scan");
                 bindings.Ctrl().Key(Hex1bKey.R).Global().OverridesCapture().Action(
-                    context => RunScanFromUi(state, context.CancellationToken, context.Invalidate),
+                    context => RunScanFromUi(state, context.Invalidate, context.CancellationToken),
                     "Run scan");
                 bindings.Key(Hex1bKey.Escape).Action(_ => state.ClearSearch(), "Clear filter");
                 bindings.Key(Hex1bKey.F5).Global().Action(_ => state.SetView(PicketTuiView.Scan), "Scan workspace");
@@ -69,7 +69,7 @@ internal static class PicketTuiApp
                     .Set(ButtonTheme.HoveredBackgroundColor, PicketTuiPalette.FocusBackground)
                     .Set(ButtonTheme.HoveredForegroundColor, PicketTuiPalette.FocusForeground),
                 h.Button(state.ScanWorkspace.IsRunning ? "Cancel" : "Run scan")
-                    .OnClick(e => ActivateScanButton(state, e.CancellationToken, e.Context.Invalidate))).FixedWidth(14)
+                    .OnClick(e => ActivateScanButton(state, e.Context.Invalidate, e.CancellationToken))).FixedWidth(14)
         ]).FixedHeight(1);
     }
 
@@ -136,7 +136,7 @@ internal static class PicketTuiApp
                     .Set(ButtonTheme.HoveredBackgroundColor, PicketTuiPalette.FocusBackground)
                     .Set(ButtonTheme.HoveredForegroundColor, PicketTuiPalette.FocusForeground),
                 h.Button(scan.IsRunning ? "Cancel" : "Run scan")
-                    .OnClick(e => ActivateScanButton(state, e.CancellationToken, e.Context.Invalidate))).FixedWidth(14),
+                    .OnClick(e => ActivateScanButton(state, e.Context.Invalidate, e.CancellationToken))).FixedWidth(14),
             BuildStatusText(h, string.Concat("Status: ", scan.Status), GetScanStatusColor(scan)).FillWidth(),
             BuildStatusText(h, string.Concat("Exit: ", exitCode), GetScanStatusColor(scan)).FixedWidth(10)
         ]).FixedHeight(1);
@@ -738,12 +738,12 @@ internal static class PicketTuiApp
         return string.Concat(value.AsSpan(0, prefixLength), "...", value.AsSpan(value.Length - suffixLength, suffixLength));
     }
 
-    private static void RunScanFromUi(PicketTuiState state, CancellationToken cancellationToken, Action invalidate)
+    private static void RunScanFromUi(PicketTuiState state, Action invalidate, CancellationToken cancellationToken)
     {
         state.StartScanInBackground(invalidate, cancellationToken);
     }
 
-    private static void ActivateScanButton(PicketTuiState state, CancellationToken cancellationToken, Action invalidate)
+    private static void ActivateScanButton(PicketTuiState state, Action invalidate, CancellationToken cancellationToken)
     {
         if (state.ScanWorkspace.IsRunning)
         {
@@ -751,7 +751,7 @@ internal static class PicketTuiApp
             return;
         }
 
-        RunScanFromUi(state, cancellationToken, invalidate);
+        RunScanFromUi(state, invalidate, cancellationToken);
     }
 
     private static void CancelScanFromUi(PicketTuiState state, Action invalidate)

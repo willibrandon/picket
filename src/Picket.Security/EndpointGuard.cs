@@ -254,11 +254,13 @@ public static class EndpointGuard
             return false;
         }
 
-        Span<byte> clientAddress = stackalloc byte[4];
-        clientAddress[0] = (byte)~bytes[12];
-        clientAddress[1] = (byte)~bytes[13];
-        clientAddress[2] = (byte)~bytes[14];
-        clientAddress[3] = (byte)~bytes[15];
+        Span<byte> clientAddress =
+        [
+            (byte)~bytes[12],
+            (byte)~bytes[13],
+            (byte)~bytes[14],
+            (byte)~bytes[15],
+        ];
         return IsNonPublicIPv4(clientAddress);
     }
 }

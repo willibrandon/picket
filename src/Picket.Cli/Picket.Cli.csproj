@@ -5,8 +5,8 @@
     <IsPackable>false</IsPackable>
     <RootNamespace>Picket</RootNamespace>
     <AssemblyName>picket</AssemblyName>
-    <PublishAot Condition="'$(PicketCliReferenceBuild)' != 'true'">true</PublishAot>
-    <SelfContained Condition="'$(PicketCliReferenceBuild)' != 'true'">true</SelfContained>
+    <PublishAot>true</PublishAot>
+    <SelfContained>true</SelfContained>
     <IsAotCompatible>true</IsAotCompatible>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
@@ -21,10 +21,6 @@
     <OptimizationPreference>Speed</OptimizationPreference>
     <StripSymbols>true</StripSymbols>
   </PropertyGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="Picket.Tests" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.CommandLine" IsAotCompatible="true" />

@@ -6,6 +6,7 @@ using Picket.Verify;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -3043,6 +3044,7 @@ public sealed class CliCompatibilityTests
         const string DiagnosticsStartedPrefix = "diagnostics server started at ";
         Assert.StartsWith(DiagnosticsStartedPrefix, firstErrorLine);
         var diagnosticsUri = new Uri(firstErrorLine[DiagnosticsStartedPrefix.Length..]);
+        Assert.AreEqual("127.0.0.1", diagnosticsUri.Host);
         var profileUriBuilder = new UriBuilder(diagnosticsUri)
         {
             Path = "/debug/pprof/profile",
@@ -3051,6 +3053,24 @@ public sealed class CliCompatibilityTests
         using var client = new HttpClient();
         using HttpResponseMessage unauthorized = await client.GetAsync(
             new Uri($"{diagnosticsUri.GetLeftPart(UriPartial.Path)}"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+        using var headRequest = new HttpRequestMessage(HttpMethod.Head, diagnosticsUri);
+        using HttpResponseMessage head = await client.SendAsync(headRequest, TestContext.CancellationToken).ConfigureAwait(false);
+        string headBody = await head.Content.ReadAsStringAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        using var postRequest = new HttpRequestMessage(HttpMethod.Post, diagnosticsUri);
+        using HttpResponseMessage post = await client.SendAsync(postRequest, TestContext.CancellationToken).ConfigureAwait(false);
+        string postBody = await post.Content.ReadAsStringAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        string malformedResponse = await SendRawHttpRequestAsync(
+            diagnosticsUri,
+            "not-http\r\n\r\n",
+            TestContext.CancellationToken).ConfigureAwait(false);
+        string oversizedHeaderResponse = await SendRawHttpRequestAsync(
+            diagnosticsUri,
+            string.Concat(
+                "GET ",
+                diagnosticsUri.PathAndQuery,
+                " HTTP/1.1\r\nHost: 127.0.0.1\r\nX-Fill: ",
+                new string('x', 9000)),
             TestContext.CancellationToken).ConfigureAwait(false);
         string index = await client.GetStringAsync(diagnosticsUri, TestContext.CancellationToken).ConfigureAwait(false);
         string cpu = await client.GetStringAsync(profileUriBuilder.Uri, TestContext.CancellationToken).ConfigureAwait(false);
@@ -3065,6 +3085,15 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(1, process.ExitCode);
         Assert.AreEqual(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+        Assert.AreEqual(HttpStatusCode.OK, head.StatusCode);
+        Assert.IsEmpty(headBody);
+        Assert.AreEqual(0, head.Content.Headers.ContentLength);
+        Assert.AreEqual(HttpStatusCode.MethodNotAllowed, post.StatusCode);
+        Assert.AreEqual("method not allowed\n", postBody);
+        Assert.Contains("HTTP/1.1 400 Bad Request", malformedResponse);
+        Assert.Contains("bad request\n", malformedResponse);
+        Assert.Contains("HTTP/1.1 200 OK", oversizedHeaderResponse);
+        Assert.Contains("Content-Length:", oversizedHeaderResponse);
         Assert.Contains("\"diagnostic\": \"http\"", index);
         Assert.Contains("\"endpoints\"", index);
         Assert.Contains("\"diagnostic\": \"cpu\"", cpu);
@@ -4823,6 +4852,32 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root, "config", "core.autocrlf", "false").ConfigureAwait(false);
         await RunGitCommandAsync(root, "config", "user.name", "Picket Test").ConfigureAwait(false);
         await RunGitCommandAsync(root, "config", "user.email", "picket@example.com").ConfigureAwait(false);
+    }
+
+    private static async Task<string> SendRawHttpRequestAsync(Uri uri, string request, CancellationToken cancellationToken)
+    {
+        using var client = new TcpClient();
+        await client.ConnectAsync(uri.Host, uri.Port, cancellationToken).ConfigureAwait(false);
+        using NetworkStream stream = client.GetStream();
+        byte[] requestBytes = Encoding.ASCII.GetBytes(request);
+        await stream.WriteAsync(requestBytes, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+        byte[] buffer = new byte[4096];
+        using var response = new MemoryStream();
+        try
+        {
+            int read;
+            while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) != 0)
+            {
+                response.Write(buffer.AsSpan(0, read));
+            }
+        }
+        catch (IOException) when (response.Length > 0)
+        {
+        }
+
+        return Encoding.UTF8.GetString(response.ToArray());
     }
 
     private static async Task<string> RunGitCommandAsync(string workingDirectory, params string[] arguments)

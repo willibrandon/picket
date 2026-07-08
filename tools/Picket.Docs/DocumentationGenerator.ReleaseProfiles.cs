@@ -130,7 +130,7 @@ internal sealed partial class DocumentationGenerator
         return [.. packages.OrderBy(static package => package.PackageId, StringComparer.Ordinal)];
     }
 
-    private Dictionary<string, string> ReadMsBuildProperties(string path)
+    private static Dictionary<string, string> ReadMsBuildProperties(string path)
     {
         return ReadMsBuildProperties(XDocument.Load(path));
     }
