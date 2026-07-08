@@ -466,6 +466,48 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Choose bearer-token authentication or shared access signature query authentication for Azure Blob Storage requests.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--s3-bucket</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan objects from this S3 bucket.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--s3-region</code></td>
+              <td data-label="Value"><code>region</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this AWS region for S3 SigV4 request signing.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--s3-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this S3 or S3-compatible endpoint for native object-store enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--s3-prefix</code></td>
+              <td data-label="Value"><code>prefix</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit S3 enumeration to object keys with this prefix.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--s3-access-key-id-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the S3 access key ID from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--s3-secret-access-key-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the S3 secret access key from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--s3-session-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the optional S3 session token from this environment variable.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--azure-devops-organization</code></td>
               <td data-label="Value"><code>org</code></td>
               <td data-label="Required">Optional</td>

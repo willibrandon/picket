@@ -246,6 +246,21 @@ version as of the reviewed versioning page. The newer `2026-06-06` service
 version is broadly enabled but has documented tenant exceptions, so it is not
 used as the scanner default yet.
 
+## S3 Source References
+
+Native S3 bucket source enumeration is based on AWS API documentation reviewed
+on 2026-07-08:
+
+- Amazon S3 API Reference: `https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html`
+- Amazon S3 ListObjectsV2 API: `https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html`
+- Amazon S3 GetObject API: `https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html`
+- AWS SigV4 signed requests: `https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html`
+
+Picket uses S3 REST `ListObjectsV2` with `max-keys=1000` and
+`NextContinuationToken` pagination, and `GetObject` for object bytes. Requests
+are signed with SigV4 for service `s3`; the secret access key is used only for
+HMAC signing and is never written to logs, reports, or diagnostics.
+
 ## GitHub Secret Scanning Oracle
 
 GitHub Secret Protection secret scanning is a hosted proprietary system, not a

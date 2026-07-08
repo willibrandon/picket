@@ -67,6 +67,7 @@ internal static partial class Program
         AddGitHubSourceOptions(command, "picket scan");
         AddGitLabSourceOptions(command, "picket scan");
         AddAzureBlobSourceOptions(command, "picket scan");
+        AddS3SourceOptions(command, "picket scan");
         AddAzureDevOpsSourceOptions(command, "picket scan");
         AddContainerArchiveSourceOptions(command, "picket scan");
         AddResultFilterOptions(command, "picket scan");
@@ -495,6 +496,17 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--azure-blob-prefix", "prefix"));
         command.Options.Add(CreateValueOption(commandName, "--azure-blob-token-env", "name"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--azure-blob-token-kind", "kind", "bearer", "sas"));
+    }
+
+    private static void AddS3SourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--s3-bucket", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--s3-region", "region"));
+        command.Options.Add(CreateValueOption(commandName, "--s3-endpoint", "uri"));
+        command.Options.Add(CreateValueOption(commandName, "--s3-prefix", "prefix"));
+        command.Options.Add(CreateValueOption(commandName, "--s3-access-key-id-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--s3-secret-access-key-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--s3-session-token-env", "name"));
     }
 
     private static void AddGitLabSourceOptions(Command command, string commandName)

@@ -58,6 +58,14 @@ internal static partial class Program
         bool azureBlobOptionSpecified = false;
         string azureBlobPrefix = string.Empty;
         string? azureBlobTokenEnvironmentVariable = null;
+        Uri? s3Endpoint = null;
+        string s3Bucket = string.Empty;
+        bool s3OptionSpecified = false;
+        string s3Prefix = string.Empty;
+        string s3Region = string.Empty;
+        string? s3AccessKeyIdEnvironmentVariable = null;
+        string? s3SecretAccessKeyEnvironmentVariable = null;
+        string? s3SessionTokenEnvironmentVariable = null;
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
@@ -487,6 +495,86 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsS3BucketFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--s3-bucket", out string? bucket))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                s3Bucket = bucket;
+                s3OptionSpecified = true;
+                continue;
+            }
+
+            if (IsS3RegionFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--s3-region", out string? region))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                s3Region = region;
+                s3OptionSpecified = true;
+                continue;
+            }
+
+            if (IsS3EndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--s3-endpoint", out s3Endpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                s3OptionSpecified = true;
+                continue;
+            }
+
+            if (IsS3PrefixFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--s3-prefix", out string? prefix))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                s3Prefix = prefix;
+                s3OptionSpecified = true;
+                continue;
+            }
+
+            if (IsS3AccessKeyIdEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--s3-access-key-id-env", out s3AccessKeyIdEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                s3OptionSpecified = true;
+                continue;
+            }
+
+            if (IsS3SecretAccessKeyEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--s3-secret-access-key-env", out s3SecretAccessKeyEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                s3OptionSpecified = true;
+                continue;
+            }
+
+            if (IsS3SessionTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--s3-session-token-env", out s3SessionTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                s3OptionSpecified = true;
+                continue;
+            }
+
             if (IsAzureDevOpsEndpointFlag(arg))
             {
                 if (!TryReadUriFlag(args, ref i, "--azure-devops-endpoint", out azureDevOpsEndpoint))
@@ -771,7 +859,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -789,13 +877,14 @@ internal static partial class Program
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
         sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
+        sourceProviderCount += s3OptionSpecified ? 1 : 0;
         if (sourceProviderCount > 1)
         {
             Console.Error.WriteLine("scan accepts only one native source provider at a time");
             return UnknownFlagExitCode;
         }
 
-        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified)
+        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
             && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
@@ -817,6 +906,22 @@ internal static partial class Program
                 azureBlobPrefix,
                 azureBlobTokenEnvironmentVariable,
                 azureBlobCredentialKind,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (s3OptionSpecified
+            && !TryCreateS3SourceProvider(
+                s3Endpoint,
+                s3Bucket,
+                s3Region,
+                s3Prefix,
+                s3AccessKeyIdEnvironmentVariable,
+                s3SecretAccessKeyEnvironmentVariable,
+                s3SessionTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
