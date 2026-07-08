@@ -17,24 +17,24 @@ internal static class PicketTuiPalette
     /// </summary>
     internal const double UiContrastMinimum = 3.0;
 
-    private static readonly Hex1bColor s_background = Hex1bColor.FromRgb(12, 14, 16);
-    private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(88, 96, 105);
-    private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(255, 224, 130);
-    private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 138, 138);
-    private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(102, 204, 255);
+    private static readonly Hex1bColor s_background = Hex1bColor.FromRgb(13, 17, 23);
+    private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(90, 100, 115);
+    private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(245, 197, 92);
+    private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 128, 128);
+    private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(125, 183, 255);
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(44, 116, 154);
-    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.FromRgb(244, 244, 244);
-    private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(244, 244, 244);
-    private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(132, 180, 255);
-    private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(190, 198, 206);
-    private static readonly Hex1bColor s_panelBackground = Hex1bColor.FromRgb(24, 28, 32);
-    private static readonly Hex1bColor s_primaryActionBackground = Hex1bColor.FromRgb(102, 204, 255);
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(78, 100, 112);
+    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.FromRgb(248, 250, 252);
+    private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(229, 234, 240);
+    private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(125, 183, 255);
+    private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(166, 176, 186);
+    private static readonly Hex1bColor s_panelBackground = Hex1bColor.FromRgb(22, 27, 34);
+    private static readonly Hex1bColor s_primaryActionBackground = Hex1bColor.FromRgb(80, 190, 220);
     private static readonly Hex1bColor s_primaryActionForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_successForeground = Hex1bColor.FromRgb(118, 230, 151);
-    private static readonly Hex1bColor s_warningForeground = Hex1bColor.FromRgb(255, 214, 102);
-    private static readonly Hex1bColor s_yankFlashBackground = Hex1bColor.FromRgb(126, 201, 216);
-    private static readonly Hex1bColor s_yankFlashForeground = Hex1bColor.FromRgb(24, 24, 37);
+    private static readonly Hex1bColor s_successForeground = Hex1bColor.FromRgb(126, 231, 135);
+    private static readonly Hex1bColor s_warningForeground = Hex1bColor.FromRgb(255, 211, 105);
+    private static readonly Hex1bColor s_yankFlashBackground = Hex1bColor.FromRgb(242, 211, 92);
+    private static readonly Hex1bColor s_yankFlashForeground = Hex1bColor.Black;
 
     /// <summary>
     /// Gets the default application background color.
@@ -193,6 +193,7 @@ internal static class PicketTuiPalette
             .Set(TextBoxTheme.FocusedFillBackgroundColor, PanelBackground)
             .Set(TextBoxTheme.FocusedForegroundColor, Foreground)
             .Set(TextBoxTheme.ForegroundColor, Foreground)
+            .Set(TextBoxTheme.SelectionBackgroundColor, FocusedRowBackground)
             .Set(ProgressTheme.EmptyForegroundColor, Border)
             .Set(ProgressTheme.FilledForegroundColor, SuccessForeground)
             .Set(ProgressTheme.IndeterminateForegroundColor, InfoForeground);
