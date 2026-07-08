@@ -606,21 +606,29 @@ public sealed class PicketTuiTests
 
         int exitCode = await runTask.ConfigureAwait(false);
         string[] lines = snapshot.GetScreenText().Split('\n');
-        int rowY = Array.FindIndex(lines, line => line.Contains("github-token", StringComparison.Ordinal)
-            && line.Contains("src/auth.cs:12", StringComparison.Ordinal));
+        int rowY = Array.FindIndex(lines, line => line.Contains("github-token", StringComparison.Ordinal));
+        int locationY = Array.FindIndex(lines, line => line.Contains("src/auth.cs:12", StringComparison.Ordinal));
         Assert.AreEqual(0, exitCode);
         Assert.IsGreaterThanOrEqualTo(0, rowY);
+        Assert.IsGreaterThanOrEqualTo(0, locationY);
 
+        int markerX = lines[rowY].IndexOf('>');
         int textX = lines[rowY].IndexOf("github-token", StringComparison.Ordinal);
         int nextRowY = Array.FindIndex(lines, line => line.Contains("src/auth.cs:18", StringComparison.Ordinal));
+        int nextRuleY = Array.FindIndex(lines, line => line.Contains("github-token", StringComparison.Ordinal) && line != lines[rowY]);
+        Assert.IsGreaterThanOrEqualTo(0, markerX);
         Assert.IsGreaterThanOrEqualTo(0, textX);
         Assert.IsGreaterThanOrEqualTo(0, nextRowY);
+        Assert.IsGreaterThanOrEqualTo(0, nextRuleY);
 
+        TerminalCell markerCell = snapshot.GetCell(markerX, rowY);
         TerminalCell textCell = snapshot.GetCell(textX, rowY);
-        TerminalCell nextRowCell = snapshot.GetCell(lines[nextRowY].IndexOf("src/auth.cs:18", StringComparison.Ordinal), nextRowY);
+        TerminalCell nextRowCell = snapshot.GetCell(lines[nextRuleY].IndexOf("github-token", StringComparison.Ordinal), nextRuleY);
 
-        Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, textCell.Foreground);
-        Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, textCell.Background);
+        Assert.AreEqual(PicketTuiPalette.FocusForeground, markerCell.Foreground);
+        Assert.AreEqual(PicketTuiPalette.FocusBackground, markerCell.Background);
+        Assert.AreEqual(PicketTuiPalette.InfoForeground, textCell.Foreground);
+        Assert.AreEqual(PicketTuiPalette.Background, textCell.Background);
         Assert.AreEqual(PicketTuiPalette.Foreground, nextRowCell.Foreground);
         Assert.AreEqual(PicketTuiPalette.Background, nextRowCell.Background);
     }
@@ -660,7 +668,7 @@ public sealed class PicketTuiTests
         Assert.Contains("g f findings", screenText);
         Assert.DoesNotContain("Use g f to review", screenText);
         Assert.Contains("Source", screenText);
-        Assert.Contains("Last run: not run yet", screenText);
+        Assert.Contains("Not run", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("g s scan", screenText);
     }
@@ -704,7 +712,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
         Assert.DoesNotContain("Use g f to review", screenText);
-        Assert.Contains("Last run: not run yet", screenText);
+        Assert.Contains("Not run", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("src/auth.cs", screenText);
         Assert.DoesNotContain("g s scan", screenText);
@@ -943,9 +951,7 @@ public sealed class PicketTuiTests
 
         Assert.AreEqual(0, exitCode);
         Assert.DoesNotContain("Use g f to review", screenText);
-        Assert.Contains("Started:", screenText);
         Assert.Contains("Completed:", screenText);
-        Assert.Contains("Elapsed:", screenText);
         Assert.DoesNotContain("fake-rule", screenText);
         Assert.Contains("fake-rule", findingsText);
         Assert.Contains("scan", executor.CapturedArguments);

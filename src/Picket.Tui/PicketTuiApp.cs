@@ -30,7 +30,7 @@ internal static class PicketTuiApp
             ctx.VStack(main => [
                 BuildTitleBar(main, state),
                 BuildMainTabs(main, state),
-                main.Padding(2, 2, 1, 0, BuildActiveView(main, state).Fill()).Fill(),
+                main.Padding(3, 3, 2, 1, BuildActiveView(main, state).Fill()).Fill(),
                 BuildInfoBar(main, state)
             ]).InputBindings(bindings =>
             {
@@ -146,19 +146,26 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildSectionTitle(v, "Summary"),
-            BuildBlankLine(v),
-            BuildMetadataLine(v, "Findings", state.Rows.Count.ToString(CultureInfo.InvariantCulture)),
-            BuildMetadataLine(v, "Files", state.Report.Summary.FileCount.ToString(CultureInfo.InvariantCulture)),
-            BuildMetadataLine(v, "Format", state.Report.Summary.Format),
-            BuildMetadataLine(v, "Report", TrimEnd(state.Report.Path, DetailLimit)),
-            BuildMetadataLine(v, "Loaded", state.Report.LoadedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
-            BuildMetadataLine(v, "Scan", state.ScanWorkspace.Status),
+            v.HStack(h => [
+                BuildPanel(h, " Report ", h.VStack(report => [
+                    BuildMetadataLine(report, "Findings", state.Rows.Count.ToString(CultureInfo.InvariantCulture)),
+                    BuildMetadataLine(report, "Files", state.Report.Summary.FileCount.ToString(CultureInfo.InvariantCulture)),
+                    BuildMetadataLine(report, "Format", state.Report.Summary.Format),
+                    BuildMetadataLine(report, "Loaded", state.Report.LoadedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+                    BuildMetadataLine(report, "Report", TrimMiddle(state.Report.Path, DetailLimit)),
+                ])).FillWidth(),
+                h.Text("    "),
+                BuildPanel(h, " Scanner ", h.VStack(scan => [
+                    BuildMetadataLine(scan, "Status", state.ScanWorkspace.Status),
+                    BuildMetadataLine(scan, "Target", FormatScanTargetValue(state.ScanWorkspace)),
+                    BuildMetadataLine(scan, "Output", state.ScanWorkspace.CapturedOutputLines.Count == 0 ? "No captured output" : "Open Logs"),
+                ])).FixedWidth(52)
+            ]).FixedHeight(8),
             BuildSectionGap(v),
             v.HStack(h => [
-                h.VStack(left => BuildCountList(left, "Top rules", state.GetTopRules(TopListLimit))).FillWidth(),
-                h.Text("      "),
-                h.VStack(right => BuildCountList(right, "Top files", state.GetTopFiles(TopListLimit))).FillWidth()
+                BuildPanel(h, " Top rules ", h.VStack(left => BuildCountList(left, state.GetTopRules(TopListLimit))).Fill()).FillWidth(),
+                h.Text("    "),
+                BuildPanel(h, " Top files ", h.VStack(right => BuildCountList(right, state.GetTopFiles(TopListLimit))).Fill()).FillWidth()
             ]).Fill(),
         ]).Fill();
     }
@@ -168,44 +175,59 @@ internal static class PicketTuiApp
     {
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
         return ctx.Responsive(r => [
-            r.When((width, _) => width >= 116,
-                wide => wide.HStack(h => [
-                    BuildScanRunPanel(h, state).FixedWidth(62),
-                    h.Text("      "),
-                    BuildScanConfigurationPane(h, scan).Fill()
+            r.When((width, _) => width >= 100,
+                wide => wide.VStack(v => [
+                    BuildScanStatusStrip(v, state).FixedHeight(5),
+                    v.Separator(),
+                    v.HSplitter(
+                        left => [BuildScanConfigurationPane(left, scan).Fill()],
+                        right => [BuildScanCommandPane(right, state)],
+                        leftWidth: 86).Fill()
                 ]).Fill()),
             r.Otherwise(narrow => narrow.VStack(v => [
-                BuildScanRunPanel(v, state),
-                BuildBlankLine(v),
+                BuildScanStatusStrip(v, state).FixedHeight(5),
+                v.Separator(),
                 BuildScanConfigurationPane(v, scan).Fill()
             ]).Fill())
         ]).Fill();
     }
 
-    private static VStackWidget BuildScanRunPanel<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
+    private static VStackWidget BuildScanStatusStrip<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
         return ctx.VStack(v => [
-            BuildSectionTitle(v, "Scan"),
-            BuildBlankLine(v),
             v.HStack(h => [
                 BuildRunScanButton(h, state).FixedWidth(14),
                 h.Text("  "),
-                BuildStatusText(h, scan.Status, GetScanStatusColor(scan)).FillWidth()
+                BuildStatusText(h, scan.Status, GetScanStatusColor(scan)).FillWidth(),
+                BuildStatusText(h, FormatScanExit(scan), PicketTuiPalette.MutedForeground).FixedWidth(10)
             ]).FixedHeight(1),
             BuildBlankLine(v),
-            BuildMetadataLine(v, "Exit", FormatScanExit(scan)),
-            BuildMetadataLine(v, "Target", FormatScanTargetValue(scan)),
-            BuildMetadataLine(v, "Findings", FormatLoadedFindingsLine(state)),
-            BuildMetadataLine(v, "Report", TrimMiddle(scan.ReportPath, 88)),
-            .. BuildScanTimingFields(v, scan),
-            BuildSectionGap(v),
+            v.HStack(h => [
+                BuildMetadataLine(h, "Target", FormatScanTargetValue(scan)).FillWidth(),
+                h.Text("    "),
+                BuildMetadataLine(h, "Report", TrimMiddle(scan.ReportPath, 72)).FillWidth()
+            ]).FixedHeight(1),
+            v.HStack(h => [
+                BuildMetadataLine(h, "Findings", FormatLoadedFindingsLine(state)).FillWidth(),
+                h.Text("    "),
+                BuildMetadataLine(h, "Timing", FormatScanTiming(scan)).FillWidth()
+            ]).FixedHeight(1)
+        ]);
+    }
+
+    private static VStackWidget BuildScanCommandPane<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
+        where TParent : Hex1bWidget
+    {
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        return ctx.VStack(v => [
             BuildSectionTitle(v, "Command"),
             BuildBlankLine(v),
             BuildWrappedStatusText(v, scan.BuildCommandLinePreview(), PicketTuiPalette.CommandForeground).FillWidth(),
-            .. BuildScanOutputSummary(v, scan),
-        ]);
+            BuildSectionGap(v),
+            .. BuildScanOutput(v, scan)
+        ]).Fill();
     }
 
     private static VStackWidget BuildScanConfigurationPane<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
@@ -217,26 +239,9 @@ internal static class PicketTuiApp
             v.ToggleSwitch(PicketTuiScanWorkspace.ScanSettingPages, scan.ScanSettingPageIndex)
                 .OnSelectionChanged(e => scan.SetScanSettingPageByIndex(e.SelectedIndex))
                 .FillWidth(),
-            BuildBlankLine(v),
+            BuildSectionGap(v),
             BuildScanSettingsPage(v, scan).Fill()
-        ]);
-    }
-
-    private static Hex1bWidget[] BuildScanOutputSummary<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
-        where TParent : Hex1bWidget
-    {
-        if (scan.CapturedOutputLines.Count == 0)
-        {
-            return [];
-        }
-
-        return
-        [
-            BuildSectionGap(ctx),
-            BuildMetadataLine(ctx, "Output", string.Concat(
-                scan.CapturedOutputLines.Count.ToString(CultureInfo.InvariantCulture),
-                " captured lines; open Logs"))
-        ];
+        ]).Fill();
     }
 
     private static VStackWidget BuildScanSettingsPage<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
@@ -334,6 +339,12 @@ internal static class PicketTuiApp
         return BuildStatusText(ctx, text, PicketTuiPalette.InfoForeground);
     }
 
+    private static BorderWidget BuildPanel<TParent>(WidgetContext<TParent> ctx, string title, Hex1bWidget content)
+        where TParent : Hex1bWidget
+    {
+        return ctx.Border(ctx.Padding(1, 1, 0, 0, content)).Title(title);
+    }
+
     private static TextBlockWidget BuildBlankLine<TParent>(WidgetContext<TParent> ctx)
         where TParent : Hex1bWidget
     {
@@ -343,13 +354,13 @@ internal static class PicketTuiApp
     private static TextBlockWidget BuildSectionGap<TParent>(WidgetContext<TParent> ctx)
         where TParent : Hex1bWidget
     {
-        return ctx.Text("").FixedHeight(2);
+        return ctx.Text("").FixedHeight(1);
     }
 
     private static TextBlockWidget BuildFieldGap<TParent>(WidgetContext<TParent> ctx)
         where TParent : Hex1bWidget
     {
-        return ctx.Text("").FixedHeight(1);
+        return ctx.Text("").FixedHeight(0);
     }
 
     private static VStackWidget BuildOutputFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
@@ -557,7 +568,7 @@ internal static class PicketTuiApp
     {
         if (!scan.LastStartedAt.HasValue)
         {
-            return "Last run: not run yet";
+            return "Not run";
         }
 
         if (!scan.LastCompletedAt.HasValue)
@@ -566,35 +577,11 @@ internal static class PicketTuiApp
         }
 
         return string.Concat(
-            "Started: ",
-            FormatTimestamp(scan.LastStartedAt.GetValueOrDefault()),
-            "  Completed: ",
+            "Completed: ",
             FormatTimestamp(scan.LastCompletedAt.GetValueOrDefault()),
-            "  Elapsed: ",
-            FormatElapsed(scan.LastElapsed.GetValueOrDefault()));
-    }
-
-    private static Hex1bWidget[] BuildScanTimingFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
-        where TParent : Hex1bWidget
-    {
-        if (!scan.LastStartedAt.HasValue)
-        {
-            return [BuildMetadataLine(ctx, "Timing", "Last run: not run yet")];
-        }
-
-        if (!scan.LastCompletedAt.HasValue)
-        {
-            return [BuildMetadataLine(ctx, "Started:", string.Concat(FormatTimestamp(scan.LastStartedAt.GetValueOrDefault()), " (running)"))];
-        }
-
-        return
-        [
-            BuildMetadataLine(ctx, "Started:", FormatTimestamp(scan.LastStartedAt.GetValueOrDefault())),
-            BuildMetadataLine(ctx, "Completed:", string.Concat(
-                FormatTimestamp(scan.LastCompletedAt.GetValueOrDefault()),
-                "  Elapsed: ",
-                FormatElapsed(scan.LastElapsed.GetValueOrDefault()))),
-        ];
+            " (",
+            FormatElapsed(scan.LastElapsed.GetValueOrDefault()),
+            ")");
     }
 
     private static string FormatTimestamp(DateTimeOffset value)
@@ -726,14 +713,24 @@ internal static class PicketTuiApp
         ]).FixedHeight(1);
     }
 
-    private static VStackWidget BuildFindingsView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
+    private static ResponsiveWidget BuildFindingsView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
-        return ctx.VStack(v => [
-            BuildFindingsToolbar(v, state).FixedHeight(4),
-            BuildFindingList(v, state).Fill(),
-            BuildBlankLine(v),
-            BuildFindingDetailsPanel(v, state.FocusedFinding).FixedHeight(7)
+        return ctx.Responsive(r => [
+            r.When((width, _) => width >= 112,
+                wide => wide.VStack(v => [
+                    BuildFindingsToolbar(v, state).FixedHeight(4),
+                    v.HSplitter(
+                        left => [BuildFindingList(left, state).Fill()],
+                        right => [BuildFindingDetailsPanel(right, state.FocusedFinding).Fill()],
+                        leftWidth: 72).Fill()
+                ]).Fill()),
+            r.Otherwise(narrow => narrow.VStack(v => [
+                BuildFindingsToolbar(v, state).FixedHeight(4),
+                BuildFindingList(v, state).Fill(),
+                BuildBlankLine(v),
+                BuildFindingDetailsPanel(v, state.FocusedFinding).FixedHeight(9)
+            ]).Fill())
         ]).Fill();
     }
 
@@ -760,7 +757,8 @@ internal static class PicketTuiApp
     {
         int focusedIndex = Math.Max(0, state.IndexOfVisibleRowKey(state.FocusedFindingKey));
         return ctx.VStack(v => [
-            BuildFindingListHeader(v),
+            BuildSectionTitle(v, "Findings"),
+            BuildBlankLine(v),
             v.List(state.VisibleRows)
                 .ItemHeight(2)
                 .ItemKey(static row => row.Key)
@@ -774,50 +772,39 @@ internal static class PicketTuiApp
         ]).Fill();
     }
 
-    private static HStackWidget BuildFindingListHeader<TParent>(WidgetContext<TParent> ctx)
-        where TParent : Hex1bWidget
-    {
-        return ctx.HStack(h => [
-            h.Text("  #").FixedWidth(6),
-            h.Text("Rule").FixedWidth(38),
-            h.Text("Location").FillWidth()
-        ]).FixedHeight(1);
-    }
-
-    private static Hex1bWidget BuildFindingListRow(ListItemContext<PicketTuiFindingRow> ctx, bool yankFlash)
+    private static VStackWidget BuildFindingListRow(ListItemContext<PicketTuiFindingRow> ctx, bool yankFlash)
     {
         PicketTuiFindingRow row = ctx.Item;
-        VStackWidget content = ctx.VStack(v => [
+        bool flash = ctx.IsFocused && yankFlash;
+        Hex1bColor markerForeground = flash
+            ? PicketTuiPalette.YankFlashForeground
+            : ctx.IsFocused
+            ? PicketTuiPalette.FocusForeground
+            : PicketTuiPalette.MutedForeground;
+        Hex1bColor markerBackground = flash
+            ? PicketTuiPalette.YankFlashBackground
+            : ctx.IsFocused
+            ? PicketTuiPalette.FocusBackground
+            : PicketTuiPalette.Background;
+        Hex1bColor ruleColor = flash
+            ? PicketTuiPalette.YankFlashForeground
+            : ctx.IsFocused
+            ? PicketTuiPalette.InfoForeground
+            : PicketTuiPalette.Foreground;
+
+        return ctx.VStack(v => [
             v.HStack(h => [
-                h.Text(ctx.IsFocused ? ">" : " ").FixedWidth(2),
-                h.Text(row.Index.ToString(CultureInfo.InvariantCulture)).FixedWidth(4),
-                h.Text(TrimMiddle(row.RuleId, 36)).FixedWidth(38),
-                h.Text(TrimMiddle(row.Location, 140)).FillWidth()
+                BuildInlineBadge(h, ctx.IsFocused ? ">" : " ", markerForeground, markerBackground).FixedWidth(2),
+                h.Text(" "),
+                BuildStatusText(h, row.Index.ToString(CultureInfo.InvariantCulture).PadLeft(3), PicketTuiPalette.MutedForeground).FixedWidth(4),
+                h.Text(" "),
+                BuildStatusText(h, TrimMiddle(row.RuleId, 45), ruleColor).FillWidth()
             ]).FillWidth(),
             v.HStack(h => [
-                h.Text(" ").FixedWidth(6),
-                h.Text("fingerprint").FixedWidth(13),
-                h.Text(TrimMiddle(row.Fingerprint, 96)).FillWidth()
+                h.Text("       "),
+                BuildStatusText(h, TrimMiddle(row.Location, 60), PicketTuiPalette.MutedForeground).FillWidth()
             ]).FillWidth()
         ]).FillWidth();
-
-        if (!ctx.IsFocused)
-        {
-            return content;
-        }
-
-        Hex1bColor foreground = yankFlash
-            ? PicketTuiPalette.YankFlashForeground
-            : PicketTuiPalette.FocusedRowForeground;
-        Hex1bColor background = yankFlash
-            ? PicketTuiPalette.YankFlashBackground
-            : PicketTuiPalette.FocusedRowBackground;
-
-        return ctx.ThemePanel(
-            theme => theme
-                .Set(GlobalTheme.ForegroundColor, foreground)
-                .Set(GlobalTheme.BackgroundColor, background),
-            content);
     }
 
     private static VStackWidget BuildFindingDetailsPanel<TParent>(WidgetContext<TParent> ctx, PicketTuiFindingRow? row)
@@ -826,19 +813,23 @@ internal static class PicketTuiApp
         if (row is null)
         {
             return ctx.VStack(v => [
-                BuildSectionTitle(v, "Selected finding"),
-                v.Text("No finding selected."),
+                BuildSectionTitle(v, "No finding selected"),
+                BuildBlankLine(v),
                 v.Text("Run a scan or adjust the filter.")
             ]);
         }
 
         return ctx.VStack(v => [
-            BuildSectionTitle(v, "Selected finding"),
+            BuildSectionTitle(v, string.Concat("Finding ", row.Index.ToString(CultureInfo.InvariantCulture))),
             BuildBlankLine(v),
+            BuildStatusText(v, row.RuleId, PicketTuiPalette.InfoForeground),
+            BuildSectionGap(v),
             BuildMetadataLine(v, "Rule", row.RuleId),
             BuildMetadataLine(v, "Path", TrimEnd(row.Path, DetailLimit)),
             BuildMetadataLine(v, "Line", row.Line),
-            BuildMetadataLine(v, "Fingerprint", TrimMiddle(row.Fingerprint, 80))
+            BuildMetadataLine(v, "Fingerprint", TrimMiddle(row.Fingerprint, 96)),
+            BuildSectionGap(v),
+            BuildStatusText(v, "Secret evidence is intentionally not loaded in this summary view.", PicketTuiPalette.MutedForeground)
         ]);
     }
 
@@ -849,7 +840,7 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(FieldLabelWidth),
+            BuildStatusText(h, label, PicketTuiPalette.MutedForeground).FixedWidth(FieldLabelWidth),
             h.Text("  "),
             h.Text(value).FillWidth()
         ]).FixedHeight(1);
@@ -866,13 +857,13 @@ internal static class PicketTuiApp
     private static VStackWidget BuildRulesView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
-        return ctx.VStack(v => BuildCountList(v, "Top rules", state.GetTopRules(24))).Fill();
+        return ctx.VStack(v => BuildCountList(v, state.GetTopRules(24))).Fill();
     }
 
     private static VStackWidget BuildFilesView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
-        return ctx.VStack(v => BuildCountList(v, "Top files", state.GetTopFiles(24))).Fill();
+        return ctx.VStack(v => BuildCountList(v, state.GetTopFiles(24))).Fill();
     }
 
     private static VStackWidget BuildLogsView<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
@@ -970,15 +961,10 @@ internal static class PicketTuiApp
 
     private static Hex1bWidget[] BuildCountList<TParent>(
         WidgetContext<TParent> ctx,
-        string title,
         List<KeyValuePair<string, int>> rows)
         where TParent : Hex1bWidget
     {
-        var widgets = new List<Hex1bWidget>
-        {
-            BuildStatusText(ctx, title, PicketTuiPalette.InfoForeground),
-            ctx.Separator()
-        };
+        var widgets = new List<Hex1bWidget>();
 
         if (rows.Count == 0)
         {
@@ -990,7 +976,7 @@ internal static class PicketTuiApp
         {
             KeyValuePair<string, int> row = rows[i];
             widgets.Add(ctx.HStack(h => [
-                h.Text(row.Value.ToString(CultureInfo.InvariantCulture)).FixedWidth(6),
+                BuildStatusText(h, row.Value.ToString(CultureInfo.InvariantCulture).PadLeft(5), PicketTuiPalette.CommandForeground).FixedWidth(6),
                 h.Text(TrimMiddle(row.Key, 96)).FillWidth()
             ]));
         }
@@ -1048,6 +1034,20 @@ internal static class PicketTuiApp
         int prefixLength = (limit - 3) / 2;
         int suffixLength = limit - prefixLength - 3;
         return string.Concat(value.AsSpan(0, prefixLength), "...", value.AsSpan(value.Length - suffixLength, suffixLength));
+    }
+
+    private static ThemePanelWidget BuildInlineBadge<TParent>(
+        WidgetContext<TParent> ctx,
+        string text,
+        Hex1bColor foreground,
+        Hex1bColor background)
+        where TParent : Hex1bWidget
+    {
+        return ctx.ThemePanel(
+            theme => theme
+                .Set(GlobalTheme.ForegroundColor, foreground)
+                .Set(GlobalTheme.BackgroundColor, background),
+            ctx.Text(text));
     }
 
     private static void RunScanFromUi(PicketTuiState state, Action invalidate, CancellationToken cancellationToken)
