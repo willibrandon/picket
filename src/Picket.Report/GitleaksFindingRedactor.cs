@@ -111,7 +111,10 @@ public static class GitleaksFindingRedactor
             return redactedSecret;
         }
 
-        return finding.Line.Replace(finding.Secret, redactedSecret, StringComparison.Ordinal);
+        string redactedLine = finding.Line.Replace(finding.Secret, redactedSecret, StringComparison.Ordinal);
+        return redactedLine.Equals(finding.Line, StringComparison.Ordinal)
+            ? redactedSecret
+            : redactedLine;
     }
 
     private static string MaskSecret(string secret, int redactionPercent, bool requirePartialMask)

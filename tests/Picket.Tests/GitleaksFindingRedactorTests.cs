@@ -199,6 +199,42 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies redaction does not keep the first physical line of a multi-line secret.
+    /// </summary>
+    [TestMethod]
+    public void RedactMasksLineWhenSecretSpansMultipleLines()
+    {
+        const string firstLineSecret = "AAAA";
+        const string secondLineSecret = "BBBB";
+        string secret = string.Concat(firstLineSecret, '\n', secondLineSecret);
+        Finding finding = CreateFinding(
+            string.Concat("prefix ", secret, " suffix"),
+            secret,
+            string.Concat("prefix ", firstLineSecret));
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100, requirePartialMask: true);
+        SecretRule rule = SecretRule.Create("rule", "description", "A+");
+        string[] reports =
+        [
+            PicketJsonReportWriter.Write([redacted], [rule]),
+            PicketJsonlReportWriter.Write([redacted], [rule]),
+            PicketCsvReportWriter.Write([redacted], [rule]),
+            PicketJunitReportWriter.Write([redacted], [rule]),
+            PicketHtmlReportWriter.Write([redacted], [rule]),
+            PicketGitLabCodeQualityReportWriter.Write([redacted]),
+            PicketSarifReportWriter.Write([redacted], [rule]),
+            PicketToonReportWriter.Write([redacted], [rule]),
+        ];
+
+        Assert.AreEqual("REDACTED", redacted.Line);
+        foreach (string report in reports)
+        {
+            Assert.DoesNotContain(firstLineSecret, report);
+            Assert.DoesNotContain(secondLineSecret, report);
+            Assert.DoesNotContain(CreateSha256(secret), report);
+        }
+    }
+
+    /// <summary>
     /// Verifies native report writers do not reintroduce raw or encoded secret evidence after redaction.
     /// </summary>
     [TestMethod]
