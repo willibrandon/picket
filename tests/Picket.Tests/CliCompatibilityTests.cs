@@ -3051,6 +3051,13 @@ public sealed class CliCompatibilityTests
         };
 
         using var client = new HttpClient();
+        using var slowClient = new TcpClient();
+        await slowClient.ConnectAsync(diagnosticsUri.Host, diagnosticsUri.Port, TestContext.CancellationToken).ConfigureAwait(false);
+        await slowClient.GetStream().WriteAsync(Encoding.ASCII.GetBytes("G"), TestContext.CancellationToken).ConfigureAwait(false);
+        await slowClient.GetStream().FlushAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        using var concurrentRequestCancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        concurrentRequestCancellation.CancelAfter(TimeSpan.FromMilliseconds(750));
+        string concurrentIndex = await client.GetStringAsync(diagnosticsUri, concurrentRequestCancellation.Token).ConfigureAwait(false);
         using HttpResponseMessage unauthorized = await client.GetAsync(
             new Uri($"{diagnosticsUri.GetLeftPart(UriPartial.Path)}"),
             TestContext.CancellationToken).ConfigureAwait(false);
@@ -3094,6 +3101,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("bad request\n", malformedResponse);
         Assert.Contains("HTTP/1.1 200 OK", oversizedHeaderResponse);
         Assert.Contains("Content-Length:", oversizedHeaderResponse);
+        Assert.Contains("\"diagnostic\": \"http\"", concurrentIndex);
         Assert.Contains("\"diagnostic\": \"http\"", index);
         Assert.Contains("\"endpoints\"", index);
         Assert.Contains("\"diagnostic\": \"cpu\"", cpu);

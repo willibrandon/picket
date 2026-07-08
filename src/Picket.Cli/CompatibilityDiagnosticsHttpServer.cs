@@ -64,8 +64,8 @@ internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
         {
             try
             {
-                using TcpClient client = _listener.AcceptTcpClient();
-                Handle(client);
+                TcpClient client = _listener.AcceptTcpClient();
+                ThreadPool.QueueUserWorkItem(_ => HandleClient(client));
             }
             catch (SocketException) when (_disposed)
             {
@@ -81,6 +81,26 @@ internal sealed class CompatibilityDiagnosticsHttpServer : IDisposable
             catch (InvalidOperationException) when (_disposed)
             {
                 return;
+            }
+        }
+    }
+
+    private void HandleClient(TcpClient client)
+    {
+        using (client)
+        {
+            try
+            {
+                Handle(client);
+            }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException) when (_disposed)
+            {
+            }
+            catch (SocketException) when (_disposed)
+            {
             }
         }
     }
