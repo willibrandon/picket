@@ -7,6 +7,8 @@ namespace Picket.Sources;
 /// </summary>
 public sealed class DirectorySource
 {
+    private static readonly char[] s_pathSeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
     /// <summary>
     /// Enumerates regular files selected by the supplied options.
     /// </summary>
@@ -72,6 +74,11 @@ public sealed class DirectorySource
                 }
 
                 displayPath = CreateDisplayPath(options.Root, scanFullPath);
+            }
+            else if (options.FollowSymbolicLinks
+                && !TryResolveFollowedFile(options.Root, entry.FullPath, displayPath, out scanFullPath, out displayPath, out symlinkDisplayPath))
+            {
+                continue;
             }
 
             AddSourceFile(sourceFiles, options, scanFullPath, displayPath, symlinkDisplayPath);
@@ -216,6 +223,88 @@ public sealed class DirectorySource
 
         fullPath = string.Empty;
         return false;
+    }
+
+    private static bool TryResolveFollowedFile(
+        string root,
+        string fullPath,
+        string originalDisplayPath,
+        out string resolvedFullPath,
+        out string displayPath,
+        out string symlinkDisplayPath)
+    {
+        resolvedFullPath = fullPath;
+        displayPath = originalDisplayPath;
+        symlinkDisplayPath = string.Empty;
+        if (!TryResolvePathThroughSymlinks(fullPath, out string finalPath))
+        {
+            return false;
+        }
+
+        if (AreSamePath(fullPath, finalPath))
+        {
+            return true;
+        }
+
+        if (!IsPathWithinRoot(root, finalPath))
+        {
+            return false;
+        }
+
+        resolvedFullPath = finalPath;
+        displayPath = CreateDisplayPath(root, finalPath);
+        symlinkDisplayPath = originalDisplayPath;
+        return true;
+    }
+
+    private static bool TryResolvePathThroughSymlinks(string path, out string resolvedPath)
+    {
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            string? root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrEmpty(root))
+            {
+                resolvedPath = string.Empty;
+                return false;
+            }
+
+            string current = root;
+            string relativePath = fullPath[root.Length..];
+            string[] parts = relativePath.Split(s_pathSeparators, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                current = Path.Combine(current, parts[i]);
+                bool isLastPart = i == parts.Length - 1;
+                if (!IsSymbolicLink(current))
+                {
+                    continue;
+                }
+
+                FileSystemInfo linkInfo = isLastPart ? new FileInfo(current) : new DirectoryInfo(current);
+                FileSystemInfo? target = linkInfo.ResolveLinkTarget(returnFinalTarget: true);
+                if (target is null)
+                {
+                    resolvedPath = string.Empty;
+                    return false;
+                }
+
+                current = Path.GetFullPath(target.FullName);
+            }
+
+            resolvedPath = current;
+            return File.Exists(resolvedPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            resolvedPath = string.Empty;
+            return false;
+        }
+    }
+
+    private static bool AreSamePath(string first, string second)
+    {
+        return Path.GetFullPath(first).Equals(Path.GetFullPath(second), PathComparison);
     }
 
     private static bool IsPathOrAncestorAllowed(Func<string, bool>? isPathAllowed, string displayPath)

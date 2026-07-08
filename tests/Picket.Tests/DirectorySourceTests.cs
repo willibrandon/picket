@@ -217,6 +217,67 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies followed directory symlinks keep both resolved target and symlink report paths.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateReportsDirectorySymlinkFileWhenFollowingSymlinks()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string targetDirectory = Path.Combine(root, "target");
+            string targetPath = Path.Combine(targetDirectory, "secret.txt");
+            string linkPath = Path.Combine(root, "link");
+            Directory.CreateDirectory(targetDirectory);
+            File.WriteAllText(targetPath, "token-12345");
+            Directory.CreateSymbolicLink(linkPath, targetDirectory);
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, followSymbolicLinks: true));
+            SourceFile? symlinkFile = files.FirstOrDefault(file => file.SymlinkDisplayPath == "link/secret.txt");
+
+            Assert.IsNotNull(symlinkFile);
+            Assert.AreEqual("target/secret.txt", symlinkFile.DisplayPath);
+            Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
+            Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies followed directory symlinks do not escape the scan root.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateDoesNotFollowDirectorySymlinksOutsideRoot()
+    {
+        string root = CreateTempDirectory();
+        string outsideRoot = CreateTempDirectory();
+        try
+        {
+            string outsidePath = Path.Combine(outsideRoot, "secret.txt");
+            string linkPath = Path.Combine(root, "outside");
+            File.WriteAllText(outsidePath, "token-12345");
+            Directory.CreateSymbolicLink(linkPath, outsideRoot);
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root, followSymbolicLinks: true));
+            string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
+            string[] symlinkDisplayPaths = [.. files.Select(file => file.SymlinkDisplayPath)];
+            string[] fullPaths = [.. files.Select(file => file.FullPath)];
+
+            Assert.DoesNotContain("outside/secret.txt", displayPaths);
+            Assert.DoesNotContain("outside/secret.txt", symlinkDisplayPaths);
+            Assert.DoesNotContain(Path.GetFullPath(outsidePath), fullPaths);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+            Directory.Delete(outsideRoot, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that archive containers are skipped when archive traversal is disabled.
     /// </summary>
     [TestMethod]
