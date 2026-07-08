@@ -226,7 +226,7 @@ Before publishing the task:
 
 - validate task metadata and VSIX packaging in CI,
 - run task smoke tests on Windows, Linux, and macOS agents,
-- run self-hosted marketplace smoke tests only on trusted push or manual paths,
+- run self-hosted marketplace smoke tests only through explicit manual queueing,
 - cover workspace scans without remote credentials,
 - cover remote Azure DevOps API behavior with recorded responses or local fakes by default,
 - keep live Azure DevOps tests opt-in through dedicated test credentials,
