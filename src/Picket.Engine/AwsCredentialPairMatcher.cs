@@ -5,6 +5,7 @@ namespace Picket.Engine;
 internal static class AwsCredentialPairMatcher
 {
     private const int AccessKeyIdLength = 20;
+    private const int CancellationPollInterval = 4096;
     private const int MaxLabelPrefixLength = 128;
     private const int MaxPairWindowLength = 1024;
     private const int SecretAccessKeyLength = 40;
@@ -21,14 +22,20 @@ internal static class AwsCredentialPairMatcher
     internal static bool TryFind(
         ReadOnlySpan<byte> input,
         int startAt,
+        Func<bool>? isCancellationRequested,
         out int matchStart,
         out int matchEnd,
         out int secretStart,
         out int secretEnd)
     {
         int position = startAt;
-        while (TryFindAccessKeyId(input, position, out int keyStart, out int keyEnd))
+        while (TryFindAccessKeyId(input, position, isCancellationRequested, out int keyStart, out int keyEnd, out bool canceled))
         {
+            if (canceled)
+            {
+                break;
+            }
+
             int windowStart = Math.Max(0, keyStart - MaxPairWindowLength);
             int windowEnd = Math.Min(input.Length, keyEnd + MaxPairWindowLength);
             if (TryFindSecretAccessKey(input, windowStart, windowEnd, out secretStart, out secretEnd))
@@ -48,11 +55,24 @@ internal static class AwsCredentialPairMatcher
         return false;
     }
 
-    private static bool TryFindAccessKeyId(ReadOnlySpan<byte> input, int startAt, out int keyStart, out int keyEnd)
+    private static bool TryFindAccessKeyId(
+        ReadOnlySpan<byte> input,
+        int startAt,
+        Func<bool>? isCancellationRequested,
+        out int keyStart,
+        out int keyEnd,
+        out bool canceled)
     {
+        canceled = false;
         int lastStart = input.Length - AccessKeyIdLength;
         for (int start = startAt; start <= lastStart; start++)
         {
+            if (ShouldPoll(start, startAt) && IsCancellationRequested(isCancellationRequested))
+            {
+                canceled = true;
+                break;
+            }
+
             if (IsAccessKeyIdAt(input, start))
             {
                 keyStart = start;
@@ -64,6 +84,16 @@ internal static class AwsCredentialPairMatcher
         keyStart = 0;
         keyEnd = 0;
         return false;
+    }
+
+    private static bool IsCancellationRequested(Func<bool>? isCancellationRequested)
+    {
+        return isCancellationRequested is not null && isCancellationRequested();
+    }
+
+    private static bool ShouldPoll(int position, int start)
+    {
+        return position == start || (position - start) % CancellationPollInterval == 0;
     }
 
     private static bool TryFindSecretAccessKey(

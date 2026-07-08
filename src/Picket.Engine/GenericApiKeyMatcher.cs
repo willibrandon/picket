@@ -4,6 +4,7 @@ namespace Picket.Engine;
 
 internal static class GenericApiKeyMatcher
 {
+    private const int CancellationPollInterval = 4096;
     private const string RuleId = "generic-api-key";
     private const string Pattern = """(?i)[\w.-]{0,50}?(?:access|auth|(?-i:[Aa]pi|API)|credential|creds|key|passw(?:or)?d|secret|token)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([\w.=-]{10,150}|[a-z0-9][a-z0-9+/]{11,}={0,3})(?:[\x60'"\s;]|\\[nr]|$)""";
 
@@ -17,6 +18,7 @@ internal static class GenericApiKeyMatcher
     internal static bool TryFind(
         ReadOnlySpan<byte> input,
         int startAt,
+        Func<bool>? isCancellationRequested,
         out int matchStart,
         out int matchEnd,
         out int secretStart,
@@ -24,10 +26,20 @@ internal static class GenericApiKeyMatcher
     {
         for (int start = startAt; start < input.Length; start++)
         {
-            if (TryMatchAt(input, start, out matchEnd, out secretStart, out secretEnd))
+            if (ShouldPoll(start, startAt) && IsCancellationRequested(isCancellationRequested))
+            {
+                break;
+            }
+
+            if (TryMatchAt(input, start, isCancellationRequested, out matchEnd, out secretStart, out secretEnd, out bool canceled))
             {
                 matchStart = start;
                 return true;
+            }
+
+            if (canceled)
+            {
+                break;
             }
         }
 
@@ -41,10 +53,13 @@ internal static class GenericApiKeyMatcher
     private static bool TryMatchAt(
         ReadOnlySpan<byte> input,
         int start,
+        Func<bool>? isCancellationRequested,
         out int matchEnd,
         out int secretStart,
-        out int secretEnd)
+        out int secretEnd,
+        out bool canceled)
     {
+        canceled = false;
         int maxPrefixLength = Math.Min(50, input.Length - start);
         for (int prefixLength = 0; prefixLength <= maxPrefixLength; prefixLength++)
         {
@@ -84,9 +99,14 @@ internal static class GenericApiKeyMatcher
                     }
 
                     int afterOperator = operatorStart + operatorLength;
-                    if (TryMatchPaddedSecret(input, afterOperator, out matchEnd, out secretStart, out secretEnd))
+                    if (TryMatchPaddedSecret(input, afterOperator, isCancellationRequested, out matchEnd, out secretStart, out secretEnd, out canceled))
                     {
                         return true;
+                    }
+
+                    if (canceled)
+                    {
+                        return false;
                     }
                 }
             }
@@ -101,10 +121,13 @@ internal static class GenericApiKeyMatcher
     private static bool TryMatchPaddedSecret(
         ReadOnlySpan<byte> input,
         int start,
+        Func<bool>? isCancellationRequested,
         out int matchEnd,
         out int secretStart,
-        out int secretEnd)
+        out int secretEnd,
+        out bool canceled)
     {
+        canceled = false;
         int maxPaddingLength = Math.Min(5, input.Length - start);
         for (int paddingLength = maxPaddingLength; paddingLength >= 0; paddingLength--)
         {
@@ -115,7 +138,7 @@ internal static class GenericApiKeyMatcher
 
             int candidateSecretStart = start + paddingLength;
             if (TryMatchWordSecret(input, candidateSecretStart, out int candidateSecretEnd)
-                || TryMatchBase64Secret(input, candidateSecretStart, out candidateSecretEnd))
+                || TryMatchBase64Secret(input, candidateSecretStart, isCancellationRequested, out candidateSecretEnd, out canceled))
             {
                 if (TryConsumeTerminator(input, candidateSecretEnd, out matchEnd))
                 {
@@ -123,6 +146,11 @@ internal static class GenericApiKeyMatcher
                     secretEnd = candidateSecretEnd;
                     return true;
                 }
+            }
+
+            if (canceled)
+            {
+                break;
             }
         }
 
@@ -151,8 +179,14 @@ internal static class GenericApiKeyMatcher
         return false;
     }
 
-    private static bool TryMatchBase64Secret(ReadOnlySpan<byte> input, int start, out int end)
+    private static bool TryMatchBase64Secret(
+        ReadOnlySpan<byte> input,
+        int start,
+        Func<bool>? isCancellationRequested,
+        out int end,
+        out bool canceled)
     {
+        canceled = false;
         if (start >= input.Length || !IsAsciiLowerDigit(input[start]))
         {
             end = 0;
@@ -160,8 +194,21 @@ internal static class GenericApiKeyMatcher
         }
 
         int position = start + 1;
+        int nextCancellationCheck = Math.Min(input.Length, start + CancellationPollInterval);
         while (position < input.Length && IsLowerBase64Byte(input[position]))
         {
+            if (position >= nextCancellationCheck)
+            {
+                if (IsCancellationRequested(isCancellationRequested))
+                {
+                    canceled = true;
+                    end = 0;
+                    return false;
+                }
+
+                nextCancellationCheck = Math.Min(input.Length, position + CancellationPollInterval);
+            }
+
             position++;
         }
 
@@ -181,6 +228,16 @@ internal static class GenericApiKeyMatcher
 
         end = 0;
         return false;
+    }
+
+    private static bool IsCancellationRequested(Func<bool>? isCancellationRequested)
+    {
+        return isCancellationRequested is not null && isCancellationRequested();
+    }
+
+    private static bool ShouldPoll(int position, int start)
+    {
+        return position == start || (position - start) % CancellationPollInterval == 0;
     }
 
     private static bool TryConsumeTerminator(ReadOnlySpan<byte> input, int position, out int matchEnd)

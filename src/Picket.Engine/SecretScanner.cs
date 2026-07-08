@@ -481,7 +481,7 @@ public sealed class SecretScanner
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
-        while (AwsCredentialPairMatcher.TryFind(input, offset, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
+        while (AwsCredentialPairMatcher.TryFind(input, offset, isCancellationRequested, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
         {
             if (IsCancellationRequested(isCancellationRequested))
             {
@@ -585,7 +585,7 @@ public sealed class SecretScanner
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
-        while (GenericApiKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
+        while (GenericApiKeyMatcher.TryFind(input, offset, isCancellationRequested, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
         {
             if (IsCancellationRequested(isCancellationRequested))
             {
@@ -689,7 +689,7 @@ public sealed class SecretScanner
     {
         SecretRule rule = compiledRule.Rule;
         int offset = 0;
-        while (GcpServiceAccountKeyMatcher.TryFind(input, offset, out int matchStart, out int matchEnd))
+        while (GcpServiceAccountKeyMatcher.TryFind(input, offset, isCancellationRequested, out int matchStart, out int matchEnd))
         {
             if (IsCancellationRequested(isCancellationRequested))
             {

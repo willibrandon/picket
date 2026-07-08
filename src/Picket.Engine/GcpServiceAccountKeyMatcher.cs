@@ -4,6 +4,7 @@ namespace Picket.Engine;
 
 internal static class GcpServiceAccountKeyMatcher
 {
+    private const int CancellationPollInterval = 4096;
     private const int MaxObjectLength = 16 * 1024;
     private const int MaxPrefixSearchLength = 4 * 1024;
     private const string Pattern = """"type"\s*:\s*"service_account"""";
@@ -19,12 +20,18 @@ internal static class GcpServiceAccountKeyMatcher
     internal static bool TryFind(
         ReadOnlySpan<byte> input,
         int startAt,
+        Func<bool>? isCancellationRequested,
         out int matchStart,
         out int matchEnd)
     {
         int searchStart = startAt;
         while (searchStart < input.Length)
         {
+            if (ShouldPoll(searchStart, startAt) && IsCancellationRequested(isCancellationRequested))
+            {
+                break;
+            }
+
             int markerOffset = input[searchStart..].IndexOf("\"service_account\""u8);
             if (markerOffset < 0)
             {
@@ -47,6 +54,16 @@ internal static class GcpServiceAccountKeyMatcher
         matchStart = 0;
         matchEnd = 0;
         return false;
+    }
+
+    private static bool IsCancellationRequested(Func<bool>? isCancellationRequested)
+    {
+        return isCancellationRequested is not null && isCancellationRequested();
+    }
+
+    private static bool ShouldPoll(int position, int start)
+    {
+        return position == start || (position - start) % CancellationPollInterval == 0;
     }
 
     private static bool TryFindObjectStart(ReadOnlySpan<byte> input, int before, out int objectStart)
