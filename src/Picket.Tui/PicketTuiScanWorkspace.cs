@@ -18,6 +18,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_githubRepositoryTypes = ["all", "public", "private", "forks", "sources", "owner", "member"];
     private static readonly string[] s_reportFormats = ["jsonl", "json", "sarif", "html", "csv", "junit", "gitlab", "toon"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
+    private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
     private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
@@ -56,6 +57,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selectable result filters.
     /// </summary>
     internal static IReadOnlyList<string> ResultFilters => s_resultFilters;
+
+    /// <summary>
+    /// Gets the selectable scan settings pages.
+    /// </summary>
+    internal static IReadOnlyList<string> ScanSettingPages => s_scanSettingPages;
 
     /// <summary>
     /// Gets the selectable target mode labels.
@@ -318,6 +324,11 @@ internal sealed class PicketTuiScanWorkspace
     internal string TimeoutSeconds { get; private set; } = string.Empty;
 
     /// <summary>
+    /// Gets the selected scan settings page index.
+    /// </summary>
+    internal int ScanSettingPageIndex { get; private set; }
+
+    /// <summary>
     /// Gets a value indicating whether a scan is currently running.
     /// </summary>
     internal bool IsRunning { get; private set; }
@@ -454,6 +465,15 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selected result filter index.
     /// </summary>
     internal int ResultFilterIndex => IndexOf(s_resultFilters, ResultFilter);
+
+    /// <summary>
+    /// Sets the selected scan settings page by index.
+    /// </summary>
+    /// <param name="index">The selected scan settings page index.</param>
+    internal void SetScanSettingPageByIndex(int index)
+    {
+        ScanSettingPageIndex = Math.Clamp(index, 0, s_scanSettingPages.Length - 1);
+    }
 
     /// <summary>
     /// Sets the selected target mode by index.

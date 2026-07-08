@@ -675,7 +675,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Target", screenText);
         Assert.Contains("Source", screenText);
         Assert.Contains("Output", screenText);
-        Assert.Contains("Rules", screenText);
+        Assert.Contains("Validation", screenText);
         Assert.Contains("Limits", screenText);
         Assert.Contains("Path", screenText);
         Assert.Contains("Run scan", screenText);
@@ -683,8 +683,6 @@ public sealed class PicketTuiTests
         Assert.Contains("g f findings", screenText);
         Assert.DoesNotContain("Use g f to review", screenText);
         Assert.Contains("Last run: not run yet", screenText);
-        Assert.Contains("Redact", screenText);
-        Assert.Contains("Max MB", screenText);
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("src/auth.cs", screenText);
         Assert.DoesNotContain("g s scan", screenText);
@@ -699,6 +697,7 @@ public sealed class PicketTuiTests
     {
         PicketTuiState state = CreateState();
         state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetScanSettingPageByIndex(1);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
 
@@ -726,18 +725,18 @@ public sealed class PicketTuiTests
         Assert.Contains("Profile", screenText);
         Assert.Contains("Config", screenText);
         Assert.Contains("Ignore", screenText);
-        Assert.Contains("Max MB", screenText);
     }
 
     /// <summary>
-    /// Verifies that the scan workspace rules section renders ignore and result-filter options.
+    /// Verifies that the scan workspace validation page renders ignore and result-filter options.
     /// </summary>
     [TestMethod]
     [Timeout(10000, CooperativeCancellation = true)]
-    public async Task Hex1bFullScreenConsoleRendersScanRulesSection()
+    public async Task Hex1bFullScreenConsoleRendersScanValidationSection()
     {
         PicketTuiState state = CreateState();
         state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetScanSettingPageByIndex(2);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
 
@@ -757,13 +756,12 @@ public sealed class PicketTuiTests
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("Rules", screenText);
+        Assert.Contains("Validation", screenText);
         Assert.Contains("No ignore", screenText);
         Assert.Contains("Only valid", screenText);
         Assert.Contains("Results", screenText);
         Assert.Contains("structurally-valid", screenText);
-        Assert.Contains("Redact", screenText);
-        Assert.Contains("Max MB", screenText);
+        Assert.Contains("Verify", screenText);
     }
 
     /// <summary>
@@ -775,6 +773,7 @@ public sealed class PicketTuiTests
     {
         PicketTuiState state = CreateState();
         state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetScanSettingPageByIndex(3);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
 
@@ -801,7 +800,6 @@ public sealed class PicketTuiTests
         Assert.Contains("Archive MB", screenText);
         Assert.Contains("Ratio", screenText);
         Assert.Contains("Timeout", screenText);
-        Assert.Contains("Redact", screenText);
     }
 
     /// <summary>

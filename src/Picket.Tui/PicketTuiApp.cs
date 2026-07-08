@@ -12,6 +12,7 @@ namespace Picket.Tui;
 internal static class PicketTuiApp
 {
     private const int DetailLimit = 180;
+    private const int FieldLabelWidth = 13;
     private const int OutputPreviewLimit = 7;
     private const int TopListLimit = 8;
     private static readonly string[] s_booleanOptions = ["Off", "On"];
@@ -162,26 +163,22 @@ internal static class PicketTuiApp
     {
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
         return ctx.VStack(v => [
-            BuildScanRunHeader(v, state).FixedHeight(4),
-            v.Separator(),
+            BuildScanRunHeader(v, state).FixedHeight(3),
             BuildBlankLine(v),
             v.Responsive(r => [
-                r.WhenMinWidth(140, wide => wide.HStack(h => [
-                    BuildScanConfigurationPane(h, scan).FillWidth(),
+                r.WhenMinWidth(116, wide => wide.HStack(h => [
+                    h.VStack(left => [
+                        BuildScanRunPane(left, state).FixedHeight(10),
+                        BuildBlankLine(left),
+                        BuildScannerOutputPane(left, scan).Fill()
+                    ]).FixedWidth(46),
                     h.Text("      "),
-                    h.VStack(run => [
-                        BuildScanRunPane(run, state).FixedHeight(11),
-                        run.Separator(),
-                        BuildBlankLine(run),
-                        BuildScannerOutputPane(run, state.ScanWorkspace).Fill()
-                    ]).FixedWidth(54)
+                    BuildScanConfigurationPane(h, scan).Fill()
                 ]).Fill()),
                 r.Otherwise(narrow => narrow.VStack(stack => [
-                    BuildScanConfigurationPane(stack, scan),
+                    BuildScanConfigurationPane(stack, scan).FixedHeight(10),
                     BuildBlankLine(stack),
-                    BuildScanRunPane(stack, state).FixedHeight(13),
-                    BuildBlankLine(stack),
-                    BuildScannerOutputPane(stack, state.ScanWorkspace).Fill()
+                    BuildScanRunPane(stack, state).Fill()
                 ]).Fill())
             ]).Fill()
         ]).Fill();
@@ -193,12 +190,11 @@ internal static class PicketTuiApp
         return ctx.VStack(v => [
             v.HStack(h => [
                 BuildRunScanButton(h, state).FixedWidth(14),
-                h.Text("  "),
-                h.Text(state.ScanWorkspace.Status).FillWidth(),
+                h.Text("   "),
+                BuildStatusText(h, state.ScanWorkspace.Status, GetScanStatusColor(state.ScanWorkspace)).FillWidth(),
                 h.Text(FormatScanExit(state.ScanWorkspace)).FixedWidth(10)
             ]).FixedHeight(1),
-            v.Text(FormatLoadedFindingsLine(state)).Ellipsis(),
-            v.Text(FormatScanTiming(state.ScanWorkspace)).Ellipsis(),
+            v.Text(string.Concat(FormatLoadedFindingsLine(state), "  ", FormatScanTiming(state.ScanWorkspace))).Ellipsis(),
             v.ThemePanel(
                 theme => theme.Set(GlobalTheme.ForegroundColor, PicketTuiPalette.CommandForeground),
                 v.Text(state.ScanWorkspace.BuildCommandLinePreview()).Ellipsis())
@@ -209,62 +205,13 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildTargetModeRow(v, scan),
+            BuildSectionTitle(v, "Settings"),
             BuildBlankLine(v),
-            v.Separator(),
+            v.ToggleSwitch(PicketTuiScanWorkspace.ScanSettingPages, scan.ScanSettingPageIndex)
+                .OnSelectionChanged(e => scan.SetScanSettingPageByIndex(e.SelectedIndex))
+                .FillWidth(),
             BuildBlankLine(v),
-            v.Responsive(r => [
-                r.WhenMinWidth(82, wide => wide.HStack(h => [
-                    h.VStack(left => [
-                        BuildSectionTitle(left, "Source"),
-                        BuildBlankLine(left),
-                        .. BuildPrimaryTargetFields(left, scan),
-                        BuildBlankLine(left),
-                        left.Separator(),
-                        BuildBlankLine(left),
-                        BuildSectionTitle(left, "Limits"),
-                        BuildBlankLine(left),
-                        BuildLimitFields(left, scan),
-                    ]).FillWidth(),
-                    h.Text("    "),
-                    h.VStack(right => [
-                        BuildSectionTitle(right, "Output"),
-                        BuildBlankLine(right),
-                        BuildOutputFields(right, scan),
-                        BuildOutputPathFields(right, scan),
-                        BuildBlankLine(right),
-                        right.Separator(),
-                        BuildBlankLine(right),
-                        BuildSectionTitle(right, "Rules"),
-                        BuildBlankLine(right),
-                        BuildFilterFields(right, scan),
-                    ]).FillWidth()
-                ]).Fill()),
-                r.Otherwise(narrow => narrow.VStack(stack => [
-                    BuildSectionTitle(stack, "Source"),
-                    BuildBlankLine(stack),
-                    .. BuildPrimaryTargetFields(stack, scan),
-                    BuildBlankLine(stack),
-                    stack.Separator(),
-                    BuildBlankLine(stack),
-                    BuildSectionTitle(stack, "Output"),
-                    BuildBlankLine(stack),
-                    BuildOutputFields(stack, scan),
-                    BuildOutputPathFields(stack, scan),
-                    BuildBlankLine(stack),
-                    stack.Separator(),
-                    BuildBlankLine(stack),
-                    BuildSectionTitle(stack, "Rules"),
-                    BuildBlankLine(stack),
-                    BuildFilterFields(stack, scan),
-                    BuildBlankLine(stack),
-                    stack.Separator(),
-                    BuildBlankLine(stack),
-                    BuildSectionTitle(stack, "Limits"),
-                    BuildBlankLine(stack),
-                    BuildLimitFields(stack, scan),
-                ]).Fill())
-            ]).Fill()
+            BuildScanSettingsPage(v, scan).Fill()
         ]);
     }
 
@@ -275,11 +222,10 @@ internal static class PicketTuiApp
             BuildSectionTitle(v, "Run status"),
             BuildBlankLine(v),
             BuildMetadataLine(v, "Status", GetScanOutcomeLine(state)),
-            BuildMetadataLine(v, "Message", TrimEnd(state.ScanWorkspace.LastMessage, 100)),
+            BuildMetadataLine(v, "Message", TrimEnd(state.ScanWorkspace.LastMessage, 80)),
             BuildMetadataLine(v, "Findings", state.Rows.Count.ToString(CultureInfo.InvariantCulture)),
             BuildMetadataLine(v, "Files", state.Report.Summary.FileCount.ToString(CultureInfo.InvariantCulture)),
             BuildMetadataLine(v, "Report", TrimMiddle(state.Report.Path, DetailLimit)),
-            BuildBlankLine(v),
             v.Text(FormatScanTiming(state.ScanWorkspace)).Wrap()
         ]);
     }
@@ -294,11 +240,86 @@ internal static class PicketTuiApp
         ]);
     }
 
+    private static VStackWidget BuildScanSettingsPage<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return scan.ScanSettingPageIndex switch
+        {
+            1 => BuildOutputSettingsPage(ctx, scan),
+            2 => BuildValidationSettingsPage(ctx, scan),
+            3 => BuildLimitSettingsPage(ctx, scan),
+            _ => BuildSourceSettingsPage(ctx, scan),
+        };
+    }
+
+    private static VStackWidget BuildSourceSettingsPage<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.VStack(v => [
+            BuildTargetModeRow(v, scan),
+            BuildBlankLine(v),
+            .. BuildPrimaryTargetFields(v, scan)
+        ]);
+    }
+
+    private static VStackWidget BuildOutputSettingsPage<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.VStack(v => [
+            BuildSectionTitle(v, "Report"),
+            BuildBlankLine(v),
+            BuildOutputFields(v, scan),
+            BuildBlankLine(v),
+            BuildSectionTitle(v, "Paths"),
+            BuildBlankLine(v),
+            BuildOutputPathFields(v, scan)
+        ]);
+    }
+
+    private static VStackWidget BuildValidationSettingsPage<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.VStack(v => [
+            BuildSectionTitle(v, "Validation and filters"),
+            BuildBlankLine(v),
+            BuildFilterFields(v, scan),
+            BuildBooleanField(v, "Verify", scan.Verify, scan.SetVerify),
+            BuildBlankLine(v),
+            BuildStatusText(v, "Live verification only runs when Verify is On.", PicketTuiPalette.MutedForeground)
+        ]);
+    }
+
+    private static VStackWidget BuildLimitSettingsPage<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.VStack(v =>
+        {
+            var widgets = new List<Hex1bWidget>
+            {
+                BuildSectionTitle(v, "Local and archive limits"),
+                BuildBlankLine(v),
+                BuildLimitFields(v, scan),
+            };
+
+            if (scan.TargetMode == PicketTuiScanTargetMode.AzureDevOps)
+            {
+                widgets.Add(BuildBlankLine(v));
+                widgets.Add(BuildSectionTitle(v, "Azure DevOps transfer limits"));
+                widgets.Add(BuildBlankLine(v));
+                widgets.Add(BuildTextField(v, "Artifact MB", scan.AzureDevOpsMaxArtifactMegabytes, scan.SetAzureDevOpsMaxArtifactMegabytes));
+                widgets.Add(BuildTextField(v, "Log MB", scan.AzureDevOpsMaxLogMegabytes, scan.SetAzureDevOpsMaxLogMegabytes));
+            }
+
+            return [.. widgets];
+        });
+    }
+
     private static HStackWidget BuildTargetModeRow<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text("Target").FixedWidth(16),
+            h.Text("Target").FixedWidth(FieldLabelWidth),
+            h.Text("  "),
             h.ToggleSwitch(PicketTuiScanWorkspace.TargetModeLabels, scan.TargetModeIndex)
                 .OnSelectionChanged(e => scan.SetTargetMode(e.SelectedIndex))
                 .FillWidth()
@@ -590,7 +611,8 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(16),
+            h.Text(label).FixedWidth(FieldLabelWidth),
+            h.Text("  "),
             h.ToggleSwitch(s_booleanOptions, value ? 1 : 0)
                 .OnSelectionChanged(e => setValue(e.SelectedIndex == 1))
                 .FillWidth()
@@ -606,7 +628,8 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(16),
+            h.Text(label).FixedWidth(FieldLabelWidth),
+            h.Text("  "),
             h.ToggleSwitch(options, selectedIndex)
                 .OnSelectionChanged(e => setValue(e.SelectedIndex))
                 .FillWidth()
@@ -621,7 +644,8 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(16),
+            h.Text(label).FixedWidth(FieldLabelWidth),
+            h.Text("  "),
             h.TextBox(value)
                 .OnTextChanged(e => setValue(e.NewText))
                 .FillWidth()
@@ -632,17 +656,11 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            v.HStack(h => [
-                BuildStatusText(h, string.Concat("Findings ", FormatFindingCount(state)), PicketTuiPalette.InfoForeground).FixedWidth(26),
-                h.Text("Filter").FixedWidth(10),
-                h.TextBox(state.SearchText)
-                    .OnTextChanged(e => state.SetSearchText(e.NewText))
-                    .FillWidth()
-            ]).FixedHeight(1),
+            BuildFindingsToolbar(v, state),
             BuildBlankLine(v),
             v.Responsive(r => [
-                r.WhenMinWidth(110, wide => wide.HStack(h => [
-                    BuildFindingsListPanel(h, state).FixedWidth(82),
+                r.WhenMinWidth(118, wide => wide.HStack(h => [
+                    BuildFindingsListPanel(h, state).FixedWidth(76),
                     h.Text("      "),
                     BuildFindingDetailsPanel(h, state.FocusedFinding).Fill()
                 ]).Fill()),
@@ -653,6 +671,18 @@ internal static class PicketTuiApp
                 ]).Fill())
             ]).Fill()
         ]).Fill();
+    }
+
+    private static HStackWidget BuildFindingsToolbar<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            BuildStatusText(h, string.Concat("Findings ", FormatFindingCount(state)), PicketTuiPalette.InfoForeground).FixedWidth(24),
+            h.Text("Filter").FixedWidth(8),
+            h.TextBox(state.SearchText)
+                .OnTextChanged(e => state.SetSearchText(e.NewText))
+                .FillWidth()
+        ]).FixedHeight(1);
     }
 
     private static VStackWidget BuildFindingsListPanel<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
@@ -671,7 +701,7 @@ internal static class PicketTuiApp
     {
         int focusedIndex = Math.Max(0, state.IndexOfVisibleRowKey(state.FocusedFindingKey));
         ListWidget<PicketTuiFindingRow> list = ctx.List(state.VisibleRows)
-            .ItemHeight(2)
+            .ItemHeight(3)
             .ItemKey(row => row.Key)
             .FocusedIndex(focusedIndex)
             .OnFocusChanged(e => state.FocusFinding(e.FocusedItem.Key))
@@ -707,13 +737,14 @@ internal static class PicketTuiApp
             rowContext.VStack(v => [
                 v.HStack(h => [
                     h.Text(rowContext.IsFocused ? ">" : " ").FixedWidth(2),
-                    h.Text(row.Index.ToString(CultureInfo.InvariantCulture)).FixedWidth(4),
-                    h.Text(TrimMiddle(row.RuleId, 72)).FillWidth()
+                    h.Text(row.Index.ToString(CultureInfo.InvariantCulture)).FixedWidth(5),
+                    h.Text(TrimMiddle(row.RuleId, 64)).FillWidth()
                 ]).FixedHeight(1),
                 v.HStack(h => [
-                    h.Text("      ").FixedWidth(6),
-                    h.Text(TrimMiddle(row.Location, 120)).FillWidth()
-                ]).FixedHeight(1)
+                    h.Text("       ").FixedWidth(7),
+                    h.Text(TrimMiddle(row.Location, 96)).FillWidth()
+                ]).FixedHeight(1),
+                v.Text("").FixedHeight(1)
             ]));
     }
 
@@ -751,7 +782,8 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.HStack(h => [
-            h.Text(label).FixedWidth(13),
+            h.Text(label).FixedWidth(FieldLabelWidth),
+            h.Text("  "),
             h.Text(value).FillWidth()
         ]).FixedHeight(1);
     }

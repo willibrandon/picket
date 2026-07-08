@@ -17,19 +17,19 @@ internal static class PicketTuiPalette
     /// </summary>
     internal const double UiContrastMinimum = 3.0;
 
-    private static readonly Hex1bColor s_background = Hex1bColor.FromRgb(10, 14, 18);
-    private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(96, 110, 126);
+    private static readonly Hex1bColor s_background = Hex1bColor.FromRgb(10, 13, 17);
+    private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(82, 96, 112);
     private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(245, 197, 92);
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(255, 128, 128);
-    private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(118, 204, 232);
+    private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(0, 200, 180);
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
-    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(118, 204, 232);
-    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.Black;
+    private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 128, 116);
+    private static readonly Hex1bColor s_focusedRowForeground = Hex1bColor.White;
     private static readonly Hex1bColor s_foreground = Hex1bColor.FromRgb(229, 234, 240);
-    private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(125, 211, 252);
+    private static readonly Hex1bColor s_infoForeground = Hex1bColor.FromRgb(120, 232, 216);
     private static readonly Hex1bColor s_mutedForeground = Hex1bColor.FromRgb(166, 176, 186);
-    private static readonly Hex1bColor s_panelBackground = Hex1bColor.FromRgb(18, 24, 31);
-    private static readonly Hex1bColor s_primaryActionBackground = Hex1bColor.FromRgb(118, 204, 232);
+    private static readonly Hex1bColor s_panelBackground = Hex1bColor.FromRgb(17, 23, 30);
+    private static readonly Hex1bColor s_primaryActionBackground = Hex1bColor.FromRgb(0, 200, 180);
     private static readonly Hex1bColor s_primaryActionForeground = Hex1bColor.Black;
     private static readonly Hex1bColor s_successForeground = Hex1bColor.FromRgb(126, 231, 135);
     private static readonly Hex1bColor s_warningForeground = Hex1bColor.FromRgb(255, 211, 105);
