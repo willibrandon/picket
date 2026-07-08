@@ -746,7 +746,31 @@ S3 source safety rules:
 - Oversized objects are skipped before download when S3 returns a size and are capped during streaming even when content length is missing or understated.
 - The secret access key is used only to compute SigV4 signatures and is not logged. Temporary session tokens are sent in `x-amz-security-token` and are not logged.
 
-GCS remains a planned object-store provider. It should reuse the same native source-provider contract: credentials sourced from environment variables, provider endpoint guards, pagination safety caps, byte caps, redirect safety, and provider-specific least-privilege permission docs.
+GCS source support is native Picket behavior, not Gitleaks compatibility behavior.
+
+Implemented GCS entry points:
+
+| Scope | Options | Behavior |
+| --- | --- | --- |
+| Bucket objects | `--gcs-bucket`, `--gcs-token-env` | Lists objects in one bucket through the Cloud Storage JSON API and downloads selected object bytes. The OAuth bearer token is read from an environment variable. |
+| Bucket prefix | `--gcs-prefix` | Limits listing to object names with the supplied prefix. |
+| Requester Pays | `--gcs-user-project` | Sends a requester-pays billing project as `userProject` on list and download requests. |
+| GCS-compatible endpoint | `--gcs-endpoint` | Uses an explicit Cloud Storage JSON API endpoint. |
+
+GCS source safety rules:
+
+- Endpoint safety checks run before the first request and again at connect time.
+- Redirects are disabled before credentials are sent.
+- Responses from injected HTTP handlers that already followed a redirect are rejected.
+- Retryable throttling and service responses are retried once with bounded `Retry-After` backoff.
+- Object listing uses `maxResults=1000`, `projection=noAcl`, and follows `nextPageToken` until empty.
+- Object listing stops at a 1,000-page safety limit with a warning.
+- Metadata JSON responses are capped at 10 decimal MB and skipped with a warning when the cap is exceeded.
+- Remote downloads use a 100 decimal MB default cap.
+- A positive `--max-target-megabytes` value overrides the default remote cap.
+- Zero keeps its local-scan compatibility meaning, but remote GCS sources reject zero because remote HTTP bodies are always bounded.
+- Oversized objects are skipped before download when GCS returns a size and are capped during streaming even when content length is missing or understated.
+- Bearer tokens are sent only in the Authorization header and are not logged.
 
 GitLab source support is native Picket behavior, not Gitleaks compatibility behavior.
 

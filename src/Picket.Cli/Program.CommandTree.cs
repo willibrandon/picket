@@ -67,6 +67,7 @@ internal static partial class Program
         AddGitHubSourceOptions(command, "picket scan");
         AddGitLabSourceOptions(command, "picket scan");
         AddAzureBlobSourceOptions(command, "picket scan");
+        AddGcsSourceOptions(command, "picket scan");
         AddS3SourceOptions(command, "picket scan");
         AddAzureDevOpsSourceOptions(command, "picket scan");
         AddContainerArchiveSourceOptions(command, "picket scan");
@@ -507,6 +508,15 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--s3-access-key-id-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--s3-secret-access-key-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--s3-session-token-env", "name"));
+    }
+
+    private static void AddGcsSourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--gcs-bucket", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--gcs-endpoint", "uri"));
+        command.Options.Add(CreateValueOption(commandName, "--gcs-prefix", "prefix"));
+        command.Options.Add(CreateValueOption(commandName, "--gcs-token-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--gcs-user-project", "project"));
     }
 
     private static void AddGitLabSourceOptions(Command command, string commandName)

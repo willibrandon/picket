@@ -58,6 +58,12 @@ internal static partial class Program
         bool azureBlobOptionSpecified = false;
         string azureBlobPrefix = string.Empty;
         string? azureBlobTokenEnvironmentVariable = null;
+        Uri? gcsEndpoint = null;
+        string gcsBucket = string.Empty;
+        bool gcsOptionSpecified = false;
+        string gcsPrefix = string.Empty;
+        string? gcsTokenEnvironmentVariable = null;
+        string gcsUserProject = string.Empty;
         Uri? s3Endpoint = null;
         string s3Bucket = string.Empty;
         bool s3OptionSpecified = false;
@@ -495,6 +501,64 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsGcsBucketFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gcs-bucket", out string? bucket))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gcsBucket = bucket;
+                gcsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGcsEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--gcs-endpoint", out gcsEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gcsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGcsPrefixFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gcs-prefix", out string? prefix))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gcsPrefix = prefix;
+                gcsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGcsTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gcs-token-env", out gcsTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gcsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGcsUserProjectFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gcs-user-project", out string? userProject))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gcsUserProject = userProject;
+                gcsOptionSpecified = true;
+                continue;
+            }
+
             if (IsS3BucketFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-bucket", out string? bucket))
@@ -859,7 +923,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -875,6 +939,7 @@ internal static partial class Program
         sourceProviderCount += azureBlobOptionSpecified ? 1 : 0;
         sourceProviderCount += azureDevOpsOptionSpecified ? 1 : 0;
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
+        sourceProviderCount += gcsOptionSpecified ? 1 : 0;
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
         sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
         sourceProviderCount += s3OptionSpecified ? 1 : 0;
@@ -884,7 +949,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
+        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || gcsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
             && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
@@ -906,6 +971,20 @@ internal static partial class Program
                 azureBlobPrefix,
                 azureBlobTokenEnvironmentVariable,
                 azureBlobCredentialKind,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (gcsOptionSpecified
+            && !TryCreateGcsSourceProvider(
+                gcsEndpoint,
+                gcsBucket,
+                gcsPrefix,
+                gcsTokenEnvironmentVariable,
+                gcsUserProject,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

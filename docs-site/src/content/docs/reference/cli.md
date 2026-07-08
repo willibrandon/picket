@@ -466,6 +466,36 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Choose bearer-token authentication or shared access signature query authentication for Azure Blob Storage requests.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gcs-bucket</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan objects from this Google Cloud Storage bucket.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gcs-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Google Cloud Storage JSON API endpoint for native object-store enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gcs-prefix</code></td>
+              <td data-label="Value"><code>prefix</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Google Cloud Storage enumeration to object names with this prefix.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gcs-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Google Cloud Storage OAuth bearer token from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gcs-user-project</code></td>
+              <td data-label="Value"><code>project</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the requester-pays billing project for Google Cloud Storage requests.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--s3-bucket</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

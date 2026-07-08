@@ -261,6 +261,22 @@ Picket uses S3 REST `ListObjectsV2` with `max-keys=1000` and
 are signed with SigV4 for service `s3`; the secret access key is used only for
 HMAC signing and is never written to logs, reports, or diagnostics.
 
+## GCS Source References
+
+Native Google Cloud Storage bucket source enumeration is based on Google Cloud
+documentation reviewed on 2026-07-08:
+
+- Google Cloud Storage JSON API overview: `https://docs.cloud.google.com/storage/docs/json_api`
+- Google Cloud Storage objects.list API: `https://docs.cloud.google.com/storage/docs/json_api/v1/objects/list`
+- Google Cloud Storage objects.get API: `https://docs.cloud.google.com/storage/docs/json_api/v1/objects/get`
+- Google Cloud authentication token types: `https://docs.cloud.google.com/docs/authentication/token-types`
+
+Picket uses the Cloud Storage JSON API `objects.list` method with
+`maxResults=1000`, `projection=noAcl`, optional `prefix`, optional
+`userProject`, and `nextPageToken` pagination. Object bytes are downloaded with
+`objects.get` and `alt=media`. OAuth bearer tokens are read from environment
+variables and are not logged.
+
 ## GitHub Secret Scanning Oracle
 
 GitHub Secret Protection secret scanning is a hosted proprietary system, not a
