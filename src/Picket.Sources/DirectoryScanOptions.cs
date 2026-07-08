@@ -33,10 +33,10 @@ public sealed class DirectoryScanOptions(
     bool ignoreHidden = false,
     bool readParentIgnoreFiles = false,
     IReadOnlyList<string>? ignoreFilePaths = null,
-    int maxArchiveEntries = 0,
-    long? maxArchiveBytes = null,
+    int maxArchiveEntries = ArchiveScanDefaults.DefaultMaxEntries,
+    long? maxArchiveBytes = ArchiveScanDefaults.DefaultMaxBytes,
     Action<string>? warningSink = null,
-    int maxArchiveCompressionRatio = 0,
+    int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
     Func<bool>? isCancellationRequested = null)
 {
     private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);

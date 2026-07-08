@@ -23,10 +23,10 @@ public sealed class GitScanOptions(
     int maxArchiveDepth = 0,
     long? maxTargetBytes = null,
     Func<string, bool>? isPathAllowed = null,
-    int maxArchiveEntries = 0,
-    long? maxArchiveBytes = null,
+    int maxArchiveEntries = ArchiveScanDefaults.DefaultMaxEntries,
+    long? maxArchiveBytes = ArchiveScanDefaults.DefaultMaxBytes,
     Action<string>? warningSink = null,
-    int maxArchiveCompressionRatio = 0,
+    int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
     Func<bool>? isCancellationRequested = null)
 {
     /// <summary>
