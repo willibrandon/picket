@@ -23,13 +23,17 @@ internal sealed class CachedFinding(
     IReadOnlyList<string> decodePath)
 {
     private const int CurrentFieldCount = 15;
-    private const int LegacyFieldCount = 14;
 
-    internal static CachedFinding FromFinding(Finding finding, ScanCacheStorageMode storageMode)
+    internal static CachedFinding FromFinding(
+        Finding finding,
+        ScanCacheStorageMode storageMode,
+        ReadOnlySpan<byte> fieldProtectionKey)
     {
         ArgumentNullException.ThrowIfNull(finding);
         if (storageMode == ScanCacheStorageMode.SecretHashOnly)
         {
+            string secretSha256 = CreateSecretSha256(finding);
+            string matchSha256 = CreateMatchSha256(finding);
             return new CachedFinding(
                 finding.RuleID,
                 finding.Description,
@@ -42,8 +46,8 @@ internal sealed class CachedFinding(
                 string.Empty,
                 finding.Entropy,
                 finding.Tags,
-                CreateSecretSha256(finding),
-                CreateMatchSha256(finding),
+                ProtectedCacheField.Protect(fieldProtectionKey, secretSha256),
+                ProtectedCacheField.Protect(fieldProtectionKey, matchSha256),
                 finding.ValidationState,
                 finding.DecodePath);
         }
@@ -66,10 +70,14 @@ internal sealed class CachedFinding(
             finding.DecodePath);
     }
 
-    internal static bool TryParse(ReadOnlySpan<string> fields, [NotNullWhen(true)] out CachedFinding? finding)
+    internal static bool TryParse(
+        ReadOnlySpan<string> fields,
+        ScanCacheStorageMode storageMode,
+        ReadOnlySpan<byte> fieldProtectionKey,
+        [NotNullWhen(true)] out CachedFinding? finding)
     {
         finding = null;
-        if (fields.Length is not (CurrentFieldCount or LegacyFieldCount))
+        if (fields.Length != CurrentFieldCount)
         {
             return false;
         }
@@ -85,6 +93,15 @@ internal sealed class CachedFinding(
 
         try
         {
+            string secretSha256 = TextFieldCodec.Decode(fields[11]);
+            string matchSha256 = TextFieldCodec.Decode(fields[12]);
+            if (storageMode == ScanCacheStorageMode.SecretHashOnly
+                && (!ProtectedCacheField.TryUnprotect(fieldProtectionKey, secretSha256, out secretSha256)
+                    || !ProtectedCacheField.TryUnprotect(fieldProtectionKey, matchSha256, out matchSha256)))
+            {
+                return false;
+            }
+
             finding = new CachedFinding(
                 TextFieldCodec.Decode(fields[0]),
                 TextFieldCodec.Decode(fields[1]),
@@ -97,10 +114,10 @@ internal sealed class CachedFinding(
                 TextFieldCodec.Decode(fields[8]),
                 entropy,
                 TextFieldCodec.DecodeTags(fields[10]),
-                TextFieldCodec.Decode(fields[11]),
-                TextFieldCodec.Decode(fields[12]),
+                secretSha256,
+                matchSha256,
                 TextFieldCodec.Decode(fields[13]),
-                fields.Length == CurrentFieldCount ? TextFieldCodec.DecodeTags(fields[14]) : []);
+                TextFieldCodec.DecodeTags(fields[14]));
             return true;
         }
         catch (FormatException)

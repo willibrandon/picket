@@ -1411,7 +1411,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteFindingWordConfig(root.Path);
         string cachePath = Path.Combine(root.Path, ".picket", "cache");
-        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "prefix finding suffix");
 
         CliResult first = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
         CliResult second = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
@@ -1429,6 +1429,8 @@ public sealed class CliCompatibilityTests
         Assert.Contains($"\"matchSha256\":\"{expectedHash}\"", second.Stdout);
         Assert.Contains("\"line\":\"\"", second.Stdout);
         Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes("finding")), cacheEntry);
+        Assert.DoesNotContain(expectedHash, cacheEntry);
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedHash)), cacheEntry);
         Assert.Contains("storageMode\tSecretHashOnly", cacheEntry);
         Assert.AreEqual(0, defaultStats.ExitCode);
         Assert.Contains("current-key entries: 1", defaultStats.Stdout);

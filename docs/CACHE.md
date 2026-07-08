@@ -30,11 +30,11 @@ Current entries include:
 - cached finding rows,
 - entry authentication tag.
 
-Entries use the authenticated `picket.scan-cache.v2` format. Picket signs each entry body with HMAC-SHA-256 using a per-user key stored outside the cache root. Edited entries, unsigned legacy entries, and imports that cannot authenticate under the current user profile are treated as invalid cache misses. This keeps cache export/import useful across cache roots for the same build identity while preventing an untrusted archive or writable cache directory from silently suppressing findings.
+Entries use the authenticated `picket.scan-cache.v3` format. Picket signs each entry body with HMAC-SHA-256 using a per-user key stored outside the cache root. Edited entries, unsigned legacy entries, earlier schema versions, and imports that cannot authenticate under the current user profile are treated as invalid cache misses. This keeps cache export/import useful across cache roots for the same build identity while preventing an untrusted archive or writable cache directory from silently suppressing findings.
 
 ## Privacy
 
-The default cache mode is `secret-hash-only`. Cache rows keep rule, location, entropy, validation, tags, decode path, blob hash, secret hash, and match hash, but omit raw match, secret, and line text. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hash fields, stable fingerprints, and provenance remain available. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
+The default cache mode is `secret-hash-only`. Cache rows keep rule, location, entropy, validation, tags, decode path, blob hash, and protected secret and match hashes, but omit raw match, secret, and line text. The protected hashes are encrypted at rest with a key derived from the per-user cache authentication key, so a copied cache root does not expose bare SHA-256 values for low-entropy secrets. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hash fields, stable fingerprints, and provenance remain available. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
 
 Use `--cache-mode raw` only for trusted private caches that need cached reports to replay match, secret, and line fields exactly. Raw mode may contain recoverable secret material, and the CLI writes a warning when raw mode is active.
 

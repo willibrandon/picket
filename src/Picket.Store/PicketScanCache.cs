@@ -31,12 +31,13 @@ public sealed class PicketScanCache
     private const string LocksDirectoryName = "locks";
     private const string MacHeader = "mac";
     private const string ProductDirectoryName = "Picket";
-    private const string SchemaLine = "picket.scan-cache.v2";
+    private const string SchemaLine = "picket.scan-cache.v3";
     private const string ShardHeader = "shard";
     private const string StorageModeHeader = "storageMode";
     private readonly string _entriesPath;
     private readonly string _locksPath;
     private readonly byte[] _authenticationKey;
+    private readonly byte[] _fieldProtectionKey;
     private static readonly UTF8Encoding s_utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private PicketScanCache(string rootPath, ScanCacheKey key)
@@ -44,6 +45,7 @@ public sealed class PicketScanCache
         RootPath = Path.GetFullPath(rootPath);
         Key = key;
         _authenticationKey = LoadOrCreateAuthenticationKey();
+        _fieldProtectionKey = ProtectedCacheField.DeriveKey(_authenticationKey);
         _entriesPath = Path.Combine(RootPath, EntriesDirectoryName);
         _locksPath = Path.Combine(RootPath, LocksDirectoryName);
         CreateOwnerOnlyDirectory(RootPath);
@@ -559,7 +561,7 @@ public sealed class PicketScanCache
         return string.Concat(body, MacHeader, '\t', ComputeEntryMac(body), '\n');
     }
 
-    private static string CreateEntryBody(
+    private string CreateEntryBody(
         string blobHash,
         string addressHash,
         string shard,
@@ -603,7 +605,7 @@ public sealed class PicketScanCache
         builder.Append('\n');
         for (int i = 0; i < findings.Count; i++)
         {
-            CachedFinding.FromFinding(findings[i], storageMode).Write(builder);
+            CachedFinding.FromFinding(findings[i], storageMode, _fieldProtectionKey).Write(builder);
         }
 
         return builder.ToString();
@@ -664,7 +666,8 @@ public sealed class PicketScanCache
             }
 
             findingSectionStarted = true;
-            if (!CachedFinding.TryParse(fields.AsSpan(1), out CachedFinding? cachedFinding))
+            if (!entryStorageMode.HasValue
+                || !CachedFinding.TryParse(fields.AsSpan(1), entryStorageMode.Value, _fieldProtectionKey, out CachedFinding? cachedFinding))
             {
                 return false;
             }
@@ -1009,7 +1012,8 @@ public sealed class PicketScanCache
                 }
 
                 findingSectionStarted = true;
-                if (!CachedFinding.TryParse(fields.AsSpan(1), out _))
+                if (!entryStorageMode.HasValue
+                    || !CachedFinding.TryParse(fields.AsSpan(1), entryStorageMode.Value, _fieldProtectionKey, out _))
                 {
                     return false;
                 }

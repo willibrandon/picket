@@ -41,7 +41,7 @@ public sealed class PicketScanCacheTests
     {
         using TempDirectory root = TempDirectory.Create();
         PicketScanCache cache = CreateCache(root.Path);
-        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        byte[] content = Encoding.UTF8.GetBytes("prefix token-12345 suffix");
         Finding finding = CreateFinding("secret.txt");
 
         cache.Write(content, "secret.txt", [finding]);
@@ -197,11 +197,12 @@ public sealed class PicketScanCacheTests
     {
         using TempDirectory root = TempDirectory.Create();
         PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
-        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        byte[] content = Encoding.UTF8.GetBytes("prefix token-12345 suffix");
 
         cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
 
         string entryText = File.ReadAllText(GetSingleEntryPath(root.Path));
+        string expectedHash = BlobHasher.ComputeSha256Hex("token-12345");
         bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
 
         Assert.IsTrue(hit);
@@ -210,10 +211,12 @@ public sealed class PicketScanCacheTests
         Assert.IsEmpty(cachedFindings[0].Match);
         Assert.IsEmpty(cachedFindings[0].Secret);
         Assert.IsEmpty(cachedFindings[0].Line);
-        Assert.AreEqual(BlobHasher.ComputeSha256Hex("token-12345"), cachedFindings[0].SecretSha256);
-        Assert.AreEqual(BlobHasher.ComputeSha256Hex("token-12345"), cachedFindings[0].MatchSha256);
+        Assert.AreEqual(expectedHash, cachedFindings[0].SecretSha256);
+        Assert.AreEqual(expectedHash, cachedFindings[0].MatchSha256);
         Assert.Contains("storageMode\tSecretHashOnly", entryText);
         Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes("token-12345")), entryText);
+        Assert.DoesNotContain(expectedHash, entryText);
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedHash)), entryText);
     }
 
     /// <summary>

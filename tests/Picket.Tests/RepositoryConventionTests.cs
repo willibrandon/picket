@@ -696,7 +696,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("scanner configuration fingerprint", cache);
         Assert.Contains("--cache-mode", cache);
         Assert.Contains("--ignore-gitleaks-allow", cache);
-        Assert.Contains("Edited entries, unsigned legacy entries, and imports that cannot authenticate under the current user profile are treated as invalid cache misses", cache);
+        Assert.Contains("picket.scan-cache.v3", cache);
+        Assert.Contains("protected secret and match hashes", cache);
+        Assert.Contains("earlier schema versions", cache);
         Assert.Contains("PicketScanCache.GetStats()", cache);
         Assert.Contains("PicketScanCache.PruneOtherKeys()", cache);
         Assert.Contains("PicketScanCache.PruneOlderThan", cache);
