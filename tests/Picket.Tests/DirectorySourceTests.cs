@@ -371,6 +371,65 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies gzip-wrapped nested archives do not double-charge the decompressed tar envelope and tar entries.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateChargesGzipTarBytesOnce()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] tarBytes = TarTestData.CreateTarBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("token-12345")));
+            File.WriteAllBytes(Path.Combine(root, "secrets.tar.gz"), TarTestData.CreateGzipBytes(tarBytes));
+            var warnings = new List<string>();
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxArchiveDepth: 1,
+                maxArchiveBytes: tarBytes.Length,
+                warningSink: warnings.Add));
+            SourceFile? file = files.FirstOrDefault(file => file.DisplayPath == "secrets.tar.gz!nested/secret.txt");
+
+            Assert.IsNotNull(file);
+            Assert.AreEqual("token-12345", Encoding.UTF8.GetString(file.ReadAllBytes()));
+            Assert.IsEmpty(warnings);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies gzip-wrapped nested archives are still bounded by the decompressed archive byte cap.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateChecksGzipTarEnvelopeAgainstArchiveByteLimit()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] tarBytes = TarTestData.CreateTarBytes(("nested/secret.txt", Encoding.UTF8.GetBytes("token-12345")));
+            File.WriteAllBytes(Path.Combine(root, "secrets.tar.gz"), TarTestData.CreateGzipBytes(tarBytes));
+            var warnings = new List<string>();
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxArchiveDepth: 1,
+                maxArchiveBytes: tarBytes.Length - 1,
+                warningSink: warnings.Add));
+
+            Assert.IsEmpty(files);
+            Assert.HasCount(1, warnings);
+            Assert.Contains("archive byte limit reached while reading secrets.tar.gz", warnings[0]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that gzip nesting consumes archive depth instead of bypassing the configured limit.
     /// </summary>
     [TestMethod]

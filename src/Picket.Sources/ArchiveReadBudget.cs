@@ -64,7 +64,12 @@ internal sealed class ArchiveReadBudget(
 
     internal bool TryConsumeBytes(string archivePath, int byteCount)
     {
-        return TryConsumeBytesCore(archivePath, byteCount);
+        return TryConsumeBytesCore(archivePath, byteCount, consume: true);
+    }
+
+    internal bool TryCheckBytes(string archivePath, long byteCount)
+    {
+        return TryConsumeBytesCore(archivePath, byteCount, consume: false);
     }
 
     internal bool TryConsumeCompressionRatio(string archivePath, long compressedByteCount, long decompressedByteCount)
@@ -113,7 +118,7 @@ internal sealed class ArchiveReadBudget(
         SizeMetadataMismatchReported = true;
     }
 
-    private bool TryConsumeBytesCore(string archivePath, long byteCount)
+    private bool TryConsumeBytesCore(string archivePath, long byteCount, bool consume)
     {
         if (!TryContinue(archivePath))
         {
@@ -130,7 +135,11 @@ internal sealed class ArchiveReadBudget(
             : ByteCount + byteCount;
         if (projectedByteCount <= MaxBytes)
         {
-            ByteCount = projectedByteCount;
+            if (consume)
+            {
+                ByteCount = projectedByteCount;
+            }
+
             return true;
         }
 

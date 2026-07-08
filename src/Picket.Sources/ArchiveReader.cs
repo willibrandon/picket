@@ -271,7 +271,15 @@ internal static class ArchiveReader
 
         long? compressedLength = TryGetRemainingLength(stream);
         using var gzipStream = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
-        if (!TryReadStreamBytes(displayPath, gzipStream, length: null, compressedLength, maxEntryBytes, budget, out byte[] decompressedContent))
+        if (!TryReadStreamBytes(
+            displayPath,
+            gzipStream,
+            length: null,
+            compressedLength,
+            maxEntryBytes,
+            budget,
+            out byte[] decompressedContent,
+            chargeBudgetBytes: false))
         {
             return;
         }
@@ -290,7 +298,8 @@ internal static class ArchiveReader
             return;
         }
 
-        if (!budget.TryConsumeEntry(displayPath))
+        if (!budget.TryConsumeEntry(displayPath)
+            || !budget.TryConsumeBytes(displayPath, decompressedContent.Length))
         {
             return;
         }
@@ -343,7 +352,8 @@ internal static class ArchiveReader
         long? compressedLength,
         long? maxBytes,
         ArchiveReadBudget budget,
-        out byte[] bytes)
+        out byte[] bytes,
+        bool chargeBudgetBytes = true)
     {
         if (length.HasValue && IsTooLarge(length.Value, maxBytes))
         {
@@ -376,7 +386,9 @@ internal static class ArchiveReader
 
                 if (IsTooLarge(totalRead, maxBytes)
                     || (compressedLength.HasValue && !budget.TryConsumeCompressionRatio(archivePath, compressedLength.Value, totalRead))
-                    || !budget.TryConsumeBytes(archivePath, read))
+                    || (chargeBudgetBytes
+                        ? !budget.TryConsumeBytes(archivePath, read)
+                        : !budget.TryCheckBytes(archivePath, totalRead)))
                 {
                     bytes = [];
                     return false;
