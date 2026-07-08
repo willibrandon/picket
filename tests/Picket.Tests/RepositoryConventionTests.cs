@@ -481,7 +481,12 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("finding.match", handler);
         Assert.DoesNotContain("finding.line", handler);
 
-        Assert.Contains("tfx extension create", readme);
+        Assert.Contains("Picket for Azure Pipelines", readme);
+        Assert.Contains("PicketScan@1", readme);
+        Assert.Contains("task: PicketScan@1", readme);
+        Assert.Contains("picketPath", readme);
+        Assert.DoesNotContain("This folder", readme);
+        Assert.DoesNotContain("Before publishing", readme);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("azure-devops/vss-extension.json", marketplaces);
