@@ -696,7 +696,32 @@ Local container archive scanning is native Picket behavior, not Gitleaks compati
 
 Picket treats the image archive as a source envelope, scans metadata files such as manifests and configs, expands layer tarballs and gzip-compressed layer blobs through the same archive safety caps as local archives, and reports provenance paths such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
 
-Container archive flags cannot be combined with GitHub, GitLab, or Azure DevOps source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+Container archive flags cannot be combined with GitHub, GitLab, Azure DevOps, or object-store source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+
+Azure Blob source support is native Picket behavior, not Gitleaks compatibility behavior.
+
+Implemented Azure Blob entry points:
+
+| Scope | Options | Behavior |
+| --- | --- | --- |
+| Container blobs | `--azure-blob-endpoint`, `--azure-blob-container`, `--azure-blob-token-env`, `--azure-blob-token-kind` | Lists blobs in one container and downloads selected blob bytes. Bearer tokens are sent in the Authorization header; SAS credentials are appended to provider request query strings after being read from the environment. |
+| Container prefix | `--azure-blob-prefix` | Limits listing to blob names with the supplied prefix. |
+
+Azure Blob source safety rules:
+
+- Endpoint safety checks run before the first request and again at connect time.
+- Redirects are disabled before credentials are sent.
+- Responses from injected HTTP handlers that already followed a redirect are rejected.
+- Retryable throttling and service responses are retried once with bounded `Retry-After` backoff.
+- Blob listing uses `maxresults=5000` and follows `NextMarker` until empty.
+- Blob listing stops at a 1,000-page safety limit with a warning.
+- Metadata XML responses are capped at 10 decimal MB and skipped with a warning when the cap is exceeded.
+- Remote downloads use a 100 decimal MB default cap.
+- A positive `--max-target-megabytes` value overrides the default remote cap.
+- Zero keeps its local-scan compatibility meaning, but remote Azure Blob sources reject zero because remote HTTP bodies are always bounded.
+- Oversized blobs are skipped before download when Azure Blob Storage returns a content length and are capped during streaming even when content length is missing or understated.
+
+S3 and GCS remain planned object-store providers. They should reuse the same native source-provider contract: credentials sourced from environment variables, provider endpoint guards, pagination safety caps, byte caps, redirect safety, and provider-specific least-privilege permission docs.
 
 GitLab source support is native Picket behavior, not Gitleaks compatibility behavior.
 
@@ -1181,6 +1206,7 @@ Required before v1:
 - `docs/GITHUB.md`: GitHub source enumeration, hosted-alert oracle capture, and permission guidance,
 - `docs/GITLAB.md`: GitLab source enumeration and permission guidance,
 - `docs/AZURE_DEVOPS.md`: Azure DevOps task, source enumeration, artifact scanning, and marketplace behavior,
+- `docs/OBJECT_STORES.md`: object-store source enumeration and permission guidance,
 - `docs/MARKETPLACES.md`: GitHub Marketplace and Azure DevOps Marketplace packaging, release, and rollback guidance,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,
 - `docs/PERFORMANCE.md`: benchmark and oracle comparison process,

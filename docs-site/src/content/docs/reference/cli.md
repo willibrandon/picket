@@ -436,6 +436,36 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this GitLab API endpoint for native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--azure-blob-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Azure Blob Storage service endpoint for native object-store enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-blob-container</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan blobs from this Azure Blob Storage container.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-blob-prefix</code></td>
+              <td data-label="Value"><code>prefix</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Azure Blob Storage enumeration to blob names with this prefix.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-blob-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Azure Blob bearer token or shared access signature from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-blob-token-kind</code></td>
+              <td data-label="Value"><code>kind</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose bearer-token authentication or shared access signature query authentication for Azure Blob Storage requests.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--azure-devops-organization</code></td>
               <td data-label="Value"><code>org</code></td>
               <td data-label="Required">Optional</td>

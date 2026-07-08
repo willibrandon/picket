@@ -52,6 +52,12 @@ internal static partial class Program
         string gitLabProject = string.Empty;
         string gitLabRef = string.Empty;
         string? gitLabTokenEnvironmentVariable = null;
+        AzureBlobCredentialKind azureBlobCredentialKind = AzureBlobCredentialKind.BearerToken;
+        Uri? azureBlobEndpoint = null;
+        string azureBlobContainer = string.Empty;
+        bool azureBlobOptionSpecified = false;
+        string azureBlobPrefix = string.Empty;
+        string? azureBlobTokenEnvironmentVariable = null;
         string? source = null;
         bool allowInsecureSourceEndpoints = false;
         bool allowNonPublicSourceEndpoints = false;
@@ -413,6 +419,63 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsAzureBlobEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--azure-blob-endpoint", out azureBlobEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureBlobOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureBlobContainerFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--azure-blob-container", out string? container))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureBlobContainer = container;
+                azureBlobOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureBlobPrefixFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--azure-blob-prefix", out string? prefix))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureBlobPrefix = prefix;
+                azureBlobOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureBlobTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--azure-blob-token-env", out azureBlobTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureBlobOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureBlobTokenKindFlag(arg))
+            {
+                if (!TryReadAzureBlobCredentialKindFlag(args, ref i, out azureBlobCredentialKind))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureBlobOptionSpecified = true;
+                continue;
+            }
+
             if (IsAzureDevOpsOrganizationFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-organization", out azureDevOpsOrganization))
@@ -708,7 +771,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !githubSourceOptionSpecified && !gitLabOptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -721,6 +784,7 @@ internal static partial class Program
 
         NativeSourceProvider? sourceFileProvider = null;
         int sourceProviderCount = 0;
+        sourceProviderCount += azureBlobOptionSpecified ? 1 : 0;
         sourceProviderCount += azureDevOpsOptionSpecified ? 1 : 0;
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
@@ -731,7 +795,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if ((azureDevOpsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified)
+        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || githubSourceOptionSpecified || gitLabOptionSpecified)
             && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
@@ -743,6 +807,20 @@ internal static partial class Program
                 || HasZeroMegabytesFlag(args, "--azure-devops-max-log-megabytes")))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
+            return UnknownFlagExitCode;
+        }
+
+        if (azureBlobOptionSpecified
+            && !TryCreateAzureBlobSourceProvider(
+                azureBlobEndpoint,
+                azureBlobContainer,
+                azureBlobPrefix,
+                azureBlobTokenEnvironmentVariable,
+                azureBlobCredentialKind,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
             return UnknownFlagExitCode;
         }
 

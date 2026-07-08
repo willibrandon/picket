@@ -236,6 +236,22 @@ Microsoft Learn REST API documentation reviewed on 2026-07-07:
 - Azure DevOps build log REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-log?view=azure-devops-rest-7.1`
 - Azure DevOps release get REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/release/releases/get-release?view=azure-devops-rest-7.1`
 
+## Azure Blob Source References
+
+Native Azure Blob Storage container source enumeration is based on
+Microsoft Learn REST API documentation reviewed on 2026-07-08:
+
+- Azure Blob Storage REST API: `https://learn.microsoft.com/en-us/rest/api/storageservices/blob-service-rest-api`
+- List Blobs REST API: `https://learn.microsoft.com/en-us/rest/api/storageservices/list-blobs`
+- Get Blob REST API: `https://learn.microsoft.com/en-us/rest/api/storageservices/get-blob`
+- Azure Storage service versioning: `https://learn.microsoft.com/en-us/rest/api/storageservices/versioning-for-the-azure-storage-services`
+
+Picket uses Azure Storage service version `2026-04-06` for Blob Storage REST
+requests because Microsoft documents it as the latest fully deployed service
+version as of the reviewed versioning page. The newer `2026-06-06` service
+version is broadly enabled but has documented tenant exceptions, so it is not
+used as the scanner default yet.
+
 ## GitHub Secret Scanning Oracle
 
 GitHub Secret Protection secret scanning is a hosted proprietary system, not a

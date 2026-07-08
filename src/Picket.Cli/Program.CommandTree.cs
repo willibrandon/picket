@@ -66,6 +66,7 @@ internal static partial class Program
         AddLiveVerificationOptions(command, "picket scan", includeModeSwitches: false);
         AddGitHubSourceOptions(command, "picket scan");
         AddGitLabSourceOptions(command, "picket scan");
+        AddAzureBlobSourceOptions(command, "picket scan");
         AddAzureDevOpsSourceOptions(command, "picket scan");
         AddContainerArchiveSourceOptions(command, "picket scan");
         AddResultFilterOptions(command, "picket scan");
@@ -485,6 +486,15 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--azure-devops-max-log-megabytes", "n"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-non-public-source-endpoints"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-insecure-source-endpoints"));
+    }
+
+    private static void AddAzureBlobSourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--azure-blob-endpoint", "uri"));
+        command.Options.Add(CreateValueOption(commandName, "--azure-blob-container", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--azure-blob-prefix", "prefix"));
+        command.Options.Add(CreateValueOption(commandName, "--azure-blob-token-env", "name"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--azure-blob-token-kind", "kind", "bearer", "sas"));
     }
 
     private static void AddGitLabSourceOptions(Command command, string commandName)
