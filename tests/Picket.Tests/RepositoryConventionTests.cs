@@ -514,7 +514,7 @@ public sealed partial class RepositoryConventionTests
     {
         string pipeline = ReadRepositoryFile("azure-pipelines.yml");
 
-        Assert.Contains("name: Default", pipeline);
+        Assert.Contains("name: Windows-SelfHosted", pipeline);
         Assert.Contains("Agent.OS -equals Windows_NT", pipeline);
         Assert.Contains("PicketScan@1", pipeline);
         Assert.Contains("picket.exe", pipeline);
