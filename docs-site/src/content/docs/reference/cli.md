@@ -406,6 +406,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan this Gitea pull request source head.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitea-include-issues</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include Gitea issue bodies and comments in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-issue-state</code></td>
+              <td data-label="Value"><code>open | closed | all</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Filter Gitea issues by state.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitea-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

@@ -7,6 +7,8 @@ namespace Picket.Sources;
 /// <param name="repository">The repository to scan as an owner/name path or repository URL.</param>
 /// <param name="credential">The credential used for Gitea API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
+/// <param name="includeIssues">A value indicating whether Gitea issue bodies and comments should be scanned.</param>
+/// <param name="issueState">The Gitea issue state filter.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="allowInsecureCredentialTransport">A value indicating whether credentials may be sent to HTTP endpoints.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
@@ -18,6 +20,8 @@ public sealed class GiteaSourceOptions(
     string repository,
     string credential,
     string gitRef = "",
+    bool includeIssues = false,
+    string issueState = GiteaSourceOptions.DefaultIssueState,
     long? maxFileBytes = null,
     bool allowInsecureCredentialTransport = false,
     Func<string, bool>? isPathAllowed = null,
@@ -25,6 +29,11 @@ public sealed class GiteaSourceOptions(
     Func<bool>? isCancellationRequested = null,
     int pullRequestId = 0)
 {
+    /// <summary>
+    /// The default Gitea issue state filter.
+    /// </summary>
+    public const string DefaultIssueState = "all";
+
     internal const long DefaultMaxFileBytes = 100_000_000;
     private readonly string _credential = RequireCredential(credential);
     private readonly string _repository = NormalizeRepository(repository);
@@ -55,6 +64,16 @@ public sealed class GiteaSourceOptions(
     /// Gets the optional branch, tag, or commit reference.
     /// </summary>
     public string Ref { get; } = NormalizeRef(gitRef, pullRequestId);
+
+    /// <summary>
+    /// Gets a value indicating whether Gitea issue bodies and comments should be scanned.
+    /// </summary>
+    public bool IncludeIssues { get; } = RequireIncludeIssues(includeIssues, pullRequestId);
+
+    /// <summary>
+    /// Gets the Gitea issue state filter.
+    /// </summary>
+    public string IssueState { get; } = NormalizeIssueState(issueState);
 
     /// <summary>
     /// Gets the optional pull request ID whose source head should be scanned.
@@ -91,6 +110,8 @@ public sealed class GiteaSourceOptions(
             Endpoint,
             repository,
             Credential,
+            includeIssues: IncludeIssues,
+            issueState: IssueState,
             maxFileBytes: MaxFileBytes,
             allowInsecureCredentialTransport: AllowInsecureCredentialTransport,
             isPathAllowed: IsPathAllowed,
@@ -136,6 +157,39 @@ public sealed class GiteaSourceOptions(
         }
 
         return normalized;
+    }
+
+    /// <summary>
+    /// Normalizes a Gitea issue state filter.
+    /// </summary>
+    /// <param name="value">The issue state value.</param>
+    /// <returns>The normalized issue state value.</returns>
+    public static string NormalizeIssueState(string value)
+    {
+        string normalized = NormalizeOptionalText(value);
+        if (normalized.Length == 0)
+        {
+            return DefaultIssueState;
+        }
+
+        if (normalized.Equals("open", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("closed", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized.ToLowerInvariant();
+        }
+
+        throw new ArgumentException("Gitea issue state must be open, closed, or all.", nameof(value));
+    }
+
+    private static bool RequireIncludeIssues(bool value, int pullRequestId)
+    {
+        if (value && pullRequestId != 0)
+        {
+            throw new ArgumentException("Gitea source options cannot combine pull request and issue enumeration.", nameof(value));
+        }
+
+        return value;
     }
 
     private static Uri RequireCredentialTransport(Uri endpoint, bool allowInsecureCredentialTransport)

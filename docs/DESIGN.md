@@ -819,6 +819,7 @@ Implemented Gitea entry points:
 | --- | --- | --- |
 | Repository files | `--gitea-repository`, `--gitea-ref`, `--gitea-token-env`, `--gitea-api-endpoint` | Scans an `owner/name` repository or repository URL at a branch, tag, or commit. Empty `--gitea-ref` uses the default branch. |
 | Pull request source head | `--gitea-repository`, `--gitea-pull-request` | Resolves the pull request source commit and source repository, including forks when Gitea returns them, then scans that commit. |
+| Issues and comments | `--gitea-include-issues`, `--gitea-issue-state` | Reads issue bodies and repository issue comments, and skips entries that contain a pull request marker. |
 
 Gitea API flow:
 
@@ -827,6 +828,8 @@ Gitea API flow:
 | Repository metadata | Resolves the default branch when `--gitea-ref` is omitted. |
 | Branch metadata | Resolves branch names to commit IDs before tree enumeration when Gitea returns branch metadata. |
 | Pull request metadata | Resolves the source commit hash, source branch fallback, and source repository when `--gitea-pull-request` is used. |
+| Issues | Lists repository issues with `page`, `limit=100`, `type=issues`, and the selected state. |
+| Issue comments | Lists repository issue comments with `page` and `limit=100`, then keeps comments whose `issue_url` belongs to a selected non-pull-request issue. |
 | Repository tree | Lists repository blobs with recursive git tree enumeration and `per_page=1000`. |
 | Raw repository files | Downloads file bytes through the raw repository file endpoint. |
 
@@ -842,9 +845,9 @@ Gitea source safety rules:
 - A positive `--max-target-megabytes` value overrides the default remote cap.
 - Zero keeps its local-scan compatibility meaning, but remote Gitea sources reject zero because remote HTTP bodies are always bounded.
 - Oversized tree entries are skipped before download when Gitea returns a size.
-- Organization/user discovery, issues, releases, packages, and Actions artifacts remain planned explicit source selectors.
+- Organization/user discovery, releases, packages, and Actions artifacts remain planned explicit source selectors.
 
-Gitea credentials are read from the environment and sent as `Authorization: token ...` request headers for repository scans. Least-privilege repository enumeration requires read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Pull request scans also require read-only access to pull request metadata. Write, owner, organization administration, package, runner, and token-administration scopes are not part of the scanner test contract.
+Gitea credentials are read from the environment and sent as `Authorization: token ...` request headers for repository scans. Least-privilege repository enumeration requires read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Pull request scans also require read-only access to pull request metadata. Issue scans also require read-only issue and issue-comment access. Write, owner, organization administration, package, runner, and token-administration scopes are not part of the scanner test contract.
 
 Bitbucket Cloud source support is native Picket behavior, not Gitleaks compatibility behavior.
 

@@ -475,6 +475,8 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--gitea-repository", "owner/name"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-ref", "ref"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-pull-request", "id"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitea-include-issues"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-issue-state", "open|closed|all"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-api-endpoint", "uri"));
     }

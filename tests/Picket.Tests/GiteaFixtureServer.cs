@@ -122,6 +122,20 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.StartsWith("/api/v1/repos/willibrandon/picket/issues/comments?", StringComparison.Ordinal))
+        {
+            const string IssueCommentsJson = """[{"id":99,"issue_url":"http://127.0.0.1/api/v1/repos/willibrandon/picket/issues/7","body":"comment-token-222"},{"id":100,"issue_url":"http://127.0.0.1/api/v1/repos/willibrandon/picket/issues/8","body":"skip-token-999"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(IssueCommentsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.StartsWith("/api/v1/repos/willibrandon/picket/issues?", StringComparison.Ordinal))
+        {
+            const string IssuesJson = """[{"number":7,"title":"leaked issue-token-111","body":"body-token-111","comments":1},{"number":8,"title":"pull request token-999","body":"skip-token-999","comments":1,"pull_request":{"url":"http://127.0.0.1/api/v1/repos/willibrandon/picket/pulls/8"}}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(IssuesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/api/v1/repos/willibrandon/picket/raw/src/appsettings.txt?ref=main", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);

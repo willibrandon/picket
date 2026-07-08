@@ -52,6 +52,8 @@ internal static partial class Program
         string githubSourceUser = string.Empty;
         string githubSourceUserGists = string.Empty;
         Uri? giteaApiEndpoint = null;
+        bool giteaIncludeIssues = false;
+        string giteaIssueState = GiteaSourceOptions.DefaultIssueState;
         bool giteaOptionSpecified = false;
         int giteaPullRequestId = 0;
         string giteaRef = string.Empty;
@@ -470,6 +472,33 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaIncludeIssuesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitea-include-issues", out giteaIncludeIssues))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (giteaIncludeIssues)
+                {
+                    giteaOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGiteaIssueStateFlag(arg))
+            {
+                if (!TryReadGiteaIssueStateFlag(args, ref i, out giteaIssueState))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaIncludeIssues = true;
                 giteaOptionSpecified = true;
                 continue;
             }
@@ -1231,6 +1260,8 @@ internal static partial class Program
                 giteaRepository,
                 giteaRef,
                 giteaPullRequestId,
+                giteaIncludeIssues,
+                giteaIssueState,
                 giteaTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

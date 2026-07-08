@@ -24,6 +24,18 @@ internal static partial class Program
             || arg.StartsWith("--gitea-pull-request=", StringComparison.Ordinal);
     }
 
+    static bool IsGiteaIncludeIssuesFlag(string arg)
+    {
+        return arg.Equals("--gitea-include-issues", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-include-issues=", StringComparison.Ordinal);
+    }
+
+    static bool IsGiteaIssueStateFlag(string arg)
+    {
+        return arg.Equals("--gitea-issue-state", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-issue-state=", StringComparison.Ordinal);
+    }
+
     static bool IsGiteaTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitea-token-env", StringComparison.Ordinal)
@@ -52,11 +64,33 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadGiteaIssueStateFlag(string[] args, ref int index, out string issueState)
+    {
+        issueState = GiteaSourceOptions.DefaultIssueState;
+        if (!TryReadStringFlag(args, ref index, "--gitea-issue-state", out string? value))
+        {
+            return false;
+        }
+
+        try
+        {
+            issueState = GiteaSourceOptions.NormalizeIssueState(value);
+            return true;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return false;
+        }
+    }
+
     static bool TryCreateGiteaSourceProvider(
         Uri? endpoint,
         string repository,
         string gitRef,
         int pullRequestId,
+        bool includeIssues,
+        string issueState,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -72,6 +106,12 @@ internal static partial class Program
         if (pullRequestId != 0 && !string.IsNullOrWhiteSpace(gitRef))
         {
             Console.Error.WriteLine("Gitea source scan accepts either --gitea-ref or --gitea-pull-request, not both");
+            return false;
+        }
+
+        if (pullRequestId != 0 && includeIssues)
+        {
+            Console.Error.WriteLine("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-issues");
             return false;
         }
 
@@ -96,11 +136,15 @@ internal static partial class Program
                 repository,
                 credential,
                 gitRef,
+                includeIssues,
+                issueState,
                 pullRequestId: pullRequestId,
                 allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
             sourceEndpoint = validatedOptions.Endpoint;
             repository = validatedOptions.Repository;
             gitRef = validatedOptions.Ref;
+            includeIssues = validatedOptions.IncludeIssues;
+            issueState = validatedOptions.IssueState;
             pullRequestId = validatedOptions.PullRequestId;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -133,6 +177,8 @@ internal static partial class Program
                 repository,
                 credential,
                 gitRef,
+                includeIssues,
+                issueState,
                 maxFileBytes: maxTargetBytes,
                 allowInsecureCredentialTransport: allowInsecureSourceEndpoints,
                 isPathAllowed: rules.IsGlobalPathAllowed,

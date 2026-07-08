@@ -13,6 +13,7 @@ namespace Picket.Sources;
 /// <param name="httpClient">The HTTP client used for Gitea requests.</param>
 public sealed class GiteaSourceClient(HttpClient httpClient)
 {
+    private const int IssuesPerPage = 100;
     private const int MaxPaginationPages = 1000;
     private const int TreeEntriesPerPage = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-gitea-remote");
@@ -66,6 +67,10 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 
             string treeRef = await ResolveTreeRefAsync(options, gitRef, cancellationToken).ConfigureAwait(false);
             await AddRepositoryFilesAsync(options, gitRef, treeRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+            if (options.IncludeIssues && !IsCancellationRequested(options))
+            {
+                await AddRepositoryIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (RemoteMetadataTooLargeException)
         {
@@ -246,6 +251,160 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return entryCount;
     }
 
+    private async Task AddRepositoryIssueFilesAsync(
+        GiteaSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        var issueNumbersWithComments = new HashSet<int>();
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateRepositoryIssueListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Gitea issues for repository {options.Repository}");
+                return;
+            }
+
+            int issueCount = await AddIssueFilesAsync(options, response, issueNumbersWithComments, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextListPage(response, page, issueCount, IssuesPerPage, options.WarningSink, $"Gitea issue enumeration for {options.Repository}");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+
+        if (issueNumbersWithComments.Count != 0 && !IsCancellationRequested(options))
+        {
+            await AddIssueCommentFilesAsync(options, issueNumbersWithComments, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<int> AddIssueFilesAsync(
+        GiteaSourceOptions options,
+        HttpResponseMessage response,
+        HashSet<int> issueNumbersWithComments,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int issueCount = 0;
+        foreach (JsonElement issue in document.RootElement.EnumerateArray())
+        {
+            issueCount++;
+            if (IsCancellationRequested(options))
+            {
+                return issueCount;
+            }
+
+            if (issue.TryGetProperty("pull_request", out _)
+                || !TryGetJsonInt32(issue, "number", out int issueNumber))
+            {
+                continue;
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateIssueDisplayPath(options, issueNumber),
+                CreateIssueContent(issueNumber, GetString(issue, "title"), GetString(issue, "body")),
+                sourceFiles);
+
+            if (!TryGetJsonInt64(issue, "comments", out long comments)
+                || comments > 0)
+            {
+                issueNumbersWithComments.Add(issueNumber);
+            }
+        }
+
+        return issueCount;
+    }
+
+    private async Task AddIssueCommentFilesAsync(
+        GiteaSourceOptions options,
+        HashSet<int> issueNumbers,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateRepositoryIssueCommentListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Gitea issue comments for repository {options.Repository}");
+                return;
+            }
+
+            int commentCount = await AddIssueCommentFilesAsync(options, issueNumbers, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextListPage(response, page, commentCount, IssuesPerPage, options.WarningSink, $"Gitea issue comment enumeration for {options.Repository}");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task<int> AddIssueCommentFilesAsync(
+        GiteaSourceOptions options,
+        HashSet<int> issueNumbers,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int commentCount = 0;
+        foreach (JsonElement comment in document.RootElement.EnumerateArray())
+        {
+            commentCount++;
+            if (IsCancellationRequested(options))
+            {
+                return commentCount;
+            }
+
+            if (!TryGetJsonInt64(comment, "id", out long commentId)
+                || !TryGetIssueNumber(comment, out int issueNumber)
+                || !issueNumbers.Contains(issueNumber))
+            {
+                continue;
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateIssueCommentDisplayPath(options, issueNumber, commentId),
+                CreateIssueCommentContent(issueNumber, commentId, GetString(comment, "body")),
+                sourceFiles);
+        }
+
+        return commentCount;
+    }
+
+    private static void AddSyntheticTextFile(
+        GiteaSourceOptions options,
+        string displayPath,
+        string content,
+        List<SourceFile> sourceFiles)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(content);
+        if (bytes.LongLength > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"Gitea file byte limit skipped {displayPath}");
+            return;
+        }
+
+        sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, bytes));
+    }
+
     private async Task<byte[]?> DownloadFileAsync(
         GiteaSourceOptions options,
         Uri uri,
@@ -366,6 +525,30 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return builder.Uri;
     }
 
+    private static Uri CreateRepositoryIssueListUri(GiteaSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.Name, "issues"],
+            [
+                new KeyValuePair<string, string>("state", options.IssueState),
+                new KeyValuePair<string, string>("type", "issues"),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("limit", IssuesPerPage.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateRepositoryIssueCommentListUri(GiteaSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.Name, "issues", "comments"],
+            [
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("limit", IssuesPerPage.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
     private static Uri CreateUri(
         Uri endpoint,
         IReadOnlyList<string> pathSegments,
@@ -465,6 +648,39 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return true;
     }
 
+    private static bool HasNextListPage(
+        HttpResponseMessage response,
+        int page,
+        int itemCount,
+        int pageSize,
+        Action<string>? warningSink,
+        string target)
+    {
+        if (response.Headers.TryGetValues("Link", out IEnumerable<string>? values)
+            && values.Any(value => value.Contains("rel=\"next\"", StringComparison.OrdinalIgnoreCase)))
+        {
+            return HasNextPageWithinLimit(page, warningSink, target);
+        }
+
+        if (itemCount < pageSize)
+        {
+            return false;
+        }
+
+        return HasNextPageWithinLimit(page, warningSink, target);
+    }
+
+    private static bool HasNextPageWithinLimit(int page, Action<string>? warningSink, string target)
+    {
+        if (page >= MaxPaginationPages)
+        {
+            warningSink?.Invoke($"{target} stopped at the pagination safety limit");
+            return false;
+        }
+
+        return true;
+    }
+
     private static bool IsBlobItem(JsonElement item)
     {
         return TryGetJsonString(item, "type", out string type)
@@ -515,6 +731,19 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             && long.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out propertyValue);
     }
 
+    private static bool TryGetJsonInt32(JsonElement value, string propertyName, out int propertyValue)
+    {
+        propertyValue = 0;
+        if (!TryGetJsonInt64(value, propertyName, out long longValue)
+            || longValue is < int.MinValue or > int.MaxValue)
+        {
+            return false;
+        }
+
+        propertyValue = (int)longValue;
+        return true;
+    }
+
     private static string GetString(JsonElement value, string propertyName)
     {
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
@@ -552,6 +781,21 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return GetString(secondProperty, thirdPropertyName);
     }
 
+    private static bool TryGetIssueNumber(JsonElement comment, out int issueNumber)
+    {
+        issueNumber = 0;
+        string issueUrl = GetString(comment, "issue_url");
+        if (issueUrl.Length == 0)
+        {
+            return false;
+        }
+
+        int separator = issueUrl.LastIndexOf('/');
+        return separator >= 0
+            && separator + 1 < issueUrl.Length
+            && int.TryParse(issueUrl.AsSpan(separator + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out issueNumber);
+    }
+
     private static string CreateDisplayPath(GiteaSourceOptions options, string itemPath)
     {
         return string.Concat(
@@ -559,6 +803,70 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             NormalizeRemoteItemPath(options.Repository),
             "/",
             NormalizeRemoteItemPath(itemPath));
+    }
+
+    private static string CreateIssueDisplayPath(GiteaSourceOptions options, int issueNumber)
+    {
+        return string.Concat(
+            "gitea/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.Name),
+            "/issues/",
+            issueNumber.ToString(CultureInfo.InvariantCulture),
+            ".md");
+    }
+
+    private static string CreateIssueCommentDisplayPath(GiteaSourceOptions options, int issueNumber, long commentId)
+    {
+        return string.Concat(
+            "gitea/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.Name),
+            "/issues/",
+            issueNumber.ToString(CultureInfo.InvariantCulture),
+            "/comments/",
+            commentId.ToString(CultureInfo.InvariantCulture),
+            ".md");
+    }
+
+    private static string CreateIssueContent(int issueNumber, string title, string body)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Issue ");
+        builder.Append(issueNumber.ToString(CultureInfo.InvariantCulture));
+        if (title.Length != 0)
+        {
+            builder.Append(": ");
+            builder.Append(title);
+        }
+
+        builder.AppendLine();
+        builder.AppendLine();
+        if (body.Length != 0)
+        {
+            builder.AppendLine(body);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string CreateIssueCommentContent(int issueNumber, long commentId, string body)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Issue ");
+        builder.Append(issueNumber.ToString(CultureInfo.InvariantCulture));
+        builder.Append(" comment ");
+        builder.Append(commentId.ToString(CultureInfo.InvariantCulture));
+        builder.AppendLine();
+        builder.AppendLine();
+        if (body.Length != 0)
+        {
+            builder.AppendLine(body);
+        }
+
+        return builder.ToString();
     }
 
     private static string EscapeDisplaySegment(string value)

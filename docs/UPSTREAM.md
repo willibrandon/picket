@@ -227,7 +227,9 @@ Picket uses Gitea REST repository metadata to resolve the default branch, branch
 metadata to resolve branch names to commit IDs when available, recursive git
 tree enumeration with `per_page=1000`, the raw repository file endpoint for
 selected file bytes, and pull request metadata to resolve source-head commits
-and source repositories. Tokens are read from environment variables, sent as
+and source repositories. Issue scans use repository issue lists with `type=issues`
+and repository issue-comment lists, filtering comments back to selected issue
+numbers through `issue_url`. Tokens are read from environment variables, sent as
 `Authorization: token ...`, and are not logged.
 
 ## Bitbucket Source References
