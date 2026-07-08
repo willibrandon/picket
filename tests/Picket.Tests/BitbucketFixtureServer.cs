@@ -8,6 +8,7 @@ namespace Picket.Tests;
 internal sealed class BitbucketFixtureServer : IDisposable
 {
     private readonly string _content;
+    private readonly List<string> _requestsWithAuthorization = [];
     private readonly List<string> _requestTargets = [];
     private readonly Lock _requestTargetsLock = new();
     private readonly CancellationTokenSource _shutdown = new();
@@ -37,6 +38,17 @@ internal sealed class BitbucketFixtureServer : IDisposable
             lock (_requestTargetsLock)
             {
                 return string.Join('\n', _requestTargets);
+            }
+        }
+    }
+
+    internal string RequestsWithAuthorization
+    {
+        get
+        {
+            lock (_requestTargetsLock)
+            {
+                return string.Join('\n', _requestsWithAuthorization);
             }
         }
     }
@@ -79,6 +91,7 @@ internal sealed class BitbucketFixtureServer : IDisposable
         lock (_requestTargetsLock)
         {
             _requestTargets.Add(target);
+            _requestsWithAuthorization.Add(string.Concat(target, "|", LastAuthorization));
         }
 
         if (target.Equals("/2.0/repositories/willibrandon/picket", StringComparison.Ordinal))
@@ -113,6 +126,25 @@ internal sealed class BitbucketFixtureServer : IDisposable
         }
 
         if (target.Equals("/2.0/repositories/willibrandon/picket/src/main/src/appsettings.txt", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/willibrandon/picket/downloads?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            const string DownloadsJson = """{"pagelen":100,"page":1,"size":1,"values":[{"name":"build.txt","size":17}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(DownloadsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/willibrandon/picket/downloads/build.txt", StringComparison.Ordinal))
+        {
+            await WriteRedirectAsync(stream, new Uri(Endpoint, "/download-content/build.txt").AbsoluteUri, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/download-content/build.txt", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
             return;
@@ -216,6 +248,19 @@ internal sealed class BitbucketFixtureServer : IDisposable
             statusCode.ToString(CultureInfo.InvariantCulture),
             " ",
             reasonPhrase,
+            "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task WriteRedirectAsync(
+        NetworkStream stream,
+        string location,
+        CancellationToken cancellationToken)
+    {
+        string headers = string.Concat(
+            "HTTP/1.1 302 Found\r\n",
+            "Location: ",
+            location,
             "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), cancellationToken).ConfigureAwait(false);
     }

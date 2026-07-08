@@ -24,6 +24,12 @@ internal static partial class Program
             || arg.StartsWith("--bitbucket-pull-request=", StringComparison.Ordinal);
     }
 
+    static bool IsBitbucketIncludeDownloadsFlag(string arg)
+    {
+        return arg.Equals("--bitbucket-include-downloads", StringComparison.Ordinal)
+            || arg.StartsWith("--bitbucket-include-downloads=", StringComparison.Ordinal);
+    }
+
     static bool IsBitbucketTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--bitbucket-token-env", StringComparison.Ordinal)
@@ -95,6 +101,7 @@ internal static partial class Program
         string repository,
         string gitRef,
         int pullRequestId,
+        bool includeDownloads,
         string? tokenEnvironmentVariable,
         string? usernameEnvironmentVariable,
         BitbucketCredentialKind credentialKind,
@@ -158,11 +165,13 @@ internal static partial class Program
                 credentialKind,
                 gitRef,
                 pullRequestId,
+                includeDownloads,
                 allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
             sourceEndpoint = validatedOptions.Endpoint;
             repository = validatedOptions.Repository;
             gitRef = validatedOptions.Ref;
             pullRequestId = validatedOptions.PullRequestId;
+            includeDownloads = validatedOptions.IncludeDownloads;
             credentialKind = validatedOptions.CredentialKind;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -183,7 +192,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, _, _, _, _, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -198,7 +207,12 @@ internal static partial class Program
                 credentialKind,
                 gitRef,
                 pullRequestId,
+                includeDownloads,
                 maxTargetBytes,
+                maxArchiveDepth,
+                maxArchiveEntries,
+                maxArchiveBytes,
+                maxArchiveCompressionRatio,
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,

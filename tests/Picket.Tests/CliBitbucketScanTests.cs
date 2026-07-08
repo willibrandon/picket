@@ -107,6 +107,51 @@ public sealed class CliBitbucketScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate Bitbucket repository download artifacts.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsBitbucketDownloadArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new BitbucketFixtureServer("download-token-2468");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--bitbucket-repository",
+            "willibrandon/picket",
+            "--bitbucket-include-downloads",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"bitbucket/willibrandon/picket/downloads/build.txt\"", result.Stdout);
+        Assert.Contains("/2.0/repositories/willibrandon/picket/downloads?pagelen=100&page=1", server.RequestTargets);
+        Assert.Contains("/2.0/repositories/willibrandon/picket/downloads/build.txt", server.RequestTargets);
+        Assert.Contains("/download-content/build.txt", server.RequestTargets);
+        Assert.Contains("/2.0/repositories/willibrandon/picket/downloads/build.txt|Bearer bitbucket-source-secret", server.RequestsWithAuthorization);
+        Assert.Contains("/download-content/build.txt|", server.RequestsWithAuthorization);
+        Assert.DoesNotContain("/download-content/build.txt|Bearer", server.RequestsWithAuthorization);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stdout);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan rejects ambiguous Bitbucket ref and pull request selectors.
     /// </summary>
     [TestMethod]
@@ -139,6 +184,41 @@ public sealed class CliBitbucketScanTests
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket source scan accepts either --bitbucket-ref or --bitbucket-pull-request, not both", result.Stderr);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects ambiguous Bitbucket pull request and download artifact selectors.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsBitbucketPullRequestAndDownloads()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-repository",
+            "willibrandon/picket",
+            "--bitbucket-pull-request",
+            "7",
+            "--bitbucket-include-downloads",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Bitbucket source options cannot combine pull request scans with download artifact enumeration.", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
     }
 

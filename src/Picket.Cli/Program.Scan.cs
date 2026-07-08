@@ -17,6 +17,7 @@ internal static partial class Program
         TimeSpan? minimumRequestIntervalPerProvider = null;
         Uri? bitbucketApiEndpoint = null;
         BitbucketCredentialKind bitbucketCredentialKind = BitbucketCredentialKind.BearerToken;
+        bool bitbucketIncludeDownloads = false;
         bool bitbucketOptionSpecified = false;
         int bitbucketPullRequestId = 0;
         string bitbucketRef = string.Empty;
@@ -387,6 +388,21 @@ internal static partial class Program
                 }
 
                 bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketIncludeDownloadsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--bitbucket-include-downloads", out bitbucketIncludeDownloads))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (bitbucketIncludeDownloads)
+                {
+                    bitbucketOptionSpecified = true;
+                }
+
                 continue;
             }
 
@@ -1239,6 +1255,7 @@ internal static partial class Program
                 bitbucketRepository,
                 bitbucketRef,
                 bitbucketPullRequestId,
+                bitbucketIncludeDownloads,
                 bitbucketTokenEnvironmentVariable,
                 bitbucketUsernameEnvironmentVariable,
                 bitbucketCredentialKind,

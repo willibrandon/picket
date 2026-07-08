@@ -10,7 +10,12 @@ namespace Picket.Sources;
 /// <param name="credentialKind">The credential transport to use for Bitbucket API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
 /// <param name="pullRequestId">An optional pull request ID whose source head should be scanned.</param>
+/// <param name="includeDownloads">A value indicating whether repository download artifacts should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
+/// <param name="maxArchiveDepth">The maximum nested download archive depth to enumerate.</param>
+/// <param name="maxArchiveEntries">The maximum number of download archive entries to enumerate, or 0 for no cap.</param>
+/// <param name="maxArchiveBytes">The maximum number of decompressed download archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
+/// <param name="maxArchiveCompressionRatio">The maximum download archive expansion ratio, or 0 for no cap.</param>
 /// <param name="allowInsecureCredentialTransport">A value indicating whether credentials may be sent to HTTP endpoints.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
@@ -23,7 +28,12 @@ public sealed class BitbucketSourceOptions(
     BitbucketCredentialKind credentialKind = BitbucketCredentialKind.BearerToken,
     string gitRef = "",
     int pullRequestId = 0,
+    bool includeDownloads = false,
     long? maxFileBytes = null,
+    int maxArchiveDepth = ArchiveScanDefaults.DefaultMaxDepth,
+    int maxArchiveEntries = ArchiveScanDefaults.DefaultMaxEntries,
+    long? maxArchiveBytes = ArchiveScanDefaults.DefaultMaxBytes,
+    int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
     bool allowInsecureCredentialTransport = false,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
@@ -71,9 +81,34 @@ public sealed class BitbucketSourceOptions(
     public int PullRequestId { get; } = RequirePullRequestId(pullRequestId);
 
     /// <summary>
+    /// Gets a value indicating whether repository download artifacts should be scanned.
+    /// </summary>
+    public bool IncludeDownloads { get; } = RequireIncludeDownloads(includeDownloads, pullRequestId);
+
+    /// <summary>
     /// Gets the maximum file content bytes to download.
     /// </summary>
     public long MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes, nameof(maxFileBytes));
+
+    /// <summary>
+    /// Gets the maximum nested download archive depth to enumerate.
+    /// </summary>
+    public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
+    /// <summary>
+    /// Gets the maximum number of download archive entries to enumerate, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveEntries { get; } = RequireMaxArchiveEntries(maxArchiveEntries);
+
+    /// <summary>
+    /// Gets the maximum number of decompressed download archive bytes to enumerate, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxArchiveBytes { get; } = RequireMaxArchiveBytes(maxArchiveBytes);
+
+    /// <summary>
+    /// Gets the maximum download archive expansion ratio, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveCompressionRatio { get; } = RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
 
     internal string Credential => _credential;
 
@@ -104,7 +139,12 @@ public sealed class BitbucketSourceOptions(
             Credential,
             Username,
             CredentialKind,
+            includeDownloads: IncludeDownloads,
             maxFileBytes: MaxFileBytes,
+            maxArchiveDepth: MaxArchiveDepth,
+            maxArchiveEntries: MaxArchiveEntries,
+            maxArchiveBytes: MaxArchiveBytes,
+            maxArchiveCompressionRatio: MaxArchiveCompressionRatio,
             allowInsecureCredentialTransport: AllowInsecureCredentialTransport,
             isPathAllowed: IsPathAllowed,
             warningSink: WarningSink,
@@ -257,6 +297,16 @@ public sealed class BitbucketSourceOptions(
         return value;
     }
 
+    private static bool RequireIncludeDownloads(bool value, int pullRequestId)
+    {
+        if (value && pullRequestId != 0)
+        {
+            throw new ArgumentException("Bitbucket source options cannot combine pull request scans with download artifact enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
     private static long RequireMaxFileBytes(long? value, string parameterName)
     {
         if (!value.HasValue)
@@ -270,5 +320,33 @@ public sealed class BitbucketSourceOptions(
         }
 
         return value.Value;
+    }
+
+    private static int RequireMaxArchiveDepth(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static int RequireMaxArchiveEntries(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static long? RequireMaxArchiveBytes(long? value)
+    {
+        if (value.HasValue)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+        }
+
+        return value;
+    }
+
+    private static int RequireMaxArchiveCompressionRatio(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
     }
 }
