@@ -167,6 +167,43 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
+    /// <summary>
+    /// Verifies that JSON reports escape HTML-sensitive characters like Gitleaks.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task HtmlSensitiveJsonReportMatchesPromotedGitleaksOracle()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "html-escape-json");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "html-escape-json");
+        string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", "json");
+        string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", "json");
+        using TempDirectory output = TempDirectory.Create();
+        string reportPath = Path.Combine(output.Path, "report.json");
+
+        CliResult result = await RunCliFromDirectoryAsync(
+            inputRoot,
+            "dir",
+            ".",
+            "-c",
+            ".gitleaks.toml",
+            "-f",
+            "json",
+            "-r",
+            reportPath,
+            "--no-banner",
+            "--no-color").ConfigureAwait(false);
+
+        Assert.Contains("oracle\\u003csecret\\u003e\\u002612345", expectedReport);
+        Assert.DoesNotContain("oracle<secret>&12345", expectedReport);
+        Assert.AreEqual(expectedReport, promotedPicketReport);
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+        Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+    }
+
     private static async Task<CliResult> RunCliFromDirectoryAsync(string workingDirectory, params string[] arguments)
     {
         return await RunCliWithInputFromDirectoryAsync(workingDirectory, standardInput: null, arguments).ConfigureAwait(false);

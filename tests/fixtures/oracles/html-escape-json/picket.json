@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "oracle-html-escape",
+  "Description": "Synthetic token with HTML-sensitive characters used for JSON escaping compatibility tests.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 18,
+  "EndColumn": 37,
+  "Match": "oracle\u003csecret\u003e\u002612345",
+  "Secret": "oracle\u003csecret\u003e\u002612345",
+  "File": "source.txt",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.8841836,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "source.txt:oracle-html-escape:1"
+ }
+]

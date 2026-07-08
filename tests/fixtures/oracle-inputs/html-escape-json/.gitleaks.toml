@@ -1,0 +1,9 @@
+title = "picket HTML-sensitive JSON oracle"
+
+[[rules]]
+id = "oracle-html-escape"
+description = "Synthetic token with HTML-sensitive characters used for JSON escaping compatibility tests."
+regex = '''oracle<secret>&[0-9]{5}'''
+keywords = [
+    "oracle<secret>&",
+]
