@@ -115,6 +115,8 @@ internal static class CliOptionMetadata
             "--gitea-user" => "Scan repositories owned by this Gitea user.",
             "--gitlab-api-endpoint" => "Use this GitLab API endpoint for native source enumeration.",
             "--gitlab-group" => "Scan projects in this GitLab group through native source enumeration.",
+            "--gitlab-include-job-artifacts" => "Include GitLab job artifact archives in native source enumeration.",
+            "--gitlab-include-job-logs" => "Include GitLab job trace logs in native source enumeration.",
             "--gitlab-include-subgroups" => "Include projects from GitLab subgroups when scanning a group.",
             "--gitlab-include-snippets" => "Include GitLab project snippets in native source enumeration.",
             "--gitlab-merge-request" => "Scan this GitLab merge request source head.",

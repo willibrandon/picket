@@ -13,6 +13,7 @@ namespace Picket.Sources;
 public sealed class GitLabSourceClient(HttpClient httpClient)
 {
     private const int GroupProjectsPerPage = 100;
+    private const int JobsPerPage = 100;
     private const int SnippetsPerPage = 100;
     private const int TreeEntriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
@@ -73,6 +74,11 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             if (options.IncludeSnippets && !IsCancellationRequested(options))
             {
                 await AddProjectSnippetFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if ((options.IncludeJobArtifacts || options.IncludeJobLogs) && !IsCancellationRequested(options))
+            {
+                await AddProjectJobFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (RemoteMetadataTooLargeException)
@@ -169,6 +175,10 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             options.Credential,
             sourceRef,
             maxFileBytes: options.MaxFileBytes,
+            maxArchiveDepth: options.MaxArchiveDepth,
+            maxArchiveEntries: options.MaxArchiveEntries,
+            maxArchiveBytes: options.MaxArchiveBytes,
+            maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
             isPathAllowed: options.IsPathAllowed,
             warningSink: options.WarningSink,
             isCancellationRequested: options.IsCancellationRequested);
@@ -207,7 +217,13 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
                 options.Credential,
                 gitRef,
                 includeSnippets: options.IncludeSnippets,
+                includeJobArtifacts: options.IncludeJobArtifacts,
+                includeJobLogs: options.IncludeJobLogs,
                 maxFileBytes: options.MaxFileBytes,
+                maxArchiveDepth: options.MaxArchiveDepth,
+                maxArchiveEntries: options.MaxArchiveEntries,
+                maxArchiveBytes: options.MaxArchiveBytes,
+                maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
                 isPathAllowed: options.IsPathAllowed,
                 warningSink: options.WarningSink,
                 isCancellationRequested: options.IsCancellationRequested);
@@ -276,6 +292,123 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             {
                 sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
             }
+        }
+    }
+
+    private async Task AddProjectJobFilesAsync(
+        GitLabSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri jobsUri = CreateJobsUri(options, page);
+            using HttpResponseMessage jobsResponse = await SendAsync(options, jobsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!jobsResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, jobsResponse, $"skipping GitLab project {options.Project} jobs");
+                return;
+            }
+
+            await AddJobFilesAsync(options, jobsResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(jobsResponse, page, options.WarningSink, $"GitLab project {options.Project} job enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddJobFilesAsync(
+        GitLabSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonInt64(item, "id", out long jobId) || jobId <= 0)
+            {
+                continue;
+            }
+
+            string jobName = GetString(item, "name");
+            if (options.IncludeJobLogs)
+            {
+                await AddJobLogFileAsync(options, jobId, jobName, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeJobArtifacts
+                && TryGetJobArtifact(item, out string artifactFileName, out long? artifactSize))
+            {
+                await AddJobArtifactFilesAsync(
+                    options,
+                    jobId,
+                    artifactFileName,
+                    artifactSize,
+                    sourceFiles,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task AddJobLogFileAsync(
+        GitLabSourceOptions options,
+        long jobId,
+        string jobName,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string displayPath = CreateJobLogDisplayPath(options, jobId, jobName);
+        if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+        {
+            return;
+        }
+
+        Uri traceUri = CreateJobTraceUri(options, jobId);
+        byte[]? content = await DownloadRawContentAsync(options, traceUri, displayPath, "GitLab job log", cancellationToken).ConfigureAwait(false);
+        if (content is not null)
+        {
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+        }
+    }
+
+    private async Task AddJobArtifactFilesAsync(
+        GitLabSourceOptions options,
+        long jobId,
+        string artifactFileName,
+        long? artifactSize,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string displayPath = CreateJobArtifactDisplayPath(options, jobId, artifactFileName);
+        if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+        {
+            return;
+        }
+
+        if (artifactSize.HasValue && artifactSize.Value > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"GitLab file byte limit skipped {displayPath}");
+            return;
+        }
+
+        Uri artifactUri = CreateJobArtifactUri(options, jobId);
+        byte[]? content = await DownloadRawContentAsync(options, artifactUri, displayPath, "GitLab job artifact", cancellationToken).ConfigureAwait(false);
+        if (content is not null)
+        {
+            AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
         }
     }
 
@@ -368,10 +501,48 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         string displayPath,
         CancellationToken cancellationToken)
     {
+        return await DownloadRawContentAsync(options, uri, displayPath, "GitLab file", cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<byte[]?> DownloadRawContentAsync(
+        GitLabSourceOptions options,
+        Uri uri,
+        string displayPath,
+        string target,
+        CancellationToken cancellationToken)
+    {
         using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: true, cancellationToken).ConfigureAwait(false);
+        if (IsRedirect(response) && response.Headers.Location is not null)
+        {
+            Uri redirectUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(uri, response.Headers.Location);
+            if (!IsAllowedDownloadRedirectUri(options.Endpoint, redirectUri))
+            {
+                options.WarningSink?.Invoke($"skipping {target} {displayPath} because the redirected download URL is not an allowed GitLab endpoint");
+                return null;
+            }
+
+            using HttpResponseMessage redirectedResponse = await SendUnauthenticatedRawAsync(redirectUri, cancellationToken).ConfigureAwait(false);
+            if (!redirectedResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping {target} {displayPath}");
+                return null;
+            }
+
+            if (redirectedResponse.Content.Headers.ContentLength.HasValue
+                && redirectedResponse.Content.Headers.ContentLength.Value > options.MaxFileBytes)
+            {
+                options.WarningSink?.Invoke($"GitLab file byte limit skipped {displayPath}");
+                return null;
+            }
+
+            return await ReadContentWithinLimitAsync(redirectedResponse, options, displayPath, cancellationToken).ConfigureAwait(false);
+        }
+
         if (!response.IsSuccessStatusCode)
         {
-            WarnUnsuccessfulResponse(options, response, $"skipping GitLab file {displayPath}");
+            WarnUnsuccessfulResponse(options, response, $"skipping {target} {displayPath}");
             return null;
         }
 
@@ -383,6 +554,49 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         }
 
         return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void AddContentOrArchiveEntries(
+        GitLabSourceOptions options,
+        string displayPath,
+        byte[] content,
+        List<SourceFile> sourceFiles)
+    {
+        if (!ArchiveReader.IsArchiveContent(content))
+        {
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            return;
+        }
+
+        if (options.MaxArchiveDepth == 0)
+        {
+            options.WarningSink?.Invoke($"skipping GitLab archive {displayPath} because archive traversal is disabled");
+            return;
+        }
+
+        var entries = new List<ArchiveEntry>();
+        if (!ArchiveReader.TryReadBytesEntries(
+            content,
+            displayPath,
+            options.MaxArchiveDepth,
+            options.MaxArchiveEntries,
+            options.MaxArchiveBytes,
+            options.MaxArchiveCompressionRatio,
+            options.MaxFileBytes,
+            options.IsPathAllowed,
+            options.WarningSink,
+            options.IsCancellationRequested,
+            entries))
+        {
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            return;
+        }
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ArchiveEntry entry = entries[i];
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, entry.DisplayPath, entry.Content));
+        }
     }
 
     private async Task<HttpResponseMessage> SendAsync(
@@ -417,6 +631,21 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/octet-stream" : "application/json"));
                 request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
                 request.Headers.Add("PRIVATE-TOKEN", credential);
+                return request;
+            },
+            RemoteSourceHttpRetry.IsGenericRetryableResponse,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendUnauthenticatedRawAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        return await RemoteSourceHttpRetry.SendAsync(
+            _httpClient,
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+                request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
                 return request;
             },
             RemoteSourceHttpRetry.IsGenericRetryableResponse,
@@ -496,6 +725,33 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         return CreateUri(
             options.Endpoint,
             ["projects", options.Project, "merge_requests", options.MergeRequestIid.ToString(CultureInfo.InvariantCulture)],
+            []);
+    }
+
+    private static Uri CreateJobsUri(GitLabSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "jobs"],
+            [
+                new KeyValuePair<string, string>("per_page", JobsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateJobArtifactUri(GitLabSourceOptions options, long jobId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "jobs", jobId.ToString(CultureInfo.InvariantCulture), "artifacts"],
+            []);
+    }
+
+    private static Uri CreateJobTraceUri(GitLabSourceOptions options, long jobId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "jobs", jobId.ToString(CultureInfo.InvariantCulture), "trace"],
             []);
     }
 
@@ -648,6 +904,30 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             && property.TryGetInt64(out propertyValue);
     }
 
+    private static bool TryGetJobArtifact(JsonElement value, out string fileName, out long? size)
+    {
+        fileName = string.Empty;
+        size = null;
+        if (!value.TryGetProperty("artifacts_file", out JsonElement artifactsFile)
+            || artifactsFile.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        fileName = GetString(artifactsFile, "filename");
+        if (fileName.Length == 0)
+        {
+            return false;
+        }
+
+        if (TryGetJsonInt64(artifactsFile, "size", out long artifactSize))
+        {
+            size = artifactSize;
+        }
+
+        return true;
+    }
+
     private static string GetString(JsonElement value, string propertyName)
     {
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
@@ -697,6 +977,45 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             snippetId.ToString(CultureInfo.InvariantCulture),
             "/",
             NormalizeRemoteItemPath(normalizedFileName));
+    }
+
+    private static string CreateJobArtifactDisplayPath(GitLabSourceOptions options, long jobId, string fileName)
+    {
+        return string.Concat(
+            "gitlab-job-artifact/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            jobId.ToString(CultureInfo.InvariantCulture),
+            "/",
+            NormalizeRemoteItemPath(fileName));
+    }
+
+    private static string CreateJobLogDisplayPath(GitLabSourceOptions options, long jobId, string jobName)
+    {
+        string fileName = jobName.Length == 0
+            ? string.Concat("job-", jobId.ToString(CultureInfo.InvariantCulture), ".log")
+            : string.Concat(jobName, ".log");
+        return string.Concat(
+            "gitlab-job-log/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            jobId.ToString(CultureInfo.InvariantCulture),
+            "-",
+            NormalizeRemoteItemPath(fileName));
+    }
+
+    private static bool IsAllowedDownloadRedirectUri(Uri endpoint, Uri redirectUri)
+    {
+        return redirectUri.IsAbsoluteUri
+            && redirectUri.Scheme is "https" or "http"
+            && string.IsNullOrEmpty(redirectUri.UserInfo)
+            && (endpoint.Scheme == "http" || redirectUri.Scheme == "https");
+    }
+
+    private static bool IsRedirect(HttpResponseMessage response)
+    {
+        int statusCode = (int)response.StatusCode;
+        return statusCode is 301 or 302 or 303 or 307 or 308;
     }
 
     private static string EscapeDisplaySegment(string value)

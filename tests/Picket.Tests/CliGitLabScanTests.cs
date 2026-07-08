@@ -150,6 +150,53 @@ public sealed class CliGitLabScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate GitLab job trace logs and artifact archives.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitLabJobLogsAndArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitLabFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-include-job-logs",
+            "--gitlab-include-job-artifacts",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitlab-job-log/willibrandon/picket/99-build.log\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitlab-job-artifact/willibrandon/picket/99/artifacts.zip!out/secret.txt\"", result.Stdout);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs?", server.RequestTargets);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs/99/trace", server.RequestTargets);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs/99/artifacts", server.RequestTargets);
+        Assert.AreEqual("gitlab-source-secret", server.LastPrivateToken);
+        Assert.IsEmpty(server.LastAuthorization);
+        Assert.Contains("application/octet-stream", server.LastAccept);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate projects in a GitLab group.
     /// </summary>
     [TestMethod]
@@ -363,6 +410,76 @@ public sealed class CliGitLabScanTests
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source options cannot combine merge request scans with snippet enumeration.", result.Stderr);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that merge request and job artifact source scopes are mutually exclusive.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitLabMergeRequestAndJobArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-merge-request",
+            "42",
+            "--gitlab-include-job-artifacts",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("GitLab source options cannot combine merge request scans with job artifact enumeration.", result.Stderr);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that merge request and job log source scopes are mutually exclusive.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitLabMergeRequestAndJobLogs()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-merge-request",
+            "42",
+            "--gitlab-include-job-logs",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("GitLab source options cannot combine merge request scans with job log enumeration.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
     }
 

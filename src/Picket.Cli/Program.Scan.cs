@@ -64,6 +64,8 @@ internal static partial class Program
         string giteaUser = string.Empty;
         Uri? gitLabApiEndpoint = null;
         string gitLabGroup = string.Empty;
+        bool gitLabIncludeJobArtifacts = false;
+        bool gitLabIncludeJobLogs = false;
         bool gitLabIncludeSubgroups = false;
         bool gitLabIncludeSnippets = false;
         bool gitLabOptionSpecified = false;
@@ -610,6 +612,36 @@ internal static partial class Program
                 }
 
                 if (gitLabIncludeSnippets)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitLabIncludeJobArtifactsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-job-artifacts", out gitLabIncludeJobArtifacts))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (gitLabIncludeJobArtifacts)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitLabIncludeJobLogsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-job-logs", out gitLabIncludeJobLogs))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (gitLabIncludeJobLogs)
                 {
                     gitLabOptionSpecified = true;
                 }
@@ -1324,6 +1356,8 @@ internal static partial class Program
                 gitLabMergeRequestIid,
                 gitLabIncludeSubgroups,
                 gitLabIncludeSnippets,
+                gitLabIncludeJobArtifacts,
+                gitLabIncludeJobLogs,
                 gitLabTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

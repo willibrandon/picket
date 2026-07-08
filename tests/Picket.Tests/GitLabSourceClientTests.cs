@@ -1,4 +1,5 @@
 using Picket.Sources;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -46,6 +47,38 @@ public sealed class GitLabSourceClientTests
             includeSnippets: true));
 
         Assert.Contains("cannot combine merge request scans with snippet enumeration", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that GitLab source options reject ambiguous merge request and job artifact scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitLabSourceOptionsRejectsMergeRequestAndJobArtifacts()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            mergeRequestIid: 42,
+            includeJobArtifacts: true));
+
+        Assert.Contains("cannot combine merge request scans with job artifact enumeration", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that GitLab source options reject ambiguous merge request and job log scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitLabSourceOptionsRejectsMergeRequestAndJobLogs()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            mergeRequestIid: 42,
+            includeJobLogs: true));
+
+        Assert.Contains("cannot combine merge request scans with job log enumeration", ex.Message);
     }
 
     /// <summary>
@@ -439,6 +472,152 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that job enumeration can include logs and expanded artifact archives.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesIncludesJobLogsAndArtifacts()
+    {
+        const string Token = "gitlab-test-token";
+        var urls = new List<string>();
+        var privateTokens = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            CaptureRequest(request, urls, privateTokens, authorizationHeaders, acceptHeaders);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/projects/willibrandon%2Fpicket/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/jobs?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "id": 99,
+                        "name": "build",
+                        "artifacts_file": {
+                          "filename": "artifacts.zip",
+                          "size": 128
+                        }
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/jobs/99/trace", StringComparison.Ordinal))
+            {
+                return BytesResponse("log-token-12345");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/jobs/99/artifacts", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("out/secret.txt", "artifact-token-12345"));
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeJobArtifacts: true,
+            includeJobLogs: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(2, files);
+        Assert.AreEqual("gitlab-job-log/willibrandon/picket/99-build.log", files[0].DisplayPath);
+        Assert.AreEqual("log-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("gitlab-job-artifact/willibrandon/picket/99/artifacts.zip!out/secret.txt", files[1].DisplayPath);
+        Assert.AreEqual("artifact-token-12345", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("/projects/willibrandon%2Fpicket/jobs?", requests);
+        Assert.Contains("per_page=100", requests);
+        Assert.Contains("page=1", requests);
+        Assert.Contains("/projects/willibrandon%2Fpicket/jobs/99/trace", requests);
+        Assert.Contains("/projects/willibrandon%2Fpicket/jobs/99/artifacts", requests);
+        Assert.Contains("PRIVATE-TOKEN", string.Join('\n', privateTokens));
+        Assert.Contains("gitlab-test-token", string.Join('\n', privateTokens));
+        Assert.DoesNotContain("Bearer", string.Join('\n', authorizationHeaders));
+        Assert.Contains("application/octet-stream", string.Join('\n', acceptHeaders));
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that redirected GitLab artifact downloads do not forward the source token.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesDownloadsRedirectedJobArtifactsWithoutToken()
+    {
+        const string Token = "gitlab-test-token";
+        var urls = new List<string>();
+        var privateTokens = new List<string>();
+        var redirectedPrivateTokens = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            string privateToken = request.Headers.TryGetValues("PRIVATE-TOKEN", out IEnumerable<string>? privateTokenValues)
+                ? string.Join(" ", privateTokenValues)
+                : string.Empty;
+            privateTokens.Add(privateToken);
+            if (url.Contains("cdn.gitlab.example", StringComparison.Ordinal))
+            {
+                redirectedPrivateTokens.Add(privateToken);
+                return BytesResponse(CreateZipBytes("artifact.txt", "artifact-token-12345"));
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/jobs?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "id": 99, "name": "build", "artifacts_file": { "filename": "artifacts.zip", "size": 128 } }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/jobs/99/artifacts", StringComparison.Ordinal))
+            {
+                return RedirectResponse("https://cdn.gitlab.example/artifacts.zip?signature=abc");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeJobArtifacts: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitlab-job-artifact/willibrandon/picket/99/artifacts.zip!artifact.txt", files[0].DisplayPath);
+        Assert.AreEqual("artifact-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains(Token, string.Join('\n', privateTokens));
+        Assert.Contains("https://cdn.gitlab.example/artifacts.zip?signature=abc", string.Join('\n', urls));
+        Assert.HasCount(1, redirectedPrivateTokens);
+        Assert.IsEmpty(redirectedPrivateTokens[0]);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration skips files that exceed the configured byte cap.
     /// </summary>
     [TestMethod]
@@ -505,5 +684,40 @@ public sealed class GitLabSourceClientTests
         };
         response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         return response;
+    }
+
+    private static HttpResponseMessage BytesResponse(byte[] bytes)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(bytes),
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        return response;
+    }
+
+    private static HttpResponseMessage RedirectResponse(string location)
+    {
+        return new HttpResponseMessage(HttpStatusCode.Redirect)
+        {
+            Headers =
+            {
+                Location = new Uri(location, UriKind.Absolute),
+            },
+        };
+    }
+
+    private static byte[] CreateZipBytes(string entryName, string entryContent)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryName);
+            using Stream entryStream = entry.Open();
+            byte[] bytes = Encoding.UTF8.GetBytes(entryContent);
+            entryStream.Write(bytes);
+        }
+
+        return stream.ToArray();
     }
 }

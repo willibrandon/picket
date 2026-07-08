@@ -42,6 +42,18 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-include-subgroups=", StringComparison.Ordinal);
     }
 
+    static bool IsGitLabIncludeJobArtifactsFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-job-artifacts", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-job-artifacts=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitLabIncludeJobLogsFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-job-logs", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-job-logs=", StringComparison.Ordinal);
+    }
+
     static bool IsGitLabTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitlab-token-env", StringComparison.Ordinal)
@@ -78,6 +90,8 @@ internal static partial class Program
         int mergeRequestIid,
         bool includeSubgroups,
         bool includeSnippets,
+        bool includeJobArtifacts,
+        bool includeJobLogs,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -128,12 +142,16 @@ internal static partial class Program
                     credential,
                     gitRef,
                     includeSubgroups,
-                    includeSnippets);
+                    includeSnippets,
+                    includeJobArtifacts,
+                    includeJobLogs);
                 sourceEndpoint = validatedGroupOptions.Endpoint;
                 group = validatedGroupOptions.Group;
                 gitRef = validatedGroupOptions.Ref;
                 includeSubgroups = validatedGroupOptions.IncludeSubgroups;
                 includeSnippets = validatedGroupOptions.IncludeSnippets;
+                includeJobArtifacts = validatedGroupOptions.IncludeJobArtifacts;
+                includeJobLogs = validatedGroupOptions.IncludeJobLogs;
             }
             else
             {
@@ -143,12 +161,16 @@ internal static partial class Program
                     credential,
                     gitRef,
                     mergeRequestIid,
-                    includeSnippets);
+                    includeSnippets,
+                    includeJobArtifacts,
+                    includeJobLogs);
                 sourceEndpoint = validatedOptions.Endpoint;
                 project = validatedOptions.Project;
                 gitRef = validatedOptions.Ref;
                 mergeRequestIid = validatedOptions.MergeRequestIid;
                 includeSnippets = validatedOptions.IncludeSnippets;
+                includeJobArtifacts = validatedOptions.IncludeJobArtifacts;
+                includeJobLogs = validatedOptions.IncludeJobLogs;
             }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -169,7 +191,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, _, _, _, _, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -185,7 +207,13 @@ internal static partial class Program
                     gitRef,
                     includeSubgroups,
                     includeSnippets,
+                    includeJobArtifacts,
+                    includeJobLogs,
                     maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
                     () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
@@ -198,7 +226,13 @@ internal static partial class Program
                 gitRef,
                 mergeRequestIid,
                 includeSnippets,
+                includeJobArtifacts,
+                includeJobLogs,
                 maxTargetBytes,
+                maxArchiveDepth,
+                maxArchiveEntries,
+                maxArchiveBytes,
+                maxArchiveCompressionRatio,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
                 () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();

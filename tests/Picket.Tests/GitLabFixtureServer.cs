@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -114,6 +115,25 @@ internal sealed class GitLabFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs/99/trace", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs/99/artifacts", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", CreateZipBytes("out/secret.txt", _content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs?", StringComparison.Ordinal))
+        {
+            const string JobsJson = """[{"id":99,"name":"build","artifacts_file":{"filename":"artifacts.zip","size":128}}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(JobsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v4/projects/123/repository/tree?", StringComparison.Ordinal))
         {
             const string TreeJson = """[{"path":"src/appsettings.txt","type":"blob","size":11},{"path":"src","type":"tree"}]""";
@@ -220,6 +240,20 @@ internal sealed class GitLabFixtureServer : IDisposable
             "\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), cancellationToken).ConfigureAwait(false);
         await stream.WriteAsync(content, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static byte[] CreateZipBytes(string entryName, string entryContent)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryName);
+            using Stream entryStream = entry.Open();
+            byte[] bytes = Encoding.UTF8.GetBytes(entryContent);
+            entryStream.Write(bytes);
+        }
+
+        return stream.ToArray();
     }
 
     private static async Task WriteStatusAsync(

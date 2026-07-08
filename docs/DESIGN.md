@@ -783,6 +783,8 @@ Implemented GitLab entry points:
 | Group project repositories | `--gitlab-group`, `--gitlab-include-subgroups`, `--gitlab-ref`, `--gitlab-token-env`, `--gitlab-api-endpoint` | Lists projects in a GitLab group with `per_page=100` and scans each project repository. Subgroup projects are included only when `--gitlab-include-subgroups` is set. Empty `--gitlab-ref` uses each project's default branch when GitLab returns it, falling back to project metadata when needed. |
 | Merge request source head | `--gitlab-project`, `--gitlab-merge-request` | Resolves the merge request through the project merge requests API, scans `diff_refs.head_sha` when available, falls back to `sha` and then `source_branch`, and switches to `source_project_id` for forked merge requests. |
 | Project snippets | `--gitlab-project`, `--gitlab-include-snippets` | Lists project snippets with `per_page=100` and downloads raw snippet content through the project snippets API. Snippets are additive to repository file scans and cannot be combined with merge request source-head scans. |
+| Project job logs | `--gitlab-project`, `--gitlab-include-job-logs` | Lists project jobs with `per_page=100` and downloads selected job trace logs through the Jobs API. Job logs are additive to project and group repository scans and cannot be combined with merge request source-head scans. |
+| Project job artifacts | `--gitlab-project`, `--gitlab-include-job-artifacts` | Lists project jobs with `per_page=100`, downloads jobs that advertise an artifact archive, and expands archive entries through Picket archive limits. Job artifacts are additive to project and group repository scans and cannot be combined with merge request source-head scans. |
 
 GitLab API flow:
 
@@ -794,6 +796,7 @@ GitLab API flow:
 | Repository tree | Lists repository blobs with recursive tree enumeration and `per_page=100`. |
 | Raw repository files | Downloads file bytes through the raw repository file endpoint. |
 | Project snippets | Lists project snippets with page-based pagination and downloads raw snippet content through the project snippets API. |
+| Project jobs | Lists project jobs with `per_page=100`, follows GitLab REST pagination, and downloads trace logs or job artifact archives only when their explicit flags are set. |
 
 GitLab source safety rules:
 
@@ -807,9 +810,11 @@ GitLab source safety rules:
 - A positive `--max-target-megabytes` value overrides the default remote cap.
 - Zero keeps its local-scan compatibility meaning, but remote GitLab sources reject zero because remote HTTP bodies are always bounded.
 - Oversized tree entries are skipped before download when GitLab returns a size.
-- Jobs, pipelines, packages, and artifacts remain planned explicit source selectors.
+- GitLab job artifact downloads may redirect to signed HTTPS locations. Picket follows those redirects without forwarding the `PRIVATE-TOKEN` header and still uses connect-time endpoint guarding.
+- GitLab job artifact archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
+- Pipelines and packages remain planned explicit source selectors.
 
-GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, and project snippet scans. Least-privilege group project, project repository, merge request, and snippet enumeration requires read-only repository/API access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
+GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, project snippet, project job, job trace, and initial job artifact requests. Least-privilege group project, project repository, merge request, snippet, and job enumeration requires read-only repository/API access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
 
 Gitea source support is native Picket behavior, not Gitleaks compatibility behavior.
 

@@ -9,7 +9,13 @@ namespace Picket.Sources;
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
 /// <param name="mergeRequestIid">An optional merge request internal ID whose source head should be scanned.</param>
 /// <param name="includeSnippets">A value indicating whether project snippets should be scanned.</param>
+/// <param name="includeJobArtifacts">A value indicating whether GitLab job artifact archives should be scanned.</param>
+/// <param name="includeJobLogs">A value indicating whether GitLab job trace logs should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
+/// <param name="maxArchiveDepth">The maximum nested artifact archive depth to enumerate.</param>
+/// <param name="maxArchiveEntries">The maximum number of artifact archive entries to enumerate, or 0 for no cap.</param>
+/// <param name="maxArchiveBytes">The maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
+/// <param name="maxArchiveCompressionRatio">The maximum artifact archive expansion ratio, or 0 for no cap.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
@@ -20,7 +26,13 @@ public sealed class GitLabSourceOptions(
     string gitRef = "",
     int mergeRequestIid = 0,
     bool includeSnippets = false,
+    bool includeJobArtifacts = false,
+    bool includeJobLogs = false,
     long? maxFileBytes = null,
+    int maxArchiveDepth = ArchiveScanDefaults.DefaultMaxDepth,
+    int maxArchiveEntries = ArchiveScanDefaults.DefaultMaxEntries,
+    long? maxArchiveBytes = ArchiveScanDefaults.DefaultMaxBytes,
+    int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null)
@@ -54,9 +66,39 @@ public sealed class GitLabSourceOptions(
     public bool IncludeSnippets { get; } = RequireIncludeSnippets(includeSnippets, mergeRequestIid);
 
     /// <summary>
+    /// Gets a value indicating whether GitLab job artifact archives should be scanned.
+    /// </summary>
+    public bool IncludeJobArtifacts { get; } = RequireIncludeJobArtifacts(includeJobArtifacts, mergeRequestIid);
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab job trace logs should be scanned.
+    /// </summary>
+    public bool IncludeJobLogs { get; } = RequireIncludeJobLogs(includeJobLogs, mergeRequestIid);
+
+    /// <summary>
     /// Gets the maximum file content bytes to download.
     /// </summary>
     public long MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes, nameof(maxFileBytes));
+
+    /// <summary>
+    /// Gets the maximum nested artifact archive depth to enumerate.
+    /// </summary>
+    public int MaxArchiveDepth { get; } = RequireMaxArchiveDepth(maxArchiveDepth);
+
+    /// <summary>
+    /// Gets the maximum number of artifact archive entries to enumerate, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveEntries { get; } = RequireMaxArchiveEntries(maxArchiveEntries);
+
+    /// <summary>
+    /// Gets the maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxArchiveBytes { get; } = RequireMaxArchiveBytes(maxArchiveBytes);
+
+    /// <summary>
+    /// Gets the maximum artifact archive expansion ratio, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveCompressionRatio { get; } = RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
 
     internal string Credential => _credential;
 
@@ -174,6 +216,26 @@ public sealed class GitLabSourceOptions(
         return value;
     }
 
+    private static bool RequireIncludeJobArtifacts(bool value, int mergeRequestIid)
+    {
+        if (value && mergeRequestIid != 0)
+        {
+            throw new ArgumentException("GitLab source options cannot combine merge request scans with job artifact enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static bool RequireIncludeJobLogs(bool value, int mergeRequestIid)
+    {
+        if (value && mergeRequestIid != 0)
+        {
+            throw new ArgumentException("GitLab source options cannot combine merge request scans with job log enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
     internal static long RequireMaxFileBytes(long? value, string parameterName)
     {
         if (!value.HasValue)
@@ -187,5 +249,33 @@ public sealed class GitLabSourceOptions(
         }
 
         return value.Value;
+    }
+
+    internal static int RequireMaxArchiveDepth(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    internal static int RequireMaxArchiveEntries(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    internal static long? RequireMaxArchiveBytes(long? value)
+    {
+        if (value.HasValue)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value.Value);
+        }
+
+        return value;
+    }
+
+    internal static int RequireMaxArchiveCompressionRatio(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
     }
 }
