@@ -243,6 +243,34 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies authenticated cache entries cannot be moved to another logical address.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsEntryRelocatedToDifferentAddress()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "source.txt", [CreateFinding("source.txt")]);
+        string sourceEntryPath = GetSingleEntryPath(root.Path);
+        cache.Write(content, "target.txt", [CreateFinding("target.txt")]);
+        string[] entryPaths = Directory.GetFiles(Path.Combine(root.Path, "entries"), "*.cache", SearchOption.AllDirectories);
+        Assert.HasCount(2, entryPaths);
+        string targetEntryPath = entryPaths[0].Equals(sourceEntryPath, StringComparison.Ordinal)
+            ? entryPaths[1]
+            : entryPaths[0];
+
+        File.Delete(targetEntryPath);
+        File.Copy(sourceEntryPath, targetEntryPath);
+
+        bool hit = cache.TryRead(content, "target.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
     /// Verifies cache writes are non-fatal when another process holds the entry lock.
     /// </summary>
     [TestMethod]

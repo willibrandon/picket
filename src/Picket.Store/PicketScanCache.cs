@@ -18,6 +18,7 @@ public sealed class PicketScanCache
     private const long DefaultMaxImportEntryBytes = 100_000_000;
     private const string CacheEntryExtension = ".cache";
     private const string AuthenticationKeyFileName = "scan-cache-auth.key";
+    private const string AddressHashHeader = "addressHash";
     private const string AddressModeHeader = "addressMode";
     private const string ContentAddressDiscriminator = "content";
     private const string CreatedUnixTimeSecondsHeader = "createdUnixTimeSeconds";
@@ -28,6 +29,7 @@ public sealed class PicketScanCache
     private const string MacHeader = "mac";
     private const string ProductDirectoryName = "Picket";
     private const string SchemaLine = "picket.scan-cache.v2";
+    private const string ShardHeader = "shard";
     private const string StorageModeHeader = "storageMode";
     private const UnixFileMode OwnerOnlyDirectoryMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
     private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
@@ -95,7 +97,7 @@ public sealed class PicketScanCache
 
         try
         {
-            return TryReadEntry(entryPath, blobHash, fileName, symlinkFile, out findings);
+            return TryReadEntry(entryPath, blobHash, addressHash, fileName, symlinkFile, out findings);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or FormatException)
         {
@@ -119,6 +121,7 @@ public sealed class PicketScanCache
         {
             string blobHash = BlobHasher.ComputeSha256Hex(content);
             string addressHash = CreateAddressHash(fileName);
+            string shard = CreateEntryShard(blobHash);
             string entryPath = CreateEntryPath(blobHash, addressHash);
             string? entryDirectory = Path.GetDirectoryName(entryPath);
             if (entryDirectory is not null)
@@ -131,7 +134,7 @@ public sealed class PicketScanCache
             string tempPath = string.Concat(entryPath, ".", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), ".", Guid.NewGuid().ToString("N"), ".tmp");
             try
             {
-                WriteOwnerOnlyText(tempPath, CreateAuthenticatedEntry(blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode, findings));
+                WriteOwnerOnlyText(tempPath, CreateAuthenticatedEntry(blobHash, addressHash, shard, Key.Fingerprint, Key.AddressMode, Key.StorageMode, findings));
                 File.Move(tempPath, entryPath, overwrite: true);
                 SetOwnerOnlyFile(entryPath);
             }
@@ -173,8 +176,8 @@ public sealed class PicketScanCache
             {
                 foreach (string entryPath in EnumerateEntryFiles())
                 {
-                    if (!TryCreateArchiveEntryName(entryPath, out string? entryName, out string blobHash)
-                        || !IsValidEntryFile(entryPath, blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
+                    if (!TryCreateArchiveEntryName(entryPath, out string? entryName, out string blobHash, out string addressHash, out string shard)
+                        || !IsValidEntryFile(entryPath, blobHash, addressHash, shard, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
                     {
                         continue;
                     }
@@ -282,7 +285,7 @@ public sealed class PicketScanCache
                     CopyArchiveEntryWithinLimit(input, output, maxEntryBytes, archiveEntry.FullName);
                 }
 
-                if (!IsValidEntryFile(tempPath, blobHash, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
+                if (!IsValidEntryFile(tempPath, blobHash, addressHash, shard, Key.Fingerprint, Key.AddressMode, Key.StorageMode))
                 {
                     throw new FormatException($"Invalid cache archive entry content: {archiveEntry.FullName}");
                 }
@@ -522,17 +525,21 @@ public sealed class PicketScanCache
 
     private string CreateAuthenticatedEntry(
         string blobHash,
+        string addressHash,
+        string shard,
         string keyFingerprint,
         ScanCacheAddressMode addressMode,
         ScanCacheStorageMode storageMode,
         IReadOnlyList<Finding> findings)
     {
-        string body = CreateEntryBody(blobHash, keyFingerprint, addressMode, storageMode, findings);
+        string body = CreateEntryBody(blobHash, addressHash, shard, keyFingerprint, addressMode, storageMode, findings);
         return string.Concat(body, MacHeader, '\t', ComputeEntryMac(body), '\n');
     }
 
     private static string CreateEntryBody(
         string blobHash,
+        string addressHash,
+        string shard,
         string keyFingerprint,
         ScanCacheAddressMode addressMode,
         ScanCacheStorageMode storageMode,
@@ -546,6 +553,14 @@ public sealed class PicketScanCache
         builder.Append('\n');
         builder.Append("blob\t");
         builder.Append(TextFieldCodec.Encode(blobHash));
+        builder.Append('\n');
+        builder.Append(AddressHashHeader);
+        builder.Append('\t');
+        builder.Append(addressHash);
+        builder.Append('\n');
+        builder.Append(ShardHeader);
+        builder.Append('\t');
+        builder.Append(shard);
         builder.Append('\n');
         builder.Append(CreatedUnixTimeSecondsHeader);
         builder.Append('\t');
@@ -574,6 +589,7 @@ public sealed class PicketScanCache
     private bool TryReadEntry(
         string entryPath,
         string blobHash,
+        string addressHash,
         string fileName,
         string symlinkFile,
         [NotNullWhen(true)] out List<Finding>? findings)
@@ -596,6 +612,8 @@ public sealed class PicketScanCache
 
         ScanCacheAddressMode? entryAddressMode = null;
         ScanCacheStorageMode? entryStorageMode = null;
+        string? entryAddressHash = null;
+        string? entryShard = null;
         int? expectedFindingCount = null;
         bool findingSectionStarted = false;
         var parsedFindings = new List<Finding>(Math.Max(0, lines.Length - 3));
@@ -614,7 +632,7 @@ public sealed class PicketScanCache
 
             if (!fields[0].Equals("finding", StringComparison.Ordinal))
             {
-                if (findingSectionStarted || !TryReadMetadata(fields, ref entryAddressMode, ref entryStorageMode, ref expectedFindingCount))
+                if (findingSectionStarted || !TryReadMetadata(fields, ref entryAddressMode, ref entryStorageMode, ref entryAddressHash, ref entryShard, ref expectedFindingCount))
                 {
                     return false;
                 }
@@ -637,6 +655,12 @@ public sealed class PicketScanCache
             return false;
         }
 
+        if (!addressHash.Equals(entryAddressHash, StringComparison.Ordinal)
+            || !CreateEntryShard(blobHash).Equals(entryShard, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         if (expectedFindingCount.HasValue && expectedFindingCount.Value != parsedFindings.Count)
         {
             return false;
@@ -650,6 +674,8 @@ public sealed class PicketScanCache
         string[] fields,
         ref ScanCacheAddressMode? entryAddressMode,
         ref ScanCacheStorageMode? entryStorageMode,
+        ref string? entryAddressHash,
+        ref string? entryShard,
         ref int? expectedFindingCount)
     {
         if (fields.Length != 2)
@@ -671,6 +697,28 @@ public sealed class PicketScanCache
             }
 
             entryAddressMode = value;
+            return true;
+        }
+
+        if (fields[0].Equals(AddressHashHeader, StringComparison.Ordinal))
+        {
+            if (!IsSha256Hex(fields[1]))
+            {
+                return false;
+            }
+
+            entryAddressHash = fields[1];
+            return true;
+        }
+
+        if (fields[0].Equals(ShardHeader, StringComparison.Ordinal))
+        {
+            if (fields[1].Length != 2 || !IsHex(fields[1][0]) || !IsHex(fields[1][1]))
+            {
+                return false;
+            }
+
+            entryShard = fields[1];
             return true;
         }
 
@@ -755,8 +803,13 @@ public sealed class PicketScanCache
 
     private string CreateEntryPath(string blobHash, string addressHash)
     {
-        string shard = blobHash[..2];
+        string shard = CreateEntryShard(blobHash);
         return Path.Combine(_entriesPath, shard, CreateEntryFileName(blobHash, addressHash, Key.Fingerprint));
+    }
+
+    private static string CreateEntryShard(string blobHash)
+    {
+        return blobHash[..2];
     }
 
     private string CreateAddressHash(string fileName)
@@ -814,10 +867,14 @@ public sealed class PicketScanCache
     private bool TryCreateArchiveEntryName(
         string entryPath,
         [NotNullWhen(true)] out string? entryName,
-        out string blobHash)
+        out string blobHash,
+        out string addressHash,
+        out string shard)
     {
         entryName = null;
         blobHash = string.Empty;
+        addressHash = string.Empty;
+        shard = string.Empty;
         if (!IsCurrentKeyEntryPath(entryPath))
         {
             return false;
@@ -829,9 +886,9 @@ public sealed class PicketScanCache
             return false;
         }
 
-        string shard = Path.GetFileName(entryDirectory);
+        shard = Path.GetFileName(entryDirectory);
         string fileName = Path.GetFileName(entryPath);
-        if (!TryParseEntryFileName(fileName, out blobHash, out _, out string keyFingerprint)
+        if (!TryParseEntryFileName(fileName, out blobHash, out addressHash, out string keyFingerprint)
             || !keyFingerprint.Equals(Key.Fingerprint, StringComparison.Ordinal)
             || !shard.Equals(blobHash[..2], StringComparison.Ordinal))
         {
@@ -884,6 +941,8 @@ public sealed class PicketScanCache
     private bool IsValidEntryFile(
         string entryPath,
         string blobHash,
+        string addressHash,
+        string shard,
         string keyFingerprint,
         ScanCacheAddressMode addressMode,
         ScanCacheStorageMode storageMode)
@@ -903,6 +962,8 @@ public sealed class PicketScanCache
 
             ScanCacheAddressMode? entryAddressMode = null;
             ScanCacheStorageMode? entryStorageMode = null;
+            string? entryAddressHash = null;
+            string? entryShard = null;
             int? expectedFindingCount = null;
             bool findingSectionStarted = false;
             int parsedFindingCount = 0;
@@ -916,7 +977,7 @@ public sealed class PicketScanCache
                 string[] fields = lines[i].Split('\t');
                 if (!fields[0].Equals("finding", StringComparison.Ordinal))
                 {
-                    if (findingSectionStarted || !TryReadMetadata(fields, ref entryAddressMode, ref entryStorageMode, ref expectedFindingCount))
+                    if (findingSectionStarted || !TryReadMetadata(fields, ref entryAddressMode, ref entryStorageMode, ref entryAddressHash, ref entryShard, ref expectedFindingCount))
                     {
                         return false;
                     }
@@ -935,6 +996,8 @@ public sealed class PicketScanCache
 
             return (entryAddressMode ?? ScanCacheAddressMode.Path) == addressMode
                 && (entryStorageMode ?? ScanCacheStorageMode.Raw) == storageMode
+                && addressHash.Equals(entryAddressHash, StringComparison.Ordinal)
+                && shard.Equals(entryShard, StringComparison.Ordinal)
                 && (!expectedFindingCount.HasValue || expectedFindingCount.Value == parsedFindingCount);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or FormatException)
@@ -1021,6 +1084,11 @@ public sealed class PicketScanCache
         }
 
         return true;
+    }
+
+    private static bool IsHex(char value)
+    {
+        return value is >= '0' and <= '9' or >= 'a' and <= 'f';
     }
 
     private static bool IsWithinDirectory(string path, string directory)
