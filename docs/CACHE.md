@@ -38,7 +38,7 @@ The default cache mode is `secret-hash-only`. Cache rows keep rule, location, en
 
 Use `--cache-mode raw` only for trusted private caches that need cached reports to replay match, secret, and line fields exactly. Raw mode may contain recoverable secret material, and the CLI writes a warning when raw mode is active.
 
-On Unix-like systems Picket creates the cache root, lock directory, entry directories, lock files, and entry files with owner-only permissions. On Windows, choose a cache root whose inherited ACL is private to the intended user or build identity.
+Picket creates the cache root, lock directory, entry directories, lock files, and entry files with owner-only permissions. Unix-like systems use owner-only mode bits. Windows uses protected ACLs that grant the current user full control and remove inherited access rules from cache-managed paths.
 
 Baseline suppression still works with secret-hash-only cache hits. Picket compares the cached match and secret hashes to hashes of the baseline evidence rather than requiring raw cached match or secret text.
 

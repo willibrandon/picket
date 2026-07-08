@@ -1,4 +1,5 @@
 using Picket.Engine;
+using Picket.Security;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -33,9 +34,6 @@ public sealed class PicketScanCache
     private const string SchemaLine = "picket.scan-cache.v2";
     private const string ShardHeader = "shard";
     private const string StorageModeHeader = "storageMode";
-    private const UnixFileMode OwnerOnlyDirectoryMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
-    private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-
     private readonly string _entriesPath;
     private readonly string _locksPath;
     private readonly byte[] _authenticationKey;
@@ -518,24 +516,12 @@ public sealed class PicketScanCache
 
     private static FileStream OpenOwnerOnlyNewFile(string path)
     {
-        return OpenOwnerOnlyFile(path, FileMode.CreateNew, FileAccess.Write);
+        return OwnerOnlyFileSystem.OpenNewFile(path);
     }
 
     private static FileStream OpenOwnerOnlyFile(string path, FileMode mode, FileAccess access)
     {
-        var options = new FileStreamOptions
-        {
-            Access = access,
-            Mode = mode,
-            Share = FileShare.None,
-            Options = FileOptions.SequentialScan,
-        };
-        if (!OperatingSystem.IsWindows())
-        {
-            options.UnixCreateMode = OwnerOnlyFileMode;
-        }
-
-        return new FileStream(path, options);
+        return OwnerOnlyFileSystem.OpenFile(path, mode, access);
     }
 
     private static void WriteOwnerOnlyText(string path, string text)
@@ -547,19 +533,12 @@ public sealed class PicketScanCache
 
     private static void CreateOwnerOnlyDirectory(string path)
     {
-        Directory.CreateDirectory(path);
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(path, OwnerOnlyDirectoryMode);
-        }
+        OwnerOnlyFileSystem.CreateDirectory(path);
     }
 
     private static void SetOwnerOnlyFile(string path)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(path, OwnerOnlyFileMode);
-        }
+        OwnerOnlyFileSystem.ProtectFile(path);
     }
 
     private static FileStream OpenSequentialRead(string path)

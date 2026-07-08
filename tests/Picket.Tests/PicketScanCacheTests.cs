@@ -105,6 +105,27 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies cache directories, lock files, and entry files are owner-only on Windows.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    [SupportedOSPlatform("windows")]
+    public void WriteCreatesOwnerOnlyCacheFilesOnWindows()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(root.Path);
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(Path.Combine(root.Path, "entries"));
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(Path.Combine(root.Path, "locks"));
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(GetSingleEntryPath(root.Path));
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(GetSingleLockPath(root.Path));
+    }
+
+    /// <summary>
     /// Verifies entries written before cache authentication was added are treated as misses.
     /// </summary>
     [TestMethod]

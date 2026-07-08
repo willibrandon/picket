@@ -668,7 +668,7 @@ Design requirements:
 - rule-pack/config/version and scan-behavior cache invalidation,
 - decode/archive-derived blob lineage,
 - concurrent CI-safe locking,
-- secret-hash-only scan cache storage by default, explicit raw mode for trusted private replay, owner-only POSIX cache permissions, and storage mode participation in the cache key,
+- secret-hash-only scan cache storage by default, explicit raw mode for trusted private replay, owner-only cache permissions on Unix-like systems and Windows, and storage mode participation in the cache key,
 - GC and retention policy,
 - portable cache export/import with per-entry decompressed-size caps, archive entry-count caps, and aggregate imported-byte caps,
 - provenance-preserving reports.

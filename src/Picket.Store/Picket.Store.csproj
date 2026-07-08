@@ -10,5 +10,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Picket.Engine\Picket.Engine.csproj" />
+    <ProjectReference Include="..\Picket.Security\Picket.Security.csproj" />
   </ItemGroup>
 </Project>

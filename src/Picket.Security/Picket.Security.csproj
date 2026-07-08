@@ -14,5 +14,6 @@
 
   <ItemGroup>
     <None Include="..\..\docs\EMBEDDING.md" Pack="true" PackagePath="README.md" Link="README.md" />
+    <PackageReference Include="System.IO.FileSystem.AccessControl" />
   </ItemGroup>
 </Project>

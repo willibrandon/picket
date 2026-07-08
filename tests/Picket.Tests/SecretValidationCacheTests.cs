@@ -130,6 +130,31 @@ public sealed class SecretValidationCacheTests
     }
 
     /// <summary>
+    /// Verifies validation cache directories, lock files, and entry files are owner-only on Windows.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    [SupportedOSPlatform("windows")]
+    public void WriteCreatesOwnerOnlyValidationCacheFilesOnWindows()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretValidationCacheKey key = SecretValidationCacheKey.FromFinding(
+            "github",
+            "v1",
+            CreateFinding(),
+            new Uri("https://api.github.com/user"));
+
+        cache.Write(key, new SecretValidationResult(SecretValidationState.Active), DateTimeOffset.UtcNow.AddMinutes(5));
+
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(temp.Path);
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(Path.Combine(temp.Path, "entries"));
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(Path.Combine(temp.Path, "locks"));
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(GetSingleEntryPath(temp.Path));
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(GetSingleLockPath(temp.Path));
+    }
+
+    /// <summary>
     /// Verifies that cache fingerprints invalidate otherwise matching entries.
     /// </summary>
     [TestMethod]
