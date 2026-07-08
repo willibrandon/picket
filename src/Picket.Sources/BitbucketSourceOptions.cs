@@ -9,6 +9,7 @@ namespace Picket.Sources;
 /// <param name="username">The username used with app-password authentication.</param>
 /// <param name="credentialKind">The credential transport to use for Bitbucket API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference.</param>
+/// <param name="pullRequestId">An optional pull request ID whose source head should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="allowInsecureCredentialTransport">A value indicating whether credentials may be sent to HTTP endpoints.</param>
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
@@ -21,6 +22,7 @@ public sealed class BitbucketSourceOptions(
     string username = "",
     BitbucketCredentialKind credentialKind = BitbucketCredentialKind.BearerToken,
     string gitRef = "",
+    int pullRequestId = 0,
     long? maxFileBytes = null,
     bool allowInsecureCredentialTransport = false,
     Func<string, bool>? isPathAllowed = null,
@@ -61,7 +63,12 @@ public sealed class BitbucketSourceOptions(
     /// <summary>
     /// Gets the optional branch, tag, or commit reference.
     /// </summary>
-    public string Ref { get; } = NormalizeOptionalText(gitRef);
+    public string Ref { get; } = NormalizeRef(gitRef, pullRequestId);
+
+    /// <summary>
+    /// Gets the optional pull request ID whose source head should be scanned.
+    /// </summary>
+    public int PullRequestId { get; } = RequirePullRequestId(pullRequestId);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -71,6 +78,8 @@ public sealed class BitbucketSourceOptions(
     internal string Credential => _credential;
 
     internal string Username { get; } = RequireUsername(username, credentialKind);
+
+    internal bool AllowInsecureCredentialTransport { get; } = allowInsecureCredentialTransport;
 
     internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 
@@ -85,6 +94,21 @@ public sealed class BitbucketSourceOptions(
     public static Uri CreateDefaultEndpoint()
     {
         return new Uri("https://api.bitbucket.org/2.0/", UriKind.Absolute);
+    }
+
+    internal BitbucketSourceOptions CreateForRepository(string repository)
+    {
+        return new BitbucketSourceOptions(
+            Endpoint,
+            repository,
+            Credential,
+            Username,
+            CredentialKind,
+            maxFileBytes: MaxFileBytes,
+            allowInsecureCredentialTransport: AllowInsecureCredentialTransport,
+            isPathAllowed: IsPathAllowed,
+            warningSink: WarningSink,
+            isCancellationRequested: IsCancellationRequested);
     }
 
     internal static Uri NormalizeEndpoint(Uri endpoint)
@@ -114,6 +138,17 @@ public sealed class BitbucketSourceOptions(
     internal static string NormalizeOptionalText(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    }
+
+    private static string NormalizeRef(string value, int pullRequestId)
+    {
+        string normalized = NormalizeOptionalText(value);
+        if (pullRequestId != 0 && normalized.Length != 0)
+        {
+            throw new ArgumentException("Bitbucket source options accept either a ref or a pull request ID, not both.", nameof(value));
+        }
+
+        return normalized;
     }
 
     private static Uri RequireCredentialTransport(Uri endpoint, bool allowInsecureCredentialTransport)
@@ -213,6 +248,12 @@ public sealed class BitbucketSourceOptions(
             throw new ArgumentOutOfRangeException(nameof(value), value, "Unsupported Bitbucket token kind.");
         }
 
+        return value;
+    }
+
+    private static int RequirePullRequestId(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 

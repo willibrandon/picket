@@ -472,6 +472,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan this Bitbucket branch, tag, or commit.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--bitbucket-pull-request</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Bitbucket pull request source head.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--bitbucket-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

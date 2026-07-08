@@ -18,6 +18,12 @@ internal static partial class Program
             || arg.StartsWith("--bitbucket-ref=", StringComparison.Ordinal);
     }
 
+    static bool IsBitbucketPullRequestFlag(string arg)
+    {
+        return arg.Equals("--bitbucket-pull-request", StringComparison.Ordinal)
+            || arg.StartsWith("--bitbucket-pull-request=", StringComparison.Ordinal);
+    }
+
     static bool IsBitbucketTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--bitbucket-token-env", StringComparison.Ordinal)
@@ -68,10 +74,27 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadPositiveBitbucketPullRequestFlag(string[] args, ref int index, out int pullRequestId)
+    {
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--bitbucket-pull-request", out pullRequestId))
+        {
+            return false;
+        }
+
+        if (pullRequestId > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--bitbucket-pull-request requires a positive integer value");
+        return false;
+    }
+
     static bool TryCreateBitbucketSourceProvider(
         Uri? endpoint,
         string repository,
         string gitRef,
+        int pullRequestId,
         string? tokenEnvironmentVariable,
         string? usernameEnvironmentVariable,
         BitbucketCredentialKind credentialKind,
@@ -83,6 +106,12 @@ internal static partial class Program
         if (string.IsNullOrWhiteSpace(repository))
         {
             Console.Error.WriteLine("Bitbucket source scan requires --bitbucket-repository");
+            return false;
+        }
+
+        if (pullRequestId != 0 && !string.IsNullOrWhiteSpace(gitRef))
+        {
+            Console.Error.WriteLine("Bitbucket source scan accepts either --bitbucket-ref or --bitbucket-pull-request, not both");
             return false;
         }
 
@@ -128,10 +157,12 @@ internal static partial class Program
                 username,
                 credentialKind,
                 gitRef,
+                pullRequestId,
                 allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
             sourceEndpoint = validatedOptions.Endpoint;
             repository = validatedOptions.Repository;
             gitRef = validatedOptions.Ref;
+            pullRequestId = validatedOptions.PullRequestId;
             credentialKind = validatedOptions.CredentialKind;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -166,6 +197,7 @@ internal static partial class Program
                 username,
                 credentialKind,
                 gitRef,
+                pullRequestId,
                 maxTargetBytes,
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,

@@ -37,6 +37,20 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
 
         try
         {
+            if (options.PullRequestId != 0)
+            {
+                (bool shouldScan, BitbucketSourceOptions sourceOptions, string sourceRef) = await ResolvePullRequestSourceAsync(
+                    options,
+                    cancellationToken).ConfigureAwait(false);
+                if (!shouldScan)
+                {
+                    return sourceFiles;
+                }
+
+                await AddRepositoryFilesAsync(sourceOptions, sourceRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+                return sourceFiles;
+            }
+
             string gitRef = options.Ref;
             if (gitRef.Length == 0)
             {
@@ -56,6 +70,52 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         }
 
         return sourceFiles;
+    }
+
+    private async Task<(bool ShouldScan, BitbucketSourceOptions SourceOptions, string SourceRef)> ResolvePullRequestSourceAsync(
+        BitbucketSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreatePullRequestUri(options);
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(
+                options,
+                response,
+                $"skipping Bitbucket pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {options.Repository}");
+            return (false, options, string.Empty);
+        }
+
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Bitbucket source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        string sourceRef = GetNestedString(document.RootElement, "source", "commit", "hash");
+        if (sourceRef.Length == 0)
+        {
+            sourceRef = GetNestedString(document.RootElement, "source", "branch", "name");
+        }
+
+        if (sourceRef.Length == 0)
+        {
+            options.WarningSink?.Invoke($"skipping Bitbucket pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {options.Repository} because its source head was not returned");
+            return (false, options, string.Empty);
+        }
+
+        BitbucketSourceOptions sourceOptions = options;
+        string sourceRepository = GetNestedString(document.RootElement, "source", "repository", "full_name");
+        if (sourceRepository.Length != 0 && !sourceRepository.Equals(options.Repository, StringComparison.Ordinal))
+        {
+            try
+            {
+                sourceOptions = options.CreateForRepository(sourceRepository);
+            }
+            catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
+            {
+                options.WarningSink?.Invoke($"skipping Bitbucket pull request {options.PullRequestId.ToString(CultureInfo.InvariantCulture)} in repository {options.Repository} because its source repository was invalid: {ex.Message}");
+                return (false, options, string.Empty);
+            }
+        }
+
+        return (true, sourceOptions, sourceRef);
     }
 
     private async Task<string> ReadMainBranchAsync(
@@ -290,6 +350,16 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         return CreateUri(options.Endpoint, ["repositories", options.Workspace, options.RepositorySlug], itemPath: null, trailingSlash: false, query: []);
     }
 
+    private static Uri CreatePullRequestUri(BitbucketSourceOptions options)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repositories", options.Workspace, options.RepositorySlug, "pullrequests", options.PullRequestId.ToString(CultureInfo.InvariantCulture)],
+            itemPath: null,
+            trailingSlash: false,
+            query: []);
+    }
+
     private static Uri CreateDirectoryUri(BitbucketSourceOptions options, string gitRef, string directoryPath, int page)
     {
         return CreateUri(
@@ -469,6 +539,27 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         }
 
         return GetString(firstProperty, secondPropertyName);
+    }
+
+    private static string GetNestedString(
+        JsonElement value,
+        string firstPropertyName,
+        string secondPropertyName,
+        string thirdPropertyName)
+    {
+        if (!value.TryGetProperty(firstPropertyName, out JsonElement firstProperty)
+            || firstProperty.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        if (!firstProperty.TryGetProperty(secondPropertyName, out JsonElement secondProperty)
+            || secondProperty.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        return GetString(secondProperty, thirdPropertyName);
     }
 
     private static string CreateDisplayPath(BitbucketSourceOptions options, string itemPath)

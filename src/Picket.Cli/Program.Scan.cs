@@ -18,6 +18,7 @@ internal static partial class Program
         Uri? bitbucketApiEndpoint = null;
         BitbucketCredentialKind bitbucketCredentialKind = BitbucketCredentialKind.BearerToken;
         bool bitbucketOptionSpecified = false;
+        int bitbucketPullRequestId = 0;
         string bitbucketRef = string.Empty;
         string bitbucketRepository = string.Empty;
         string? bitbucketTokenEnvironmentVariable = null;
@@ -366,6 +367,17 @@ internal static partial class Program
                 }
 
                 bitbucketRef = gitRef;
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketPullRequestFlag(arg))
+            {
+                if (!TryReadPositiveBitbucketPullRequestFlag(args, ref i, out bitbucketPullRequestId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
                 bitbucketOptionSpecified = true;
                 continue;
             }
@@ -1111,6 +1123,7 @@ internal static partial class Program
                 bitbucketApiEndpoint,
                 bitbucketRepository,
                 bitbucketRef,
+                bitbucketPullRequestId,
                 bitbucketTokenEnvironmentVariable,
                 bitbucketUsernameEnvironmentVariable,
                 bitbucketCredentialKind,

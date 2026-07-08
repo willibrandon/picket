@@ -88,6 +88,13 @@ internal sealed class BitbucketFixtureServer : IDisposable
             return;
         }
 
+        if (target.Equals("/2.0/repositories/willibrandon/picket/pullrequests/7", StringComparison.Ordinal))
+        {
+            const string PullRequestJson = """{"id":7,"source":{"branch":{"name":"feature/secrets"},"commit":{"hash":"pr-head-sha"},"repository":{"full_name":"forkspace/picket-fork"}}}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PullRequestJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/2.0/repositories/willibrandon/picket/src/main/?pagelen=100&page=1", StringComparison.Ordinal))
         {
             const string RootJson = """{"pagelen":100,"page":1,"size":1,"values":[{"path":"src","type":"commit_directory"}]}""";
@@ -106,6 +113,29 @@ internal sealed class BitbucketFixtureServer : IDisposable
         }
 
         if (target.Equals("/2.0/repositories/willibrandon/picket/src/main/src/appsettings.txt", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/forkspace/picket-fork/src/pr-head-sha/?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            const string RootJson = """{"pagelen":100,"page":1,"size":1,"values":[{"path":"src","type":"commit_directory"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(RootJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/forkspace/picket-fork/src/pr-head-sha/src/?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            string directoryJson = string.Concat(
+                "{\"pagelen\":100,\"page\":1,\"size\":1,\"values\":[{\"path\":\"src/pr.txt\",\"type\":\"commit_file\",\"size\":",
+                Encoding.UTF8.GetByteCount(_content).ToString(CultureInfo.InvariantCulture),
+                "}]}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(directoryJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/forkspace/picket-fork/src/pr-head-sha/src/pr.txt", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
             return;

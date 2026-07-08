@@ -851,12 +851,14 @@ Implemented Bitbucket entry points:
 | Scope | Options | Behavior |
 | --- | --- | --- |
 | Repository files | `--bitbucket-repository`, `--bitbucket-ref`, `--bitbucket-token-env`, `--bitbucket-token-kind`, `--bitbucket-username-env`, `--bitbucket-api-endpoint` | Scans a `workspace/repository` repository path or repository URL at a branch, tag, or commit. Empty `--bitbucket-ref` uses the repository main branch. Bearer-token auth is the default; app-password basic auth is explicit. |
+| Pull request source head | `--bitbucket-repository`, `--bitbucket-pull-request` | Resolves the pull request source commit and source repository, including forks when Bitbucket returns them, then scans that commit. |
 
 Bitbucket API flow:
 
 | Source | API behavior |
 | --- | --- |
 | Repository metadata | Resolves the main branch when `--bitbucket-ref` is omitted. |
+| Pull request metadata | Resolves the source commit hash, source branch fallback, and source repository when `--bitbucket-pull-request` is used. |
 | Directory listings | Lists repository directory contents page by page with `pagelen=100`. Picket walks returned `commit_directory` entries instead of relying on `max_depth`. |
 | Raw repository files | Downloads raw bytes for returned `commit_file` entries. |
 
@@ -872,9 +874,9 @@ Bitbucket source safety rules:
 - A positive `--max-target-megabytes` value overrides the default remote cap.
 - Zero keeps its local-scan compatibility meaning, but remote Bitbucket sources reject zero because remote HTTP bodies are always bounded.
 - Oversized directory entries are skipped before download when Bitbucket returns a size.
-- Pull requests, downloads, pipelines, artifacts, snippets, workspaces, projects, and Bitbucket Data Center/Server remain planned explicit source selectors.
+- Downloads, pipelines, artifacts, snippets, workspaces, projects, and Bitbucket Data Center/Server remain planned explicit source selectors.
 
-Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository enumeration requires read-only repository access for repository metadata, source directory listings, and raw source file content. For OAuth-style tokens, Bitbucket documents the `repository` scope. For API tokens, Bitbucket documents `read:repository:bitbucket`.
+Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository enumeration requires read-only repository access for repository metadata, source directory listings, and raw source file content. Pull request scans also require read-only pull request access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source enumeration and the `pullrequest` scope for pull request metadata. For API tokens, Bitbucket documents `read:repository:bitbucket` and `read:pullrequest:bitbucket`.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 

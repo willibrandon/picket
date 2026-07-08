@@ -237,12 +237,14 @@ Bitbucket Cloud REST API documentation reviewed on 2026-07-08:
 - Bitbucket Cloud REST API: `https://developer.atlassian.com/cloud/bitbucket/rest/`
 - Bitbucket source API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/`
 - Bitbucket repository API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/`
+- Bitbucket pull requests API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/`
 
 Picket uses Bitbucket repository metadata to resolve the main branch, paged
 source directory listings with `pagelen=100`, explicit directory walking instead
-of the `max_depth` parameter, and raw source file responses for selected file
-bytes. Bearer tokens and app passwords are read from environment variables and
-are not logged.
+of the `max_depth` parameter, raw source file responses for selected file bytes,
+and pull request metadata to resolve source-head commits and source repositories.
+Bearer tokens and app passwords are read from environment variables and are not
+logged.
 
 ## Azure DevOps Source References
 
