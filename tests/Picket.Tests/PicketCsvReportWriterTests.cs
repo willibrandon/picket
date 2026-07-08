@@ -78,6 +78,22 @@ public sealed class PicketCsvReportWriterTests
     }
 
     /// <summary>
+    /// Verifies native CSV neutralizes spreadsheet formula prefixes hidden behind leading control characters.
+    /// </summary>
+    [TestMethod]
+    public void WriteNeutralizesControlCharacterFormulaPrefixes()
+    {
+        Finding finding = CreateFinding(
+            match: "\t=match",
+            secret: "\r=secret");
+
+        string csv = PicketCsvReportWriter.Write([finding]);
+
+        Assert.Contains("\"'\t=match\"", csv);
+        Assert.Contains("\"'\r=secret\"", csv);
+    }
+
+    /// <summary>
     /// Verifies CSV can resolve native rule metadata when rules are supplied.
     /// </summary>
     [TestMethod]

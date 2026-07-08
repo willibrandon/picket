@@ -531,7 +531,7 @@ Native mode adds `.picketignore`, glob ignores, content-hash ignores, stale-igno
 Compatibility report writers are byte-oriented golden-output components, not generic serializers.
 
 - JSON: exact field order, escaping, indentation, omitted fields, empty-array behavior, and trailing newline behavior from the pinned Gitleaks version.
-- CSV: exact header behavior, including the no-findings case and conditional `Link` column behavior. Native CSV neutralizes spreadsheet formula prefixes in finding-controlled cells; strict compatibility CSV preserves the pinned Gitleaks CSV bytes.
+- CSV: exact header behavior, including the no-findings case and conditional `Link` column behavior. Native CSV neutralizes spreadsheet formula prefixes in finding-controlled cells, including `=`, `+`, `-`, `@`, tab, and carriage return; strict compatibility CSV preserves the pinned Gitleaks CSV bytes.
 - JUnit: exact XML shape, suite names, failure text, escaping, and indentation.
 - SARIF: exact Gitleaks-compatible mode for consumers that depend on `tool.driver.name`, semantic version, fingerprints, and snippets.
 - Template: Go `text/template` compatibility with the same supported safe Sprig function map as Gitleaks. Template behavior is tested with real templates.

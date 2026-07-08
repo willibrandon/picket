@@ -52,7 +52,7 @@ Native reports can include:
 - ignore reason,
 - remediation links.
 
-Native CSV reports prefix finding-controlled cells that begin with `=`, `+`, `-`, or `@` with a single quote so spreadsheet tools do not interpret them as formulas. Gitleaks-compatible CSV keeps the pinned Gitleaks byte contract and does not apply this native-only neutralization.
+Native CSV reports prefix finding-controlled cells that begin with `=`, `+`, `-`, `@`, tab, or carriage return with a single quote so spreadsheet tools do not interpret them as formulas. Gitleaks-compatible CSV keeps the pinned Gitleaks byte contract and does not apply this native-only neutralization.
 
 Native fingerprints are versioned as `picket:v1:<sha256>`. The hash input includes the normalized logical path, rule ID, secret or match hash, and decode path. It intentionally excludes line, column, commit, author, and message metadata so native triage IDs remain stable when a finding moves inside the same file or appears across multiple commits. Gitleaks-compatible reports keep Gitleaks fingerprints.
 
