@@ -85,6 +85,28 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that Vim-style finding movement stays within the filtered visible rows.
+    /// </summary>
+    [TestMethod]
+    public void StateMovesFocusedFindingWithinVisibleRows()
+    {
+        PicketTuiState state = CreateState();
+
+        state.MoveFindingFocus(1);
+
+        Assert.AreEqual("fp-auth-2", state.FocusedFinding?.Fingerprint);
+
+        state.MoveFindingFocus(99);
+
+        Assert.AreEqual("fp-infra-1", state.FocusedFinding?.Fingerprint);
+
+        state.SetSearchText("auth");
+        state.MoveFindingFocus(-99);
+
+        Assert.AreEqual("fp-auth-1", state.FocusedFinding?.Fingerprint);
+    }
+
+    /// <summary>
     /// Verifies that contextual yanking copies useful finding metadata without loading secret evidence.
     /// </summary>
     [TestMethod]
@@ -584,8 +606,8 @@ public sealed class PicketTuiTests
 
         int exitCode = await runTask.ConfigureAwait(false);
         string[] lines = snapshot.GetScreenText().Split('\n');
-        int rowY = Array.FindIndex(lines, line => line.Contains('>')
-            && line.Contains("github-token", StringComparison.Ordinal));
+        int rowY = Array.FindIndex(lines, line => line.Contains("github-token", StringComparison.Ordinal)
+            && line.Contains("src/auth.cs:12", StringComparison.Ordinal));
         Assert.AreEqual(0, exitCode);
         Assert.IsGreaterThanOrEqualTo(0, rowY);
 

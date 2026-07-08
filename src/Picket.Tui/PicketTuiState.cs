@@ -436,6 +436,34 @@ internal sealed class PicketTuiState
     }
 
     /// <summary>
+    /// Moves the focused finding within the visible finding rows.
+    /// </summary>
+    /// <param name="delta">The signed row delta.</param>
+    internal void MoveFindingFocus(int delta)
+    {
+        IReadOnlyList<PicketTuiFindingRow> visibleRows = VisibleRows;
+        if (visibleRows.Count == 0)
+        {
+            FocusedFindingKey = null;
+            return;
+        }
+
+        int currentIndex = IndexOfVisibleRowKey(FocusedFindingKey);
+        if (currentIndex < 0)
+        {
+            currentIndex = 0;
+        }
+
+        int nextIndex = Math.Clamp(currentIndex + delta, 0, visibleRows.Count - 1);
+        FocusedFindingKey = visibleRows[nextIndex].Key;
+        StatusMessage = string.Concat(
+            "Finding ",
+            (nextIndex + 1).ToString(CultureInfo.InvariantCulture),
+            " of ",
+            visibleRows.Count.ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
     /// Gets the most frequent rules in the report.
     /// </summary>
     /// <param name="limit">The maximum number of rows to return.</param>
