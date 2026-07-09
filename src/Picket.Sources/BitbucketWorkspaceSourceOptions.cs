@@ -9,6 +9,7 @@ namespace Picket.Sources;
 /// <param name="username">The username used with app-password authentication.</param>
 /// <param name="credentialKind">The credential transport to use for Bitbucket API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference applied to each repository.</param>
+/// <param name="projectKey">An optional project key used to limit workspace repository enumeration.</param>
 /// <param name="includeDownloads">A value indicating whether repository download artifacts should be scanned for each repository.</param>
 /// <param name="includeSnippets">A value indicating whether workspace snippets should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
@@ -27,6 +28,7 @@ public sealed class BitbucketWorkspaceSourceOptions(
     string username = "",
     BitbucketCredentialKind credentialKind = BitbucketCredentialKind.BearerToken,
     string gitRef = "",
+    string projectKey = "",
     bool includeDownloads = false,
     bool includeSnippets = false,
     long? maxFileBytes = null,
@@ -64,6 +66,11 @@ public sealed class BitbucketWorkspaceSourceOptions(
     public string Ref { get; } = BitbucketSourceOptions.NormalizeOptionalText(gitRef);
 
     /// <summary>
+    /// Gets the optional project key used to limit workspace repository enumeration.
+    /// </summary>
+    public string ProjectKey { get; } = RequireProjectKey(projectKey);
+
+    /// <summary>
     /// Gets a value indicating whether repository download artifacts should be scanned for each repository.
     /// </summary>
     public bool IncludeDownloads { get; } = includeDownloads;
@@ -71,7 +78,7 @@ public sealed class BitbucketWorkspaceSourceOptions(
     /// <summary>
     /// Gets a value indicating whether workspace snippets should be scanned.
     /// </summary>
-    public bool IncludeSnippets { get; } = includeSnippets;
+    public bool IncludeSnippets { get; } = RequireIncludeSnippets(projectKey, includeSnippets);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -146,5 +153,38 @@ public sealed class BitbucketWorkspaceSourceOptions(
         }
 
         return decoded;
+    }
+
+    private static string RequireProjectKey(string value)
+    {
+        string normalized = BitbucketSourceOptions.NormalizeOptionalText(value).Trim('/');
+        if (normalized.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        string decoded = Uri.UnescapeDataString(normalized);
+        if (decoded.Length == 0
+            || decoded.Contains('/')
+            || decoded.Contains('\\')
+            || decoded.Contains('"')
+            || decoded.Equals(".", StringComparison.Ordinal)
+            || decoded.Equals("..", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Bitbucket project key must be a single project key.", nameof(value));
+        }
+
+        return decoded;
+    }
+
+    private static bool RequireIncludeSnippets(string projectKey, bool includeSnippets)
+    {
+        if (includeSnippets
+            && BitbucketSourceOptions.NormalizeOptionalText(projectKey).Trim('/').Length != 0)
+        {
+            throw new ArgumentException("Bitbucket workspace options cannot combine project-scoped repository scans with snippet enumeration.", nameof(includeSnippets));
+        }
+
+        return includeSnippets;
     }
 }

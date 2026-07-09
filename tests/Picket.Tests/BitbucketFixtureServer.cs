@@ -108,6 +108,21 @@ internal sealed class BitbucketFixtureServer : IDisposable
             return;
         }
 
+        if (target.Equals("/2.0/workspaces/willibrandon/projects/CORE", StringComparison.Ordinal))
+        {
+            const string ProjectJson = """{"key":"CORE","name":"Core"}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(ProjectJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.StartsWith("/2.0/repositories/willibrandon?pagelen=100&page=1", StringComparison.Ordinal)
+            && target.Contains("q=project.key%3D%22CORE%22", StringComparison.Ordinal))
+        {
+            const string WorkspaceJson = """{"pagelen":100,"page":1,"size":1,"values":[{"full_name":"willibrandon/picket"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(WorkspaceJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/2.0/repositories/willibrandon/second", StringComparison.Ordinal))
         {
             const string RepositoryJson = """{"mainbranch":{"name":"main"}}""";

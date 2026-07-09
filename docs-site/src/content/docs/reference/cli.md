@@ -520,6 +520,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan repositories in this Bitbucket workspace through native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--bitbucket-project</code></td>
+              <td data-label="Value"><code>key</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Bitbucket workspace repository scans to this project key.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--bitbucket-ref</code></td>
               <td data-label="Value"><code>ref</code></td>
               <td data-label="Required">Optional</td>

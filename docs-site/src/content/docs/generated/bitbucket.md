@@ -26,6 +26,12 @@ Workspace scans list repositories in a workspace and scan each visible repositor
 picket scan --bitbucket-workspace willibrandon --bitbucket-token-env PICKET_BITBUCKET_SOURCE_TOKEN --report-format jsonl
 ```
 
+Project scans validate the project key, list matching workspace repositories through Bitbucket's repository filter, and scan each returned repository:
+
+```bash
+picket scan --bitbucket-workspace willibrandon --bitbucket-project CORE --bitbucket-token-env PICKET_BITBUCKET_SOURCE_TOKEN --report-format jsonl
+```
+
 Workspace snippet scans are explicit opt-ins and run alongside workspace repository scanning:
 
 ```bash
@@ -66,6 +72,7 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 | --- | --- |
 | `--bitbucket-repository` | Repository to scan as a workspace/repository path or repository URL. |
 | `--bitbucket-workspace` | Workspace whose visible repositories should be scanned. Cannot be combined with `--bitbucket-repository` or `--bitbucket-pull-request`. |
+| `--bitbucket-project` | Project key used to limit workspace repository scanning. Requires `--bitbucket-workspace`; cannot be combined with `--bitbucket-include-snippets`. |
 | `--bitbucket-ref` | Optional branch, tag, or commit SHA. Empty uses the repository main branch. |
 | `--bitbucket-pull-request` | Optional pull request ID. Resolves and scans the source commit. Cannot be combined with `--bitbucket-ref`. |
 | `--bitbucket-include-downloads` | Also scan repository download artifacts. With `--bitbucket-workspace`, applies to each enumerated repository. Cannot be combined with `--bitbucket-pull-request`. |
@@ -82,6 +89,8 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 | Source | API behavior |
 | --- | --- |
 | Workspace repositories | Lists repositories in a workspace with `pagelen=100`, follows Bitbucket pagination, and scans each returned repository path. |
+| Project metadata | Validates `--bitbucket-project` through the workspace project API before listing repositories. |
+| Project repositories | Lists workspace repositories with a `project.key` query filter and scans each returned repository path. |
 | Workspace snippets | Lists snippets in a workspace with `pagelen=100`, fetches snippet metadata for file names, and downloads raw snippet files through the snippet file API. |
 | Repository metadata | Resolves the main branch when `--bitbucket-ref` is omitted. |
 | Pull request metadata | Resolves the source commit hash and source repository when `--bitbucket-pull-request` is used. |
@@ -107,17 +116,18 @@ Snippet file downloads use the same remote byte cap as repository files. Raw sni
 
 Credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`.
 
-Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Pull request scans also require read-only pull request access. Snippet scans require read-only snippet access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration, the `pullrequest` scope for pull request metadata, and the `snippet` scope for snippet enumeration. For API tokens, Bitbucket documents `read:repository:bitbucket`, `read:pullrequest:bitbucket`, and `read:snippet:bitbucket`.
+Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Project-scoped scans also require read-only project access for project metadata. Pull request scans also require read-only pull request access. Snippet scans require read-only snippet access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration, the `project` scope for project metadata, the `pullrequest` scope for pull request metadata, and the `snippet` scope for snippet enumeration. For API tokens, Bitbucket documents `read:repository:bitbucket`, `read:project:bitbucket`, `read:pullrequest:bitbucket`, and `read:snippet:bitbucket`.
 
 ## Current Scope
 
-The current scope is repository file enumeration, workspace repository enumeration, workspace snippet enumeration, pull request source-head enumeration, and repository download artifacts. Pipelines, projects, and Bitbucket Data Center/Server remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+The current scope is repository file enumeration, workspace repository enumeration, project-scoped workspace repository enumeration, workspace snippet enumeration, pull request source-head enumeration, and repository download artifacts. Pipelines and Bitbucket Data Center/Server remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
 
 ## References
 
 - Bitbucket Cloud REST API: `https://developer.atlassian.com/cloud/bitbucket/rest/`
 - Bitbucket source API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/`
 - Bitbucket repository API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/`
+- Bitbucket projects API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-projects/`
 - Bitbucket pull requests API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/`
 - Bitbucket downloads API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-downloads/`
 - Bitbucket snippets API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-snippets/`

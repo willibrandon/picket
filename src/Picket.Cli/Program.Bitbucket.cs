@@ -18,6 +18,12 @@ internal static partial class Program
             || arg.StartsWith("--bitbucket-workspace=", StringComparison.Ordinal);
     }
 
+    static bool IsBitbucketProjectFlag(string arg)
+    {
+        return arg.Equals("--bitbucket-project", StringComparison.Ordinal)
+            || arg.StartsWith("--bitbucket-project=", StringComparison.Ordinal);
+    }
+
     static bool IsBitbucketRefFlag(string arg)
     {
         return arg.Equals("--bitbucket-ref", StringComparison.Ordinal)
@@ -113,6 +119,7 @@ internal static partial class Program
         string repository,
         string workspace,
         string gitRef,
+        string projectKey,
         int pullRequestId,
         bool includeDownloads,
         bool includeSnippets,
@@ -141,6 +148,18 @@ internal static partial class Program
         if (includeSnippets && !hasWorkspace)
         {
             Console.Error.WriteLine("Bitbucket snippet source scan requires --bitbucket-workspace");
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(projectKey) && !hasWorkspace)
+        {
+            Console.Error.WriteLine("Bitbucket project source scan requires --bitbucket-workspace");
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(projectKey) && includeSnippets)
+        {
+            Console.Error.WriteLine("Bitbucket project source scan cannot be combined with workspace snippet enumeration");
             return false;
         }
 
@@ -213,12 +232,14 @@ internal static partial class Program
                     username,
                     credentialKind,
                     gitRef,
+                    projectKey,
                     includeDownloads,
                     includeSnippets,
                     allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
                 sourceEndpoint = validatedOptions.Endpoint;
                 workspace = validatedOptions.Workspace;
                 gitRef = validatedOptions.Ref;
+                projectKey = validatedOptions.ProjectKey;
                 includeDownloads = validatedOptions.IncludeDownloads;
                 includeSnippets = validatedOptions.IncludeSnippets;
                 credentialKind = validatedOptions.CredentialKind;
@@ -278,6 +299,7 @@ internal static partial class Program
                 username,
                 credentialKind,
                 gitRef,
+                projectKey,
                 includeDownloads,
                 includeSnippets,
                 maxTargetBytes,

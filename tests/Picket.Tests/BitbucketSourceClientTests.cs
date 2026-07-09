@@ -49,6 +49,37 @@ public sealed class BitbucketSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Bitbucket workspace source options reject project keys that cannot be used as a single API path segment and query value.
+    /// </summary>
+    [TestMethod]
+    public void BitbucketWorkspaceSourceOptionsRejectsInvalidProjectKey()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new BitbucketWorkspaceSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            "bitbucket-test-token",
+            projectKey: "bad/key"));
+
+        Assert.Contains("Bitbucket project key must be a single project key.", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket workspace source options reject project-scoped repository scans combined with workspace snippets.
+    /// </summary>
+    [TestMethod]
+    public void BitbucketWorkspaceSourceOptionsRejectsProjectAndSnippets()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new BitbucketWorkspaceSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            "bitbucket-test-token",
+            projectKey: "CORE",
+            includeSnippets: true));
+
+        Assert.Contains("cannot combine project-scoped repository scans with snippet enumeration", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that pull request enumeration resolves the source repository and commit before reading source files.
     /// </summary>
     [TestMethod]
@@ -208,6 +239,85 @@ public sealed class BitbucketSourceClientTests
         Assert.Contains("/repositories/willibrandon?pagelen=100&page=1", requests);
         Assert.Contains("/repositories/willibrandon/picket/src/main/src/appsettings.txt", requests);
         Assert.Contains("/repositories/willibrandon/second/src/trunk/src/second.txt", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that project-scoped workspace enumeration validates the project and filters repositories by project key.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateWorkspaceRepositoryFilesReadsWorkspaceProjectRepositories()
+    {
+        const string Token = "bitbucket-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/workspaces/willibrandon/projects/CORE", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"key":"CORE","name":"Core"}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon?pagelen=100&page=1", StringComparison.Ordinal)
+                && url.Contains("project.key", StringComparison.Ordinal)
+                && url.Contains("CORE", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "pagelen": 100,
+                      "page": 1,
+                      "size": 1,
+                      "values": [
+                        { "full_name": "willibrandon/picket" }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket", StringComparison.Ordinal)
+                && !url.Contains("/src/", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"mainbranch":{"name":"main"}}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"path":"src","type":"commit_directory"}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/src/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"path":"src/appsettings.txt","type":"commit_file","size":17}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/src/appsettings.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("first-token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketSourceClient(httpClient);
+        var options = new BitbucketWorkspaceSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            Token,
+            projectKey: "CORE");
+
+        List<SourceFile> files = await client.EnumerateWorkspaceRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("bitbucket/willibrandon/picket/src/appsettings.txt", files[0].DisplayPath);
+        Assert.AreEqual("first-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/workspaces/willibrandon/projects/CORE", requests);
+        Assert.Contains("/repositories/willibrandon?pagelen=100&page=1", requests);
+        Assert.Contains("project.key", requests);
+        Assert.Contains("CORE", requests);
+        Assert.Contains("/repositories/willibrandon/picket/src/main/src/appsettings.txt", requests);
+        Assert.DoesNotContain("/repositories/willibrandon/second", requests);
         Assert.DoesNotContain(Token, requests);
     }
 

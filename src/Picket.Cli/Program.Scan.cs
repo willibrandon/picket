@@ -20,6 +20,7 @@ internal static partial class Program
         bool bitbucketIncludeDownloads = false;
         bool bitbucketIncludeSnippets = false;
         bool bitbucketOptionSpecified = false;
+        string bitbucketProject = string.Empty;
         int bitbucketPullRequestId = 0;
         string bitbucketRef = string.Empty;
         string bitbucketRepository = string.Empty;
@@ -378,6 +379,18 @@ internal static partial class Program
                 }
 
                 bitbucketWorkspace = workspace;
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketProjectFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-project", out string? projectKey))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketProject = projectKey;
                 bitbucketOptionSpecified = true;
                 continue;
             }
@@ -1284,6 +1297,7 @@ internal static partial class Program
                 bitbucketRepository,
                 bitbucketWorkspace,
                 bitbucketRef,
+                bitbucketProject,
                 bitbucketPullRequestId,
                 bitbucketIncludeDownloads,
                 bitbucketIncludeSnippets,

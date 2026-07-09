@@ -196,6 +196,53 @@ public sealed class CliBitbucketScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate repositories in a Bitbucket workspace project.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsBitbucketProjectRepositories()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new BitbucketFixtureServer("project-token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--bitbucket-workspace",
+            "willibrandon",
+            "--bitbucket-project",
+            "CORE",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        int findingCount = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Count(line => line.Contains("\"ruleId\":\"token\"", StringComparison.Ordinal));
+        Assert.AreEqual(1, findingCount);
+        Assert.Contains("\"file\":\"bitbucket/willibrandon/picket/src/appsettings.txt\"", result.Stdout);
+        Assert.DoesNotContain("\"file\":\"bitbucket/willibrandon/second/src/second.txt\"", result.Stdout);
+        Assert.Contains("/2.0/workspaces/willibrandon/projects/CORE", server.RequestTargets);
+        Assert.Contains("q=project.key%3D%22CORE%22", server.RequestTargets);
+        Assert.Contains("/2.0/repositories/willibrandon/picket/src/main/src/appsettings.txt", server.RequestTargets);
+        Assert.DoesNotContain("/2.0/repositories/willibrandon/second", server.RequestTargets);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stdout);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate Bitbucket workspace snippets.
     /// </summary>
     [TestMethod]
@@ -349,6 +396,40 @@ public sealed class CliBitbucketScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan rejects Bitbucket project scans without a workspace selector.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsBitbucketRepositoryAndProject()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-repository",
+            "willibrandon/picket",
+            "--bitbucket-project",
+            "CORE",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Bitbucket project source scan requires --bitbucket-workspace", result.Stderr);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan rejects Bitbucket snippet scans without a workspace selector.
     /// </summary>
     [TestMethod]
@@ -378,6 +459,41 @@ public sealed class CliBitbucketScanTests
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket snippet source scan requires --bitbucket-workspace", result.Stderr);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects project-scoped Bitbucket repository scans combined with workspace snippet enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsBitbucketProjectAndSnippets()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-workspace",
+            "willibrandon",
+            "--bitbucket-project",
+            "CORE",
+            "--bitbucket-include-snippets",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Bitbucket project source scan cannot be combined with workspace snippet enumeration", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
     }
 

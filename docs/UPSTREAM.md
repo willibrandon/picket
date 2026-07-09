@@ -246,18 +246,20 @@ Bitbucket Cloud REST API documentation reviewed on 2026-07-08:
 - Bitbucket Cloud REST API: `https://developer.atlassian.com/cloud/bitbucket/rest/`
 - Bitbucket source API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/`
 - Bitbucket repository API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-repositories/`
+- Bitbucket projects API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-projects/`
 - Bitbucket pull requests API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/`
 - Bitbucket downloads API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-downloads/`
 - Bitbucket snippets API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-snippets/`
 
 Picket uses Bitbucket repository metadata to resolve the main branch, paged
 workspace repository listings and source directory listings with `pagelen=100`,
-explicit directory walking instead of the `max_depth` parameter, raw source file
-responses for selected file bytes, pull request metadata to resolve source-head
-commits and source repositories, workspace snippet listings plus snippet
-metadata to enumerate snippet files, raw snippet file endpoints for snippet
-bytes, and repository download listings plus Bitbucket's documented
-download-artifact redirect endpoint for artifact bytes.
+project metadata plus repository `project.key` filtering for project-scoped
+workspace scans, explicit directory walking instead of the `max_depth`
+parameter, raw source file responses for selected file bytes, pull request
+metadata to resolve source-head commits and source repositories, workspace
+snippet listings plus snippet metadata to enumerate snippet files, raw snippet
+file endpoints for snippet bytes, and repository download listings plus
+Bitbucket's documented download-artifact redirect endpoint for artifact bytes.
 Bearer tokens and app passwords are read from environment variables, are not
 logged, and are not forwarded to redirected artifact URLs. Snippet raw-file
 redirects are followed only when they stay on the configured Bitbucket API

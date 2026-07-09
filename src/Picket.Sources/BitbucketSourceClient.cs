@@ -100,6 +100,12 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
 
         try
         {
+            if (options.ProjectKey.Length != 0
+                && !await ValidateWorkspaceProjectAsync(options, cancellationToken).ConfigureAwait(false))
+            {
+                return sourceFiles;
+            }
+
             await AddWorkspaceRepositoriesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             if (options.IncludeSnippets)
             {
@@ -112,6 +118,21 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         }
 
         return sourceFiles;
+    }
+
+    private async Task<bool> ValidateWorkspaceProjectAsync(
+        BitbucketWorkspaceSourceOptions options,
+        CancellationToken cancellationToken)
+    {
+        Uri projectUri = CreateWorkspaceProjectUri(options);
+        using HttpResponseMessage response = await SendAsync(options, projectUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (response.IsSuccessStatusCode)
+        {
+            return true;
+        }
+
+        WarnUnsuccessfulResponse(options, response, $"skipping Bitbucket project {options.ProjectKey} in workspace {options.Workspace}");
+        return false;
     }
 
     private async Task AddWorkspaceRepositoriesAsync(
@@ -843,16 +864,33 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
 
     private static Uri CreateWorkspaceRepositoriesUri(BitbucketWorkspaceSourceOptions options, int page)
     {
+        var query = new List<KeyValuePair<string, string>>(3)
+        {
+            new("pagelen", WorkspaceRepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
+            new("page", page.ToString(CultureInfo.InvariantCulture)),
+        };
+
+        if (options.ProjectKey.Length != 0)
+        {
+            query.Add(new KeyValuePair<string, string>("q", string.Concat("project.key=\"", options.ProjectKey, "\"")));
+        }
+
         return CreateUri(
             options.Endpoint,
             ["repositories", options.Workspace],
             itemPath: null,
             trailingSlash: false,
-            query:
-            [
-                new KeyValuePair<string, string>("pagelen", WorkspaceRepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
-                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
-            ]);
+            query);
+    }
+
+    private static Uri CreateWorkspaceProjectUri(BitbucketWorkspaceSourceOptions options)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["workspaces", options.Workspace, "projects", options.ProjectKey],
+            itemPath: null,
+            trailingSlash: false,
+            query: []);
     }
 
     private static Uri CreateWorkspaceSnippetsUri(BitbucketWorkspaceSourceOptions options, int page)
