@@ -77,7 +77,7 @@ docker build -t picket:dev .
 docker run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=100
 ```
 
-On Windows with the WSL container CLI:
+On Windows, run the WSL container CLI example from PowerShell:
 
 ```powershell
 wslc image build -t picket:dev .

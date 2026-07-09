@@ -382,7 +382,6 @@ public sealed partial class RepositoryConventionTests
         string dockerIgnore = ReadRepositoryFile(".dockerignore");
         string releaseWorkflow = ReadRepositoryFile(".github/workflows/release.yml");
         string releaseDocumentation = ReadRepositoryFile("docs/RELEASE.md");
-        string containerDocumentation = ReadRepositoryFile("docs/CONTAINERS.md");
 
         Assert.Contains("mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble", dockerfile);
         Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps:${DOTNET_VERSION}-noble", dockerfile);
@@ -404,9 +403,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("publish-container", releaseWorkflow);
         Assert.Contains("ghcr.io/willibrandon/picket", releaseDocumentation);
         Assert.Contains("BuildKit SBOM and provenance attestations", releaseDocumentation);
-        Assert.Contains("Scanner Image", containerDocumentation);
-        Assert.Contains("ghcr.io/willibrandon/picket:latest", containerDocumentation);
-        Assert.Contains("runs as a non-root user", containerDocumentation);
+        Assert.Contains("Build locally for the current machine with", releaseDocumentation);
+        Assert.Contains("wslc image build", releaseDocumentation);
+        Assert.Contains("run the WSL container CLI example from PowerShell", releaseDocumentation);
+        Assert.Contains("wslc run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=100", releaseDocumentation);
+        Assert.Contains("non-root default user", releaseDocumentation);
     }
 
     /// <summary>
