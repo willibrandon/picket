@@ -1306,6 +1306,33 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that hidden compatibility shims still expose direct command help.
+    /// </summary>
+    [TestMethod]
+    public async Task HiddenCompatibilityShimsExposeDirectHelp()
+    {
+        CliResult detect = await RunCliAsync("detect", "--help").ConfigureAwait(false);
+        CliResult protect = await RunCliAsync("protect", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, detect.ExitCode);
+        Assert.Contains("picket detect [options]", detect.Stdout);
+        Assert.Contains("--source", detect.Stdout);
+        Assert.Contains("--no-git", detect.Stdout);
+        Assert.Contains("--pipe", detect.Stdout);
+        Assert.Contains("--report-format", detect.Stdout);
+        Assert.Contains("--redact", detect.Stdout);
+        Assert.DoesNotContain("unknown command", detect.Stderr);
+
+        Assert.AreEqual(0, protect.ExitCode);
+        Assert.Contains("picket protect [options]", protect.Stdout);
+        Assert.Contains("--source", protect.Stdout);
+        Assert.Contains("--staged", protect.Stdout);
+        Assert.Contains("--report-format", protect.Stdout);
+        Assert.Contains("--redact", protect.Stdout);
+        Assert.DoesNotContain("unknown command", protect.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that the help command form displays command-local help.
     /// </summary>
     [TestMethod]
