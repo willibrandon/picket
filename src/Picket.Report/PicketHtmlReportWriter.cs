@@ -78,10 +78,11 @@ public static class PicketHtmlReportWriter
         builder.Append(".empty{border:1px solid #d9ddd2;background:#fff;border-radius:6px;padding:20px;color:#596052}");
         builder.Append(".tags{display:flex;flex-wrap:wrap;gap:6px}");
         builder.Append(".tag{border:1px solid #cfd5c6;background:#f4f6ef;border-radius:999px;padding:2px 8px;font-size:12px;color:#30352c}");
-        builder.Append(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 16px;font-size:13px;line-height:1.35}");
+        builder.Append(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 16px;font-size:13px;line-height:1.35}");
         builder.Append(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}");
+        builder.Append(".metadata-item-long{grid-column:span 2}");
         builder.Append(".metadata dt{margin:0 0 3px;color:#596052;font-size:11px;font-weight:650;line-height:1.2;text-transform:uppercase;white-space:normal}.metadata dd{margin:0;min-width:0}.metadata dd code{white-space:normal;overflow-wrap:break-word;word-break:normal}");
-        builder.Append("@media (max-width:900px){main{padding:24px 16px 40px}.card-header,.field-grid,.rule-card .field-grid{grid-template-columns:1fr}}");
+        builder.Append("@media (max-width:900px){main{padding:24px 16px 40px}.card-header,.field-grid,.rule-card .field-grid{grid-template-columns:1fr}.metadata-item-long{grid-column:auto}}");
         builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,.finding-card,.rule-card,.field,.empty{background:#1d211a;border-color:#3a4233}.field{background:#181c15}.card-description,.field-label,.eyebrow,.metric span,.empty,.metadata dt{color:#b5bcae}.metadata-item{border-color:#3a4233}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
         builder.Append("</style>\n");
         builder.Append("</head>\n");
@@ -231,11 +232,20 @@ public static class PicketHtmlReportWriter
 
     private static void WriteMetadata(StringBuilder builder, string name, string value)
     {
-        builder.Append("<div class=\"metadata-item\"><dt>");
+        builder.Append("<div class=\"");
+        builder.Append(CreateMetadataClass(name));
+        builder.Append("\"><dt>");
         AppendHtml(builder, name);
         builder.Append("</dt><dd><code>");
         AppendHtml(builder, value);
         builder.Append("</code></dd></div>");
+    }
+
+    private static string CreateMetadataClass(string name)
+    {
+        return name is "Docs" or "Secret SHA-256" or "Blob SHA-256" or "Decode Path"
+            ? "metadata-item metadata-item-long"
+            : "metadata-item";
     }
 
     private static void WriteRules(StringBuilder builder, IReadOnlyList<SecretRule> rules)

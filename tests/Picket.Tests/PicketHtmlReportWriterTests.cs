@@ -57,8 +57,9 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains(".report-list{display:grid;gap:16px}", html);
         Assert.Contains(".finding-card,.rule-card{border:1px solid #d9ddd2;background:#fff;border-radius:8px", html);
         Assert.Contains(".field-grid{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(320px,1.3fr) minmax(300px,1fr)", html);
-        Assert.Contains(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))", html);
+        Assert.Contains(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))", html);
         Assert.Contains(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}", html);
+        Assert.Contains(".metadata-item-long{grid-column:span 2}", html);
         Assert.Contains(".metadata dd code{white-space:normal;overflow-wrap:break-word;word-break:normal}", html);
         Assert.Contains("<div class=\"report-list findings-list\">", html);
         Assert.Contains("<div class=\"report-list rules-list\">", html);
@@ -75,10 +76,12 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains(fingerprint, html);
         Assert.DoesNotContain("finger&amp;print", html);
         Assert.Contains("Secret SHA-256", html);
+        Assert.Contains("<div class=\"metadata-item metadata-item-long\"><dt>Secret SHA-256</dt>", html);
         Assert.Contains("6ed417714f0de0a4685ed766cb926df89182f22cd40646f59a9072f72f41c6e0", html);
         Assert.Contains("Blob SHA-256", html);
+        Assert.Contains("<div class=\"metadata-item metadata-item-long\"><dt>Blob SHA-256</dt>", html);
         Assert.Contains(BlobSha256, html);
-        Assert.Contains("<dt>Decode Path</dt><dd><code>base64</code></dd>", html);
+        Assert.Contains("<div class=\"metadata-item metadata-item-long\"><dt>Decode Path</dt><dd><code>base64</code></dd></div>", html);
         Assert.Contains("<dt>Validation</dt><dd><code>unknown</code></dd>", html);
         Assert.DoesNotContain("<dt>Docs</dt><dd><code></code></dd>", html);
         Assert.Contains("sec&lt;ret&gt;", html);
