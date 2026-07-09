@@ -40,6 +40,14 @@ picket scan --bitbucket-repository willibrandon/picket --bitbucket-include-downl
 
 Download artifact scans list the repository downloads, request each artifact by filename, accept Bitbucket's documented redirect response, and fetch the redirected artifact URL without forwarding the Bitbucket credential. Archive artifacts are expanded with the native archive limits.
 
+Pipeline step logs are explicit opt-ins for a selected repository pipeline:
+
+```bash
+picket scan --bitbucket-repository willibrandon/picket --bitbucket-pipeline-id pipeline-uuid --bitbucket-include-pipeline-logs --bitbucket-token-env PICKET_BITBUCKET_SOURCE_TOKEN --report-format jsonl
+```
+
+Pipeline log scans list the selected pipeline's steps, request each step log, accept Bitbucket's documented redirect response, and fetch redirected log bytes without forwarding the Bitbucket credential.
+
 Workspace snippet scans list snippets in the selected workspace, fetch snippet metadata to discover file names, and download raw snippet files through the snippet file API. Snippet raw-file redirects are followed only when they stay on the configured Bitbucket API endpoint, because those redirected API requests still require the Bitbucket credential.
 
 Pull request scans resolve the source commit through the Bitbucket pull requests API, switch to the returned source repository when the pull request comes from a fork, and then scan that source commit:
@@ -70,6 +78,8 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 | `--bitbucket-ref` | Optional branch, tag, or commit SHA. Empty uses the repository main branch. |
 | `--bitbucket-pull-request` | Optional pull request ID. Resolves and scans the source commit. Cannot be combined with `--bitbucket-ref`. |
 | `--bitbucket-include-downloads` | Also scan repository download artifacts. With `--bitbucket-workspace`, applies to each enumerated repository. Cannot be combined with `--bitbucket-pull-request`. |
+| `--bitbucket-pipeline-id` | Pipeline ID whose step logs should be scanned. Requires `--bitbucket-repository` and `--bitbucket-include-pipeline-logs`; cannot be combined with `--bitbucket-pull-request`. |
+| `--bitbucket-include-pipeline-logs` | Also scan step logs from the selected Bitbucket pipeline. Requires `--bitbucket-pipeline-id`. |
 | `--bitbucket-include-snippets` | Also scan workspace snippet files. Requires `--bitbucket-workspace`. |
 | `--bitbucket-token-env` | Environment variable containing the Bitbucket token or app password. |
 | `--bitbucket-token-kind` | Credential mode. `bearer` is the default. `app-password` uses HTTP Basic authentication. |
@@ -91,6 +101,7 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 | Directory listings | Lists repository directory contents page by page with `pagelen=100`. Picket walks returned `commit_directory` entries instead of relying on `max_depth`. |
 | Raw repository files | Downloads raw bytes for returned `commit_file` entries. |
 | Download artifacts | Lists repository downloads with `pagelen=100`, requests each artifact by filename, follows Bitbucket's artifact redirect without credentials, and scans the downloaded bytes. |
+| Pipeline step logs | Lists pipeline steps with `pagelen=100`, requests each step log, follows Bitbucket's log redirect without credentials, and scans the downloaded bytes. |
 
 ## Limits
 
@@ -104,17 +115,19 @@ Oversized directory entries are skipped before download when Bitbucket returns a
 
 Oversized download artifacts are skipped before download when Bitbucket returns a size. Download artifact archives respect `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
 
+Pipeline step logs use the same remote byte cap as repository files.
+
 Snippet file downloads use the same remote byte cap as repository files. Raw snippet redirects are followed only when the redirected URI stays on the configured API endpoint.
 
 ## Credentials
 
 Credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`.
 
-Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Project-scoped scans also require read-only project access for project metadata. Pull request scans also require read-only pull request access. Snippet scans require read-only snippet access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration, the `project` scope for project metadata, the `pullrequest` scope for pull request metadata, and the `snippet` scope for snippet enumeration. For API tokens, Bitbucket documents `read:repository:bitbucket`, `read:project:bitbucket`, `read:pullrequest:bitbucket`, and `read:snippet:bitbucket`.
+Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Project-scoped scans also require read-only project access for project metadata. Pull request scans also require read-only pull request access. Snippet scans require read-only snippet access. Pipeline log scans require read-only pipeline access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration, the `project` scope for project metadata, the `pullrequest` scope for pull request metadata, the `snippet` scope for snippet enumeration, and the `pipeline` scope for pipeline step and log enumeration. For API tokens, Bitbucket documents `read:repository:bitbucket`, `read:project:bitbucket`, `read:pullrequest:bitbucket`, `read:snippet:bitbucket`, and `read:pipeline:bitbucket`.
 
 ## Current Scope
 
-The current scope is repository file enumeration, workspace repository enumeration, project-scoped workspace repository enumeration, workspace snippet enumeration, pull request source-head enumeration, and repository download artifacts. Pipelines and Bitbucket Data Center/Server remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+The current scope is repository file enumeration, workspace repository enumeration, project-scoped workspace repository enumeration, workspace snippet enumeration, pull request source-head enumeration, repository download artifacts, and repository pipeline step logs. Pipeline artifact downloads are not exposed as a direct Bitbucket Cloud REST download endpoint; scan those artifacts through repository downloads or another supported source. Bitbucket Data Center/Server remains a planned source selector.
 
 ## References
 
@@ -124,4 +137,5 @@ The current scope is repository file enumeration, workspace repository enumerati
 - Bitbucket projects API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-projects/`
 - Bitbucket pull requests API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/`
 - Bitbucket downloads API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-downloads/`
+- Bitbucket pipelines API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pipelines/`
 - Bitbucket snippets API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-snippets/`

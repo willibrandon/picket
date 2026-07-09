@@ -49,6 +49,38 @@ public sealed class BitbucketSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Bitbucket repository source options reject pipeline IDs without explicit log enumeration.
+    /// </summary>
+    [TestMethod]
+    public void BitbucketSourceOptionsRejectsPipelineWithoutLogs()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new BitbucketSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "bitbucket-test-token",
+            pipelineId: "pipeline-123"));
+
+        Assert.Contains("pipeline source scans require pipeline log enumeration", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket repository source options reject pull request scans combined with pipeline log enumeration.
+    /// </summary>
+    [TestMethod]
+    public void BitbucketSourceOptionsRejectsPullRequestAndPipelineLogs()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new BitbucketSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "bitbucket-test-token",
+            pullRequestId: 7,
+            pipelineId: "pipeline-123",
+            includePipelineLogs: true));
+
+        Assert.Contains("cannot combine pull request scans with pipeline log enumeration", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that Bitbucket workspace source options reject project keys that cannot be used as a single API path segment and query value.
     /// </summary>
     [TestMethod]
@@ -464,6 +496,67 @@ public sealed class BitbucketSourceClientTests
         Assert.AreNotEqual(-1, redirectedRequestIndex);
         Assert.Contains("/repositories/willibrandon/picket/downloads?pagelen=100&page=1", requests);
         Assert.Contains("/repositories/willibrandon/picket/downloads/build.zip", requests);
+        Assert.Contains("Bearer bitbucket-test-token", authorizationHeaders);
+        Assert.AreEqual(string.Empty, authorizationHeaders[redirectedRequestIndex]);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that repository pipeline step logs are enumerated through the selected pipeline.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsPipelineStepLogs()
+    {
+        const string Token = "bitbucket-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            authorizationHeaders.Add(request.Headers.Authorization?.ToString() ?? string.Empty);
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":0,"values":[]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/pipelines/pipeline-123/steps?pagelen=100&page=1", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"uuid":"step-1"}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/pipelines/pipeline-123/steps/step-1/log", StringComparison.Ordinal))
+            {
+                return RedirectResponse("https://pipelines.bitbucket.org/willibrandon/picket/pipeline-123/step-1.log?signature=abc");
+            }
+
+            if (url.Equals("https://pipelines.bitbucket.org/willibrandon/picket/pipeline-123/step-1.log?signature=abc", StringComparison.Ordinal))
+            {
+                return BytesResponse("pipeline-token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketSourceClient(httpClient);
+        var options = new BitbucketSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            gitRef: "main",
+            pipelineId: "pipeline-123",
+            includePipelineLogs: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        int redirectedRequestIndex = urls.IndexOf("https://pipelines.bitbucket.org/willibrandon/picket/pipeline-123/step-1.log?signature=abc");
+        Assert.HasCount(1, files);
+        Assert.AreEqual("bitbucket/willibrandon/picket/pipelines/pipeline-123/steps/step-1.log", files[0].DisplayPath);
+        Assert.AreEqual("pipeline-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreNotEqual(-1, redirectedRequestIndex);
+        Assert.Contains("/repositories/willibrandon/picket/pipelines/pipeline-123/steps?pagelen=100&page=1", requests);
+        Assert.Contains("/repositories/willibrandon/picket/pipelines/pipeline-123/steps/step-1/log", requests);
         Assert.Contains("Bearer bitbucket-test-token", authorizationHeaders);
         Assert.AreEqual(string.Empty, authorizationHeaders[redirectedRequestIndex]);
         Assert.DoesNotContain(Token, requests);

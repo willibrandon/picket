@@ -18,8 +18,10 @@ internal static partial class Program
         Uri? bitbucketApiEndpoint = null;
         BitbucketCredentialKind bitbucketCredentialKind = BitbucketCredentialKind.BearerToken;
         bool bitbucketIncludeDownloads = false;
+        bool bitbucketIncludePipelineLogs = false;
         bool bitbucketIncludeSnippets = false;
         bool bitbucketOptionSpecified = false;
+        string bitbucketPipelineId = string.Empty;
         string bitbucketProject = string.Empty;
         int bitbucketPullRequestId = 0;
         string bitbucketRef = string.Empty;
@@ -427,6 +429,33 @@ internal static partial class Program
                 }
 
                 if (bitbucketIncludeDownloads)
+                {
+                    bitbucketOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsBitbucketPipelineIdFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-pipeline-id", out string? pipelineId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketPipelineId = pipelineId;
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketIncludePipelineLogsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--bitbucket-include-pipeline-logs", out bitbucketIncludePipelineLogs))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (bitbucketIncludePipelineLogs)
                 {
                     bitbucketOptionSpecified = true;
                 }
@@ -1312,6 +1341,8 @@ internal static partial class Program
                 bitbucketProject,
                 bitbucketPullRequestId,
                 bitbucketIncludeDownloads,
+                bitbucketPipelineId,
+                bitbucketIncludePipelineLogs,
                 bitbucketIncludeSnippets,
                 bitbucketTokenEnvironmentVariable,
                 bitbucketUsernameEnvironmentVariable,

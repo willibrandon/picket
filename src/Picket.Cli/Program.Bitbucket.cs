@@ -42,6 +42,18 @@ internal static partial class Program
             || arg.StartsWith("--bitbucket-include-downloads=", StringComparison.Ordinal);
     }
 
+    static bool IsBitbucketPipelineIdFlag(string arg)
+    {
+        return arg.Equals("--bitbucket-pipeline-id", StringComparison.Ordinal)
+            || arg.StartsWith("--bitbucket-pipeline-id=", StringComparison.Ordinal);
+    }
+
+    static bool IsBitbucketIncludePipelineLogsFlag(string arg)
+    {
+        return arg.Equals("--bitbucket-include-pipeline-logs", StringComparison.Ordinal)
+            || arg.StartsWith("--bitbucket-include-pipeline-logs=", StringComparison.Ordinal);
+    }
+
     static bool IsBitbucketIncludeSnippetsFlag(string arg)
     {
         return arg.Equals("--bitbucket-include-snippets", StringComparison.Ordinal)
@@ -122,6 +134,8 @@ internal static partial class Program
         string projectKey,
         int pullRequestId,
         bool includeDownloads,
+        string pipelineId,
+        bool includePipelineLogs,
         bool includeSnippets,
         string? tokenEnvironmentVariable,
         string? usernameEnvironmentVariable,
@@ -160,6 +174,36 @@ internal static partial class Program
         if (!string.IsNullOrWhiteSpace(projectKey) && includeSnippets)
         {
             Console.Error.WriteLine("Bitbucket project source scan cannot be combined with workspace snippet enumeration");
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(pipelineId) && !hasRepository)
+        {
+            Console.Error.WriteLine("Bitbucket pipeline source scan requires --bitbucket-repository");
+            return false;
+        }
+
+        if (includePipelineLogs && !hasRepository)
+        {
+            Console.Error.WriteLine("Bitbucket pipeline log source scan requires --bitbucket-repository");
+            return false;
+        }
+
+        if (pullRequestId != 0 && !string.IsNullOrWhiteSpace(pipelineId))
+        {
+            Console.Error.WriteLine("Bitbucket source scan cannot combine --bitbucket-pull-request with --bitbucket-pipeline-id");
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(pipelineId) && !includePipelineLogs)
+        {
+            Console.Error.WriteLine("--bitbucket-pipeline-id requires --bitbucket-include-pipeline-logs");
+            return false;
+        }
+
+        if (includePipelineLogs && string.IsNullOrWhiteSpace(pipelineId))
+        {
+            Console.Error.WriteLine("--bitbucket-include-pipeline-logs requires --bitbucket-pipeline-id");
             return false;
         }
 
@@ -215,12 +259,16 @@ internal static partial class Program
                     gitRef,
                     pullRequestId,
                     includeDownloads,
-                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints,
+                    pipelineId: pipelineId,
+                    includePipelineLogs: includePipelineLogs);
                 sourceEndpoint = validatedOptions.Endpoint;
                 repository = validatedOptions.Repository;
                 gitRef = validatedOptions.Ref;
                 pullRequestId = validatedOptions.PullRequestId;
                 includeDownloads = validatedOptions.IncludeDownloads;
+                pipelineId = validatedOptions.PipelineId;
+                includePipelineLogs = validatedOptions.IncludePipelineLogs;
                 credentialKind = validatedOptions.CredentialKind;
             }
             else
@@ -289,7 +337,9 @@ internal static partial class Program
                     allowInsecureSourceEndpoints,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
+                    pipelineId: pipelineId,
+                    includePipelineLogs: includePipelineLogs)).GetAwaiter().GetResult();
             }
 
             return client.EnumerateWorkspaceRepositoryFilesAsync(new BitbucketWorkspaceSourceOptions(

@@ -228,6 +228,25 @@ internal sealed class BitbucketFixtureServer : IDisposable
             return;
         }
 
+        if (target.Equals("/2.0/repositories/willibrandon/picket/pipelines/pipeline-123/steps?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            const string StepsJson = """{"pagelen":100,"page":1,"size":1,"values":[{"uuid":"step-1"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(StepsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/willibrandon/picket/pipelines/pipeline-123/steps/step-1/log", StringComparison.Ordinal))
+        {
+            await WriteRedirectAsync(stream, new Uri(Endpoint, "/pipeline-content/step-1.log").AbsoluteUri, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/pipeline-content/step-1.log", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/2.0/repositories/forkspace/picket-fork/src/pr-head-sha/?pagelen=100&page=1", StringComparison.Ordinal))
         {
             const string RootJson = """{"pagelen":100,"page":1,"size":1,"values":[{"path":"src","type":"commit_directory"}]}""";

@@ -152,6 +152,53 @@ public sealed class CliBitbucketScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate Bitbucket pipeline step logs.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsBitbucketPipelineStepLogs()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new BitbucketFixtureServer("pipeline-token-13579");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--bitbucket-repository",
+            "willibrandon/picket",
+            "--bitbucket-pipeline-id",
+            "pipeline-123",
+            "--bitbucket-include-pipeline-logs",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"bitbucket/willibrandon/picket/pipelines/pipeline-123/steps/step-1.log\"", result.Stdout);
+        Assert.Contains("/2.0/repositories/willibrandon/picket/pipelines/pipeline-123/steps?pagelen=100&page=1", server.RequestTargets);
+        Assert.Contains("/2.0/repositories/willibrandon/picket/pipelines/pipeline-123/steps/step-1/log", server.RequestTargets);
+        Assert.Contains("/pipeline-content/step-1.log", server.RequestTargets);
+        Assert.Contains("/2.0/repositories/willibrandon/picket/pipelines/pipeline-123/steps/step-1/log|Bearer bitbucket-source-secret", server.RequestsWithAuthorization);
+        Assert.Contains("/pipeline-content/step-1.log|", server.RequestsWithAuthorization);
+        Assert.DoesNotContain("/pipeline-content/step-1.log|Bearer", server.RequestsWithAuthorization);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stdout);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate repositories in a Bitbucket workspace.
     /// </summary>
     [TestMethod]
@@ -358,6 +405,73 @@ public sealed class CliBitbucketScanTests
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket source options cannot combine pull request scans with download artifact enumeration.", result.Stderr);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects Bitbucket pipeline IDs without log enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsBitbucketPipelineWithoutLogs()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-repository",
+            "willibrandon/picket",
+            "--bitbucket-pipeline-id",
+            "pipeline-123",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--bitbucket-pipeline-id requires --bitbucket-include-pipeline-logs", result.Stderr);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects Bitbucket pipeline log scans without a pipeline ID.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsBitbucketPipelineLogsWithoutPipeline()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-repository",
+            "willibrandon/picket",
+            "--bitbucket-include-pipeline-logs",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--bitbucket-include-pipeline-logs requires --bitbucket-pipeline-id", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
     }
 

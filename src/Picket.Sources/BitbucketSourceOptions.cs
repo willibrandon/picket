@@ -20,6 +20,8 @@ namespace Picket.Sources;
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
+/// <param name="pipelineId">An optional pipeline ID whose step logs should be scanned.</param>
+/// <param name="includePipelineLogs">A value indicating whether selected pipeline step logs should be scanned.</param>
 public sealed class BitbucketSourceOptions(
     Uri endpoint,
     string repository,
@@ -37,7 +39,9 @@ public sealed class BitbucketSourceOptions(
     bool allowInsecureCredentialTransport = false,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    string pipelineId = "",
+    bool includePipelineLogs = false)
 {
     internal const long DefaultMaxFileBytes = 100_000_000;
     private readonly string _credential = RequireCredential(credential);
@@ -84,6 +88,16 @@ public sealed class BitbucketSourceOptions(
     /// Gets a value indicating whether repository download artifacts should be scanned.
     /// </summary>
     public bool IncludeDownloads { get; } = RequireIncludeDownloads(includeDownloads, pullRequestId);
+
+    /// <summary>
+    /// Gets the optional pipeline ID whose step logs should be scanned.
+    /// </summary>
+    public string PipelineId { get; } = RequirePipelineId(pipelineId, pullRequestId, includePipelineLogs);
+
+    /// <summary>
+    /// Gets a value indicating whether selected pipeline step logs should be scanned.
+    /// </summary>
+    public bool IncludePipelineLogs { get; } = RequireIncludePipelineLogs(includePipelineLogs, pipelineId);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -148,7 +162,9 @@ public sealed class BitbucketSourceOptions(
             allowInsecureCredentialTransport: AllowInsecureCredentialTransport,
             isPathAllowed: IsPathAllowed,
             warningSink: WarningSink,
-            isCancellationRequested: IsCancellationRequested);
+            isCancellationRequested: IsCancellationRequested,
+            pipelineId: PipelineId,
+            includePipelineLogs: IncludePipelineLogs);
     }
 
     internal static Uri NormalizeEndpoint(Uri endpoint)
@@ -302,6 +318,47 @@ public sealed class BitbucketSourceOptions(
         if (value && pullRequestId != 0)
         {
             throw new ArgumentException("Bitbucket source options cannot combine pull request scans with download artifact enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static string RequirePipelineId(string value, int pullRequestId, bool includePipelineLogs)
+    {
+        string normalized = NormalizeOptionalText(value).Trim('/');
+        if (normalized.Length == 0)
+        {
+            if (includePipelineLogs)
+            {
+                throw new ArgumentException("Bitbucket pipeline log source scans require --bitbucket-pipeline-id.", nameof(value));
+            }
+
+            return string.Empty;
+        }
+
+        if (pullRequestId != 0)
+        {
+            throw new ArgumentException("Bitbucket source options cannot combine pull request scans with pipeline log enumeration.", nameof(value));
+        }
+
+        string decoded = Uri.UnescapeDataString(normalized);
+        if (decoded.Length == 0
+            || decoded.Contains('/')
+            || decoded.Contains('\\')
+            || decoded.Equals(".", StringComparison.Ordinal)
+            || decoded.Equals("..", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Bitbucket pipeline ID must be a single pipeline ID or UUID.", nameof(value));
+        }
+
+        return decoded;
+    }
+
+    private static bool RequireIncludePipelineLogs(bool value, string pipelineId)
+    {
+        if (!value && NormalizeOptionalText(pipelineId).Trim('/').Length != 0)
+        {
+            throw new ArgumentException("Bitbucket pipeline source scans require pipeline log enumeration.", nameof(value));
         }
 
         return value;

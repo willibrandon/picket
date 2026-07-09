@@ -550,6 +550,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan Bitbucket repository download artifacts.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--bitbucket-pipeline-id</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Bitbucket pipeline log enumeration to this pipeline ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-include-pipeline-logs</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan Bitbucket pipeline step logs for the selected pipeline.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--bitbucket-include-snippets</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>

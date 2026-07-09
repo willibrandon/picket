@@ -15,6 +15,7 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
 {
     private const int DirectoryEntriesPerPage = 100;
     private const int DownloadArtifactsPerPage = 100;
+    private const int PipelineStepsPerPage = 100;
     private const int SnippetsPerPage = 100;
     private const int WorkspaceRepositoriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
@@ -70,6 +71,11 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
             if (options.IncludeDownloads)
             {
                 await AddDownloadArtifactsAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludePipelineLogs)
+            {
+                await AddPipelineStepLogsAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (RemoteMetadataTooLargeException)
@@ -592,6 +598,78 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         return entryCount;
     }
 
+    private async Task AddPipelineStepLogsAsync(
+        BitbucketSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        while (!IsCancellationRequested(options))
+        {
+            Uri stepsUri = CreatePipelineStepsUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, stepsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Bitbucket pipeline {options.PipelineId} steps in repository {options.Repository}");
+                return;
+            }
+
+            using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Bitbucket source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+            JsonElement root = document.RootElement;
+            int entryCount = await AddPipelineStepLogEntriesAsync(options, root, sourceFiles, cancellationToken).ConfigureAwait(false);
+            if (!HasNextPage(root, page, entryCount, options.WarningSink, $"Bitbucket pipeline {options.PipelineId} step enumeration"))
+            {
+                return;
+            }
+
+            page++;
+        }
+    }
+
+    private async Task<int> AddPipelineStepLogEntriesAsync(
+        BitbucketSourceOptions options,
+        JsonElement root,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        if (!root.TryGetProperty("values", out JsonElement values) || values.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int entryCount = 0;
+        foreach (JsonElement item in values.EnumerateArray())
+        {
+            entryCount++;
+            if (IsCancellationRequested(options))
+            {
+                return entryCount;
+            }
+
+            string stepId = GetString(item, "uuid");
+            if (stepId.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Bitbucket pipeline {options.PipelineId} step log in repository {options.Repository} because Bitbucket did not return a step UUID");
+                continue;
+            }
+
+            string displayPath = CreatePipelineStepLogDisplayPath(options, stepId);
+            if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+            {
+                continue;
+            }
+
+            Uri logUri = CreatePipelineStepLogUri(options, stepId);
+            byte[]? content = await DownloadPipelineStepLogAsync(options, logUri, displayPath, cancellationToken).ConfigureAwait(false);
+            if (content is not null)
+            {
+                sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            }
+        }
+
+        return entryCount;
+    }
+
     private async Task<byte[]?> DownloadFileAsync(
         BitbucketSourceOptions options,
         Uri uri,
@@ -608,6 +686,15 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         CancellationToken cancellationToken)
     {
         return await DownloadRawContentAsync(options, uri, displayPath, "Bitbucket download artifact", cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<byte[]?> DownloadPipelineStepLogAsync(
+        BitbucketSourceOptions options,
+        Uri uri,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        return await DownloadRawContentAsync(options, uri, displayPath, "Bitbucket pipeline log", cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<byte[]?> DownloadSnippetFileAsync(
@@ -966,6 +1053,30 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
             query: []);
     }
 
+    private static Uri CreatePipelineStepsUri(BitbucketSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repositories", options.Workspace, options.RepositorySlug, "pipelines", options.PipelineId, "steps"],
+            itemPath: null,
+            trailingSlash: false,
+            query:
+            [
+                new KeyValuePair<string, string>("pagelen", PipelineStepsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreatePipelineStepLogUri(BitbucketSourceOptions options, string stepId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repositories", options.Workspace, options.RepositorySlug, "pipelines", options.PipelineId, "steps", stepId, "log"],
+            itemPath: null,
+            trailingSlash: false,
+            query: []);
+    }
+
     private static Uri CreateDirectoryUri(BitbucketSourceOptions options, string gitRef, string directoryPath, int page)
     {
         return CreateUri(
@@ -1245,6 +1356,18 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
             NormalizeRemoteItemPath(options.Repository),
             "/downloads/",
             NormalizeRemoteItemPath(name));
+    }
+
+    private static string CreatePipelineStepLogDisplayPath(BitbucketSourceOptions options, string stepId)
+    {
+        return string.Concat(
+            "bitbucket/",
+            NormalizeRemoteItemPath(options.Repository),
+            "/pipelines/",
+            NormalizeRemoteItemPath(options.PipelineId),
+            "/steps/",
+            NormalizeRemoteItemPath(stepId),
+            ".log");
     }
 
     private static string CreateSnippetDisplayPath(BitbucketWorkspaceSourceOptions options, string snippetId, string filePath)
