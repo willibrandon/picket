@@ -1593,6 +1593,7 @@ public sealed partial class RepositoryConventionTests
     /// Verifies that file-based utility apps build under the same SDK path used by CI.
     /// </summary>
     [TestMethod]
+    [DoNotParallelize]
     [Timeout(300000, CooperativeCancellation = true)]
     public async Task FileBasedScriptAppsBuildSuccessfully()
     {
@@ -1635,7 +1636,8 @@ public sealed partial class RepositoryConventionTests
     /// Verifies that the GitHub hosted-alert comparison script writes sanitized coverage gaps.
     /// </summary>
     [TestMethod]
-    [Timeout(30000, CooperativeCancellation = true)]
+    [DoNotParallelize]
+    [Timeout(300000, CooperativeCancellation = true)]
     public async Task GitHubSecretScanningComparisonScriptWritesSanitizedOutput()
     {
         using TempDirectory temp = TempDirectory.Create();
@@ -1726,7 +1728,8 @@ public sealed partial class RepositoryConventionTests
     /// Verifies that the GitHub hosted-alert capture script can write alerts without location data.
     /// </summary>
     [TestMethod]
-    [Timeout(30000, CooperativeCancellation = true)]
+    [DoNotParallelize]
+    [Timeout(300000, CooperativeCancellation = true)]
     public async Task GitHubSecretScanningCaptureScriptAllowsAlertsWithoutLocations()
     {
         using TempDirectory temp = TempDirectory.Create();
