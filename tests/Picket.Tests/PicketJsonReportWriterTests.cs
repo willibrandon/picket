@@ -172,6 +172,39 @@ public sealed class PicketJsonReportWriterTests
         Assert.DoesNotContain("NaN", json);
     }
 
+    /// <summary>
+    /// Verifies native JSON replaces lone surrogate code units with valid Unicode.
+    /// </summary>
+    [TestMethod]
+    public void WriteReplacesLoneSurrogatesWithReplacementCharacter()
+    {
+        var finding = new Finding(
+            "rule",
+            "desc\uD800",
+            1,
+            1,
+            1,
+            6,
+            "secret",
+            "secret",
+            "secret.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "secret.txt:rule:1");
+
+        string json = PicketJsonReportWriter.Write([finding], []);
+        using JsonDocument document = JsonDocument.Parse(json);
+
+        Assert.AreEqual("desc\uFFFD", document.RootElement.GetProperty("findings")[0].GetProperty("description").GetString());
+        Assert.DoesNotContain("\uD800", json);
+    }
+
     private static string CreateGitHubPat()
     {
         return CreateGitHubClassicToken("ghp_");

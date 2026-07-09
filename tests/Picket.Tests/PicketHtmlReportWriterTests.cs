@@ -104,6 +104,29 @@ public sealed class PicketHtmlReportWriterTests
         Assert.DoesNotContain("target.txt:1:2", html);
     }
 
+    /// <summary>
+    /// Verifies native HTML replaces lone surrogate code units with valid Unicode.
+    /// </summary>
+    [TestMethod]
+    public void WriteReplacesLoneSurrogatesWithReplacementCharacter()
+    {
+        Finding finding = CreateFinding(
+            ruleId: "rule",
+            description: "desc\uD800",
+            file: "target.txt",
+            symlinkFile: string.Empty,
+            match: "match\uD800",
+            secret: "secret",
+            fingerprint: string.Empty,
+            tags: []);
+
+        string html = PicketHtmlReportWriter.Write([finding], []);
+
+        Assert.Contains("desc\uFFFD", html);
+        Assert.Contains("match\uFFFD", html);
+        Assert.DoesNotContain("\uD800", html);
+    }
+
     private static Finding CreateFinding(
         string ruleId,
         string description,

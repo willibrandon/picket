@@ -117,6 +117,21 @@ public sealed class PicketJsonlReportWriterTests
         Assert.DoesNotContain("Infinity", jsonl);
     }
 
+    /// <summary>
+    /// Verifies native JSONL replaces lone surrogate code units with valid Unicode.
+    /// </summary>
+    [TestMethod]
+    public void WriteReplacesLoneSurrogatesWithReplacementCharacter()
+    {
+        Finding finding = CreateFinding("rule", "secret\uD800.txt");
+
+        string jsonl = PicketJsonlReportWriter.Write([finding]);
+        using JsonDocument document = JsonDocument.Parse(jsonl);
+
+        Assert.AreEqual("secret\uFFFD.txt", document.RootElement.GetProperty("file").GetString());
+        Assert.DoesNotContain("\uD800", jsonl);
+    }
+
     private static Finding CreateFinding(
         string ruleId,
         string file,

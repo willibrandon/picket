@@ -332,9 +332,9 @@ public static class PicketHtmlReportWriter
     private static void AppendJsonString(StringBuilder builder, string value)
     {
         builder.Append('"');
-        foreach (char ch in value)
+        foreach (Rune rune in value.EnumerateRunes())
         {
-            switch (ch)
+            switch (rune.Value)
             {
                 case '"':
                     builder.Append("\\\"");
@@ -366,15 +366,21 @@ public static class PicketHtmlReportWriter
                 case '&':
                     builder.Append("\\u0026");
                     break;
+                case 0x2028:
+                    builder.Append("\\u2028");
+                    break;
+                case 0x2029:
+                    builder.Append("\\u2029");
+                    break;
                 default:
-                    if (ch < ' ')
+                    if (rune.Value < 0x20)
                     {
                         builder.Append("\\u");
-                        builder.Append(((int)ch).ToString("x4", CultureInfo.InvariantCulture));
+                        builder.Append(rune.Value.ToString("x4", CultureInfo.InvariantCulture));
                     }
                     else
                     {
-                        builder.Append(ch);
+                        builder.Append(rune.ToString());
                     }
 
                     break;
@@ -396,9 +402,9 @@ public static class PicketHtmlReportWriter
 
     private static void AppendHtml(StringBuilder builder, string value)
     {
-        foreach (char ch in value)
+        foreach (Rune rune in value.EnumerateRunes())
         {
-            switch (ch)
+            switch (rune.Value)
             {
                 case '&':
                     builder.Append("&amp;");
@@ -416,7 +422,7 @@ public static class PicketHtmlReportWriter
                     builder.Append("&#39;");
                     break;
                 default:
-                    builder.Append(ch);
+                    builder.Append(rune.ToString());
                     break;
             }
         }

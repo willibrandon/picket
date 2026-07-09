@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Report;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -86,5 +87,38 @@ public sealed class PicketGitLabCodeQualityReportWriterTests
         Assert.Contains("\"description\":\"rule detected a secret in link.txt on line 3.\"", json);
         Assert.Contains($"\"fingerprint\":\"{StableFindingFingerprint.Create(finding)}\"", json);
         Assert.Contains("\"location\":{\"path\":\"link.txt\",\"lines\":{\"begin\":3}}", json);
+    }
+
+    /// <summary>
+    /// Verifies GitLab Code Quality JSON replaces lone surrogate code units with valid Unicode.
+    /// </summary>
+    [TestMethod]
+    public void WriteReplacesLoneSurrogatesWithReplacementCharacter()
+    {
+        var finding = new Finding(
+            "rule",
+            "desc",
+            1,
+            1,
+            2,
+            8,
+            "x=\"y\"",
+            "secret",
+            "src/app\uD800.cs",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "src/app.cs:rule:1");
+
+        string json = PicketGitLabCodeQualityReportWriter.Write([finding]);
+        using JsonDocument document = JsonDocument.Parse(json);
+
+        Assert.AreEqual("src/app\uFFFD.cs", document.RootElement[0].GetProperty("location").GetProperty("path").GetString());
+        Assert.DoesNotContain("\uD800", json);
     }
 }
