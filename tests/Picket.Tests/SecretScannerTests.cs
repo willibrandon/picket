@@ -355,6 +355,28 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that TOML-loaded rules compile through Scout and scan nested quantifiers without backtracking stalls.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanHandlesTomlLoadedNestedQuantifierRuleWithoutBacktracking()
+    {
+        RuleSet sourceRules = GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "nested-quantifier"
+            regex = '''(?:a+)+b'''
+            """,
+            "memory");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+        byte[] input = Encoding.UTF8.GetBytes(new string('a', 10_000));
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "pathological.txt", rules, maxDecodeDepth: 0));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that native AWS pair detection reports a nearby labeled secret access key.
     /// </summary>
     [TestMethod]
