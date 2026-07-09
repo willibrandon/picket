@@ -269,6 +269,48 @@ public sealed class CliGiteaScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate Gitea generic package files owned by an account.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGiteaGenericPackageOwnerFiles()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GiteaFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitea-generic-package-owner",
+            "willibrandon",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitea-package/willibrandon/picket-cli/1.0.0/secrets.txt\"", result.Stdout);
+        Assert.AreEqual("token gitea-source-secret", server.LastAuthorization);
+        Assert.Contains("/api/v1/packages/willibrandon?type=generic&page=1&limit=100", server.RequestTargets);
+        Assert.Contains("/api/v1/packages/willibrandon/generic/picket-cli/1.0.0/files", server.RequestTargets);
+        Assert.Contains("/api/packages/willibrandon/generic/picket-cli/1.0.0/secrets.txt", server.RequestTargets);
+        Assert.DoesNotContain("gitea-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate Gitea pull request source files.
     /// </summary>
     [TestMethod]
@@ -378,7 +420,7 @@ public sealed class CliGiteaScanTests
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.Contains("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, --gitea-user, or a complete --gitea-generic-package-* selector", result.Stderr);
+        Assert.Contains("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, --gitea-user, or --gitea-generic-package-owner", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
     }
 
@@ -409,7 +451,7 @@ public sealed class CliGiteaScanTests
             configPath).ConfigureAwait(false);
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
-        Assert.Contains("Gitea generic package scan requires --gitea-generic-package-owner, --gitea-generic-package-name, --gitea-generic-package-version, and --gitea-generic-package-file", result.Stderr);
+        Assert.Contains("Gitea generic package scans use either only --gitea-generic-package-owner or all four --gitea-generic-package-* coordinates", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
     }
 

@@ -161,6 +161,56 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Gitea generic package owner enumeration lists package versions, lists files, and downloads selected files.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateGenericPackageFilesReadsListedPackageFiles()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            authorizationHeaders.Add(request.Headers.Authorization?.ToString() ?? string.Empty);
+            if (url.Equals("https://gitea.example/api/v1/packages/willibrandon?type=generic&page=1&limit=100", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{"type":"generic","name":"picket-cli","version":"1.0.0"},{"type":"nuget","name":"Picket","version":"1.0.0"}]""");
+            }
+
+            if (url.Equals("https://gitea.example/api/v1/packages/willibrandon/generic/picket-cli/1.0.0/files", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{"name":"secrets.txt","size":19},{"name":"too-large.txt","size":100000001}]""");
+            }
+
+            if (url.Equals("https://gitea.example/api/packages/willibrandon/generic/picket-cli/1.0.0/secrets.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("package-token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaGenericPackageOwnerSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon",
+            Token);
+
+        List<SourceFile> files = await client.EnumerateGenericPackageFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitea-package/willibrandon/picket-cli/1.0.0/secrets.txt", files[0].DisplayPath);
+        Assert.AreEqual("package-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/api/v1/packages/willibrandon?type=generic&page=1&limit=100", requests);
+        Assert.Contains("/api/v1/packages/willibrandon/generic/picket-cli/1.0.0/files", requests);
+        Assert.Contains("/api/packages/willibrandon/generic/picket-cli/1.0.0/secrets.txt", requests);
+        Assert.Contains("token gitea-test-token", authorizationHeaders);
+        Assert.DoesNotContain("/api/packages/willibrandon/generic/picket-cli/1.0.0/too-large.txt", requests);
+    }
+
+    /// <summary>
     /// Verifies that pull request enumeration resolves the source repository and commit before reading source files.
     /// </summary>
     [TestMethod]

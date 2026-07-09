@@ -228,7 +228,7 @@ Native GitLab group project, project repository, merge request source, project s
 
 ## Gitea Source References
 
-Native Gitea repository and exact generic package file source enumeration is
+Native Gitea repository and generic package file source enumeration is
 based on Gitea API documentation reviewed on 2026-07-09:
 
 - Gitea API documentation: `https://docs.gitea.com/api/`
@@ -245,10 +245,12 @@ repository issue-comment lists, filtering comments back to selected issue number
 through `issue_url`. Release scans use repository release lists and release asset
 metadata; returned browser download URLs are fetched without forwarding the
 token, but must stay on the configured Gitea host or one of its subdomains.
-Generic package scans use the documented
+Generic package scans use `/packages/{owner}` with `type=generic`, `page`, and
+`limit=100`, list files through
+`/packages/{owner}/generic/{package_name}/{package_version}/files`, then use the
+documented
 `/api/packages/{owner}/generic/{package_name}/{package_version}/{file_name}`
-download route for one exact file. Picket does not enumerate all Gitea packages
-until a stable documented package-listing route is part of the source contract.
+download route for selected files.
 Tokens are read from environment variables, sent as an `Authorization: token ...`
 header, and are not logged.
 

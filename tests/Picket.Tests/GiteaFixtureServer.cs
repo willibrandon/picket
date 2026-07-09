@@ -166,6 +166,20 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.StartsWith("/api/v1/packages/willibrandon?", StringComparison.Ordinal))
+        {
+            const string PackagesJson = """[{"type":"generic","name":"picket-cli","version":"1.0.0"},{"type":"nuget","name":"Picket","version":"1.0.0"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PackagesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/api/v1/packages/willibrandon/generic/picket-cli/1.0.0/files", StringComparison.Ordinal))
+        {
+            const string PackageFilesJson = """[{"name":"secrets.txt","size":11}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PackageFilesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/api/v1/repos/willibrandon/picket/raw/src/appsettings.txt?ref=main", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);

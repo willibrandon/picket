@@ -15,6 +15,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 {
     private const int IssuesPerPage = 100;
     private const int MaxPaginationPages = 1000;
+    private const int PackagesPerPage = 100;
     private const int RepositoriesPerPage = 100;
     private const int ReleasesPerPage = 100;
     private const int TreeEntriesPerPage = 1000;
@@ -208,6 +209,52 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         if (content is not null)
         {
             AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
+        }
+
+        return sourceFiles;
+    }
+
+    /// <summary>
+    /// Enumerates generic package files owned by the supplied Gitea account.
+    /// </summary>
+    /// <param name="options">The Gitea generic package owner source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateGenericPackageFilesAsync(
+        GiteaGenericPackageOwnerSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        try
+        {
+            int page = 1;
+            bool hasNextPage;
+            do
+            {
+                Uri uri = CreateGenericPackageListUri(options, page);
+                using HttpResponseMessage response = await SendAsync(options.Credential, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    WarnUnsuccessfulResponse(options.WarningSink, response, $"skipping Gitea generic packages for owner {options.Owner}");
+                    return sourceFiles;
+                }
+
+                int packageCount = await AddGenericPackageFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+                hasNextPage = HasNextListPage(response, page, packageCount, PackagesPerPage, options.WarningSink, $"Gitea generic package enumeration for {options.Owner}");
+                page++;
+            }
+            while (hasNextPage && !IsCancellationRequested(options));
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
+            return sourceFiles;
         }
 
         return sourceFiles;
@@ -546,6 +593,127 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         if (issueNumbersWithComments.Count != 0 && !IsCancellationRequested(options))
         {
             await AddIssueCommentFilesAsync(options, issueNumbersWithComments, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<int> AddGenericPackageFilesAsync(
+        GiteaGenericPackageOwnerSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int packageCount = 0;
+        foreach (JsonElement package in document.RootElement.EnumerateArray())
+        {
+            packageCount++;
+            if (IsCancellationRequested(options))
+            {
+                return packageCount;
+            }
+
+            string packageType = GetString(package, "type");
+            if (!packageType.Equals("generic", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string packageName = GetString(package, "name");
+            string packageVersion = GetString(package, "version");
+            if (packageName.Length == 0 || packageVersion.Length == 0)
+            {
+                continue;
+            }
+
+            await AddGenericPackageVersionFilesAsync(options, packageName, packageVersion, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        return packageCount;
+    }
+
+    private async Task AddGenericPackageVersionFilesAsync(
+        GiteaGenericPackageOwnerSourceOptions options,
+        string packageName,
+        string packageVersion,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        Uri uri = CreateGenericPackageVersionFileListUri(options, packageName, packageVersion);
+        using HttpResponseMessage response = await SendAsync(options.Credential, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options.WarningSink, response, $"skipping Gitea generic package files for {options.Owner}/{packageName}@{packageVersion}");
+            return;
+        }
+
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement file in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string fileName = GetString(file, "name");
+            if (fileName.Length == 0)
+            {
+                continue;
+            }
+
+            if (!TryCreateGenericPackageFileOptions(options, packageName, packageVersion, fileName, out GiteaGenericPackageSourceOptions? fileOptions)
+                || fileOptions is null)
+            {
+                continue;
+            }
+
+            string displayPath = CreateGenericPackageFileDisplayPath(fileOptions);
+            if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+            {
+                continue;
+            }
+
+            if (TryGetJsonInt64(file, "size", out long size)
+                && size > options.MaxFileBytes)
+            {
+                options.WarningSink?.Invoke($"Gitea file byte limit skipped {displayPath}");
+                continue;
+            }
+
+            byte[]? content = await DownloadGenericPackageFileAsync(fileOptions, CreateGenericPackageFileUri(fileOptions), displayPath, cancellationToken).ConfigureAwait(false);
+            if (content is not null)
+            {
+                AddContentOrArchiveEntries(fileOptions, displayPath, content, sourceFiles);
+            }
+        }
+    }
+
+    private static bool TryCreateGenericPackageFileOptions(
+        GiteaGenericPackageOwnerSourceOptions options,
+        string packageName,
+        string packageVersion,
+        string fileName,
+        out GiteaGenericPackageSourceOptions? fileOptions)
+    {
+        try
+        {
+            fileOptions = options.CreateFileOptions(packageName, packageVersion, fileName);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
+        {
+            options.WarningSink?.Invoke($"skipping Gitea generic package file {options.Owner}/{packageName}@{packageVersion}/{fileName} because it was invalid: {ex.Message}");
+            fileOptions = null;
+            return false;
         }
     }
 
@@ -1133,6 +1301,29 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return builder.Uri;
     }
 
+    private static Uri CreateGenericPackageListUri(GiteaGenericPackageOwnerSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["packages", options.Owner],
+            [
+                new KeyValuePair<string, string>("type", "generic"),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("limit", PackagesPerPage.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateGenericPackageVersionFileListUri(
+        GiteaGenericPackageOwnerSourceOptions options,
+        string packageName,
+        string packageVersion)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["packages", options.Owner, "generic", packageName, packageVersion, "files"],
+            []);
+    }
+
     private static string CreateGenericPackageFilePath(GiteaGenericPackageSourceOptions options)
     {
         string basePath = options.Endpoint.AbsolutePath.TrimEnd('/');
@@ -1687,6 +1878,11 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
     }
 
     private static bool IsCancellationRequested(GiteaGenericPackageSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(GiteaGenericPackageOwnerSourceOptions options)
     {
         return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }

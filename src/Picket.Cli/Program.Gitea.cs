@@ -149,10 +149,15 @@ internal static partial class Program
         bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);
         bool organizationSpecified = !string.IsNullOrWhiteSpace(organization);
         bool userSpecified = !string.IsNullOrWhiteSpace(userName);
-        bool genericPackageSpecified = !string.IsNullOrWhiteSpace(genericPackageOwner)
-            || !string.IsNullOrWhiteSpace(genericPackageName)
+        bool genericPackageOwnerSpecified = !string.IsNullOrWhiteSpace(genericPackageOwner);
+        bool genericPackageCoordinateSpecified = !string.IsNullOrWhiteSpace(genericPackageName)
             || !string.IsNullOrWhiteSpace(genericPackageVersion)
             || !string.IsNullOrWhiteSpace(genericPackageFile);
+        bool exactGenericPackageSpecified = genericPackageOwnerSpecified
+            && !string.IsNullOrWhiteSpace(genericPackageName)
+            && !string.IsNullOrWhiteSpace(genericPackageVersion)
+            && !string.IsNullOrWhiteSpace(genericPackageFile);
+        bool genericPackageSpecified = genericPackageOwnerSpecified || genericPackageCoordinateSpecified;
         int sourceSelectorCount = 0;
         if (repositorySpecified)
         {
@@ -176,16 +181,16 @@ internal static partial class Program
 
         if (sourceSelectorCount != 1)
         {
-            Console.Error.WriteLine("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, --gitea-user, or a complete --gitea-generic-package-* selector");
+            Console.Error.WriteLine("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, --gitea-user, or --gitea-generic-package-owner");
             return false;
         }
 
-        if (genericPackageSpecified && (string.IsNullOrWhiteSpace(genericPackageOwner)
+        if (genericPackageCoordinateSpecified && (!genericPackageOwnerSpecified
             || string.IsNullOrWhiteSpace(genericPackageName)
             || string.IsNullOrWhiteSpace(genericPackageVersion)
             || string.IsNullOrWhiteSpace(genericPackageFile)))
         {
-            Console.Error.WriteLine("Gitea generic package scan requires --gitea-generic-package-owner, --gitea-generic-package-name, --gitea-generic-package-version, and --gitea-generic-package-file");
+            Console.Error.WriteLine("Gitea generic package scans use either only --gitea-generic-package-owner or all four --gitea-generic-package-* coordinates");
             return false;
         }
 
@@ -279,19 +284,32 @@ internal static partial class Program
             }
             else if (genericPackageSpecified)
             {
-                var validatedOptions = new GiteaGenericPackageSourceOptions(
-                    sourceEndpoint,
-                    genericPackageOwner,
-                    genericPackageName,
-                    genericPackageVersion,
-                    genericPackageFile,
-                    credential,
-                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
-                sourceEndpoint = validatedOptions.Endpoint;
-                genericPackageOwner = validatedOptions.Owner;
-                genericPackageName = validatedOptions.PackageName;
-                genericPackageVersion = validatedOptions.PackageVersion;
-                genericPackageFile = validatedOptions.FileName;
+                if (exactGenericPackageSpecified)
+                {
+                    var validatedOptions = new GiteaGenericPackageSourceOptions(
+                        sourceEndpoint,
+                        genericPackageOwner,
+                        genericPackageName,
+                        genericPackageVersion,
+                        genericPackageFile,
+                        credential,
+                        allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                    sourceEndpoint = validatedOptions.Endpoint;
+                    genericPackageOwner = validatedOptions.Owner;
+                    genericPackageName = validatedOptions.PackageName;
+                    genericPackageVersion = validatedOptions.PackageVersion;
+                    genericPackageFile = validatedOptions.FileName;
+                }
+                else
+                {
+                    var validatedOptions = new GiteaGenericPackageOwnerSourceOptions(
+                        sourceEndpoint,
+                        genericPackageOwner,
+                        credential,
+                        allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                    sourceEndpoint = validatedOptions.Endpoint;
+                    genericPackageOwner = validatedOptions.Owner;
+                }
             }
             else
             {
@@ -339,12 +357,29 @@ internal static partial class Program
             var client = new GiteaSourceClient(httpClient);
             if (genericPackageSpecified)
             {
-                return client.EnumerateGenericPackageFileAsync(new GiteaGenericPackageSourceOptions(
+                if (exactGenericPackageSpecified)
+                {
+                    return client.EnumerateGenericPackageFileAsync(new GiteaGenericPackageSourceOptions(
+                        sourceEndpoint,
+                        genericPackageOwner,
+                        genericPackageName,
+                        genericPackageVersion,
+                        genericPackageFile,
+                        credential,
+                        maxTargetBytes,
+                        maxArchiveDepth,
+                        maxArchiveEntries,
+                        maxArchiveBytes,
+                        maxArchiveCompressionRatio,
+                        allowInsecureSourceEndpoints,
+                        rules.IsGlobalPathAllowed,
+                        Console.Error.WriteLine,
+                        () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                }
+
+                return client.EnumerateGenericPackageFilesAsync(new GiteaGenericPackageOwnerSourceOptions(
                     sourceEndpoint,
                     genericPackageOwner,
-                    genericPackageName,
-                    genericPackageVersion,
-                    genericPackageFile,
                     credential,
                     maxTargetBytes,
                     maxArchiveDepth,
