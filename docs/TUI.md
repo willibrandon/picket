@@ -68,6 +68,10 @@ For Azure DevOps targets, the workspace includes endpoint, organization, project
 
 For GitLab targets, the workspace includes project and group selectors, ref, merge request, pipeline ID, token environment variable, API endpoint override, subgroup/snippet/job artifact/job log/package toggles, and explicit source endpoint policy toggles.
 
+For Gitea targets, the workspace includes repository, organization, user, ref, pull request, issue state, release, Actions artifact, Actions run, generic package, token environment variable, API endpoint, and explicit source endpoint policy controls.
+
+For Bitbucket targets, the workspace includes repository and workspace selectors, project key, ref, pull request, pipeline ID, token environment variable, username environment variable, token kind, API endpoint, download artifact, pipeline log, snippet, and explicit source endpoint policy controls.
+
 During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr so the Scan page does not compete with finding triage. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console. It prepares the report output directory before launch, writes normal Picket reports, reloads the generated report summary when the scan completes, and shows the loaded finding count and report path on the Scan page. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
 
 ## Inline Flow Mode

@@ -14,13 +14,15 @@ internal sealed class PicketTuiScanWorkspace
     private const int MaxCapturedOutputLines = 8;
     private static readonly char[] s_argumentQuoteCharacters = [' ', '\t', '"'];
     private static readonly string[] s_azureDevOpsTokenKinds = ["pat", "bearer"];
+    private static readonly string[] s_bitbucketTokenKinds = ["bearer", "app-password"];
+    private static readonly string[] s_giteaIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubRepositoryTypes = ["all", "public", "private", "forks", "sources", "owner", "member"];
     private static readonly string[] s_reportFormats = ["jsonl", "json", "sarif", "html", "csv", "junit", "gitlab", "toon"];
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
-    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab"];
+    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
     private readonly Lock _outputLock = new();
@@ -38,6 +40,16 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selectable Azure DevOps token kinds.
     /// </summary>
     internal static IReadOnlyList<string> AzureDevOpsTokenKinds => s_azureDevOpsTokenKinds;
+
+    /// <summary>
+    /// Gets the selectable Bitbucket token kinds.
+    /// </summary>
+    internal static IReadOnlyList<string> BitbucketTokenKinds => s_bitbucketTokenKinds;
+
+    /// <summary>
+    /// Gets the selectable Gitea issue states.
+    /// </summary>
+    internal static IReadOnlyList<string> GiteaIssueStates => s_giteaIssueStates;
 
     /// <summary>
     /// Gets the selectable GitHub issue states.
@@ -310,6 +322,151 @@ internal sealed class PicketTuiScanWorkspace
     internal bool IncludeGitLabPackages { get; private set; }
 
     /// <summary>
+    /// Gets the Gitea repository selector.
+    /// </summary>
+    internal string GiteaRepository { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea organization selector.
+    /// </summary>
+    internal string GiteaOrganization { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea user selector.
+    /// </summary>
+    internal string GiteaUser { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea ref selector.
+    /// </summary>
+    internal string GiteaRef { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea pull request selector.
+    /// </summary>
+    internal string GiteaPullRequest { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea issue state filter.
+    /// </summary>
+    internal string GiteaIssueState { get; private set; } = "all";
+
+    /// <summary>
+    /// Gets the Gitea Actions run selector.
+    /// </summary>
+    internal string GiteaActionsRunId { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea generic package owner selector.
+    /// </summary>
+    internal string GiteaGenericPackageOwner { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea generic package name selector.
+    /// </summary>
+    internal string GiteaGenericPackageName { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea generic package version selector.
+    /// </summary>
+    internal string GiteaGenericPackageVersion { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea generic package file selector.
+    /// </summary>
+    internal string GiteaGenericPackageFile { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea token environment variable name.
+    /// </summary>
+    internal string GiteaTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Gitea API endpoint.
+    /// </summary>
+    internal string GiteaApiEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether Gitea issues are included.
+    /// </summary>
+    internal bool IncludeGiteaIssues { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether Gitea releases are included.
+    /// </summary>
+    internal bool IncludeGiteaReleases { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether Gitea Actions artifacts are included.
+    /// </summary>
+    internal bool IncludeGiteaActionsArtifacts { get; private set; }
+
+    /// <summary>
+    /// Gets the Bitbucket repository selector.
+    /// </summary>
+    internal string BitbucketRepository { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket workspace selector.
+    /// </summary>
+    internal string BitbucketWorkspace { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket project selector.
+    /// </summary>
+    internal string BitbucketProject { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket ref selector.
+    /// </summary>
+    internal string BitbucketRef { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket pull request selector.
+    /// </summary>
+    internal string BitbucketPullRequest { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket pipeline selector.
+    /// </summary>
+    internal string BitbucketPipelineId { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket token environment variable name.
+    /// </summary>
+    internal string BitbucketTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket username environment variable name used for app-password authentication.
+    /// </summary>
+    internal string BitbucketUsernameEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket token authentication kind.
+    /// </summary>
+    internal string BitbucketTokenKind { get; private set; } = "bearer";
+
+    /// <summary>
+    /// Gets the Bitbucket API endpoint.
+    /// </summary>
+    internal string BitbucketApiEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether Bitbucket download artifacts are included.
+    /// </summary>
+    internal bool IncludeBitbucketDownloads { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether Bitbucket pipeline logs are included.
+    /// </summary>
+    internal bool IncludeBitbucketPipelineLogs { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether Bitbucket workspace snippets are included.
+    /// </summary>
+    internal bool IncludeBitbucketSnippets { get; private set; }
+
+    /// <summary>
     /// Gets the native profile name.
     /// </summary>
     internal string Profile { get; private set; } = "picket";
@@ -505,6 +662,8 @@ internal sealed class PicketTuiScanWorkspace
         PicketTuiScanTargetMode.GitHub => 1,
         PicketTuiScanTargetMode.AzureDevOps => 2,
         PicketTuiScanTargetMode.GitLab => 3,
+        PicketTuiScanTargetMode.Gitea => 4,
+        PicketTuiScanTargetMode.Bitbucket => 5,
         _ => 0,
     };
 
@@ -522,6 +681,16 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selected Azure DevOps token kind index.
     /// </summary>
     internal int AzureDevOpsTokenKindIndex => IndexOf(s_azureDevOpsTokenKinds, AzureDevOpsTokenKind);
+
+    /// <summary>
+    /// Gets the selected Gitea issue state index.
+    /// </summary>
+    internal int GiteaIssueStateIndex => IndexOf(s_giteaIssueStates, GiteaIssueState);
+
+    /// <summary>
+    /// Gets the selected Bitbucket token kind index.
+    /// </summary>
+    internal int BitbucketTokenKindIndex => IndexOf(s_bitbucketTokenKinds, BitbucketTokenKind);
 
     /// <summary>
     /// Gets the selected report format index.
@@ -553,6 +722,8 @@ internal sealed class PicketTuiScanWorkspace
             1 => PicketTuiScanTargetMode.GitHub,
             2 => PicketTuiScanTargetMode.AzureDevOps,
             3 => PicketTuiScanTargetMode.GitLab,
+            4 => PicketTuiScanTargetMode.Gitea,
+            5 => PicketTuiScanTargetMode.Bitbucket,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -834,6 +1005,180 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetIncludeGitLabPackages(bool value) => IncludeGitLabPackages = value;
 
     /// <summary>
+    /// Sets the Gitea repository selector.
+    /// </summary>
+    /// <param name="value">The repository selector.</param>
+    internal void SetGiteaRepository(string value) => GiteaRepository = value;
+
+    /// <summary>
+    /// Sets the Gitea organization selector.
+    /// </summary>
+    /// <param name="value">The organization selector.</param>
+    internal void SetGiteaOrganization(string value) => GiteaOrganization = value;
+
+    /// <summary>
+    /// Sets the Gitea user selector.
+    /// </summary>
+    /// <param name="value">The user selector.</param>
+    internal void SetGiteaUser(string value) => GiteaUser = value;
+
+    /// <summary>
+    /// Sets the Gitea ref selector.
+    /// </summary>
+    /// <param name="value">The ref selector.</param>
+    internal void SetGiteaRef(string value) => GiteaRef = value;
+
+    /// <summary>
+    /// Sets the Gitea pull request selector.
+    /// </summary>
+    /// <param name="value">The pull request ID.</param>
+    internal void SetGiteaPullRequest(string value) => GiteaPullRequest = value;
+
+    /// <summary>
+    /// Sets the Gitea issue state filter by index.
+    /// </summary>
+    /// <param name="index">The selected issue state index.</param>
+    internal void SetGiteaIssueStateByIndex(int index) => GiteaIssueState = s_giteaIssueStates[Math.Clamp(index, 0, s_giteaIssueStates.Length - 1)];
+
+    /// <summary>
+    /// Sets the Gitea Actions run selector.
+    /// </summary>
+    /// <param name="value">The Actions run ID.</param>
+    internal void SetGiteaActionsRunId(string value) => GiteaActionsRunId = value;
+
+    /// <summary>
+    /// Sets the Gitea generic package owner selector.
+    /// </summary>
+    /// <param name="value">The package owner.</param>
+    internal void SetGiteaGenericPackageOwner(string value) => GiteaGenericPackageOwner = value;
+
+    /// <summary>
+    /// Sets the Gitea generic package name selector.
+    /// </summary>
+    /// <param name="value">The package name.</param>
+    internal void SetGiteaGenericPackageName(string value) => GiteaGenericPackageName = value;
+
+    /// <summary>
+    /// Sets the Gitea generic package version selector.
+    /// </summary>
+    /// <param name="value">The package version.</param>
+    internal void SetGiteaGenericPackageVersion(string value) => GiteaGenericPackageVersion = value;
+
+    /// <summary>
+    /// Sets the Gitea generic package file selector.
+    /// </summary>
+    /// <param name="value">The package file name.</param>
+    internal void SetGiteaGenericPackageFile(string value) => GiteaGenericPackageFile = value;
+
+    /// <summary>
+    /// Sets the Gitea token environment variable name.
+    /// </summary>
+    /// <param name="value">The token environment variable name.</param>
+    internal void SetGiteaTokenEnvironmentVariable(string value) => GiteaTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the Gitea API endpoint.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetGiteaApiEndpoint(string value) => GiteaApiEndpoint = value;
+
+    /// <summary>
+    /// Sets whether Gitea issues are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGiteaIssues(bool value) => IncludeGiteaIssues = value;
+
+    /// <summary>
+    /// Sets whether Gitea releases are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGiteaReleases(bool value) => IncludeGiteaReleases = value;
+
+    /// <summary>
+    /// Sets whether Gitea Actions artifacts are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGiteaActionsArtifacts(bool value) => IncludeGiteaActionsArtifacts = value;
+
+    /// <summary>
+    /// Sets the Bitbucket repository selector.
+    /// </summary>
+    /// <param name="value">The repository selector.</param>
+    internal void SetBitbucketRepository(string value) => BitbucketRepository = value;
+
+    /// <summary>
+    /// Sets the Bitbucket workspace selector.
+    /// </summary>
+    /// <param name="value">The workspace selector.</param>
+    internal void SetBitbucketWorkspace(string value) => BitbucketWorkspace = value;
+
+    /// <summary>
+    /// Sets the Bitbucket project selector.
+    /// </summary>
+    /// <param name="value">The project key.</param>
+    internal void SetBitbucketProject(string value) => BitbucketProject = value;
+
+    /// <summary>
+    /// Sets the Bitbucket ref selector.
+    /// </summary>
+    /// <param name="value">The ref selector.</param>
+    internal void SetBitbucketRef(string value) => BitbucketRef = value;
+
+    /// <summary>
+    /// Sets the Bitbucket pull request selector.
+    /// </summary>
+    /// <param name="value">The pull request ID.</param>
+    internal void SetBitbucketPullRequest(string value) => BitbucketPullRequest = value;
+
+    /// <summary>
+    /// Sets the Bitbucket pipeline selector.
+    /// </summary>
+    /// <param name="value">The pipeline ID or UUID.</param>
+    internal void SetBitbucketPipelineId(string value) => BitbucketPipelineId = value;
+
+    /// <summary>
+    /// Sets the Bitbucket token environment variable name.
+    /// </summary>
+    /// <param name="value">The token environment variable name.</param>
+    internal void SetBitbucketTokenEnvironmentVariable(string value) => BitbucketTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the Bitbucket username environment variable name used for app-password authentication.
+    /// </summary>
+    /// <param name="value">The username environment variable name.</param>
+    internal void SetBitbucketUsernameEnvironmentVariable(string value) => BitbucketUsernameEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the Bitbucket token kind by index.
+    /// </summary>
+    /// <param name="index">The selected token kind index.</param>
+    internal void SetBitbucketTokenKindByIndex(int index) => BitbucketTokenKind = s_bitbucketTokenKinds[Math.Clamp(index, 0, s_bitbucketTokenKinds.Length - 1)];
+
+    /// <summary>
+    /// Sets the Bitbucket API endpoint.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetBitbucketApiEndpoint(string value) => BitbucketApiEndpoint = value;
+
+    /// <summary>
+    /// Sets whether Bitbucket download artifacts are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeBitbucketDownloads(bool value) => IncludeBitbucketDownloads = value;
+
+    /// <summary>
+    /// Sets whether Bitbucket pipeline logs are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeBitbucketPipelineLogs(bool value) => IncludeBitbucketPipelineLogs = value;
+
+    /// <summary>
+    /// Sets whether Bitbucket workspace snippets are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeBitbucketSnippets(bool value) => IncludeBitbucketSnippets = value;
+
+    /// <summary>
     /// Sets the native profile.
     /// </summary>
     /// <param name="value">The profile name.</param>
@@ -977,7 +1322,11 @@ internal sealed class PicketTuiScanWorkspace
             AddOptionalValue(arguments, "--results", ResultFilter);
         }
 
-        if (TargetMode is PicketTuiScanTargetMode.GitHub or PicketTuiScanTargetMode.AzureDevOps or PicketTuiScanTargetMode.GitLab)
+        if (TargetMode is PicketTuiScanTargetMode.GitHub
+            or PicketTuiScanTargetMode.AzureDevOps
+            or PicketTuiScanTargetMode.GitLab
+            or PicketTuiScanTargetMode.Gitea
+            or PicketTuiScanTargetMode.Bitbucket)
         {
             AddFlag(arguments, "--allow-non-public-source-endpoints", AllowNonPublicSourceEndpoints);
             AddFlag(arguments, "--allow-insecure-source-endpoints", AllowInsecureSourceEndpoints);
@@ -1422,6 +1771,39 @@ internal sealed class PicketTuiScanWorkspace
                 AddOptionalValue(arguments, "--gitlab-token-env", GitLabTokenEnvironmentVariable);
                 AddOptionalValue(arguments, "--gitlab-api-endpoint", GitLabApiEndpoint);
                 break;
+            case PicketTuiScanTargetMode.Gitea:
+                AddOptionalValue(arguments, "--gitea-repository", GiteaRepository);
+                AddOptionalValue(arguments, "--gitea-organization", GiteaOrganization);
+                AddOptionalValue(arguments, "--gitea-user", GiteaUser);
+                AddOptionalValue(arguments, "--gitea-ref", GiteaRef);
+                AddOptionalValue(arguments, "--gitea-pull-request", GiteaPullRequest);
+                AddFlag(arguments, "--gitea-include-issues", IncludeGiteaIssues);
+                AddOptionalNonDefaultValue(arguments, "--gitea-issue-state", GiteaIssueState, "all");
+                AddFlag(arguments, "--gitea-include-releases", IncludeGiteaReleases);
+                AddFlag(arguments, "--gitea-include-actions-artifacts", IncludeGiteaActionsArtifacts);
+                AddOptionalValue(arguments, "--gitea-actions-run-id", GiteaActionsRunId);
+                AddOptionalValue(arguments, "--gitea-generic-package-owner", GiteaGenericPackageOwner);
+                AddOptionalValue(arguments, "--gitea-generic-package-name", GiteaGenericPackageName);
+                AddOptionalValue(arguments, "--gitea-generic-package-version", GiteaGenericPackageVersion);
+                AddOptionalValue(arguments, "--gitea-generic-package-file", GiteaGenericPackageFile);
+                AddOptionalValue(arguments, "--gitea-token-env", GiteaTokenEnvironmentVariable);
+                AddOptionalValue(arguments, "--gitea-api-endpoint", GiteaApiEndpoint);
+                break;
+            case PicketTuiScanTargetMode.Bitbucket:
+                AddOptionalValue(arguments, "--bitbucket-repository", BitbucketRepository);
+                AddOptionalValue(arguments, "--bitbucket-workspace", BitbucketWorkspace);
+                AddOptionalValue(arguments, "--bitbucket-project", BitbucketProject);
+                AddOptionalValue(arguments, "--bitbucket-ref", BitbucketRef);
+                AddOptionalValue(arguments, "--bitbucket-pull-request", BitbucketPullRequest);
+                AddFlag(arguments, "--bitbucket-include-downloads", IncludeBitbucketDownloads);
+                AddOptionalValue(arguments, "--bitbucket-pipeline-id", BitbucketPipelineId);
+                AddFlag(arguments, "--bitbucket-include-pipeline-logs", IncludeBitbucketPipelineLogs);
+                AddFlag(arguments, "--bitbucket-include-snippets", IncludeBitbucketSnippets);
+                AddOptionalValue(arguments, "--bitbucket-token-env", BitbucketTokenEnvironmentVariable);
+                AddOptionalValue(arguments, "--bitbucket-username-env", BitbucketUsernameEnvironmentVariable);
+                AddOptionalNonDefaultValue(arguments, "--bitbucket-token-kind", BitbucketTokenKind, "bearer");
+                AddOptionalValue(arguments, "--bitbucket-api-endpoint", BitbucketApiEndpoint);
+                break;
         }
     }
 
@@ -1433,6 +1815,8 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", FirstConfigured(GitHubRepository, GitHubOrganization, GitHubUser)),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsProject, AzureDevOpsOrganization)),
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
+            PicketTuiScanTargetMode.Gitea => string.Concat("Gitea ", FirstConfigured(GiteaRepository, GiteaOrganization, GiteaUser)),
+            PicketTuiScanTargetMode.Bitbucket => string.Concat("Bitbucket ", FirstConfigured(BitbucketRepository, BitbucketWorkspace, BitbucketProject)),
             _ => TargetMode.ToString(),
         };
     }
@@ -1507,6 +1891,16 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
+        if (TargetMode == PicketTuiScanTargetMode.Gitea && !ValidateGitea(out error))
+        {
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.Bitbucket && !ValidateBitbucket(out error))
+        {
+            return false;
+        }
+
         if (string.IsNullOrWhiteSpace(Profile))
         {
             error = "Profile is required.";
@@ -1531,7 +1925,159 @@ internal sealed class PicketTuiScanWorkspace
             && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxArtifactMegabytes, "--azure-devops-max-artifact-megabytes", min: 0, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxLogMegabytes, "--azure-devops-max-log-megabytes", min: 0, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GitLabMergeRequest, "--gitlab-merge-request", min: 1, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(GitLabPipelineId, "--gitlab-pipeline-id", min: 1, max: int.MaxValue, out error);
+            && ValidateOptionalNonNegativeInteger(GitLabPipelineId, "--gitlab-pipeline-id", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(GiteaPullRequest, "--gitea-pull-request", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(GiteaActionsRunId, "--gitea-actions-run-id", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(BitbucketPullRequest, "--bitbucket-pull-request", min: 1, max: int.MaxValue, out error);
+    }
+
+    private bool ValidateGitea(out string error)
+    {
+        error = string.Empty;
+        bool genericPackageCoordinateSpecified = !string.IsNullOrWhiteSpace(GiteaGenericPackageName)
+            || !string.IsNullOrWhiteSpace(GiteaGenericPackageVersion)
+            || !string.IsNullOrWhiteSpace(GiteaGenericPackageFile);
+        bool genericPackageSpecified = !string.IsNullOrWhiteSpace(GiteaGenericPackageOwner)
+            || genericPackageCoordinateSpecified;
+
+        if (CountGiteaSourceSelectors(genericPackageSpecified) != 1)
+        {
+            error = "Gitea scans require exactly one repository, organization, user, or generic-package selector.";
+            return false;
+        }
+
+        if (genericPackageCoordinateSpecified
+            && (string.IsNullOrWhiteSpace(GiteaGenericPackageOwner)
+                || string.IsNullOrWhiteSpace(GiteaGenericPackageName)
+                || string.IsNullOrWhiteSpace(GiteaGenericPackageVersion)
+                || string.IsNullOrWhiteSpace(GiteaGenericPackageFile)))
+        {
+            error = "Gitea generic package scans use either only the package owner or all four generic-package fields.";
+            return false;
+        }
+
+        if (genericPackageSpecified
+            && (!string.IsNullOrWhiteSpace(GiteaRef)
+                || !string.IsNullOrWhiteSpace(GiteaPullRequest)
+                || IncludeGiteaIssues
+                || IncludeGiteaReleases
+                || IncludeGiteaActionsArtifacts
+                || !string.IsNullOrWhiteSpace(GiteaActionsRunId)))
+        {
+            error = "Gitea generic package scans cannot be combined with refs, pull requests, issues, releases, or Actions artifacts.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GiteaPullRequest)
+            && string.IsNullOrWhiteSpace(GiteaRepository))
+        {
+            error = "--gitea-pull-request requires a repository selector.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GiteaPullRequest)
+            && !string.IsNullOrWhiteSpace(GiteaRef))
+        {
+            error = "Gitea scans accept either --gitea-ref or --gitea-pull-request, not both.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GiteaPullRequest)
+            && (IncludeGiteaIssues || IncludeGiteaReleases || IncludeGiteaActionsArtifacts))
+        {
+            error = "Gitea pull request scans cannot be combined with issues, releases, or Actions artifacts.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GiteaActionsRunId)
+            && !IncludeGiteaActionsArtifacts)
+        {
+            error = "--gitea-actions-run-id requires --gitea-include-actions-artifacts.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateBitbucket(out string error)
+    {
+        error = string.Empty;
+        bool hasRepository = !string.IsNullOrWhiteSpace(BitbucketRepository);
+        bool hasWorkspace = !string.IsNullOrWhiteSpace(BitbucketWorkspace);
+        if (hasRepository == hasWorkspace)
+        {
+            error = "Bitbucket scans require exactly one repository or workspace selector.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketPullRequest)
+            && !hasRepository)
+        {
+            error = "--bitbucket-pull-request requires a repository selector.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketPullRequest)
+            && !string.IsNullOrWhiteSpace(BitbucketRef))
+        {
+            error = "Bitbucket scans accept either --bitbucket-ref or --bitbucket-pull-request, not both.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketPullRequest)
+            && IncludeBitbucketDownloads)
+        {
+            error = "Bitbucket pull request scans cannot be combined with download artifacts.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketPullRequest)
+            && !string.IsNullOrWhiteSpace(BitbucketPipelineId))
+        {
+            error = "Bitbucket pull request scans cannot be combined with pipeline logs.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketPipelineId)
+            && !hasRepository)
+        {
+            error = "--bitbucket-pipeline-id requires a repository selector.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketPipelineId)
+            && !IncludeBitbucketPipelineLogs)
+        {
+            error = "--bitbucket-pipeline-id requires --bitbucket-include-pipeline-logs.";
+            return false;
+        }
+
+        if (IncludeBitbucketPipelineLogs
+            && string.IsNullOrWhiteSpace(BitbucketPipelineId))
+        {
+            error = "--bitbucket-include-pipeline-logs requires --bitbucket-pipeline-id.";
+            return false;
+        }
+
+        if (IncludeBitbucketSnippets && !hasWorkspace)
+        {
+            error = "--bitbucket-include-snippets requires a workspace selector.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketProject) && !hasWorkspace)
+        {
+            error = "--bitbucket-project requires a workspace selector.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketProject) && IncludeBitbucketSnippets)
+        {
+            error = "Bitbucket project scans cannot be combined with workspace snippets.";
+            return false;
+        }
+
+        return true;
     }
 
     private static bool ValidateOptionalNonNegativeInteger(string value, string option, int min, int max, out string error)
@@ -1598,6 +2144,32 @@ internal sealed class PicketTuiScanWorkspace
         }
 
         if (!string.IsNullOrWhiteSpace(GitLabGroup))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    private int CountGiteaSourceSelectors(bool genericPackageSpecified)
+    {
+        int count = 0;
+        if (!string.IsNullOrWhiteSpace(GiteaRepository))
+        {
+            count++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GiteaOrganization))
+        {
+            count++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GiteaUser))
+        {
+            count++;
+        }
+
+        if (genericPackageSpecified)
         {
             count++;
         }

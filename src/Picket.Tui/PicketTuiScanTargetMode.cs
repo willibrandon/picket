@@ -24,4 +24,14 @@ internal enum PicketTuiScanTargetMode
     /// Scan a GitLab source through native source enumeration.
     /// </summary>
     GitLab,
+
+    /// <summary>
+    /// Scan a Gitea source through native source enumeration.
+    /// </summary>
+    Gitea,
+
+    /// <summary>
+    /// Scan a Bitbucket Cloud source through native source enumeration.
+    /// </summary>
+    Bitbucket,
 }

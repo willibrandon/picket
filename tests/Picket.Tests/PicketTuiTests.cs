@@ -365,6 +365,231 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that the scan workspace builds Gitea source scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsGiteaSourceArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(4);
+        scan.SetGiteaRepository("owner/repo");
+        scan.SetGiteaRef("main");
+        scan.SetGiteaActionsRunId("99");
+        scan.SetGiteaTokenEnvironmentVariable("PICKET_GITEA_SOURCE_TOKEN");
+        scan.SetGiteaApiEndpoint("https://gitea.example/api/v1");
+        scan.SetGiteaIssueStateByIndex(2);
+        scan.SetIncludeGiteaIssues(true);
+        scan.SetIncludeGiteaReleases(true);
+        scan.SetIncludeGiteaActionsArtifacts(true);
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--gitea-repository", arguments);
+        Assert.Contains("owner/repo", arguments);
+        Assert.Contains("--gitea-ref", arguments);
+        Assert.Contains("main", arguments);
+        Assert.Contains("--gitea-actions-run-id", arguments);
+        Assert.Contains("99", arguments);
+        Assert.Contains("--gitea-token-env", arguments);
+        Assert.Contains("PICKET_GITEA_SOURCE_TOKEN", arguments);
+        Assert.Contains("--gitea-api-endpoint", arguments);
+        Assert.Contains("https://gitea.example/api/v1", arguments);
+        Assert.Contains("--gitea-issue-state", arguments);
+        Assert.Contains("closed", arguments);
+        Assert.Contains("--gitea-include-issues", arguments);
+        Assert.Contains("--gitea-include-releases", arguments);
+        Assert.Contains("--gitea-include-actions-artifacts", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Gitea generic package scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsGiteaGenericPackageArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(4);
+        scan.SetGiteaGenericPackageOwner("owner");
+        scan.SetGiteaGenericPackageName("package");
+        scan.SetGiteaGenericPackageVersion("1.2.3");
+        scan.SetGiteaGenericPackageFile("package.zip");
+        scan.SetGiteaTokenEnvironmentVariable("PICKET_GITEA_SOURCE_TOKEN");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--gitea-generic-package-owner", arguments);
+        Assert.Contains("owner", arguments);
+        Assert.Contains("--gitea-generic-package-name", arguments);
+        Assert.Contains("package", arguments);
+        Assert.Contains("--gitea-generic-package-version", arguments);
+        Assert.Contains("1.2.3", arguments);
+        Assert.Contains("--gitea-generic-package-file", arguments);
+        Assert.Contains("package.zip", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects ambiguous Gitea source selectors.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsMultipleGiteaSourceSelectors()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(4);
+        scan.SetGiteaRepository("owner/repo");
+        scan.SetGiteaOrganization("org");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("exactly one repository, organization, user, or generic-package selector", error);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects Gitea Actions run IDs without artifact enumeration.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsGiteaActionsRunWithoutArtifacts()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(4);
+        scan.SetGiteaRepository("owner/repo");
+        scan.SetGiteaActionsRunId("99");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("--gitea-actions-run-id requires --gitea-include-actions-artifacts", error);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Bitbucket source scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsBitbucketSourceArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(5);
+        scan.SetBitbucketRepository("workspace/repo");
+        scan.SetBitbucketRef("main");
+        scan.SetBitbucketPipelineId("pipeline-123");
+        scan.SetBitbucketTokenEnvironmentVariable("PICKET_BITBUCKET_SOURCE_TOKEN");
+        scan.SetBitbucketUsernameEnvironmentVariable("PICKET_BITBUCKET_SOURCE_USER");
+        scan.SetBitbucketTokenKindByIndex(1);
+        scan.SetBitbucketApiEndpoint("https://api.bitbucket.example/2.0");
+        scan.SetIncludeBitbucketDownloads(true);
+        scan.SetIncludeBitbucketPipelineLogs(true);
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--bitbucket-repository", arguments);
+        Assert.Contains("workspace/repo", arguments);
+        Assert.Contains("--bitbucket-ref", arguments);
+        Assert.Contains("main", arguments);
+        Assert.Contains("--bitbucket-pipeline-id", arguments);
+        Assert.Contains("pipeline-123", arguments);
+        Assert.Contains("--bitbucket-token-env", arguments);
+        Assert.Contains("PICKET_BITBUCKET_SOURCE_TOKEN", arguments);
+        Assert.Contains("--bitbucket-username-env", arguments);
+        Assert.Contains("PICKET_BITBUCKET_SOURCE_USER", arguments);
+        Assert.Contains("--bitbucket-token-kind", arguments);
+        Assert.Contains("app-password", arguments);
+        Assert.Contains("--bitbucket-api-endpoint", arguments);
+        Assert.Contains("https://api.bitbucket.example/2.0", arguments);
+        Assert.Contains("--bitbucket-include-downloads", arguments);
+        Assert.Contains("--bitbucket-include-pipeline-logs", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Bitbucket workspace scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsBitbucketWorkspaceArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(5);
+        scan.SetBitbucketWorkspace("workspace");
+        scan.SetBitbucketProject("PROJ");
+        scan.SetBitbucketTokenEnvironmentVariable("PICKET_BITBUCKET_SOURCE_TOKEN");
+        scan.SetIncludeBitbucketDownloads(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--bitbucket-workspace", arguments);
+        Assert.Contains("workspace", arguments);
+        Assert.Contains("--bitbucket-project", arguments);
+        Assert.Contains("PROJ", arguments);
+        Assert.Contains("--bitbucket-token-env", arguments);
+        Assert.Contains("PICKET_BITBUCKET_SOURCE_TOKEN", arguments);
+        Assert.Contains("--bitbucket-include-downloads", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects ambiguous Bitbucket source selectors.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsMultipleBitbucketSourceSelectors()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(5);
+        scan.SetBitbucketRepository("workspace/repo");
+        scan.SetBitbucketWorkspace("workspace");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("exactly one repository or workspace selector", error);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects Bitbucket pipeline scans without log enumeration.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsBitbucketPipelineWithoutLogs()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(5);
+        scan.SetBitbucketRepository("workspace/repo");
+        scan.SetBitbucketPipelineId("pipeline-123");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("--bitbucket-pipeline-id requires --bitbucket-include-pipeline-logs", error);
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace builds Azure DevOps artifact, log, and endpoint policy arguments.
     /// </summary>
     [TestMethod]

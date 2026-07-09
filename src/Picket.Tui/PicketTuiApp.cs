@@ -430,6 +430,14 @@ internal static class PicketTuiApp
             [
                 BuildGitLabSourceFields(ctx, scan),
             ],
+            PicketTuiScanTargetMode.Gitea =>
+            [
+                BuildGiteaSourceFields(ctx, scan),
+            ],
+            PicketTuiScanTargetMode.Bitbucket =>
+            [
+                BuildBitbucketSourceFields(ctx, scan),
+            ],
             _ =>
             [
                 BuildTextField(ctx, "Path", scan.LocalPath, scan.SetLocalPath),
@@ -565,6 +573,92 @@ internal static class PicketTuiApp
         ]).FillWidth();
     }
 
+    private static HStackWidget BuildGiteaSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "Repository", scan.GiteaRepository, scan.SetGiteaRepository),
+                BuildFieldGap(left),
+                BuildTextField(left, "Org", scan.GiteaOrganization, scan.SetGiteaOrganization),
+                BuildFieldGap(left),
+                BuildTextField(left, "User", scan.GiteaUser, scan.SetGiteaUser),
+                BuildFieldGap(left),
+                BuildTextField(left, "Token env", scan.GiteaTokenEnvironmentVariable, scan.SetGiteaTokenEnvironmentVariable),
+                BuildFieldGap(left),
+                BuildTextField(left, "Endpoint", scan.GiteaApiEndpoint, scan.SetGiteaApiEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Ref", scan.GiteaRef, scan.SetGiteaRef),
+                BuildFieldGap(left),
+                BuildTextField(left, "PR", scan.GiteaPullRequest, scan.SetGiteaPullRequest),
+                BuildFieldGap(left),
+                BuildTextField(left, "Actions run", scan.GiteaActionsRunId, scan.SetGiteaActionsRunId),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildChoiceField(right, "Issue state", PicketTuiScanWorkspace.GiteaIssueStates, scan.GiteaIssueStateIndex, scan.SetGiteaIssueStateByIndex),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Issues", scan.IncludeGiteaIssues, scan.SetIncludeGiteaIssues),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Releases", scan.IncludeGiteaReleases, scan.SetIncludeGiteaReleases),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Actions", scan.IncludeGiteaActionsArtifacts, scan.SetIncludeGiteaActionsArtifacts),
+                BuildFieldGap(right),
+                BuildTextField(right, "Package owner", scan.GiteaGenericPackageOwner, scan.SetGiteaGenericPackageOwner),
+                BuildFieldGap(right),
+                BuildTextField(right, "Package name", scan.GiteaGenericPackageName, scan.SetGiteaGenericPackageName),
+                BuildFieldGap(right),
+                BuildTextField(right, "Package version", scan.GiteaGenericPackageVersion, scan.SetGiteaGenericPackageVersion),
+                BuildFieldGap(right),
+                BuildTextField(right, "Package file", scan.GiteaGenericPackageFile, scan.SetGiteaGenericPackageFile),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
+    private static HStackWidget BuildBitbucketSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "Repository", scan.BitbucketRepository, scan.SetBitbucketRepository),
+                BuildFieldGap(left),
+                BuildTextField(left, "Workspace", scan.BitbucketWorkspace, scan.SetBitbucketWorkspace),
+                BuildFieldGap(left),
+                BuildTextField(left, "Project", scan.BitbucketProject, scan.SetBitbucketProject),
+                BuildFieldGap(left),
+                BuildTextField(left, "Token env", scan.BitbucketTokenEnvironmentVariable, scan.SetBitbucketTokenEnvironmentVariable),
+                BuildFieldGap(left),
+                BuildTextField(left, "Username env", scan.BitbucketUsernameEnvironmentVariable, scan.SetBitbucketUsernameEnvironmentVariable),
+                BuildFieldGap(left),
+                BuildTextField(left, "Endpoint", scan.BitbucketApiEndpoint, scan.SetBitbucketApiEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Ref", scan.BitbucketRef, scan.SetBitbucketRef),
+                BuildFieldGap(left),
+                BuildTextField(left, "PR", scan.BitbucketPullRequest, scan.SetBitbucketPullRequest),
+                BuildFieldGap(left),
+                BuildTextField(left, "Pipeline", scan.BitbucketPipelineId, scan.SetBitbucketPipelineId),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildChoiceField(right, "Token", PicketTuiScanWorkspace.BitbucketTokenKinds, scan.BitbucketTokenKindIndex, scan.SetBitbucketTokenKindByIndex),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Downloads", scan.IncludeBitbucketDownloads, scan.SetIncludeBitbucketDownloads),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Pipeline logs", scan.IncludeBitbucketPipelineLogs, scan.SetIncludeBitbucketPipelineLogs),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Snippets", scan.IncludeBitbucketSnippets, scan.SetIncludeBitbucketSnippets),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
     private static VStackWidget BuildLimitFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
@@ -608,6 +702,17 @@ internal static class PicketTuiApp
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstNonEmpty(
                 scan.GitLabProject,
                 scan.GitLabGroup,
+                string.Empty,
+                "not selected")),
+            PicketTuiScanTargetMode.Gitea => string.Concat("Gitea ", FirstNonEmpty(
+                scan.GiteaRepository,
+                scan.GiteaOrganization,
+                scan.GiteaUser,
+                scan.GiteaGenericPackageOwner,
+                "not selected")),
+            PicketTuiScanTargetMode.Bitbucket => string.Concat("Bitbucket ", FirstNonEmpty(
+                scan.BitbucketRepository,
+                scan.BitbucketWorkspace,
                 string.Empty,
                 "not selected")),
             _ => string.Concat("Local ", string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath),
