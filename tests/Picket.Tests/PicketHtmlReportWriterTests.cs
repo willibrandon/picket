@@ -56,7 +56,9 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("<span>Files</span><strong>1</strong>", html);
         Assert.Contains(".report-list{display:grid;gap:16px}", html);
         Assert.Contains(".finding-card,.rule-card{border:1px solid #d9ddd2;background:#fff;border-radius:8px", html);
-        Assert.Contains(".field-grid{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(320px,1.3fr) minmax(300px,1fr)", html);
+        Assert.Contains(".field-grid{display:grid;gap:12px;align-items:stretch}", html);
+        Assert.Contains(".finding-card .field-grid{grid-template-columns:minmax(220px,.85fr) minmax(420px,1.15fr)}", html);
+        Assert.Contains(".field-wide{grid-column:1/-1}", html);
         Assert.Contains(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))", html);
         Assert.Contains(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}", html);
         Assert.Contains(".metadata-item-long{grid-column:span 2}", html);
@@ -67,6 +69,7 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains("<article class=\"rule-card\">", html);
         Assert.Contains("<span class=\"field-label\">Secret</span><code>abc&lt;123&gt;</code>", html);
         Assert.Contains("<span class=\"field-label\">Match</span><pre>token=&quot;abc&lt;123&gt;&quot;</pre>", html);
+        Assert.Contains("<div class=\"field field-wide\"><span class=\"field-label\">Fingerprint</span>", html);
         Assert.Contains("<dl class=\"metadata\"><div class=\"metadata-item\"><dt>Severity</dt>", html);
         Assert.DoesNotContain("<table", html);
         Assert.Contains("rule&lt;script&gt;", html);

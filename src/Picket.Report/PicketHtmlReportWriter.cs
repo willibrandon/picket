@@ -64,12 +64,14 @@ public static class PicketHtmlReportWriter
         builder.Append(".finding-card,.rule-card{border:1px solid #d9ddd2;background:#fff;border-radius:8px;padding:18px 20px;min-width:0}");
         builder.Append(".finding-card{display:grid;gap:14px}.rule-card{display:grid;gap:12px}");
         builder.Append(".card-header{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,420px);gap:16px;align-items:start}");
-        builder.Append(".card-title{display:grid;gap:6px;min-width:0}.card-title h3{margin:0;font-size:16px;line-height:1.35}");
+        builder.Append(".card-title{display:grid;gap:6px;min-width:0}.card-title h3{margin:0;font-size:16px;line-height:1.35}.card-title code{overflow-wrap:anywhere;word-break:break-word}");
         builder.Append(".card-description{margin:0;color:#30352c;line-height:1.5;max-width:88ch}");
         builder.Append(".card-location{margin:0;display:grid;gap:4px;min-width:0}");
-        builder.Append(".field-grid{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(320px,1.3fr) minmax(300px,1fr);gap:12px;align-items:stretch}");
+        builder.Append(".field-grid{display:grid;gap:12px;align-items:stretch}");
+        builder.Append(".finding-card .field-grid{grid-template-columns:minmax(220px,.85fr) minmax(420px,1.15fr)}");
         builder.Append(".rule-card .field-grid{grid-template-columns:minmax(320px,1.4fr) minmax(220px,.9fr) minmax(180px,.7fr)}");
         builder.Append(".field{border:1px solid #e0e4d8;background:#fbfcf8;border-radius:6px;padding:12px;min-width:0}");
+        builder.Append(".field-wide{grid-column:1/-1}");
         builder.Append(".field-label{display:block;margin-bottom:6px;color:#596052;font-size:11px;font-weight:650;line-height:1.2;text-transform:uppercase}");
         builder.Append(".field code,.field pre,.card-location code{display:block;min-width:0;overflow-wrap:anywhere;word-break:break-word}");
         builder.Append("code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,\"Liberation Mono\",monospace}");
@@ -82,7 +84,7 @@ public static class PicketHtmlReportWriter
         builder.Append(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}");
         builder.Append(".metadata-item-long{grid-column:span 2}");
         builder.Append(".metadata dt{margin:0 0 3px;color:#596052;font-size:11px;font-weight:650;line-height:1.2;text-transform:uppercase;white-space:normal}.metadata dd{margin:0;min-width:0}.metadata dd code{white-space:normal;overflow-wrap:break-word;word-break:normal}");
-        builder.Append("@media (max-width:900px){main{padding:24px 16px 40px}.card-header,.field-grid,.rule-card .field-grid{grid-template-columns:1fr}.metadata-item-long{grid-column:auto}}");
+        builder.Append("@media (max-width:900px){main{padding:24px 16px 40px}.card-header,.field-grid,.finding-card .field-grid,.rule-card .field-grid{grid-template-columns:1fr}.field-wide,.metadata-item-long{grid-column:auto}}");
         builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,.finding-card,.rule-card,.field,.empty{background:#1d211a;border-color:#3a4233}.field{background:#181c15}.card-description,.field-label,.eyebrow,.metric span,.empty,.metadata dt{color:#b5bcae}.metadata-item{border-color:#3a4233}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
         builder.Append("</style>\n");
         builder.Append("</head>\n");
@@ -196,7 +198,7 @@ public static class PicketHtmlReportWriter
         builder.Append("<div class=\"field-grid\">");
         WriteField(builder, "Secret", finding.Secret, multiline: false);
         WriteField(builder, "Match", finding.Match, multiline: true);
-        WriteField(builder, "Fingerprint", CreateFingerprint(finding), multiline: false);
+        WriteField(builder, "Fingerprint", CreateFingerprint(finding), multiline: false, fieldClass: "field field-wide");
         builder.Append("</div>\n");
         WriteFindingMetadata(builder, finding, rule);
         builder.Append("<div>");
@@ -297,9 +299,11 @@ public static class PicketHtmlReportWriter
         builder.Append("</article>\n");
     }
 
-    private static void WriteField(StringBuilder builder, string label, string value, bool multiline)
+    private static void WriteField(StringBuilder builder, string label, string value, bool multiline, string fieldClass = "field")
     {
-        builder.Append("<div class=\"field\"><span class=\"field-label\">");
+        builder.Append("<div class=\"");
+        builder.Append(fieldClass);
+        builder.Append("\"><span class=\"field-label\">");
         AppendHtml(builder, label);
         builder.Append("</span>");
         if (multiline)
