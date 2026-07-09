@@ -197,6 +197,82 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that the scan workspace builds Docker archive scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsDockerArchiveScanArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(6);
+        scan.SetDockerArchivePath("images/app.tar");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--docker-archive", arguments);
+        Assert.Contains("images/app.tar", arguments);
+        Assert.DoesNotContain("--oci-archive", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds OCI archive scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsOciArchiveScanArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(7);
+        scan.SetOciArchivePath("images/app.oci.tar");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--oci-archive", arguments);
+        Assert.Contains("images/app.oci.tar", arguments);
+        Assert.DoesNotContain("--docker-archive", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that Docker archive scans require an archive path before launch.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsMissingDockerArchivePath()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(6);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("Docker archive scans require an archive path", error);
+    }
+
+    /// <summary>
+    /// Verifies that OCI archive scans require an archive path before launch.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsMissingOciArchivePath()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(7);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("OCI archive scans require an archive path", error);
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace builds GitHub Actions artifact scan arguments.
     /// </summary>
     [TestMethod]

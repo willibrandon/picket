@@ -438,6 +438,14 @@ internal static class PicketTuiApp
             [
                 BuildBitbucketSourceFields(ctx, scan),
             ],
+            PicketTuiScanTargetMode.DockerArchive =>
+            [
+                BuildTextField(ctx, "Docker archive", scan.DockerArchivePath, scan.SetDockerArchivePath),
+            ],
+            PicketTuiScanTargetMode.OciArchive =>
+            [
+                BuildTextField(ctx, "OCI archive", scan.OciArchivePath, scan.SetOciArchivePath),
+            ],
             _ =>
             [
                 BuildTextField(ctx, "Path", scan.LocalPath, scan.SetLocalPath),
@@ -715,6 +723,12 @@ internal static class PicketTuiApp
                 scan.BitbucketWorkspace,
                 string.Empty,
                 "not selected")),
+            PicketTuiScanTargetMode.DockerArchive => string.Concat(
+                "Docker archive ",
+                string.IsNullOrWhiteSpace(scan.DockerArchivePath) ? "not selected" : scan.DockerArchivePath),
+            PicketTuiScanTargetMode.OciArchive => string.Concat(
+                "OCI archive ",
+                string.IsNullOrWhiteSpace(scan.OciArchivePath) ? "not selected" : scan.OciArchivePath),
             _ => string.Concat("Local ", string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath),
         };
     }

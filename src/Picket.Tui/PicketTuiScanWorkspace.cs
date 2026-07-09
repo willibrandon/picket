@@ -22,7 +22,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
-    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket"];
+    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "Docker", "OCI"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
     private readonly Lock _outputLock = new();
@@ -95,6 +95,16 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the local filesystem path to scan.
     /// </summary>
     internal string LocalPath { get; private set; } = ".";
+
+    /// <summary>
+    /// Gets the local Docker image archive path to scan.
+    /// </summary>
+    internal string DockerArchivePath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the local OCI image-layout archive path to scan.
+    /// </summary>
+    internal string OciArchivePath { get; private set; } = string.Empty;
 
     /// <summary>
     /// Gets the GitHub repository selector.
@@ -664,6 +674,8 @@ internal sealed class PicketTuiScanWorkspace
         PicketTuiScanTargetMode.GitLab => 3,
         PicketTuiScanTargetMode.Gitea => 4,
         PicketTuiScanTargetMode.Bitbucket => 5,
+        PicketTuiScanTargetMode.DockerArchive => 6,
+        PicketTuiScanTargetMode.OciArchive => 7,
         _ => 0,
     };
 
@@ -724,6 +736,8 @@ internal sealed class PicketTuiScanWorkspace
             3 => PicketTuiScanTargetMode.GitLab,
             4 => PicketTuiScanTargetMode.Gitea,
             5 => PicketTuiScanTargetMode.Bitbucket,
+            6 => PicketTuiScanTargetMode.DockerArchive,
+            7 => PicketTuiScanTargetMode.OciArchive,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -733,6 +747,18 @@ internal sealed class PicketTuiScanWorkspace
     /// </summary>
     /// <param name="value">The local path.</param>
     internal void SetLocalPath(string value) => LocalPath = value;
+
+    /// <summary>
+    /// Sets the local Docker image archive path.
+    /// </summary>
+    /// <param name="value">The archive path.</param>
+    internal void SetDockerArchivePath(string value) => DockerArchivePath = value;
+
+    /// <summary>
+    /// Sets the local OCI image-layout archive path.
+    /// </summary>
+    /// <param name="value">The archive path.</param>
+    internal void SetOciArchivePath(string value) => OciArchivePath = value;
 
     /// <summary>
     /// Sets the GitHub repository selector.
@@ -1722,6 +1748,12 @@ internal sealed class PicketTuiScanWorkspace
             case PicketTuiScanTargetMode.Local:
                 arguments.Add(LocalPath.Trim());
                 break;
+            case PicketTuiScanTargetMode.DockerArchive:
+                AddOptionalValue(arguments, "--docker-archive", DockerArchivePath);
+                break;
+            case PicketTuiScanTargetMode.OciArchive:
+                AddOptionalValue(arguments, "--oci-archive", OciArchivePath);
+                break;
             case PicketTuiScanTargetMode.GitHub:
                 AddOptionalValue(arguments, "--github-repository", GitHubRepository);
                 AddOptionalValue(arguments, "--github-organization", GitHubOrganization);
@@ -1812,6 +1844,8 @@ internal sealed class PicketTuiScanWorkspace
         return TargetMode switch
         {
             PicketTuiScanTargetMode.Local => string.Concat("local ", LocalPath),
+            PicketTuiScanTargetMode.DockerArchive => string.Concat("Docker archive ", FirstConfigured(DockerArchivePath, string.Empty, string.Empty)),
+            PicketTuiScanTargetMode.OciArchive => string.Concat("OCI archive ", FirstConfigured(OciArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", FirstConfigured(GitHubRepository, GitHubOrganization, GitHubUser)),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsProject, AzureDevOpsOrganization)),
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
@@ -1842,6 +1876,18 @@ internal sealed class PicketTuiScanWorkspace
         if (TargetMode == PicketTuiScanTargetMode.Local && string.IsNullOrWhiteSpace(LocalPath))
         {
             error = "Local scans require a path.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.DockerArchive && string.IsNullOrWhiteSpace(DockerArchivePath))
+        {
+            error = "Docker archive scans require an archive path.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.OciArchive && string.IsNullOrWhiteSpace(OciArchivePath))
+        {
+            error = "OCI archive scans require an archive path.";
             return false;
         }
 

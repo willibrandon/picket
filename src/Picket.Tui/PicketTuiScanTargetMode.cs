@@ -34,4 +34,14 @@ internal enum PicketTuiScanTargetMode
     /// Scan a Bitbucket Cloud source through native source enumeration.
     /// </summary>
     Bitbucket,
+
+    /// <summary>
+    /// Scan a local Docker image archive.
+    /// </summary>
+    DockerArchive,
+
+    /// <summary>
+    /// Scan a local OCI image-layout archive.
+    /// </summary>
+    OciArchive,
 }

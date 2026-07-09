@@ -51,7 +51,7 @@ The TUI includes a scan workspace for running native scans interactively. It bui
 
 The workspace keeps the normal path short: choose a target, check the command preview, press Run scan, then jump to Findings when row triage is needed. It exposes commonly changed options directly:
 
-- local path or source-host target,
+- local path, local container archive, or source-host target,
 - profile and config,
 - ignore behavior,
 - verification mode,
@@ -61,6 +61,8 @@ The workspace keeps the normal path short: choose a target, check the command pr
 - report formats and output paths.
 
 The Scan page groups controls into Source, Output, Validation, and Limits sections so the default view stays readable while every scan option remains reachable.
+
+For local container targets, the workspace includes Docker image archive and OCI image-layout archive modes that emit `--docker-archive` or `--oci-archive` and use the shared archive and target-size limits from the Limits section.
 
 For GitHub targets, the workspace includes repository, organization, user, gist, authenticated-gist, and user-gist selectors; repository type and issue state filters; issue, release, and Actions artifact toggles; token environment variable; ref and pull request selectors; source API endpoint override; and explicit source endpoint policy toggles.
 
