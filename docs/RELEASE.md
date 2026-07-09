@@ -77,6 +77,13 @@ docker build -t picket:dev .
 docker run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=100
 ```
 
+On Windows with the WSL container CLI:
+
+```powershell
+wslc image build -t picket:dev .
+wslc run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=100
+```
+
 For release tags, `.github/workflows/release.yml` publishes a multi-architecture Linux image to GHCR for `linux/amd64` and `linux/arm64`. The published tags are:
 
 - `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.4.2`,
@@ -84,6 +91,24 @@ For release tags, `.github/workflows/release.yml` publishes a multi-architecture
 - `ghcr.io/willibrandon/picket:latest` for non-prerelease versions only.
 
 The container build pushes BuildKit SBOM and provenance attestations with the image. The image is a scanner distribution surface; it does not change command defaults, compatibility behavior, reports, validation policy, or telemetry policy.
+
+## Package Manager Manifests
+
+Release automation generates package-manager submission files from the actual release archive names and SHA-256 checksums:
+
+- `homebrew/picket.rb` for a Homebrew tap.
+- `scoop/picket.json` for a Scoop bucket.
+- `winget/Willibrandon.Picket/<version>/` for WinGet package submission.
+
+The generated files are packaged as `picket-<tag>-package-manager-manifests.zip` and uploaded to the GitHub Release with its own `.sha256` sidecar. The final aggregate `checksums.txt` includes the manifest bundle.
+
+Generate the same files locally from a release checksum file with:
+
+```powershell
+dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.4.2 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
+```
+
+The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. They do not change scanner behavior or publish directly into third-party package repositories.
 
 ## Azure DevOps VSIX Validation
 
@@ -118,7 +143,7 @@ Release automation should publish, sign, checksum, and archive each RID separate
 
 Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
 
-The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, publishes the multi-architecture GHCR container image, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
+The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, publishes the multi-architecture GHCR container image, generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
 
 Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 

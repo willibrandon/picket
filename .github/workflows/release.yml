@@ -490,6 +490,16 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: 10.0.301
+
       - name: Download release assets
         uses: actions/download-artifact@v5
         with:
@@ -497,11 +507,47 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Build package-manager manifest generator
+        run: dotnet build ./scripts/Generate-PackageManagerManifests.cs --nologo --verbosity quiet
+
       - name: Write aggregate checksums
         shell: pwsh
         run: |
           $assets = Get-ChildItem -LiteralPath dist -File |
-            Where-Object { !$_.Name.EndsWith('.sha256', [StringComparison]::Ordinal) } |
+            Where-Object {
+              !$_.Name.EndsWith('.sha256', [StringComparison]::Ordinal) -and
+              !$_.Name.Equals('checksums.txt', [StringComparison]::Ordinal)
+            } |
+            Sort-Object Name
+
+          $lines = foreach ($asset in $assets) {
+            $hash = (Get-FileHash -LiteralPath $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($asset.Name)"
+          }
+
+          Set-Content -LiteralPath (Join-Path 'dist' 'checksums.txt') -Encoding utf8NoBOM -Value $lines
+
+      - name: Generate package-manager manifests
+        shell: pwsh
+        run: |
+          $manifestRoot = Join-Path $env:RUNNER_TEMP 'picket-package-manager-manifests'
+          dotnet run --file ./scripts/Generate-PackageManagerManifests.cs --no-build -- -ReleaseTag $env:RELEASE_TAG -ChecksumsPath (Join-Path 'dist' 'checksums.txt') -OutputDirectory $manifestRoot -Clean
+
+          $archiveName = "picket-$env:RELEASE_TAG-package-manager-manifests.zip"
+          $archivePath = Join-Path 'dist' $archiveName
+          Compress-Archive -Path (Join-Path $manifestRoot '*') -DestinationPath $archivePath -Force
+
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath "$archivePath.sha256" -Encoding utf8NoBOM -Value "$hash  $archiveName"
+
+      - name: Refresh aggregate checksums
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem -LiteralPath dist -File |
+            Where-Object {
+              !$_.Name.EndsWith('.sha256', [StringComparison]::Ordinal) -and
+              !$_.Name.Equals('checksums.txt', [StringComparison]::Ordinal)
+            } |
             Sort-Object Name
 
           $lines = foreach ($asset in $assets) {

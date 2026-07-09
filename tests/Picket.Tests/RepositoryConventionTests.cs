@@ -728,15 +728,44 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet nuget push", workflow);
         Assert.Contains("--skip-duplicate", workflow);
         Assert.Contains("*.snupkg", workflow);
+        Assert.Contains("Generate-PackageManagerManifests.cs", workflow);
+        Assert.Contains("package-manager-manifests.zip", workflow);
         Assert.Contains("-p:Version=$version", workflow);
         Assert.Contains("-p:PackageVersion=$version", workflow);
         Assert.Contains("pattern: release-nuget*", workflow);
         Assert.Contains("$pointerPackages", workflow);
         Assert.Contains("SHA-256 checksums", documentation);
         Assert.Contains("GitHub artifact attestations", documentation);
+        Assert.Contains("Homebrew, Scoop, and WinGet manifests", documentation);
         Assert.Contains("publishes those `.nupkg` and `.snupkg` files to NuGet.org", documentation);
         Assert.Contains("release tag is the source of truth for package versions", documentation);
         Assert.Contains("RID-specific Native AOT NuGet tool packages", documentation);
+    }
+
+    /// <summary>
+    /// Verifies that package-manager release metadata is generated from checksummed release archives.
+    /// </summary>
+    [TestMethod]
+    public void PackageManagerManifestGenerationMatchesReleaseContract()
+    {
+        string script = ReadRepositoryFile("scripts/Generate-PackageManagerManifests.cs");
+        string packaging = ReadRepositoryFile("packaging/README.md");
+        string release = ReadRepositoryFile("docs/RELEASE.md");
+
+        Assert.Contains("picket-<tag>-package-manager-manifests.zip", packaging);
+        Assert.Contains("homebrew/picket.rb", packaging);
+        Assert.Contains("scoop/picket.json", packaging);
+        Assert.Contains("winget/Willibrandon.Picket/<version>", packaging);
+        Assert.Contains("InstallerType: zip", script);
+        Assert.Contains("NestedInstallerType: portable", script);
+        Assert.Contains("ManifestVersion: {{WingetManifestVersion}}", script);
+        Assert.Contains("win-x64", script);
+        Assert.Contains("win-arm64", script);
+        Assert.Contains("osx-x64", script);
+        Assert.Contains("osx-arm64", script);
+        Assert.Contains("linux-x64", script);
+        Assert.Contains("linux-arm64", script);
+        Assert.Contains("Release automation generates package-manager submission files", release);
     }
 
     /// <summary>
@@ -1314,7 +1343,7 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(7, scripts);
+        Assert.HasCount(8, scripts);
 
         foreach (string scriptPath in scripts)
         {
