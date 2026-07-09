@@ -112,6 +112,17 @@ dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v
 
 The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. They do not change scanner behavior or publish directly into third-party package repositories.
 
+## Windows MSI Installers
+
+Release automation builds MSI installers for stable `win-x64` and `win-arm64` releases from the same Windows release ZIP payloads. The WiX source lives at `packaging/msi/Picket.wxs`; it installs `picket.exe`, `picket-tui.exe`, and `LICENSE` under `Program Files\Picket` and adds that install folder to the machine PATH.
+
+The MSI artifacts are named:
+
+- `picket-<tag>-win-x64.msi`
+- `picket-<tag>-win-arm64.msi`
+
+Each MSI receives a `.sha256` sidecar and a GitHub artifact attestation before the GitHub Release is created or updated. Prerelease tags skip MSI artifacts because Windows Installer `ProductVersion` does not support SemVer prerelease labels. MSI packaging does not rebuild scanner code and does not change CLI defaults, report behavior, validation policy, or telemetry policy.
+
 ## Azure DevOps VSIX Validation
 
 CI packages the Azure DevOps Marketplace scaffold on Ubuntu with `tfx-cli` and `azure-devops/vss-extension.json`. This validates the extension manifest, `PicketScan@1` task metadata, included files, and VSIX layout before release automation attempts to publish the same wrapper.
@@ -145,7 +156,7 @@ Release automation should publish, sign, checksum, and archive each RID separate
 
 Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
 
-The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, publishes the multi-architecture GHCR container image, generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
+The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, builds Windows MSI installers from the Windows release payloads, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, publishes the multi-architecture GHCR container image, generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
 
 Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 

@@ -406,6 +406,111 @@ jobs:
             dotnet nuget push $symbol.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
           }
 
+  build-msi:
+    name: Build Windows MSI installers
+    needs: build-binaries
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: 10.0.301
+
+      - name: Install WiX
+        shell: pwsh
+        run: dotnet tool install --tool-path (Join-Path $env:RUNNER_TEMP 'wix') wix --version 6.0.2
+
+      - name: Download Windows release archives
+        uses: actions/download-artifact@v5
+        with:
+          pattern: release-binaries-win-*
+          path: dist
+          merge-multiple: true
+
+      - name: Build MSI installers
+        id: msi
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid MSI version."
+          }
+
+          if ($version.Contains('-', [StringComparison]::Ordinal)) {
+            Write-Host "Skipping MSI installers for prerelease tag $env:RELEASE_TAG because Windows Installer ProductVersion does not support prerelease labels."
+            "created=false" >> $env:GITHUB_OUTPUT
+            return
+          }
+
+          $wix = Join-Path $env:RUNNER_TEMP 'wix\wix.exe'
+          $staging = Join-Path $env:RUNNER_TEMP 'picket-release-assets'
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+
+          foreach ($rid in @('win-x64', 'win-arm64')) {
+            $archiveName = "picket-$env:RELEASE_TAG-$rid.zip"
+            $archive = Get-ChildItem -LiteralPath dist -Filter $archiveName -File | Select-Object -First 1
+            if ($null -eq $archive) {
+              throw "Windows release archive $archiveName was not downloaded."
+            }
+
+            $payload = Join-Path $env:RUNNER_TEMP "picket-msi-payload-$rid"
+            if (Test-Path -LiteralPath $payload) {
+              Remove-Item -LiteralPath $payload -Recurse -Force
+            }
+
+            New-Item -ItemType Directory -Force -Path $payload | Out-Null
+            Expand-Archive -LiteralPath $archive.FullName -DestinationPath $payload -Force
+
+            foreach ($fileName in @('picket.exe', 'picket-tui.exe', 'LICENSE')) {
+              $path = Join-Path $payload $fileName
+              if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+                throw "$archiveName does not contain $fileName."
+              }
+            }
+
+            $architecture = if ($rid -eq 'win-arm64') { 'arm64' } else { 'x64' }
+            $msiName = "picket-$env:RELEASE_TAG-$rid.msi"
+            $msiPath = Join-Path $staging $msiName
+            & $wix build packaging/msi/Picket.wxs -arch $architecture -d "Version=$version" -d "PayloadDir=$payload" -out $msiPath -pdbtype none
+            if ($LASTEXITCODE -ne 0) {
+              throw "WiX failed to build $msiName."
+            }
+
+            $hash = (Get-FileHash -LiteralPath $msiPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            Set-Content -LiteralPath "$msiPath.sha256" -Encoding utf8NoBOM -Value "$hash  $msiName"
+          }
+
+          "created=true" >> $env:GITHUB_OUTPUT
+
+      - name: Generate MSI artifact attestation
+        if: steps.msi.outputs.created == 'true'
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/picket-release-assets/*.msi
+
+      - name: Upload MSI release assets
+        if: steps.msi.outputs.created == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-msi
+          path: |
+            ${{ runner.temp }}/picket-release-assets/*.msi
+            ${{ runner.temp }}/picket-release-assets/*.msi.sha256
+          if-no-files-found: error
+
   publish-container:
     name: Publish container image
     needs: validate
@@ -482,6 +587,7 @@ jobs:
     needs:
       - build-binaries
       - build-packages
+      - build-msi
       - publish-nuget
       - publish-container
     runs-on: ubuntu-latest

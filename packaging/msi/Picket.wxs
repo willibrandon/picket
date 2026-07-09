@@ -1,0 +1,62 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="Picket"
+    Manufacturer="Brandon Williams"
+    Version="$(var.Version)"
+    UpgradeCode="4127A20F-5C49-4555-8415-DADC936FD1C9"
+    Scope="perMachine">
+    <SummaryInformation
+      Manufacturer="Brandon Williams"
+      Description="Picket secrets scanner" />
+
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of Picket is already installed." />
+    <MediaTemplate
+      EmbedCab="yes"
+      CompressionLevel="high" />
+
+    <Property Id="ARPCONTACT" Value="Brandon Williams" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/willibrandon/picket/issues" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/willibrandon/picket" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Picket" />
+    </StandardDirectory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="PicketExe" Guid="58D7497F-A786-4589-9002-03F5E454C481">
+        <File Id="PicketExeFile" Source="$(var.PayloadDir)\picket.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="PicketTuiExe" Guid="291EA882-6502-4BBA-82F3-DAD8CA7516D5">
+        <File Id="PicketTuiExeFile" Source="$(var.PayloadDir)\picket-tui.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="PicketLicense" Guid="B565EF1F-6FDC-497E-8FE5-10F026CE0B35">
+        <File Id="PicketLicenseFile" Source="$(var.PayloadDir)\LICENSE" KeyPath="yes" />
+      </Component>
+      <Component Id="PicketPath" Guid="9489474C-D30C-4FD5-8C66-251102B5342E">
+        <Environment
+          Id="PicketInstallFolderPath"
+          Name="PATH"
+          Value="[INSTALLFOLDER]"
+          Action="set"
+          Part="last"
+          System="yes" />
+        <RegistryValue
+          Root="HKLM"
+          Key="Software\Picket"
+          Name="InstallDir"
+          Type="string"
+          Value="[INSTALLFOLDER]"
+          KeyPath="yes" />
+        <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="PicketFeature" Title="Picket" Level="1">
+      <ComponentRef Id="PicketExe" />
+      <ComponentRef Id="PicketTuiExe" />
+      <ComponentRef Id="PicketLicense" />
+      <ComponentRef Id="PicketPath" />
+    </Feature>
+  </Package>
+</Wix>

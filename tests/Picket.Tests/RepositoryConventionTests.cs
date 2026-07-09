@@ -729,6 +729,17 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
         Assert.Contains("-p:IncludeSymbols=false", workflow);
         Assert.Contains("publish-nuget", workflow);
+        Assert.Contains("build-msi:", workflow);
+        Assert.Contains("Build Windows MSI installers", workflow);
+        Assert.Contains("dotnet tool install --tool-path (Join-Path $env:RUNNER_TEMP 'wix') wix --version 6.0.2", workflow);
+        Assert.Contains("pattern: release-binaries-win-*", workflow);
+        Assert.Contains("packaging/msi/Picket.wxs", workflow);
+        Assert.Contains("picket-$env:RELEASE_TAG-$rid.msi", workflow);
+        Assert.Contains("Windows Installer ProductVersion does not support prerelease labels", workflow);
+        Assert.Contains("if: steps.msi.outputs.created == 'true'", workflow);
+        Assert.Contains("release-msi", workflow);
+        Assert.Contains("picket-release-assets/*.msi", workflow);
+        Assert.Contains("- build-msi", workflow);
         Assert.Contains("NUGET_API_KEY", workflow);
         Assert.Contains("dotnet nuget push", workflow);
         Assert.Contains("--skip-duplicate", workflow);
@@ -742,6 +753,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("SHA-256 checksums", documentation);
         Assert.Contains("GitHub artifact attestations", documentation);
         Assert.Contains("Homebrew, Scoop, and WinGet manifests", documentation);
+        Assert.Contains("Windows MSI Installers", documentation);
+        Assert.Contains("picket-<tag>-win-x64.msi", documentation);
+        Assert.Contains("picket-<tag>-win-arm64.msi", documentation);
+        Assert.Contains("Prerelease tags skip MSI artifacts", documentation);
         Assert.Contains("publishes those `.nupkg` and `.snupkg` files to NuGet.org", documentation);
         Assert.Contains("release tag is the source of truth for package versions", documentation);
         Assert.Contains("RID-specific Native AOT NuGet tool packages", documentation);
@@ -761,6 +776,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("homebrew/picket.rb", packaging);
         Assert.Contains("scoop/picket.json", packaging);
         Assert.Contains("winget/Willibrandon.Picket/<version>", packaging);
+        Assert.Contains("packaging/msi/Picket.wxs", packaging);
+        Assert.Contains("Program Files\\Picket", packaging);
+        Assert.Contains("ProductVersion", packaging);
         Assert.Contains("InstallerType: zip", script);
         Assert.Contains("NestedInstallerType: portable", script);
         Assert.Contains("ManifestVersion: {{WingetManifestVersion}}", script);
@@ -771,6 +789,40 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("linux-x64", script);
         Assert.Contains("linux-arm64", script);
         Assert.Contains("Release automation generates package-manager submission files", release);
+    }
+
+    /// <summary>
+    /// Verifies that the Windows MSI installer owns only the release payload and shell registration.
+    /// </summary>
+    [TestMethod]
+    public void WindowsMsiInstallerMatchesReleaseContract()
+    {
+        string installer = ReadRepositoryFile("packaging/msi/Picket.wxs");
+        string workflow = ReadRepositoryFile(".github/workflows/release.yml");
+        string release = ReadRepositoryFile("docs/RELEASE.md");
+
+        Assert.Contains("UpgradeCode=\"4127A20F-5C49-4555-8415-DADC936FD1C9\"", installer);
+        Assert.Contains("Scope=\"perMachine\"", installer);
+        Assert.Contains("MajorUpgrade", installer);
+        Assert.Contains("ProgramFiles64Folder", installer);
+        Assert.Contains("Name=\"Picket\"", installer);
+        Assert.Contains("Source=\"$(var.PayloadDir)\\picket.exe\"", installer);
+        Assert.Contains("Source=\"$(var.PayloadDir)\\picket-tui.exe\"", installer);
+        Assert.Contains("Source=\"$(var.PayloadDir)\\LICENSE\"", installer);
+        Assert.Contains("Name=\"PATH\"", installer);
+        Assert.Contains("Value=\"[INSTALLFOLDER]\"", installer);
+        Assert.Contains("System=\"yes\"", installer);
+        Assert.Contains("Root=\"HKLM\"", installer);
+        Assert.Contains("Build Windows MSI installers", workflow);
+        Assert.Contains("-arch $architecture", workflow);
+        Assert.Contains("-d \"Version=$version\"", workflow);
+        Assert.Contains("-d \"PayloadDir=$payload\"", workflow);
+        Assert.Contains("created=false", workflow);
+        Assert.Contains("created=true", workflow);
+        Assert.Contains("picket-$env:RELEASE_TAG-$rid.msi", workflow);
+        Assert.Contains("picket-<tag>-win-x64.msi", release);
+        Assert.Contains("picket-<tag>-win-arm64.msi", release);
+        Assert.Contains("does not rebuild scanner code", release);
     }
 
     /// <summary>
