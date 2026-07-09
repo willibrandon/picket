@@ -3806,6 +3806,33 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that generated hook scripts quote command paths with shell metacharacters.
+    /// </summary>
+    [TestMethod]
+    public async Task HooksInstallQuotesCommandPathWithShellMetacharacters()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        const string CommandPath = "picket dev's $HOME `whoami`;x";
+        const string QuotedCommandPath = "'picket dev'\"'\"'s $HOME `whoami`;x'";
+
+        CliResult result = await RunCliAsync(
+            "hooks",
+            "install",
+            "pre-commit",
+            "--repo",
+            root.Path,
+            "--command",
+            CommandPath).ConfigureAwait(false);
+        string hook = File.ReadAllText(Path.Combine(root.Path, ".git", "hooks", "pre-commit"));
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.IsEmpty(result.Stderr);
+        Assert.Contains(string.Concat("exec ", QuotedCommandPath, " protect --source \"$repo_root\""), hook);
+        Assert.DoesNotContain(string.Concat("exec ", CommandPath, " protect"), hook);
+    }
+
+    /// <summary>
     /// Verifies that all hook installation covers pre-push and pre-receive range scans.
     /// </summary>
     [TestMethod]
