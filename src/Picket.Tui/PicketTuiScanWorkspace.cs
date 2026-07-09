@@ -11,7 +11,7 @@ internal sealed class PicketTuiScanWorkspace
 {
     private const string DefaultReportPath = "picket-results/picket-tui.jsonl";
     private const int MaxCapturedOutputLineLength = 180;
-    private const int MaxCapturedOutputLines = 8;
+    private const int MaxCapturedOutputLines = 500;
     private static readonly char[] s_argumentQuoteCharacters = [' ', '\t', '"'];
     private static readonly string[] s_azureDevOpsTokenKinds = ["pat", "bearer"];
     private static readonly string[] s_bitbucketTokenKinds = ["bearer", "app-password"];

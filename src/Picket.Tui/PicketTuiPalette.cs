@@ -21,6 +21,7 @@ internal static class PicketTuiPalette
     private static readonly Hex1bColor s_border = Hex1bColor.FromRgb(104, 112, 140);
     private static readonly Hex1bColor s_commandForeground = Hex1bColor.FromRgb(224, 187, 92);
     private static readonly Hex1bColor s_errorForeground = Hex1bColor.FromRgb(235, 112, 112);
+    private static readonly Hex1bColor s_editorSelectionBackground = Hex1bColor.FromRgb(90, 110, 145);
     private static readonly Hex1bColor s_focusBackground = Hex1bColor.FromRgb(0, 200, 180);
     private static readonly Hex1bColor s_focusForeground = Hex1bColor.Black;
     private static readonly Hex1bColor s_focusedRowBackground = Hex1bColor.FromRgb(0, 200, 180);
@@ -55,6 +56,11 @@ internal static class PicketTuiPalette
     /// Gets the foreground color used for error state text.
     /// </summary>
     internal static Hex1bColor ErrorForeground => s_errorForeground;
+
+    /// <summary>
+    /// Gets the read-only editor selection background color.
+    /// </summary>
+    internal static Hex1bColor EditorSelectionBackground => s_editorSelectionBackground;
 
     /// <summary>
     /// Gets the focused control background color.
@@ -196,6 +202,8 @@ internal static class PicketTuiPalette
             .Set(TextBoxTheme.ForegroundColor, Foreground)
             .Set(TextBoxTheme.SelectionBackgroundColor, FocusedRowBackground)
             .Set(TextBoxTheme.SelectionForegroundColor, FocusedRowForeground)
+            .Set(EditorTheme.SelectionBackgroundColor, EditorSelectionBackground)
+            .Set(EditorTheme.SelectionForegroundColor, Foreground)
             .Set(ProgressTheme.EmptyForegroundColor, Border)
             .Set(ProgressTheme.FilledForegroundColor, SuccessForeground)
             .Set(ProgressTheme.IndeterminateForegroundColor, InfoForeground);

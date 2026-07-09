@@ -125,6 +125,138 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that dashboard yanking includes labelled report, scanner, rule, and file summaries.
+    /// </summary>
+    [TestMethod]
+    public void StateYanksLabelledDashboardSummary()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Dashboard);
+
+        string text = state.GetYankText();
+
+        Assert.Contains("Report", text);
+        Assert.Contains("Scanner", text);
+        Assert.Contains("Top rules by finding count", text);
+        Assert.Contains("Findings  Rule", text);
+        Assert.Contains("github-token", text);
+        Assert.Contains("Top files by finding count", text);
+        Assert.Contains("Findings  File", text);
+        Assert.Contains("src/auth.cs", text);
+    }
+
+    /// <summary>
+    /// Verifies that rules and files expose focused-row yanks with labelled counts.
+    /// </summary>
+    [TestMethod]
+    public void StateYanksFocusedRuleAndFileRows()
+    {
+        PicketTuiState state = CreateState();
+
+        state.SetView(PicketTuiView.Rules);
+        state.FocusRule("github-token");
+
+        string ruleText = state.GetYankText();
+
+        Assert.Contains("Rule: github-token", ruleText);
+        Assert.Contains("Findings: 2", ruleText);
+
+        state.SetView(PicketTuiView.Files);
+        state.FocusFile("src/auth.cs");
+
+        string fileText = state.GetYankText();
+
+        Assert.Contains("File: src/auth.cs", fileText);
+        Assert.Contains("Findings: 2", fileText);
+    }
+
+    /// <summary>
+    /// Verifies that rule and file rows can filter the findings table.
+    /// </summary>
+    [TestMethod]
+    public void StateFiltersFindingsFromFocusedRuleAndFileRows()
+    {
+        PicketTuiState state = CreateState();
+
+        state.FocusRule("github-token");
+        state.FilterFindingsToFocusedRule();
+
+        Assert.AreEqual(PicketTuiView.Findings, state.CurrentView);
+        Assert.AreEqual("github-token", state.SearchText);
+        Assert.HasCount(2, state.VisibleRows);
+
+        state.ClearSearch();
+        state.FocusFile("infra/main.tf");
+        state.FilterFindingsToFocusedFile();
+
+        Assert.AreEqual(PicketTuiView.Findings, state.CurrentView);
+        Assert.AreEqual("infra/main.tf", state.SearchText);
+        Assert.HasCount(1, state.VisibleRows);
+        Assert.AreEqual("aws-key", state.VisibleRows[0].RuleId);
+    }
+
+    /// <summary>
+    /// Verifies that opening a focused finding delegates to the file launcher with the finding line.
+    /// </summary>
+    [TestMethod]
+    public void StateOpensFocusedFindingFile()
+    {
+        var launcher = new PicketTuiFakeFileLauncher { Message = "Opened src/auth.cs" };
+        PicketTuiState state = CreateState(fileLauncher: launcher);
+
+        state.OpenFocusedFindingFile();
+
+        Assert.AreEqual("src/auth.cs", launcher.CapturedPath);
+        Assert.AreEqual(12, launcher.CapturedLine);
+        Assert.AreEqual("Opened src/auth.cs", state.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that opening a focused file delegates to the file launcher without a line number.
+    /// </summary>
+    [TestMethod]
+    public void StateOpensFocusedFileRow()
+    {
+        var launcher = new PicketTuiFakeFileLauncher { Message = "Opened infra/main.tf" };
+        PicketTuiState state = CreateState(fileLauncher: launcher);
+        state.FocusFile("infra/main.tf");
+
+        state.OpenFocusedFile();
+
+        Assert.AreEqual("infra/main.tf", launcher.CapturedPath);
+        Assert.IsNull(launcher.CapturedLine);
+        Assert.AreEqual("Opened infra/main.tf", state.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that all findings remain present when navigating away from and back to the findings tab.
+    /// </summary>
+    [TestMethod]
+    public void StateKeepsVisibleRowsStableAcrossTabSwitches()
+    {
+        List<ReportFindingSummary> findings = [];
+        for (int i = 0; i < 51; i++)
+        {
+            findings.Add(new ReportFindingSummary("generic-api-key", "src/file.cs", i + 1, string.Concat("fp-", i.ToString("00"))));
+        }
+
+        findings.Add(new ReportFindingSummary("aws-access-token", "src/last.cs", 52, "fp-last"));
+        var state = new PicketTuiState(new PicketTuiReport(
+            "report.json",
+            new ReportSummary("picket-json", findings),
+            DateTimeOffset.UnixEpoch));
+
+        for (int i = 0; i < 3; i++)
+        {
+            state.SetView(PicketTuiView.Dashboard);
+            state.SetView(PicketTuiView.Findings);
+
+            Assert.HasCount(52, state.VisibleRows);
+            Assert.AreEqual("aws-access-token", state.VisibleRows[^1].RuleId);
+        }
+    }
+
+    /// <summary>
     /// Verifies that scan-page yanking copies scan context without duplicating finding triage details.
     /// </summary>
     [TestMethod]
@@ -145,6 +277,52 @@ public sealed class PicketTuiTests
         Assert.Contains("Scanner output:", text);
         Assert.Contains("No scanner output captured.", text);
         Assert.DoesNotContain("Secret", text);
+    }
+
+    /// <summary>
+    /// Verifies that log search filters scanner output while preserving scan metadata.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task StateSearchesAndYanksLogs()
+    {
+        var executor = new PicketTuiFakeScanExecutor { InitialOutputLine = "enumerated 1 file" };
+        PicketTuiState state = CreateState(executor);
+
+        await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        state.SetView(PicketTuiView.Logs);
+        state.SetLogSearchText("finding");
+
+        string text = state.GetYankText();
+
+        Assert.Contains("Scanner output matching \"finding\"", text);
+        Assert.Contains("stderr: 1 finding", text);
+        Assert.DoesNotContain("enumerated 1 file", text);
+        Assert.DoesNotContain("stdout: scan complete", text);
+    }
+
+    /// <summary>
+    /// Verifies that editor launch arguments are line-aware for common developer editor commands.
+    /// </summary>
+    [TestMethod]
+    public void FileLauncherCreatesLineAwareCodeCommand()
+    {
+        string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
+        try
+        {
+            Environment.SetEnvironmentVariable("PICKET_EDITOR", "code -g");
+
+            ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 42);
+
+            Assert.AreEqual("code", startInfo.FileName);
+            Assert.IsFalse(startInfo.UseShellExecute);
+            Assert.Contains("-g", startInfo.ArgumentList);
+            Assert.Contains("src/app.cs:42", startInfo.ArgumentList);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+        }
     }
 
     /// <summary>
@@ -866,10 +1044,12 @@ public sealed class PicketTuiTests
         AssertTextContrast(PicketTuiPalette.WarningForeground, PicketTuiPalette.Background);
         AssertTextContrast(PicketTuiPalette.FocusForeground, PicketTuiPalette.FocusBackground);
         AssertTextContrast(PicketTuiPalette.FocusedRowForeground, PicketTuiPalette.FocusedRowBackground);
+        AssertTextContrast(PicketTuiPalette.Foreground, PicketTuiPalette.EditorSelectionBackground);
         AssertTextContrast(PicketTuiPalette.YankFlashForeground, PicketTuiPalette.YankFlashBackground);
         AssertUiContrast(PicketTuiPalette.Border, PicketTuiPalette.Background);
         AssertUiContrast(PicketTuiPalette.FocusBackground, PicketTuiPalette.Background);
         AssertUiContrast(PicketTuiPalette.FocusedRowBackground, PicketTuiPalette.Background);
+        AssertUiContrast(PicketTuiPalette.EditorSelectionBackground, PicketTuiPalette.Background);
         AssertUiContrast(PicketTuiPalette.YankFlashBackground, PicketTuiPalette.Background);
     }
 
@@ -884,6 +1064,7 @@ public sealed class PicketTuiTests
         Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.FocusedBorderColor));
         Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, theme.Get(TableTheme.FocusedRowBackground));
         Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, theme.Get(TableTheme.FocusedRowForeground));
+        Assert.AreEqual(PicketTuiPalette.EditorSelectionBackground, theme.Get(EditorTheme.SelectionBackgroundColor));
         Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.ScrollbarThumbColor));
         Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.TableFocusedBorderColor));
     }
@@ -1419,7 +1600,9 @@ public sealed class PicketTuiTests
         Assert.Contains("--version", result.Stdout);
     }
 
-    private static PicketTuiState CreateState(IPicketTuiScanExecutor? executor = null)
+    private static PicketTuiState CreateState(
+        IPicketTuiScanExecutor? executor = null,
+        IPicketTuiFileLauncher? fileLauncher = null)
     {
         var summary = new ReportSummary(
             "picket-json",
@@ -1429,7 +1612,7 @@ public sealed class PicketTuiTests
                 new ReportFindingSummary("aws-key", "infra/main.tf", 4, "fp-infra-1"),
             ]);
 
-        return new PicketTuiState(new PicketTuiReport("report.json", summary, DateTimeOffset.UnixEpoch), executor);
+        return new PicketTuiState(new PicketTuiReport("report.json", summary, DateTimeOffset.UnixEpoch), executor, fileLauncher);
     }
 
     private static PicketTuiState CreateEmptyState(IPicketTuiScanExecutor? executor = null)

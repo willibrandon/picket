@@ -38,9 +38,9 @@ The full-screen console is designed as a scanner console:
 - a top command strip with view switching and Run scan,
 - a sectioned Scan page for target selection, output settings, validation filters, limits, command preview, status, scan timing, report path, and result counts,
 - a findings triage list with stable row focus,
-- focused-finding details,
-- rule and file frequency views,
-- scanner output on the Logs view,
+- focused-finding details that can be selected and yanked,
+- rule and file frequency views with labelled finding counts,
+- searchable scanner output on the Logs view,
 - a compact status footer with non-wrapping command hints.
 
 Opening without a report starts on the Scan page. Opening an existing report with findings starts on the Findings page. The interface favors readable scanner-console density, predictable keyboard navigation, and text status over decorative layout.
@@ -80,7 +80,9 @@ For Gitea targets, the workspace includes repository, organization, user, ref, p
 
 For Bitbucket targets, the workspace includes repository and workspace selectors, project key, ref, pull request, pipeline ID, token environment variable, username environment variable, token kind, API endpoint, download artifact, pipeline log, snippet, and explicit source endpoint policy controls.
 
-During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr so the Scan page does not compete with finding triage. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console. It prepares the report output directory before launch, writes normal Picket reports, reloads the generated report summary when the scan completes, and shows the loaded finding count and report path on the Scan page. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
+During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr so the Scan page does not compete with finding triage. Logs can be searched without changing the finding filter. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console. It prepares the report output directory before launch, writes normal Picket reports, reloads the generated report summary when the scan completes, and shows the loaded finding count and report path on the Scan page. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
+
+Dashboard, finding details, and logs are read-only text panes so terminal users can select and yank exact text with the mouse or keyboard. Rule and file rows can filter the Findings view to the selected rule or file. Findings and file rows can open local files when the path exists on disk; Picket uses `PICKET_EDITOR`, then `VISUAL`, then `EDITOR`, with line-aware arguments for common developer editors, and falls back to the operating system default file opener.
 
 ## Inline Flow Mode
 

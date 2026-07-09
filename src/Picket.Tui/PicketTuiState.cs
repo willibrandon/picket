@@ -1,3 +1,5 @@
+using Hex1b.Documents;
+using Hex1b.Widgets;
 using Picket.Report;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -9,6 +11,8 @@ namespace Picket.Tui;
 /// </summary>
 internal sealed class PicketTuiState
 {
+    private const int TopListLimit = 8;
+
     private static readonly PicketTuiView[] s_navigationItems =
     [
         PicketTuiView.Dashboard,
@@ -21,7 +25,14 @@ internal sealed class PicketTuiState
 
     private readonly Dictionary<string, PicketTuiFindingRow> _rowsByKey;
     private readonly List<PicketTuiFindingRow> _rows;
+    private readonly IPicketTuiFileLauncher _fileLauncher;
     private readonly Lock _scanLock = new();
+    private EditorState? _dashboardEditorState;
+    private string? _dashboardEditorText;
+    private EditorState? _findingDetailsEditorState;
+    private string? _findingDetailsEditorText;
+    private EditorState? _logsEditorState;
+    private string? _logsEditorText;
     private long _yankGeneration;
     private CancellationTokenSource? _scanCancellation;
     private Task? _scanTask;
@@ -32,10 +43,15 @@ internal sealed class PicketTuiState
     /// </summary>
     /// <param name="report">The report loaded into the TUI.</param>
     /// <param name="scanExecutor">The optional scan executor for the scan workspace.</param>
-    internal PicketTuiState(PicketTuiReport report, IPicketTuiScanExecutor? scanExecutor = null)
+    /// <param name="fileLauncher">The optional local file launcher for finding and file rows.</param>
+    internal PicketTuiState(
+        PicketTuiReport report,
+        IPicketTuiScanExecutor? scanExecutor = null,
+        IPicketTuiFileLauncher? fileLauncher = null)
     {
         _rows = [];
         _rowsByKey = new Dictionary<string, PicketTuiFindingRow>(StringComparer.Ordinal);
+        _fileLauncher = fileLauncher ?? new PicketTuiProcessFileLauncher();
         Report = report;
         LoadReport(report);
         ScanWorkspace = new PicketTuiScanWorkspace(scanExecutor ?? PicketTuiProcessScanExecutor.CreateDefault());
@@ -61,6 +77,11 @@ internal sealed class PicketTuiState
     /// Gets the current finding filter text.
     /// </summary>
     internal string SearchText { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the current scanner-output filter text.
+    /// </summary>
+    internal string LogSearchText { get; private set; } = string.Empty;
 
     /// <summary>
     /// Gets the current status message.
@@ -101,6 +122,16 @@ internal sealed class PicketTuiState
     /// Gets the currently focused finding key.
     /// </summary>
     internal string? FocusedFindingKey { get; private set; }
+
+    /// <summary>
+    /// Gets the focused rule row key.
+    /// </summary>
+    internal string? FocusedRuleKey { get; private set; }
+
+    /// <summary>
+    /// Gets the focused file row key.
+    /// </summary>
+    internal string? FocusedFileKey { get; private set; }
 
     /// <summary>
     /// Gets all report finding rows.
@@ -299,9 +330,9 @@ internal sealed class PicketTuiState
         {
             PicketTuiView.Scan => GetScanYankText(),
             PicketTuiView.Findings => GetFindingYankText(),
-            PicketTuiView.Dashboard => string.Concat(GetSummaryLine(), Environment.NewLine, "Report: ", Report.Path),
-            PicketTuiView.Rules => FormatCountYank("Rules", GetTopRules(50)),
-            PicketTuiView.Files => FormatCountYank("Files", GetTopFiles(50)),
+            PicketTuiView.Dashboard => GetDashboardText(),
+            PicketTuiView.Rules => GetRuleYankText(),
+            PicketTuiView.Files => GetFileYankText(),
             PicketTuiView.Logs => FormatLogsYank(),
             _ => string.Empty,
         };
@@ -323,6 +354,38 @@ internal sealed class PicketTuiState
         YankFlashRow = true;
         _ = ClearYankFlashAsync(generation, invalidate, cancellationToken);
         _ = ClearYankNotificationAsync(generation, invalidate, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets or creates the read-only dashboard editor state.
+    /// </summary>
+    /// <returns>The dashboard editor state.</returns>
+    internal EditorState GetDashboardEditorState()
+    {
+        string text = GetDashboardText();
+        return GetOrCreateEditorState(ref _dashboardEditorState, ref _dashboardEditorText, text);
+    }
+
+    /// <summary>
+    /// Gets or creates the read-only focused-finding details editor state.
+    /// </summary>
+    /// <returns>The focused-finding details editor state.</returns>
+    internal EditorState GetFindingDetailsEditorState()
+    {
+        string text = FocusedFinding is { } row
+            ? FormatFindingDetails(row)
+            : "No finding selected.\n\nRun a scan or adjust the filter.";
+        return GetOrCreateEditorState(ref _findingDetailsEditorState, ref _findingDetailsEditorText, text);
+    }
+
+    /// <summary>
+    /// Gets or creates the read-only logs editor state.
+    /// </summary>
+    /// <returns>The logs editor state.</returns>
+    internal EditorState GetLogsEditorState()
+    {
+        string text = GetLogsText();
+        return GetOrCreateEditorState(ref _logsEditorState, ref _logsEditorText, text);
     }
 
     private async Task RunScanInBackgroundAsync(Action invalidate, CancellationTokenSource scanCancellation)
@@ -381,6 +444,24 @@ internal sealed class PicketTuiState
     }
 
     /// <summary>
+    /// Sets the focused rule row.
+    /// </summary>
+    /// <param name="key">The rule row key.</param>
+    internal void FocusRule(object? key)
+    {
+        FocusedRuleKey = key?.ToString();
+    }
+
+    /// <summary>
+    /// Sets the focused file row.
+    /// </summary>
+    /// <param name="key">The file row key.</param>
+    internal void FocusFile(object? key)
+    {
+        FocusedFileKey = key?.ToString();
+    }
+
+    /// <summary>
     /// Applies a finding filter.
     /// </summary>
     /// <param name="searchText">The filter text.</param>
@@ -393,6 +474,20 @@ internal sealed class PicketTuiState
         StatusMessage = searchText.Length == 0
             ? "Search cleared"
             : string.Concat("Filter: ", searchText);
+    }
+
+    /// <summary>
+    /// Applies a scanner-output filter.
+    /// </summary>
+    /// <param name="searchText">The scanner-output filter text.</param>
+    internal void SetLogSearchText(string searchText)
+    {
+        LogSearchText = searchText;
+        _logsEditorState = null;
+        _logsEditorText = null;
+        StatusMessage = searchText.Length == 0
+            ? "Log search cleared"
+            : string.Concat("Log search: ", searchText);
     }
 
     /// <summary>
@@ -477,6 +572,66 @@ internal sealed class PicketTuiState
     }
 
     /// <summary>
+    /// Opens the focused finding's local file when it is present on disk.
+    /// </summary>
+    internal void OpenFocusedFindingFile()
+    {
+        if (FocusedFinding is not { } row)
+        {
+            StatusMessage = "No finding selected";
+            return;
+        }
+
+        _fileLauncher.TryOpen(row.Path, ParseLineNumber(row.Line), out string message);
+        StatusMessage = message;
+    }
+
+    /// <summary>
+    /// Opens the focused file row when it is present on disk.
+    /// </summary>
+    internal void OpenFocusedFile()
+    {
+        if (FocusedFileKey is null)
+        {
+            StatusMessage = "No file selected";
+            return;
+        }
+
+        _fileLauncher.TryOpen(FocusedFileKey, null, out string message);
+        StatusMessage = message;
+    }
+
+    /// <summary>
+    /// Filters findings to the focused rule row and opens the findings table.
+    /// </summary>
+    internal void FilterFindingsToFocusedRule()
+    {
+        if (FocusedRuleKey is null)
+        {
+            StatusMessage = "No rule selected";
+            return;
+        }
+
+        SetSearchText(FocusedRuleKey);
+        SetView(PicketTuiView.Findings);
+    }
+
+    /// <summary>
+    /// Filters findings to the focused file row and opens the findings table.
+    /// </summary>
+    internal void FilterFindingsToFocusedFile()
+    {
+        if (FocusedFileKey is null)
+        {
+            StatusMessage = "No file selected";
+            return;
+        }
+
+        SetSearchText(FocusedFileKey);
+        SetView(PicketTuiView.Findings);
+    }
+
+    /// <summary>
     /// Gets a one-line report summary.
     /// </summary>
     /// <returns>A display-ready summary line.</returns>
@@ -534,14 +689,17 @@ internal sealed class PicketTuiState
         }
 
         FocusedFindingKey = _rows.Count == 0 ? null : _rows[0].Key;
+        FocusedRuleKey = null;
+        FocusedFileKey = null;
         _visibleRows = null;
+        ResetEditorStates();
     }
 
     private List<PicketTuiFindingRow> CreateVisibleRows()
     {
         if (SearchText.Length == 0)
         {
-            return _rows;
+            return new List<PicketTuiFindingRow>(_rows);
         }
 
         var rows = new List<PicketTuiFindingRow>();
@@ -591,6 +749,14 @@ internal sealed class PicketTuiState
             rows.Select(pair => string.Concat(pair.Value.ToString(CultureInfo.InvariantCulture), "\t", pair.Key)).Prepend(title));
     }
 
+    private static string FormatCountRowYank(string label, KeyValuePair<string, int> row)
+    {
+        return string.Join(
+            Environment.NewLine,
+            string.Concat(label, ": ", row.Key),
+            string.Concat("Findings: ", row.Value.ToString(CultureInfo.InvariantCulture)));
+    }
+
     private static string FormatFindingYank(PicketTuiFindingRow row, string reportPath)
     {
         return string.Join(
@@ -600,6 +766,18 @@ internal sealed class PicketTuiState
             string.Concat("Line: ", row.Line),
             string.Concat("Fingerprint: ", row.Fingerprint),
             string.Concat("Report: ", reportPath));
+    }
+
+    private static string FormatFindingDetails(PicketTuiFindingRow row)
+    {
+        return string.Join(
+            Environment.NewLine,
+            string.Concat("Rule: ", row.RuleId),
+            string.Concat("Path: ", row.Path),
+            string.Concat("Line: ", row.Line),
+            string.Concat("Fingerprint: ", row.Fingerprint),
+            string.Empty,
+            "Secret evidence is intentionally not loaded in this summary view.");
     }
 
     private async Task ClearYankNotificationAsync(long generation, Action invalidate, CancellationToken cancellationToken)
@@ -640,16 +818,7 @@ internal sealed class PicketTuiState
 
     private string FormatLogsYank()
     {
-        return string.Join(
-            Environment.NewLine,
-            string.Concat("Loaded: ", Report.LoadedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
-            string.Concat("Report: ", Report.Path),
-            string.Concat("Status: ", StatusMessage),
-            string.Concat("Scan: ", ScanWorkspace.Status),
-            string.Concat("Scan timing: ", FormatScanTiming(ScanWorkspace)),
-            string.Concat("Last run: ", ScanWorkspace.LastMessage),
-            string.Concat("Scanner output:", Environment.NewLine, ScanWorkspace.CapturedOutputText),
-            string.Concat("Filter: ", SearchText.Length == 0 ? "none" : SearchText));
+        return GetLogsText();
     }
 
     private string GetFindingYankText()
@@ -672,6 +841,104 @@ internal sealed class PicketTuiState
         ];
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private string GetDashboardText()
+    {
+        var lines = new List<string>
+        {
+            "Report",
+            string.Concat("  Findings: ", _rows.Count.ToString(CultureInfo.InvariantCulture)),
+            string.Concat("  Files:    ", Report.Summary.FileCount.ToString(CultureInfo.InvariantCulture)),
+            string.Concat("  Format:   ", Report.Summary.Format),
+            string.Concat("  Loaded:   ", Report.LoadedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+            string.Concat("  Path:     ", Report.Path),
+            string.Empty,
+            "Scanner",
+            string.Concat("  Status:   ", ScanWorkspace.Status),
+            string.Concat("  Target:   ", FormatScanTargetForText(ScanWorkspace)),
+            string.Concat("  Timing:   ", FormatScanTiming(ScanWorkspace)),
+            string.Concat("  Output:   ", ScanWorkspace.CapturedOutputLines.Count == 0 ? "No captured output" : "Open Logs"),
+            string.Empty,
+            "Top rules by finding count",
+        };
+
+        AppendCountRows(lines, GetTopRules(TopListLimit), "Rule");
+        lines.Add(string.Empty);
+        lines.Add("Top files by finding count");
+        AppendCountRows(lines, GetTopFiles(TopListLimit), "File");
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private string GetLogsText()
+    {
+        List<string> filteredOutput = GetFilteredLogLines();
+        int totalOutputLineCount = ScanWorkspace.CapturedOutputLines.Count;
+        var lines = new List<string>
+        {
+            string.Concat("Loaded:      ", Report.LoadedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+            string.Concat("Report:      ", Report.Path),
+            string.Concat("Status:      ", StatusMessage),
+            string.Concat("Scan:        ", ScanWorkspace.Status),
+            string.Concat("Scan timing: ", FormatScanTiming(ScanWorkspace)),
+            string.Concat("Last run:    ", ScanWorkspace.LastMessage),
+            string.Empty,
+            LogSearchText.Length == 0
+                ? string.Concat("Scanner output (", totalOutputLineCount.ToString(CultureInfo.InvariantCulture), " lines)")
+                : string.Concat(
+                    "Scanner output matching \"",
+                    LogSearchText,
+                    "\" (",
+                    filteredOutput.Count.ToString(CultureInfo.InvariantCulture),
+                    "/",
+                    totalOutputLineCount.ToString(CultureInfo.InvariantCulture),
+                    " lines)"),
+        };
+
+        if (filteredOutput.Count == 0)
+        {
+            lines.Add(totalOutputLineCount == 0
+                ? "No scanner output captured."
+                : "No scanner output lines match the current search.");
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        lines.AddRange(filteredOutput);
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private List<string> GetFilteredLogLines()
+    {
+        IReadOnlyList<string> lines = ScanWorkspace.CapturedOutputLines;
+        if (LogSearchText.Length == 0)
+        {
+            return [.. lines];
+        }
+
+        var filtered = new List<string>();
+        for (int i = 0; i < lines.Count; i++)
+        {
+            if (lines[i].Contains(LogSearchText, StringComparison.OrdinalIgnoreCase))
+            {
+                filtered.Add(lines[i]);
+            }
+        }
+
+        return filtered;
+    }
+
+    private string GetRuleYankText()
+    {
+        return TryFindCountRow(GetTopRules(_rows.Count), FocusedRuleKey, out KeyValuePair<string, int> row)
+            ? FormatCountRowYank("Rule", row)
+            : FormatCountYank("Rules", GetTopRules(50));
+    }
+
+    private string GetFileYankText()
+    {
+        return TryFindCountRow(GetTopFiles(_rows.Count), FocusedFileKey, out KeyValuePair<string, int> row)
+            ? FormatCountRowYank("File", row)
+            : FormatCountYank("Files", GetTopFiles(50));
     }
 
     private static string FormatScanTiming(PicketTuiScanWorkspace scan)
@@ -707,6 +974,41 @@ internal sealed class PicketTuiState
             : string.Create(CultureInfo.InvariantCulture, $"{value.TotalSeconds:0.0} s");
     }
 
+    private static string FirstNonEmpty(string first, string second, string third, string fallback)
+    {
+        if (!string.IsNullOrWhiteSpace(first))
+        {
+            return first;
+        }
+
+        if (!string.IsNullOrWhiteSpace(second))
+        {
+            return second;
+        }
+
+        return !string.IsNullOrWhiteSpace(third) ? third : fallback;
+    }
+
+    private static string FirstNonEmpty(string first, string second, string third, string fourth, string fallback)
+    {
+        if (!string.IsNullOrWhiteSpace(first))
+        {
+            return first;
+        }
+
+        if (!string.IsNullOrWhiteSpace(second))
+        {
+            return second;
+        }
+
+        if (!string.IsNullOrWhiteSpace(third))
+        {
+            return third;
+        }
+
+        return !string.IsNullOrWhiteSpace(fourth) ? fourth : fallback;
+    }
+
     private List<KeyValuePair<string, int>> CountBy(Func<PicketTuiFindingRow, string> keySelector, int limit)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -724,5 +1026,115 @@ internal sealed class PicketTuiState
                 .ThenBy(pair => pair.Key, StringComparer.Ordinal)
                 .Take(limit),
         ];
+    }
+
+    private static void AppendCountRows(List<string> lines, List<KeyValuePair<string, int>> rows, string label)
+    {
+        if (rows.Count == 0)
+        {
+            lines.Add("  No findings.");
+            return;
+        }
+
+        lines.Add(string.Concat("  Findings  ", label));
+        for (int i = 0; i < rows.Count; i++)
+        {
+            KeyValuePair<string, int> row = rows[i];
+            lines.Add(string.Concat(
+                "  ",
+                row.Value.ToString(CultureInfo.InvariantCulture).PadLeft(8),
+                "  ",
+                row.Key));
+        }
+    }
+
+    private static EditorState GetOrCreateEditorState(ref EditorState? editorState, ref string? editorText, string text)
+    {
+        if (editorState is null || !string.Equals(editorText, text, StringComparison.Ordinal))
+        {
+            editorText = text;
+            editorState = new EditorState(new Hex1bDocument(text)) { IsReadOnly = true };
+        }
+
+        return editorState;
+    }
+
+    private static string FormatScanTargetForText(PicketTuiScanWorkspace scan)
+    {
+        return scan.TargetMode switch
+        {
+            PicketTuiScanTargetMode.GitHub => FirstNonEmpty(
+                scan.GitHubRepository,
+                scan.GitHubOrganization,
+                scan.GitHubUser,
+                scan.GitHubGist,
+                "GitHub target not selected"),
+            PicketTuiScanTargetMode.AzureDevOps => FirstNonEmpty(
+                scan.AzureDevOpsRepository,
+                scan.AzureDevOpsProject,
+                scan.AzureDevOpsOrganization,
+                "Azure DevOps target not selected"),
+            PicketTuiScanTargetMode.GitLab => FirstNonEmpty(
+                scan.GitLabProject,
+                scan.GitLabGroup,
+                string.Empty,
+                "GitLab target not selected"),
+            PicketTuiScanTargetMode.Gitea => FirstNonEmpty(
+                scan.GiteaRepository,
+                scan.GiteaOrganization,
+                scan.GiteaUser,
+                scan.GiteaGenericPackageOwner,
+                "Gitea target not selected"),
+            PicketTuiScanTargetMode.Bitbucket => FirstNonEmpty(
+                scan.BitbucketRepository,
+                scan.BitbucketWorkspace,
+                string.Empty,
+                "Bitbucket target not selected"),
+            PicketTuiScanTargetMode.DockerArchive => string.IsNullOrWhiteSpace(scan.DockerArchivePath)
+                ? "Docker archive not selected"
+                : scan.DockerArchivePath,
+            PicketTuiScanTargetMode.OciArchive => string.IsNullOrWhiteSpace(scan.OciArchivePath)
+                ? "OCI archive not selected"
+                : scan.OciArchivePath,
+            _ => string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath,
+        };
+    }
+
+    private static bool TryFindCountRow(
+        List<KeyValuePair<string, int>> rows,
+        string? key,
+        out KeyValuePair<string, int> row)
+    {
+        if (key is not null)
+        {
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (string.Equals(rows[i].Key, key, StringComparison.Ordinal))
+                {
+                    row = rows[i];
+                    return true;
+                }
+            }
+        }
+
+        row = default;
+        return false;
+    }
+
+    private static int? ParseLineNumber(string value)
+    {
+        return int.TryParse(value, CultureInfo.InvariantCulture, out int line) && line > 0
+            ? line
+            : null;
+    }
+
+    private void ResetEditorStates()
+    {
+        _dashboardEditorState = null;
+        _dashboardEditorText = null;
+        _findingDetailsEditorState = null;
+        _findingDetailsEditorText = null;
+        _logsEditorState = null;
+        _logsEditorText = null;
     }
 }
