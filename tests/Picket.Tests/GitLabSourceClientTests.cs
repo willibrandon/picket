@@ -223,6 +223,45 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitLab repository enumeration normalizes unsafe provider-supplied display path segments.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesNormalizesUnsafeDisplayPathSegments()
+    {
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/projects/willibrandon%2Fpicket/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "path": "safe/../secret.txt", "type": "blob", "size": 11 }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/repository/files/safe%2F..%2Fsecret.txt/raw?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitlab/willibrandon/picket/safe/_/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+    }
+
+    /// <summary>
     /// Verifies that group enumeration lists group projects and scans each project repository.
     /// </summary>
     [TestMethod]
