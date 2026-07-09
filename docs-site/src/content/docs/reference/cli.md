@@ -919,7 +919,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
@@ -1502,7 +1502,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
@@ -2135,7 +2135,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
@@ -2346,7 +2346,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
@@ -2522,7 +2522,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
@@ -2745,7 +2745,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
@@ -2850,7 +2850,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. The optional value is 0 through 100.</td>
+              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>

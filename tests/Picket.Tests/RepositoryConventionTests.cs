@@ -389,6 +389,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet publish src/Picket.Cli/Picket.Cli.csproj", dockerfile);
         Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", dockerfile);
         Assert.Contains("ca-certificates git", dockerfile);
+        Assert.Contains("git config --system --add safe.directory /work", dockerfile);
         Assert.Contains("USER $APP_UID", dockerfile);
         Assert.Contains("ENTRYPOINT [\"/usr/local/bin/picket\"]", dockerfile);
         Assert.Contains("picket-tui", dockerfile);
@@ -407,6 +408,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("wslc image build", releaseDocumentation);
         Assert.Contains("run the WSL container CLI example from PowerShell", releaseDocumentation);
         Assert.Contains("wslc run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=100", releaseDocumentation);
+        Assert.Contains("wslc run --rm -v ${PWD}:/work picket:dev git . --report-format json --redact=100", releaseDocumentation);
+        Assert.DoesNotContain("picket:dev git . --report-format json --redact=100 --exit-code 0", releaseDocumentation);
+        Assert.Contains("trusts `/work` for mounted repository scans", releaseDocumentation);
         Assert.Contains("non-root default user", releaseDocumentation);
     }
 

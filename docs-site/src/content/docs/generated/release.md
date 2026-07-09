@@ -74,6 +74,7 @@ The repository root `Dockerfile` builds the Linux scanner image from source usin
 - `picket-tui` beside it for `picket tui`,
 - `git` for Gitleaks-compatible `picket git` history scans,
 - CA certificates for source-host, object-store, and live-verification HTTPS calls,
+- Git system configuration that trusts `/work` for mounted repository scans,
 - a non-root default user from the .NET runtime-deps image.
 
 Build locally for the current machine with:
@@ -88,6 +89,7 @@ On Windows, run the WSL container CLI example from PowerShell:
 ```powershell
 wslc image build -t picket:dev .
 wslc run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=100
+wslc run --rm -v ${PWD}:/work picket:dev git . --report-format json --redact=100
 ```
 
 For release tags, `.github/workflows/release.yml` publishes a multi-architecture Linux image to GHCR for `linux/amd64` and `linux/arm64`. The published tags are:

@@ -170,7 +170,7 @@ internal static class CliOptionMetadata
             "--pre-commit" => "Scan the pre-commit diff range.",
             "--print-config" => "Print the resolved config.",
             "--profile" => "Use the named rule/profile mode.",
-            "--redact" => "Redact secret text in reports. The optional value is 0 through 100.",
+            "--redact" => "Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.",
             "--repo" => "Install hook scripts into this repository.",
             "--report-format" => "Select report format.",
             "--report-path" => "Write a report to this path.",
