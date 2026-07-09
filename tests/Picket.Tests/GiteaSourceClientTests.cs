@@ -156,6 +156,32 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Gitea JSON metadata stops before reading responses that declare a size beyond the metadata cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRejectsMetadataResponseExceedingCap()
+    {
+        const string Token = "gitea-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => OversizedJsonMetadataResponse()));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            "main",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Gitea source metadata", warnings[0]);
+        Assert.Contains("exceeding the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that Gitea file display paths normalize unsafe provider path segments.
     /// </summary>
     [TestMethod]
@@ -1031,6 +1057,13 @@ public sealed class GiteaSourceClientTests
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
+    }
+
+    private static HttpResponseMessage OversizedJsonMetadataResponse()
+    {
+        HttpResponseMessage response = JsonResponse("{}");
+        response.Content.Headers.ContentLength = RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1;
+        return response;
     }
 
     private static HttpResponseMessage BytesResponse(string value)

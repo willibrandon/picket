@@ -206,6 +206,32 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitLab JSON metadata stops before reading responses that declare a size beyond the metadata cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRejectsMetadataResponseExceedingCap()
+    {
+        const string Token = "gitlab-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => OversizedJsonMetadataResponse()));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            "main",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("GitLab source metadata", warnings[0]);
+        Assert.Contains("exceeding the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration reads the project tree and downloads raw blob content.
     /// </summary>
     [TestMethod]
@@ -988,6 +1014,13 @@ public sealed class GitLabSourceClientTests
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
+    }
+
+    private static HttpResponseMessage OversizedJsonMetadataResponse()
+    {
+        HttpResponseMessage response = JsonResponse("[]");
+        response.Content.Headers.ContentLength = RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1;
+        return response;
     }
 
     private static HttpResponseMessage BytesResponse(string text)
