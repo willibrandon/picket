@@ -182,6 +182,32 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Gitea JSON metadata is capped while streaming when no content length is available.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRejectsStreamingMetadataResponseExceedingCap()
+    {
+        const string Token = "gitea-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => OversizedStreamingJsonMetadataResponse()));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            "main",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Gitea source metadata", warnings[0]);
+        Assert.Contains("remote metadata response exceeded the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that Gitea file display paths normalize unsafe provider path segments.
     /// </summary>
     [TestMethod]
@@ -1064,6 +1090,14 @@ public sealed class GiteaSourceClientTests
         HttpResponseMessage response = JsonResponse("{}");
         response.Content.Headers.ContentLength = RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1;
         return response;
+    }
+
+    private static HttpResponseMessage OversizedStreamingJsonMetadataResponse()
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new RepeatingReadStream(RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1, (byte)' ')),
+        };
     }
 
     private static HttpResponseMessage BytesResponse(string value)
