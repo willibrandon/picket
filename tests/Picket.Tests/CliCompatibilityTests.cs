@@ -588,6 +588,25 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans create missing parent directories for report paths.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCreatesMissingReportPathDirectory()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "reports", "nested", "report.html");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "--report-format", "html", "--report-path", reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains($"report written: {reportPath}", result.Stderr);
+        Assert.Contains("<h1>Picket Secret Scan Report</h1>", File.ReadAllText(reportPath));
+    }
+
+    /// <summary>
     /// Verifies that native scans use the Picket rich JSON report shape.
     /// </summary>
     [TestMethod]

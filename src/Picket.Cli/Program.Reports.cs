@@ -241,6 +241,11 @@ internal static partial class Program
 
         try
         {
+            if (announceReportPath && !TryCreateReportDirectory(reportPath))
+            {
+                return false;
+            }
+
             File.WriteAllText(reportPath, report);
             if (announceReportPath)
             {
@@ -252,6 +257,26 @@ internal static partial class Program
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Console.Error.WriteLine($"failed to write report: {ex.Message}");
+            return false;
+        }
+    }
+
+    static bool TryCreateReportDirectory(string reportPath)
+    {
+        string? directory = Path.GetDirectoryName(Path.GetFullPath(reportPath));
+        if (string.IsNullOrEmpty(directory) || Directory.Exists(directory))
+        {
+            return true;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"failed to create report directory: {ex.Message}");
             return false;
         }
     }
