@@ -868,13 +868,15 @@ Implemented Bitbucket entry points:
 | Scope | Options | Behavior |
 | --- | --- | --- |
 | Repository files | `--bitbucket-repository`, `--bitbucket-ref`, `--bitbucket-token-env`, `--bitbucket-token-kind`, `--bitbucket-username-env`, `--bitbucket-api-endpoint` | Scans a `workspace/repository` repository path or repository URL at a branch, tag, or commit. Empty `--bitbucket-ref` uses the repository main branch. Bearer-token auth is the default; app-password basic auth is explicit. |
+| Workspace repositories | `--bitbucket-workspace`, `--bitbucket-ref`, `--bitbucket-token-env`, `--bitbucket-token-kind`, `--bitbucket-username-env`, `--bitbucket-api-endpoint` | Lists repositories visible in a workspace and scans each repository. Empty `--bitbucket-ref` resolves each repository's main branch; a non-empty ref is applied to every repository. Cannot be combined with `--bitbucket-repository` or `--bitbucket-pull-request`. |
 | Pull request source head | `--bitbucket-repository`, `--bitbucket-pull-request` | Resolves the pull request source commit and source repository, including forks when Bitbucket returns them, then scans that commit. |
-| Download artifacts | `--bitbucket-repository`, `--bitbucket-include-downloads` | Lists repository download artifacts, downloads each selected artifact through Bitbucket's redirect endpoint, follows redirected artifact URLs without forwarding credentials, and expands archive artifacts through the native archive safety caps. Cannot be combined with `--bitbucket-pull-request`. |
+| Download artifacts | `--bitbucket-repository` or `--bitbucket-workspace`, `--bitbucket-include-downloads` | Lists repository download artifacts, downloads each selected artifact through Bitbucket's redirect endpoint, follows redirected artifact URLs without forwarding credentials, and expands archive artifacts through the native archive safety caps. With workspace scans, the option applies to every enumerated repository. Cannot be combined with `--bitbucket-pull-request`. |
 
 Bitbucket API flow:
 
 | Source | API behavior |
 | --- | --- |
+| Workspace repositories | Lists repositories in a workspace with `pagelen=100`, follows Bitbucket pagination, and scans each returned repository path. |
 | Repository metadata | Resolves the main branch when `--bitbucket-ref` is omitted. |
 | Pull request metadata | Resolves the source commit hash, source branch fallback, and source repository when `--bitbucket-pull-request` is used. |
 | Directory listings | Lists repository directory contents page by page with `pagelen=100`. Picket walks returned `commit_directory` entries instead of relying on `max_depth`. |
@@ -887,7 +889,7 @@ Bitbucket source safety rules:
 - Redirects are disabled before credentials are sent.
 - Responses from injected HTTP handlers that already followed a redirect are rejected.
 - Retryable throttling and service responses are retried once with bounded `Retry-After` backoff.
-- Bitbucket directory pagination follows the `next` response field and stops at a 1,000-page safety limit per paged list with a warning.
+- Bitbucket workspace repository and directory pagination follows the `next` response field and stops at a 1,000-page safety limit per paged list with a warning.
 - Remote downloads use a 100 decimal MB default cap.
 - Provider metadata JSON responses are capped at 10 decimal MB and skipped with a warning when the cap is exceeded.
 - A positive `--max-target-megabytes` value overrides the default remote cap.
@@ -895,9 +897,9 @@ Bitbucket source safety rules:
 - Oversized directory entries are skipped before download when Bitbucket returns a size.
 - Oversized download artifacts are skipped before download when Bitbucket returns a size.
 - Download artifact archives respect `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
-- Pipelines, snippets, workspaces, projects, and Bitbucket Data Center/Server remain planned explicit source selectors.
+- Pipelines, snippets, projects, and Bitbucket Data Center/Server remain planned explicit source selectors.
 
-Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository enumeration requires read-only repository access for repository metadata, source directory listings, raw source file content, and download artifacts. Pull request scans also require read-only pull request access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration and the `pullrequest` scope for pull request metadata. For API tokens, Bitbucket documents `read:repository:bitbucket` and `read:pullrequest:bitbucket`.
+Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Pull request scans also require read-only pull request access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration and the `pullrequest` scope for pull request metadata. For API tokens, Bitbucket documents `read:repository:bitbucket` and `read:pullrequest:bitbucket`.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 

@@ -250,13 +250,13 @@ Bitbucket Cloud REST API documentation reviewed on 2026-07-08:
 - Bitbucket downloads API: `https://developer.atlassian.com/cloud/bitbucket/rest/api-group-downloads/`
 
 Picket uses Bitbucket repository metadata to resolve the main branch, paged
-source directory listings with `pagelen=100`, explicit directory walking instead
-of the `max_depth` parameter, raw source file responses for selected file bytes,
-pull request metadata to resolve source-head commits and source repositories, and
-repository download listings plus Bitbucket's documented download-artifact
-redirect endpoint for artifact bytes. Bearer tokens and app passwords are read
-from environment variables, are not logged, and are not forwarded to redirected
-artifact URLs.
+workspace repository listings and source directory listings with `pagelen=100`,
+explicit directory walking instead of the `max_depth` parameter, raw source file
+responses for selected file bytes, pull request metadata to resolve source-head
+commits and source repositories, and repository download listings plus
+Bitbucket's documented download-artifact redirect endpoint for artifact bytes.
+Bearer tokens and app passwords are read from environment variables, are not
+logged, and are not forwarded to redirected artifact URLs.
 
 ## Azure DevOps Source References
 

@@ -70,6 +70,7 @@ internal static class CliOptionMetadata
             "--bitbucket-token-env" => "Read the Bitbucket source enumeration token or app password from this environment variable.",
             "--bitbucket-token-kind" => "Choose bearer-token authentication or app-password basic authentication for Bitbucket requests.",
             "--bitbucket-username-env" => "Read the Bitbucket username for app-password authentication from this environment variable.",
+            "--bitbucket-workspace" => "Scan repositories in this Bitbucket workspace through native source enumeration.",
             "--cache-dir" => "Read or write scanner cache data in this directory.",
             "--cache-mode" => "Choose whether scan cache entries store raw evidence or secret and match hashes only.",
             "--command" => "Use this command path in generated hook scripts.",

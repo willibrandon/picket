@@ -191,7 +191,7 @@ public sealed class BitbucketSourceOptions(
         return normalized;
     }
 
-    private static Uri RequireCredentialTransport(Uri endpoint, bool allowInsecureCredentialTransport)
+    internal static Uri RequireCredentialTransport(Uri endpoint, bool allowInsecureCredentialTransport)
     {
         if (!allowInsecureCredentialTransport && endpoint.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
         {
@@ -263,13 +263,13 @@ public sealed class BitbucketSourceOptions(
         return value.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? value[..^4] : value;
     }
 
-    private static string RequireCredential(string value)
+    internal static string RequireCredential(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         return value.Trim();
     }
 
-    private static string RequireUsername(string value, BitbucketCredentialKind credentialKind)
+    internal static string RequireUsername(string value, BitbucketCredentialKind credentialKind)
     {
         if (credentialKind != BitbucketCredentialKind.AppPassword)
         {
@@ -280,7 +280,7 @@ public sealed class BitbucketSourceOptions(
         return value.Trim();
     }
 
-    private static BitbucketCredentialKind RequireCredentialKind(BitbucketCredentialKind value)
+    internal static BitbucketCredentialKind RequireCredentialKind(BitbucketCredentialKind value)
     {
         if (value is not BitbucketCredentialKind.BearerToken
             and not BitbucketCredentialKind.AppPassword)
@@ -307,7 +307,7 @@ public sealed class BitbucketSourceOptions(
         return value;
     }
 
-    private static long RequireMaxFileBytes(long? value, string parameterName)
+    internal static long RequireMaxFileBytes(long? value, string parameterName)
     {
         if (!value.HasValue)
         {
@@ -322,19 +322,19 @@ public sealed class BitbucketSourceOptions(
         return value.Value;
     }
 
-    private static int RequireMaxArchiveDepth(int value)
+    internal static int RequireMaxArchiveDepth(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 
-    private static int RequireMaxArchiveEntries(int value)
+    internal static int RequireMaxArchiveEntries(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
     }
 
-    private static long? RequireMaxArchiveBytes(long? value)
+    internal static long? RequireMaxArchiveBytes(long? value)
     {
         if (value.HasValue)
         {
@@ -344,7 +344,7 @@ public sealed class BitbucketSourceOptions(
         return value;
     }
 
-    private static int RequireMaxArchiveCompressionRatio(int value)
+    internal static int RequireMaxArchiveCompressionRatio(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;

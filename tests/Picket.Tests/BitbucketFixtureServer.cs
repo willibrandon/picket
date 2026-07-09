@@ -101,6 +101,20 @@ internal sealed class BitbucketFixtureServer : IDisposable
             return;
         }
 
+        if (target.Equals("/2.0/repositories/willibrandon?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            const string WorkspaceJson = """{"pagelen":100,"page":1,"size":2,"values":[{"full_name":"willibrandon/picket"},{"full_name":"willibrandon/second"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(WorkspaceJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/willibrandon/second", StringComparison.Ordinal))
+        {
+            const string RepositoryJson = """{"mainbranch":{"name":"main"}}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(RepositoryJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/2.0/repositories/willibrandon/picket/pullrequests/7", StringComparison.Ordinal))
         {
             const string PullRequestJson = """{"id":7,"source":{"branch":{"name":"feature/secrets"},"commit":{"hash":"pr-head-sha"},"repository":{"full_name":"forkspace/picket-fork"}}}""";
@@ -126,6 +140,29 @@ internal sealed class BitbucketFixtureServer : IDisposable
         }
 
         if (target.Equals("/2.0/repositories/willibrandon/picket/src/main/src/appsettings.txt", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/willibrandon/second/src/main/?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            const string RootJson = """{"pagelen":100,"page":1,"size":1,"values":[{"path":"src","type":"commit_directory"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(RootJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/willibrandon/second/src/main/src/?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            string directoryJson = string.Concat(
+                "{\"pagelen\":100,\"page\":1,\"size\":1,\"values\":[{\"path\":\"src/second.txt\",\"type\":\"commit_file\",\"size\":",
+                Encoding.UTF8.GetByteCount(_content).ToString(CultureInfo.InvariantCulture),
+                "}]}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(directoryJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/repositories/willibrandon/second/src/main/src/second.txt", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
             return;

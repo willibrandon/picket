@@ -12,6 +12,12 @@ internal static partial class Program
             || arg.StartsWith("--bitbucket-repository=", StringComparison.Ordinal);
     }
 
+    static bool IsBitbucketWorkspaceFlag(string arg)
+    {
+        return arg.Equals("--bitbucket-workspace", StringComparison.Ordinal)
+            || arg.StartsWith("--bitbucket-workspace=", StringComparison.Ordinal);
+    }
+
     static bool IsBitbucketRefFlag(string arg)
     {
         return arg.Equals("--bitbucket-ref", StringComparison.Ordinal)
@@ -99,6 +105,7 @@ internal static partial class Program
     static bool TryCreateBitbucketSourceProvider(
         Uri? endpoint,
         string repository,
+        string workspace,
         string gitRef,
         int pullRequestId,
         bool includeDownloads,
@@ -110,9 +117,17 @@ internal static partial class Program
         [NotNullWhen(true)] out NativeSourceProvider? sourceFileProvider)
     {
         sourceFileProvider = null;
-        if (string.IsNullOrWhiteSpace(repository))
+        bool hasRepository = !string.IsNullOrWhiteSpace(repository);
+        bool hasWorkspace = !string.IsNullOrWhiteSpace(workspace);
+        if (hasRepository == hasWorkspace)
         {
-            Console.Error.WriteLine("Bitbucket source scan requires --bitbucket-repository");
+            Console.Error.WriteLine("Bitbucket source scan requires exactly one of --bitbucket-repository or --bitbucket-workspace");
+            return false;
+        }
+
+        if (pullRequestId != 0 && hasWorkspace)
+        {
+            Console.Error.WriteLine("Bitbucket pull request source scan requires --bitbucket-repository");
             return false;
         }
 
@@ -157,22 +172,42 @@ internal static partial class Program
         Uri sourceEndpoint = endpoint ?? BitbucketSourceOptions.CreateDefaultEndpoint();
         try
         {
-            var validatedOptions = new BitbucketSourceOptions(
-                sourceEndpoint,
-                repository,
-                credential,
-                username,
-                credentialKind,
-                gitRef,
-                pullRequestId,
-                includeDownloads,
-                allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
-            sourceEndpoint = validatedOptions.Endpoint;
-            repository = validatedOptions.Repository;
-            gitRef = validatedOptions.Ref;
-            pullRequestId = validatedOptions.PullRequestId;
-            includeDownloads = validatedOptions.IncludeDownloads;
-            credentialKind = validatedOptions.CredentialKind;
+            if (hasRepository)
+            {
+                var validatedOptions = new BitbucketSourceOptions(
+                    sourceEndpoint,
+                    repository,
+                    credential,
+                    username,
+                    credentialKind,
+                    gitRef,
+                    pullRequestId,
+                    includeDownloads,
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                sourceEndpoint = validatedOptions.Endpoint;
+                repository = validatedOptions.Repository;
+                gitRef = validatedOptions.Ref;
+                pullRequestId = validatedOptions.PullRequestId;
+                includeDownloads = validatedOptions.IncludeDownloads;
+                credentialKind = validatedOptions.CredentialKind;
+            }
+            else
+            {
+                var validatedOptions = new BitbucketWorkspaceSourceOptions(
+                    sourceEndpoint,
+                    workspace,
+                    credential,
+                    username,
+                    credentialKind,
+                    gitRef,
+                    includeDownloads,
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                sourceEndpoint = validatedOptions.Endpoint;
+                workspace = validatedOptions.Workspace;
+                gitRef = validatedOptions.Ref;
+                includeDownloads = validatedOptions.IncludeDownloads;
+                credentialKind = validatedOptions.CredentialKind;
+            }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -199,14 +234,35 @@ internal static partial class Program
                 EndpointGuardOptions = endpointGuardOptions,
             }), disposeHandler: true);
             var client = new BitbucketSourceClient(httpClient);
-            return client.EnumerateRepositoryFilesAsync(new BitbucketSourceOptions(
+            if (hasRepository)
+            {
+                return client.EnumerateRepositoryFilesAsync(new BitbucketSourceOptions(
+                    sourceEndpoint,
+                    repository,
+                    credential,
+                    username,
+                    credentialKind,
+                    gitRef,
+                    pullRequestId,
+                    includeDownloads,
+                    maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
+                    allowInsecureSourceEndpoints,
+                    rules.IsGlobalPathAllowed,
+                    Console.Error.WriteLine,
+                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+            }
+
+            return client.EnumerateWorkspaceRepositoryFilesAsync(new BitbucketWorkspaceSourceOptions(
                 sourceEndpoint,
-                repository,
+                workspace,
                 credential,
                 username,
                 credentialKind,
                 gitRef,
-                pullRequestId,
                 includeDownloads,
                 maxTargetBytes,
                 maxArchiveDepth,

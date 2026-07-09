@@ -487,6 +487,7 @@ internal static partial class Program
     private static void AddBitbucketSourceOptions(Command command, string commandName)
     {
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-repository", "workspace/repo"));
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-workspace", "workspace"));
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-ref", "ref"));
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-pull-request", "id"));
         command.Options.Add(CreateFlagOption(commandName, "--bitbucket-include-downloads"));

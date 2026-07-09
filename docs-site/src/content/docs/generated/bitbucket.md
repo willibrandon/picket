@@ -20,6 +20,12 @@ Repository scans resolve the main branch when `--bitbucket-ref` is omitted, list
 picket scan --bitbucket-repository willibrandon/picket --bitbucket-ref main --bitbucket-token-env PICKET_BITBUCKET_SOURCE_TOKEN --report-format jsonl
 ```
 
+Workspace scans list repositories in a workspace and scan each visible repository. When `--bitbucket-ref` is provided, the same branch, tag, or commit is used for each repository; otherwise Picket resolves each repository's main branch:
+
+```bash
+picket scan --bitbucket-workspace willibrandon --bitbucket-token-env PICKET_BITBUCKET_SOURCE_TOKEN --report-format jsonl
+```
+
 Repository download artifacts are explicit opt-ins:
 
 ```bash
@@ -51,9 +57,10 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 | Option | Behavior |
 | --- | --- |
 | `--bitbucket-repository` | Repository to scan as a workspace/repository path or repository URL. |
+| `--bitbucket-workspace` | Workspace whose visible repositories should be scanned. Cannot be combined with `--bitbucket-repository` or `--bitbucket-pull-request`. |
 | `--bitbucket-ref` | Optional branch, tag, or commit SHA. Empty uses the repository main branch. |
 | `--bitbucket-pull-request` | Optional pull request ID. Resolves and scans the source commit. Cannot be combined with `--bitbucket-ref`. |
-| `--bitbucket-include-downloads` | Also scan repository download artifacts. Cannot be combined with `--bitbucket-pull-request`. |
+| `--bitbucket-include-downloads` | Also scan repository download artifacts. With `--bitbucket-workspace`, applies to each enumerated repository. Cannot be combined with `--bitbucket-pull-request`. |
 | `--bitbucket-token-env` | Environment variable containing the Bitbucket token or app password. |
 | `--bitbucket-token-kind` | Credential mode. `bearer` is the default. `app-password` uses HTTP Basic authentication. |
 | `--bitbucket-username-env` | Environment variable containing the Bitbucket username for `app-password` mode. |
@@ -65,6 +72,7 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 
 | Source | API behavior |
 | --- | --- |
+| Workspace repositories | Lists repositories in a workspace with `pagelen=100`, follows Bitbucket pagination, and scans each returned repository path. |
 | Repository metadata | Resolves the main branch when `--bitbucket-ref` is omitted. |
 | Pull request metadata | Resolves the source commit hash and source repository when `--bitbucket-pull-request` is used. |
 | Directory listings | Lists repository directory contents page by page with `pagelen=100`. Picket walks returned `commit_directory` entries instead of relying on `max_depth`. |
@@ -73,7 +81,7 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 
 ## Limits
 
-Directory listing pagination follows Bitbucket's `next` response field while more entries are available. Picket caps each paged list at 1,000 pages and emits a warning if that safety limit is reached.
+Workspace repository and directory listing pagination follows Bitbucket's `next` response field while more entries are available. Picket caps each paged list at 1,000 pages and emits a warning if that safety limit is reached.
 
 Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes` overrides that cap with a positive value. Zero keeps its local-scan compatibility meaning, but remote Bitbucket sources reject zero because remote HTTP bodies are always bounded.
 
@@ -87,11 +95,11 @@ Oversized download artifacts are skipped before download when Bitbucket returns 
 
 Credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`.
 
-Least-privilege repository enumeration requires read-only repository access for repository metadata, source directory listings, raw source file content, and download artifacts. Pull request scans also require read-only pull request access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration and the `pullrequest` scope for pull request metadata. For API tokens, Bitbucket documents `read:repository:bitbucket` and `read:pullrequest:bitbucket`.
+Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Pull request scans also require read-only pull request access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration and the `pullrequest` scope for pull request metadata. For API tokens, Bitbucket documents `read:repository:bitbucket` and `read:pullrequest:bitbucket`.
 
 ## Current Scope
 
-The current scope is repository file enumeration, pull request source-head enumeration, and repository download artifacts. Pipelines, snippets, workspaces, projects, and Bitbucket Data Center/Server remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+The current scope is repository file enumeration, workspace repository enumeration, pull request source-head enumeration, and repository download artifacts. Pipelines, snippets, projects, and Bitbucket Data Center/Server remain separate planned source selectors. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
 
 ## References
 

@@ -120,6 +120,98 @@ public sealed class BitbucketSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that workspace enumeration lists repositories and scans each repository through the normal repository source path.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateWorkspaceRepositoryFilesReadsWorkspaceRepositories()
+    {
+        const string Token = "bitbucket-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repositories/willibrandon?pagelen=100&page=1", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "pagelen": 100,
+                      "page": 1,
+                      "size": 2,
+                      "values": [
+                        { "full_name": "willibrandon/picket" },
+                        { "full_name": "willibrandon/second" }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket", StringComparison.Ordinal)
+                && !url.Contains("/src/", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"mainbranch":{"name":"main"}}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/second", StringComparison.Ordinal)
+                && !url.Contains("/src/", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"mainbranch":{"name":"trunk"}}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"path":"src","type":"commit_directory"}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/src/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"path":"src/appsettings.txt","type":"commit_file","size":17}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/src/appsettings.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("first-token-12345");
+            }
+
+            if (url.Contains("/repositories/willibrandon/second/src/trunk/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"path":"src","type":"commit_directory"}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/second/src/trunk/src/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"path":"src/second.txt","type":"commit_file","size":18}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/second/src/trunk/src/second.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("second-token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketSourceClient(httpClient);
+        var options = new BitbucketWorkspaceSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            Token);
+
+        List<SourceFile> files = await client.EnumerateWorkspaceRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(2, files);
+        Assert.AreEqual("bitbucket/willibrandon/picket/src/appsettings.txt", files[0].DisplayPath);
+        Assert.AreEqual("first-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("bitbucket/willibrandon/second/src/second.txt", files[1].DisplayPath);
+        Assert.AreEqual("second-token-12345", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("/repositories/willibrandon?pagelen=100&page=1", requests);
+        Assert.Contains("/repositories/willibrandon/picket/src/main/src/appsettings.txt", requests);
+        Assert.Contains("/repositories/willibrandon/second/src/trunk/src/second.txt", requests);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
     /// Verifies that repository download artifacts are enumerated and expanded through the archive reader.
     /// </summary>
     [TestMethod]

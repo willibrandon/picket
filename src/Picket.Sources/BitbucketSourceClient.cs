@@ -15,6 +15,7 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
 {
     private const int DirectoryEntriesPerPage = 100;
     private const int DownloadArtifactsPerPage = 100;
+    private const int WorkspaceRepositoriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-bitbucket-remote");
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -76,6 +77,120 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         }
 
         return sourceFiles;
+    }
+
+    /// <summary>
+    /// Enumerates Bitbucket repository files from all repositories in the selected workspace.
+    /// </summary>
+    /// <param name="options">The Bitbucket workspace source options.</param>
+    /// <param name="cancellationToken">A token that can cancel source enumeration.</param>
+    /// <returns>The selected source files.</returns>
+    public async Task<List<SourceFile>> EnumerateWorkspaceRepositoryFilesAsync(
+        BitbucketWorkspaceSourceOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var sourceFiles = new List<SourceFile>();
+        if (IsCancellationRequested(options))
+        {
+            return sourceFiles;
+        }
+
+        try
+        {
+            await AddWorkspaceRepositoriesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
+            return sourceFiles;
+        }
+
+        return sourceFiles;
+    }
+
+    private async Task AddWorkspaceRepositoriesAsync(
+        BitbucketWorkspaceSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        while (!IsCancellationRequested(options))
+        {
+            Uri repositoriesUri = CreateWorkspaceRepositoriesUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, repositoriesUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Bitbucket workspace {options.Workspace}");
+                return;
+            }
+
+            using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Bitbucket source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+            JsonElement root = document.RootElement;
+            int entryCount = await AddWorkspaceRepositoryEntriesAsync(options, root, sourceFiles, cancellationToken).ConfigureAwait(false);
+            if (!HasNextPage(root, page, entryCount, options.WarningSink, $"Bitbucket workspace {options.Workspace} repository enumeration"))
+            {
+                return;
+            }
+
+            page++;
+        }
+    }
+
+    private async Task<int> AddWorkspaceRepositoryEntriesAsync(
+        BitbucketWorkspaceSourceOptions options,
+        JsonElement root,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        if (!root.TryGetProperty("values", out JsonElement values) || values.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int entryCount = 0;
+        foreach (JsonElement item in values.EnumerateArray())
+        {
+            entryCount++;
+            if (IsCancellationRequested(options))
+            {
+                return entryCount;
+            }
+
+            string repository = GetString(item, "full_name");
+            if (repository.Length == 0)
+            {
+                string slug = GetString(item, "slug");
+                if (slug.Length == 0)
+                {
+                    slug = GetString(item, "name");
+                }
+
+                repository = slug.Length == 0 ? string.Empty : string.Concat(options.Workspace, "/", slug);
+            }
+
+            if (repository.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Bitbucket workspace {options.Workspace} repository because Bitbucket did not return a repository name");
+                continue;
+            }
+
+            BitbucketSourceOptions repositoryOptions;
+            try
+            {
+                repositoryOptions = options.CreateRepositoryOptions(repository);
+            }
+            catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
+            {
+                options.WarningSink?.Invoke($"skipping Bitbucket workspace {options.Workspace} repository {repository} because it was invalid: {ex.Message}");
+                continue;
+            }
+
+            List<SourceFile> repositoryFiles = await EnumerateRepositoryFilesAsync(repositoryOptions, cancellationToken).ConfigureAwait(false);
+            sourceFiles.AddRange(repositoryFiles);
+        }
+
+        return entryCount;
     }
 
     private async Task<(bool ShouldScan, BitbucketSourceOptions SourceOptions, string SourceRef)> ResolvePullRequestSourceAsync(
@@ -461,6 +576,24 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         bool acceptRaw,
         CancellationToken cancellationToken)
     {
+        return await SendAsync(CreateAuthorizationHeader(options.CredentialKind, options.Username, options.Credential), uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        BitbucketWorkspaceSourceOptions options,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
+        return await SendAsync(CreateAuthorizationHeader(options.CredentialKind, options.Username, options.Credential), uri, acceptRaw, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        AuthenticationHeaderValue authorization,
+        Uri uri,
+        bool acceptRaw,
+        CancellationToken cancellationToken)
+    {
         return await RemoteSourceHttpRetry.SendAsync(
             _httpClient,
             () =>
@@ -468,7 +601,7 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
                 var request = new HttpRequestMessage(HttpMethod.Get, uri);
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptRaw ? "application/octet-stream" : "application/json"));
                 request.Headers.UserAgent.Add(new ProductInfoHeaderValue("picket", "dev"));
-                request.Headers.Authorization = CreateAuthorizationHeader(options);
+                request.Headers.Authorization = authorization;
                 return request;
             },
             RemoteSourceHttpRetry.IsGenericRetryableResponse,
@@ -527,16 +660,33 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         return memory.ToArray();
     }
 
-    private static AuthenticationHeaderValue CreateAuthorizationHeader(BitbucketSourceOptions options)
+    private static AuthenticationHeaderValue CreateAuthorizationHeader(
+        BitbucketCredentialKind credentialKind,
+        string username,
+        string credential)
     {
-        return options.CredentialKind switch
+        return credentialKind switch
         {
-            BitbucketCredentialKind.BearerToken => new AuthenticationHeaderValue("Bearer", options.Credential),
+            BitbucketCredentialKind.BearerToken => new AuthenticationHeaderValue("Bearer", credential),
             BitbucketCredentialKind.AppPassword => new AuthenticationHeaderValue(
                 "Basic",
-                Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Concat(options.Username, ":", options.Credential)))),
-            _ => throw new ArgumentOutOfRangeException(nameof(options)),
+                Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Concat(username, ":", credential)))),
+            _ => throw new ArgumentOutOfRangeException(nameof(credentialKind), credentialKind, "Unsupported Bitbucket token kind."),
         };
+    }
+
+    private static Uri CreateWorkspaceRepositoriesUri(BitbucketWorkspaceSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["repositories", options.Workspace],
+            itemPath: null,
+            trailingSlash: false,
+            query:
+            [
+                new KeyValuePair<string, string>("pagelen", WorkspaceRepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
     }
 
     private static Uri CreateRepositoryUri(BitbucketSourceOptions options)
@@ -677,7 +827,23 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         HttpResponseMessage response,
         string target)
     {
-        options.WarningSink?.Invoke(string.Concat(
+        WarnUnsuccessfulResponse(options.WarningSink, response, target);
+    }
+
+    private static void WarnUnsuccessfulResponse(
+        BitbucketWorkspaceSourceOptions options,
+        HttpResponseMessage response,
+        string target)
+    {
+        WarnUnsuccessfulResponse(options.WarningSink, response, target);
+    }
+
+    private static void WarnUnsuccessfulResponse(
+        Action<string>? warningSink,
+        HttpResponseMessage response,
+        string target)
+    {
+        warningSink?.Invoke(string.Concat(
             target,
             " because Bitbucket returned ",
             ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture),
@@ -874,6 +1040,11 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
     }
 
     private static bool IsCancellationRequested(BitbucketSourceOptions options)
+    {
+        return options.IsCancellationRequested is not null && options.IsCancellationRequested();
+    }
+
+    private static bool IsCancellationRequested(BitbucketWorkspaceSourceOptions options)
     {
         return options.IsCancellationRequested is not null && options.IsCancellationRequested();
     }

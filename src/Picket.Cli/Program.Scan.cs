@@ -24,6 +24,7 @@ internal static partial class Program
         string bitbucketRepository = string.Empty;
         string? bitbucketTokenEnvironmentVariable = null;
         string? bitbucketUsernameEnvironmentVariable = null;
+        string bitbucketWorkspace = string.Empty;
         AzureDevOpsCredentialKind azureDevOpsCredentialKind = AzureDevOpsCredentialKind.PersonalAccessToken;
         Uri? azureDevOpsEndpoint = null;
         string? azureDevOpsOrganization = null;
@@ -364,6 +365,18 @@ internal static partial class Program
                 }
 
                 bitbucketRepository = repository;
+                bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketWorkspaceFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-workspace", out string? workspace))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketWorkspace = workspace;
                 bitbucketOptionSpecified = true;
                 continue;
             }
@@ -1253,6 +1266,7 @@ internal static partial class Program
             && !TryCreateBitbucketSourceProvider(
                 bitbucketApiEndpoint,
                 bitbucketRepository,
+                bitbucketWorkspace,
                 bitbucketRef,
                 bitbucketPullRequestId,
                 bitbucketIncludeDownloads,
