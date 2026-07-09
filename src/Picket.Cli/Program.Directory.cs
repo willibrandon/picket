@@ -19,7 +19,8 @@ internal static partial class Program
         LiveVerificationConfiguration? liveVerification = null,
         bool allowReportInput = false,
         NativeSourceProvider? sourceFileProvider = null,
-        Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null)
+        Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null,
+        CancellationToken cancellationToken = default)
     {
         if (ContainsHelp(args))
         {
@@ -474,7 +475,7 @@ internal static partial class Program
                 readParentIgnoreFiles: respectNativeIgnoreFiles,
                 ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
                 warningSink: nativeMode ? Console.Error.WriteLine : null,
-                isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+                isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken)));
         }
         else
         {
@@ -512,10 +513,10 @@ internal static partial class Program
             : [];
         string? cacheDisplayPath = nativeMode ? CreateControlFileDisplayPath(root, cacheDir) : null;
         var findings = new List<Finding>();
-        bool hadScanError = IsTimedOut(timeoutTimestamp);
+        bool hadScanError = IsScanStopped(timeoutTimestamp, cancellationToken);
         if (hadScanError)
         {
-            Console.Error.WriteLine(TimeoutErrorMessage);
+            WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
         }
 
         foreach (SourceFile file in files)
@@ -525,9 +526,9 @@ internal static partial class Program
                 break;
             }
 
-            if (IsTimedOut(timeoutTimestamp))
+            if (IsScanStopped(timeoutTimestamp, cancellationToken))
             {
-                Console.Error.WriteLine(TimeoutErrorMessage);
+                WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
                 hadScanError = true;
                 break;
             }
@@ -574,10 +575,11 @@ internal static partial class Program
                     maxTargetBytes: maxTargetBytes,
                     symlinkFile: file.SymlinkDisplayPath,
                     enableCSharpStringConcatenation: nativeMode,
-                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
-                if (IsTimedOut(timeoutTimestamp))
+                    isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
+                    cancellationToken: cancellationToken));
+                if (IsScanStopped(timeoutTimestamp, cancellationToken))
                 {
-                    Console.Error.WriteLine(TimeoutErrorMessage);
+                    WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
                     hadScanError = true;
                     break;
                 }
@@ -615,6 +617,18 @@ internal static partial class Program
             nativeResultWriter,
             exitCode,
             hadScanError);
+    }
+
+    private static bool IsScanStopped(long timeoutTimestamp, CancellationToken cancellationToken)
+    {
+        return cancellationToken.IsCancellationRequested || IsTimedOut(timeoutTimestamp);
+    }
+
+    private static void WriteScanStoppedMessage(long timeoutTimestamp, CancellationToken cancellationToken)
+    {
+        Console.Error.WriteLine(cancellationToken.IsCancellationRequested && !IsTimedOut(timeoutTimestamp)
+            ? "scan canceled"
+            : TimeoutErrorMessage);
     }
 
     static bool TryGetSummaryOnlyReportFormat(string path, [NotNullWhen(true)] out string? format)

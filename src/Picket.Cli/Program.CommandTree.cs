@@ -61,7 +61,7 @@ internal static partial class Program
             "Native filesystem and source-host scan.",
             args,
             1,
-            static forwardedArgs => Task.FromResult(RunScan(forwardedArgs)));
+            static (forwardedArgs, cancellationToken) => Task.FromResult(RunScan(forwardedArgs, cancellationToken)));
         AddOptionalArgument(command, "picket scan", "path");
         AddNativeScanOptions(command, "picket scan");
         AddLiveVerificationOptions(command, "picket scan", includeModeSwitches: false);
@@ -409,11 +409,26 @@ internal static partial class Program
         int commandTokenCount,
         Func<string[], Task<int>> handler)
     {
+        return CreateForwardingCommand(
+            name,
+            description,
+            originalArgs,
+            commandTokenCount,
+            (forwardedArgs, _) => handler(forwardedArgs));
+    }
+
+    private static Command CreateForwardingCommand(
+        string name,
+        string description,
+        string[] originalArgs,
+        int commandTokenCount,
+        Func<string[], CancellationToken, Task<int>> handler)
+    {
         var command = new Command(name, description)
         {
             TreatUnmatchedTokensAsErrors = HasHelpToken(originalArgs),
         };
-        command.SetAction((_, _) => handler(GetForwardedArgs(originalArgs, commandTokenCount)));
+        command.SetAction((_, cancellationToken) => handler(GetForwardedArgs(originalArgs, commandTokenCount), cancellationToken));
         return command;
     }
 

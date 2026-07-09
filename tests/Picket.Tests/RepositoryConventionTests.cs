@@ -1452,6 +1452,26 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that native scan command cancellation reaches the scan loop.
+    /// </summary>
+    [TestMethod]
+    public void NativeScanCommandForwardsCancellationToken()
+    {
+        string commandTree = ReadRepositoryFile("src/Picket.Cli/Program.CommandTree.cs");
+        string scan = ReadRepositoryFile("src/Picket.Cli/Program.Scan.cs");
+        string directory = ReadRepositoryFile("src/Picket.Cli/Program.Directory.cs");
+
+        Assert.Contains("Func<string[], CancellationToken, Task<int>> handler", commandTree);
+        Assert.Contains("static (forwardedArgs, cancellationToken) => Task.FromResult(RunScan(forwardedArgs, cancellationToken))", commandTree);
+        Assert.Contains("command.SetAction((_, cancellationToken) => handler(GetForwardedArgs(originalArgs, commandTokenCount), cancellationToken));", commandTree);
+        Assert.Contains("static int RunScan(string[] args, CancellationToken cancellationToken)", scan);
+        Assert.Contains("cancellationToken: cancellationToken", scan);
+        Assert.Contains("CancellationToken cancellationToken = default", directory);
+        Assert.Contains("IsScanStopped(timeoutTimestamp, cancellationToken)", directory);
+        Assert.Contains("cancellationToken: cancellationToken", directory);
+    }
+
+    /// <summary>
     /// Verifies that pull-request documentation builds do not receive Pages deployment permissions.
     /// </summary>
     [TestMethod]

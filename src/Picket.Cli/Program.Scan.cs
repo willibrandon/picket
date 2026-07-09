@@ -7,6 +7,11 @@ internal static partial class Program
 {
     static int RunScan(string[] args)
     {
+        return RunScan(args, CancellationToken.None);
+    }
+
+    static int RunScan(string[] args, CancellationToken cancellationToken)
+    {
         var forwardedArgs = new List<string>();
         bool allowNonPublicProviderEndpoints = false;
         bool liveVerification = false;
@@ -1611,7 +1616,8 @@ internal static partial class Program
                     minimumRequestInterval,
                     minimumRequestIntervalPerProvider)
                 : null,
-            sourceFileProvider: sourceFileProvider);
+            sourceFileProvider: sourceFileProvider,
+            cancellationToken: cancellationToken);
     }
 
     private static bool HasZeroMegabytesFlag(string[] args, string flagName)
