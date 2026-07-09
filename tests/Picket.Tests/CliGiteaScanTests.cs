@@ -224,6 +224,52 @@ public sealed class CliGiteaScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate an exact Gitea generic package file.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGiteaGenericPackageFile()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GiteaFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitea-generic-package-owner",
+            "willibrandon",
+            "--gitea-generic-package-name",
+            "picket-cli",
+            "--gitea-generic-package-version",
+            "1.0.0",
+            "--gitea-generic-package-file",
+            "secrets.txt",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitea-package/willibrandon/picket-cli/1.0.0/secrets.txt\"", result.Stdout);
+        Assert.AreEqual("token gitea-source-secret", server.LastAuthorization);
+        Assert.Contains("/api/packages/willibrandon/generic/picket-cli/1.0.0/secrets.txt", server.RequestTargets);
+        Assert.DoesNotContain("gitea-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate Gitea pull request source files.
     /// </summary>
     [TestMethod]
@@ -333,7 +379,38 @@ public sealed class CliGiteaScanTests
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.Contains("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, or --gitea-user", result.Stderr);
+        Assert.Contains("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, --gitea-user, or a complete --gitea-generic-package-* selector", result.Stderr);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects incomplete Gitea generic package coordinates.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsIncompleteGiteaGenericPackageSelector()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-generic-package-owner",
+            "willibrandon",
+            "--gitea-generic-package-name",
+            "picket-cli",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.Contains("Gitea generic package scan requires --gitea-generic-package-owner, --gitea-generic-package-name, --gitea-generic-package-version, and --gitea-generic-package-file", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
     }
 

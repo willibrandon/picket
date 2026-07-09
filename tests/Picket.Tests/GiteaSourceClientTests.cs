@@ -1,4 +1,5 @@
 using Picket.Sources;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 
@@ -77,6 +78,47 @@ public sealed class GiteaSourceClientTests
             issueState: "triaged"));
 
         Assert.Contains("open, closed, or all", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that exact Gitea generic package files are downloaded and archive entries are expanded.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateGenericPackageFileExpandsArchiveContent()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            urls.Add(request.RequestUri!.ToString());
+            authorizationHeaders.Add(request.Headers.Authorization?.ToString() ?? string.Empty);
+            acceptHeaders.Add(string.Join('\n', request.Headers.Accept.Select(static value => value.MediaType ?? string.Empty)));
+            if (request.RequestUri!.ToString().Equals("https://gitea.example/api/packages/willibrandon/generic/picket-cli/1.0.0/picket.zip", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("pkg/secret.txt", "package-token-12345"));
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaGenericPackageSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon",
+            "picket-cli",
+            "1.0.0",
+            "picket.zip",
+            Token);
+
+        List<SourceFile> files = await client.EnumerateGenericPackageFileAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitea-package/willibrandon/picket-cli/1.0.0/picket.zip!pkg/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("package-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("https://gitea.example/api/packages/willibrandon/generic/picket-cli/1.0.0/picket.zip", urls);
+        Assert.Contains("token gitea-test-token", authorizationHeaders);
+        Assert.Contains("application/octet-stream", acceptHeaders);
     }
 
     /// <summary>
@@ -552,5 +594,27 @@ public sealed class GiteaSourceClientTests
         {
             Content = new ByteArrayContent(Encoding.UTF8.GetBytes(value)),
         };
+    }
+
+    private static HttpResponseMessage BytesResponse(byte[] bytes)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(bytes),
+        };
+    }
+
+    private static byte[] CreateZipBytes(string entryName, string entryContent)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryName);
+            using Stream entryStream = entry.Open();
+            byte[] bytes = Encoding.UTF8.GetBytes(entryContent);
+            entryStream.Write(bytes);
+        }
+
+        return stream.ToArray();
     }
 }

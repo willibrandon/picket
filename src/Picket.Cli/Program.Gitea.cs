@@ -54,6 +54,30 @@ internal static partial class Program
             || arg.StartsWith("--gitea-include-releases=", StringComparison.Ordinal);
     }
 
+    static bool IsGiteaGenericPackageOwnerFlag(string arg)
+    {
+        return arg.Equals("--gitea-generic-package-owner", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-generic-package-owner=", StringComparison.Ordinal);
+    }
+
+    static bool IsGiteaGenericPackageNameFlag(string arg)
+    {
+        return arg.Equals("--gitea-generic-package-name", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-generic-package-name=", StringComparison.Ordinal);
+    }
+
+    static bool IsGiteaGenericPackageVersionFlag(string arg)
+    {
+        return arg.Equals("--gitea-generic-package-version", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-generic-package-version=", StringComparison.Ordinal);
+    }
+
+    static bool IsGiteaGenericPackageFileFlag(string arg)
+    {
+        return arg.Equals("--gitea-generic-package-file", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-generic-package-file=", StringComparison.Ordinal);
+    }
+
     static bool IsGiteaTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitea-token-env", StringComparison.Ordinal)
@@ -112,6 +136,10 @@ internal static partial class Program
         bool includeIssues,
         string issueState,
         bool includeReleases,
+        string genericPackageOwner,
+        string genericPackageName,
+        string genericPackageVersion,
+        string genericPackageFile,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -121,6 +149,10 @@ internal static partial class Program
         bool repositorySpecified = !string.IsNullOrWhiteSpace(repository);
         bool organizationSpecified = !string.IsNullOrWhiteSpace(organization);
         bool userSpecified = !string.IsNullOrWhiteSpace(userName);
+        bool genericPackageSpecified = !string.IsNullOrWhiteSpace(genericPackageOwner)
+            || !string.IsNullOrWhiteSpace(genericPackageName)
+            || !string.IsNullOrWhiteSpace(genericPackageVersion)
+            || !string.IsNullOrWhiteSpace(genericPackageFile);
         int sourceSelectorCount = 0;
         if (repositorySpecified)
         {
@@ -137,9 +169,33 @@ internal static partial class Program
             sourceSelectorCount++;
         }
 
+        if (genericPackageSpecified)
+        {
+            sourceSelectorCount++;
+        }
+
         if (sourceSelectorCount != 1)
         {
-            Console.Error.WriteLine("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, or --gitea-user");
+            Console.Error.WriteLine("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, --gitea-user, or a complete --gitea-generic-package-* selector");
+            return false;
+        }
+
+        if (genericPackageSpecified && (string.IsNullOrWhiteSpace(genericPackageOwner)
+            || string.IsNullOrWhiteSpace(genericPackageName)
+            || string.IsNullOrWhiteSpace(genericPackageVersion)
+            || string.IsNullOrWhiteSpace(genericPackageFile)))
+        {
+            Console.Error.WriteLine("Gitea generic package scan requires --gitea-generic-package-owner, --gitea-generic-package-name, --gitea-generic-package-version, and --gitea-generic-package-file");
+            return false;
+        }
+
+        if (genericPackageSpecified
+            && (!string.IsNullOrWhiteSpace(gitRef)
+                || pullRequestId != 0
+                || includeIssues
+                || includeReleases))
+        {
+            Console.Error.WriteLine("Gitea generic package scans cannot be combined with repository refs, pull requests, issues, or releases");
             return false;
         }
 
@@ -221,6 +277,22 @@ internal static partial class Program
                 issueState = validatedOptions.IssueState;
                 includeReleases = validatedOptions.IncludeReleases;
             }
+            else if (genericPackageSpecified)
+            {
+                var validatedOptions = new GiteaGenericPackageSourceOptions(
+                    sourceEndpoint,
+                    genericPackageOwner,
+                    genericPackageName,
+                    genericPackageVersion,
+                    genericPackageFile,
+                    credential,
+                    allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                sourceEndpoint = validatedOptions.Endpoint;
+                genericPackageOwner = validatedOptions.Owner;
+                genericPackageName = validatedOptions.PackageName;
+                genericPackageVersion = validatedOptions.PackageVersion;
+                genericPackageFile = validatedOptions.FileName;
+            }
             else
             {
                 var validatedOptions = new GiteaUserSourceOptions(
@@ -258,13 +330,33 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, _, _, _, _, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
                 EndpointGuardOptions = endpointGuardOptions,
             }), disposeHandler: true);
             var client = new GiteaSourceClient(httpClient);
+            if (genericPackageSpecified)
+            {
+                return client.EnumerateGenericPackageFileAsync(new GiteaGenericPackageSourceOptions(
+                    sourceEndpoint,
+                    genericPackageOwner,
+                    genericPackageName,
+                    genericPackageVersion,
+                    genericPackageFile,
+                    credential,
+                    maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
+                    allowInsecureSourceEndpoints,
+                    rules.IsGlobalPathAllowed,
+                    Console.Error.WriteLine,
+                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+            }
+
             if (repositorySpecified)
             {
                 return client.EnumerateRepositoryFilesAsync(new GiteaSourceOptions(

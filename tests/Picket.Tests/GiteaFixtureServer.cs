@@ -160,6 +160,12 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.Equals("/api/packages/willibrandon/generic/picket-cli/1.0.0/secrets.txt", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/api/v1/repos/willibrandon/picket/raw/src/appsettings.txt?ref=main", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);

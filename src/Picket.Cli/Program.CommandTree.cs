@@ -480,6 +480,10 @@ internal static partial class Program
         command.Options.Add(CreateFlagOption(commandName, "--gitea-include-issues"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-issue-state", "open|closed|all"));
         command.Options.Add(CreateFlagOption(commandName, "--gitea-include-releases"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-generic-package-owner", "owner"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-generic-package-name", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-generic-package-version", "version"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-generic-package-file", "file"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-api-endpoint", "uri"));
     }

@@ -436,6 +436,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Include Gitea release notes and assets in native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitea-generic-package-owner</code></td>
+              <td data-label="Value"><code>owner</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan a Gitea generic package owned by this user or organization.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-generic-package-name</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Gitea generic package name.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-generic-package-version</code></td>
+              <td data-label="Value"><code>version</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Gitea generic package version.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-generic-package-file</code></td>
+              <td data-label="Value"><code>file</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this exact Gitea generic package file.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitea-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

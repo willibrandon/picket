@@ -838,6 +838,7 @@ Implemented Gitea entry points:
 | Pull request source head | `--gitea-repository`, `--gitea-pull-request` | Resolves the pull request source commit and source repository, including forks when Gitea returns them, then scans that commit. |
 | Issues and comments | `--gitea-include-issues`, `--gitea-issue-state` | Reads issue bodies and repository issue comments, and skips entries that contain a pull request marker. |
 | Releases and assets | `--gitea-include-releases` | Scans release body text as synthetic Markdown and scans release assets without forwarding the token to asset download URLs. Asset URLs must stay on the configured Gitea host or one of its subdomains. |
+| Generic package file | `--gitea-generic-package-owner`, `--gitea-generic-package-name`, `--gitea-generic-package-version`, `--gitea-generic-package-file` | Downloads one exact generic package file through Gitea's documented generic package route and expands archive package files through Picket archive limits. Generic package scans are explicit source selectors and cannot be combined with repository refs, pull requests, issues, or releases. |
 
 Gitea API flow:
 
@@ -852,6 +853,7 @@ Gitea API flow:
 | Issue comments | Lists repository issue comments with `page` and `limit=100`, then keeps comments whose `issue_url` belongs to a selected non-pull-request issue. |
 | Releases | Lists releases with `page` and `limit=100`, scans release body text as synthetic Markdown, and scans embedded release assets. |
 | Release assets | Downloads `browser_download_url` values without forwarding the Gitea token. Asset URLs must stay on the configured Gitea host or one of its subdomains, and HTTPS endpoints cannot redirect assets to HTTP. |
+| Generic package file | Downloads `/api/packages/{owner}/generic/{package_name}/{package_version}/{file_name}` as `application/octet-stream`; the route is derived from the configured API endpoint host and self-hosted base path. |
 | Repository tree | Lists repository blobs with recursive git tree enumeration and `per_page=1000`. |
 | Raw repository files | Downloads file bytes through the raw repository file endpoint. |
 
@@ -867,9 +869,10 @@ Gitea source safety rules:
 - A positive `--max-target-megabytes` value overrides the default remote cap.
 - Zero keeps its local-scan compatibility meaning, but remote Gitea sources reject zero because remote HTTP bodies are always bounded.
 - Oversized tree entries are skipped before download when Gitea returns a size.
-- Packages and Actions artifacts remain planned explicit source selectors.
+- Gitea generic package archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
+- Full package listing and Actions artifacts remain planned explicit source selectors.
 
-Gitea credentials are read from the environment and sent as `Authorization: token ...` request headers for repository scans. Least-privilege repository enumeration requires read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Organization and user scans also require read-only repository-list access for the selected account. Pull request scans also require read-only access to pull request metadata. Issue scans also require read-only issue and issue-comment access. Release scans also require read-only release metadata and access to selected release asset download URLs. Write, owner, organization administration, package, runner, and token-administration scopes are not part of the scanner test contract.
+Gitea credentials are read from the environment and sent as `Authorization: token ...` request headers for repository scans and initial generic package file requests. Least-privilege repository enumeration requires read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Organization and user scans also require read-only repository-list access for the selected account. Pull request scans also require read-only access to pull request metadata. Issue scans also require read-only issue and issue-comment access. Release scans also require read-only release metadata and access to selected release asset download URLs. Generic package file scans require read access to the selected package file. Write, owner, organization administration, package publish/delete, runner, and token-administration scopes are not part of the scanner test contract.
 
 Bitbucket Cloud source support is native Picket behavior, not Gitleaks compatibility behavior.
 

@@ -62,6 +62,10 @@ internal static partial class Program
         bool giteaIncludeReleases = false;
         string giteaIssueState = GiteaSourceOptions.DefaultIssueState;
         bool giteaOptionSpecified = false;
+        string giteaGenericPackageFile = string.Empty;
+        string giteaGenericPackageName = string.Empty;
+        string giteaGenericPackageOwner = string.Empty;
+        string giteaGenericPackageVersion = string.Empty;
         string giteaOrganization = string.Empty;
         int giteaPullRequestId = 0;
         string giteaRef = string.Empty;
@@ -643,6 +647,54 @@ internal static partial class Program
                     return UnknownFlagExitCode;
                 }
 
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaGenericPackageOwnerFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-owner", out string? owner))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaGenericPackageOwner = owner;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaGenericPackageNameFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-name", out string? packageName))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaGenericPackageName = packageName;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaGenericPackageVersionFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-version", out string? packageVersion))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaGenericPackageVersion = packageVersion;
+                giteaOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGiteaGenericPackageFileFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-file", out string? fileName))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaGenericPackageFile = fileName;
                 giteaOptionSpecified = true;
                 continue;
             }
@@ -1460,6 +1512,10 @@ internal static partial class Program
                 giteaIncludeIssues,
                 giteaIssueState,
                 giteaIncludeReleases,
+                giteaGenericPackageOwner,
+                giteaGenericPackageName,
+                giteaGenericPackageVersion,
+                giteaGenericPackageFile,
                 giteaTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
