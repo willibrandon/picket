@@ -2483,6 +2483,28 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that view --open refuses to shell-open report paths that are reparse points.
+    /// </summary>
+    [TestMethod]
+    public async Task ViewOpenRejectsReparsePointReportPath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.json");
+        string linkPath = Path.Combine(root.Path, "report-link.json");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        CliResult scan = await RunCliAsync("scan", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+        File.CreateSymbolicLink(linkPath, reportPath);
+
+        CliResult view = await RunCliAsync("view", linkPath, "--open").ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.ExitCode);
+        Assert.AreEqual(1, view.ExitCode);
+        Assert.Contains("format: picket-json", view.Stdout);
+        Assert.Contains("refusing to open report: expected a regular file", view.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that view summarizes TruffleHog JSONL without printing secret fields.
     /// </summary>
     [TestMethod]
