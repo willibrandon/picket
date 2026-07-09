@@ -100,7 +100,8 @@ public static class ReportSummaryReader
                 GetString(finding, "ruleId"),
                 GetString(finding, "path"),
                 GetInt32(finding, "line"),
-                GetString(finding, "fingerprint")));
+                GetString(finding, "fingerprint"),
+                GetInt32(finding, "startColumn")));
         }
 
         return new ReportSummary("picket-html", findings);
@@ -250,7 +251,8 @@ public static class ReportSummaryReader
                 GetString(finding, "RuleID"),
                 GetDisplayPath(finding, "File", "SymlinkFile"),
                 GetInt32(finding, "StartLine"),
-                GetString(finding, "Fingerprint")));
+                GetString(finding, "Fingerprint"),
+                GetInt32(finding, "StartColumn")));
         }
 
         return new ReportSummary("gitleaks-json", findings);
@@ -300,7 +302,8 @@ public static class ReportSummaryReader
             GetString(finding, "ruleId"),
             GetDisplayPath(finding, "file", "symlinkFile"),
             GetInt32(finding, "startLine"),
-            GetString(finding, "fingerprint"));
+            GetString(finding, "fingerprint"),
+            GetInt32(finding, "startColumn"));
     }
 
     private static ReportFindingSummary ReadTruffleHogFinding(JsonElement finding)
@@ -328,12 +331,17 @@ public static class ReportSummaryReader
             FindInt32(sourceMetadata, "line", "line_number", "linenumber", "startline"),
             GetOptionalInt32(finding, "Line"),
             GetOptionalInt32(finding, "line"));
+        int startColumn = GetFirstPositiveInt32(
+            FindInt32(sourceMetadata, "column", "col", "startcolumn", "start_column"),
+            GetOptionalInt32(finding, "StartColumn"),
+            GetOptionalInt32(finding, "startColumn"),
+            GetOptionalInt32(finding, "column"));
         string fingerprint = GetFirstNonEmptyString(
             GetString(finding, "Fingerprint"),
             GetString(finding, "fingerprint"),
             CreateTruffleHogFingerprint(detectorName, path, line));
 
-        return new ReportFindingSummary(detectorName, path, line, fingerprint);
+        return new ReportFindingSummary(detectorName, path, line, fingerprint, startColumn);
     }
 
     private static ReportSummary ReadSarif(JsonElement root)
@@ -390,7 +398,8 @@ public static class ReportSummaryReader
             GetString(result, "ruleId"),
             GetString(artifactLocation, "uri"),
             GetInt32(region, "startLine"),
-            fingerprint);
+            fingerprint,
+            GetInt32(region, "startColumn"));
     }
 
     private static JsonElement GetFirstArrayObject(JsonElement element, string name)

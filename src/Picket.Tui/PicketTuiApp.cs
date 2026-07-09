@@ -2,6 +2,7 @@ using Hex1b;
 using Hex1b.Documents;
 using Hex1b.Input;
 using Hex1b.Layout;
+using Hex1b.Nodes;
 using Hex1b.Theming;
 using Hex1b.Widgets;
 using System.Globalization;
@@ -28,6 +29,20 @@ internal static class PicketTuiApp
     /// <returns>The root Hex1b widget.</returns>
     internal static Hex1bWidget Build(RootContext ctx, PicketTuiState state)
     {
+        return Build(ctx, state, null);
+    }
+
+    /// <summary>
+    /// Builds the root widget for the scanner console.
+    /// </summary>
+    /// <param name="ctx">The Hex1b root context.</param>
+    /// <param name="state">The mutable TUI state for the current report.</param>
+    /// <param name="app">The owning Hex1b application, when focus should be requested after render.</param>
+    /// <returns>The root Hex1b widget.</returns>
+    internal static Hex1bWidget Build(RootContext ctx, PicketTuiState state, Hex1bApp? app)
+    {
+        RequestPendingFocus(state, app);
+
         return ctx.ThemePanel(
             PicketTuiPalette.Apply,
             ctx.VStack(main => [
@@ -94,6 +109,33 @@ internal static class PicketTuiApp
                 bindings.Key(Hex1bKey.G).Then().Key(Hex1bKey.L).Action(_ => state.SetView(PicketTuiView.Logs), "Logs");
                 bindings.Key(Hex1bKey.Y).Action(context => YankCurrentView(state, context), "Yank");
             }));
+    }
+
+    private static void RequestPendingFocus(PicketTuiState state, Hex1bApp? app)
+    {
+        if (app is null)
+        {
+            return;
+        }
+
+        PicketTuiFocusTarget? target = state.ConsumePendingFocusTarget();
+        if (target.HasValue)
+        {
+            app.RequestFocus(node => IsFocusTarget(node, target.GetValueOrDefault()));
+        }
+    }
+
+    private static bool IsFocusTarget(Hex1bNode node, PicketTuiFocusTarget target)
+    {
+        return target switch
+        {
+            PicketTuiFocusTarget.DashboardEditor => node is EditorNode,
+            PicketTuiFocusTarget.ScanPrimaryControl => node is ToggleSwitchNode,
+            PicketTuiFocusTarget.FindingsTable => node is TableNode<PicketTuiFindingRow>,
+            PicketTuiFocusTarget.RulesTable or PicketTuiFocusTarget.FilesTable => node is TableNode<KeyValuePair<string, int>>,
+            PicketTuiFocusTarget.LogsSearch => node is TextBoxNode,
+            _ => false,
+        };
     }
 
     private static HStackWidget BuildTitleBar<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)

@@ -68,7 +68,7 @@ internal static class PicketTuiRunner
                     options.EnableMouse = true;
                     options.Theme = PicketTuiPalette.CreateTheme();
                 },
-                ctx => PicketTuiApp.Build(ctx, state))
+                app => ctx => PicketTuiApp.Build(ctx, state, app))
             .Build();
     }
 

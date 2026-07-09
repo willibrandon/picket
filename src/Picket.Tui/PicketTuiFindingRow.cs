@@ -41,6 +41,11 @@ internal sealed class PicketTuiFindingRow(ReportFindingSummary finding, int inde
     internal string Line { get; } = finding.Line == 0 ? "unknown" : finding.Line.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
+    /// Gets the one-based start column, or zero when unavailable.
+    /// </summary>
+    internal int StartColumn { get; } = finding.StartColumn;
+
+    /// <summary>
     /// Gets the displayed source location.
     /// </summary>
     internal string Location { get; } = CreateLocation(finding);

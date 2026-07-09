@@ -236,6 +236,36 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that each top-level tab publishes a deterministic primary focus target.
+    /// </summary>
+    [TestMethod]
+    public void StateQueuesExpectedFocusTargetForEachTab()
+    {
+        PicketTuiState state = CreateState();
+
+        Assert.AreEqual(PicketTuiFocusTarget.FindingsTable, state.ConsumePendingFocusTarget());
+        Assert.IsNull(state.ConsumePendingFocusTarget());
+
+        state.SetView(PicketTuiView.Dashboard);
+        Assert.AreEqual(PicketTuiFocusTarget.DashboardEditor, state.ConsumePendingFocusTarget());
+
+        state.SetView(PicketTuiView.Scan);
+        Assert.AreEqual(PicketTuiFocusTarget.ScanPrimaryControl, state.ConsumePendingFocusTarget());
+
+        state.SetView(PicketTuiView.Findings);
+        Assert.AreEqual(PicketTuiFocusTarget.FindingsTable, state.ConsumePendingFocusTarget());
+
+        state.SetView(PicketTuiView.Rules);
+        Assert.AreEqual(PicketTuiFocusTarget.RulesTable, state.ConsumePendingFocusTarget());
+
+        state.SetView(PicketTuiView.Files);
+        Assert.AreEqual(PicketTuiFocusTarget.FilesTable, state.ConsumePendingFocusTarget());
+
+        state.SetView(PicketTuiView.Logs);
+        Assert.AreEqual(PicketTuiFocusTarget.LogsSearch, state.ConsumePendingFocusTarget());
+    }
+
+    /// <summary>
     /// Verifies that opening a focused finding queues and then launches the file request with the finding line.
     /// </summary>
     [TestMethod]
@@ -251,14 +281,16 @@ public sealed class PicketTuiTests
         Assert.IsTrue(state.TryOpenPendingFile());
         Assert.AreEqual("src/auth.cs", launcher.CapturedPath);
         Assert.AreEqual(12, launcher.CapturedLine);
+        Assert.AreEqual(7, launcher.CapturedColumn);
         Assert.AreEqual("Opened src/auth.cs", state.StatusMessage);
+        Assert.AreEqual(PicketTuiFocusTarget.FindingsTable, state.ConsumePendingFocusTarget());
     }
 
     /// <summary>
-    /// Verifies that opening a focused file queues and then launches the file request without a line number.
+    /// Verifies that opening a focused file queues and then launches the file request at that file's first finding.
     /// </summary>
     [TestMethod]
-    public void StateQueuesAndOpensFocusedFileRow()
+    public void StateQueuesAndOpensFocusedFileRowAtFirstFinding()
     {
         var launcher = new PicketTuiFakeFileLauncher { Message = "Opened infra/main.tf" };
         PicketTuiState state = CreateState(fileLauncher: launcher);
@@ -270,8 +302,10 @@ public sealed class PicketTuiTests
         Assert.AreEqual(string.Empty, launcher.CapturedPath);
         Assert.IsTrue(state.TryOpenPendingFile());
         Assert.AreEqual("infra/main.tf", launcher.CapturedPath);
-        Assert.IsNull(launcher.CapturedLine);
+        Assert.AreEqual(4, launcher.CapturedLine);
+        Assert.AreEqual(3, launcher.CapturedColumn);
         Assert.AreEqual("Opened infra/main.tf", state.StatusMessage);
+        Assert.AreEqual(PicketTuiFocusTarget.FilesTable, state.ConsumePendingFocusTarget());
     }
 
     /// <summary>
@@ -363,12 +397,12 @@ public sealed class PicketTuiTests
             {
                 Environment.SetEnvironmentVariable("PICKET_EDITOR", "code -g");
 
-                ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 42);
+                ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 42, 9);
 
                 Assert.AreEqual("code", startInfo.FileName);
                 Assert.IsFalse(startInfo.UseShellExecute);
                 Assert.Contains("-g", startInfo.ArgumentList);
-                Assert.Contains("src/app.cs:42", startInfo.ArgumentList);
+                Assert.Contains("src/app.cs:42:8", startInfo.ArgumentList);
             }
             finally
             {
@@ -390,12 +424,36 @@ public sealed class PicketTuiTests
             {
                 Environment.SetEnvironmentVariable("PICKET_EDITOR", "nvim");
 
-                ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 12);
+                ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 12, 5);
 
                 Assert.AreEqual("nvim", startInfo.FileName);
                 Assert.IsFalse(startInfo.UseShellExecute);
-                Assert.Contains("+12", startInfo.ArgumentList);
+                Assert.Contains("+call cursor(12, 4)", startInfo.ArgumentList);
                 Assert.Contains("src/app.cs", startInfo.ArgumentList);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that first-line editor columns are not shifted.
+    /// </summary>
+    [TestMethod]
+    public void FileLauncherKeepsFirstLineEditorColumn()
+    {
+        lock (s_editorEnvironmentLock)
+        {
+            string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
+            try
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", "nvim");
+
+                ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 1, 5);
+
+                Assert.Contains("+call cursor(1, 5)", startInfo.ArgumentList);
             }
             finally
             {
@@ -1321,6 +1379,45 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that returning to the findings tab gives keyboard focus back to the table.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleFocusesFindingsTableAfterTabSwitch()
+    {
+        PicketTuiState state = CreateState();
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Findings"), TimeSpan.FromSeconds(5), "findings to render")
+            .Key(Hex1bKey.G)
+            .Key(Hex1bKey.S)
+            .WaitUntil(s => s.ContainsText("Source"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .Key(Hex1bKey.G)
+            .Key(Hex1bKey.F)
+            .WaitUntil(s => s.ContainsText("src/auth.cs:12"), TimeSpan.FromSeconds(5), "findings table to render")
+            .Key(Hex1bKey.DownArrow)
+            .WaitUntil(_ => state.FocusedFinding?.Fingerprint == "fp-auth-2", TimeSpan.FromSeconds(5), "second finding to receive focus")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("src/auth.cs:18", screenText);
+        Assert.AreEqual("18", state.FocusedFinding?.Line);
+    }
+
+    /// <summary>
     /// Verifies that the full-screen scanner console renders the native scan workspace through Hex1b.
     /// </summary>
     [TestMethod]
@@ -1686,9 +1783,9 @@ public sealed class PicketTuiTests
         var summary = new ReportSummary(
             "picket-json",
             [
-                new ReportFindingSummary("github-token", "src/auth.cs", 12, "fp-auth-1"),
-                new ReportFindingSummary("github-token", "src/auth.cs", 18, "fp-auth-2"),
-                new ReportFindingSummary("aws-key", "infra/main.tf", 4, "fp-infra-1"),
+                new ReportFindingSummary("github-token", "src/auth.cs", 12, "fp-auth-1", 7),
+                new ReportFindingSummary("github-token", "src/auth.cs", 18, "fp-auth-2", 8),
+                new ReportFindingSummary("aws-key", "infra/main.tf", 4, "fp-infra-1", 3),
             ]);
 
         return new PicketTuiState(new PicketTuiReport("report.json", summary, DateTimeOffset.UnixEpoch), executor, fileLauncher);
@@ -1720,7 +1817,7 @@ public sealed class PicketTuiTests
                     options.EnableMouse = true;
                     options.Theme = PicketTuiPalette.CreateTheme();
                 },
-                ctx => PicketTuiApp.Build(ctx, state))
+                app => ctx => PicketTuiApp.Build(ctx, state, app))
             .WithHeadless()
             .WithDimensions(width, height)
             .Build();

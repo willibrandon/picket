@@ -30,6 +30,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual("picket-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
         Assert.AreEqual(1, summary.Findings[0].Line);
+        Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
     }
 
@@ -53,6 +54,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual("picket-html-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
         Assert.AreEqual(1, summary.Findings[0].Line);
+        Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
         Assert.DoesNotContain("secret-value", string.Concat(
             summary.Findings[0].RuleId,
@@ -76,6 +78,8 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.FindingCount);
         Assert.AreEqual("gitleaks-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
+        Assert.AreEqual(1, summary.Findings[0].Line);
+        Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual("auth.py:gitleaks-rule:1", summary.Findings[0].Fingerprint);
     }
 
@@ -96,7 +100,9 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(2, summary.FindingCount);
         Assert.AreEqual(2, summary.FileCount);
         Assert.AreEqual("first.py", summary.Findings[0].Path);
+        Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual("second.py", summary.Findings[1].Path);
+        Assert.AreEqual(2, summary.Findings[1].StartColumn);
     }
 
     /// <summary>
@@ -110,7 +116,7 @@ public sealed class ReportSummaryReaderTests
             root.Path,
             "trufflehog.jsonl",
             """
-            {"SourceMetadata":{"Data":{"Git":{"commit":"abc","file":"keys.txt","line":4}}},"DetectorName":"AWS","Verified":true,"Raw":"AKIASECRET","RawV2":"AKIASECRET:secret","Redacted":"AKIA********","ExtraData":{"account":"123"}}
+            {"SourceMetadata":{"Data":{"Git":{"commit":"abc","file":"keys.txt","line":4,"column":11}}},"DetectorName":"AWS","Verified":true,"Raw":"AKIASECRET","RawV2":"AKIASECRET:secret","Redacted":"AKIA********","ExtraData":{"account":"123"}}
             """);
 
         ReportSummary summary = ReportSummaryReader.Read(reportPath);
@@ -120,6 +126,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual("AWS", summary.Findings[0].RuleId);
         Assert.AreEqual("keys.txt", summary.Findings[0].Path);
         Assert.AreEqual(4, summary.Findings[0].Line);
+        Assert.AreEqual(11, summary.Findings[0].StartColumn);
         Assert.AreEqual("trufflehog:AWS:keys.txt:4", summary.Findings[0].Fingerprint);
         Assert.DoesNotContain("AKIASECRET", summary.Findings[0].Fingerprint);
     }
@@ -145,6 +152,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual("Slack", summary.Findings[0].RuleId);
         Assert.AreEqual("config.env", summary.Findings[0].Path);
         Assert.AreEqual(9, summary.Findings[0].Line);
+        Assert.AreEqual(0, summary.Findings[0].StartColumn);
     }
 
     /// <summary>
@@ -183,6 +191,8 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.FindingCount);
         Assert.AreEqual("sarif-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
+        Assert.AreEqual(1, summary.Findings[0].Line);
+        Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
     }
 

@@ -15,14 +15,14 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
     private static readonly string[] s_emptyCommandExtensions = [string.Empty];
 
     /// <inheritdoc />
-    public bool TryOpen(string path, int? line, out string message)
+    public bool TryOpen(string path, int? line, int? column, out string message)
     {
         if (!TryResolveLocalFile(path, out string resolvedPath, out message))
         {
             return false;
         }
 
-        ProcessStartInfo startInfo = CreateStartInfo(resolvedPath, line);
+        ProcessStartInfo startInfo = CreateStartInfo(resolvedPath, line, column);
         try
         {
             using Process? process = Process.Start(startInfo);
@@ -44,9 +44,7 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
                 }
             }
 
-            message = line.HasValue
-                ? string.Concat("Opened ", path, " at line ", line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture))
-                : string.Concat("Opened ", path);
+            message = CreateOpenedMessage(path, line, column);
             return true;
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 2)
@@ -66,19 +64,20 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
     /// </summary>
     /// <param name="path">The resolved local file path.</param>
     /// <param name="line">The optional one-based line number.</param>
+    /// <param name="column">The optional one-based column number.</param>
     /// <returns>The process start information.</returns>
-    internal static ProcessStartInfo CreateStartInfo(string path, int? line)
+    internal static ProcessStartInfo CreateStartInfo(string path, int? line, int? column = null)
     {
         string? configuredEditor = GetConfiguredEditor();
         if (!string.IsNullOrWhiteSpace(configuredEditor)
-            && TryCreateEditorStartInfo(configuredEditor, path, line, out ProcessStartInfo editorStartInfo))
+            && TryCreateEditorStartInfo(configuredEditor, path, line, column, out ProcessStartInfo editorStartInfo))
         {
             return editorStartInfo;
         }
 
         if (line.HasValue
             && TryFindCommand("code", out string codePath)
-            && TryCreateKnownEditorStartInfo(codePath, path, line, out ProcessStartInfo codeStartInfo))
+            && TryCreateKnownEditorStartInfo(codePath, path, line, column, out ProcessStartInfo codeStartInfo))
         {
             return codeStartInfo;
         }
@@ -147,6 +146,7 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
         string editorCommand,
         string path,
         int? line,
+        int? column,
         out ProcessStartInfo startInfo)
     {
         List<string> parts = SplitCommandLine(editorCommand);
@@ -164,14 +164,14 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
         bool hasPlaceholders = false;
         for (int i = 1; i < parts.Count; i++)
         {
-            string argument = ReplacePlaceholders(parts[i], path, line);
+            string argument = ReplacePlaceholders(parts[i], path, line, column);
             hasPlaceholders |= !string.Equals(argument, parts[i], StringComparison.Ordinal);
             startInfo.ArgumentList.Add(argument);
         }
 
         if (!hasPlaceholders)
         {
-            AddDefaultEditorArguments(startInfo, parts[0], path, line);
+            AddDefaultEditorArguments(startInfo, parts[0], path, line, column);
         }
 
         return true;
@@ -181,6 +181,7 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
         string editorPath,
         string path,
         int? line,
+        int? column,
         out ProcessStartInfo startInfo)
     {
         if (string.IsNullOrWhiteSpace(editorPath))
@@ -193,17 +194,22 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
         {
             UseShellExecute = false,
         };
-        AddDefaultEditorArguments(startInfo, editorPath, path, line);
+        AddDefaultEditorArguments(startInfo, editorPath, path, line, column);
         return true;
     }
 
-    private static void AddDefaultEditorArguments(ProcessStartInfo startInfo, string editorPath, string path, int? line)
+    private static void AddDefaultEditorArguments(
+        ProcessStartInfo startInfo,
+        string editorPath,
+        string path,
+        int? line,
+        int? column)
     {
         string editorName = Path.GetFileNameWithoutExtension(editorPath);
         if (line.HasValue && IsCodeEditor(editorName))
         {
             AddArgumentIfMissing(startInfo, "-g");
-            startInfo.ArgumentList.Add(string.Concat(path, ":", line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture)));
+            startInfo.ArgumentList.Add(CreateCodeLocationArgument(path, line.GetValueOrDefault(), column));
             return;
         }
 
@@ -217,7 +223,7 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
 
         if (line.HasValue && IsVimEditor(editorName))
         {
-            startInfo.ArgumentList.Add(string.Concat("+", line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture)));
+            startInfo.ArgumentList.Add(CreateVimLocationArgument(editorName, line.GetValueOrDefault(), column));
             startInfo.ArgumentList.Add(path);
             return;
         }
@@ -245,12 +251,71 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
         startInfo.ArgumentList.Add(argument);
     }
 
-    private static string ReplacePlaceholders(string value, string path, int? line)
+    private static string ReplacePlaceholders(string value, string path, int? line, int? column)
     {
         return value
             .Replace("{file}", path, StringComparison.Ordinal)
             .Replace("{path}", path, StringComparison.Ordinal)
-            .Replace("{line}", line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            .Replace("{line}", line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+            .Replace("{column}", column.GetValueOrDefault().ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+            .Replace("{col}", column.GetValueOrDefault().ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+    }
+
+    private static string CreateOpenedMessage(string path, int? line, int? column)
+    {
+        if (line.HasValue && column.HasValue)
+        {
+            return string.Concat(
+                "Opened ",
+                path,
+                " at line ",
+                line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture),
+                ", column ",
+                column.GetValueOrDefault().ToString(CultureInfo.InvariantCulture));
+        }
+
+        return line.HasValue
+            ? string.Concat("Opened ", path, " at line ", line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture))
+            : string.Concat("Opened ", path);
+    }
+
+    private static string CreateCodeLocationArgument(string path, int line, int? column)
+    {
+        int? editorColumn = CreateEditorColumn(line, column);
+        return column.HasValue
+            ? string.Concat(
+                path,
+                ":",
+                line.ToString(CultureInfo.InvariantCulture),
+                ":",
+                editorColumn.GetValueOrDefault().ToString(CultureInfo.InvariantCulture))
+            : string.Concat(path, ":", line.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static string CreateVimLocationArgument(string editorName, int line, int? column)
+    {
+        int? editorColumn = CreateEditorColumn(line, column);
+        return column.HasValue && SupportsVimCursorFunction(editorName)
+            ? string.Concat(
+                "+call cursor(",
+                line.ToString(CultureInfo.InvariantCulture),
+                ", ",
+                editorColumn.GetValueOrDefault().ToString(CultureInfo.InvariantCulture),
+                ")")
+            : string.Concat("+", line.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static int? CreateEditorColumn(int line, int? column)
+    {
+        if (!column.HasValue)
+        {
+            return null;
+        }
+
+        // Gitleaks-compatible reports count the first byte after a newline as column two.
+        return line > 1
+            ? Math.Max(1, column.GetValueOrDefault() - 1)
+            : column.GetValueOrDefault();
     }
 
     private static bool IsCodeEditor(string value)
@@ -272,6 +337,12 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
         return string.Equals(value, "vim", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "nvim", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "vi", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool SupportsVimCursorFunction(string value)
+    {
+        return string.Equals(value, "vim", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "nvim", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ShouldWaitForProcess(ProcessStartInfo startInfo)

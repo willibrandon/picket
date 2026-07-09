@@ -193,7 +193,7 @@ Represents the non-secret fields needed to triage a report finding.
 
 ### Constructors
 
-- `ReportFindingSummary(string ruleId, string path, int line, string fingerprint)` - Represents the non-secret fields needed to triage a report finding.
+- `ReportFindingSummary(string ruleId, string path, int line, string fingerprint, int startColumn)` - Represents the non-secret fields needed to triage a report finding.
 
 ### Properties
 
@@ -201,6 +201,7 @@ Represents the non-secret fields needed to triage a report finding.
 - `Line` - Gets the one-based start line for the finding, or zero when unavailable.
 - `Path` - Gets the reported path for the finding.
 - `RuleId` - Gets the rule identifier associated with the finding.
+- `StartColumn` - Gets the one-based start column for the finding, or zero when unavailable.
 
 ## ReportSummary
 

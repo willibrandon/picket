@@ -18,6 +18,11 @@ internal sealed class PicketTuiFakeFileLauncher : IPicketTuiFileLauncher
     internal int? CapturedLine { get; private set; }
 
     /// <summary>
+    /// Gets the captured column number.
+    /// </summary>
+    internal int? CapturedColumn { get; private set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the open request succeeds.
     /// </summary>
     internal bool Result { get; set; } = true;
@@ -28,10 +33,11 @@ internal sealed class PicketTuiFakeFileLauncher : IPicketTuiFileLauncher
     internal string Message { get; set; } = "Opened test file";
 
     /// <inheritdoc />
-    public bool TryOpen(string path, int? line, out string message)
+    public bool TryOpen(string path, int? line, int? column, out string message)
     {
         CapturedPath = path;
         CapturedLine = line;
+        CapturedColumn = column;
         message = Message;
         return Result;
     }

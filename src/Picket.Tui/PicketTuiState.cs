@@ -34,6 +34,7 @@ internal sealed class PicketTuiState
     private EditorState? _logsEditorState;
     private string? _logsEditorText;
     private long _yankGeneration;
+    private PicketTuiFocusTarget? _pendingFocusTarget;
     private PicketTuiOpenFileRequest? _pendingOpenFileRequest;
     private CancellationTokenSource? _scanCancellation;
     private Task? _scanTask;
@@ -57,6 +58,7 @@ internal sealed class PicketTuiState
         LoadReport(report);
         ScanWorkspace = new PicketTuiScanWorkspace(scanExecutor ?? PicketTuiProcessScanExecutor.CreateDefault());
         CurrentView = _rows.Count == 0 ? PicketTuiView.Dashboard : PicketTuiView.Findings;
+        QueueFocusForView(CurrentView);
     }
 
     /// <summary>
@@ -208,6 +210,7 @@ internal sealed class PicketTuiState
         }
 
         CurrentView = view;
+        QueueFocusForView(view);
     }
 
     /// <summary>
@@ -678,8 +681,12 @@ internal sealed class PicketTuiState
             return false;
         }
 
-        _pendingOpenFileRequest = new PicketTuiOpenFileRequest(row.Path, ParseLineNumber(row.Line));
-        StatusMessage = string.Concat("Opening ", row.Path);
+        _pendingOpenFileRequest = new PicketTuiOpenFileRequest(
+            row.Path,
+            ParseLineNumber(row.Line),
+            ToPositiveNullable(row.StartColumn),
+            PicketTuiFocusTarget.FindingsTable);
+        StatusMessage = CreateOpeningMessage(_pendingOpenFileRequest.GetValueOrDefault());
         return true;
     }
 
@@ -695,8 +702,13 @@ internal sealed class PicketTuiState
             return false;
         }
 
-        _pendingOpenFileRequest = new PicketTuiOpenFileRequest(FocusedFileKey, null);
-        StatusMessage = string.Concat("Opening ", FocusedFileKey);
+        PicketTuiFindingRow? row = FindFirstRowForFile(FocusedFileKey);
+        _pendingOpenFileRequest = new PicketTuiOpenFileRequest(
+            FocusedFileKey,
+            row is null ? null : ParseLineNumber(row.Line),
+            row is null ? null : ToPositiveNullable(row.StartColumn),
+            PicketTuiFocusTarget.FilesTable);
+        StatusMessage = CreateOpeningMessage(_pendingOpenFileRequest.GetValueOrDefault());
         return true;
     }
 
@@ -712,9 +724,21 @@ internal sealed class PicketTuiState
         }
 
         _pendingOpenFileRequest = null;
-        _fileLauncher.TryOpen(request.Path, request.Line, out string message);
+        _fileLauncher.TryOpen(request.Path, request.Line, request.Column, out string message);
+        _pendingFocusTarget = request.ReturnFocusTarget;
         StatusMessage = message;
         return true;
+    }
+
+    /// <summary>
+    /// Gets and clears the pending keyboard-focus target for the next rendered frame.
+    /// </summary>
+    /// <returns>The pending focus target, or <see langword="null" /> when focus should remain unchanged.</returns>
+    internal PicketTuiFocusTarget? ConsumePendingFocusTarget()
+    {
+        PicketTuiFocusTarget? target = _pendingFocusTarget;
+        _pendingFocusTarget = null;
+        return target;
     }
 
     /// <summary>
@@ -809,6 +833,19 @@ internal sealed class PicketTuiState
         FocusedFileKey = null;
         _visibleRows = null;
         ResetEditorStates();
+    }
+
+    private void QueueFocusForView(PicketTuiView view)
+    {
+        _pendingFocusTarget = view switch
+        {
+            PicketTuiView.Scan => PicketTuiFocusTarget.ScanPrimaryControl,
+            PicketTuiView.Findings => PicketTuiFocusTarget.FindingsTable,
+            PicketTuiView.Rules => PicketTuiFocusTarget.RulesTable,
+            PicketTuiView.Files => PicketTuiFocusTarget.FilesTable,
+            PicketTuiView.Logs => PicketTuiFocusTarget.LogsSearch,
+            _ => PicketTuiFocusTarget.DashboardEditor,
+        };
     }
 
     private List<PicketTuiFindingRow> CreateVisibleRows()
@@ -1324,6 +1361,49 @@ internal sealed class PicketTuiState
         return int.TryParse(value, CultureInfo.InvariantCulture, out int line) && line > 0
             ? line
             : null;
+    }
+
+    private static int? ToPositiveNullable(int value)
+    {
+        return value > 0 ? value : null;
+    }
+
+    private static string CreateOpeningMessage(PicketTuiOpenFileRequest request)
+    {
+        if (request.Line.HasValue && request.Column.HasValue)
+        {
+            return string.Concat(
+                "Opening ",
+                request.Path,
+                ":",
+                request.Line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture),
+                ":",
+                request.Column.GetValueOrDefault().ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (request.Line.HasValue)
+        {
+            return string.Concat(
+                "Opening ",
+                request.Path,
+                ":",
+                request.Line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture));
+        }
+
+        return string.Concat("Opening ", request.Path);
+    }
+
+    private PicketTuiFindingRow? FindFirstRowForFile(string path)
+    {
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            if (string.Equals(_rows[i].Path, path, StringComparison.Ordinal))
+            {
+                return _rows[i];
+            }
+        }
+
+        return null;
     }
 
     private void ResetEditorStates()

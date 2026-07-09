@@ -7,7 +7,8 @@ namespace Picket.Report;
 /// <param name="path">The reported path for the finding.</param>
 /// <param name="line">The one-based start line for the finding, or zero when unavailable.</param>
 /// <param name="fingerprint">The stable fingerprint associated with the finding, or an empty string when unavailable.</param>
-public sealed class ReportFindingSummary(string ruleId, string path, int line, string fingerprint)
+/// <param name="startColumn">The one-based start column for the finding, or zero when unavailable.</param>
+public sealed class ReportFindingSummary(string ruleId, string path, int line, string fingerprint, int startColumn = 0)
 {
     /// <summary>
     /// Gets the rule identifier associated with the finding.
@@ -22,16 +23,21 @@ public sealed class ReportFindingSummary(string ruleId, string path, int line, s
     /// <summary>
     /// Gets the one-based start line for the finding, or zero when unavailable.
     /// </summary>
-    public int Line { get; } = ValidateLine(line);
+    public int Line { get; } = ValidateNonNegative(line);
+
+    /// <summary>
+    /// Gets the one-based start column for the finding, or zero when unavailable.
+    /// </summary>
+    public int StartColumn { get; } = ValidateNonNegative(startColumn);
 
     /// <summary>
     /// Gets the stable fingerprint associated with the finding, or an empty string when unavailable.
     /// </summary>
     public string Fingerprint { get; } = fingerprint ?? throw new ArgumentNullException(nameof(fingerprint));
 
-    private static int ValidateLine(int line)
+    private static int ValidateNonNegative(int value)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(line);
-        return line;
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
     }
 }

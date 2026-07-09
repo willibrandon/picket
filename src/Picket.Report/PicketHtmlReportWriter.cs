@@ -122,6 +122,7 @@ public static class PicketHtmlReportWriter
         WriteJsonString(builder, "ruleId", finding.RuleID, comma: true);
         WriteJsonString(builder, "path", CreateLocationPath(finding), comma: true);
         WriteJsonNumber(builder, "line", finding.StartLine, comma: true);
+        WriteJsonNumber(builder, "startColumn", finding.StartColumn, comma: true);
         WriteJsonString(builder, "fingerprint", CreateFingerprint(finding), comma: false);
         builder.Append('}');
     }

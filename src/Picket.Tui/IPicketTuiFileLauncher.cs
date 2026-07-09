@@ -10,7 +10,8 @@ internal interface IPicketTuiFileLauncher
     /// </summary>
     /// <param name="path">The report path to open.</param>
     /// <param name="line">The optional one-based line number.</param>
+    /// <param name="column">The optional one-based column number.</param>
     /// <param name="message">The user-facing status message.</param>
     /// <returns><see langword="true" /> when the file was opened.</returns>
-    bool TryOpen(string path, int? line, out string message);
+    bool TryOpen(string path, int? line, int? column, out string message);
 }
