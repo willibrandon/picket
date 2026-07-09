@@ -59,6 +59,8 @@ string jsonl = PicketJsonlReportWriter.Write(findings);
 
 Callers own the input buffer. `ScanRequest` accepts `ReadOnlyMemory<byte>` so hosts can scan bytes from files, archives, git objects, IDE buffers, or generated content without forcing a string conversion before matching.
 
+Pass `cancellationToken` when scan work is tied to an editor request, web request, background job, or CI timeout. The scanner polls cancellation while evaluating rules and deterministic native matchers so long-running inputs can stop without waiting for the next file boundary.
+
 ## Rule Compilation
 
 `ScanRequest` can accept a `RuleSet` and compile it for one scan. Hosts that scan many inputs should compile once and reuse the compiled rule set:

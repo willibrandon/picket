@@ -15,6 +15,7 @@ namespace Picket.Engine;
 /// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
 /// <param name="enableCSharpStringConcatenation">A value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops scanning when it returns <see langword="true" />.</param>
+/// <param name="cancellationToken">A cancellation token that stops scanning when cancellation is requested.</param>
 public sealed class ScanRequest(
     ReadOnlyMemory<byte> input,
     string fileName,
@@ -25,7 +26,8 @@ public sealed class ScanRequest(
     long? maxTargetBytes = null,
     string symlinkFile = "",
     bool enableCSharpStringConcatenation = false,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    CancellationToken cancellationToken = default)
 {
     /// <summary>
     /// Initializes a new scan request and compiles the supplied source rules.
@@ -40,6 +42,7 @@ public sealed class ScanRequest(
     /// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
     /// <param name="enableCSharpStringConcatenation">A value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.</param>
     /// <param name="isCancellationRequested">An optional predicate that stops scanning when it returns <see langword="true" />.</param>
+    /// <param name="cancellationToken">A cancellation token that stops scanning when cancellation is requested.</param>
     public ScanRequest(
         ReadOnlyMemory<byte> input,
         string fileName,
@@ -50,8 +53,9 @@ public sealed class ScanRequest(
         long? maxTargetBytes = null,
         string symlinkFile = "",
         bool enableCSharpStringConcatenation = false,
-        Func<bool>? isCancellationRequested = null)
-        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes, symlinkFile, enableCSharpStringConcatenation, isCancellationRequested)
+        Func<bool>? isCancellationRequested = null,
+        CancellationToken cancellationToken = default)
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes, symlinkFile, enableCSharpStringConcatenation, isCancellationRequested, cancellationToken)
     {
     }
 
@@ -104,6 +108,11 @@ public sealed class ScanRequest(
     /// Gets an optional predicate that stops scanning when it returns <see langword="true" />.
     /// </summary>
     public Func<bool>? IsCancellationRequested { get; } = isCancellationRequested;
+
+    /// <summary>
+    /// Gets the cancellation token that stops scanning when cancellation is requested.
+    /// </summary>
+    public CancellationToken CancellationToken { get; } = cancellationToken;
 
     private static string RequireFileName(string value)
     {

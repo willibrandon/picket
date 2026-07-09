@@ -1097,6 +1097,26 @@ public sealed class SecretScannerTests
         Assert.IsLessThan(lineCount, findings.Count);
     }
 
+    /// <summary>
+    /// Verifies that a canceled token stops scanning through the public request API.
+    /// </summary>
+    [TestMethod]
+    public void ScanStopsWhenCancellationTokenIsCanceled()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token-12345\n");
+        CompiledRuleSet rules = CompileTokenRule();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "secret.txt",
+            rules,
+            cancellationToken: cancellation.Token));
+
+        Assert.IsEmpty(findings);
+    }
+
     private static CompiledRuleSet CompileTokenRule()
     {
         return CompiledRuleSet.Compile(new RuleSet([

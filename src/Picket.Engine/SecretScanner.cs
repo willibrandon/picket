@@ -19,6 +19,12 @@ public sealed class SecretScanner
         ArgumentNullException.ThrowIfNull(request);
 
         ReadOnlySpan<byte> originalInput = request.Input.Span;
+        Func<bool>? isCancellationRequested = CreateCancellationPredicate(request);
+        if (IsCancellationRequested(isCancellationRequested))
+        {
+            return [];
+        }
+
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
         byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
         var blobIdentity = new SourceBlobIdentity(request.Input);
@@ -40,11 +46,11 @@ public sealed class SecretScanner
             request.SymlinkFile,
             blobIdentity,
             findings,
-            request.IsCancellationRequested);
+            isCancellationRequested);
 
         if (request.MaxDecodeDepth == 0
             || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes)
-            || IsCancellationRequested(request.IsCancellationRequested))
+            || IsCancellationRequested(isCancellationRequested))
         {
             return findings;
         }
@@ -76,9 +82,9 @@ public sealed class SecretScanner
                 request.SymlinkFile,
                 blobIdentity,
                 findings,
-                request.IsCancellationRequested);
+                isCancellationRequested);
             if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes)
-                || IsCancellationRequested(request.IsCancellationRequested))
+                || IsCancellationRequested(isCancellationRequested))
             {
                 break;
             }
@@ -87,6 +93,21 @@ public sealed class SecretScanner
         }
 
         return findings;
+    }
+
+    private static Func<bool>? CreateCancellationPredicate(ScanRequest request)
+    {
+        if (!request.CancellationToken.CanBeCanceled)
+        {
+            return request.IsCancellationRequested;
+        }
+
+        if (request.IsCancellationRequested is null)
+        {
+            return () => request.CancellationToken.IsCancellationRequested;
+        }
+
+        return () => request.CancellationToken.IsCancellationRequested || request.IsCancellationRequested();
     }
 
     private static void ScanPass(
