@@ -1064,6 +1064,32 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that System.CommandLine response files are not expanded during scanner invocation.
+    /// </summary>
+    [TestMethod]
+    public async Task CommandLineDoesNotExpandResponseFiles()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+        File.WriteAllText(
+            Path.Combine(root.Path, "@args.txt"),
+            string.Join(
+                Environment.NewLine,
+                "secret.txt",
+                "-c",
+                configPath,
+                "-f",
+                "json"));
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "dir", "@args.txt", "-c", configPath, "-f", "json").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("\"RuleID\": \"token\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native analysis writes offline incident-response JSON without leaking the raw secret.
     /// </summary>
     [TestMethod]
