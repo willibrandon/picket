@@ -60,6 +60,26 @@ public sealed class S3SourceClientTests
     }
 
     /// <summary>
+    /// Verifies that S3 XML metadata is capped while streaming when no content length is available.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateObjectsRejectsStreamingMetadataResponseExceedingCap()
+    {
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => OversizedStreamingXmlMetadataResponse()));
+        var client = new S3SourceClient(httpClient);
+        var options = CreateOptions(warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateObjectsAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("S3 source metadata", warnings[0]);
+        Assert.Contains("remote metadata response exceeded the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain("wJalrXUtnFEMI", warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that S3 metadata listing retries one bounded rate-limit response.
     /// </summary>
     [TestMethod]
@@ -138,6 +158,16 @@ public sealed class S3SourceClientTests
         {
             Content = new StringContent(xml, Encoding.UTF8, "application/xml"),
         };
+    }
+
+    private static HttpResponseMessage OversizedStreamingXmlMetadataResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new RepeatingReadStream(RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1, (byte)' ')),
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/xml");
+        return response;
     }
 
     private static HttpResponseMessage BytesResponse(string text)

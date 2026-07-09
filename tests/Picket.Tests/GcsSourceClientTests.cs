@@ -39,6 +39,27 @@ public sealed class GcsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GCS JSON metadata is capped while streaming when no content length is available.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateObjectsRejectsStreamingMetadataResponseExceedingCap()
+    {
+        const string Token = "gcs-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => OversizedStreamingJsonMetadataResponse()));
+        var client = new GcsSourceClient(httpClient);
+        var options = CreateOptions(warnings.Add, Token);
+
+        List<SourceFile> files = await client.EnumerateObjectsAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("GCS source metadata", warnings[0]);
+        Assert.Contains("remote metadata response exceeded the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that GCS metadata listing retries one bounded rate-limit response.
     /// </summary>
     [TestMethod]
@@ -115,6 +136,16 @@ public sealed class GcsSourceClientTests
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
+    }
+
+    private static HttpResponseMessage OversizedStreamingJsonMetadataResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new RepeatingReadStream(RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1, (byte)' ')),
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        return response;
     }
 
     private static HttpResponseMessage BytesResponse(string text)
