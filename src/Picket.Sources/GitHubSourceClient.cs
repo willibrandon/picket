@@ -760,7 +760,14 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
                 return;
             }
 
-            await AddIssueFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            var issueNumbersWithComments = new List<int>();
+            await AddIssueFilesAsync(options, response, issueNumbersWithComments, sourceFiles, cancellationToken).ConfigureAwait(false);
+
+            for (int i = 0; i < issueNumbersWithComments.Count; i++)
+            {
+                await AddIssueCommentFilesAsync(options, issueNumbersWithComments[i], sourceFiles, SendAsync, cancellationToken).ConfigureAwait(false);
+            }
+
             hasNextPage = HasNextPage(response, page, options.WarningSink, $"GitHub issue enumeration for {options.Repository}");
             page++;
         }
@@ -1040,9 +1047,10 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         }
     }
 
-    private async Task AddIssueFilesAsync(
+    private static async Task AddIssueFilesAsync(
         GitHubSourceOptions options,
         HttpResponseMessage response,
+        List<int> issueNumbersWithComments,
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
@@ -1074,15 +1082,16 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
             if (!TryGetJsonInt64(issue, "comments", out long comments)
                 || comments > 0)
             {
-                await AddIssueCommentFilesAsync(options, issueNumber, sourceFiles, cancellationToken).ConfigureAwait(false);
+                issueNumbersWithComments.Add(issueNumber);
             }
         }
     }
 
-    private async Task AddIssueCommentFilesAsync(
+    private static async Task AddIssueCommentFilesAsync(
         GitHubSourceOptions options,
         int issueNumber,
         List<SourceFile> sourceFiles,
+        Func<GitHubSourceOptions, Uri, bool, CancellationToken, Task<HttpResponseMessage>> sendAsync,
         CancellationToken cancellationToken)
     {
         int page = 1;
@@ -1090,7 +1099,7 @@ public sealed class GitHubSourceClient(HttpClient httpClient)
         do
         {
             Uri uri = CreateIssueCommentListUri(options, issueNumber, page);
-            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage response = await sendAsync(options, uri, false, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 WarnUnsuccessfulResponse(options, response, $"skipping GitHub issue comments for {options.Repository}#{issueNumber.ToString(CultureInfo.InvariantCulture)}");
