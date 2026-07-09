@@ -47,6 +47,40 @@ public sealed class CliContainerArchiveScanTests
     }
 
     /// <summary>
+    /// Verifies that OCI archive scans reach gzip layer blobs through the normal native report path.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsOciArchiveLayerFiles()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string configPath = WriteTokenConfig(temp.Path);
+        string archivePath = Path.Combine(temp.Path, "image-oci.tar");
+        byte[] layerBytes = TarTestData.CreateTarBytes(("etc/secret.conf", Encoding.UTF8.GetBytes("token-67890")));
+        byte[] layerGzipBytes = TarTestData.CreateGzipBytes(layerBytes);
+        File.WriteAllBytes(
+            archivePath,
+            TarTestData.CreateTarBytes(
+                ("oci-layout", Encoding.UTF8.GetBytes("""{"imageLayoutVersion":"1.0.0"}""")),
+                ("index.json", Encoding.UTF8.GetBytes("""{"manifests":[]}""")),
+                ("blobs/sha256/layer", layerGzipBytes)));
+
+        CliResult result = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--oci-archive",
+            archivePath,
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"oci-archive/image-oci.tar!blobs/sha256/layer!etc/secret.conf\"", result.Stdout);
+        Assert.Contains("\"secret\":\"token-67890\"", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scan rejects conflicting container and source-host providers.
     /// </summary>
     [TestMethod]
