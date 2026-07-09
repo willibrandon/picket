@@ -12,7 +12,4 @@
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="..\..\docs\EMBEDDING.md" Pack="true" PackagePath="README.md" Link="README.md" />
-  </ItemGroup>
 </Project>

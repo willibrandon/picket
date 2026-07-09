@@ -13,7 +13,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\docs\EMBEDDING.md" Pack="true" PackagePath="README.md" Link="README.md" />
     <ProjectReference Include="..\Picket.Engine\Picket.Engine.csproj" />
     <ProjectReference Include="..\Picket.Rules\Picket.Rules.csproj" />
   </ItemGroup>

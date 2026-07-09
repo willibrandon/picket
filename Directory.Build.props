@@ -18,6 +18,8 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/willibrandon/picket</RepositoryUrl>
     <PackageTags>picket;secrets;scanner;gitleaks;security;native-aot</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <Copyright>Copyright (c) 2026 Brandon Williams</Copyright>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <IncludeSymbols>true</IncludeSymbols>

@@ -139,9 +139,18 @@ jobs:
       - name: Publish Native AOT binaries
         shell: pwsh
         run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid NuGet version."
+          }
+
           $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}"
-          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
-          dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
+          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
+          dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
 
       - name: Package binary archive
         id: package
@@ -213,13 +222,24 @@ jobs:
       - name: Pack public packages
         shell: pwsh
         run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid NuGet version."
+          }
+
           $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-packages'
           New-Item -ItemType Directory -Force -Path $packageOutput | Out-Null
 
-          dotnet pack src/Picket.Rules/Picket.Rules.csproj --configuration Release -o $packageOutput
-          dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release -o $packageOutput
-          dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release -o $packageOutput
-          dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release -o $packageOutput
+          dotnet pack src/Picket.Rules/Picket.Rules.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
+          dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
+          dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
+          dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
+          dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
+          dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
 
       - name: Package NuGet artifacts
         id: package
@@ -254,11 +274,64 @@ jobs:
             ${{ steps.package.outputs.checksum-path }}
           if-no-files-found: error
 
+  publish-nuget:
+    name: Publish NuGet packages
+    needs:
+      - build-binaries
+      - build-packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download NuGet artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: release-nuget
+          path: dist
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: 10.0.301
+
+      - name: Publish packages to NuGet
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
+            throw 'NUGET_API_KEY is required to publish NuGet packages.'
+          }
+
+          $archive = Get-ChildItem -LiteralPath dist -Filter 'picket-*-nuget.zip' -File | Select-Object -First 1
+          if ($null -eq $archive) {
+            throw 'NuGet package archive was not downloaded.'
+          }
+
+          $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-nuget-publish'
+          New-Item -ItemType Directory -Force -Path $packageOutput | Out-Null
+          Expand-Archive -LiteralPath $archive.FullName -DestinationPath $packageOutput -Force
+
+          $packages = @(Get-ChildItem -LiteralPath $packageOutput -Filter '*.nupkg' -File | Sort-Object Name)
+          if ($packages.Count -eq 0) {
+            throw 'NuGet package archive did not contain .nupkg files.'
+          }
+
+          foreach ($package in $packages) {
+            dotnet nuget push $package.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
+          }
+
+          $symbols = @(Get-ChildItem -LiteralPath $packageOutput -Filter '*.snupkg' -File | Sort-Object Name)
+          foreach ($symbol in $symbols) {
+            dotnet nuget push $symbol.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
+          }
+
   publish-release:
     name: Publish GitHub Release
     needs:
       - build-binaries
       - build-packages
+      - publish-nuget
     runs-on: ubuntu-latest
     permissions:
       contents: write

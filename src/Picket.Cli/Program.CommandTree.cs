@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.CommandLine.Completions;
 using System.CommandLine.Help;
+using System.Reflection;
 
 namespace Picket;
 
@@ -343,9 +344,20 @@ internal static partial class Program
             1,
             static _ =>
             {
-                Console.Out.WriteLine("picket dev");
+                Console.Out.WriteLine($"picket {GetInformationalVersion()}");
                 return Task.FromResult(0);
             });
+    }
+
+    private static string GetInformationalVersion()
+    {
+        string? version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(version))
+        {
+            return version;
+        }
+
+        return typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown";
     }
 
     private static Command CreateDetectCommand(string[] args)

@@ -1050,7 +1050,7 @@ The initial public package surface is intentionally narrow:
 - `Picket.Report` contains Gitleaks-compatible and Picket-native report writers.
 - `Picket.Security` contains egress policy and endpoint safety primitives for live validation, source connectors, and user-configured provider endpoints.
 
-`Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and the CLI are not public NuGet packages until their contracts are explicitly designed and documented. The CLI may later ship as a `dotnet tool`, but that is a distribution artifact rather than the embedding API.
+`Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are not public library NuGet packages until their contracts are explicitly designed and documented. The CLI and TUI companion ship as framework-dependent `dotnet tool` packages for package-manager workflows; the Native AOT archives remain the primary zero-runtime executable distribution.
 
 Public APIs are documented, cancellation-aware where operations can block or stream, streaming-first where result volume can be large, and stable across minor releases.
 

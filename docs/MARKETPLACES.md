@@ -79,14 +79,13 @@ Marketplace publishing happens after the scanner release artifacts are built and
 1. Build and test the repository.
 2. Run docs generation and stale-doc checks.
 3. Publish Native AOT binary artifacts for supported RIDs.
-4. Write per-asset checksums and aggregate checksums.
-5. Create artifact attestations where supported.
-6. Create or update the GitHub Release.
-7. Update the GitHub Action immutable and major tags after release validation.
-8. Validate the Azure DevOps VSIX package.
-9. Publish the Azure DevOps extension when task packaging is ready.
-
-NuGet publishing remains a separate approval step because package ownership and API compatibility policy need explicit release control.
+4. Pack and publish the NuGet library and dotnet tool packages.
+5. Write per-asset checksums and aggregate checksums.
+6. Create artifact attestations where supported.
+7. Create or update the GitHub Release.
+8. Update the GitHub Action immutable and major tags after release validation.
+9. Validate the Azure DevOps VSIX package.
+10. Publish the Azure DevOps extension when task packaging is ready.
 
 ## Rollback
 

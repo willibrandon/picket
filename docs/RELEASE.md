@@ -27,14 +27,19 @@ For `osx-arm64` and `osx-x64`, `release-speed` and `release-minsize` set `StripS
 
 ## NuGet Package Validation
 
-Every CI run packs the public embeddable packages after build and test:
+Every CI run packs the public embeddable library packages after build and test:
 
 - `Picket.Rules`
 - `Picket.Engine`
 - `Picket.Report`
 - `Picket.Security`
 
-The CI pack gate runs on Windows, Linux, and macOS so package metadata, embedded readmes, symbol packages, project-reference dependencies, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
+Every CI run also packs the framework-dependent dotnet tool packages:
+
+- `Picket`, with `ToolCommandName=picket`
+- `Picket.Tui.Cli`, with `ToolCommandName=picket-tui`
+
+The CI pack gate runs on Windows, Linux, and macOS so package metadata, root readme packaging, icon packaging, symbol packages, project-reference dependencies, tool manifests, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
 
 ## Native AOT Publish Validation
 
@@ -77,7 +82,7 @@ Release automation should publish, sign, checksum, and archive each RID separate
 
 Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
 
-The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `win-x64`, and `osx-arm64`, packages the public NuGet libraries into a release archive, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
+The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `win-x64`, and `osx-arm64`, packages the public NuGet libraries and dotnet tools into a release archive, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
 
 Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 
@@ -85,4 +90,4 @@ Release signing uses GitHub artifact attestations through `actions/attest@v4`. G
 gh attestation verify <artifact-path> -R willibrandon/picket
 ```
 
-The release workflow does not push packages to NuGet. A NuGet publish job requires a repository secret such as `NUGET_API_KEY` and should be added only when package ownership and release approval policy are final.
+The release tag is the source of truth for package versions. Release jobs strip a leading `v` from tags such as `v0.4.2`, pass the resulting SemVer value to `Version` and `PackageVersion`, publish package and symbol files with `--skip-duplicate`, and fail clearly when `NUGET_API_KEY` is missing.

@@ -288,8 +288,7 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(tuiProject, "IsAotCompatible", "true");
         AssertProjectProperty(tuiProject, "VerifyReferenceTrimCompatibility", "true");
         AssertProjectProperty(tuiProject, "VerifyReferenceAotCompatibility", "true");
-        AssertProjectProperty(tuiCliProject, "PublishAot", "true");
-        AssertProjectProperty(tuiCliProject, "SelfContained", "true");
+        AssertProjectProperty(tuiCliProject, "SelfContained", "false");
         AssertProjectProperty(tuiCliProject, "IsAotCompatible", "true");
         AssertProjectProperty(tuiCliProject, "VerifyReferenceTrimCompatibility", "true");
         AssertProjectProperty(tuiCliProject, "VerifyReferenceAotCompatibility", "true");
@@ -395,6 +394,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Security/Picket.Security.csproj", workflow);
+        Assert.Contains("dotnet pack src/Picket.Cli/Picket.Cli.csproj", workflow);
+        Assert.Contains("dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
         Assert.Contains("Validate Azure DevOps VSIX package", workflow);
         Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", workflow);
         Assert.Contains("npm exec -- tfx extension create", workflow);
@@ -409,7 +410,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("windows-latest", workflow);
         Assert.Contains("macos-26", workflow);
         Assert.Contains("NuGet Package Validation", documentation);
-        Assert.Contains("Every CI run packs the public embeddable packages", documentation);
+        Assert.Contains("Every CI run packs the public embeddable library packages", documentation);
+        Assert.Contains("Every CI run also packs the framework-dependent dotnet tool packages", documentation);
         Assert.Contains("cross-platform MSBuild paths", documentation);
         Assert.Contains("Native AOT Publish Validation", documentation);
         Assert.Contains("Every CI run also publishes `picket` and `picket-tui` with `release-speed`", documentation);
@@ -648,8 +650,19 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("Picket.Report/Picket.Report.csproj", workflow);
         Assert.Contains("Picket.Security/Picket.Security.csproj", workflow);
+        Assert.Contains("Picket.Cli/Picket.Cli.csproj", workflow);
+        Assert.Contains("Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        Assert.Contains("publish-nuget", workflow);
+        Assert.Contains("NUGET_API_KEY", workflow);
+        Assert.Contains("dotnet nuget push", workflow);
+        Assert.Contains("--skip-duplicate", workflow);
+        Assert.Contains("*.snupkg", workflow);
+        Assert.Contains("-p:Version=$version", workflow);
+        Assert.Contains("-p:PackageVersion=$version", workflow);
         Assert.Contains("SHA-256 checksums", documentation);
         Assert.Contains("GitHub artifact attestations", documentation);
+        Assert.Contains("publishes those `.nupkg` and `.snupkg` files to NuGet.org", documentation);
+        Assert.Contains("release tag is the source of truth for package versions", documentation);
     }
 
     /// <summary>
@@ -666,6 +679,8 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
         AssertProjectProperty(props, "RepositoryType", "git");
         AssertProjectProperty(props, "RepositoryUrl", "https://github.com/willibrandon/picket");
+        AssertProjectProperty(props, "PackageReadmeFile", "README.md");
+        AssertProjectProperty(props, "PackageIcon", "icon.png");
         AssertProjectProperty(props, "Copyright", "Copyright (c) 2026 Brandon Williams");
         AssertProjectProperty(props, "PackageRequireLicenseAcceptance", "false");
         AssertProjectProperty(props, "IncludeSymbols", "true");
@@ -701,13 +716,35 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that CLI projects define the expected dotnet tool package contracts.
+    /// </summary>
+    [TestMethod]
+    public void ToolProjectsDefinePackageContract()
+    {
+        AssertToolPackage("src/Picket.Cli/Picket.Cli.csproj", "Picket", "picket");
+        AssertToolPackage("src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", "Picket.Tui.Cli", "picket-tui");
+    }
+
+    /// <summary>
+    /// Verifies that the CLI version command reports stamped assembly metadata.
+    /// </summary>
+    [TestMethod]
+    public void CliVersionCommandUsesStampedAssemblyVersion()
+    {
+        string source = ReadRepositoryFile("src/Picket.Cli/Program.CommandTree.cs");
+
+        Assert.Contains("AssemblyInformationalVersionAttribute", source);
+        Assert.Contains("GetInformationalVersion()", source);
+        Assert.DoesNotContain("picket dev", source);
+    }
+
+    /// <summary>
     /// Verifies that internal workflow assemblies are not accidentally packed as public APIs.
     /// </summary>
     [TestMethod]
     public void InternalProjectsAreNotAccidentallyPackable()
     {
         AssertProjectIsNotPackable("src/Picket.Analyze/Picket.Analyze.csproj");
-        AssertProjectIsNotPackable("src/Picket.Cli/Picket.Cli.csproj");
         AssertProjectIsNotPackable("src/Picket.Compat/Picket.Compat.csproj");
         AssertProjectIsNotPackable("src/Picket.Sources/Picket.Sources.csproj");
         AssertProjectIsNotPackable("src/Picket.Store/Picket.Store.csproj");
@@ -733,7 +770,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("CompiledRuleSet.Compile", documentation);
         Assert.Contains("PicketJsonlReportWriter", documentation);
         Assert.Contains("EndpointGuard.Evaluate", documentation);
-        Assert.Contains("not public packages yet", documentation);
+        Assert.Contains("not public library packages yet", documentation);
     }
 
     /// <summary>
@@ -1778,30 +1815,29 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(project, "IsPackable", "true");
         AssertProjectProperty(project, "PackageId", packageId);
         AssertProjectPropertyIsNotEmpty(project, "Description");
-        AssertProjectProperty(project, "PackageReadmeFile", "README.md");
         AssertProjectPropertyContains(project, "PackageTags", "$(PackageTags)");
         AssertProjectProperty(project, "IsAotCompatible", "true");
         AssertProjectProperty(project, "EnableTrimAnalyzer", "true");
         AssertProjectProperty(project, "EnableAotAnalyzer", "true");
         AssertProjectProperty(project, "EnableSingleFileAnalyzer", "true");
-        AssertProjectItem(
-            project,
-            "None",
-            @"..\..\docs\EMBEDDING.md",
-            "Pack",
-            "true");
-        AssertProjectItem(
-            project,
-            "None",
-            @"..\..\docs\EMBEDDING.md",
-            "PackagePath",
-            "README.md");
-        AssertProjectItem(
-            project,
-            "None",
-            @"..\..\docs\EMBEDDING.md",
-            "Link",
-            "README.md");
+    }
+
+    private static void AssertToolPackage(string relativePath, string packageId, string commandName)
+    {
+        XElement project = ReadProjectFile(relativePath);
+
+        AssertProjectProperty(project, "TargetFramework", "net10.0");
+        AssertProjectProperty(project, "IsPackable", "true");
+        AssertProjectProperty(project, "PackAsTool", "true");
+        AssertProjectProperty(project, "ToolCommandName", commandName);
+        AssertProjectProperty(project, "PackageId", packageId);
+        AssertProjectPropertyIsNotEmpty(project, "Description");
+        AssertProjectPropertyContains(project, "PackageTags", "$(PackageTags)");
+        AssertProjectProperty(project, "SelfContained", "false");
+        AssertProjectProperty(project, "IsAotCompatible", "true");
+        AssertProjectProperty(project, "EnableTrimAnalyzer", "true");
+        AssertProjectProperty(project, "EnableAotAnalyzer", "true");
+        AssertProjectProperty(project, "EnableSingleFileAnalyzer", "true");
     }
 
     private static void AssertProjectIsNotPackable(string relativePath)
