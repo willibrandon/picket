@@ -74,6 +74,7 @@ internal static partial class Program
         bool gitLabIncludeSnippets = false;
         bool gitLabOptionSpecified = false;
         int gitLabMergeRequestIid = 0;
+        int gitLabPipelineId = 0;
         string gitLabProject = string.Empty;
         string gitLabRef = string.Empty;
         string? gitLabTokenEnvironmentVariable = null;
@@ -654,6 +655,17 @@ internal static partial class Program
             if (IsGitLabMergeRequestFlag(arg))
             {
                 if (!TryReadPositiveGitLabMergeRequestFlag(args, ref i, out gitLabMergeRequestIid))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabPipelineFlag(arg))
+            {
+                if (!TryReadPositiveGitLabPipelineFlag(args, ref i, out gitLabPipelineId))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -1416,6 +1428,7 @@ internal static partial class Program
                 gitLabGroup,
                 gitLabRef,
                 gitLabMergeRequestIid,
+                gitLabPipelineId,
                 gitLabIncludeSubgroups,
                 gitLabIncludeSnippets,
                 gitLabIncludeJobArtifacts,

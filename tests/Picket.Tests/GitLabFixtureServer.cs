@@ -127,6 +127,13 @@ internal sealed class GitLabFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/pipelines/123/jobs?", StringComparison.Ordinal))
+        {
+            const string JobsJson = """[{"id":99,"name":"build","artifacts_file":{"filename":"artifacts.zip","size":128}}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(JobsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs?", StringComparison.Ordinal))
         {
             const string JobsJson = """[{"id":99,"name":"build","artifacts_file":{"filename":"artifacts.zip","size":128}}]""";

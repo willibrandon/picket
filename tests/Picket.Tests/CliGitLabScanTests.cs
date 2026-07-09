@@ -197,6 +197,56 @@ public sealed class CliGitLabScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate GitLab job trace logs and artifact archives from a selected pipeline.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitLabPipelineJobLogsAndArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitLabFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-pipeline-id",
+            "123",
+            "--gitlab-include-job-logs",
+            "--gitlab-include-job-artifacts",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitlab-job-log/willibrandon/picket/99-build.log\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitlab-job-artifact/willibrandon/picket/99/artifacts.zip!out/secret.txt\"", result.Stdout);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/pipelines/123/jobs?", server.RequestTargets);
+        Assert.DoesNotContain("/api/v4/projects/willibrandon%2Fpicket/jobs?per_page", server.RequestTargets);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs/99/trace", server.RequestTargets);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/jobs/99/artifacts", server.RequestTargets);
+        Assert.AreEqual("gitlab-source-secret", server.LastPrivateToken);
+        Assert.IsEmpty(server.LastAuthorization);
+        Assert.Contains("application/octet-stream", server.LastAccept);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate projects in a GitLab group.
     /// </summary>
     [TestMethod]
@@ -375,6 +425,75 @@ public sealed class CliGitLabScanTests
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--gitlab-merge-request requires --gitlab-project", result.Stderr);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that pipeline-scoped job enumeration requires a project source.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitLabGroupAndPipeline()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-group",
+            "team/platform",
+            "--gitlab-pipeline-id",
+            "123",
+            "--gitlab-include-job-logs",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--gitlab-pipeline-id requires --gitlab-project", result.Stderr);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that pipeline-scoped job enumeration requires a selected job source.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGitLabPipelineWithoutJobEnumeration()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-pipeline-id",
+            "123",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--gitlab-pipeline-id requires --gitlab-include-job-logs or --gitlab-include-job-artifacts", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
     }
 

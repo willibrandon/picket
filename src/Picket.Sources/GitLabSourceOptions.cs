@@ -11,6 +11,7 @@ namespace Picket.Sources;
 /// <param name="includeSnippets">A value indicating whether project snippets should be scanned.</param>
 /// <param name="includeJobArtifacts">A value indicating whether GitLab job artifact archives should be scanned.</param>
 /// <param name="includeJobLogs">A value indicating whether GitLab job trace logs should be scanned.</param>
+/// <param name="pipelineId">An optional pipeline ID used to limit job log and artifact enumeration.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="maxArchiveDepth">The maximum nested artifact archive depth to enumerate.</param>
 /// <param name="maxArchiveEntries">The maximum number of artifact archive entries to enumerate, or 0 for no cap.</param>
@@ -28,6 +29,7 @@ public sealed class GitLabSourceOptions(
     bool includeSnippets = false,
     bool includeJobArtifacts = false,
     bool includeJobLogs = false,
+    int pipelineId = 0,
     long? maxFileBytes = null,
     int maxArchiveDepth = ArchiveScanDefaults.DefaultMaxDepth,
     int maxArchiveEntries = ArchiveScanDefaults.DefaultMaxEntries,
@@ -59,6 +61,11 @@ public sealed class GitLabSourceOptions(
     /// Gets the optional merge request internal ID whose source head should be scanned.
     /// </summary>
     public int MergeRequestIid { get; } = RequireMergeRequestIid(mergeRequestIid);
+
+    /// <summary>
+    /// Gets the optional pipeline ID used to limit job log and artifact enumeration.
+    /// </summary>
+    public int PipelineId { get; } = RequirePipelineId(pipelineId, includeJobArtifacts, includeJobLogs);
 
     /// <summary>
     /// Gets a value indicating whether project snippets should be scanned.
@@ -203,6 +210,17 @@ public sealed class GitLabSourceOptions(
     private static int RequireMergeRequestIid(int value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
+        return value;
+    }
+
+    private static int RequirePipelineId(int value, bool includeJobArtifacts, bool includeJobLogs)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        if (value != 0 && !includeJobArtifacts && !includeJobLogs)
+        {
+            throw new ArgumentException("GitLab pipeline source scans require job log or job artifact enumeration.", nameof(value));
+        }
+
         return value;
     }
 

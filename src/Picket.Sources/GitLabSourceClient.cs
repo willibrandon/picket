@@ -308,12 +308,12 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             using HttpResponseMessage jobsResponse = await SendAsync(options, jobsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
             if (!jobsResponse.IsSuccessStatusCode)
             {
-                WarnUnsuccessfulResponse(options, jobsResponse, $"skipping GitLab project {options.Project} jobs");
+                WarnUnsuccessfulResponse(options, jobsResponse, CreateJobsWarningTarget(options));
                 return;
             }
 
             await AddJobFilesAsync(options, jobsResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
-            hasNextPage = HasNextPage(jobsResponse, page, options.WarningSink, $"GitLab project {options.Project} job enumeration");
+            hasNextPage = HasNextPage(jobsResponse, page, options.WarningSink, CreateJobsEnumerationTarget(options));
             page++;
         }
         while (hasNextPage && !IsCancellationRequested(options));
@@ -730,13 +730,31 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
 
     private static Uri CreateJobsUri(GitLabSourceOptions options, int page)
     {
+        string[] pathSegments = options.PipelineId == 0
+            ? ["projects", options.Project, "jobs"]
+            : ["projects", options.Project, "pipelines", options.PipelineId.ToString(CultureInfo.InvariantCulture), "jobs"];
+
         return CreateUri(
             options.Endpoint,
-            ["projects", options.Project, "jobs"],
+            pathSegments,
             [
                 new KeyValuePair<string, string>("per_page", JobsPerPage.ToString(CultureInfo.InvariantCulture)),
                 new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
             ]);
+    }
+
+    private static string CreateJobsWarningTarget(GitLabSourceOptions options)
+    {
+        return options.PipelineId == 0
+            ? $"skipping GitLab project {options.Project} jobs"
+            : $"skipping GitLab pipeline {options.PipelineId.ToString(CultureInfo.InvariantCulture)} jobs in project {options.Project}";
+    }
+
+    private static string CreateJobsEnumerationTarget(GitLabSourceOptions options)
+    {
+        return options.PipelineId == 0
+            ? $"GitLab project {options.Project} job enumeration"
+            : $"GitLab pipeline {options.PipelineId.ToString(CultureInfo.InvariantCulture)} job enumeration in project {options.Project}";
     }
 
     private static Uri CreateJobArtifactUri(GitLabSourceOptions options, long jobId)

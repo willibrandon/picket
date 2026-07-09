@@ -556,6 +556,7 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--gitlab-group", "path"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-ref", "ref"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-merge-request", "id"));
+        command.Options.Add(CreateValueOption(commandName, "--gitlab-pipeline-id", "id"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-subgroups"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-snippets"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-job-artifacts"));

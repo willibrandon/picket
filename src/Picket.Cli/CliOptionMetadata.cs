@@ -124,6 +124,7 @@ internal static class CliOptionMetadata
             "--gitlab-include-subgroups" => "Include projects from GitLab subgroups when scanning a group.",
             "--gitlab-include-snippets" => "Include GitLab project snippets in native source enumeration.",
             "--gitlab-merge-request" => "Scan this GitLab merge request source head.",
+            "--gitlab-pipeline-id" => "Limit GitLab job log and artifact enumeration to this pipeline ID.",
             "--gitlab-project" => "Scan this GitLab project path or numeric project ID through native source enumeration.",
             "--gitlab-ref" => "Scan this GitLab branch, tag, or commit.",
             "--gitlab-token-env" => "Read the GitLab source enumeration token from this environment variable.",

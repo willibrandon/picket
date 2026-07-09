@@ -472,6 +472,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan this GitLab merge request source head.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitlab-pipeline-id</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit GitLab job log and artifact enumeration to this pipeline ID.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitlab-include-subgroups</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>

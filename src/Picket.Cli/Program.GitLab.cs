@@ -30,6 +30,12 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-merge-request=", StringComparison.Ordinal);
     }
 
+    static bool IsGitLabPipelineFlag(string arg)
+    {
+        return arg.Equals("--gitlab-pipeline-id", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-pipeline-id=", StringComparison.Ordinal);
+    }
+
     static bool IsGitLabIncludeSnippetsFlag(string arg)
     {
         return arg.Equals("--gitlab-include-snippets", StringComparison.Ordinal)
@@ -82,12 +88,29 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadPositiveGitLabPipelineFlag(string[] args, ref int index, out int pipelineId)
+    {
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--gitlab-pipeline-id", out pipelineId))
+        {
+            return false;
+        }
+
+        if (pipelineId > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--gitlab-pipeline-id requires a positive integer value");
+        return false;
+    }
+
     static bool TryCreateGitLabSourceProvider(
         Uri? endpoint,
         string project,
         string group,
         string gitRef,
         int mergeRequestIid,
+        int pipelineId,
         bool includeSubgroups,
         bool includeSnippets,
         bool includeJobArtifacts,
@@ -115,6 +138,18 @@ internal static partial class Program
         if (hasGroup && mergeRequestIid != 0)
         {
             Console.Error.WriteLine("--gitlab-merge-request requires --gitlab-project");
+            return false;
+        }
+
+        if (hasGroup && pipelineId != 0)
+        {
+            Console.Error.WriteLine("--gitlab-pipeline-id requires --gitlab-project");
+            return false;
+        }
+
+        if (pipelineId != 0 && !includeJobArtifacts && !includeJobLogs)
+        {
+            Console.Error.WriteLine("--gitlab-pipeline-id requires --gitlab-include-job-logs or --gitlab-include-job-artifacts");
             return false;
         }
 
@@ -163,11 +198,13 @@ internal static partial class Program
                     mergeRequestIid,
                     includeSnippets,
                     includeJobArtifacts,
-                    includeJobLogs);
+                    includeJobLogs,
+                    pipelineId);
                 sourceEndpoint = validatedOptions.Endpoint;
                 project = validatedOptions.Project;
                 gitRef = validatedOptions.Ref;
                 mergeRequestIid = validatedOptions.MergeRequestIid;
+                pipelineId = validatedOptions.PipelineId;
                 includeSnippets = validatedOptions.IncludeSnippets;
                 includeJobArtifacts = validatedOptions.IncludeJobArtifacts;
                 includeJobLogs = validatedOptions.IncludeJobLogs;
@@ -228,6 +265,7 @@ internal static partial class Program
                 includeSnippets,
                 includeJobArtifacts,
                 includeJobLogs,
+                pipelineId,
                 maxTargetBytes,
                 maxArchiveDepth,
                 maxArchiveEntries,
