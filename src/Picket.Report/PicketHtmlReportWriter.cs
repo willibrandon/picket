@@ -60,15 +60,18 @@ public static class PicketHtmlReportWriter
         builder.Append(".metric{border:1px solid #d9ddd2;background:#fff;border-radius:6px;padding:14px 16px}");
         builder.Append(".metric span{display:block;color:#596052;font-size:13px}");
         builder.Append(".metric strong{display:block;margin-top:2px;font-size:24px}");
-        builder.Append(".table-wrap{overflow-x:auto;border:1px solid #d9ddd2;border-radius:6px;background:#fff}");
-        builder.Append("table{width:100%;border-collapse:collapse;background:#fff}");
-        builder.Append(".findings-table{min-width:1280px}.rules-table{min-width:1200px}");
-        builder.Append("th,td{padding:10px 12px;border-bottom:1px solid #e6e9df;text-align:left;vertical-align:top;font-size:14px}");
-        builder.Append("th{background:#edf0e8;color:#30352c;font-weight:650}");
-        builder.Append("tr:last-child td{border-bottom:0}");
-        builder.Append(".findings-table .rule-column{width:13%}.findings-table .location-column{width:18%}.findings-table .secret-column{width:9%}.findings-table .match-column{width:12%}.findings-table .fingerprint-column{width:20%}.findings-table .metadata-column{width:22%}.findings-table .tags-column{width:6%}");
-        builder.Append(".rules-table .rule-id-column{width:14%}.rules-table .description-column{width:22%}.rules-table .pattern-column{width:30%}.rules-table .metadata-column{width:27%}.rules-table .tags-column{width:7%}");
-        builder.Append(".metadata-cell{min-width:260px}.tags-cell{min-width:96px}.pattern-cell code{overflow-wrap:anywhere}");
+        builder.Append(".report-list{display:grid;gap:16px}");
+        builder.Append(".finding-card,.rule-card{border:1px solid #d9ddd2;background:#fff;border-radius:8px;padding:18px 20px;min-width:0}");
+        builder.Append(".finding-card{display:grid;gap:14px}.rule-card{display:grid;gap:12px}");
+        builder.Append(".card-header{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,420px);gap:16px;align-items:start}");
+        builder.Append(".card-title{display:grid;gap:6px;min-width:0}.card-title h3{margin:0;font-size:16px;line-height:1.35}");
+        builder.Append(".card-description{margin:0;color:#30352c;line-height:1.5;max-width:88ch}");
+        builder.Append(".card-location{margin:0;display:grid;gap:4px;min-width:0}");
+        builder.Append(".field-grid{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(320px,1.3fr) minmax(300px,1fr);gap:12px;align-items:stretch}");
+        builder.Append(".rule-card .field-grid{grid-template-columns:minmax(320px,1.4fr) minmax(220px,.9fr) minmax(180px,.7fr)}");
+        builder.Append(".field{border:1px solid #e0e4d8;background:#fbfcf8;border-radius:6px;padding:12px;min-width:0}");
+        builder.Append(".field-label{display:block;margin-bottom:6px;color:#596052;font-size:11px;font-weight:650;line-height:1.2;text-transform:uppercase}");
+        builder.Append(".field code,.field pre,.card-location code{display:block;min-width:0;overflow-wrap:anywhere;word-break:break-word}");
         builder.Append("code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,\"Liberation Mono\",monospace}");
         builder.Append("code{font-size:13px}");
         builder.Append("pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.45}");
@@ -78,7 +81,8 @@ public static class PicketHtmlReportWriter
         builder.Append(".metadata{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 16px;font-size:13px;line-height:1.35}");
         builder.Append(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}");
         builder.Append(".metadata dt{margin:0 0 3px;color:#596052;font-size:11px;font-weight:650;line-height:1.2;text-transform:uppercase;white-space:normal}.metadata dd{margin:0;min-width:0}.metadata dd code{white-space:normal;overflow-wrap:break-word;word-break:normal}");
-        builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,.table-wrap,table,.empty{background:#1d211a;border-color:#3a4233}th{background:#293023;color:#f1f4eb}td,th{border-color:#333b2d}.eyebrow,.metric span,.empty,.metadata dt{color:#b5bcae}.metadata-item{border-color:#3a4233}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
+        builder.Append("@media (max-width:900px){main{padding:24px 16px 40px}.card-header,.field-grid,.rule-card .field-grid{grid-template-columns:1fr}}");
+        builder.Append("@media (prefers-color-scheme:dark){:root,body{background:#151713;color:#f1f4eb}.metric,.finding-card,.rule-card,.field,.empty{background:#1d211a;border-color:#3a4233}.field{background:#181c15}.card-description,.field-label,.eyebrow,.metric span,.empty,.metadata dt{color:#b5bcae}.metadata-item{border-color:#3a4233}.tag{background:#293023;border-color:#4b5542;color:#f1f4eb}}");
         builder.Append("</style>\n");
         builder.Append("</head>\n");
     }
@@ -158,49 +162,47 @@ public static class PicketHtmlReportWriter
             return;
         }
 
-        builder.Append("<div class=\"table-wrap\"><table class=\"findings-table\">\n");
-        builder.Append("<colgroup><col class=\"rule-column\"><col class=\"location-column\"><col class=\"secret-column\"><col class=\"match-column\"><col class=\"fingerprint-column\"><col class=\"metadata-column\"><col class=\"tags-column\"></colgroup>\n");
-        builder.Append("<thead><tr><th>Rule</th><th>Location</th><th>Secret</th><th>Match</th><th>Fingerprint</th><th>Metadata</th><th>Tags</th></tr></thead>\n");
-        builder.Append("<tbody>\n");
+        builder.Append("<div class=\"report-list findings-list\">\n");
         for (int i = 0; i < findings.Count; i++)
         {
             WriteFinding(builder, findings[i], PicketFindingMetadata.FindRule(ruleIndex, findings[i]));
         }
 
-        builder.Append("</tbody>\n");
-        builder.Append("</table></div>\n");
+        builder.Append("</div>\n");
         builder.Append("</section>\n");
     }
 
     private static void WriteFinding(StringBuilder builder, Finding finding, SecretRule? rule)
     {
-        builder.Append("<tr>");
-        builder.Append("<td><code>");
+        builder.Append("<article class=\"finding-card\">\n");
+        builder.Append("<div class=\"card-header\"><div class=\"card-title\"><h3><code>");
         AppendHtml(builder, finding.RuleID);
-        builder.Append("</code>");
+        builder.Append("</code></h3>");
         if (finding.Description.Length > 0)
         {
-            builder.Append("<br>");
+            builder.Append("<p class=\"card-description\">");
             AppendHtml(builder, finding.Description);
+            builder.Append("</p>");
         }
 
-        builder.Append("</td><td><code>");
+        builder.Append("</div><p class=\"card-location\"><span class=\"field-label\">Location</span><code>");
         AppendHtml(builder, CreateLocationPath(finding));
         builder.Append(':');
         builder.Append(finding.StartLine.ToString(CultureInfo.InvariantCulture));
         builder.Append(':');
         builder.Append(finding.StartColumn.ToString(CultureInfo.InvariantCulture));
-        builder.Append("</code></td><td><code>");
-        AppendHtml(builder, finding.Secret);
-        builder.Append("</code></td><td><pre>");
-        AppendHtml(builder, finding.Match);
-        builder.Append("</pre></td><td><code>");
-        AppendHtml(builder, CreateFingerprint(finding));
-        builder.Append("</code></td><td class=\"metadata-cell\">");
+        builder.Append("</code></p></div>\n");
+        builder.Append("<div class=\"field-grid\">");
+        WriteField(builder, "Secret", finding.Secret, multiline: false);
+        WriteField(builder, "Match", finding.Match, multiline: true);
+        WriteField(builder, "Fingerprint", CreateFingerprint(finding), multiline: false);
+        builder.Append("</div>\n");
         WriteFindingMetadata(builder, finding, rule);
-        builder.Append("</td><td class=\"tags-cell\">");
+        builder.Append("<div>");
+        builder.Append("<span class=\"field-label\">Tags</span>");
         WriteTags(builder, finding.Tags);
-        builder.Append("</td></tr>\n");
+        builder.Append("</div>\n");
+        builder.Append("</article>\n");
     }
 
     private static void WriteFindingMetadata(StringBuilder builder, Finding finding, SecretRule? rule)
@@ -247,33 +249,63 @@ public static class PicketHtmlReportWriter
             return;
         }
 
-        builder.Append("<div class=\"table-wrap\"><table class=\"rules-table\">\n");
-        builder.Append("<colgroup><col class=\"rule-id-column\"><col class=\"description-column\"><col class=\"pattern-column\"><col class=\"metadata-column\"><col class=\"tags-column\"></colgroup>\n");
-        builder.Append("<thead><tr><th>ID</th><th>Description</th><th>Pattern</th><th>Metadata</th><th>Tags</th></tr></thead>\n");
-        builder.Append("<tbody>\n");
+        builder.Append("<div class=\"report-list rules-list\">\n");
         for (int i = 0; i < rules.Count; i++)
         {
             WriteRule(builder, rules[i]);
         }
 
-        builder.Append("</tbody>\n");
-        builder.Append("</table></div>\n");
+        builder.Append("</div>\n");
         builder.Append("</section>\n");
     }
 
     private static void WriteRule(StringBuilder builder, SecretRule rule)
     {
-        builder.Append("<tr><td><code>");
+        builder.Append("<article class=\"rule-card\">\n");
+        builder.Append("<div class=\"card-title\"><h3><code>");
         AppendHtml(builder, rule.Id);
-        builder.Append("</code></td><td>");
-        AppendHtml(builder, rule.Description);
-        builder.Append("</td><td class=\"pattern-cell\"><code>");
-        AppendHtml(builder, rule.Pattern);
-        builder.Append("</code></td><td class=\"metadata-cell\">");
+        builder.Append("</code></h3>");
+        if (rule.Description.Length > 0)
+        {
+            builder.Append("<p class=\"card-description\">");
+            AppendHtml(builder, rule.Description);
+            builder.Append("</p>");
+        }
+
+        builder.Append("</div>\n");
+        builder.Append("<div class=\"field-grid\">");
+        WriteField(builder, "Pattern", rule.Pattern, multiline: true);
+        builder.Append("<div class=\"field\">");
+        builder.Append("<span class=\"field-label\">Metadata</span>");
         WriteRuleMetadata(builder, rule);
-        builder.Append("</td><td class=\"tags-cell\">");
+        builder.Append("</div>");
+        builder.Append("<div class=\"field\">");
+        builder.Append("<span class=\"field-label\">Tags</span>");
         WriteTags(builder, rule.Tags);
-        builder.Append("</td></tr>\n");
+        builder.Append("</div>");
+        builder.Append("</div>\n");
+        builder.Append("</article>\n");
+    }
+
+    private static void WriteField(StringBuilder builder, string label, string value, bool multiline)
+    {
+        builder.Append("<div class=\"field\"><span class=\"field-label\">");
+        AppendHtml(builder, label);
+        builder.Append("</span>");
+        if (multiline)
+        {
+            builder.Append("<pre>");
+            AppendHtml(builder, value);
+            builder.Append("</pre>");
+        }
+        else
+        {
+            builder.Append("<code>");
+            AppendHtml(builder, value);
+            builder.Append("</code>");
+        }
+
+        builder.Append("</div>");
     }
 
     private static void WriteRuleMetadata(StringBuilder builder, SecretRule rule)
