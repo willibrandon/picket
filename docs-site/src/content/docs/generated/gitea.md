@@ -45,6 +45,13 @@ Release scans read release notes and release assets. Asset download URLs returne
 picket scan --gitea-repository willibrandon/picket --gitea-include-releases --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
 ```
 
+Actions artifact scans list repository artifact metadata, download artifact ZIP archives, and expand entries through Picket's archive limits. Redirected ZIP downloads are fetched without forwarding the token.
+
+```powershell
+picket scan --gitea-repository willibrandon/picket --gitea-include-actions-artifacts --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
+picket scan --gitea-repository willibrandon/picket --gitea-include-actions-artifacts --gitea-actions-run-id 42 --gitea-token-env PICKET_GITEA_SOURCE_TOKEN --report-format jsonl
+```
+
 Generic package scans can enumerate every generic package file owned by a Gitea user or organization. Picket lists generic packages with `type=generic`, lists files for each package version, downloads each selected file, and expands archive package files through Picket's archive limits.
 
 ```powershell
@@ -81,6 +88,8 @@ The token is read from an environment variable and is never passed as a command-
 | `--gitea-include-issues` | Include Gitea issue bodies and comments. Cannot be combined with `--gitea-pull-request`. |
 | `--gitea-issue-state` | Issue state filter: `open`, `closed`, or `all`. Supplying this option enables issue enumeration. |
 | `--gitea-include-releases` | Include Gitea release notes and release assets. Cannot be combined with `--gitea-pull-request`. |
+| `--gitea-include-actions-artifacts` | Include Gitea Actions artifact ZIP contents. Cannot be combined with `--gitea-pull-request`. |
+| `--gitea-actions-run-id` | Limit Actions artifact enumeration to one run. Requires `--gitea-include-actions-artifacts`. |
 | `--gitea-generic-package-owner` | Owner whose Gitea generic package files should be scanned. |
 | `--gitea-generic-package-name` | Generic package name for exact-file scans. |
 | `--gitea-generic-package-version` | Generic package version for exact-file scans. |
@@ -103,6 +112,8 @@ The token is read from an environment variable and is never passed as a command-
 | Issue comments | Lists repository issue comments with `page` and `limit=100`, then keeps comments whose `issue_url` belongs to a selected non-pull-request issue. |
 | Releases | Lists releases with `page` and `limit=100`, scans release body text as synthetic Markdown, and scans embedded release assets. |
 | Release assets | Downloads `browser_download_url` values without forwarding the Gitea token. Asset URLs must stay on the configured Gitea host or one of its subdomains, and HTTPS endpoints cannot redirect assets to HTTP. |
+| Actions artifacts | Lists repository artifacts through `/repos/{owner}/{repo}/actions/artifacts` or run-scoped artifacts through `/repos/{owner}/{repo}/actions/runs/{run}/artifacts` with `page` and `limit=100`. |
+| Actions artifact ZIPs | Downloads `/repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip` as `application/octet-stream`, follows one allowed redirect without forwarding the token, and expands ZIP entries through archive limits. |
 | Generic packages | Lists owner packages through `/packages/{owner}` with `type=generic`, `page`, and `limit=100`. |
 | Generic package files | Lists files through `/packages/{owner}/generic/{package_name}/{package_version}/files`. |
 | Generic package file content | Downloads `/api/packages/{owner}/generic/{package_name}/{package_version}/{file_name}` as `application/octet-stream`. |
@@ -117,9 +128,9 @@ Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes` over
 
 Provider metadata JSON responses are separately capped at 10 decimal MB and skipped with a warning when the cap is exceeded, including responses without a reliable `Content-Length`.
 
-Oversized tree entries and package files are skipped before download when Gitea returns a size.
+Oversized tree entries, Actions artifacts, and package files are skipped before download when Gitea returns a size.
 
-Generic package archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, and `--max-archive-ratio`. Archive entries also obey `--max-target-megabytes`.
+Actions artifact ZIPs and generic package archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, and `--max-archive-ratio`. Archive entries also obey `--max-target-megabytes`.
 
 ## Redirect And Credential Safety
 
@@ -131,9 +142,7 @@ Picket sends the configured token as an `Authorization: token ...` header. It do
 
 ## Permissions
 
-Use the narrowest repository or package selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Organization and user scans also need read-only access to repository lists for the selected account. Pull request scans also need read-only access to pull request metadata. Issue scans need read-only issue and issue-comment access. Release scans need read-only release metadata and access to the selected release asset download URLs. Generic package scans need read-only package metadata, package file metadata, and package file download access. Write, owner, organization administration, package publish/delete, runner, and token-administration scopes are not needed for source enumeration.
-
-Actions artifacts remain a planned source selector. It should stay an explicit opt-in because it has different pagination, credential, retention, and redaction behavior.
+Use the narrowest repository or package selection possible. Repository file scanning needs read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Organization and user scans also need read-only access to repository lists for the selected account. Pull request scans also need read-only access to pull request metadata. Issue scans need read-only issue and issue-comment access. Release scans need read-only release metadata and access to the selected release asset download URLs. Actions artifact scans need read-only access to Actions artifact metadata and artifact ZIP downloads. Generic package scans need read-only package metadata, package file metadata, and package file download access. Write, owner, organization administration, package publish/delete, runner, and token-administration scopes are not needed for source enumeration.
 
 ## References
 

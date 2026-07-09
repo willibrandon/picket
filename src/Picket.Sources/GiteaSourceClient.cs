@@ -13,6 +13,7 @@ namespace Picket.Sources;
 /// <param name="httpClient">The HTTP client used for Gitea requests.</param>
 public sealed class GiteaSourceClient(HttpClient httpClient)
 {
+    private const int ActionArtifactsPerPage = 100;
     private const int IssuesPerPage = 100;
     private const int MaxPaginationPages = 1000;
     private const int PackagesPerPage = 100;
@@ -354,6 +355,11 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         if (options.IncludeReleases && !IsCancellationRequested(options))
         {
             await AddRepositoryReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (options.IncludeActionArtifacts && !IsCancellationRequested(options))
+        {
+            await AddRepositoryActionArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -717,7 +723,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         }
     }
 
-    private async Task<int> AddIssueFilesAsync(
+    private static async Task<int> AddIssueFilesAsync(
         GiteaSourceOptions options,
         HttpResponseMessage response,
         HashSet<int> issueNumbersWithComments,
@@ -786,7 +792,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         while (hasNextPage && !IsCancellationRequested(options));
     }
 
-    private async Task<int> AddIssueCommentFilesAsync(
+    private static async Task<int> AddIssueCommentFilesAsync(
         GiteaSourceOptions options,
         HashSet<int> issueNumbers,
         HttpResponseMessage response,
@@ -976,6 +982,132 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         }
     }
 
+    private async Task AddRepositoryActionArtifactFilesAsync(
+        GiteaSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri uri = CreateActionArtifactListUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Gitea Actions artifacts for repository {options.Repository}");
+                return;
+            }
+
+            int artifactCount = await AddActionArtifactFilesAsync(options, response, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextListPage(response, page, artifactCount, ActionArtifactsPerPage, options.WarningSink, $"Gitea Actions artifact enumeration for {options.Repository}");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task<int> AddActionArtifactFilesAsync(
+        GiteaSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Gitea source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (!TryGetActionArtifacts(document.RootElement, out JsonElement artifacts))
+        {
+            return 0;
+        }
+
+        int artifactCount = 0;
+        foreach (JsonElement artifact in artifacts.EnumerateArray())
+        {
+            artifactCount++;
+            if (IsCancellationRequested(options))
+            {
+                return artifactCount;
+            }
+
+            await AddActionArtifactFileAsync(options, artifact, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        return artifactCount;
+    }
+
+    private async Task AddActionArtifactFileAsync(
+        GiteaSourceOptions options,
+        JsonElement artifact,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetJsonInt64(artifact, "id", out long artifactId))
+        {
+            return;
+        }
+
+        string artifactName = GetString(artifact, "name");
+        if (artifactName.Length == 0)
+        {
+            artifactName = artifactId.ToString(CultureInfo.InvariantCulture);
+        }
+
+        string displayPath = CreateActionArtifactArchiveDisplayPath(options, artifactName, artifactId);
+        if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+        {
+            return;
+        }
+
+        if (TryGetJsonBoolean(artifact, "expired", out bool expired) && expired)
+        {
+            options.WarningSink?.Invoke($"skipping expired Gitea Actions artifact {displayPath}");
+            return;
+        }
+
+        if ((TryGetJsonInt64(artifact, "size_in_bytes", out long size)
+                || TryGetJsonInt64(artifact, "size", out size))
+            && size > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"Gitea file byte limit skipped {displayPath}");
+            return;
+        }
+
+        Uri uri = CreateActionArtifactDownloadUri(options, artifact, artifactId);
+        byte[]? bytes = await DownloadActionArtifactArchiveAsync(options, uri, displayPath, cancellationToken).ConfigureAwait(false);
+        if (bytes is null)
+        {
+            return;
+        }
+
+        if (options.MaxArchiveDepth == 0)
+        {
+            options.WarningSink?.Invoke($"skipping Gitea Actions artifact {displayPath} because archive traversal is disabled");
+            return;
+        }
+
+        var entries = new List<ArchiveEntry>();
+        if (!ArchiveReader.TryReadBytesEntries(
+            bytes,
+            displayPath,
+            options.MaxArchiveDepth,
+            options.MaxArchiveEntries,
+            options.MaxArchiveBytes,
+            options.MaxArchiveCompressionRatio,
+            options.MaxFileBytes,
+            options.IsPathAllowed,
+            options.WarningSink,
+            options.IsCancellationRequested,
+            entries))
+        {
+            options.WarningSink?.Invoke($"skipping Gitea Actions artifact {displayPath} because it is not a readable archive");
+            return;
+        }
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ArchiveEntry entry = entries[i];
+            sourceFiles.Add(new SourceFile(s_remoteFullPath, entry.DisplayPath, entry.Content));
+        }
+    }
+
     private static void AddSyntheticTextFile(
         GiteaSourceOptions options,
         string displayPath,
@@ -1081,6 +1213,65 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<byte[]?> DownloadActionArtifactArchiveAsync(
+        GiteaSourceOptions options,
+        Uri uri,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAllowedGiteaApiUri(options.Endpoint, uri))
+        {
+            options.WarningSink?.Invoke($"skipping Gitea Actions artifact {displayPath} because the archive URL is not an allowed Gitea API endpoint");
+            return null;
+        }
+
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: true, cancellationToken).ConfigureAwait(false);
+        if (IsRedirect(response) && response.Headers.Location is not null)
+        {
+            Uri redirectUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(uri, response.Headers.Location);
+            if (!IsAllowedActionArtifactRedirectUri(options, redirectUri))
+            {
+                options.WarningSink?.Invoke($"skipping Gitea Actions artifact {displayPath} because the redirected download URL is not an allowed Gitea Actions artifact endpoint");
+                return null;
+            }
+
+            using HttpResponseMessage redirectedResponse = await SendUnauthenticatedRawAsync(redirectUri, cancellationToken).ConfigureAwait(false);
+            if (!redirectedResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping Gitea Actions artifact {displayPath}");
+                return null;
+            }
+
+            return await ReadActionArtifactArchiveWithinLimitAsync(redirectedResponse, options, displayPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Gitea Actions artifact {displayPath}");
+            return null;
+        }
+
+        return await ReadActionArtifactArchiveWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<byte[]?> ReadActionArtifactArchiveWithinLimitAsync(
+        HttpResponseMessage response,
+        GiteaSourceOptions options,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"Gitea file byte limit skipped {displayPath}");
+            return null;
+        }
+
+        return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
     private static bool IsAllowedReleaseAssetUri(GiteaSourceOptions options, Uri uri)
     {
         if (!uri.IsAbsoluteUri
@@ -1098,6 +1289,35 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 
         return uri.Host.Equals(options.Endpoint.Host, StringComparison.OrdinalIgnoreCase)
             || uri.Host.EndsWith(string.Concat(".", options.Endpoint.Host), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAllowedGiteaApiUri(Uri endpoint, Uri uri)
+    {
+        if (!uri.IsAbsoluteUri
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || !uri.Scheme.Equals(endpoint.Scheme, StringComparison.Ordinal)
+            || !uri.Host.Equals(endpoint.Host, StringComparison.OrdinalIgnoreCase)
+            || uri.Port != endpoint.Port)
+        {
+            return false;
+        }
+
+        string endpointPath = endpoint.AbsolutePath.TrimEnd('/');
+        return endpointPath.Length == 0
+            || uri.AbsolutePath.StartsWith(string.Concat(endpointPath, "/"), StringComparison.Ordinal);
+    }
+
+    private static bool IsAllowedActionArtifactRedirectUri(GiteaSourceOptions options, Uri uri)
+    {
+        if (!uri.IsAbsoluteUri
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || uri.Scheme is not "https" and not "http")
+        {
+            return false;
+        }
+
+        return !uri.Scheme.Equals("http", StringComparison.Ordinal)
+            || options.Endpoint.Scheme.Equals("http", StringComparison.Ordinal);
     }
 
     private static void AddContentOrArchiveEntries(
@@ -1404,6 +1624,35 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             ]);
     }
 
+    private static Uri CreateActionArtifactListUri(GiteaSourceOptions options, int page)
+    {
+        string[] pathSegments = options.ActionRunId == 0
+            ? ["repos", options.Owner, options.Name, "actions", "artifacts"]
+            : ["repos", options.Owner, options.Name, "actions", "runs", options.ActionRunId.ToString(CultureInfo.InvariantCulture), "artifacts"];
+        return CreateUri(
+            options.Endpoint,
+            pathSegments,
+            [
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("limit", ActionArtifactsPerPage.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateActionArtifactDownloadUri(GiteaSourceOptions options, JsonElement artifact, long artifactId)
+    {
+        string archiveUrl = GetString(artifact, "archive_download_url");
+        if (archiveUrl.Length != 0
+            && Uri.TryCreate(archiveUrl, UriKind.Absolute, out Uri? archiveUri))
+        {
+            return archiveUri;
+        }
+
+        return CreateUri(
+            options.Endpoint,
+            ["repos", options.Owner, options.Name, "actions", "artifacts", artifactId.ToString(CultureInfo.InvariantCulture), "zip"],
+            []);
+    }
+
     private static Uri CreateUri(
         Uri endpoint,
         IReadOnlyList<string> pathSegments,
@@ -1571,6 +1820,25 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 
         propertyValue = property.GetString() ?? string.Empty;
         return propertyValue.Length != 0;
+    }
+
+    private static bool TryGetActionArtifacts(JsonElement root, out JsonElement artifacts)
+    {
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            artifacts = root;
+            return true;
+        }
+
+        if (root.ValueKind == JsonValueKind.Object
+            && root.TryGetProperty("artifacts", out artifacts)
+            && artifacts.ValueKind == JsonValueKind.Array)
+        {
+            return true;
+        }
+
+        artifacts = default;
+        return false;
     }
 
     private static bool TryGetJsonBoolean(JsonElement value, string propertyName, out bool propertyValue)
@@ -1768,6 +2036,20 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
             EscapeDisplaySegment(releaseTag),
             "/assets/",
             EscapeDisplaySegment(assetName));
+    }
+
+    private static string CreateActionArtifactArchiveDisplayPath(GiteaSourceOptions options, string artifactName, long artifactId)
+    {
+        return string.Concat(
+            "gitea/",
+            EscapeDisplaySegment(options.Owner),
+            "/",
+            EscapeDisplaySegment(options.Name),
+            "/actions/artifacts/",
+            EscapeDisplaySegment(artifactName),
+            "-",
+            artifactId.ToString(CultureInfo.InvariantCulture),
+            ".zip");
     }
 
     private static string CreateIssueContent(int issueNumber, string title, string body)

@@ -65,6 +65,37 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Gitea repository source options reject ambiguous pull request and Actions artifact scopes.
+    /// </summary>
+    [TestMethod]
+    public void GiteaSourceOptionsRejectsPullRequestAndActionsArtifacts()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GiteaSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitea-test-token",
+            pullRequestId: 7,
+            includeActionArtifacts: true));
+
+        Assert.Contains("cannot combine pull request and Actions artifact enumeration", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that Gitea Actions run filters require Actions artifact enumeration.
+    /// </summary>
+    [TestMethod]
+    public void GiteaSourceOptionsRejectsActionsRunIdWithoutActionsArtifacts()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GiteaSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitea-test-token",
+            actionRunId: 42));
+
+        Assert.Contains("Actions run ID requires Actions artifact enumeration", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that Gitea repository source options reject unknown issue states.
     /// </summary>
     [TestMethod]
@@ -502,6 +533,206 @@ public sealed class GiteaSourceClientTests
         Assert.Contains("token gitea-test-token", authorizationHeaders);
         Assert.AreEqual(string.Empty, authorizationHeaders[assetRequestIndex]);
         Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that Actions artifact enumeration downloads artifact ZIP redirects without forwarding credentials.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsActionsArtifactsWithoutRedirectAuthorization()
+    {
+        const string Token = "gitea-test-token";
+        byte[] archiveBytes = CreateZipBytes("nested/secret.txt", "artifact-token-12345");
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            authorizationHeaders.Add(request.Headers.TryGetValues("Authorization", out IEnumerable<string>? values) ? string.Join(',', values) : string.Empty);
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"abcdef1234567890"}}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[],"truncated":false,"page":1,"total_count":0}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/actions/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    $$"""
+                    {
+                      "total_count": 3,
+                      "artifacts": [
+                        {"id": 701, "name": "build", "size_in_bytes": {{archiveBytes.Length}}, "expired": false},
+                        {"id": 702, "name": "expired", "size_in_bytes": 1, "expired": true},
+                        {"id": 703, "name": "too-large", "size_in_bytes": 100000001, "expired": false}
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Equals("https://gitea.example/api/v1/repos/willibrandon/picket/actions/artifacts/701/zip", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers =
+                    {
+                        Location = new Uri("https://artifacts.example/build.zip", UriKind.Absolute),
+                    },
+                };
+            }
+
+            if (url.Equals("https://artifacts.example/build.zip", StringComparison.Ordinal))
+            {
+                return BytesResponse(archiveBytes);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main","empty":false}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon/picket",
+            Token,
+            includeActionArtifacts: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        int redirectRequestIndex = urls.IndexOf("https://artifacts.example/build.zip");
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitea/willibrandon/picket/actions/artifacts/build-701.zip!nested/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("artifact-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/repos/willibrandon/picket/actions/artifacts?page=1&limit=100", requests);
+        Assert.Contains("/repos/willibrandon/picket/actions/artifacts/701/zip", requests);
+        Assert.DoesNotContain("/repos/willibrandon/picket/actions/artifacts/702/zip", requests);
+        Assert.DoesNotContain("/repos/willibrandon/picket/actions/artifacts/703/zip", requests);
+        Assert.AreNotEqual(-1, redirectRequestIndex);
+        Assert.Contains("token gitea-test-token", authorizationHeaders);
+        Assert.AreEqual(string.Empty, authorizationHeaders[redirectRequestIndex]);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that Actions artifact enumeration can be scoped to a single Gitea Actions run.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsActionsArtifactsForRun()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"abcdef1234567890"}}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[],"truncated":false,"page":1,"total_count":0}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/actions/runs/42/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"total_count":0,"artifacts":[]}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main","empty":false}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon/picket",
+            Token,
+            includeActionArtifacts: true,
+            actionRunId: 42);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.IsEmpty(files);
+        Assert.Contains("/repos/willibrandon/picket/actions/runs/42/artifacts?page=1&limit=100", requests);
+        Assert.DoesNotContain("/repos/willibrandon/picket/actions/artifacts?", requests);
+    }
+
+    /// <summary>
+    /// Verifies that Actions artifact archive URLs cannot send credentials outside the configured Gitea API origin.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesSkipsUnexpectedActionsArtifactArchiveUrls()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"abcdef1234567890"}}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[],"truncated":false,"page":1,"total_count":0}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/actions/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "artifacts": [
+                        {
+                          "id": 701,
+                          "name": "build",
+                          "size_in_bytes": 10,
+                          "archive_download_url": "https://gitea.example/downloads/build.zip"
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main","empty":false}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon/picket",
+            Token,
+            warningSink: warnings.Add,
+            includeActionArtifacts: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.IsEmpty(files);
+        Assert.DoesNotContain("https://gitea.example/downloads/build.zip", requests);
+        Assert.Contains("archive URL is not an allowed Gitea API endpoint", string.Join('\n', warnings));
     }
 
     /// <summary>

@@ -492,6 +492,8 @@ internal static partial class Program
         command.Options.Add(CreateFlagOption(commandName, "--gitea-include-issues"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-issue-state", "open|closed|all"));
         command.Options.Add(CreateFlagOption(commandName, "--gitea-include-releases"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitea-include-actions-artifacts"));
+        command.Options.Add(CreateValueOption(commandName, "--gitea-actions-run-id", "id"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-generic-package-owner", "owner"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-generic-package-name", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gitea-generic-package-version", "version"));

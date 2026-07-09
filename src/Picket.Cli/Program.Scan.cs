@@ -58,6 +58,8 @@ internal static partial class Program
         string githubSourceUser = string.Empty;
         string githubSourceUserGists = string.Empty;
         Uri? giteaApiEndpoint = null;
+        int giteaActionsRunId = 0;
+        bool giteaIncludeActionsArtifacts = false;
         bool giteaIncludeIssues = false;
         bool giteaIncludeReleases = false;
         string giteaIssueState = GiteaSourceOptions.DefaultIssueState;
@@ -637,6 +639,32 @@ internal static partial class Program
                     giteaOptionSpecified = true;
                 }
 
+                continue;
+            }
+
+            if (IsGiteaIncludeActionsArtifactsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitea-include-actions-artifacts", out giteaIncludeActionsArtifacts))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (giteaIncludeActionsArtifacts)
+                {
+                    giteaOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGiteaActionsRunIdFlag(arg))
+            {
+                if (!TryReadPositiveGiteaActionsRunIdFlag(args, ref i, out giteaActionsRunId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                giteaOptionSpecified = true;
                 continue;
             }
 
@@ -1524,6 +1552,8 @@ internal static partial class Program
                 giteaIncludeIssues,
                 giteaIssueState,
                 giteaIncludeReleases,
+                giteaIncludeActionsArtifacts,
+                giteaActionsRunId,
                 giteaGenericPackageOwner,
                 giteaGenericPackageName,
                 giteaGenericPackageVersion,

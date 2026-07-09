@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -154,6 +155,29 @@ internal sealed class GiteaFixtureServer : IDisposable
             return;
         }
 
+        if (target.StartsWith("/api/v1/repos/willibrandon/picket/actions/artifacts?", StringComparison.Ordinal))
+        {
+            byte[] archiveBytes = CreateZipBytes("artifact/secret.txt", _content);
+            string artifactsJson = string.Concat(
+                "{\"total_count\":1,\"artifacts\":[{\"id\":701,\"name\":\"build\",\"size_in_bytes\":",
+                archiveBytes.Length.ToString(CultureInfo.InvariantCulture),
+                ",\"expired\":false}]}");
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(artifactsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/api/v1/repos/willibrandon/picket/actions/artifacts/701/zip", StringComparison.Ordinal))
+        {
+            await WriteRedirectAsync(stream, "/artifact-storage/build.zip", cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/artifact-storage/build.zip", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", CreateZipBytes("artifact/secret.txt", _content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/downloads/artifact.txt", StringComparison.Ordinal))
         {
             await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes("asset-token-222"), cancellationToken).ConfigureAwait(false);
@@ -256,6 +280,18 @@ internal sealed class GiteaFixtureServer : IDisposable
         await stream.WriteAsync(content, cancellationToken).ConfigureAwait(false);
     }
 
+    private static async Task WriteRedirectAsync(
+        NetworkStream stream,
+        string location,
+        CancellationToken cancellationToken)
+    {
+        string headers = string.Concat(
+            "HTTP/1.1 302 Found\r\nLocation: ",
+            location,
+            "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), cancellationToken).ConfigureAwait(false);
+    }
+
     private static async Task WriteStatusAsync(
         NetworkStream stream,
         int statusCode,
@@ -269,5 +305,19 @@ internal sealed class GiteaFixtureServer : IDisposable
             reasonPhrase,
             "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static byte[] CreateZipBytes(string entryName, string entryContent)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryName);
+            using Stream entryStream = entry.Open();
+            byte[] bytes = Encoding.UTF8.GetBytes(entryContent);
+            entryStream.Write(bytes);
+        }
+
+        return stream.ToArray();
     }
 }

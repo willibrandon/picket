@@ -16,6 +16,12 @@ namespace Picket.Sources;
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 /// <param name="pullRequestId">An optional pull request ID whose source head should be scanned.</param>
 /// <param name="includeReleases">A value indicating whether Gitea release notes and assets should be scanned.</param>
+/// <param name="includeActionArtifacts">A value indicating whether Gitea Actions artifact ZIP contents should be scanned.</param>
+/// <param name="actionRunId">An optional Gitea Actions run ID whose artifacts should be scanned.</param>
+/// <param name="maxArchiveDepth">The maximum nested artifact archive depth to enumerate.</param>
+/// <param name="maxArchiveEntries">The maximum number of artifact archive entries to enumerate, or 0 for no cap.</param>
+/// <param name="maxArchiveBytes">The maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.</param>
+/// <param name="maxArchiveCompressionRatio">The maximum artifact archive expansion ratio, or 0 for no cap.</param>
 public sealed class GiteaSourceOptions(
     Uri endpoint,
     string repository,
@@ -29,7 +35,13 @@ public sealed class GiteaSourceOptions(
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null,
     int pullRequestId = 0,
-    bool includeReleases = false)
+    bool includeReleases = false,
+    bool includeActionArtifacts = false,
+    int actionRunId = 0,
+    int maxArchiveDepth = ArchiveScanDefaults.DefaultMaxDepth,
+    int maxArchiveEntries = ArchiveScanDefaults.DefaultMaxEntries,
+    long? maxArchiveBytes = ArchiveScanDefaults.DefaultMaxBytes,
+    int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio)
 {
     /// <summary>
     /// The default Gitea issue state filter.
@@ -83,6 +95,16 @@ public sealed class GiteaSourceOptions(
     public bool IncludeReleases { get; } = RequireIncludeReleases(includeReleases, pullRequestId);
 
     /// <summary>
+    /// Gets a value indicating whether Gitea Actions artifact ZIP contents should be scanned.
+    /// </summary>
+    public bool IncludeActionArtifacts { get; } = RequireIncludeActionArtifacts(includeActionArtifacts, pullRequestId);
+
+    /// <summary>
+    /// Gets the optional Gitea Actions run ID whose artifacts should be scanned.
+    /// </summary>
+    public int ActionRunId { get; } = RequireActionRunId(actionRunId, includeActionArtifacts);
+
+    /// <summary>
     /// Gets the optional pull request ID whose source head should be scanned.
     /// </summary>
     public int PullRequestId { get; } = RequirePullRequestId(pullRequestId);
@@ -91,6 +113,26 @@ public sealed class GiteaSourceOptions(
     /// Gets the maximum file content bytes to download.
     /// </summary>
     public long MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes, nameof(maxFileBytes));
+
+    /// <summary>
+    /// Gets the maximum nested artifact archive depth to enumerate.
+    /// </summary>
+    public int MaxArchiveDepth { get; } = GiteaGenericPackageSourceOptions.RequireMaxArchiveDepth(maxArchiveDepth);
+
+    /// <summary>
+    /// Gets the maximum number of artifact archive entries to enumerate, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveEntries { get; } = GiteaGenericPackageSourceOptions.RequireMaxArchiveEntries(maxArchiveEntries);
+
+    /// <summary>
+    /// Gets the maximum number of decompressed artifact archive bytes to enumerate, or <see langword="null" /> for no cap.
+    /// </summary>
+    public long? MaxArchiveBytes { get; } = GiteaGenericPackageSourceOptions.RequireMaxArchiveBytes(maxArchiveBytes);
+
+    /// <summary>
+    /// Gets the maximum artifact archive expansion ratio, or 0 for no cap.
+    /// </summary>
+    public int MaxArchiveCompressionRatio { get; } = GiteaGenericPackageSourceOptions.RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
 
     internal string Credential => _credential;
 
@@ -124,7 +166,13 @@ public sealed class GiteaSourceOptions(
             isPathAllowed: IsPathAllowed,
             warningSink: WarningSink,
             isCancellationRequested: IsCancellationRequested,
-            includeReleases: IncludeReleases);
+            includeReleases: IncludeReleases,
+            includeActionArtifacts: IncludeActionArtifacts,
+            actionRunId: ActionRunId,
+            maxArchiveDepth: MaxArchiveDepth,
+            maxArchiveEntries: MaxArchiveEntries,
+            maxArchiveBytes: MaxArchiveBytes,
+            maxArchiveCompressionRatio: MaxArchiveCompressionRatio);
     }
 
     internal static Uri NormalizeEndpoint(Uri endpoint)
@@ -205,6 +253,27 @@ public sealed class GiteaSourceOptions(
         if (value && pullRequestId != 0)
         {
             throw new ArgumentException("Gitea source options cannot combine pull request and release enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static bool RequireIncludeActionArtifacts(bool value, int pullRequestId)
+    {
+        if (value && pullRequestId != 0)
+        {
+            throw new ArgumentException("Gitea source options cannot combine pull request and Actions artifact enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static int RequireActionRunId(int value, bool includeActionArtifacts)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        if (value != 0 && !includeActionArtifacts)
+        {
+            throw new ArgumentException("Gitea Actions run ID requires Actions artifact enumeration.", nameof(value));
         }
 
         return value;

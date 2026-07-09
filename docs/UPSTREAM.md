@@ -222,10 +222,11 @@ Native GitLab group project, project repository, merge request source, project s
 
 ## Gitea Source References
 
-Native Gitea repository and generic package file source enumeration is
+Native Gitea repository, Actions artifact, and generic package file source enumeration is
 based on Gitea API documentation reviewed on 2026-07-09:
 
 - Gitea API documentation: `https://docs.gitea.com/api/`
+- Gitea Actions artifact REST API: `https://docs.gitea.com/api/next/`
 - Gitea generic package registry: `https://docs.gitea.com/usage/packages/generic`
 - Gitea live swagger: `https://gitea.com/swagger.v1.json`
 
@@ -239,6 +240,12 @@ repository issue-comment lists, filtering comments back to selected issue number
 through `issue_url`. Release scans use repository release lists and release asset
 metadata; returned browser download URLs are fetched without forwarding the
 token, but must stay on the configured Gitea host or one of its subdomains.
+Actions artifact scans list repository artifacts through
+`/repos/{owner}/{repo}/actions/artifacts`, or run-scoped artifacts through
+`/repos/{owner}/{repo}/actions/runs/{run}/artifacts`, then download
+`/repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip` as
+`application/octet-stream`. Redirected ZIP downloads are fetched without
+forwarding the token and are still subject to endpoint-guard checks.
 Generic package scans use `/packages/{owner}` with `type=generic`, `page`, and
 `limit=100`, list files through
 `/packages/{owner}/generic/{package_name}/{package_version}/files`, then use the

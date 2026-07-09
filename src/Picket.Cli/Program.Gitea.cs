@@ -54,6 +54,18 @@ internal static partial class Program
             || arg.StartsWith("--gitea-include-releases=", StringComparison.Ordinal);
     }
 
+    static bool IsGiteaIncludeActionsArtifactsFlag(string arg)
+    {
+        return arg.Equals("--gitea-include-actions-artifacts", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-include-actions-artifacts=", StringComparison.Ordinal);
+    }
+
+    static bool IsGiteaActionsRunIdFlag(string arg)
+    {
+        return arg.Equals("--gitea-actions-run-id", StringComparison.Ordinal)
+            || arg.StartsWith("--gitea-actions-run-id=", StringComparison.Ordinal);
+    }
+
     static bool IsGiteaGenericPackageOwnerFlag(string arg)
     {
         return arg.Equals("--gitea-generic-package-owner", StringComparison.Ordinal)
@@ -106,6 +118,22 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadPositiveGiteaActionsRunIdFlag(string[] args, ref int index, out int actionRunId)
+    {
+        if (!TryReadNonNegativeIntFlag(args, ref index, "--gitea-actions-run-id", out actionRunId))
+        {
+            return false;
+        }
+
+        if (actionRunId > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--gitea-actions-run-id requires a positive integer value");
+        return false;
+    }
+
     static bool TryReadGiteaIssueStateFlag(string[] args, ref int index, out string issueState)
     {
         issueState = GiteaSourceOptions.DefaultIssueState;
@@ -136,6 +164,8 @@ internal static partial class Program
         bool includeIssues,
         string issueState,
         bool includeReleases,
+        bool includeActionArtifacts,
+        int actionRunId,
         string genericPackageOwner,
         string genericPackageName,
         string genericPackageVersion,
@@ -198,9 +228,11 @@ internal static partial class Program
             && (!string.IsNullOrWhiteSpace(gitRef)
                 || pullRequestId != 0
                 || includeIssues
-                || includeReleases))
+                || includeReleases
+                || includeActionArtifacts
+                || actionRunId != 0))
         {
-            Console.Error.WriteLine("Gitea generic package scans cannot be combined with repository refs, pull requests, issues, or releases");
+            Console.Error.WriteLine("Gitea generic package scans cannot be combined with repository refs, pull requests, issues, releases, or Actions artifacts");
             return false;
         }
 
@@ -225,6 +257,18 @@ internal static partial class Program
         if (pullRequestId != 0 && includeReleases)
         {
             Console.Error.WriteLine("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-releases");
+            return false;
+        }
+
+        if (pullRequestId != 0 && includeActionArtifacts)
+        {
+            Console.Error.WriteLine("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-actions-artifacts");
+            return false;
+        }
+
+        if (actionRunId != 0 && !includeActionArtifacts)
+        {
+            Console.Error.WriteLine("--gitea-actions-run-id requires --gitea-include-actions-artifacts");
             return false;
         }
 
@@ -255,6 +299,8 @@ internal static partial class Program
                     issueState,
                     pullRequestId: pullRequestId,
                     includeReleases: includeReleases,
+                    includeActionArtifacts: includeActionArtifacts,
+                    actionRunId: actionRunId,
                     allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
                 sourceEndpoint = validatedOptions.Endpoint;
                 repository = validatedOptions.Repository;
@@ -262,6 +308,8 @@ internal static partial class Program
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
                 includeReleases = validatedOptions.IncludeReleases;
+                includeActionArtifacts = validatedOptions.IncludeActionArtifacts;
+                actionRunId = validatedOptions.ActionRunId;
                 pullRequestId = validatedOptions.PullRequestId;
             }
             else if (organizationSpecified)
@@ -274,6 +322,8 @@ internal static partial class Program
                     includeIssues,
                     issueState,
                     includeReleases,
+                    includeActionArtifacts,
+                    actionRunId,
                     allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
                 sourceEndpoint = validatedOptions.Endpoint;
                 organization = validatedOptions.Organization;
@@ -281,6 +331,8 @@ internal static partial class Program
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
                 includeReleases = validatedOptions.IncludeReleases;
+                includeActionArtifacts = validatedOptions.IncludeActionArtifacts;
+                actionRunId = validatedOptions.ActionRunId;
             }
             else if (genericPackageSpecified)
             {
@@ -321,6 +373,8 @@ internal static partial class Program
                     includeIssues,
                     issueState,
                     includeReleases,
+                    includeActionArtifacts,
+                    actionRunId,
                     allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
                 sourceEndpoint = validatedOptions.Endpoint;
                 userName = validatedOptions.UserName;
@@ -328,6 +382,8 @@ internal static partial class Program
                 includeIssues = validatedOptions.IncludeIssues;
                 issueState = validatedOptions.IssueState;
                 includeReleases = validatedOptions.IncludeReleases;
+                includeActionArtifacts = validatedOptions.IncludeActionArtifacts;
+                actionRunId = validatedOptions.ActionRunId;
             }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -407,7 +463,13 @@ internal static partial class Program
                     warningSink: Console.Error.WriteLine,
                     isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
                     pullRequestId: pullRequestId,
-                    includeReleases: includeReleases)).GetAwaiter().GetResult();
+                    includeReleases: includeReleases,
+                    includeActionArtifacts: includeActionArtifacts,
+                    actionRunId: actionRunId,
+                    maxArchiveDepth: maxArchiveDepth,
+                    maxArchiveEntries: maxArchiveEntries,
+                    maxArchiveBytes: maxArchiveBytes,
+                    maxArchiveCompressionRatio: maxArchiveCompressionRatio)).GetAwaiter().GetResult();
             }
 
             if (organizationSpecified)
@@ -420,7 +482,13 @@ internal static partial class Program
                     includeIssues,
                     issueState,
                     includeReleases,
+                    includeActionArtifacts,
+                    actionRunId,
                     maxTargetBytes,
+                    maxArchiveDepth,
+                    maxArchiveEntries,
+                    maxArchiveBytes,
+                    maxArchiveCompressionRatio,
                     allowInsecureSourceEndpoints,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
@@ -435,7 +503,13 @@ internal static partial class Program
                 includeIssues,
                 issueState,
                 includeReleases,
+                includeActionArtifacts,
+                actionRunId,
                 maxTargetBytes,
+                maxArchiveDepth,
+                maxArchiveEntries,
+                maxArchiveBytes,
+                maxArchiveCompressionRatio,
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,

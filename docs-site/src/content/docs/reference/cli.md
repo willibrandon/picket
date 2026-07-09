@@ -436,6 +436,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Include Gitea release notes and assets in native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitea-include-actions-artifacts</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include Gitea Actions artifact ZIP contents in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitea-actions-run-id</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Gitea Actions artifact scanning to this run ID.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitea-generic-package-owner</code></td>
               <td data-label="Value"><code>owner</code></td>
               <td data-label="Required">Optional</td>

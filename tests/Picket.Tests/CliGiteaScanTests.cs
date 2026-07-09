@@ -223,6 +223,48 @@ public sealed class CliGiteaScanTests
     }
 
     /// <summary>
+    /// Verifies that native scan can enumerate Gitea Actions artifact ZIP contents.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGiteaActionsArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GiteaFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitea-repository",
+            "willibrandon/picket",
+            "--gitea-include-actions-artifacts",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitea/willibrandon/picket/actions/artifacts/build-701.zip!artifact/secret.txt\"", result.Stdout);
+        Assert.Contains("/api/v1/repos/willibrandon/picket/actions/artifacts?page=1&limit=100", server.RequestTargets);
+        Assert.Contains("/api/v1/repos/willibrandon/picket/actions/artifacts/701/zip", server.RequestTargets);
+        Assert.Contains("/artifact-storage/build.zip", server.RequestTargets);
+        Assert.DoesNotContain("gitea-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate an exact Gitea generic package file.
     /// </summary>
     [TestMethod]
@@ -556,6 +598,75 @@ public sealed class CliGiteaScanTests
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-releases", result.Stderr);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects Gitea pull request and Actions artifact enumeration together.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGiteaPullRequestAndActionsArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-repository",
+            "willibrandon/picket",
+            "--gitea-pull-request",
+            "7",
+            "--gitea-include-actions-artifacts",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-actions-artifacts", result.Stderr);
+        Assert.DoesNotContain("gitea-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scan rejects Gitea Actions run IDs without Actions artifact enumeration.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsGiteaActionsRunIdWithoutActionsArtifacts()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITEA_SOURCE_TEST_TOKEN"] = "gitea-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitea-repository",
+            "willibrandon/picket",
+            "--gitea-actions-run-id",
+            "42",
+            "--gitea-token-env",
+            "PICKET_GITEA_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--gitea-actions-run-id requires --gitea-include-actions-artifacts", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
     }
 
