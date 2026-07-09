@@ -64,6 +64,7 @@ internal static class CliOptionMetadata
             "--baseline-path" => "Load a baseline report and suppress matching findings.",
             "--bitbucket-api-endpoint" => "Use this Bitbucket Cloud API endpoint for native source enumeration.",
             "--bitbucket-include-downloads" => "Scan Bitbucket repository download artifacts.",
+            "--bitbucket-include-snippets" => "Scan Bitbucket workspace snippet files.",
             "--bitbucket-pull-request" => "Scan this Bitbucket pull request source head.",
             "--bitbucket-ref" => "Scan this Bitbucket branch, tag, or commit.",
             "--bitbucket-repository" => "Scan this Bitbucket repository through native source enumeration.",

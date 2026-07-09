@@ -10,6 +10,7 @@ namespace Picket.Sources;
 /// <param name="credentialKind">The credential transport to use for Bitbucket API requests.</param>
 /// <param name="gitRef">An optional branch, tag, or commit reference applied to each repository.</param>
 /// <param name="includeDownloads">A value indicating whether repository download artifacts should be scanned for each repository.</param>
+/// <param name="includeSnippets">A value indicating whether workspace snippets should be scanned.</param>
 /// <param name="maxFileBytes">The maximum file content bytes to download, or <see langword="null" /> for the default cap.</param>
 /// <param name="maxArchiveDepth">The maximum nested download archive depth to enumerate.</param>
 /// <param name="maxArchiveEntries">The maximum number of download archive entries to enumerate, or 0 for no cap.</param>
@@ -27,6 +28,7 @@ public sealed class BitbucketWorkspaceSourceOptions(
     BitbucketCredentialKind credentialKind = BitbucketCredentialKind.BearerToken,
     string gitRef = "",
     bool includeDownloads = false,
+    bool includeSnippets = false,
     long? maxFileBytes = null,
     int maxArchiveDepth = ArchiveScanDefaults.DefaultMaxDepth,
     int maxArchiveEntries = ArchiveScanDefaults.DefaultMaxEntries,
@@ -65,6 +67,11 @@ public sealed class BitbucketWorkspaceSourceOptions(
     /// Gets a value indicating whether repository download artifacts should be scanned for each repository.
     /// </summary>
     public bool IncludeDownloads { get; } = includeDownloads;
+
+    /// <summary>
+    /// Gets a value indicating whether workspace snippets should be scanned.
+    /// </summary>
+    public bool IncludeSnippets { get; } = includeSnippets;
 
     /// <summary>
     /// Gets the maximum file content bytes to download.

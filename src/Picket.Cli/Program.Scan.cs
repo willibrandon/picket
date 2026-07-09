@@ -18,6 +18,7 @@ internal static partial class Program
         Uri? bitbucketApiEndpoint = null;
         BitbucketCredentialKind bitbucketCredentialKind = BitbucketCredentialKind.BearerToken;
         bool bitbucketIncludeDownloads = false;
+        bool bitbucketIncludeSnippets = false;
         bool bitbucketOptionSpecified = false;
         int bitbucketPullRequestId = 0;
         string bitbucketRef = string.Empty;
@@ -412,6 +413,21 @@ internal static partial class Program
                 }
 
                 if (bitbucketIncludeDownloads)
+                {
+                    bitbucketOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsBitbucketIncludeSnippetsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--bitbucket-include-snippets", out bitbucketIncludeSnippets))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (bitbucketIncludeSnippets)
                 {
                     bitbucketOptionSpecified = true;
                 }
@@ -1270,6 +1286,7 @@ internal static partial class Program
                 bitbucketRef,
                 bitbucketPullRequestId,
                 bitbucketIncludeDownloads,
+                bitbucketIncludeSnippets,
                 bitbucketTokenEnvironmentVariable,
                 bitbucketUsernameEnvironmentVariable,
                 bitbucketCredentialKind,

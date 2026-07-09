@@ -301,9 +301,11 @@ public sealed partial class RepositoryConventionTests
         AssertCommonNativeAotProfile(tuiDiagnostics);
         AssertProfileProperty(speed, "OptimizationPreference", "Speed");
         AssertProfileStripSymbolsExceptMacOs(speed);
+        AssertProfileDisablesMacOsNativeDebugSymbols(speed);
         AssertProfileProperty(speed, "DebuggerSupport", "false");
         AssertProfileProperty(minSize, "OptimizationPreference", "Size");
         AssertProfileStripSymbolsExceptMacOs(minSize);
+        AssertProfileDisablesMacOsNativeDebugSymbols(minSize);
         AssertProfileProperty(minSize, "DebuggerSupport", "false");
         AssertProfileProperty(minSize, "EventSourceSupport", "false");
         AssertProfileProperty(minSize, "MetricsSupport", "false");
@@ -317,9 +319,11 @@ public sealed partial class RepositoryConventionTests
         AssertProfileProperty(diagnostics, "StackTraceSupport", "true");
         AssertProfileProperty(tuiSpeed, "OptimizationPreference", "Speed");
         AssertProfileStripSymbolsExceptMacOs(tuiSpeed);
+        AssertProfileDisablesMacOsNativeDebugSymbols(tuiSpeed);
         AssertProfileProperty(tuiSpeed, "DebuggerSupport", "false");
         AssertProfileProperty(tuiMinSize, "OptimizationPreference", "Size");
         AssertProfileStripSymbolsExceptMacOs(tuiMinSize);
+        AssertProfileDisablesMacOsNativeDebugSymbols(tuiMinSize);
         AssertProfileProperty(tuiMinSize, "DebuggerSupport", "false");
         AssertProfileProperty(tuiMinSize, "EventSourceSupport", "false");
         AssertProfileProperty(tuiMinSize, "MetricsSupport", "false");
@@ -1757,6 +1761,13 @@ public sealed partial class RepositoryConventionTests
     {
         AssertProfileProperty(profile, "StripSymbols", MacOsStripSymbolsCondition, "false");
         AssertProfileProperty(profile, "StripSymbols", NonMacOsStripSymbolsCondition, "true");
+    }
+
+    private static void AssertProfileDisablesMacOsNativeDebugSymbols(XElement profile)
+    {
+        AssertProfileProperty(profile, "DebugSymbols", MacOsStripSymbolsCondition, "false");
+        AssertProfileProperty(profile, "DebugType", MacOsStripSymbolsCondition, "none");
+        AssertProfileProperty(profile, "NativeDebugSymbols", MacOsStripSymbolsCondition, "false");
     }
 
     private static void AssertEmbeddablePackage(string relativePath, string packageId)

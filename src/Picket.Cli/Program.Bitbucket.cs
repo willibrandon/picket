@@ -36,6 +36,12 @@ internal static partial class Program
             || arg.StartsWith("--bitbucket-include-downloads=", StringComparison.Ordinal);
     }
 
+    static bool IsBitbucketIncludeSnippetsFlag(string arg)
+    {
+        return arg.Equals("--bitbucket-include-snippets", StringComparison.Ordinal)
+            || arg.StartsWith("--bitbucket-include-snippets=", StringComparison.Ordinal);
+    }
+
     static bool IsBitbucketTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--bitbucket-token-env", StringComparison.Ordinal)
@@ -109,6 +115,7 @@ internal static partial class Program
         string gitRef,
         int pullRequestId,
         bool includeDownloads,
+        bool includeSnippets,
         string? tokenEnvironmentVariable,
         string? usernameEnvironmentVariable,
         BitbucketCredentialKind credentialKind,
@@ -128,6 +135,12 @@ internal static partial class Program
         if (pullRequestId != 0 && hasWorkspace)
         {
             Console.Error.WriteLine("Bitbucket pull request source scan requires --bitbucket-repository");
+            return false;
+        }
+
+        if (includeSnippets && !hasWorkspace)
+        {
+            Console.Error.WriteLine("Bitbucket snippet source scan requires --bitbucket-workspace");
             return false;
         }
 
@@ -201,11 +214,13 @@ internal static partial class Program
                     credentialKind,
                     gitRef,
                     includeDownloads,
+                    includeSnippets,
                     allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
                 sourceEndpoint = validatedOptions.Endpoint;
                 workspace = validatedOptions.Workspace;
                 gitRef = validatedOptions.Ref;
                 includeDownloads = validatedOptions.IncludeDownloads;
+                includeSnippets = validatedOptions.IncludeSnippets;
                 credentialKind = validatedOptions.CredentialKind;
             }
         }
@@ -264,6 +279,7 @@ internal static partial class Program
                 credentialKind,
                 gitRef,
                 includeDownloads,
+                includeSnippets,
                 maxTargetBytes,
                 maxArchiveDepth,
                 maxArchiveEntries,

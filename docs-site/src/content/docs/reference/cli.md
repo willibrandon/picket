@@ -538,6 +538,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Scan Bitbucket repository download artifacts.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--bitbucket-include-snippets</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan Bitbucket workspace snippet files.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--bitbucket-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

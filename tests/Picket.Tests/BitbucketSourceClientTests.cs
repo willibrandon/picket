@@ -212,6 +212,71 @@ public sealed class BitbucketSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that workspace snippet enumeration reads snippet file contents through authenticated API redirects.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateWorkspaceRepositoryFilesReadsWorkspaceSnippets()
+    {
+        const string Token = "bitbucket-test-token";
+        var urls = new List<string>();
+        var authorizationHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            authorizationHeaders.Add(request.Headers.Authorization?.ToString() ?? string.Empty);
+
+            if (url.Contains("/repositories/willibrandon?pagelen=100&page=1", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":0,"values":[]}""");
+            }
+
+            if (url.Contains("/snippets/willibrandon?pagelen=100&page=1", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"id":"abc123"}]}""");
+            }
+
+            if (url.Contains("/snippets/willibrandon/abc123", StringComparison.Ordinal)
+                && !url.Contains("/files/", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"id":"abc123","files":{"secret.txt":{}}}""");
+            }
+
+            if (url.Contains("/snippets/willibrandon/abc123/files/secret.txt", StringComparison.Ordinal))
+            {
+                return RedirectResponse("https://api.bitbucket.org/2.0/snippets/willibrandon/abc123/rev1/files/secret.txt");
+            }
+
+            if (url.Equals("https://api.bitbucket.org/2.0/snippets/willibrandon/abc123/rev1/files/secret.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("snippet-token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketSourceClient(httpClient);
+        var options = new BitbucketWorkspaceSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon",
+            Token,
+            includeSnippets: true);
+
+        List<SourceFile> files = await client.EnumerateWorkspaceRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        int redirectedRequestIndex = urls.IndexOf("https://api.bitbucket.org/2.0/snippets/willibrandon/abc123/rev1/files/secret.txt");
+        Assert.HasCount(1, files);
+        Assert.AreEqual("bitbucket/willibrandon/snippets/abc123/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("snippet-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreNotEqual(-1, redirectedRequestIndex);
+        Assert.Contains("/snippets/willibrandon?pagelen=100&page=1", requests);
+        Assert.Contains("/snippets/willibrandon/abc123/files/secret.txt", requests);
+        Assert.Contains("Bearer bitbucket-test-token", authorizationHeaders);
+        Assert.AreEqual("Bearer bitbucket-test-token", authorizationHeaders[redirectedRequestIndex]);
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
     /// Verifies that repository download artifacts are enumerated and expanded through the archive reader.
     /// </summary>
     [TestMethod]

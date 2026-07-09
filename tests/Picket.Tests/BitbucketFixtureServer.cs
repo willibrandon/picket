@@ -115,6 +115,32 @@ internal sealed class BitbucketFixtureServer : IDisposable
             return;
         }
 
+        if (target.Equals("/2.0/snippets/willibrandon?pagelen=100&page=1", StringComparison.Ordinal))
+        {
+            const string SnippetsJson = """{"pagelen":100,"page":1,"size":1,"values":[{"id":"snippet-1"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(SnippetsJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/snippets/willibrandon/snippet-1", StringComparison.Ordinal))
+        {
+            const string SnippetJson = """{"id":"snippet-1","files":{"secret.txt":{}}}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(SnippetJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/snippets/willibrandon/snippet-1/files/secret.txt", StringComparison.Ordinal))
+        {
+            await WriteRedirectAsync(stream, new Uri(Endpoint, "/2.0/snippets/willibrandon/snippet-1/rev1/files/secret.txt").AbsoluteUri, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Equals("/2.0/snippets/willibrandon/snippet-1/rev1/files/secret.txt", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", Encoding.UTF8.GetBytes(_content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Equals("/2.0/repositories/willibrandon/picket/pullrequests/7", StringComparison.Ordinal))
         {
             const string PullRequestJson = """{"id":7,"source":{"branch":{"name":"feature/secrets"},"commit":{"hash":"pr-head-sha"},"repository":{"full_name":"forkspace/picket-fork"}}}""";

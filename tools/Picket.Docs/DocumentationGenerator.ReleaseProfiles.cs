@@ -18,6 +18,9 @@ internal sealed partial class DocumentationGenerator
         "Configuration",
         "OptimizationPreference",
         "StripSymbols",
+        "DebugSymbols",
+        "DebugType",
+        "NativeDebugSymbols",
         "UseSystemResourceKeys",
     ];
 
@@ -92,7 +95,7 @@ internal sealed partial class DocumentationGenerator
                 project,
                 Path.GetFileNameWithoutExtension(path),
                 NormalizePath(Path.GetRelativePath(_repositoryRoot, path)),
-                ReadMsBuildProperties(path)));
+                ReadMsBuildProperties(path, includeConditions: true)));
         }
 
         return [.. profiles
@@ -130,17 +133,31 @@ internal sealed partial class DocumentationGenerator
         return [.. packages.OrderBy(static package => package.PackageId, StringComparer.Ordinal)];
     }
 
-    private static Dictionary<string, string> ReadMsBuildProperties(string path)
+    private static Dictionary<string, string> ReadMsBuildProperties(string path, bool includeConditions = false)
     {
-        return ReadMsBuildProperties(XDocument.Load(path));
+        return ReadMsBuildProperties(XDocument.Load(path), includeConditions);
     }
 
-    private static Dictionary<string, string> ReadMsBuildProperties(XDocument document)
+    private static Dictionary<string, string> ReadMsBuildProperties(XDocument document, bool includeConditions = false)
     {
         var properties = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (XElement element in document.Descendants().Where(static element => element.Parent?.Name.LocalName == "PropertyGroup"))
         {
-            properties[element.Name.LocalName] = NormalizeDocumentationText(element.Value);
+            string value = NormalizeDocumentationText(element.Value);
+            string? condition = (string?)element.Attribute("Condition");
+            if (includeConditions && !string.IsNullOrWhiteSpace(condition))
+            {
+                value = string.Concat(condition, " => ", value);
+            }
+
+            if (properties.TryGetValue(element.Name.LocalName, out string? existingValue))
+            {
+                properties[element.Name.LocalName] = string.Concat(existingValue, "; ", value);
+            }
+            else
+            {
+                properties[element.Name.LocalName] = value;
+            }
         }
 
         return properties;

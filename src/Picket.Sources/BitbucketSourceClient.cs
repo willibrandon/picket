@@ -15,6 +15,7 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
 {
     private const int DirectoryEntriesPerPage = 100;
     private const int DownloadArtifactsPerPage = 100;
+    private const int SnippetsPerPage = 100;
     private const int WorkspaceRepositoriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-bitbucket-remote");
@@ -100,6 +101,10 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         try
         {
             await AddWorkspaceRepositoriesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            if (options.IncludeSnippets)
+            {
+                await AddWorkspaceSnippetsAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (RemoteMetadataTooLargeException)
         {
@@ -191,6 +196,115 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         }
 
         return entryCount;
+    }
+
+    private async Task AddWorkspaceSnippetsAsync(
+        BitbucketWorkspaceSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        while (!IsCancellationRequested(options))
+        {
+            Uri snippetsUri = CreateWorkspaceSnippetsUri(options, page);
+            using HttpResponseMessage response = await SendAsync(options, snippetsUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, response, $"skipping Bitbucket snippets in workspace {options.Workspace}");
+                return;
+            }
+
+            using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Bitbucket source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+            JsonElement root = document.RootElement;
+            int entryCount = await AddWorkspaceSnippetEntriesAsync(options, root, sourceFiles, cancellationToken).ConfigureAwait(false);
+            if (!HasNextPage(root, page, entryCount, options.WarningSink, $"Bitbucket snippets workspace {options.Workspace} enumeration"))
+            {
+                return;
+            }
+
+            page++;
+        }
+    }
+
+    private async Task<int> AddWorkspaceSnippetEntriesAsync(
+        BitbucketWorkspaceSourceOptions options,
+        JsonElement root,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        if (!root.TryGetProperty("values", out JsonElement values) || values.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        int entryCount = 0;
+        foreach (JsonElement item in values.EnumerateArray())
+        {
+            entryCount++;
+            if (IsCancellationRequested(options))
+            {
+                return entryCount;
+            }
+
+            string snippetId = GetSnippetId(item);
+            if (snippetId.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Bitbucket snippet in workspace {options.Workspace} because Bitbucket did not return an ID");
+                continue;
+            }
+
+            await AddSnippetFilesAsync(options, snippetId, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+
+        return entryCount;
+    }
+
+    private async Task AddSnippetFilesAsync(
+        BitbucketWorkspaceSourceOptions options,
+        string snippetId,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        Uri snippetUri = CreateSnippetUri(options, snippetId);
+        using HttpResponseMessage response = await SendAsync(options, snippetUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Bitbucket snippet {CreateSnippetDisplayPath(options, snippetId, string.Empty)}");
+            return;
+        }
+
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "Bitbucket source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (!document.RootElement.TryGetProperty("files", out JsonElement files) || files.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        foreach (JsonProperty file in files.EnumerateObject())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string normalizedPath = NormalizeRepositoryItemPath(file.Name);
+            if (normalizedPath.Length == 0)
+            {
+                continue;
+            }
+
+            string displayPath = CreateSnippetDisplayPath(options, snippetId, normalizedPath);
+            if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+            {
+                continue;
+            }
+
+            Uri rawFileUri = CreateSnippetFileUri(options, snippetId, normalizedPath);
+            byte[]? content = await DownloadSnippetFileAsync(options, rawFileUri, displayPath, cancellationToken).ConfigureAwait(false);
+            if (content is not null)
+            {
+                sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, content));
+            }
+        }
     }
 
     private async Task<(bool ShouldScan, BitbucketSourceOptions SourceOptions, string SourceRef)> ResolvePullRequestSourceAsync(
@@ -475,6 +589,57 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
         return await DownloadRawContentAsync(options, uri, displayPath, "Bitbucket download artifact", cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<byte[]?> DownloadSnippetFileAsync(
+        BitbucketWorkspaceSourceOptions options,
+        Uri uri,
+        string displayPath,
+        CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: true, cancellationToken).ConfigureAwait(false);
+        if (IsRedirect(response) && response.Headers.Location is not null)
+        {
+            Uri redirectUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(uri, response.Headers.Location);
+            if (!IsAllowedAuthenticatedApiRedirectUri(options.Endpoint, redirectUri))
+            {
+                options.WarningSink?.Invoke($"skipping Bitbucket snippet file {displayPath} because the redirected file URL is not an allowed Bitbucket API endpoint");
+                return null;
+            }
+
+            using HttpResponseMessage redirectedResponse = await SendAsync(options, redirectUri, acceptRaw: true, cancellationToken).ConfigureAwait(false);
+            if (!redirectedResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping Bitbucket snippet file {displayPath}");
+                return null;
+            }
+
+            if (redirectedResponse.Content.Headers.ContentLength.HasValue
+                && redirectedResponse.Content.Headers.ContentLength.Value > options.MaxFileBytes)
+            {
+                options.WarningSink?.Invoke($"Bitbucket file byte limit skipped {displayPath}");
+                return null;
+            }
+
+            return await ReadContentWithinLimitAsync(redirectedResponse, options.MaxFileBytes, options.WarningSink, displayPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping Bitbucket snippet file {displayPath}");
+            return null;
+        }
+
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"Bitbucket file byte limit skipped {displayPath}");
+            return null;
+        }
+
+        return await ReadContentWithinLimitAsync(response, options.MaxFileBytes, options.WarningSink, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task<byte[]?> DownloadRawContentAsync(
         BitbucketSourceOptions options,
         Uri uri,
@@ -508,7 +673,7 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
                 return null;
             }
 
-            return await ReadContentWithinLimitAsync(redirectedResponse, options, displayPath, cancellationToken).ConfigureAwait(false);
+            return await ReadContentWithinLimitAsync(redirectedResponse, options.MaxFileBytes, options.WarningSink, displayPath, cancellationToken).ConfigureAwait(false);
         }
 
         if (!response.IsSuccessStatusCode)
@@ -524,7 +689,7 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
             return null;
         }
 
-        return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+        return await ReadContentWithinLimitAsync(response, options.MaxFileBytes, options.WarningSink, displayPath, cancellationToken).ConfigureAwait(false);
     }
 
     private static void AddContentOrArchiveEntries(
@@ -625,7 +790,8 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
 
     private static async Task<byte[]?> ReadContentWithinLimitAsync(
         HttpResponseMessage response,
-        BitbucketSourceOptions options,
+        long maxFileBytes,
+        Action<string>? warningSink,
         string displayPath,
         CancellationToken cancellationToken)
     {
@@ -643,9 +809,9 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
                 }
 
                 long projectedLength = memory.Length + read;
-                if (projectedLength > options.MaxFileBytes)
+                if (projectedLength > maxFileBytes)
                 {
-                    options.WarningSink?.Invoke($"Bitbucket file byte limit skipped {displayPath}");
+                    warningSink?.Invoke($"Bitbucket file byte limit skipped {displayPath}");
                     return null;
                 }
 
@@ -687,6 +853,40 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
                 new KeyValuePair<string, string>("pagelen", WorkspaceRepositoriesPerPage.ToString(CultureInfo.InvariantCulture)),
                 new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
             ]);
+    }
+
+    private static Uri CreateWorkspaceSnippetsUri(BitbucketWorkspaceSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["snippets", options.Workspace],
+            itemPath: null,
+            trailingSlash: false,
+            query:
+            [
+                new KeyValuePair<string, string>("pagelen", SnippetsPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateSnippetUri(BitbucketWorkspaceSourceOptions options, string snippetId)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["snippets", options.Workspace, snippetId],
+            itemPath: null,
+            trailingSlash: false,
+            query: []);
+    }
+
+    private static Uri CreateSnippetFileUri(BitbucketWorkspaceSourceOptions options, string snippetId, string filePath)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["snippets", options.Workspace, snippetId, "files"],
+            filePath,
+            trailingSlash: false,
+            query: []);
     }
 
     private static Uri CreateRepositoryUri(BitbucketSourceOptions options)
@@ -884,6 +1084,16 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
             && (endpoint.Scheme == "http" || redirectUri.Scheme == "https");
     }
 
+    private static bool IsAllowedAuthenticatedApiRedirectUri(Uri endpoint, Uri redirectUri)
+    {
+        return redirectUri.IsAbsoluteUri
+            && redirectUri.Scheme.Equals(endpoint.Scheme, StringComparison.OrdinalIgnoreCase)
+            && redirectUri.Host.Equals(endpoint.Host, StringComparison.OrdinalIgnoreCase)
+            && redirectUri.Port == endpoint.Port
+            && string.IsNullOrEmpty(redirectUri.UserInfo)
+            && redirectUri.AbsolutePath.StartsWith(endpoint.AbsolutePath.TrimEnd('/') + "/", StringComparison.Ordinal);
+    }
+
     private static bool IsDirectoryItem(JsonElement item)
     {
         return TryGetJsonString(item, "type", out string type)
@@ -929,6 +1139,21 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
     private static string GetString(JsonElement value, string propertyName)
     {
         return TryGetJsonString(value, propertyName, out string propertyValue) ? propertyValue : string.Empty;
+    }
+
+    private static string GetSnippetId(JsonElement value)
+    {
+        if (!value.TryGetProperty("id", out JsonElement property))
+        {
+            return string.Empty;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.String => property.GetString() ?? string.Empty,
+            JsonValueKind.Number when property.TryGetInt64(out long id) => id.ToString(CultureInfo.InvariantCulture),
+            _ => string.Empty,
+        };
     }
 
     private static string GetNestedString(JsonElement value, string firstPropertyName, string secondPropertyName)
@@ -982,6 +1207,19 @@ public sealed class BitbucketSourceClient(HttpClient httpClient)
             NormalizeRemoteItemPath(options.Repository),
             "/downloads/",
             NormalizeRemoteItemPath(name));
+    }
+
+    private static string CreateSnippetDisplayPath(BitbucketWorkspaceSourceOptions options, string snippetId, string filePath)
+    {
+        string normalizedPath = NormalizeRemoteItemPath(filePath);
+        string basePath = string.Concat(
+            "bitbucket/",
+            NormalizeRemoteItemPath(options.Workspace),
+            "/snippets/",
+            NormalizeRemoteItemPath(snippetId));
+        return normalizedPath.Length == 0
+            ? basePath
+            : string.Concat(basePath, "/", normalizedPath);
     }
 
     private static string EscapeDisplaySegment(string value)

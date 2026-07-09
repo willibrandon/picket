@@ -491,6 +491,7 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-ref", "ref"));
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-pull-request", "id"));
         command.Options.Add(CreateFlagOption(commandName, "--bitbucket-include-downloads"));
+        command.Options.Add(CreateFlagOption(commandName, "--bitbucket-include-snippets"));
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-username-env", "name"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--bitbucket-token-kind", "kind", "bearer", "app-password"));

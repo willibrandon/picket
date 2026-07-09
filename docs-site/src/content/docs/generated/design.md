@@ -179,8 +179,8 @@ Picket ships multiple publish profiles because "fastest" and "smallest" are not 
 
 | Profile | Purpose | Defaults |
 |---|---|---|
-| `release-speed` | Primary CLI artifact. Fast startup and fastest scan throughput while remaining small. | `PublishAot=true`, `SelfContained=true`, RID-specific publish, `OptimizationPreference=Speed`, symbols stripped into sidecar files except current macOS RIDs, invariant globalization if conformance tests pass. |
-| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | `OptimizationPreference=Size`, diagnostics disabled, stack trace support disabled, resource-key exception messages enabled, invariant globalization, symbols stripped except current macOS RIDs, no optional network/XML/HTTP3 features unless needed. |
+| `release-speed` | Primary CLI artifact. Fast startup and fastest scan throughput while remaining small. | `PublishAot=true`, `SelfContained=true`, RID-specific publish, `OptimizationPreference=Speed`, symbols stripped into sidecar files except current macOS RIDs, macOS native debug symbols disabled in public speed builds while runtime packs carry transient Swift module-cache debug paths, invariant globalization if conformance tests pass. |
+| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | `OptimizationPreference=Size`, diagnostics disabled, stack trace support disabled, resource-key exception messages enabled, invariant globalization, symbols stripped except current macOS RIDs, macOS native debug symbols disabled, no optional network/XML/HTTP3 features unless needed. |
 | `release-diagnostics` | Support artifact for bug reports and performance investigations. | Same code as `release-speed`, but keeps diagnostics, metrics/EventSource support, stack traces, and richer symbols where the runtime supports them. |
 | `framework-dev` | Developer/test artifact. | Framework-dependent build with normal JIT, tiered compilation, Dynamic PGO defaults, and full diagnostics for inner-loop debugging. Not the shipped CLI. |
 
@@ -194,7 +194,7 @@ The CLI project uses Native AOT as the primary deployment model:
 - `SelfContained=true`
 - explicit `RuntimeIdentifier` per supported platform
 - `PublishSingleFile=true` only where it adds useful SDK analysis or packaging behavior; Native AOT already produces a native executable
-- `StripSymbols=true` with debug symbols published as separate artifacts, except `osx-arm64` and `osx-x64` temporarily use `StripSymbols=false` while the runtime pack carries transient Swift module-cache debug paths
+- `StripSymbols=true` with debug symbols published as separate artifacts, except current macOS RIDs temporarily use `StripSymbols=false`, `DebugType=none`, `DebugSymbols=false`, and `NativeDebugSymbols=false` for speed/minsize builds while the runtime pack carries transient Swift module-cache debug paths
 - no runtime JIT dependency, no dynamic code generation, no dynamic plugin loading
 - no reflection-only serializer paths
 - no dependency that emits unresolved trim, single-file, or AOT warnings
@@ -877,12 +877,14 @@ Implemented Bitbucket entry points:
 | Workspace repositories | `--bitbucket-workspace`, `--bitbucket-ref`, `--bitbucket-token-env`, `--bitbucket-token-kind`, `--bitbucket-username-env`, `--bitbucket-api-endpoint` | Lists repositories visible in a workspace and scans each repository. Empty `--bitbucket-ref` resolves each repository's main branch; a non-empty ref is applied to every repository. Cannot be combined with `--bitbucket-repository` or `--bitbucket-pull-request`. |
 | Pull request source head | `--bitbucket-repository`, `--bitbucket-pull-request` | Resolves the pull request source commit and source repository, including forks when Bitbucket returns them, then scans that commit. |
 | Download artifacts | `--bitbucket-repository` or `--bitbucket-workspace`, `--bitbucket-include-downloads` | Lists repository download artifacts, downloads each selected artifact through Bitbucket's redirect endpoint, follows redirected artifact URLs without forwarding credentials, and expands archive artifacts through the native archive safety caps. With workspace scans, the option applies to every enumerated repository. Cannot be combined with `--bitbucket-pull-request`. |
+| Workspace snippets | `--bitbucket-workspace`, `--bitbucket-include-snippets` | Lists workspace snippets, fetches snippet metadata for file names, and downloads raw snippet files through the snippet file API. Snippets are additive to workspace repository scans and cannot be combined with repository or pull request scans. |
 
 Bitbucket API flow:
 
 | Source | API behavior |
 | --- | --- |
 | Workspace repositories | Lists repositories in a workspace with `pagelen=100`, follows Bitbucket pagination, and scans each returned repository path. |
+| Workspace snippets | Lists snippets in a workspace with `pagelen=100`, fetches snippet metadata for file names, and downloads raw snippet files through the snippet file API. |
 | Repository metadata | Resolves the main branch when `--bitbucket-ref` is omitted. |
 | Pull request metadata | Resolves the source commit hash, source branch fallback, and source repository when `--bitbucket-pull-request` is used. |
 | Directory listings | Lists repository directory contents page by page with `pagelen=100`. Picket walks returned `commit_directory` entries instead of relying on `max_depth`. |
@@ -902,10 +904,12 @@ Bitbucket source safety rules:
 - Zero keeps its local-scan compatibility meaning, but remote Bitbucket sources reject zero because remote HTTP bodies are always bounded.
 - Oversized directory entries are skipped before download when Bitbucket returns a size.
 - Oversized download artifacts are skipped before download when Bitbucket returns a size.
+- Snippet file downloads use the same remote byte cap as repository files.
+- Raw snippet redirects are followed only when the redirected URI stays on the configured Bitbucket API endpoint because those redirected API requests still require the Bitbucket credential.
 - Download artifact archives respect `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
-- Pipelines, snippets, projects, and Bitbucket Data Center/Server remain planned explicit source selectors.
+- Pipelines, projects, and Bitbucket Data Center/Server remain planned explicit source selectors.
 
-Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Pull request scans also require read-only pull request access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration and the `pullrequest` scope for pull request metadata. For API tokens, Bitbucket documents `read:repository:bitbucket` and `read:pullrequest:bitbucket`.
+Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Pull request scans also require read-only pull request access. Snippet scans require read-only snippet access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration, the `pullrequest` scope for pull request metadata, and the `snippet` scope for snippet enumeration. For API tokens, Bitbucket documents `read:repository:bitbucket`, `read:pullrequest:bitbucket`, and `read:snippet:bitbucket`.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 

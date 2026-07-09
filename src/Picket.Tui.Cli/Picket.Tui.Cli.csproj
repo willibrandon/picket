@@ -23,6 +23,9 @@
     <!-- Work around dotnet/runtime#123687 and dotnet/runtime#124336: macOS Native AOT symbol splitting can warn
          or fail when dsymutil resolves transient Swift module-cache .pcm paths from the runtime pack. -->
     <StripSymbols Condition="'$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64'">false</StripSymbols>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release' and ('$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64')">false</DebugSymbols>
+    <DebugType Condition="'$(Configuration)' == 'Release' and ('$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64')">none</DebugType>
+    <NativeDebugSymbols Condition="'$(Configuration)' == 'Release' and ('$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64')">false</NativeDebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
