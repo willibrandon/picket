@@ -33,6 +33,11 @@ public sealed class SecretLiveVerifierOptions
     /// <summary>
     /// Gets or sets the endpoint guard options applied before a provider validator can run.
     /// </summary>
+    /// <remarks>
+    /// This preflight guard complements provider-specific connect-time guards such as
+    /// <see cref="GitHubSecretLiveValidatorOptions.EndpointGuardOptions" />. When constructing
+    /// validators manually, configure both surfaces with equivalent policy.
+    /// </remarks>
     public EndpointGuardOptions EndpointGuardOptions
     {
         get => _endpointGuardOptions;

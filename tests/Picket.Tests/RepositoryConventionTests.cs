@@ -1013,6 +1013,23 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that live verification endpoint guard options cross-reference the two guard layers.
+    /// </summary>
+    [TestMethod]
+    public void LiveVerifierEndpointGuardOptionsDocumentGuardLayers()
+    {
+        string verifierOptions = ReadRepositoryFile("src/Picket.Verify/SecretLiveVerifierOptions.cs");
+        string githubOptions = ReadRepositoryFile("src/Picket.Verify/GitHubSecretLiveValidatorOptions.cs");
+
+        Assert.Contains("GitHubSecretLiveValidatorOptions.EndpointGuardOptions", verifierOptions);
+        Assert.Contains("preflight guard complements provider-specific connect-time guards", verifierOptions);
+        Assert.Contains("configure both surfaces with equivalent policy", verifierOptions);
+        Assert.Contains("SecretLiveVerifierOptions.EndpointGuardOptions", githubOptions);
+        Assert.Contains("socket connect time", githubOptions);
+        Assert.Contains("provider preflight guard", githubOptions);
+    }
+
+    /// <summary>
     /// Verifies that remote source clients use the bounded metadata JSON reader.
     /// </summary>
     [TestMethod]

@@ -69,6 +69,11 @@ public sealed class GitHubSecretLiveValidatorOptions
     /// <summary>
     /// Gets or sets the endpoint guard options applied to the actual connected address.
     /// </summary>
+    /// <remarks>
+    /// The default transport enforces this guard at socket connect time. It complements the
+    /// provider preflight guard configured through
+    /// <see cref="SecretLiveVerifierOptions.EndpointGuardOptions" />.
+    /// </remarks>
     public EndpointGuardOptions EndpointGuardOptions
     {
         get => _endpointGuardOptions;
