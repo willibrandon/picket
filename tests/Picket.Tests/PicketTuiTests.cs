@@ -279,6 +279,92 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that the scan workspace builds GitLab source scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsGitLabSourceArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(3);
+        scan.SetGitLabProject("group/project");
+        scan.SetGitLabRef("main");
+        scan.SetGitLabMergeRequest("42");
+        scan.SetGitLabPipelineId("123");
+        scan.SetGitLabTokenEnvironmentVariable("PICKET_GITLAB_SOURCE_TOKEN");
+        scan.SetGitLabApiEndpoint("https://gitlab.example/api/v4");
+        scan.SetIncludeGitLabSnippets(true);
+        scan.SetIncludeGitLabJobArtifacts(true);
+        scan.SetIncludeGitLabJobLogs(true);
+        scan.SetIncludeGitLabPackages(true);
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--gitlab-project", arguments);
+        Assert.Contains("group/project", arguments);
+        Assert.Contains("--gitlab-ref", arguments);
+        Assert.Contains("main", arguments);
+        Assert.Contains("--gitlab-merge-request", arguments);
+        Assert.Contains("42", arguments);
+        Assert.Contains("--gitlab-pipeline-id", arguments);
+        Assert.Contains("123", arguments);
+        Assert.Contains("--gitlab-token-env", arguments);
+        Assert.Contains("PICKET_GITLAB_SOURCE_TOKEN", arguments);
+        Assert.Contains("--gitlab-api-endpoint", arguments);
+        Assert.Contains("https://gitlab.example/api/v4", arguments);
+        Assert.Contains("--gitlab-include-snippets", arguments);
+        Assert.Contains("--gitlab-include-job-artifacts", arguments);
+        Assert.Contains("--gitlab-include-job-logs", arguments);
+        Assert.Contains("--gitlab-include-packages", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects ambiguous GitLab source selectors.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsMultipleGitLabSourceSelectors()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(3);
+        scan.SetGitLabProject("group/project");
+        scan.SetGitLabGroup("group");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("exactly one project or group selector", error);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects GitLab pipeline scans without a job source.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsGitLabPipelineWithoutJobSource()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(3);
+        scan.SetGitLabProject("group/project");
+        scan.SetGitLabPipelineId("123");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("--gitlab-pipeline-id requires GitLab job logs or artifacts", error);
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace builds Azure DevOps artifact, log, and endpoint policy arguments.
     /// </summary>
     [TestMethod]

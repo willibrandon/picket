@@ -20,7 +20,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
-    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps"];
+    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
     private readonly Lock _outputLock = new();
@@ -250,6 +250,66 @@ internal sealed class PicketTuiScanWorkspace
     internal bool IncludeAzureDevOpsReleaseArtifacts { get; private set; }
 
     /// <summary>
+    /// Gets the GitLab project selector.
+    /// </summary>
+    internal string GitLabProject { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the GitLab group selector.
+    /// </summary>
+    internal string GitLabGroup { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the GitLab ref selector.
+    /// </summary>
+    internal string GitLabRef { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the GitLab merge request selector.
+    /// </summary>
+    internal string GitLabMergeRequest { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the GitLab pipeline selector.
+    /// </summary>
+    internal string GitLabPipelineId { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the GitLab token environment variable name.
+    /// </summary>
+    internal string GitLabTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the GitLab API endpoint.
+    /// </summary>
+    internal string GitLabApiEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab subgroup projects are included.
+    /// </summary>
+    internal bool IncludeGitLabSubgroups { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab snippets are included.
+    /// </summary>
+    internal bool IncludeGitLabSnippets { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab job artifact archives are included.
+    /// </summary>
+    internal bool IncludeGitLabJobArtifacts { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab job logs are included.
+    /// </summary>
+    internal bool IncludeGitLabJobLogs { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab generic package files are included.
+    /// </summary>
+    internal bool IncludeGitLabPackages { get; private set; }
+
+    /// <summary>
     /// Gets the native profile name.
     /// </summary>
     internal string Profile { get; private set; } = "picket";
@@ -444,6 +504,7 @@ internal sealed class PicketTuiScanWorkspace
         PicketTuiScanTargetMode.Local => 0,
         PicketTuiScanTargetMode.GitHub => 1,
         PicketTuiScanTargetMode.AzureDevOps => 2,
+        PicketTuiScanTargetMode.GitLab => 3,
         _ => 0,
     };
 
@@ -491,6 +552,7 @@ internal sealed class PicketTuiScanWorkspace
         {
             1 => PicketTuiScanTargetMode.GitHub,
             2 => PicketTuiScanTargetMode.AzureDevOps,
+            3 => PicketTuiScanTargetMode.GitLab,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -700,6 +762,78 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetIncludeAzureDevOpsReleaseArtifacts(bool value) => IncludeAzureDevOpsReleaseArtifacts = value;
 
     /// <summary>
+    /// Sets the GitLab project selector.
+    /// </summary>
+    /// <param name="value">The project selector.</param>
+    internal void SetGitLabProject(string value) => GitLabProject = value;
+
+    /// <summary>
+    /// Sets the GitLab group selector.
+    /// </summary>
+    /// <param name="value">The group selector.</param>
+    internal void SetGitLabGroup(string value) => GitLabGroup = value;
+
+    /// <summary>
+    /// Sets the GitLab ref selector.
+    /// </summary>
+    /// <param name="value">The ref selector.</param>
+    internal void SetGitLabRef(string value) => GitLabRef = value;
+
+    /// <summary>
+    /// Sets the GitLab merge request selector.
+    /// </summary>
+    /// <param name="value">The merge request internal ID.</param>
+    internal void SetGitLabMergeRequest(string value) => GitLabMergeRequest = value;
+
+    /// <summary>
+    /// Sets the GitLab pipeline selector.
+    /// </summary>
+    /// <param name="value">The pipeline ID.</param>
+    internal void SetGitLabPipelineId(string value) => GitLabPipelineId = value;
+
+    /// <summary>
+    /// Sets the GitLab token environment variable name.
+    /// </summary>
+    /// <param name="value">The token environment variable name.</param>
+    internal void SetGitLabTokenEnvironmentVariable(string value) => GitLabTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the GitLab API endpoint.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetGitLabApiEndpoint(string value) => GitLabApiEndpoint = value;
+
+    /// <summary>
+    /// Sets whether GitLab subgroup projects are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabSubgroups(bool value) => IncludeGitLabSubgroups = value;
+
+    /// <summary>
+    /// Sets whether GitLab snippets are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabSnippets(bool value) => IncludeGitLabSnippets = value;
+
+    /// <summary>
+    /// Sets whether GitLab job artifact archives are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabJobArtifacts(bool value) => IncludeGitLabJobArtifacts = value;
+
+    /// <summary>
+    /// Sets whether GitLab job logs are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabJobLogs(bool value) => IncludeGitLabJobLogs = value;
+
+    /// <summary>
+    /// Sets whether GitLab generic package files are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabPackages(bool value) => IncludeGitLabPackages = value;
+
+    /// <summary>
     /// Sets the native profile.
     /// </summary>
     /// <param name="value">The profile name.</param>
@@ -843,7 +977,7 @@ internal sealed class PicketTuiScanWorkspace
             AddOptionalValue(arguments, "--results", ResultFilter);
         }
 
-        if (TargetMode is PicketTuiScanTargetMode.GitHub or PicketTuiScanTargetMode.AzureDevOps)
+        if (TargetMode is PicketTuiScanTargetMode.GitHub or PicketTuiScanTargetMode.AzureDevOps or PicketTuiScanTargetMode.GitLab)
         {
             AddFlag(arguments, "--allow-non-public-source-endpoints", AllowNonPublicSourceEndpoints);
             AddFlag(arguments, "--allow-insecure-source-endpoints", AllowInsecureSourceEndpoints);
@@ -1274,6 +1408,20 @@ internal sealed class PicketTuiScanWorkspace
                 AddOptionalValue(arguments, "--azure-devops-max-artifact-megabytes", AzureDevOpsMaxArtifactMegabytes);
                 AddOptionalValue(arguments, "--azure-devops-max-log-megabytes", AzureDevOpsMaxLogMegabytes);
                 break;
+            case PicketTuiScanTargetMode.GitLab:
+                AddOptionalValue(arguments, "--gitlab-project", GitLabProject);
+                AddOptionalValue(arguments, "--gitlab-group", GitLabGroup);
+                AddOptionalValue(arguments, "--gitlab-ref", GitLabRef);
+                AddOptionalValue(arguments, "--gitlab-merge-request", GitLabMergeRequest);
+                AddOptionalValue(arguments, "--gitlab-pipeline-id", GitLabPipelineId);
+                AddFlag(arguments, "--gitlab-include-subgroups", IncludeGitLabSubgroups);
+                AddFlag(arguments, "--gitlab-include-snippets", IncludeGitLabSnippets);
+                AddFlag(arguments, "--gitlab-include-job-artifacts", IncludeGitLabJobArtifacts);
+                AddFlag(arguments, "--gitlab-include-job-logs", IncludeGitLabJobLogs);
+                AddFlag(arguments, "--gitlab-include-packages", IncludeGitLabPackages);
+                AddOptionalValue(arguments, "--gitlab-token-env", GitLabTokenEnvironmentVariable);
+                AddOptionalValue(arguments, "--gitlab-api-endpoint", GitLabApiEndpoint);
+                break;
         }
     }
 
@@ -1284,6 +1432,7 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.Local => string.Concat("local ", LocalPath),
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", FirstConfigured(GitHubRepository, GitHubOrganization, GitHubUser)),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsProject, AzureDevOpsOrganization)),
+            PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
             _ => TargetMode.ToString(),
         };
     }
@@ -1327,6 +1476,37 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
+        if (TargetMode == PicketTuiScanTargetMode.GitLab && CountGitLabSourceSelectors() != 1)
+        {
+            error = "GitLab scans require exactly one project or group selector.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.GitLab
+            && !string.IsNullOrWhiteSpace(GitLabGroup)
+            && !string.IsNullOrWhiteSpace(GitLabMergeRequest))
+        {
+            error = "--gitlab-merge-request requires a project selector.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.GitLab
+            && !string.IsNullOrWhiteSpace(GitLabGroup)
+            && !string.IsNullOrWhiteSpace(GitLabPipelineId))
+        {
+            error = "--gitlab-pipeline-id requires a project selector.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.GitLab
+            && !string.IsNullOrWhiteSpace(GitLabPipelineId)
+            && !IncludeGitLabJobArtifacts
+            && !IncludeGitLabJobLogs)
+        {
+            error = "--gitlab-pipeline-id requires GitLab job logs or artifacts.";
+            return false;
+        }
+
         if (string.IsNullOrWhiteSpace(Profile))
         {
             error = "Profile is required.";
@@ -1349,7 +1529,9 @@ internal sealed class PicketTuiScanWorkspace
             && ValidateOptionalNonNegativeInteger(AzureDevOpsBuildId, "--azure-devops-build-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsReleaseId, "--azure-devops-release-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxArtifactMegabytes, "--azure-devops-max-artifact-megabytes", min: 0, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxLogMegabytes, "--azure-devops-max-log-megabytes", min: 0, max: int.MaxValue, out error);
+            && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxLogMegabytes, "--azure-devops-max-log-megabytes", min: 0, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(GitLabMergeRequest, "--gitlab-merge-request", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(GitLabPipelineId, "--gitlab-pipeline-id", min: 1, max: int.MaxValue, out error);
     }
 
     private static bool ValidateOptionalNonNegativeInteger(string value, string option, int min, int max, out string error)
@@ -1400,6 +1582,22 @@ internal sealed class PicketTuiScanWorkspace
         }
 
         if (!string.IsNullOrWhiteSpace(GitHubUserGists))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    private int CountGitLabSourceSelectors()
+    {
+        int count = 0;
+        if (!string.IsNullOrWhiteSpace(GitLabProject))
+        {
+            count++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GitLabGroup))
         {
             count++;
         }

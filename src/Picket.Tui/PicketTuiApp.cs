@@ -426,6 +426,10 @@ internal static class PicketTuiApp
             [
                 BuildAzureDevOpsSourceFields(ctx, scan),
             ],
+            PicketTuiScanTargetMode.GitLab =>
+            [
+                BuildGitLabSourceFields(ctx, scan),
+            ],
             _ =>
             [
                 BuildTextField(ctx, "Path", scan.LocalPath, scan.SetLocalPath),
@@ -523,6 +527,44 @@ internal static class PicketTuiApp
         ]).FillWidth();
     }
 
+    private static HStackWidget BuildGitLabSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "Project", scan.GitLabProject, scan.SetGitLabProject),
+                BuildFieldGap(left),
+                BuildTextField(left, "Group", scan.GitLabGroup, scan.SetGitLabGroup),
+                BuildFieldGap(left),
+                BuildTextField(left, "Token env", scan.GitLabTokenEnvironmentVariable, scan.SetGitLabTokenEnvironmentVariable),
+                BuildFieldGap(left),
+                BuildTextField(left, "Endpoint", scan.GitLabApiEndpoint, scan.SetGitLabApiEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Ref", scan.GitLabRef, scan.SetGitLabRef),
+                BuildFieldGap(left),
+                BuildTextField(left, "MR", scan.GitLabMergeRequest, scan.SetGitLabMergeRequest),
+                BuildFieldGap(left),
+                BuildTextField(left, "Pipeline", scan.GitLabPipelineId, scan.SetGitLabPipelineId),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildBooleanField(right, "Subgroups", scan.IncludeGitLabSubgroups, scan.SetIncludeGitLabSubgroups),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Snippets", scan.IncludeGitLabSnippets, scan.SetIncludeGitLabSnippets),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Artifacts", scan.IncludeGitLabJobArtifacts, scan.SetIncludeGitLabJobArtifacts),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Logs", scan.IncludeGitLabJobLogs, scan.SetIncludeGitLabJobLogs),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Packages", scan.IncludeGitLabPackages, scan.SetIncludeGitLabPackages),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
     private static VStackWidget BuildLimitFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
@@ -562,6 +604,11 @@ internal static class PicketTuiApp
                 scan.AzureDevOpsRepository,
                 scan.AzureDevOpsProject,
                 scan.AzureDevOpsOrganization,
+                "not selected")),
+            PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstNonEmpty(
+                scan.GitLabProject,
+                scan.GitLabGroup,
+                string.Empty,
                 "not selected")),
             _ => string.Concat("Local ", string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath),
         };

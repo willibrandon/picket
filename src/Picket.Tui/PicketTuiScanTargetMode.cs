@@ -19,4 +19,9 @@ internal enum PicketTuiScanTargetMode
     /// Scan an Azure DevOps source through native source enumeration.
     /// </summary>
     AzureDevOps,
+
+    /// <summary>
+    /// Scan a GitLab source through native source enumeration.
+    /// </summary>
+    GitLab,
 }
