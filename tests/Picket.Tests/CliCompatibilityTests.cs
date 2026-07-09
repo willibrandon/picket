@@ -1090,6 +1090,23 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that POSIX short-option bundling is not enabled for scanner commands.
+    /// </summary>
+    [TestMethod]
+    public async Task CommandLineDoesNotBundleShortOptions()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-fcsv").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("unknown flag: -fcsv", result.Stderr);
+        Assert.DoesNotContain("token-12345", result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native analysis writes offline incident-response JSON without leaking the raw secret.
     /// </summary>
     [TestMethod]
