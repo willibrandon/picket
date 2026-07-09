@@ -373,6 +373,43 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that container image packaging follows the release distribution contract.
+    /// </summary>
+    [TestMethod]
+    public void ContainerImagePackagingMatchesReleaseContract()
+    {
+        string dockerfile = ReadRepositoryFile("Dockerfile");
+        string dockerIgnore = ReadRepositoryFile(".dockerignore");
+        string releaseWorkflow = ReadRepositoryFile(".github/workflows/release.yml");
+        string releaseDocumentation = ReadRepositoryFile("docs/RELEASE.md");
+        string containerDocumentation = ReadRepositoryFile("docs/CONTAINERS.md");
+
+        Assert.Contains("mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble", dockerfile);
+        Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps:${DOTNET_VERSION}-noble", dockerfile);
+        Assert.Contains("PublishProfile=release-speed", dockerfile);
+        Assert.Contains("dotnet publish src/Picket.Cli/Picket.Cli.csproj", dockerfile);
+        Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", dockerfile);
+        Assert.Contains("ca-certificates git", dockerfile);
+        Assert.Contains("USER $APP_UID", dockerfile);
+        Assert.Contains("ENTRYPOINT [\"/usr/local/bin/picket\"]", dockerfile);
+        Assert.Contains("picket-tui", dockerfile);
+        Assert.Contains("docs-site/dist", dockerIgnore);
+        Assert.Contains("picket-results", dockerIgnore);
+        Assert.Contains("publish-container:", releaseWorkflow);
+        Assert.Contains("packages: write", releaseWorkflow);
+        Assert.Contains("docker login ghcr.io", releaseWorkflow);
+        Assert.Contains("linux/amd64,linux/arm64", releaseWorkflow);
+        Assert.Contains("--sbom=true", releaseWorkflow);
+        Assert.Contains("--provenance=true", releaseWorkflow);
+        Assert.Contains("publish-container", releaseWorkflow);
+        Assert.Contains("ghcr.io/willibrandon/picket", releaseDocumentation);
+        Assert.Contains("BuildKit SBOM and provenance attestations", releaseDocumentation);
+        Assert.Contains("Scanner Image", containerDocumentation);
+        Assert.Contains("ghcr.io/willibrandon/picket:latest", containerDocumentation);
+        Assert.Contains("runs as a non-root user", containerDocumentation);
+    }
+
+    /// <summary>
     /// Verifies that CI packs the public NuGet libraries on every supported runner.
     /// </summary>
     [TestMethod]

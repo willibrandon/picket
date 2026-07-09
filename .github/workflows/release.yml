@@ -406,12 +406,84 @@ jobs:
             dotnet nuget push $symbol.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
           }
 
+  publish-container:
+    name: Publish container image
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Log in to GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+      - name: Build and publish image
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid image version."
+          }
+
+          $repository = $env:GITHUB_REPOSITORY.ToLowerInvariant()
+          $image = "ghcr.io/$repository"
+          $tags = @(
+            "$image`:$env:RELEASE_TAG",
+            "$image`:$version"
+          )
+
+          if (!$version.Contains('-', [StringComparison]::Ordinal)) {
+            $tags += "$image`:latest"
+          }
+
+          $tagArguments = @()
+          foreach ($tag in $tags) {
+            $tagArguments += "--tag"
+            $tagArguments += $tag
+          }
+
+          $builderName = "picket-release-$env:GITHUB_RUN_ID"
+          docker buildx create --use --name $builderName
+          $revision = (git rev-parse HEAD).Trim()
+
+          $arguments = @(
+            "build",
+            "--file",
+            "Dockerfile",
+            "--platform",
+            "linux/amd64,linux/arm64",
+            "--build-arg",
+            "VERSION=$version",
+            "--label",
+            "org.opencontainers.image.revision=$revision",
+            "--label",
+            "org.opencontainers.image.created=$((Get-Date).ToUniversalTime().ToString('o'))",
+            "--sbom=true",
+            "--provenance=true",
+            "--push"
+          ) + $tagArguments + @(".")
+
+          docker buildx @arguments
+
   publish-release:
     name: Publish GitHub Release
     needs:
       - build-binaries
       - build-packages
       - publish-nuget
+      - publish-container
     runs-on: ubuntu-latest
     permissions:
       contents: write

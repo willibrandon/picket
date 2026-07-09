@@ -66,6 +66,31 @@ Every CI run also publishes `picket` and `picket-tui` with `release-speed` for t
 
 This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced. The Linux jobs install `musl-tools` and additionally publish/package the matching musl RID so Alpine-friendly artifacts are validated before release.
 
+## Container Image
+
+The repository root `Dockerfile` builds the Linux scanner image from source using the same `release-speed` Native AOT profile as the release archives. The image includes:
+
+- `picket` as the entrypoint,
+- `picket-tui` beside it for `picket tui`,
+- `git` for Gitleaks-compatible `picket git` history scans,
+- CA certificates for source-host, object-store, and live-verification HTTPS calls,
+- a non-root default user from the .NET runtime-deps image.
+
+Build locally for the current machine with:
+
+```powershell
+docker build -t picket:dev .
+docker run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=100
+```
+
+For release tags, `.github/workflows/release.yml` publishes a multi-architecture Linux image to GHCR for `linux/amd64` and `linux/arm64`. The published tags are:
+
+- `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.4.2`,
+- `ghcr.io/willibrandon/picket:<semver>`, for example `0.4.2`,
+- `ghcr.io/willibrandon/picket:latest` for non-prerelease versions only.
+
+The container build pushes BuildKit SBOM and provenance attestations with the image. The image is a scanner distribution surface; it does not change command defaults, compatibility behavior, reports, validation policy, or telemetry policy.
+
 ## Azure DevOps VSIX Validation
 
 CI packages the Azure DevOps Marketplace scaffold on Ubuntu with `tfx-cli` and `azure-devops/vss-extension.json`. This validates the extension manifest, `PicketScan@1` task metadata, included files, and VSIX layout before release automation attempts to publish the same wrapper.
@@ -99,7 +124,7 @@ Release automation should publish, sign, checksum, and archive each RID separate
 
 Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
 
-The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
+The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, publishes the multi-architecture GHCR container image, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
 
 Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 
