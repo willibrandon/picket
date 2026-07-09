@@ -92,6 +92,117 @@ public sealed class ReportFindingReaderTests
         Assert.IsNull(findings);
     }
 
+    /// <summary>
+    /// Verifies that truncated JSON reports are rejected without escaping parser exceptions.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsTruncatedJsonReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            {"schema":"picket.report.v1","findings":[
+            """);
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsFalse(read);
+        Assert.IsNull(findings);
+    }
+
+    /// <summary>
+    /// Verifies that malformed JSON Lines reports are rejected without returning partial findings.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsMalformedJsonLinesReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        Finding finding = CreateFinding("picket-rule", "auth.py", "secret-value");
+        string reportPath = WriteReport(
+            root.Path,
+            "report.jsonl",
+            string.Concat(
+                PicketJsonlReportWriter.Write([finding]),
+                "{\"schema\":\"picket.finding.v1\""));
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsFalse(read);
+        Assert.IsNull(findings);
+    }
+
+    /// <summary>
+    /// Verifies that unsupported JSON object shapes are rejected.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsUnsupportedJsonObjectShape()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            {"schema":"picket.report.v1","findings":{}}
+            """);
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsFalse(read);
+        Assert.IsNull(findings);
+    }
+
+    /// <summary>
+    /// Verifies that type-confused finding fields degrade to defaults instead of throwing.
+    /// </summary>
+    [TestMethod]
+    public void TryReadTreatsTypeConfusedFindingFieldsAsDefaults()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            {
+              "schema": "picket.report.v1",
+              "findings": [
+                {
+                  "schema": "picket.finding.v1",
+                  "ruleId": "picket-rule",
+                  "description": { "value": "wrong type" },
+                  "startLine": "not-a-number",
+                  "endLine": 9223372036854775807,
+                  "startColumn": true,
+                  "endColumn": null,
+                  "match": ["wrong"],
+                  "secret": 123,
+                  "file": "auth.py",
+                  "entropy": "not-a-double",
+                  "tags": "tag"
+                }
+              ]
+            }
+            """);
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsTrue(read);
+        Assert.IsNotNull(findings);
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("picket-rule", findings[0].RuleID);
+        Assert.AreEqual("auth.py", findings[0].File);
+        Assert.IsEmpty(findings[0].Description);
+        Assert.AreEqual(0, findings[0].StartLine);
+        Assert.AreEqual(0, findings[0].EndLine);
+        Assert.AreEqual(0, findings[0].StartColumn);
+        Assert.AreEqual(0, findings[0].EndColumn);
+        Assert.IsEmpty(findings[0].Match);
+        Assert.IsEmpty(findings[0].Secret);
+        Assert.AreEqual(0, findings[0].Entropy);
+        Assert.IsEmpty(findings[0].Tags);
+    }
+
     private static string WriteReport(string root, string fileName, string contents)
     {
         string reportPath = Path.Combine(root, fileName);
