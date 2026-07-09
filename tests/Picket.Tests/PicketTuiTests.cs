@@ -14,6 +14,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class PicketTuiTests
 {
+    private static readonly Lock s_editorEnvironmentLock = new();
+
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
     /// </summary>
@@ -234,33 +236,39 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that opening a focused finding delegates to the file launcher with the finding line.
+    /// Verifies that opening a focused finding queues and then launches the file request with the finding line.
     /// </summary>
     [TestMethod]
-    public void StateOpensFocusedFindingFile()
+    public void StateQueuesAndOpensFocusedFindingFile()
     {
         var launcher = new PicketTuiFakeFileLauncher { Message = "Opened src/auth.cs" };
         PicketTuiState state = CreateState(fileLauncher: launcher);
 
-        state.OpenFocusedFindingFile();
+        bool queued = state.RequestOpenFocusedFindingFile();
 
+        Assert.IsTrue(queued);
+        Assert.AreEqual(string.Empty, launcher.CapturedPath);
+        Assert.IsTrue(state.TryOpenPendingFile());
         Assert.AreEqual("src/auth.cs", launcher.CapturedPath);
         Assert.AreEqual(12, launcher.CapturedLine);
         Assert.AreEqual("Opened src/auth.cs", state.StatusMessage);
     }
 
     /// <summary>
-    /// Verifies that opening a focused file delegates to the file launcher without a line number.
+    /// Verifies that opening a focused file queues and then launches the file request without a line number.
     /// </summary>
     [TestMethod]
-    public void StateOpensFocusedFileRow()
+    public void StateQueuesAndOpensFocusedFileRow()
     {
         var launcher = new PicketTuiFakeFileLauncher { Message = "Opened infra/main.tf" };
         PicketTuiState state = CreateState(fileLauncher: launcher);
         state.FocusFile("infra/main.tf");
 
-        state.OpenFocusedFile();
+        bool queued = state.RequestOpenFocusedFile();
 
+        Assert.IsTrue(queued);
+        Assert.AreEqual(string.Empty, launcher.CapturedPath);
+        Assert.IsTrue(state.TryOpenPendingFile());
         Assert.AreEqual("infra/main.tf", launcher.CapturedPath);
         Assert.IsNull(launcher.CapturedLine);
         Assert.AreEqual("Opened infra/main.tf", state.StatusMessage);
@@ -348,49 +356,51 @@ public sealed class PicketTuiTests
     [TestMethod]
     public void FileLauncherCreatesLineAwareCodeCommand()
     {
-        string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
-        try
+        lock (s_editorEnvironmentLock)
         {
-            Environment.SetEnvironmentVariable("PICKET_EDITOR", "code -g");
+            string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
+            try
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", "code -g");
 
-            ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 42);
+                ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 42);
 
-            Assert.AreEqual("code", startInfo.FileName);
-            Assert.IsFalse(startInfo.UseShellExecute);
-            Assert.Contains("-g", startInfo.ArgumentList);
-            Assert.Contains("src/app.cs:42", startInfo.ArgumentList);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+                Assert.AreEqual("code", startInfo.FileName);
+                Assert.IsFalse(startInfo.UseShellExecute);
+                Assert.Contains("-g", startInfo.ArgumentList);
+                Assert.Contains("src/app.cs:42", startInfo.ArgumentList);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+            }
         }
     }
 
     /// <summary>
-    /// Verifies that terminal editors are not started inside the full-screen TUI.
+    /// Verifies that terminal editor launch arguments are line-aware.
     /// </summary>
     [TestMethod]
-    public void FileLauncherRejectsTerminalEditorInsideFullScreenTui()
+    public void FileLauncherCreatesLineAwareTerminalEditorCommand()
     {
-        string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
-        using TempDirectory temp = TempDirectory.Create();
-        string filePath = Path.Combine(temp.Path, "app.cs");
-        File.WriteAllText(filePath, "class App { }");
-
-        try
+        lock (s_editorEnvironmentLock)
         {
-            Environment.SetEnvironmentVariable("PICKET_EDITOR", "nvim");
-            var launcher = new PicketTuiProcessFileLauncher();
+            string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
+            try
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", "nvim");
 
-            bool opened = launcher.TryOpen(filePath, 12, out string message);
+                ProcessStartInfo startInfo = PicketTuiProcessFileLauncher.CreateStartInfo("src/app.cs", 12);
 
-            Assert.IsFalse(opened);
-            Assert.Contains("terminal editor 'nvim'", message);
-            Assert.Contains("PICKET_EDITOR", message);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+                Assert.AreEqual("nvim", startInfo.FileName);
+                Assert.IsFalse(startInfo.UseShellExecute);
+                Assert.Contains("+12", startInfo.ArgumentList);
+                Assert.Contains("src/app.cs", startInfo.ArgumentList);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+            }
         }
     }
 

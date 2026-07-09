@@ -72,7 +72,7 @@ internal static class PicketTuiApp
                 {
                     bindings.Key(Hex1bKey.J).Global().Action(context => MoveFindingFromUi(state, context.Invalidate, 1), "Next finding");
                     bindings.Key(Hex1bKey.K).Global().Action(context => MoveFindingFromUi(state, context.Invalidate, -1), "Previous finding");
-                    bindings.Key(Hex1bKey.O).Action(context => OpenFocusedFindingFromUi(state, context.Invalidate), "Open file");
+                    bindings.Key(Hex1bKey.O).Action(context => OpenFocusedFindingFromUi(state, context), "Open file");
                 }
 
                 if (state.CurrentView == PicketTuiView.Rules)
@@ -83,7 +83,7 @@ internal static class PicketTuiApp
                 if (state.CurrentView == PicketTuiView.Files)
                 {
                     bindings.Key(Hex1bKey.F).Action(context => FilterFileFromUi(state, context.Invalidate), "Filter findings to file");
-                    bindings.Key(Hex1bKey.O).Action(context => OpenFocusedFileFromUi(state, context.Invalidate), "Open file");
+                    bindings.Key(Hex1bKey.O).Action(context => OpenFocusedFileFromUi(state, context), "Open file");
                 }
 
                 bindings.Key(Hex1bKey.F5).Global().Action(_ => state.SetView(PicketTuiView.Scan), "Scan workspace");
@@ -1276,16 +1276,26 @@ internal static class PicketTuiApp
         invalidate();
     }
 
-    private static void OpenFocusedFindingFromUi(PicketTuiState state, Action invalidate)
+    private static void OpenFocusedFindingFromUi(PicketTuiState state, InputBindingActionContext context)
     {
-        state.OpenFocusedFindingFile();
-        invalidate();
+        if (state.RequestOpenFocusedFindingFile())
+        {
+            context.RequestStop();
+            return;
+        }
+
+        context.Invalidate();
     }
 
-    private static void OpenFocusedFileFromUi(PicketTuiState state, Action invalidate)
+    private static void OpenFocusedFileFromUi(PicketTuiState state, InputBindingActionContext context)
     {
-        state.OpenFocusedFile();
-        invalidate();
+        if (state.RequestOpenFocusedFile())
+        {
+            context.RequestStop();
+            return;
+        }
+
+        context.Invalidate();
     }
 
     private static void FilterRuleFromUi(PicketTuiState state, Action invalidate)

@@ -34,6 +34,7 @@ internal sealed class PicketTuiState
     private EditorState? _logsEditorState;
     private string? _logsEditorText;
     private long _yankGeneration;
+    private PicketTuiOpenFileRequest? _pendingOpenFileRequest;
     private CancellationTokenSource? _scanCancellation;
     private Task? _scanTask;
     private List<PicketTuiFindingRow>? _visibleRows;
@@ -201,6 +202,11 @@ internal sealed class PicketTuiState
     /// <param name="view">The view to display.</param>
     internal void SetView(PicketTuiView view)
     {
+        if (CurrentView != view)
+        {
+            ClearYankFlash();
+        }
+
         CurrentView = view;
     }
 
@@ -661,33 +667,54 @@ internal sealed class PicketTuiState
     }
 
     /// <summary>
-    /// Opens the focused finding's local file when it is present on disk.
+    /// Requests opening the focused finding's local file after the full-screen terminal has stopped.
     /// </summary>
-    internal void OpenFocusedFindingFile()
+    /// <returns><see langword="true" /> when a file-open request was queued.</returns>
+    internal bool RequestOpenFocusedFindingFile()
     {
         if (FocusedFinding is not { } row)
         {
             StatusMessage = "No finding selected";
-            return;
+            return false;
         }
 
-        _fileLauncher.TryOpen(row.Path, ParseLineNumber(row.Line), out string message);
-        StatusMessage = message;
+        _pendingOpenFileRequest = new PicketTuiOpenFileRequest(row.Path, ParseLineNumber(row.Line));
+        StatusMessage = string.Concat("Opening ", row.Path);
+        return true;
     }
 
     /// <summary>
-    /// Opens the focused file row when it is present on disk.
+    /// Requests opening the focused file row after the full-screen terminal has stopped.
     /// </summary>
-    internal void OpenFocusedFile()
+    /// <returns><see langword="true" /> when a file-open request was queued.</returns>
+    internal bool RequestOpenFocusedFile()
     {
         if (FocusedFileKey is null)
         {
             StatusMessage = "No file selected";
-            return;
+            return false;
         }
 
-        _fileLauncher.TryOpen(FocusedFileKey, null, out string message);
+        _pendingOpenFileRequest = new PicketTuiOpenFileRequest(FocusedFileKey, null);
+        StatusMessage = string.Concat("Opening ", FocusedFileKey);
+        return true;
+    }
+
+    /// <summary>
+    /// Opens and clears a queued file-open request.
+    /// </summary>
+    /// <returns><see langword="true" /> when a pending request was handled.</returns>
+    internal bool TryOpenPendingFile()
+    {
+        if (_pendingOpenFileRequest is not { } request)
+        {
+            return false;
+        }
+
+        _pendingOpenFileRequest = null;
+        _fileLauncher.TryOpen(request.Path, request.Line, out string message);
         StatusMessage = message;
+        return true;
     }
 
     /// <summary>
@@ -1307,5 +1334,13 @@ internal sealed class PicketTuiState
         _findingDetailsEditorText = null;
         _logsEditorState = null;
         _logsEditorText = null;
+    }
+
+    private void ClearYankFlash()
+    {
+        YankFlashRow = false;
+        DashboardYankProvider.HighlightRange = null;
+        FindingDetailsYankProvider.HighlightRange = null;
+        LogsYankProvider.HighlightRange = null;
     }
 }

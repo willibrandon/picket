@@ -17,9 +17,7 @@ internal static class PicketTuiRunner
     internal static async Task<int> RunAsync(string reportPath, CancellationToken cancellationToken = default)
     {
         PicketTuiState state = LoadState(reportPath);
-        await using Hex1bTerminal terminal = CreateTerminal(state);
-
-        return await terminal.RunAsync(cancellationToken).ConfigureAwait(false);
+        return await RunTerminalLoopAsync(state, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -31,9 +29,7 @@ internal static class PicketTuiRunner
     {
         PicketTuiState state = CreateScanWorkspaceState();
         state.SetView(PicketTuiView.Scan);
-        await using Hex1bTerminal terminal = CreateTerminal(state);
-
-        return await terminal.RunAsync(cancellationToken).ConfigureAwait(false);
+        return await RunTerminalLoopAsync(state, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -74,5 +70,22 @@ internal static class PicketTuiRunner
                 },
                 ctx => PicketTuiApp.Build(ctx, state))
             .Build();
+    }
+
+    private static async Task<int> RunTerminalLoopAsync(PicketTuiState state, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            int exitCode;
+            await using (Hex1bTerminal terminal = CreateTerminal(state))
+            {
+                exitCode = await terminal.RunAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!state.TryOpenPendingFile())
+            {
+                return exitCode;
+            }
+        }
     }
 }

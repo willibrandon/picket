@@ -22,17 +22,6 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
             return false;
         }
 
-        string? configuredEditor = GetConfiguredEditor();
-        if (!string.IsNullOrWhiteSpace(configuredEditor)
-            && IsTerminalEditorCommand(configuredEditor, out string editorName))
-        {
-            message = string.Concat(
-                "Cannot open terminal editor '",
-                editorName,
-                "' from the full-screen TUI. Set PICKET_EDITOR to a GUI editor such as 'code -g', or yank the path and open it in another shell.");
-            return false;
-        }
-
         ProcessStartInfo startInfo = CreateStartInfo(resolvedPath, line);
         try
         {
@@ -43,10 +32,27 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
                 return false;
             }
 
+            if (ShouldWaitForProcess(startInfo))
+            {
+                process.WaitForExit();
+                if (process.ExitCode != 0)
+                {
+                    message = string.Concat(
+                        "Editor exited with code ",
+                        process.ExitCode.ToString(CultureInfo.InvariantCulture));
+                    return false;
+                }
+            }
+
             message = line.HasValue
                 ? string.Concat("Opened ", path, " at line ", line.GetValueOrDefault().ToString(CultureInfo.InvariantCulture))
                 : string.Concat("Opened ", path);
             return true;
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 2)
+        {
+            message = string.Concat("Unable to open file: command not found: ", startInfo.FileName);
+            return false;
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)
         {
@@ -268,16 +274,19 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
             || string.Equals(value, "vi", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsTerminalEditorCommand(string editorCommand, out string editorName)
+    private static bool ShouldWaitForProcess(ProcessStartInfo startInfo)
     {
-        List<string> parts = SplitCommandLine(editorCommand);
-        if (parts.Count == 0)
+        if (startInfo.UseShellExecute)
         {
-            editorName = string.Empty;
             return false;
         }
 
-        editorName = Path.GetFileNameWithoutExtension(parts[0]);
+        string editorName = Path.GetFileNameWithoutExtension(startInfo.FileName);
+        return IsTerminalEditorName(editorName);
+    }
+
+    private static bool IsTerminalEditorName(string editorName)
+    {
         return IsVimEditor(editorName)
             || string.Equals(editorName, "nano", StringComparison.OrdinalIgnoreCase)
             || string.Equals(editorName, "micro", StringComparison.OrdinalIgnoreCase)
