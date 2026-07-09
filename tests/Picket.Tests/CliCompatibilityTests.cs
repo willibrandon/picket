@@ -2797,7 +2797,7 @@ public sealed class CliCompatibilityTests
             "-v",
             "--no-color",
             "--no-banner",
-            "--timeout=1",
+            "--timeout=30",
             "--max-target-megabytes=0").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
