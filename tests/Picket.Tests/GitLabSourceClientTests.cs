@@ -168,6 +168,44 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitLab repository tree enumeration retries one bounded rate-limit response.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRetriesRateLimitedTreeRequests()
+    {
+        var warnings = new List<string>();
+        int treeAttempts = 0;
+        var handler = new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/projects/willibrandon%2Fpicket/repository/tree?", StringComparison.Ordinal))
+            {
+                treeAttempts++;
+                return treeAttempts == 1
+                    ? RetryAfterResponse()
+                    : JsonResponse("[]");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var httpClient = new HttpClient(handler);
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            "main",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.IsEmpty(warnings);
+        Assert.AreEqual(2, treeAttempts);
+        Assert.AreEqual(2, handler.RequestCount);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration reads the project tree and downloads raw blob content.
     /// </summary>
     [TestMethod]
@@ -981,6 +1019,13 @@ public sealed class GitLabSourceClientTests
                 Location = new Uri(location, UriKind.Absolute),
             },
         };
+    }
+
+    private static HttpResponseMessage RetryAfterResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+        return response;
     }
 
     private static byte[] CreateZipBytes(string entryName, string entryContent)

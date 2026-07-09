@@ -1,6 +1,7 @@
 using Picket.Sources;
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace Picket.Tests;
@@ -109,6 +110,44 @@ public sealed class BitbucketSourceClientTests
             includeSnippets: true));
 
         Assert.Contains("cannot combine project-scoped repository scans with snippet enumeration", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket directory enumeration retries one bounded rate-limit response.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRetriesRateLimitedDirectoryRequests()
+    {
+        var warnings = new List<string>();
+        int directoryAttempts = 0;
+        var handler = new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repositories/willibrandon/picket/src/main/?", StringComparison.Ordinal))
+            {
+                directoryAttempts++;
+                return directoryAttempts == 1
+                    ? RetryAfterResponse()
+                    : JsonResponse("""{"pagelen":100,"page":1,"size":0,"values":[]}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var httpClient = new HttpClient(handler);
+        var client = new BitbucketSourceClient(httpClient);
+        var options = new BitbucketSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "bitbucket-test-token",
+            gitRef: "main",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.IsEmpty(warnings);
+        Assert.AreEqual(2, directoryAttempts);
+        Assert.AreEqual(2, handler.RequestCount);
     }
 
     /// <summary>
@@ -707,6 +746,13 @@ public sealed class BitbucketSourceClientTests
                 Location = new Uri(location, UriKind.Absolute),
             },
         };
+    }
+
+    private static HttpResponseMessage RetryAfterResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+        return response;
     }
 
     private static byte[] CreateZipBytes(string entryName, string entryContent)

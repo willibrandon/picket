@@ -1,6 +1,7 @@
 using Picket.Sources;
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace Picket.Tests;
@@ -109,6 +110,49 @@ public sealed class GiteaSourceClientTests
             issueState: "triaged"));
 
         Assert.Contains("open, closed, or all", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that Gitea repository tree enumeration retries one bounded rate-limit response.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRetriesRateLimitedTreeRequests()
+    {
+        var warnings = new List<string>();
+        int treeAttempts = 0;
+        var handler = new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/main?", StringComparison.Ordinal))
+            {
+                treeAttempts++;
+                return treeAttempts == 1
+                    ? RetryAfterResponse()
+                    : JsonResponse("""{"tree":[],"truncated":false,"page":1,"total_count":0}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var httpClient = new HttpClient(handler);
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitea-test-token",
+            "main",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.IsEmpty(warnings);
+        Assert.AreEqual(2, treeAttempts);
+        Assert.AreEqual(3, handler.RequestCount);
     }
 
     /// <summary>
@@ -1014,6 +1058,13 @@ public sealed class GiteaSourceClientTests
                 Location = new Uri(location, UriKind.Absolute),
             },
         };
+    }
+
+    private static HttpResponseMessage RetryAfterResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+        return response;
     }
 
     private static byte[] CreateZipBytes(string entryName, string entryContent)
