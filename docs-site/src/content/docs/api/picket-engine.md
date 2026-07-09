@@ -131,7 +131,8 @@ ScanRequest(
     long? maxTargetBytes,
     string symlinkFile,
     bool enableCSharpStringConcatenation,
-    Func<bool> isCancellationRequested
+    Func<bool> isCancellationRequested,
+    CancellationToken cancellationToken
 )
 ```
 
@@ -150,7 +151,8 @@ ScanRequest(
     long? maxTargetBytes,
     string symlinkFile,
     bool enableCSharpStringConcatenation,
-    Func<bool> isCancellationRequested
+    Func<bool> isCancellationRequested,
+    CancellationToken cancellationToken
 )
 ```
 
@@ -159,6 +161,7 @@ Initializes a new scan request and compiles the supplied source rules.
 
 ### Properties
 
+- `CancellationToken` - Gets the cancellation token that stops scanning when cancellation is requested.
 - `Commit` - Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string.
 - `EnableCSharpStringConcatenation` - Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
 - `FileName` - Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
