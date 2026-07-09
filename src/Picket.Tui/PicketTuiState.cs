@@ -485,9 +485,6 @@ internal sealed class PicketTuiState
         LogSearchText = searchText;
         _logsEditorState = null;
         _logsEditorText = null;
-        StatusMessage = searchText.Length == 0
-            ? "Log search cleared"
-            : string.Concat("Log search: ", searchText);
     }
 
     /// <summary>

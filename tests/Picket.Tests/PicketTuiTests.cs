@@ -291,10 +291,13 @@ public sealed class PicketTuiTests
 
         await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
         state.SetView(PicketTuiView.Logs);
+        string status = state.StatusMessage;
         state.SetLogSearchText("finding");
 
         string text = state.GetYankText();
 
+        Assert.AreEqual(status, state.StatusMessage);
+        Assert.DoesNotContain("Log search:", text);
         Assert.Contains("Scanner output matching \"finding\"", text);
         Assert.Contains("stderr: 1 finding", text);
         Assert.DoesNotContain("enumerated 1 file", text);
