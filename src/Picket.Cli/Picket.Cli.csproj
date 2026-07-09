@@ -6,6 +6,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>picket</ToolCommandName>
     <ToolPackageRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64</ToolPackageRuntimeIdentifiers>
+    <RuntimeIdentifiers>$(ToolPackageRuntimeIdentifiers)</RuntimeIdentifiers>
     <PackageId>Picket</PackageId>
     <Description>Gitleaks-compatible secrets scanner for .NET with Picket-native validation, reports, source enumeration, and Native AOT release binaries.</Description>
     <PackageTags>$(PackageTags);cli;tool;devsecops;sarif</PackageTags>
