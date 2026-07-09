@@ -511,6 +511,98 @@ jobs:
             ${{ runner.temp }}/picket-release-assets/*.msi.sha256
           if-no-files-found: error
 
+  build-azure-devops-extension:
+    name: Build Azure DevOps VSIX
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v6.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: azure-devops/package-lock.json
+
+      - name: Install Azure DevOps packaging dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: azure-devops
+
+      - name: Test Azure DevOps task
+        run: node --test azure-devops/tasks/PicketScanV1/index.test.js
+
+      - name: Build Azure DevOps VSIX
+        id: vsix
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid extension version."
+          }
+
+          if ($version.Contains('-', [StringComparison]::Ordinal)) {
+            Write-Host "Skipping Azure DevOps VSIX for prerelease tag $env:RELEASE_TAG because extension manifest versions do not support prerelease labels."
+            "created=false" >> $env:GITHUB_OUTPUT
+            return
+          }
+
+          $staging = Join-Path $env:RUNNER_TEMP 'picket-release-assets'
+          $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-azure-devops-vsix'
+          New-Item -ItemType Directory -Force -Path $staging, $packageOutput | Out-Null
+
+          Push-Location azure-devops
+          try {
+            $override = @{ version = $version } | ConvertTo-Json -Compress
+            npm exec -- tfx extension create --manifest-globs vss-extension.json --output-path $packageOutput --rev-version false --override $override --no-color
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Azure DevOps VSIX packaging failed.'
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+          $vsix = Get-ChildItem -LiteralPath $packageOutput -Filter '*.vsix' -File | Select-Object -First 1
+          if ($null -eq $vsix) {
+            throw 'Azure DevOps VSIX package was not produced.'
+          }
+
+          $vsixName = "picket-$env:RELEASE_TAG-azure-devops.vsix"
+          $vsixPath = Join-Path $staging $vsixName
+          Copy-Item -LiteralPath $vsix.FullName -Destination $vsixPath -Force
+
+          $hash = (Get-FileHash -LiteralPath $vsixPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath "$vsixPath.sha256" -Encoding utf8NoBOM -Value "$hash  $vsixName"
+          "created=true" >> $env:GITHUB_OUTPUT
+
+      - name: Generate Azure DevOps VSIX artifact attestation
+        if: steps.vsix.outputs.created == 'true'
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/picket-release-assets/*.vsix
+
+      - name: Upload Azure DevOps VSIX release assets
+        if: steps.vsix.outputs.created == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-azure-devops-vsix
+          path: |
+            ${{ runner.temp }}/picket-release-assets/*.vsix
+            ${{ runner.temp }}/picket-release-assets/*.vsix.sha256
+          if-no-files-found: error
+
   publish-container:
     name: Publish container image
     needs: validate
@@ -587,6 +679,7 @@ jobs:
     needs:
       - build-binaries
       - build-packages
+      - build-azure-devops-extension
       - build-msi
       - publish-nuget
       - publish-container

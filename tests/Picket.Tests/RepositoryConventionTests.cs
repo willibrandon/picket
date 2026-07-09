@@ -507,6 +507,10 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("npx --yes", ci);
         Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", ci);
         Assert.Contains("npm exec -- tfx extension create", ci);
+        Assert.DoesNotContain("npx --yes", release);
+        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", release);
+        Assert.Contains("npm exec -- tfx extension create", release);
+        Assert.Contains("cache-dependency-path: azure-devops/package-lock.json", release);
         Assert.Contains("\"lockfileVersion\": 3", azureDevOpsLock);
         Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
     }
@@ -729,6 +733,16 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
         Assert.Contains("-p:IncludeSymbols=false", workflow);
         Assert.Contains("publish-nuget", workflow);
+        Assert.Contains("build-azure-devops-extension:", workflow);
+        Assert.Contains("Build Azure DevOps VSIX", workflow);
+        Assert.Contains("cache-dependency-path: azure-devops/package-lock.json", workflow);
+        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", workflow);
+        Assert.Contains("node --test azure-devops/tasks/PicketScanV1/index.test.js", workflow);
+        Assert.Contains("npm exec -- tfx extension create", workflow);
+        Assert.Contains("--override $override", workflow);
+        Assert.Contains("picket-$env:RELEASE_TAG-azure-devops.vsix", workflow);
+        Assert.Contains("extension manifest versions do not support prerelease labels", workflow);
+        Assert.Contains("release-azure-devops-vsix", workflow);
         Assert.Contains("build-msi:", workflow);
         Assert.Contains("Build Windows MSI installers", workflow);
         Assert.Contains("dotnet tool install --tool-path (Join-Path $env:RUNNER_TEMP 'wix') wix --version 6.0.2", workflow);
@@ -739,6 +753,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("if: steps.msi.outputs.created == 'true'", workflow);
         Assert.Contains("release-msi", workflow);
         Assert.Contains("picket-release-assets/*.msi", workflow);
+        Assert.Contains("- build-azure-devops-extension", workflow);
         Assert.Contains("- build-msi", workflow);
         Assert.Contains("NUGET_API_KEY", workflow);
         Assert.Contains("dotnet nuget push", workflow);
@@ -753,6 +768,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("SHA-256 checksums", documentation);
         Assert.Contains("GitHub artifact attestations", documentation);
         Assert.Contains("Homebrew, Scoop, and WinGet manifests", documentation);
+        Assert.Contains("picket-<tag>-azure-devops.vsix", documentation);
+        Assert.Contains("Publishing to the Azure DevOps Marketplace remains an explicit release step", documentation);
         Assert.Contains("Windows MSI Installers", documentation);
         Assert.Contains("picket-<tag>-win-x64.msi", documentation);
         Assert.Contains("picket-<tag>-win-arm64.msi", documentation);
@@ -1101,6 +1118,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PicketScan@1", marketplaces);
         Assert.Contains("checksums", marketplaces);
         Assert.Contains("attestations", marketplaces);
+        Assert.Contains("Release automation packages the VSIX", marketplaces);
+        Assert.Contains("Publish the Azure DevOps extension from the attested VSIX", marketplaces);
         Assert.Contains("Rollback", marketplaces);
         Assert.Contains("AZURE_DEVOPS_MARKETPLACE_PAT", marketplaces);
         Assert.Contains("PICKET_GITHUB_SECRET_SCANNING_PAT", marketplaces);

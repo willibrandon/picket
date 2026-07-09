@@ -45,7 +45,7 @@ The listing should describe the scanner in terms of local-first secrets scanning
 
 The Azure DevOps Marketplace extension packages the `PicketScan@1` task and the documentation needed for pipeline authors to use it safely.
 
-The initial extension scaffold lives under `azure-devops/`: `azure-devops/vss-extension.json` declares the marketplace contribution and `azure-devops/tasks/PicketScanV1/task.json` declares the task inputs, outputs, and Node handler. Publishing remains a release-phase step until VSIX validation and hosted-agent smoke tests are wired into release automation.
+The extension scaffold lives under `azure-devops/`: `azure-devops/vss-extension.json` declares the marketplace contribution and `azure-devops/tasks/PicketScanV1/task.json` declares the task inputs, outputs, and Node handler. Release automation packages the VSIX, applies the stable release version, writes a SHA-256 sidecar, and attests the artifact before the GitHub Release is created or updated. Publishing remains an explicit release-phase step after the package and smoke tests are reviewed.
 
 Package contents:
 
@@ -74,18 +74,18 @@ Release requirements:
 
 ## Release Flow
 
-Marketplace publishing happens after the scanner release artifacts are built and verified:
+Marketplace packaging happens while the scanner release artifacts are built and verified:
 
 1. Build and test the repository.
 2. Run docs generation and stale-doc checks.
 3. Publish Native AOT binary artifacts for supported RIDs.
-4. Pack and publish the NuGet library and dotnet tool packages.
-5. Write per-asset checksums and aggregate checksums.
-6. Create artifact attestations where supported.
-7. Create or update the GitHub Release.
-8. Update the GitHub Action immutable and major tags after release validation.
-9. Validate the Azure DevOps VSIX package.
-10. Publish the Azure DevOps extension when task packaging is ready.
+4. Package the Azure DevOps VSIX for stable release tags.
+5. Pack and publish the NuGet library and dotnet tool packages.
+6. Write per-asset checksums and aggregate checksums.
+7. Create artifact attestations where supported.
+8. Create or update the GitHub Release.
+9. Update the GitHub Action immutable and major tags after release validation.
+10. Publish the Azure DevOps extension from the attested VSIX when marketplace release approval is given.
 
 ## Rollback
 
