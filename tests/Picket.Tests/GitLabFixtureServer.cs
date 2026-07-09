@@ -127,6 +127,26 @@ internal sealed class GitLabFixtureServer : IDisposable
             return;
         }
 
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/packages/generic/picket-cli/1.0.0/picket.zip", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", CreateZipBytes("pkg/secret.txt", _content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/packages/4/package_files?", StringComparison.Ordinal))
+        {
+            const string PackageFilesJson = """[{"id":25,"file_name":"picket.zip","size":128,"file_sha256":"abc"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PackageFilesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/packages?", StringComparison.Ordinal))
+        {
+            const string PackagesJson = """[{"id":4,"name":"picket-cli","version":"1.0.0","package_type":"generic"}]""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PackagesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/pipelines/123/jobs?", StringComparison.Ordinal))
         {
             const string JobsJson = """[{"id":99,"name":"build","artifacts_file":{"filename":"artifacts.zip","size":128}}]""";

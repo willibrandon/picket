@@ -72,6 +72,7 @@ internal static partial class Program
         string gitLabGroup = string.Empty;
         bool gitLabIncludeJobArtifacts = false;
         bool gitLabIncludeJobLogs = false;
+        bool gitLabIncludePackages = false;
         bool gitLabIncludeSubgroups = false;
         bool gitLabIncludeSnippets = false;
         bool gitLabOptionSpecified = false;
@@ -741,6 +742,21 @@ internal static partial class Program
                 }
 
                 if (gitLabIncludeJobLogs)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitLabIncludePackagesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-packages", out gitLabIncludePackages))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (gitLabIncludePackages)
                 {
                     gitLabOptionSpecified = true;
                 }
@@ -1464,6 +1480,7 @@ internal static partial class Program
                 gitLabIncludeSnippets,
                 gitLabIncludeJobArtifacts,
                 gitLabIncludeJobLogs,
+                gitLabIncludePackages,
                 gitLabTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

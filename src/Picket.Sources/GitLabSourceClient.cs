@@ -14,6 +14,8 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
 {
     private const int GroupProjectsPerPage = 100;
     private const int JobsPerPage = 100;
+    private const int PackageFilesPerPage = 100;
+    private const int PackagesPerPage = 100;
     private const int SnippetsPerPage = 100;
     private const int TreeEntriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
@@ -79,6 +81,11 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             if ((options.IncludeJobArtifacts || options.IncludeJobLogs) && !IsCancellationRequested(options))
             {
                 await AddProjectJobFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludePackages && !IsCancellationRequested(options))
+            {
+                await AddProjectPackageFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (RemoteMetadataTooLargeException)
@@ -226,7 +233,8 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
                 maxArchiveCompressionRatio: options.MaxArchiveCompressionRatio,
                 isPathAllowed: options.IsPathAllowed,
                 warningSink: options.WarningSink,
-                isCancellationRequested: options.IsCancellationRequested);
+                isCancellationRequested: options.IsCancellationRequested,
+                includePackages: options.IncludePackages);
             List<SourceFile> projectFiles = await EnumerateRepositoryFilesAsync(projectOptions, cancellationToken).ConfigureAwait(false);
             sourceFiles.AddRange(projectFiles);
         }
@@ -409,6 +417,143 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         if (content is not null)
         {
             AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
+        }
+    }
+
+    private async Task AddProjectPackageFilesAsync(
+        GitLabSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri packagesUri = CreatePackagesUri(options, page);
+            using HttpResponseMessage packagesResponse = await SendAsync(options, packagesUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!packagesResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, packagesResponse, $"skipping GitLab project {options.Project} generic packages");
+                return;
+            }
+
+            await AddPackageFilesAsync(options, packagesResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(packagesResponse, page, options.WarningSink, $"GitLab project {options.Project} generic package enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddPackageFilesAsync(
+        GitLabSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonInt64(item, "id", out long packageId)
+                || packageId <= 0
+                || !GetString(item, "package_type").Equals("generic", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string packageName = GetString(item, "name");
+            string packageVersion = GetString(item, "version");
+            if (packageName.Length == 0 || packageVersion.Length == 0)
+            {
+                continue;
+            }
+
+            await AddPackageFileEntriesAsync(options, packageId, packageName, packageVersion, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddPackageFileEntriesAsync(
+        GitLabSourceOptions options,
+        long packageId,
+        string packageName,
+        string packageVersion,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri packageFilesUri = CreatePackageFilesUri(options, packageId, page);
+            using HttpResponseMessage packageFilesResponse = await SendAsync(options, packageFilesUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!packageFilesResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, packageFilesResponse, $"skipping GitLab package {packageName} {packageVersion} files");
+                return;
+            }
+
+            await AddGenericPackageFileEntriesAsync(options, packageName, packageVersion, packageFilesResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(packageFilesResponse, page, options.WarningSink, $"GitLab package {packageName} {packageVersion} file enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddGenericPackageFileEntriesAsync(
+        GitLabSourceOptions options,
+        string packageName,
+        string packageVersion,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string fileName = GetString(item, "file_name");
+            if (fileName.Length == 0)
+            {
+                continue;
+            }
+
+            string displayPath = CreatePackageFileDisplayPath(options, packageName, packageVersion, fileName);
+            if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+            {
+                continue;
+            }
+
+            if (TryGetJsonInt64(item, "size", out long fileSize)
+                && fileSize > options.MaxFileBytes)
+            {
+                options.WarningSink?.Invoke($"GitLab file byte limit skipped {displayPath}");
+                continue;
+            }
+
+            Uri fileUri = CreateGenericPackageFileUri(options, packageName, packageVersion, fileName);
+            byte[]? content = await DownloadRawContentAsync(options, fileUri, displayPath, "GitLab package file", cancellationToken).ConfigureAwait(false);
+            if (content is not null)
+            {
+                AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
+            }
         }
     }
 
@@ -743,6 +888,41 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             ]);
     }
 
+    private static Uri CreatePackagesUri(GitLabSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "packages"],
+            [
+                new KeyValuePair<string, string>("package_type", "generic"),
+                new KeyValuePair<string, string>("per_page", PackagesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreatePackageFilesUri(GitLabSourceOptions options, long packageId, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "packages", packageId.ToString(CultureInfo.InvariantCulture), "package_files"],
+            [
+                new KeyValuePair<string, string>("per_page", PackageFilesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateGenericPackageFileUri(
+        GitLabSourceOptions options,
+        string packageName,
+        string packageVersion,
+        string fileName)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "packages", "generic", packageName, packageVersion, fileName],
+            []);
+    }
+
     private static string CreateJobsWarningTarget(GitLabSourceOptions options)
     {
         return options.PipelineId == 0
@@ -1019,6 +1199,23 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             "/",
             jobId.ToString(CultureInfo.InvariantCulture),
             "-",
+            NormalizeRemoteItemPath(fileName));
+    }
+
+    private static string CreatePackageFileDisplayPath(
+        GitLabSourceOptions options,
+        string packageName,
+        string packageVersion,
+        string fileName)
+    {
+        return string.Concat(
+            "gitlab-package/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            NormalizeRemoteItemPath(packageName),
+            "/",
+            NormalizeRemoteItemPath(packageVersion),
+            "/",
             NormalizeRemoteItemPath(fileName));
     }
 

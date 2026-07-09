@@ -82,6 +82,22 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitLab source options reject ambiguous merge request and package file scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitLabSourceOptionsRejectsMergeRequestAndPackages()
+    {
+        ArgumentException ex = Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            mergeRequestIid: 42,
+            includePackages: true));
+
+        Assert.Contains("cannot combine merge request scans with package file enumeration", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that GitLab source options reject pipeline-scoped job enumeration without a job source.
     /// </summary>
     [TestMethod]
@@ -641,6 +657,80 @@ public sealed class GitLabSourceClientTests
         Assert.DoesNotContain("/projects/willibrandon%2Fpicket/jobs?per_page", requests);
         Assert.Contains("/projects/willibrandon%2Fpicket/jobs/99/trace", requests);
         Assert.Contains("/projects/willibrandon%2Fpicket/jobs/99/artifacts", requests);
+        Assert.Contains("PRIVATE-TOKEN", string.Join('\n', privateTokens));
+        Assert.Contains("gitlab-test-token", string.Join('\n', privateTokens));
+        Assert.DoesNotContain("Bearer", string.Join('\n', authorizationHeaders));
+        Assert.Contains("application/octet-stream", string.Join('\n', acceptHeaders));
+        Assert.DoesNotContain(Token, requests);
+    }
+
+    /// <summary>
+    /// Verifies that package enumeration lists generic package files and expands archive content.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesIncludesGenericPackages()
+    {
+        const string Token = "gitlab-test-token";
+        var urls = new List<string>();
+        var privateTokens = new List<string>();
+        var authorizationHeaders = new List<string>();
+        var acceptHeaders = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            CaptureRequest(request, urls, privateTokens, authorizationHeaders, acceptHeaders);
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/projects/willibrandon%2Fpicket/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/packages/4/package_files?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "id": 25, "file_name": "picket.zip", "size": 128, "file_sha256": "abc" }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/packages/generic/picket-cli/1.0.0/picket.zip", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("pkg/secret.txt", "package-token-12345"));
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket/packages?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      { "id": 4, "name": "picket-cli", "version": "1.0.0", "package_type": "generic" },
+                      { "id": 5, "name": "ignored", "version": "1.0.0", "package_type": "maven" }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includePackages: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitlab-package/willibrandon/picket/picket-cli/1.0.0/picket.zip!pkg/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("package-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("/projects/willibrandon%2Fpicket/packages?", requests);
+        Assert.Contains("package_type=generic", requests);
+        Assert.Contains("per_page=100", requests);
+        Assert.Contains("page=1", requests);
+        Assert.Contains("/projects/willibrandon%2Fpicket/packages/4/package_files?", requests);
+        Assert.Contains("/projects/willibrandon%2Fpicket/packages/generic/picket-cli/1.0.0/picket.zip", requests);
         Assert.Contains("PRIVATE-TOKEN", string.Join('\n', privateTokens));
         Assert.Contains("gitlab-test-token", string.Join('\n', privateTokens));
         Assert.DoesNotContain("Bearer", string.Join('\n', authorizationHeaders));

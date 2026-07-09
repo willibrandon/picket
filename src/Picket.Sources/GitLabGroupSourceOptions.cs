@@ -19,6 +19,7 @@ namespace Picket.Sources;
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
+/// <param name="includePackages">A value indicating whether GitLab generic package files should be scanned for each group project.</param>
 public sealed class GitLabGroupSourceOptions(
     Uri endpoint,
     string group,
@@ -35,7 +36,8 @@ public sealed class GitLabGroupSourceOptions(
     int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    bool includePackages = false)
 {
     private readonly string _credential = GitLabSourceOptions.RequireCredential(credential);
 
@@ -73,6 +75,11 @@ public sealed class GitLabGroupSourceOptions(
     /// Gets a value indicating whether GitLab job trace logs should be scanned for each group project.
     /// </summary>
     public bool IncludeJobLogs { get; } = includeJobLogs;
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab generic package files should be scanned for each group project.
+    /// </summary>
+    public bool IncludePackages { get; } = includePackages;
 
     /// <summary>
     /// Gets the maximum file content bytes to download.

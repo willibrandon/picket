@@ -212,7 +212,7 @@ Native GitHub repository, pull request, issue, issue comment, release, release a
 
 ## GitLab Source References
 
-Native GitLab group project, project repository, merge request source, project snippet, pipeline job, job trace, and job artifact enumeration is based on GitLab REST API documentation reviewed on 2026-07-09:
+Native GitLab group project, project repository, merge request source, project snippet, pipeline job, job trace, job artifact, and generic package file enumeration is based on GitLab REST API documentation reviewed on 2026-07-09:
 
 - GitLab repositories API: `https://docs.gitlab.com/api/repositories/`
 - GitLab groups API: `https://docs.gitlab.com/api/groups/`
@@ -221,6 +221,8 @@ Native GitLab group project, project repository, merge request source, project s
 - GitLab project snippets API: `https://docs.gitlab.com/api/project_snippets/`
 - GitLab jobs API: `https://docs.gitlab.com/api/jobs/`
 - GitLab job artifacts API: `https://docs.gitlab.com/api/job_artifacts/`
+- GitLab packages API: `https://docs.gitlab.com/api/packages/`
+- GitLab generic packages repository: `https://docs.gitlab.com/user/packages/generic_packages/`
 - GitLab repository files API: `https://docs.gitlab.com/api/repository_files/`
 - GitLab REST pagination: `https://docs.gitlab.com/api/rest/#pagination`
 

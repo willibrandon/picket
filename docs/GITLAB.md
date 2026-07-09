@@ -1,6 +1,6 @@
 # GitLab
 
-Picket can scan GitLab project repository files, group project repositories, merge request source heads, project snippets, pipeline-scoped job trace logs, pipeline-scoped job artifact archives, project job trace logs, and project job artifact archives through native source enumeration for `picket scan`.
+Picket can scan GitLab project repository files, group project repositories, merge request source heads, project snippets, pipeline-scoped job trace logs, pipeline-scoped job artifact archives, project job trace logs, project job artifact archives, and generic package files through native source enumeration for `picket scan`.
 
 This is opt-in native source behavior. Workspace scans remain the default because they are deterministic and use normal checkout permissions. Strict Gitleaks-compatible commands are unchanged.
 
@@ -58,6 +58,14 @@ picket scan --gitlab-project willibrandon/picket --gitlab-pipeline-id 123 --gitl
 
 Pipeline-scoped job scans require `--gitlab-project` and at least one of `--gitlab-include-job-logs` or `--gitlab-include-job-artifacts`.
 
+Generic package file scans are explicit:
+
+```powershell
+picket scan --gitlab-project willibrandon/picket --gitlab-include-packages --gitlab-token-env PICKET_GITLAB_SOURCE_TOKEN --report-format jsonl
+```
+
+Package scanning lists GitLab packages with `package_type=generic`, lists each package's files, downloads each file through the generic package registry endpoint, and expands archive package files through Picket's archive limits. It is additive to project and group repository scans. It cannot be combined with `--gitlab-merge-request`.
+
 The project selector accepts a namespace path, numeric project ID, or project URL:
 
 ```powershell
@@ -77,6 +85,7 @@ The token is read from an environment variable and is never passed as a command-
 | `--gitlab-include-snippets` | Include project snippets. |
 | `--gitlab-include-job-artifacts` | Include GitLab job artifact archives. |
 | `--gitlab-include-job-logs` | Include GitLab job trace logs. |
+| `--gitlab-include-packages` | Include GitLab generic package files. |
 | `--gitlab-token-env` | Environment variable containing the GitLab token. |
 | `--gitlab-api-endpoint` | GitLab API endpoint used for repository enumeration. Defaults to `https://gitlab.com/api/v4/`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-managed GitLab. |
@@ -94,6 +103,7 @@ The token is read from an environment variable and is never passed as a command-
 | Project snippets | Lists project snippets with `per_page=100` and downloads raw snippet content through the project snippets API. |
 | Project jobs | Lists project jobs with `per_page=100`. When requested, downloads job trace logs and artifact archives by job ID. |
 | Pipeline jobs | Lists jobs for one project pipeline with `per_page=100`. When requested, downloads job trace logs and artifact archives by job ID. |
+| Generic package files | Lists project packages with `package_type=generic` and `per_page=100`, lists package files for each package, and downloads each file through the generic package registry route. |
 
 ## Pagination And Limits
 
@@ -103,23 +113,21 @@ Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes` over
 
 Provider metadata JSON responses are separately capped at 10 decimal MB and skipped with a warning when the cap is exceeded, including responses without a reliable `Content-Length`.
 
-Oversized tree entries are skipped before download when GitLab returns a size.
+Oversized tree entries, job artifacts, and package files are skipped before download when GitLab returns a size.
 
-Job artifact archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, and `--max-archive-ratio`. Archive entries also obey `--max-target-megabytes`.
+Job artifact and generic package archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, and `--max-archive-ratio`. Archive entries also obey `--max-target-megabytes`.
 
 ## Redirect And Credential Safety
 
 Endpoint safety checks run before the first request.
 
-Redirects are disabled before credentials are sent, and responses from injected HTTP handlers that already followed a redirect are rejected instead of scanned. GitLab artifact downloads may return signed HTTPS redirects; Picket follows those redirects without forwarding the `PRIVATE-TOKEN` header and keeps connect-time endpoint guarding active.
+Redirects are disabled before credentials are sent, and responses from injected HTTP handlers that already followed a redirect are rejected instead of scanned. GitLab artifact and package downloads may return signed HTTPS redirects; Picket follows those redirects without forwarding the `PRIVATE-TOKEN` header and keeps connect-time endpoint guarding active.
 
 Picket sends the configured token as a `PRIVATE-TOKEN` header. It does not send the token as a query string or print it in diagnostics.
 
 ## Permissions
 
-Use the narrowest project or group selection possible. Repository file scanning needs read-only access to project metadata, repository tree entries, and raw repository file content for the selected project. Group scanning also needs read access to the group project listing and to each selected project repository. Merge request scanning needs read access to merge request metadata and the source project when the merge request originates from a fork. Snippet scanning needs read access to project snippets and raw snippet content. Job log and artifact scanning needs read access to project pipeline metadata when `--gitlab-pipeline-id` is used, project job metadata, traces, and job artifact archives. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not needed for source enumeration.
-
-Package sources remain a separate planned source selector. They should stay explicit opt-ins because they have different pagination, credential, redirect, retention, and redaction behavior.
+Use the narrowest project or group selection possible. Repository file scanning needs read-only access to project metadata, repository tree entries, and raw repository file content for the selected project. Group scanning also needs read access to the group project listing and to each selected project repository. Merge request scanning needs read access to merge request metadata and the source project when the merge request originates from a fork. Snippet scanning needs read access to project snippets and raw snippet content. Job log and artifact scanning needs read access to project pipeline metadata when `--gitlab-pipeline-id` is used, project job metadata, traces, and job artifact archives. Generic package scanning needs read access to package metadata, package file metadata, and package file downloads. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not needed for source enumeration.
 
 ## References
 
@@ -130,5 +138,7 @@ Package sources remain a separate planned source selector. They should stay expl
 - GitLab project snippets API: `https://docs.gitlab.com/api/project_snippets/`
 - GitLab jobs API: `https://docs.gitlab.com/api/jobs/`
 - GitLab job artifacts API: `https://docs.gitlab.com/api/job_artifacts/`
+- GitLab packages API: `https://docs.gitlab.com/api/packages/`
+- GitLab generic packages repository: `https://docs.gitlab.com/user/packages/generic_packages/`
 - GitLab repository files API: `https://docs.gitlab.com/api/repository_files/`
 - GitLab REST pagination: `https://docs.gitlab.com/api/rest/#pagination`

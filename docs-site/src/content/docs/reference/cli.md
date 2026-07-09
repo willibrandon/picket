@@ -502,6 +502,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Include GitLab job trace logs in native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitlab-include-packages</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include GitLab generic package files in native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitlab-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

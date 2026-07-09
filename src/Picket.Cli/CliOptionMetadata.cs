@@ -123,6 +123,7 @@ internal static class CliOptionMetadata
             "--gitlab-group" => "Scan projects in this GitLab group through native source enumeration.",
             "--gitlab-include-job-artifacts" => "Include GitLab job artifact archives in native source enumeration.",
             "--gitlab-include-job-logs" => "Include GitLab job trace logs in native source enumeration.",
+            "--gitlab-include-packages" => "Include GitLab generic package files in native source enumeration.",
             "--gitlab-include-subgroups" => "Include projects from GitLab subgroups when scanning a group.",
             "--gitlab-include-snippets" => "Include GitLab project snippets in native source enumeration.",
             "--gitlab-merge-request" => "Scan this GitLab merge request source head.",

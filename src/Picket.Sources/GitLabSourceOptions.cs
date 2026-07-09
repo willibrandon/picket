@@ -20,6 +20,7 @@ namespace Picket.Sources;
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a global path allowlist should skip the path.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
+/// <param name="includePackages">A value indicating whether GitLab generic package files should be scanned.</param>
 public sealed class GitLabSourceOptions(
     Uri endpoint,
     string project,
@@ -37,7 +38,8 @@ public sealed class GitLabSourceOptions(
     int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    bool includePackages = false)
 {
     internal const long DefaultMaxFileBytes = 100_000_000;
     private readonly string _credential = RequireCredential(credential);
@@ -81,6 +83,11 @@ public sealed class GitLabSourceOptions(
     /// Gets a value indicating whether GitLab job trace logs should be scanned.
     /// </summary>
     public bool IncludeJobLogs { get; } = RequireIncludeJobLogs(includeJobLogs, mergeRequestIid);
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab generic package files should be scanned.
+    /// </summary>
+    public bool IncludePackages { get; } = RequireIncludePackages(includePackages, mergeRequestIid);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -249,6 +256,16 @@ public sealed class GitLabSourceOptions(
         if (value && mergeRequestIid != 0)
         {
             throw new ArgumentException("GitLab source options cannot combine merge request scans with job log enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static bool RequireIncludePackages(bool value, int mergeRequestIid)
+    {
+        if (value && mergeRequestIid != 0)
+        {
+            throw new ArgumentException("GitLab source options cannot combine merge request scans with package file enumeration.", nameof(value));
         }
 
         return value;

@@ -563,6 +563,7 @@ internal static partial class Program
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-snippets"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-job-artifacts"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-job-logs"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-packages"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-api-endpoint", "uri"));
     }

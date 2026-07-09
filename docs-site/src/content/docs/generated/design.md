@@ -792,6 +792,7 @@ Implemented GitLab entry points:
 | Project job logs | `--gitlab-project`, `--gitlab-include-job-logs` | Lists project jobs with `per_page=100` and downloads selected job trace logs through the Jobs API. Job logs are additive to project and group repository scans and cannot be combined with merge request source-head scans. |
 | Project job artifacts | `--gitlab-project`, `--gitlab-include-job-artifacts` | Lists project jobs with `per_page=100`, downloads jobs that advertise an artifact archive, and expands archive entries through Picket archive limits. Job artifacts are additive to project and group repository scans and cannot be combined with merge request source-head scans. |
 | Pipeline job logs and artifacts | `--gitlab-project`, `--gitlab-pipeline-id`, `--gitlab-include-job-logs`, `--gitlab-include-job-artifacts` | Lists jobs through the selected pipeline's jobs API and downloads trace logs or artifact archives for that pipeline only. Pipeline-scoped scans are project-scoped and cannot be combined with group or merge request scans. |
+| Generic package files | `--gitlab-project` or `--gitlab-group`, `--gitlab-include-packages` | Lists generic packages with `package_type=generic`, lists each package's files, downloads each package file through the generic package registry endpoint, and expands archive files through Picket archive limits. Package files are additive to project and group repository scans and cannot be combined with merge request source-head scans. |
 
 GitLab API flow:
 
@@ -805,6 +806,7 @@ GitLab API flow:
 | Project snippets | Lists project snippets with page-based pagination and downloads raw snippet content through the project snippets API. |
 | Project jobs | Lists project jobs with `per_page=100`, follows GitLab REST pagination, and downloads trace logs or job artifact archives only when their explicit flags are set. |
 | Pipeline jobs | Lists jobs for one project pipeline with `per_page=100`, follows GitLab REST pagination, and downloads trace logs or job artifact archives only when their explicit flags are set. |
+| Generic package files | Lists project packages with `package_type=generic` and `per_page=100`, lists package files through the packages API, then downloads each file through the generic package registry route documented by GitLab. |
 
 GitLab source safety rules:
 
@@ -818,11 +820,11 @@ GitLab source safety rules:
 - A positive `--max-target-megabytes` value overrides the default remote cap.
 - Zero keeps its local-scan compatibility meaning, but remote GitLab sources reject zero because remote HTTP bodies are always bounded.
 - Oversized tree entries are skipped before download when GitLab returns a size.
-- GitLab job artifact downloads may redirect to signed HTTPS locations. Picket follows those redirects without forwarding the `PRIVATE-TOKEN` header and still uses connect-time endpoint guarding.
-- GitLab job artifact archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
-- Package sources remain planned explicit source selectors.
+- Oversized tree entries, job artifacts, and package files are skipped before download when GitLab returns a size.
+- GitLab job artifact and generic package file downloads may redirect to signed HTTPS locations. Picket follows those redirects without forwarding the `PRIVATE-TOKEN` header and still uses connect-time endpoint guarding.
+- GitLab job artifact and generic package archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
 
-GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, project snippet, project job, pipeline job, job trace, and initial job artifact requests. Least-privilege group project, project repository, merge request, snippet, pipeline, and job enumeration requires read-only repository/API access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
+GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, project snippet, project job, pipeline job, job trace, initial job artifact, package-list, package-file-list, and initial generic package file requests. Least-privilege group project, project repository, merge request, snippet, pipeline, job, and generic package file enumeration requires read-only repository/API and package-registry access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
 
 Gitea source support is native Picket behavior, not Gitleaks compatibility behavior.
 

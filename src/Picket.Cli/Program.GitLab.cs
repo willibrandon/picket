@@ -60,6 +60,12 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-include-job-logs=", StringComparison.Ordinal);
     }
 
+    static bool IsGitLabIncludePackagesFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-packages", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-packages=", StringComparison.Ordinal);
+    }
+
     static bool IsGitLabTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitlab-token-env", StringComparison.Ordinal)
@@ -115,6 +121,7 @@ internal static partial class Program
         bool includeSnippets,
         bool includeJobArtifacts,
         bool includeJobLogs,
+        bool includePackages,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -179,7 +186,8 @@ internal static partial class Program
                     includeSubgroups,
                     includeSnippets,
                     includeJobArtifacts,
-                    includeJobLogs);
+                    includeJobLogs,
+                    includePackages: includePackages);
                 sourceEndpoint = validatedGroupOptions.Endpoint;
                 group = validatedGroupOptions.Group;
                 gitRef = validatedGroupOptions.Ref;
@@ -187,6 +195,7 @@ internal static partial class Program
                 includeSnippets = validatedGroupOptions.IncludeSnippets;
                 includeJobArtifacts = validatedGroupOptions.IncludeJobArtifacts;
                 includeJobLogs = validatedGroupOptions.IncludeJobLogs;
+                includePackages = validatedGroupOptions.IncludePackages;
             }
             else
             {
@@ -199,7 +208,8 @@ internal static partial class Program
                     includeSnippets,
                     includeJobArtifacts,
                     includeJobLogs,
-                    pipelineId);
+                    pipelineId,
+                    includePackages: includePackages);
                 sourceEndpoint = validatedOptions.Endpoint;
                 project = validatedOptions.Project;
                 gitRef = validatedOptions.Ref;
@@ -208,6 +218,7 @@ internal static partial class Program
                 includeSnippets = validatedOptions.IncludeSnippets;
                 includeJobArtifacts = validatedOptions.IncludeJobArtifacts;
                 includeJobLogs = validatedOptions.IncludeJobLogs;
+                includePackages = validatedOptions.IncludePackages;
             }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -253,7 +264,8 @@ internal static partial class Program
                     maxArchiveCompressionRatio,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                    () => IsTimedOut(timeoutTimestamp),
+                    includePackages)).GetAwaiter().GetResult();
             }
 
             return client.EnumerateRepositoryFilesAsync(new GitLabSourceOptions(
@@ -273,7 +285,8 @@ internal static partial class Program
                 maxArchiveCompressionRatio,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                () => IsTimedOut(timeoutTimestamp),
+                includePackages)).GetAwaiter().GetResult();
         };
         return true;
     }
