@@ -53,16 +53,18 @@ The CI pack gate runs on Windows, Linux, and macOS so package metadata, root rea
 
 ## Native AOT Publish Validation
 
-Every CI run also publishes `picket` and `picket-tui` with `release-speed` for the runner's native RID:
+Every CI run also publishes `picket` and `picket-tui` with `release-speed` for the runner's native RID, and the Linux jobs additionally validate the matching musl RID:
 
 - `linux-x64` on `ubuntu-latest`
 - `linux-arm64` on `ubuntu-24.04-arm`
+- `linux-musl-x64` on `ubuntu-latest`
+- `linux-musl-arm64` on `ubuntu-24.04-arm`
 - `win-x64` on `windows-latest`
 - `win-arm64` on `windows-11-arm`
 - `osx-x64` on `macos-26-intel`
 - `osx-arm64` on `macos-26`
 
-This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced.
+This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced. The Linux jobs install `musl-tools` and additionally publish/package the matching musl RID so Alpine-friendly artifacts are validated before release.
 
 ## Azure DevOps VSIX Validation
 
@@ -86,6 +88,8 @@ Use the target RID in the publish command. Common release RIDs are:
 | Windows Arm64 | `win-arm64` |
 | Linux x64 | `linux-x64` |
 | Linux Arm64 | `linux-arm64` |
+| Linux musl x64 | `linux-musl-x64` |
+| Linux musl Arm64 | `linux-musl-arm64` |
 | macOS x64 | `osx-x64` |
 | macOS Arm64 | `osx-arm64` |
 
@@ -95,7 +99,7 @@ Release automation should publish, sign, checksum, and archive each RID separate
 
 Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
 
-The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
+The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
 
 Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 

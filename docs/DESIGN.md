@@ -187,6 +187,7 @@ The CLI project uses Native AOT as the primary deployment model:
 - `PublishAot=true`
 - `SelfContained=true`
 - explicit `RuntimeIdentifier` per supported platform
+- public release RIDs cover Windows x64/Arm64, Linux glibc x64/Arm64, Linux musl x64/Arm64, and macOS x64/Arm64
 - `PublishSingleFile=true` only where it adds useful SDK analysis or packaging behavior; Native AOT already produces a native executable
 - `StripSymbols=true` with debug symbols published as separate artifacts, except current macOS RIDs temporarily use `StripSymbols=false`, `DebugType=none`, `DebugSymbols=false`, and `NativeDebugSymbols=false` for speed/minsize builds while the runtime pack carries transient Swift module-cache debug paths
 - no runtime JIT dependency, no dynamic code generation, no dynamic plugin loading

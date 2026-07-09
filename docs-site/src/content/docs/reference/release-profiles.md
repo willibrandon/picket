@@ -78,6 +78,8 @@ This page is generated from publish profiles, packable project files, central pa
 | CI | `windows-11-arm` | `win-arm64` |
 | CI | `windows-latest` | `win-x64` |
 | Release | `ubuntu-24.04-arm` | `linux-arm64` |
+| Release | `ubuntu-24.04-arm` | `linux-musl-arm64` |
+| Release | `ubuntu-latest` | `linux-musl-x64` |
 | Release | `ubuntu-latest` | `linux-x64` |
 | Release | `macos-26` | `osx-arm64` |
 | Release | `macos-26-intel` | `osx-x64` |

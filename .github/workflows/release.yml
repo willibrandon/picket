@@ -117,6 +117,12 @@ jobs:
           - os: ubuntu-24.04-arm
             rid: linux-arm64
             archive-extension: tar.gz
+          - os: ubuntu-latest
+            rid: linux-musl-x64
+            archive-extension: tar.gz
+          - os: ubuntu-24.04-arm
+            rid: linux-musl-arm64
+            archive-extension: tar.gz
           - os: windows-latest
             rid: win-x64
             archive-extension: zip
@@ -144,6 +150,12 @@ jobs:
 
       - name: Restore
         run: dotnet restore Picket.slnx
+
+      - name: Install Linux musl Native AOT dependencies
+        if: startsWith(matrix.rid, 'linux-musl-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
 
       - name: Publish Native AOT binaries
         shell: pwsh

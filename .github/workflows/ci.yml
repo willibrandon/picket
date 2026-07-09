@@ -58,6 +58,12 @@ jobs:
       - name: Restore
         run: dotnet restore Picket.slnx
 
+      - name: Install Linux musl Native AOT dependencies
+        if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       - name: Verify formatting
         run: dotnet format Picket.slnx --verify-no-changes --verbosity minimal
 
@@ -77,6 +83,15 @@ jobs:
           dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
           dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
 
+      - name: Publish Linux musl Native AOT binaries
+        if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
+        shell: pwsh
+        run: |
+          $muslRid = if ('${{ matrix.rid }}' -eq 'linux-x64') { 'linux-musl-x64' } else { 'linux-musl-arm64' }
+          $publishOutput = Join-Path $env:RUNNER_TEMP "picket-native-$muslRid"
+          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $publishOutput
+          dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $publishOutput
+
       - name: Pack public packages
         shell: pwsh
         run: |
@@ -91,6 +106,12 @@ jobs:
           dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release --no-build -p:IncludeSymbols=false -o $packageOutput
           dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $packageOutput
           dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $packageOutput
+
+          if ('${{ matrix.rid }}' -eq 'linux-x64' -or '${{ matrix.rid }}' -eq 'linux-arm64') {
+            $muslRid = if ('${{ matrix.rid }}' -eq 'linux-x64') { 'linux-musl-x64' } else { 'linux-musl-arm64' }
+            dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $packageOutput
+            dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $packageOutput
+          }
 
       - name: Validate Azure DevOps VSIX package
         if: matrix.os == 'ubuntu-latest'
