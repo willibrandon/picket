@@ -30,6 +30,31 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         ["version"],
     ];
 
+    private static readonly Dictionary<string, int> s_projectDocumentationSidebarOrder = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["DESIGN"] = 10,
+        ["RULES"] = 20,
+        ["REPORTS"] = 30,
+        ["VALIDATION"] = 40,
+        ["CACHE"] = 50,
+        ["PERFORMANCE"] = 60,
+        ["EMBEDDING"] = 70,
+        ["ACTION"] = 100,
+        ["AZURE_DEVOPS"] = 110,
+        ["GITHUB"] = 120,
+        ["GITLAB"] = 130,
+        ["GITEA"] = 140,
+        ["BITBUCKET"] = 150,
+        ["OBJECT_STORES"] = 160,
+        ["CONTAINERS"] = 170,
+        ["HOOKS"] = 180,
+        ["TUI"] = 190,
+        ["MARKETPLACES"] = 220,
+        ["RELEASE"] = 230,
+        ["PARITY"] = 240,
+        ["UPSTREAM"] = 250,
+    };
+
     private readonly string _repositoryRoot = repositoryRoot;
     private readonly string _docsRoot = Path.Combine(repositoryRoot, "docs");
     private readonly string _siteDocsRoot = Path.Combine(repositoryRoot, "docs-site", "src", "content", "docs");
@@ -116,7 +141,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
                 Path.Combine(outputRoot, string.Concat(Slugify(fileName), ".md")),
                 title,
                 $"Generated from docs/{Path.GetFileName(sourcePath)}.",
-                content);
+                content,
+                sidebarOrder: GetProjectDocumentationSidebarOrder(fileName));
         }
     }
 
@@ -1731,7 +1757,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         string title,
         string description,
         string content,
-        bool tableOfContents = true)
+        bool tableOfContents = true,
+        int? sidebarOrder = null)
     {
         var builder = new StringBuilder();
         builder.AppendLine("---");
@@ -1740,6 +1767,13 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         builder.Append("description: ");
         builder.AppendLine(EscapeFrontMatter(description));
         builder.AppendLine("editUrl: false");
+        if (sidebarOrder.HasValue)
+        {
+            builder.AppendLine("sidebar:");
+            builder.Append("  order: ");
+            builder.AppendLine(sidebarOrder.GetValueOrDefault().ToString(CultureInfo.InvariantCulture));
+        }
+
         if (!tableOfContents)
         {
             builder.AppendLine("tableOfContents: false");
@@ -1754,6 +1788,11 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
 
         Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new InvalidOperationException("Generated path has no directory."));
         File.WriteAllText(path, NormalizeLineEndings(builder.ToString()), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+    }
+
+    private static int GetProjectDocumentationSidebarOrder(string fileName)
+    {
+        return s_projectDocumentationSidebarOrder.TryGetValue(fileName, out int order) ? order : 10_000;
     }
 
     private static void RecreateDirectory(string path)
