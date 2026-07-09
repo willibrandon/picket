@@ -536,6 +536,84 @@ public sealed class BitbucketSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that download artifact redirects cannot downgrade an HTTPS Bitbucket endpoint to HTTP.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesSkipsDownloadArtifactHttpDowngradeRedirect()
+    {
+        const string Token = "bitbucket-test-token";
+        var urls = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":0,"values":[]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/downloads?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "pagelen": 100,
+                      "page": 1,
+                      "size": 1,
+                      "values": [
+                        {
+                          "name": "build.zip",
+                          "size": 160,
+                          "links": {
+                            "self": {
+                              "href": "https://api.bitbucket.org/2.0/repositories/willibrandon/picket/downloads/build.zip"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/downloads/build.zip", StringComparison.Ordinal))
+            {
+                return RedirectResponse("http://downloads.bitbucket.org/willibrandon/picket/build.zip?signature=abc");
+            }
+
+            if (url.Equals("http://downloads.bitbucket.org/willibrandon/picket/build.zip?signature=abc", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("nested/secret.txt", "artifact-token-12345"));
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"mainbranch":{"name":"main"}}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketSourceClient(httpClient);
+        var options = new BitbucketSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeDownloads: true,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        string warningText = string.Join('\n', warnings);
+        Assert.IsEmpty(files);
+        Assert.DoesNotContain("http://downloads.bitbucket.org/willibrandon/picket/build.zip?signature=abc", requests);
+        Assert.Contains("redirected download URL is not an allowed Bitbucket endpoint", warningText);
+        Assert.DoesNotContain(Token, requests);
+        Assert.DoesNotContain(Token, warningText);
+    }
+
+    /// <summary>
     /// Verifies that repository pipeline step logs are enumerated through the selected pipeline.
     /// </summary>
     [TestMethod]
