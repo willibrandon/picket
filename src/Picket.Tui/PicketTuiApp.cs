@@ -166,7 +166,7 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildReadOnlyEditor(v, state.GetDashboardEditorState()).Fill()
+            BuildReadOnlyEditor(v, state.GetDashboardEditorState(), state.DashboardYankProvider).Fill()
         ]).Fill();
     }
 
@@ -999,7 +999,7 @@ internal static class PicketTuiApp
     private static PaddingWidget BuildFindingDetailsPanel<TParent>(WidgetContext<TParent> ctx, PicketTuiState state)
         where TParent : Hex1bWidget
     {
-        return ctx.Padding(2, 0, 0, 0, BuildReadOnlyEditor(ctx, state.GetFindingDetailsEditorState()));
+        return ctx.Padding(2, 0, 0, 0, BuildReadOnlyEditor(ctx, state.GetFindingDetailsEditorState(), state.FindingDetailsYankProvider));
     }
 
     private static HStackWidget BuildMetadataLine<TParent>(
@@ -1055,7 +1055,7 @@ internal static class PicketTuiApp
                     .FillWidth()
             ]).FixedHeight(1),
             BuildBlankLine(v),
-            BuildReadOnlyEditor(v, state.GetLogsEditorState()).Fill()
+            BuildReadOnlyEditor(v, state.GetLogsEditorState(), state.LogsYankProvider).Fill()
         ]).Fill();
     }
 
@@ -1193,17 +1193,23 @@ internal static class PicketTuiApp
         ];
     }
 
-    private static ThemePanelWidget BuildReadOnlyEditor<TParent>(WidgetContext<TParent> ctx, EditorState editorState)
+    private static ThemePanelWidget BuildReadOnlyEditor<TParent>(
+        WidgetContext<TParent> ctx,
+        EditorState editorState,
+        PicketTuiYankDecorationProvider yankProvider)
         where TParent : Hex1bWidget
     {
+        EditorWidget editor = ctx.Editor(editorState)
+            .WordWrap()
+            .Decorations(yankProvider)
+            .FillWidth()
+            .FillHeight();
+
         return ctx.ThemePanel(
             theme => theme
                 .Set(EditorTheme.SelectionForegroundColor, PicketTuiPalette.Foreground)
                 .Set(EditorTheme.SelectionBackgroundColor, PicketTuiPalette.EditorSelectionBackground),
-            ctx.Editor(editorState)
-                .WordWrap()
-                .FillWidth()
-                .FillHeight());
+            editor);
     }
 
     private static Hex1bWidget[] BuildScanOutput<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
@@ -1312,9 +1318,29 @@ internal static class PicketTuiApp
 
     private static void YankCurrentView(PicketTuiState state, InputBindingActionContext context)
     {
-        string text = TryGetEditorSelectionText(context, out string selectionText)
-            ? selectionText
-            : state.GetYankText();
+        EditorState? focusedEditor = context.FocusedNode is EditorNode editor
+            ? editor.State
+            : null;
+        if (state.TryGetSelectedEditorText(
+            focusedEditor,
+            out string selectionText,
+            out EditorState selectedEditorState,
+            out PicketTuiYankDecorationProvider yankProvider,
+            out DocumentRange range))
+        {
+            context.CopyToClipboard(selectionText);
+            state.ShowEditorYankNotification(
+                selectionText,
+                selectedEditorState,
+                yankProvider,
+                range,
+                context.Invalidate,
+                context.CancellationToken);
+            context.Invalidate();
+            return;
+        }
+
+        string text = state.GetYankText();
         if (text.Length == 0)
         {
             return;
@@ -1323,18 +1349,5 @@ internal static class PicketTuiApp
         context.CopyToClipboard(text);
         state.ShowYankNotification(text, context.Invalidate, context.CancellationToken);
         context.Invalidate();
-    }
-
-    private static bool TryGetEditorSelectionText(InputBindingActionContext context, out string text)
-    {
-        if (context.FocusedNode is EditorNode { State.Cursor.HasSelection: true } editor)
-        {
-            DocumentRange range = editor.State.Cursor.SelectionRange;
-            text = editor.State.Document.GetText(range);
-            return text.Length != 0;
-        }
-
-        text = string.Empty;
-        return false;
     }
 }

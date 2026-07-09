@@ -94,6 +94,21 @@ internal sealed class PicketTuiState
     internal string? YankNotification { get; private set; }
 
     /// <summary>
+    /// Gets the yank flash provider for the dashboard editor.
+    /// </summary>
+    internal PicketTuiYankDecorationProvider DashboardYankProvider { get; } = new();
+
+    /// <summary>
+    /// Gets the yank flash provider for the focused-finding details editor.
+    /// </summary>
+    internal PicketTuiYankDecorationProvider FindingDetailsYankProvider { get; } = new();
+
+    /// <summary>
+    /// Gets the yank flash provider for the logs editor.
+    /// </summary>
+    internal PicketTuiYankDecorationProvider LogsYankProvider { get; } = new();
+
+    /// <summary>
     /// Gets a value indicating whether the focused finding row should render its transient yank flash.
     /// </summary>
     internal bool YankFlashRow { get; private set; }
@@ -354,6 +369,83 @@ internal sealed class PicketTuiState
         YankFlashRow = true;
         _ = ClearYankFlashAsync(generation, invalidate, cancellationToken);
         _ = ClearYankNotificationAsync(generation, invalidate, cancellationToken);
+    }
+
+    /// <summary>
+    /// Shows a transient yank notification and flashes the selected editor range.
+    /// </summary>
+    /// <param name="text">The yanked text.</param>
+    /// <param name="editorState">The editor state that owns the yanked range.</param>
+    /// <param name="provider">The decoration provider for the editor.</param>
+    /// <param name="range">The yanked document range.</param>
+    /// <param name="invalidate">The UI invalidation callback.</param>
+    /// <param name="cancellationToken">A token that cancels notification clearing.</param>
+    internal void ShowEditorYankNotification(
+        string text,
+        EditorState editorState,
+        PicketTuiYankDecorationProvider provider,
+        DocumentRange range,
+        Action invalidate,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(editorState);
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(invalidate);
+
+        long generation = Interlocked.Increment(ref _yankGeneration);
+        YankNotification = CreateYankNotification(text);
+        provider.HighlightRange = (
+            editorState.Document.OffsetToPosition(range.Start),
+            editorState.Document.OffsetToPosition(range.End));
+        _ = ClearEditorYankFlashAsync(provider, generation, invalidate, cancellationToken);
+        _ = ClearYankNotificationAsync(generation, invalidate, cancellationToken);
+    }
+
+    /// <summary>
+    /// Attempts to get selected text from the active read-only editor pane.
+    /// </summary>
+    /// <param name="focusedEditor">The currently focused editor, when one is focused.</param>
+    /// <param name="text">The selected text.</param>
+    /// <param name="editorState">The editor state that owns the selection.</param>
+    /// <param name="provider">The matching yank flash provider.</param>
+    /// <param name="range">The selected document range.</param>
+    /// <returns><see langword="true" /> when a non-empty editor selection exists.</returns>
+    internal bool TryGetSelectedEditorText(
+        EditorState? focusedEditor,
+        out string text,
+        out EditorState editorState,
+        out PicketTuiYankDecorationProvider provider,
+        out DocumentRange range)
+    {
+        if (focusedEditor is not null
+            && TryGetSelectedCandidateEditorText(focusedEditor, out text, out editorState, out provider, out range))
+        {
+            return true;
+        }
+
+        return CurrentView switch
+        {
+            PicketTuiView.Dashboard => TryGetSelectedCandidateEditorText(
+                _dashboardEditorState,
+                out text,
+                out editorState,
+                out provider,
+                out range),
+            PicketTuiView.Findings => TryGetSelectedCandidateEditorText(
+                _findingDetailsEditorState,
+                out text,
+                out editorState,
+                out provider,
+                out range),
+            PicketTuiView.Logs => TryGetSelectedCandidateEditorText(
+                _logsEditorState,
+                out text,
+                out editorState,
+                out provider,
+                out range),
+            _ => NoSelectedEditorText(out text, out editorState, out provider, out range),
+        };
     }
 
     /// <summary>
@@ -813,6 +905,28 @@ internal sealed class PicketTuiState
         }
     }
 
+    private async Task ClearEditorYankFlashAsync(
+        PicketTuiYankDecorationProvider provider,
+        long generation,
+        Action invalidate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(150), cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (Interlocked.Read(ref _yankGeneration) == generation)
+        {
+            provider.HighlightRange = null;
+            invalidate();
+        }
+    }
+
     private string FormatLogsYank()
     {
         return GetLogsText();
@@ -1054,6 +1168,66 @@ internal sealed class PicketTuiState
         }
 
         return editorState;
+    }
+
+    private bool TryGetSelectedCandidateEditorText(
+        EditorState? candidate,
+        out string text,
+        out EditorState editorState,
+        out PicketTuiYankDecorationProvider provider,
+        out DocumentRange range)
+    {
+        if (candidate is not null
+            && candidate.Cursor.HasSelection
+            && TryFindYankProvider(candidate, out provider))
+        {
+            range = candidate.Cursor.SelectionRange;
+            text = candidate.Document.GetText(range);
+            if (text.Length != 0)
+            {
+                editorState = candidate;
+                return true;
+            }
+        }
+
+        return NoSelectedEditorText(out text, out editorState, out provider, out range);
+    }
+
+    private bool TryFindYankProvider(EditorState editorState, out PicketTuiYankDecorationProvider provider)
+    {
+        if (ReferenceEquals(editorState, _dashboardEditorState))
+        {
+            provider = DashboardYankProvider;
+            return true;
+        }
+
+        if (ReferenceEquals(editorState, _findingDetailsEditorState))
+        {
+            provider = FindingDetailsYankProvider;
+            return true;
+        }
+
+        if (ReferenceEquals(editorState, _logsEditorState))
+        {
+            provider = LogsYankProvider;
+            return true;
+        }
+
+        provider = null!;
+        return false;
+    }
+
+    private static bool NoSelectedEditorText(
+        out string text,
+        out EditorState editorState,
+        out PicketTuiYankDecorationProvider provider,
+        out DocumentRange range)
+    {
+        text = string.Empty;
+        editorState = null!;
+        provider = null!;
+        range = default;
+        return false;
     }
 
     private static string FormatScanTargetForText(PicketTuiScanWorkspace scan)

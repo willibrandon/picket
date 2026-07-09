@@ -146,6 +146,44 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that selected read-only editor text is yankable and gets an editor-local flash.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task StateYanksSelectedReadOnlyEditorTextWithFlash()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Dashboard);
+        state.GetDashboardEditorState().SelectAll();
+        using var invalidated = new ManualResetEventSlim();
+
+        bool selected = state.TryGetSelectedEditorText(
+            null,
+            out string text,
+            out var editorState,
+            out var provider,
+            out var range);
+
+        Assert.IsTrue(selected);
+        Assert.Contains("Report", text);
+        Assert.Contains("Scanner", text);
+
+        state.ShowEditorYankNotification(text, editorState, provider, range, invalidated.Set, TestContext.CancellationToken);
+
+        Assert.IsNotNull(provider.HighlightRange);
+        Assert.IsFalse(state.YankFlashRow);
+        Assert.IsNotNull(state.YankNotification);
+
+        while (provider.HighlightRange is not null)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(25), TestContext.CancellationToken).ConfigureAwait(false);
+        }
+
+        Assert.IsTrue(invalidated.IsSet);
+        Assert.IsNull(provider.HighlightRange);
+    }
+
+    /// <summary>
     /// Verifies that rules and files expose focused-row yanks with labelled counts.
     /// </summary>
     [TestMethod]
@@ -321,6 +359,34 @@ public sealed class PicketTuiTests
             Assert.IsFalse(startInfo.UseShellExecute);
             Assert.Contains("-g", startInfo.ArgumentList);
             Assert.Contains("src/app.cs:42", startInfo.ArgumentList);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that terminal editors are not started inside the full-screen TUI.
+    /// </summary>
+    [TestMethod]
+    public void FileLauncherRejectsTerminalEditorInsideFullScreenTui()
+    {
+        string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
+        using TempDirectory temp = TempDirectory.Create();
+        string filePath = Path.Combine(temp.Path, "app.cs");
+        File.WriteAllText(filePath, "class App { }");
+
+        try
+        {
+            Environment.SetEnvironmentVariable("PICKET_EDITOR", "nvim");
+            var launcher = new PicketTuiProcessFileLauncher();
+
+            bool opened = launcher.TryOpen(filePath, 12, out string message);
+
+            Assert.IsFalse(opened);
+            Assert.Contains("terminal editor 'nvim'", message);
+            Assert.Contains("PICKET_EDITOR", message);
         }
         finally
         {

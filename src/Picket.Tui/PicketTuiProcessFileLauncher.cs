@@ -22,6 +22,17 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
             return false;
         }
 
+        string? configuredEditor = GetConfiguredEditor();
+        if (!string.IsNullOrWhiteSpace(configuredEditor)
+            && IsTerminalEditorCommand(configuredEditor, out string editorName))
+        {
+            message = string.Concat(
+                "Cannot open terminal editor '",
+                editorName,
+                "' from the full-screen TUI. Set PICKET_EDITOR to a GUI editor such as 'code -g', or yank the path and open it in another shell.");
+            return false;
+        }
+
         ProcessStartInfo startInfo = CreateStartInfo(resolvedPath, line);
         try
         {
@@ -255,6 +266,24 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
         return string.Equals(value, "vim", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "nvim", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "vi", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTerminalEditorCommand(string editorCommand, out string editorName)
+    {
+        List<string> parts = SplitCommandLine(editorCommand);
+        if (parts.Count == 0)
+        {
+            editorName = string.Empty;
+            return false;
+        }
+
+        editorName = Path.GetFileNameWithoutExtension(parts[0]);
+        return IsVimEditor(editorName)
+            || string.Equals(editorName, "nano", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(editorName, "micro", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(editorName, "hx", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(editorName, "helix", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(editorName, "kak", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ContainsDirectorySeparator(string value)
