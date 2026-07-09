@@ -235,6 +235,40 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies redaction masks the match field when malformed input prevents string replacement.
+    /// </summary>
+    [TestMethod]
+    public void RedactMasksMatchWhenSecretIsNotAStringSubstring()
+    {
+        const string secret = "secret";
+        const string rawMatchEvidence = "raw-boundary-evidence";
+        Finding finding = CreateFinding(rawMatchEvidence, secret, rawMatchEvidence);
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100, requirePartialMask: true);
+        SecretRule rule = SecretRule.Create("rule", "description", "secret");
+        string[] reports =
+        [
+            PicketJsonReportWriter.Write([redacted], [rule]),
+            PicketJsonlReportWriter.Write([redacted], [rule]),
+            PicketCsvReportWriter.Write([redacted], [rule]),
+            PicketJunitReportWriter.Write([redacted], [rule]),
+            PicketHtmlReportWriter.Write([redacted], [rule]),
+            PicketGitLabCodeQualityReportWriter.Write([redacted]),
+            PicketSarifReportWriter.Write([redacted], [rule]),
+            PicketToonReportWriter.Write([redacted], [rule]),
+        ];
+
+        Assert.AreEqual("REDACTED", redacted.Match);
+        Assert.AreEqual("REDACTED", redacted.Line);
+        foreach (string report in reports)
+        {
+            Assert.DoesNotContain(rawMatchEvidence, report);
+            Assert.DoesNotContain(CreateSha256(secret), report);
+            Assert.DoesNotContain(CreateSha256(rawMatchEvidence), report);
+        }
+    }
+
+    /// <summary>
     /// Verifies native report writers do not reintroduce raw or encoded secret evidence after redaction.
     /// </summary>
     [TestMethod]

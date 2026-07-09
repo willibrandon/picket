@@ -68,7 +68,7 @@ public static class GitleaksFindingRedactor
         }
 
         string secret = MaskSecret(finding.Secret, redactionPercent, requirePartialMask);
-        string match = finding.Match.Replace(finding.Secret, secret, StringComparison.Ordinal);
+        string match = RedactMatch(finding, secret, requirePartialMask);
         string line = RedactLine(finding, secret);
         string secretSha256 = requirePartialMask
             ? PicketFindingMetadata.CreateSha256(secret)
@@ -115,6 +115,14 @@ public static class GitleaksFindingRedactor
         return redactedLine.Equals(finding.Line, StringComparison.Ordinal)
             ? redactedSecret
             : redactedLine;
+    }
+
+    private static string RedactMatch(Finding finding, string redactedSecret, bool requirePartialMask)
+    {
+        string redactedMatch = finding.Match.Replace(finding.Secret, redactedSecret, StringComparison.Ordinal);
+        return requirePartialMask && redactedMatch.Equals(finding.Match, StringComparison.Ordinal)
+            ? redactedSecret
+            : redactedMatch;
     }
 
     private static string MaskSecret(string secret, int redactionPercent, bool requirePartialMask)
