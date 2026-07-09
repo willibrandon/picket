@@ -536,6 +536,87 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that release asset redirects cannot fetch outside the configured Gitea asset host set.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesSkipsReleaseAssetRedirectsToUnexpectedHosts()
+    {
+        const string Token = "gitea-test-token";
+        var urls = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"abcdef1234567890"}}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[],"truncated":false,"page":1,"total_count":0}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "id": 100,
+                        "tag_name": "v1.0.0",
+                        "body": "body-token-111",
+                        "assets": [
+                          {
+                            "name": "artifact.txt",
+                            "size": 15,
+                            "browser_download_url": "https://gitea.example/downloads/artifact.txt"
+                          }
+                        ]
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Equals("https://gitea.example/downloads/artifact.txt", StringComparison.Ordinal))
+            {
+                return RedirectResponse("https://other.example/downloads/artifact.txt");
+            }
+
+            if (url.Equals("https://other.example/downloads/artifact.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("asset-token-222");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main","empty":false}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            new Uri("https://gitea.example/api/v1/", UriKind.Absolute),
+            "willibrandon/picket",
+            Token,
+            warningSink: warnings.Add,
+            includeReleases: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        string warningText = string.Join('\n', warnings);
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitea/willibrandon/picket/releases/v1.0.0.md", files[0].DisplayPath);
+        Assert.Contains("https://gitea.example/downloads/artifact.txt", requests);
+        Assert.DoesNotContain("https://other.example/downloads/artifact.txt", requests);
+        Assert.Contains("redirected download URL is not an allowed Gitea asset endpoint", warningText);
+        Assert.DoesNotContain(Token, warningText);
+    }
+
+    /// <summary>
     /// Verifies that Actions artifact enumeration downloads artifact ZIP redirects without forwarding credentials.
     /// </summary>
     [TestMethod]
@@ -921,6 +1002,17 @@ public sealed class GiteaSourceClientTests
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new ByteArrayContent(bytes),
+        };
+    }
+
+    private static HttpResponseMessage RedirectResponse(string location)
+    {
+        return new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            Headers =
+            {
+                Location = new Uri(location, UriKind.Absolute),
+            },
         };
     }
 
