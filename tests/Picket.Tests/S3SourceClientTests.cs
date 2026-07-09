@@ -1,5 +1,6 @@
 using Picket.Sources;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace Picket.Tests;
@@ -56,6 +57,32 @@ public sealed class S3SourceClientTests
 
         Assert.IsEmpty(files);
         Assert.Contains("exceeding the 10000000 byte metadata cap", string.Join('\n', warnings));
+    }
+
+    /// <summary>
+    /// Verifies that S3 metadata listing retries one bounded rate-limit response.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateObjectsRetriesRateLimitedListRequests()
+    {
+        var warnings = new List<string>();
+        int listAttempts = 0;
+        var handler = new FakeHttpMessageHandler(_ =>
+        {
+            listAttempts++;
+            return listAttempts == 1
+                ? RetryAfterResponse()
+                : XmlResponse("<ListBucketResult />");
+        });
+        using var httpClient = new HttpClient(handler);
+        var client = new S3SourceClient(httpClient);
+        var options = CreateOptions(warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateObjectsAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.IsEmpty(warnings);
+        Assert.AreEqual(2, handler.RequestCount);
     }
 
     /// <summary>
@@ -119,5 +146,12 @@ public sealed class S3SourceClientTests
         {
             Content = new ByteArrayContent(Encoding.UTF8.GetBytes(text)),
         };
+    }
+
+    private static HttpResponseMessage RetryAfterResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+        return response;
     }
 }
