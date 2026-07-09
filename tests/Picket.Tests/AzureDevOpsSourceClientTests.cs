@@ -70,6 +70,54 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Azure DevOps JSON metadata stops before reading responses that declare a size beyond the metadata cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRejectsMetadataResponseExceedingCap()
+    {
+        const string Token = "azdo-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => OversizedJsonMetadataResponse()));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Azure DevOps source metadata", warnings[0]);
+        Assert.Contains("exceeding the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that Azure DevOps JSON metadata is capped while streaming when no content length is available.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRejectsStreamingMetadataResponseExceedingCap()
+    {
+        const string Token = "azdo-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => OversizedStreamingJsonMetadataResponse()));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Azure DevOps source metadata", warnings[0]);
+        Assert.Contains("remote metadata response exceeded the 10000000 byte metadata cap", warnings[0]);
+        Assert.DoesNotContain(Token, warnings[0]);
+    }
+
+    /// <summary>
     /// Verifies that repository enumeration follows Azure DevOps continuation tokens and downloads blob content.
     /// </summary>
     [TestMethod]
@@ -1047,6 +1095,21 @@ public sealed class AzureDevOpsSourceClientTests
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new ByteArrayContent(value),
+        };
+    }
+
+    private static HttpResponseMessage OversizedJsonMetadataResponse()
+    {
+        HttpResponseMessage response = JsonResponse("{}");
+        response.Content.Headers.ContentLength = RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1;
+        return response;
+    }
+
+    private static HttpResponseMessage OversizedStreamingJsonMetadataResponse()
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new RepeatingReadStream(RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1, (byte)' ')),
         };
     }
 
