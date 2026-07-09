@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Picket.Tests;
@@ -872,23 +871,7 @@ public sealed class CliBitbucketScanTests
 
     private static string GetCliExecutablePath()
     {
-        string executableName = OperatingSystem.IsWindows() ? "picket.exe" : "picket";
-        string executablePath = Path.Combine(
-            GetRepositoryRoot(),
-            "src",
-            "Picket.Cli",
-            "bin",
-            GetBuildConfiguration(),
-            "net10.0",
-            RuntimeInformation.RuntimeIdentifier,
-            executableName);
-
-        if (!File.Exists(executablePath))
-        {
-            throw new FileNotFoundException("Could not locate built picket executable.", executablePath);
-        }
-
-        return executablePath;
+        return CliExecutablePath.Resolve(GetRepositoryRoot(), GetBuildConfiguration());
     }
 
     private static string GetBuildConfiguration()

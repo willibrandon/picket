@@ -82,7 +82,7 @@ The token is read from an environment variable and is never passed as a command-
 | `--gitea-token-env` | Environment variable containing the Gitea token. |
 | `--gitea-api-endpoint` | Gitea API endpoint used for repository enumeration. Defaults to `https://gitea.com/api/v1/`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-managed Gitea. |
-| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-managed environments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-managed environments; source credentials may be sent in cleartext. |
 
 ## API Flow
 

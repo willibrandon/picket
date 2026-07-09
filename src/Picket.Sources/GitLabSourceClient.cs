@@ -148,7 +148,15 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
     {
         Uri uri = CreateMergeRequestUri(options);
         using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(
+                options,
+                response,
+                $"skipping GitLab merge request {options.MergeRequestIid.ToString(CultureInfo.InvariantCulture)} in project {options.Project}");
+            return (false, options, string.Empty);
+        }
+
         using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         JsonElement root = document.RootElement;
         string sourceRef = GetNestedString(root, "diff_refs", "head_sha");
@@ -235,8 +243,15 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
                 warningSink: options.WarningSink,
                 isCancellationRequested: options.IsCancellationRequested,
                 includePackages: options.IncludePackages);
-            List<SourceFile> projectFiles = await EnumerateRepositoryFilesAsync(projectOptions, cancellationToken).ConfigureAwait(false);
-            sourceFiles.AddRange(projectFiles);
+            try
+            {
+                List<SourceFile> projectFiles = await EnumerateRepositoryFilesAsync(projectOptions, cancellationToken).ConfigureAwait(false);
+                sourceFiles.AddRange(projectFiles);
+            }
+            catch (HttpRequestException)
+            {
+                options.WarningSink?.Invoke($"skipping GitLab project {project} because a GitLab request failed");
+            }
         }
     }
 
@@ -563,7 +578,12 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
     {
         Uri uri = CreateProjectUri(options);
         using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping GitLab project {options.Project}");
+            return string.Empty;
+        }
+
         using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
         return GetString(document.RootElement, "default_branch");
     }

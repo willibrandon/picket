@@ -829,7 +829,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--allow-insecure-source-endpoints</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments.</td>
+              <td data-label="Description">Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments; source credentials may be sent in cleartext.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--docker-archive</code></td>

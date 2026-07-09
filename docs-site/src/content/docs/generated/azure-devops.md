@@ -157,7 +157,7 @@ Provider options include:
 | `--azure-devops-max-artifact-megabytes` | Positive per-artifact archive download cap. Defaults to `--max-target-megabytes` when that cap is set; otherwise the source client applies its 100 decimal MB default cap. |
 | `--azure-devops-max-log-megabytes` | Positive per-log download cap. Defaults to `--max-target-megabytes` when that cap is set; otherwise the source client applies its 100 decimal MB default cap. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-hosted Azure DevOps Server. |
-| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments; source credentials may be sent in cleartext. |
 
 Current enumeration handles repository continuation tokens, wiki mapped paths, branch scope controls, build artifact archives, build logs, classic release build artifacts, allowed unsigned redirect downloads, rejection of responses from injected HTTP handlers that already followed a redirect, server paging limits exposed through continuation headers, bounded retry/backoff for throttling responses, and clear warnings for projects, repositories, wikis, build artifacts, release artifacts, or build logs the token cannot read. Picket caps Azure DevOps continuation-token traversal at 1,000 pages per paged list and emits a warning if that safety limit is reached. Permission failures for one project, repository, wiki, artifact, release artifact, or log should not hide successful scans of other authorized resources.
 
@@ -165,7 +165,7 @@ Current enumeration handles repository continuation tokens, wiki mapped paths, b
 
 Workspace scanning does not require Azure DevOps API credentials. Remote enumeration requires an explicit token environment variable name so that API access is visible in pipeline configuration without putting token values on the command line.
 
-Azure DevOps credentials are sent only to HTTPS endpoints by default. Loopback HTTP is allowed for local test fixtures. Public HTTP endpoints require the CLI's explicit `--allow-insecure-source-endpoints` opt-in, which maps to an explicit library option for insecure credential transport.
+Azure DevOps credentials are sent only to HTTPS endpoints by default. Loopback HTTP is allowed for local test fixtures. Public HTTP endpoints require the CLI's explicit `--allow-insecure-source-endpoints` opt-in, which maps to an explicit library option for insecure credential transport and emits a warning because credentials may be sent in cleartext.
 
 Supported credentials:
 

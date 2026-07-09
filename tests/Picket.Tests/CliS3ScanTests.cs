@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-
 namespace Picket.Tests;
 
 /// <summary>
@@ -69,6 +67,7 @@ public sealed class CliS3ScanTests
         Assert.Contains("application/octet-stream", server.LastAccept);
         Assert.Contains("/secrets?list-type=2&max-keys=1000&prefix=prod%2F", server.RequestTargets);
         Assert.Contains("/secrets/prod/appsettings.txt", server.RequestTargets);
+        Assert.Contains("--allow-insecure-source-endpoints permits source credentials over HTTP", result.Stderr);
         Assert.DoesNotContain("s3-secret-access-key", result.Stdout);
         Assert.DoesNotContain("s3-secret-access-key", result.Stderr);
         Assert.DoesNotContain("s3-session-token", result.Stdout);
@@ -205,23 +204,7 @@ public sealed class CliS3ScanTests
 
     private static string GetCliExecutablePath()
     {
-        string executableName = OperatingSystem.IsWindows() ? "picket.exe" : "picket";
-        string executablePath = Path.Combine(
-            GetRepositoryRoot(),
-            "src",
-            "Picket.Cli",
-            "bin",
-            GetBuildConfiguration(),
-            "net10.0",
-            RuntimeInformation.RuntimeIdentifier,
-            executableName);
-
-        if (!File.Exists(executablePath))
-        {
-            throw new FileNotFoundException("Could not locate built picket executable.", executablePath);
-        }
-
-        return executablePath;
+        return CliExecutablePath.Resolve(GetRepositoryRoot(), GetBuildConfiguration());
     }
 
     private static string GetBuildConfiguration()

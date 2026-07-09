@@ -9,14 +9,14 @@ Picket exposes four initial AOT-safe library packages for host applications:
 
 These packages target `net9.0` and `net10.0`, enable trim, Native AOT, and single-file analyzers, and avoid dynamic plugin or reflection-only runtime behavior. The current library surface is intentionally narrow. `Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are implementation or workflow assemblies and are not public library packages yet.
 
-Picket also publishes framework-dependent dotnet tool packages for package-manager workflows:
+Picket also publishes RID-specific Native AOT dotnet tool packages for package-manager workflows:
 
 ```powershell
 dotnet tool install --global Picket
 dotnet tool install --global Picket.Tui.Cli
 ```
 
-The Native AOT release archives remain the primary zero-runtime CLI distribution.
+The top-level tool packages are pointer packages; the matching RID packages contain the native executables selected by the .NET CLI during install. Picket publishes Windows, Linux, and macOS x64/Arm64 tool packages.
 
 ## Install
 

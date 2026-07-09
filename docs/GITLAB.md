@@ -89,7 +89,7 @@ The token is read from an environment variable and is never passed as a command-
 | `--gitlab-token-env` | Environment variable containing the GitLab token. |
 | `--gitlab-api-endpoint` | GitLab API endpoint used for repository enumeration. Defaults to `https://gitlab.com/api/v4/`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-managed GitLab. |
-| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-managed environments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-managed environments; source credentials may be sent in cleartext. |
 
 ## API Flow
 

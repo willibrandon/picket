@@ -112,6 +112,40 @@ public sealed class BitbucketSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Bitbucket file display paths normalize unsafe provider path segments.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesNormalizesUnsafeDisplayPathSegments()
+    {
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repositories/willibrandon/picket/src/main/?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"pagelen":100,"page":1,"size":1,"values":[{"path":"safe/../secret.txt","type":"commit_file","size":11}]}""");
+            }
+
+            if (url.Contains("/repositories/willibrandon/picket/src/main/safe/_/secret.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketSourceClient(httpClient);
+        var options = new BitbucketSourceOptions(
+            BitbucketSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "bitbucket-test-token",
+            gitRef: "main");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("bitbucket/willibrandon/picket/safe/_/secret.txt", files[0].DisplayPath);
+    }
+
+    /// <summary>
     /// Verifies that pull request enumeration resolves the source repository and commit before reading source files.
     /// </summary>
     [TestMethod]

@@ -170,6 +170,7 @@ public sealed class AzureBlobSourceClient(HttpClient httpClient)
         {
             Async = true,
             DtdProcessing = DtdProcessing.Prohibit,
+            MaxCharactersInDocument = RemoteJsonDocumentReader.DefaultMaxMetadataBytes,
             XmlResolver = null,
         };
         using XmlReader reader = XmlReader.Create(cappedStream, settings);

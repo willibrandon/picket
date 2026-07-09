@@ -48,10 +48,12 @@ This page is generated from publish profiles, packable project files, central pa
 
 | Package | Target frameworks | Description | Package references | Project references |
 |---|---|---|---|---|
+| `Picket` | `net10.0` | Gitleaks-compatible secrets scanner for .NET with Picket-native validation, reports, source enumeration, and Native AOT release binaries. | System.CommandLine | Picket.Analyze, Picket.Compat, Picket.Engine, Picket.Report, Picket.Rules, Picket.Security, Picket.Sources, Picket.Store, Picket.Verify |
 | `Picket.Engine` | `net9.0;net10.0` | AOT-safe secret scanning engine for Picket using Scout.Text.Regex for byte-oriented matching. | Scout.Text.Regex | Picket.Rules |
 | `Picket.Report` | `net9.0;net10.0` | AOT-safe report writers for Picket and Gitleaks-compatible secret scan results. | - | Picket.Engine, Picket.Rules |
 | `Picket.Rules` | `net9.0;net10.0` | AOT-safe rule model and embedded compatibility rule packs for Picket secret scanning. | - | - |
 | `Picket.Security` | `net9.0;net10.0` | AOT-safe egress and endpoint safety primitives for Picket live verification and source connectors. | System.IO.FileSystem.AccessControl | - |
+| `Picket.Tui.Cli` | `net10.0` | Interactive terminal triage companion for Picket secret scan reports. | System.CommandLine | Picket.Tui |
 
 ## Central Package Versions
 
@@ -69,9 +71,15 @@ This page is generated from publish profiles, packable project files, central pa
 
 | Workflow | Runner | RID |
 |---|---|---|
+| CI | `ubuntu-24.04-arm` | `linux-arm64` |
 | CI | `ubuntu-latest` | `linux-x64` |
 | CI | `macos-26` | `osx-arm64` |
+| CI | `macos-26-intel` | `osx-x64` |
+| CI | `windows-11-arm` | `win-arm64` |
 | CI | `windows-latest` | `win-x64` |
+| Release | `ubuntu-24.04-arm` | `linux-arm64` |
 | Release | `ubuntu-latest` | `linux-x64` |
 | Release | `macos-26` | `osx-arm64` |
+| Release | `macos-26-intel` | `osx-x64` |
+| Release | `windows-11-arm` | `win-arm64` |
 | Release | `windows-latest` | `win-x64` |

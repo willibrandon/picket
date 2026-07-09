@@ -16,7 +16,7 @@ Install the interactive terminal report triage companion:
 dotnet tool install --global Picket.Tui.Cli
 ```
 
-The Native AOT release archives remain the recommended zero-runtime CLI distribution. The dotnet tool packages are framework-dependent NuGet tool packages for environments that already manage the .NET SDK or runtime.
+The release archives are direct Native AOT executable downloads. The dotnet tool packages are RID-specific Native AOT NuGet tool packages selected by the .NET CLI during install for Windows, Linux, and macOS x64/Arm64.
 
 ## Libraries
 

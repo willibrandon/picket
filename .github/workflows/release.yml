@@ -114,9 +114,18 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             archive-extension: tar.gz
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            archive-extension: tar.gz
           - os: windows-latest
             rid: win-x64
             archive-extension: zip
+          - os: windows-11-arm
+            rid: win-arm64
+            archive-extension: zip
+          - os: macos-26-intel
+            rid: osx-x64
+            archive-extension: tar.gz
           - os: macos-26
             rid: osx-arm64
             archive-extension: tar.gz
@@ -181,10 +190,46 @@ jobs:
           "archive-path=$archivePath" >> $env:GITHUB_OUTPUT
           "checksum-path=$checksumPath" >> $env:GITHUB_OUTPUT
 
+      - name: Pack Native AOT tool packages
+        id: tool-package
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid NuGet version."
+          }
+
+          $rid = '${{ matrix.rid }}'
+          $packageOutput = Join-Path $env:RUNNER_TEMP "picket-tool-packages-$rid"
+          $staging = Join-Path $env:RUNNER_TEMP 'picket-release-assets'
+          $archiveName = "picket-$env:RELEASE_TAG-nuget-$rid.zip"
+          $archivePath = Join-Path $staging $archiveName
+
+          New-Item -ItemType Directory -Force -Path $packageOutput, $staging | Out-Null
+          dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid --no-restore -o $packageOutput
+          dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid --no-restore -o $packageOutput
+
+          Compress-Archive -Path (Join-Path $packageOutput '*') -DestinationPath $archivePath -Force
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$archivePath.sha256"
+          Set-Content -LiteralPath $checksumPath -Encoding utf8NoBOM -Value "$hash  $archiveName"
+
+          "archive-path=$archivePath" >> $env:GITHUB_OUTPUT
+          "checksum-path=$checksumPath" >> $env:GITHUB_OUTPUT
+
       - name: Generate binary artifact attestation
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.package.outputs.archive-path }}
+
+      - name: Generate Native AOT tool package attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.tool-package.outputs.archive-path }}
 
       - name: Upload binary release assets
         uses: actions/upload-artifact@v6
@@ -193,6 +238,15 @@ jobs:
           path: |
             ${{ steps.package.outputs.archive-path }}
             ${{ steps.package.outputs.checksum-path }}
+          if-no-files-found: error
+
+      - name: Upload Native AOT tool package assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-nuget-${{ matrix.rid }}
+          path: |
+            ${{ steps.tool-package.outputs.archive-path }}
+            ${{ steps.tool-package.outputs.checksum-path }}
           if-no-files-found: error
 
   build-packages:
@@ -238,8 +292,8 @@ jobs:
           dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
           dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
           dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
-          dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
-          dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
+          dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -p:IncludeSymbols=false -o $packageOutput
+          dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -p:IncludeSymbols=false -o $packageOutput
 
       - name: Package NuGet artifacts
         id: package
@@ -286,8 +340,9 @@ jobs:
       - name: Download NuGet artifacts
         uses: actions/download-artifact@v5
         with:
-          name: release-nuget
+          pattern: release-nuget*
           path: dist
+          merge-multiple: true
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5.4.0
@@ -303,21 +358,34 @@ jobs:
             throw 'NUGET_API_KEY is required to publish NuGet packages.'
           }
 
-          $archive = Get-ChildItem -LiteralPath dist -Filter 'picket-*-nuget.zip' -File | Select-Object -First 1
-          if ($null -eq $archive) {
-            throw 'NuGet package archive was not downloaded.'
+          $archives = @(Get-ChildItem -LiteralPath dist -Filter 'picket-*-nuget*.zip' -File | Sort-Object Name)
+          if ($archives.Count -eq 0) {
+            throw 'NuGet package archives were not downloaded.'
           }
 
           $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-nuget-publish'
           New-Item -ItemType Directory -Force -Path $packageOutput | Out-Null
-          Expand-Archive -LiteralPath $archive.FullName -DestinationPath $packageOutput -Force
+          foreach ($archive in $archives) {
+            Expand-Archive -LiteralPath $archive.FullName -DestinationPath $packageOutput -Force
+          }
 
           $packages = @(Get-ChildItem -LiteralPath $packageOutput -Filter '*.nupkg' -File | Sort-Object Name)
           if ($packages.Count -eq 0) {
             throw 'NuGet package archive did not contain .nupkg files.'
           }
 
-          foreach ($package in $packages) {
+          $pointerPackages = @($packages | Where-Object {
+            $_.Name -match '^Picket\.\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?\.nupkg$' -or
+            $_.Name -match '^Picket\.Tui\.Cli\.\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?\.nupkg$'
+          })
+          $pointerPaths = @($pointerPackages | ForEach-Object FullName)
+          $nonPointerPackages = @($packages | Where-Object { $pointerPaths -notcontains $_.FullName })
+
+          foreach ($package in $nonPointerPackages) {
+            dotnet nuget push $package.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
+          }
+
+          foreach ($package in $pointerPackages) {
             dotnet nuget push $package.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
           }
 

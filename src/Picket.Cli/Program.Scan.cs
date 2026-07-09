@@ -1365,17 +1365,29 @@ internal static partial class Program
         sourceProviderCount += giteaOptionSpecified ? 1 : 0;
         sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
         sourceProviderCount += s3OptionSpecified ? 1 : 0;
+        bool remoteSourceOptionSpecified = azureBlobOptionSpecified
+            || azureDevOpsOptionSpecified
+            || bitbucketOptionSpecified
+            || gcsOptionSpecified
+            || githubSourceOptionSpecified
+            || giteaOptionSpecified
+            || gitLabOptionSpecified
+            || s3OptionSpecified;
         if (sourceProviderCount > 1)
         {
             Console.Error.WriteLine("scan accepts only one native source provider at a time");
             return UnknownFlagExitCode;
         }
 
-        if ((azureBlobOptionSpecified || azureDevOpsOptionSpecified || bitbucketOptionSpecified || gcsOptionSpecified || githubSourceOptionSpecified || giteaOptionSpecified || gitLabOptionSpecified || s3OptionSpecified)
-            && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
+        if (remoteSourceOptionSpecified && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
             return UnknownFlagExitCode;
+        }
+
+        if (remoteSourceOptionSpecified && allowInsecureSourceEndpoints)
+        {
+            Console.Error.WriteLine("warning: --allow-insecure-source-endpoints permits source credentials over HTTP. Use only for trusted local tests or explicitly accepted private environments.");
         }
 
         if (azureDevOpsOptionSpecified

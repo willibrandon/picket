@@ -81,6 +81,45 @@ public sealed class GiteaSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that Gitea file display paths normalize unsafe provider path segments.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesNormalizesUnsafeDisplayPathSegments()
+    {
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repos/willibrandon/picket/branches/main", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"name":"main","commit":{"id":"abcdef1234567890"}}""");
+            }
+
+            if (url.Contains("/repos/willibrandon/picket/git/trees/abcdef1234567890?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"tree":[{"path":"safe/../secret.txt","type":"blob","size":11}],"truncated":false,"page":1,"total_count":1}""");
+            }
+
+            if (url.Contains("secret.txt", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GiteaSourceClient(httpClient);
+        var options = new GiteaSourceOptions(
+            GiteaSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitea-test-token",
+            "main");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitea/willibrandon/picket/safe/_/secret.txt", files[0].DisplayPath);
+    }
+
+    /// <summary>
     /// Verifies that exact Gitea generic package files are downloaded and archive entries are expanded.
     /// </summary>
     [TestMethod]

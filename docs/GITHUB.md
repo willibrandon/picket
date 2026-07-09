@@ -80,7 +80,7 @@ The token is read from an environment variable and is never passed as a command-
 | `--github-source-api-endpoint` | GitHub API endpoint used for repository enumeration. |
 | `--github-api-endpoint` | Shared GitHub API endpoint used when a source-specific endpoint is not supplied. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for GitHub Enterprise Server. |
-| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments; source credentials may be sent in cleartext. |
 
 ### GitHub API Flow
 

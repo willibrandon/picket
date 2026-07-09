@@ -269,6 +269,23 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies compatibility redaction does not apply the native match fallback.
+    /// </summary>
+    [TestMethod]
+    public void RedactCompatKeepsGitleaksMatchWhenSecretNotSubstring()
+    {
+        const string secret = "secret";
+        const string rawMatchEvidence = "raw-boundary-evidence";
+        Finding finding = CreateFinding(rawMatchEvidence, secret, rawMatchEvidence);
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100);
+
+        Assert.AreEqual("REDACTED", redacted.Secret);
+        Assert.AreEqual(rawMatchEvidence, redacted.Match);
+        Assert.AreEqual(CreateSha256(rawMatchEvidence), redacted.MatchSha256);
+    }
+
+    /// <summary>
     /// Verifies native report writers do not reintroduce raw or encoded secret evidence after redaction.
     /// </summary>
     [TestMethod]

@@ -281,6 +281,58 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that group enumeration skips a project whose metadata request fails and continues with later projects.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateGroupRepositoryFilesContinuesWhenProjectMetadataRequestFails()
+    {
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/groups/team%2Fplatform/projects?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      { "id": 100, "path_with_namespace": "team/platform/missing" },
+                      { "id": 321, "path_with_namespace": "team/platform/api", "default_branch": "main" }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/projects/team%2Fplatform%2Fmissing", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            if (url.Contains("/projects/team%2Fplatform%2Fapi/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "path": "src/appsettings.txt", "type": "blob", "size": 11 }]""");
+            }
+
+            if (url.Contains("/projects/team%2Fplatform%2Fapi/repository/files/src%2Fappsettings.txt/raw?", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabGroupSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "team/platform",
+            "gitlab-test-token",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateGroupRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("gitlab/team/platform/api/src/appsettings.txt", files[0].DisplayPath);
+        Assert.Contains("skipping GitLab project team/platform/missing because GitLab returned 404 NotFound", string.Join('\n', warnings));
+    }
+
+    /// <summary>
     /// Verifies that merge request enumeration resolves the source project and head SHA before reading files.
     /// </summary>
     [TestMethod]

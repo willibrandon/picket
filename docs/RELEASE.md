@@ -1,6 +1,8 @@
 # Release Profiles
 
-Picket publishes the scanner CLI and the TUI companion with named Native AOT profiles. Always pass an explicit runtime identifier with `-r` so each artifact is tied to the target platform.
+Picket publishes RID-specific Native AOT release archives and RID-specific Native AOT NuGet tool packages for the scanner CLI and the TUI companion. Always pass an explicit runtime identifier with `-r` so each archive artifact and RID tool package is tied to the target platform.
+
+The top-level NuGet tool packages are pointer packages. The RID-specific packages carry the native executables, and the .NET CLI selects the matching package during `dotnet tool install`.
 
 ```powershell
 dotnet publish src/Picket.Cli/Picket.Cli.csproj -p:PublishProfile=release-speed -r win-x64
@@ -34,10 +36,12 @@ Every CI run packs the public embeddable library packages after build and test:
 - `Picket.Report`
 - `Picket.Security`
 
-Every CI run also packs the framework-dependent dotnet tool packages:
+Every CI run also packs the Native AOT dotnet tool packages:
 
 - `Picket`, with `ToolCommandName=picket`
 - `Picket.Tui.Cli`, with `ToolCommandName=picket-tui`
+
+The release workflow packs each tool twice: once as a top-level pointer package, and once per supported RID with `dotnet pack -r <RID>`. RID-specific packages are pushed to NuGet before the pointer packages so installs can resolve immediately.
 
 The CI pack gate runs on Windows, Linux, and macOS so package metadata, root readme packaging, icon packaging, symbol packages, project-reference dependencies, tool manifests, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
 
@@ -46,7 +50,10 @@ The CI pack gate runs on Windows, Linux, and macOS so package metadata, root rea
 Every CI run also publishes `picket` and `picket-tui` with `release-speed` for the runner's native RID:
 
 - `linux-x64` on `ubuntu-latest`
+- `linux-arm64` on `ubuntu-24.04-arm`
 - `win-x64` on `windows-latest`
+- `win-arm64` on `windows-11-arm`
+- `osx-x64` on `macos-26-intel`
 - `osx-arm64` on `macos-26`
 
 This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced.
@@ -82,7 +89,7 @@ Release automation should publish, sign, checksum, and archive each RID separate
 
 Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
 
-The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `win-x64`, and `osx-arm64`, packages the public NuGet libraries and dotnet tools into a release archive, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
+The workflow validates the source tree, runs the local GitHub Action smoke test, publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`, packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages into release archives, publishes those `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY`, writes per-asset `.sha256` files, writes an aggregate `checksums.txt` with SHA-256 checksums, and creates or updates the GitHub Release for the tag.
 
 Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 

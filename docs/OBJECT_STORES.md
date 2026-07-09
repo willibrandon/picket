@@ -54,7 +54,7 @@ The access key ID, secret access key, and session token are read from environmen
 | `--s3-secret-access-key-env` | Environment variable containing the secret access key. |
 | `--s3-session-token-env` | Optional environment variable containing the session token for temporary credentials. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoints for explicitly trusted S3-compatible endpoints. |
-| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted private environments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted private environments; source credentials may be sent in cleartext. |
 
 ### S3 API Flow
 
@@ -106,7 +106,7 @@ The bearer token is read from an environment variable and is never passed as a c
 | `--gcs-token-env` | Environment variable containing the OAuth bearer token. |
 | `--gcs-user-project` | Optional requester-pays billing project sent as `userProject`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoints for explicitly trusted storage endpoints. |
-| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted private environments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted private environments; source credentials may be sent in cleartext. |
 
 ### GCS API Flow
 
@@ -144,7 +144,7 @@ picket scan --azure-blob-endpoint https://account.blob.core.windows.net/ --azure
 | `--azure-blob-token-env` | Environment variable containing a bearer token or shared access signature. |
 | `--azure-blob-token-kind` | Credential kind: `bearer` or `sas`. Defaults to `bearer`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoints for explicitly trusted storage endpoints. |
-| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted private environments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted private environments; source credentials may be sent in cleartext. |
 
 ### Azure Blob API Flow
 

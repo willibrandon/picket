@@ -92,7 +92,7 @@ picket scan --bitbucket-api-endpoint https://api.bitbucket.org/2.0/ --bitbucket-
 | `--bitbucket-username-env` | Environment variable containing the Bitbucket username for `app-password` mode. |
 | `--bitbucket-api-endpoint` | Bitbucket Cloud API endpoint used for repository enumeration. Defaults to `https://api.bitbucket.org/2.0/`. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for trusted tests. |
-| `--allow-insecure-source-endpoints` | Permit HTTP endpoints for trusted local tests or explicitly accepted deployments. |
+| `--allow-insecure-source-endpoints` | Permit HTTP endpoints for trusted local tests or explicitly accepted deployments; source credentials may be sent in cleartext. |
 
 ## API Flow
 

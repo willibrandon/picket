@@ -1,0 +1,79 @@
+using Picket.Sources;
+using System.Net;
+using System.Text;
+
+namespace Picket.Tests;
+
+/// <summary>
+/// Tests Amazon S3 source enumeration.
+/// </summary>
+[TestClass]
+public sealed class S3SourceClientTests
+{
+    /// <summary>
+    /// Gets or sets the MSTest context for the current test.
+    /// </summary>
+    public TestContext TestContext { get; set; } = null!;
+
+    /// <summary>
+    /// Verifies that S3 XML metadata rejects DTDs.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateObjectsRejectsDtdMetadata()
+    {
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ => XmlResponse(
+            """
+            <!DOCTYPE ListBucketResult [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+            <ListBucketResult><Contents><Key>&xxe;</Key><Size>1</Size></Contents></ListBucketResult>
+            """)));
+        var client = new S3SourceClient(httpClient);
+        var options = CreateOptions(warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateObjectsAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.Contains("XML parsing failed", string.Join('\n', warnings));
+    }
+
+    /// <summary>
+    /// Verifies that S3 XML metadata stops before reading responses that declare a size beyond the metadata cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateObjectsRejectsMetadataResponseExceedingCap()
+    {
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(static _ =>
+        {
+            HttpResponseMessage response = XmlResponse("<ListBucketResult />");
+            response.Content.Headers.ContentLength = RemoteJsonDocumentReader.DefaultMaxMetadataBytes + 1;
+            return response;
+        }));
+        var client = new S3SourceClient(httpClient);
+        var options = CreateOptions(warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateObjectsAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.Contains("exceeding the 10000000 byte metadata cap", string.Join('\n', warnings));
+    }
+
+    private static S3SourceOptions CreateOptions(Action<string> warningSink)
+    {
+        return new S3SourceOptions(
+            new Uri("https://s3.us-east-1.amazonaws.com/"),
+            "examplebucket",
+            "us-east-1",
+            "AKIAIOSFODNN7EXAMPLE",
+            "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+            warningSink: warningSink);
+    }
+
+    private static HttpResponseMessage XmlResponse(string xml)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(xml, Encoding.UTF8, "application/xml"),
+        };
+    }
+}

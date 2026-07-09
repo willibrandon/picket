@@ -4,7 +4,7 @@
 
 - **Status:** Product and implementation design
 - **Date:** 2026-07-05
-- **Target runtime:** `picket` CLI on .NET 10 Native AOT (`net10.0`); reusable libraries target `net9.0` and `net10.0`
+- **Target runtime:** RID-specific `picket` release archives and RID-specific `dotnet tool` packages on .NET 10 Native AOT (`net10.0`); reusable libraries target `net9.0` and `net10.0`
 - **Binary name:** `picket`; interactive report triage ships as the companion `picket-tui` executable and is also reachable through `picket tui` when the companion is installed beside `picket` or on `PATH`.
 - **Root namespace:** `Picket`
 - **Primary reference:** Gitleaks. Picket intentionally follows its CLI, config model, rule semantics, reports, fingerprints, and operational defaults in compatibility mode.
@@ -110,7 +110,7 @@ Rules:
 
 ### 4.4 Native AOT
 
-The CLI is Native AOT and single-file/self-contained per RID. Picket reuses Scout's build and packaging patterns, but it does not assume Unix raw-argv handling and Windows wide-argv handling are identical. Path/argument byte behavior is tested per platform.
+The RID-specific release archive CLI is Native AOT and single-file/self-contained per RID. Picket reuses Scout's build and packaging patterns, but it does not assume Unix raw-argv handling and Windows wide-argv handling are identical. Path/argument byte behavior is tested per platform.
 
 ---
 
@@ -994,7 +994,7 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 
 ### 8.10 Terminal Triage UI
 
-`picket tui <report>` opens an interactive scanner console for non-secret report triage. `picket tui --scan` opens the native scan workspace without loading an existing report. The main `picket` executable keeps the scanner binary focused and delegates to the companion `picket-tui` executable when it is installed beside `picket` or discoverable on `PATH`. The companion is also Native AOT and uses the same release profiles as `picket`; it is separate so terminal UI code and terminal-native assets do not increase the default scanner payload. The companion loads the same non-secret report summaries as `picket view`: rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names. It does not load raw secret, match, or source-line evidence into the initial console.
+`picket tui <report>` opens an interactive scanner console for non-secret report triage. `picket tui --scan` opens the native scan workspace without loading an existing report. The main `picket` executable keeps the scanner binary focused and delegates to the companion `picket-tui` executable when it is installed beside `picket` or discoverable on `PATH`. The companion's RID-specific release archive is also Native AOT and uses the same release profiles as `picket`; it is separate so terminal UI code and terminal-native assets do not increase the default scanner payload. The companion loads the same non-secret report summaries as `picket view`: rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names. It does not load raw secret, match, or source-line evidence into the initial console.
 
 The full-screen console is an operator interface, not a marketing screen. Opening without a report starts on the Scan page; opening a report with findings starts on Findings. The Scan page is for setting up and running a scan: Run scan, target inputs, command preview, status, exit code, scan timing, report path, result count summary, and an output-availability signal. The Logs page owns captured scanner output. The Findings page owns row triage: filtering, selected-row focus, finding details, and finding-specific yank text. This prevents the Scan page from becoming a duplicate findings browser while still making the next action obvious after a scan completes. It favors readable scanner-console density, stable row keys, clear focus, keyboard navigation, and text labels over decorative graphics.
 
@@ -1050,7 +1050,7 @@ The initial public package surface is intentionally narrow:
 - `Picket.Report` contains Gitleaks-compatible and Picket-native report writers.
 - `Picket.Security` contains egress policy and endpoint safety primitives for live validation, source connectors, and user-configured provider endpoints.
 
-`Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are not public library NuGet packages until their contracts are explicitly designed and documented. The CLI and TUI companion ship as framework-dependent `dotnet tool` packages for package-manager workflows; the Native AOT archives remain the primary zero-runtime executable distribution.
+`Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are not public library NuGet packages until their contracts are explicitly designed and documented. The CLI and TUI companion ship as RID-specific Native AOT `dotnet tool` packages for Windows, Linux, and macOS x64/Arm64 package-manager workflows; the Native AOT archives remain the direct executable distribution.
 
 Public APIs are documented, cancellation-aware where operations can block or stream, streaming-first where result volume can be large, and stable across minor releases.
 

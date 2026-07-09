@@ -25,6 +25,21 @@ public sealed partial class RepositoryConventionTests
         "src/Picket.Sources/GitHubSourceClient.cs",
         "src/Picket.Sources/GitLabSourceClient.cs",
     ];
+    private static readonly string[] s_remoteXmlSourceClientFiles =
+    [
+        "src/Picket.Sources/AzureBlobSourceClient.cs",
+        "src/Picket.Sources/S3SourceClient.cs",
+    ];
+    private static readonly string[] s_sourceEndpointGuardWiringFiles =
+    [
+        "src/Picket.Cli/Program.AzureBlob.cs",
+        "src/Picket.Cli/Program.Bitbucket.cs",
+        "src/Picket.Cli/Program.Gcs.cs",
+        "src/Picket.Cli/Program.Gitea.cs",
+        "src/Picket.Cli/Program.GitHub.cs",
+        "src/Picket.Cli/Program.GitLab.cs",
+        "src/Picket.Cli/Program.S3.cs",
+    ];
     private static readonly SemaphoreSlim s_fileBasedAppBuildLock = new(1, 1);
     private static readonly Regex s_typeDeclarationPattern = CreateTypeDeclarationPattern();
 
@@ -288,7 +303,7 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(tuiProject, "IsAotCompatible", "true");
         AssertProjectProperty(tuiProject, "VerifyReferenceTrimCompatibility", "true");
         AssertProjectProperty(tuiProject, "VerifyReferenceAotCompatibility", "true");
-        AssertProjectProperty(tuiCliProject, "SelfContained", "false");
+        AssertProjectProperty(tuiCliProject, "PublishAot", "true");
         AssertProjectProperty(tuiCliProject, "IsAotCompatible", "true");
         AssertProjectProperty(tuiCliProject, "VerifyReferenceTrimCompatibility", "true");
         AssertProjectProperty(tuiCliProject, "VerifyReferenceAotCompatibility", "true");
@@ -375,8 +390,14 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PublishProfile=release-speed", workflow);
         Assert.Contains("${{ matrix.rid }}", workflow);
         Assert.Contains("rid: linux-x64", workflow);
+        Assert.Contains("rid: linux-arm64", workflow);
         Assert.Contains("rid: win-x64", workflow);
+        Assert.Contains("rid: win-arm64", workflow);
+        Assert.Contains("rid: osx-x64", workflow);
         Assert.Contains("rid: osx-arm64", workflow);
+        Assert.Contains("ubuntu-24.04-arm", workflow);
+        Assert.Contains("windows-11-arm", workflow);
+        Assert.Contains("macos-26-intel", workflow);
         Assert.Contains("Picket scan", workflow);
         Assert.Contains("uses: ./", workflow);
         Assert.Contains("path: .", workflow);
@@ -396,6 +417,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet pack src/Picket.Security/Picket.Security.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Cli/Picket.Cli.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        Assert.Contains("-p:IncludeSymbols=false", workflow);
+        Assert.Contains("dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }}", workflow);
+        Assert.Contains("dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }}", workflow);
         Assert.Contains("Validate Azure DevOps VSIX package", workflow);
         Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", workflow);
         Assert.Contains("npm exec -- tfx extension create", workflow);
@@ -411,7 +435,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("macos-26", workflow);
         Assert.Contains("NuGet Package Validation", documentation);
         Assert.Contains("Every CI run packs the public embeddable library packages", documentation);
-        Assert.Contains("Every CI run also packs the framework-dependent dotnet tool packages", documentation);
+        Assert.Contains("Every CI run also packs the Native AOT dotnet tool packages", documentation);
         Assert.Contains("cross-platform MSBuild paths", documentation);
         Assert.Contains("Native AOT Publish Validation", documentation);
         Assert.Contains("Every CI run also publishes `picket` and `picket-tui` with `release-speed`", documentation);
@@ -628,8 +652,14 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("workflow_dispatch", workflow);
         Assert.Contains("release-speed", workflow);
         Assert.Contains("rid: linux-x64", workflow);
+        Assert.Contains("rid: linux-arm64", workflow);
         Assert.Contains("rid: win-x64", workflow);
+        Assert.Contains("rid: win-arm64", workflow);
+        Assert.Contains("rid: osx-x64", workflow);
         Assert.Contains("rid: osx-arm64", workflow);
+        Assert.Contains("ubuntu-24.04-arm", workflow);
+        Assert.Contains("windows-11-arm", workflow);
+        Assert.Contains("macos-26-intel", workflow);
         Assert.Contains("actions/attest@v4", workflow);
         Assert.Contains("id-token: write", workflow);
         Assert.Contains("attestations: write", workflow);
@@ -637,7 +667,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("actions/download-artifact@v5", workflow);
         Assert.Contains("build-binaries", workflow);
         Assert.Contains("release-binaries-${{ matrix.rid }}", workflow);
+        Assert.Contains("release-nuget-${{ matrix.rid }}", workflow);
         Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        Assert.Contains("dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid", workflow);
+        Assert.Contains("dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid", workflow);
         Assert.Contains("Smoke test GitHub Action", workflow);
         Assert.Contains("Verify GitHub Action smoke outputs", workflow);
         Assert.Contains("summary: \"false\"", workflow);
@@ -652,6 +685,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Security/Picket.Security.csproj", workflow);
         Assert.Contains("Picket.Cli/Picket.Cli.csproj", workflow);
         Assert.Contains("Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        Assert.Contains("-p:IncludeSymbols=false", workflow);
         Assert.Contains("publish-nuget", workflow);
         Assert.Contains("NUGET_API_KEY", workflow);
         Assert.Contains("dotnet nuget push", workflow);
@@ -659,10 +693,13 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("*.snupkg", workflow);
         Assert.Contains("-p:Version=$version", workflow);
         Assert.Contains("-p:PackageVersion=$version", workflow);
+        Assert.Contains("pattern: release-nuget*", workflow);
+        Assert.Contains("$pointerPackages", workflow);
         Assert.Contains("SHA-256 checksums", documentation);
         Assert.Contains("GitHub artifact attestations", documentation);
         Assert.Contains("publishes those `.nupkg` and `.snupkg` files to NuGet.org", documentation);
         Assert.Contains("release tag is the source of truth for package versions", documentation);
+        Assert.Contains("RID-specific Native AOT NuGet tool packages", documentation);
     }
 
     /// <summary>
@@ -809,6 +846,35 @@ public sealed partial class RepositoryConventionTests
         string reader = ReadRepositoryFile("src/Picket.Sources/RemoteJsonDocumentReader.cs");
         Assert.Contains("DefaultMaxMetadataBytes = 10_000_000", reader);
         Assert.Contains("CappedReadStream", reader);
+    }
+
+    /// <summary>
+    /// Verifies that XML-backed remote source clients keep bounded, XXE-safe metadata readers.
+    /// </summary>
+    [TestMethod]
+    public void RemoteXmlSourceClientsUseBoundedSafeXmlReader()
+    {
+        foreach (string file in s_remoteXmlSourceClientFiles)
+        {
+            string source = ReadRepositoryFile(file);
+            Assert.Contains("CappedReadStream", source);
+            Assert.Contains("DtdProcessing = DtdProcessing.Prohibit", source);
+            Assert.Contains("MaxCharactersInDocument = RemoteJsonDocumentReader.DefaultMaxMetadataBytes", source);
+            Assert.Contains("XmlResolver = null", source);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that CLI source-provider wiring uses the connect-time endpoint guard.
+    /// </summary>
+    [TestMethod]
+    public void SourceProviderWiringUsesEndpointGuardHttpHandlerFactory()
+    {
+        foreach (string file in s_sourceEndpointGuardWiringFiles)
+        {
+            string source = ReadRepositoryFile(file);
+            Assert.Contains("EndpointGuardHttpHandlerFactory.Create", source);
+        }
     }
 
     /// <summary>
@@ -1025,7 +1091,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Scout.Text.Regex", releaseProfiles);
         Assert.Contains("System.CommandLine", releaseProfiles);
         Assert.Contains("linux-x64", releaseProfiles);
+        Assert.Contains("linux-arm64", releaseProfiles);
         Assert.Contains("win-x64", releaseProfiles);
+        Assert.Contains("win-arm64", releaseProfiles);
+        Assert.Contains("osx-x64", releaseProfiles);
         Assert.Contains("osx-arm64", releaseProfiles);
         Assert.Contains("Report Schema Reference", reportSchemas);
         Assert.Contains("Native JSON report object", reportSchemas);
@@ -1831,9 +1900,10 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(project, "PackAsTool", "true");
         AssertProjectProperty(project, "ToolCommandName", commandName);
         AssertProjectProperty(project, "PackageId", packageId);
+        AssertProjectProperty(project, "PublishAot", "true");
+        AssertProjectProperty(project, "ToolPackageRuntimeIdentifiers", "win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64");
         AssertProjectPropertyIsNotEmpty(project, "Description");
         AssertProjectPropertyContains(project, "PackageTags", "$(PackageTags)");
-        AssertProjectProperty(project, "SelfContained", "false");
         AssertProjectProperty(project, "IsAotCompatible", "true");
         AssertProjectProperty(project, "EnableTrimAnalyzer", "true");
         AssertProjectProperty(project, "EnableAotAnalyzer", "true");

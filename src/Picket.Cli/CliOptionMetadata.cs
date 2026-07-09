@@ -38,7 +38,7 @@ internal static class CliOptionMetadata
             "-r" => "Write a report to this path.",
             "-v" => "Enable verbose logging.",
             "--allow-non-public-endpoints" => "Allow guarded live validation endpoints that are not public internet addresses.",
-            "--allow-insecure-source-endpoints" => "Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments.",
+            "--allow-insecure-source-endpoints" => "Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments; source credentials may be sent in cleartext.",
             "--allow-non-public-source-endpoints" => "Allow source-host endpoints that resolve to private, loopback, link-local, or otherwise non-public addresses.",
             "--azure-blob-container" => "Scan blobs from this Azure Blob Storage container.",
             "--azure-blob-endpoint" => "Use this Azure Blob Storage service endpoint for native object-store enumeration.",
