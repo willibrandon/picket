@@ -9,27 +9,6 @@ namespace Picket.Docs;
 
 internal sealed partial class DocumentationGenerator(string repositoryRoot)
 {
-    private static readonly string[][] s_cliReferenceCommands =
-    [
-        ["scan"],
-        ["verify"],
-        ["analyze"],
-        ["baseline", "create"],
-        ["cache", "stats"],
-        ["cache", "prune"],
-        ["cache", "export"],
-        ["cache", "import"],
-        ["git"],
-        ["dir"],
-        ["stdin"],
-        ["rules", "check"],
-        ["rules", "test"],
-        ["hooks", "install"],
-        ["view"],
-        ["tui"],
-        ["version"],
-    ];
-
     private static readonly Dictionary<string, int> s_projectDocumentationSidebarOrder = new(StringComparer.OrdinalIgnoreCase)
     {
         ["DESIGN"] = 10,
@@ -479,13 +458,30 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     {
         var helpBlocks = new List<List<string>>();
         BuildCliReferenceProject();
-        foreach (string[] command in s_cliReferenceCommands)
-        {
-            string helpOutput = ReadCliHelpOutput(command);
-            helpBlocks.Add(CreateCliHelpBlock(command, helpOutput));
-        }
+        string rootHelpOutput = ReadCliHelpOutput([]);
+        AddCliReferenceHelpBlocks(helpBlocks, [], rootHelpOutput);
 
         return helpBlocks;
+    }
+
+    private void AddCliReferenceHelpBlocks(List<List<string>> helpBlocks, string[] command, string helpOutput)
+    {
+        List<string> subcommands = ReadCliHelpCommandNames(helpOutput);
+        if (subcommands.Count == 0)
+        {
+            if (command.Length != 0)
+            {
+                helpBlocks.Add(CreateCliHelpBlock(command, helpOutput));
+            }
+
+            return;
+        }
+
+        foreach (string subcommand in subcommands)
+        {
+            string[] childCommand = [.. command, subcommand];
+            AddCliReferenceHelpBlocks(helpBlocks, childCommand, ReadCliHelpOutput(childCommand));
+        }
     }
 
     private void BuildCliReferenceProject()
@@ -521,7 +517,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         ];
         arguments.AddRange(command);
         arguments.Add("--help");
-        return RunDotNetCommand(arguments, string.Concat("CLI help for picket ", string.Join(' ', command)));
+        string commandLabel = command.Length == 0 ? "picket" : string.Concat("picket ", string.Join(' ', command));
+        return RunDotNetCommand(arguments, string.Concat("CLI help for ", commandLabel));
     }
 
     private string RunDotNetCommand(List<string> arguments, string operation)
@@ -625,6 +622,49 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         }
 
         return sections;
+    }
+
+    private static List<string> ReadCliHelpCommandNames(string helpOutput)
+    {
+        List<string> outputLines = [.. NormalizeLineEndings(helpOutput)
+            .Split('\n')
+            .Select(line => line.TrimEnd())
+            .SkipWhile(line => line.Length == 0)];
+        List<KeyValuePair<string, List<string>>> sections = ReadCliOutputSections(outputLines);
+        List<string> commandLines = ReadCliSectionLines(sections, "Commands");
+        var commands = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string line in commandLines)
+        {
+            if (!TryReadCliHelpRow(line, out string syntax, out _))
+            {
+                continue;
+            }
+
+            string command = ReadCliPrimaryCommandName(syntax);
+            if (command.Length != 0 && seen.Add(command))
+            {
+                commands.Add(command);
+            }
+        }
+
+        return commands;
+    }
+
+    private static string ReadCliPrimaryCommandName(string syntax)
+    {
+        string value = syntax.Trim();
+        int aliasIndex = value.IndexOf(',', StringComparison.Ordinal);
+        int argumentIndex = value.IndexOf(' ', StringComparison.Ordinal);
+        int length = aliasIndex switch
+        {
+            >= 0 when argumentIndex >= 0 => Math.Min(aliasIndex, argumentIndex),
+            >= 0 => aliasIndex,
+            _ when argumentIndex >= 0 => argumentIndex,
+            _ => value.Length,
+        };
+        string command = value[..length].Trim();
+        return command.StartsWith('-') ? string.Empty : command;
     }
 
     private static Dictionary<string, string> ReadCliCommandSummaries(List<List<string>> commandBlocks)

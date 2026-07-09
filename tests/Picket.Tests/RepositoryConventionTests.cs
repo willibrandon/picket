@@ -1438,6 +1438,20 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that CLI reference generation discovers visible commands from the runtime help tree.
+    /// </summary>
+    [TestMethod]
+    public void CliReferenceGeneratorDiscoversCommandsFromRuntimeHelp()
+    {
+        string docsGenerator = ReadRepositoryFile("tools/Picket.Docs/DocumentationGenerator.cs");
+
+        Assert.DoesNotContain("s_cliReferenceCommands", docsGenerator);
+        Assert.Contains("ReadCliHelpOutput([])", docsGenerator);
+        Assert.Contains("ReadCliHelpCommandNames(helpOutput)", docsGenerator);
+        Assert.Contains("AddCliReferenceHelpBlocks(helpBlocks, childCommand, ReadCliHelpOutput(childCommand));", docsGenerator);
+    }
+
+    /// <summary>
     /// Verifies that pull-request documentation builds do not receive Pages deployment permissions.
     /// </summary>
     [TestMethod]
