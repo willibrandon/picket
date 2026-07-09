@@ -598,7 +598,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
 
         if (issueNumbersWithComments.Count != 0 && !IsCancellationRequested(options))
         {
-            await AddIssueCommentFilesAsync(options, issueNumbersWithComments, sourceFiles, cancellationToken).ConfigureAwait(false);
+            await AddIssueCommentFilesAsync(options, issueNumbersWithComments, sourceFiles, SendAsync, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -767,10 +767,11 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         return issueCount;
     }
 
-    private async Task AddIssueCommentFilesAsync(
+    private static async Task AddIssueCommentFilesAsync(
         GiteaSourceOptions options,
         HashSet<int> issueNumbers,
         List<SourceFile> sourceFiles,
+        Func<GiteaSourceOptions, Uri, bool, CancellationToken, Task<HttpResponseMessage>> sendAsync,
         CancellationToken cancellationToken)
     {
         int page = 1;
@@ -778,7 +779,7 @@ public sealed class GiteaSourceClient(HttpClient httpClient)
         do
         {
             Uri uri = CreateRepositoryIssueCommentListUri(options, page);
-            using HttpResponseMessage response = await SendAsync(options, uri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage response = await sendAsync(options, uri, false, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 WarnUnsuccessfulResponse(options, response, $"skipping Gitea issue comments for repository {options.Repository}");
