@@ -3034,11 +3034,12 @@ public sealed class CliCompatibilityTests
         string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
 
         CliResult disabled = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
-        CliResult enabled = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1", "--timeout=1").ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
 
         Assert.AreEqual(0, disabled.ExitCode);
         Assert.AreEqual("[]\n", disabled.Stdout);
         Assert.AreEqual(1, enabled.ExitCode);
+        Assert.DoesNotContain("context deadline exceeded", enabled.Stderr);
         Assert.Contains("\"File\": \"secrets.zip!nested/secret.txt\"", enabled.Stdout);
         Assert.Contains("\"Secret\": \"token-12345\"", enabled.Stdout);
         Assert.Contains($"\"Commit\": \"{commit}\"", enabled.Stdout);
