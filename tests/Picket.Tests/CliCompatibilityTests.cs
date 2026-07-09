@@ -3071,13 +3071,13 @@ public sealed class CliCompatibilityTests
             diagnosticsUri,
             "not-http\r\n\r\n",
             TestContext.CancellationToken).ConfigureAwait(false);
-        string oversizedHeaderResponse = await SendRawHttpRequestAsync(
+        string cappedHeaderPrefix = string.Concat(
+            "GET ",
+            diagnosticsUri.PathAndQuery,
+            " HTTP/1.1\r\nHost: 127.0.0.1\r\nX-Fill: ");
+        string cappedHeaderResponse = await SendRawHttpRequestAsync(
             diagnosticsUri,
-            string.Concat(
-                "GET ",
-                diagnosticsUri.PathAndQuery,
-                " HTTP/1.1\r\nHost: 127.0.0.1\r\nX-Fill: ",
-                new string('x', 9000)),
+            cappedHeaderPrefix + new string('x', 8192 - Encoding.ASCII.GetByteCount(cappedHeaderPrefix)),
             TestContext.CancellationToken).ConfigureAwait(false);
         string index = await client.GetStringAsync(diagnosticsUri, TestContext.CancellationToken).ConfigureAwait(false);
         string cpu = await client.GetStringAsync(profileUriBuilder.Uri, TestContext.CancellationToken).ConfigureAwait(false);
@@ -3099,8 +3099,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual("method not allowed\n", postBody);
         Assert.Contains("HTTP/1.1 400 Bad Request", malformedResponse);
         Assert.Contains("bad request\n", malformedResponse);
-        Assert.Contains("HTTP/1.1 200 OK", oversizedHeaderResponse);
-        Assert.Contains("Content-Length:", oversizedHeaderResponse);
+        Assert.Contains("HTTP/1.1 200 OK", cappedHeaderResponse);
+        Assert.Contains("Content-Length:", cappedHeaderResponse);
         Assert.Contains("\"diagnostic\": \"http\"", concurrentIndex);
         Assert.Contains("\"diagnostic\": \"http\"", index);
         Assert.Contains("\"endpoints\"", index);
@@ -4879,13 +4879,87 @@ public sealed class CliCompatibilityTests
             while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) != 0)
             {
                 response.Write(buffer.AsSpan(0, read));
+                if (HasCompleteHttpResponse(response))
+                {
+                    break;
+                }
             }
         }
-        catch (IOException) when (response.Length > 0)
+        catch (IOException) when (HasCompleteHttpResponse(response))
         {
         }
 
         return Encoding.UTF8.GetString(response.ToArray());
+    }
+
+    private static bool HasCompleteHttpResponse(MemoryStream response)
+    {
+        if (response.Length == 0 || response.Length > int.MaxValue || !response.TryGetBuffer(out ArraySegment<byte> segment))
+        {
+            return false;
+        }
+
+        byte[]? bytes = segment.Array;
+        if (bytes is null)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<byte> data = bytes.AsSpan(segment.Offset, (int)response.Length);
+        int headerEnd = GetHttpHeaderEnd(data);
+        if (headerEnd < 0)
+        {
+            return false;
+        }
+
+        if (!TryGetHttpContentLength(data[..headerEnd], out int contentLength))
+        {
+            return true;
+        }
+
+        return data.Length >= headerEnd + 4 + contentLength;
+    }
+
+    private static int GetHttpHeaderEnd(ReadOnlySpan<byte> data)
+    {
+        for (int i = 0; i <= data.Length - 4; i++)
+        {
+            if (data[i] == '\r'
+                && data[i + 1] == '\n'
+                && data[i + 2] == '\r'
+                && data[i + 3] == '\n')
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool TryGetHttpContentLength(ReadOnlySpan<byte> headersBytes, out int contentLength)
+    {
+        contentLength = 0;
+        string headers = Encoding.ASCII.GetString(headersBytes);
+        const string HeaderName = "Content-Length:";
+        int lineStart = 0;
+        while (lineStart < headers.Length)
+        {
+            int lineEnd = headers.IndexOf("\r\n", lineStart, StringComparison.Ordinal);
+            if (lineEnd < 0)
+            {
+                lineEnd = headers.Length;
+            }
+
+            ReadOnlySpan<char> line = headers.AsSpan(lineStart, lineEnd - lineStart);
+            if (line.StartsWith(HeaderName.AsSpan(), StringComparison.OrdinalIgnoreCase))
+            {
+                return int.TryParse(line[HeaderName.Length..].Trim(), out contentLength);
+            }
+
+            lineStart = lineEnd + 2;
+        }
+
+        return false;
     }
 
     private static async Task<string> RunGitCommandAsync(string workingDirectory, params string[] arguments)
