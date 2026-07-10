@@ -520,7 +520,7 @@ public sealed class PicketTuiTests
         PicketTuiState state = CreateState();
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
 
-        scan.SetTargetMode(6);
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.DockerArchive);
         scan.SetDockerArchivePath("images/app.tar");
 
         bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
@@ -540,7 +540,7 @@ public sealed class PicketTuiTests
         PicketTuiState state = CreateState();
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
 
-        scan.SetTargetMode(7);
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.OciArchive);
         scan.SetOciArchivePath("images/app.oci.tar");
 
         bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
@@ -552,6 +552,117 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that the scan workspace builds S3 object-store scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsS3SourceArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.S3);
+        scan.SetS3Bucket("secret-bucket");
+        scan.SetS3Region("us-west-2");
+        scan.SetS3Endpoint("https://s3.example");
+        scan.SetS3Prefix("prod/");
+        scan.SetS3AccessKeyIdEnvironmentVariable("PICKET_S3_ACCESS_KEY_ID");
+        scan.SetS3SecretAccessKeyEnvironmentVariable("PICKET_S3_SECRET_ACCESS_KEY");
+        scan.SetS3SessionTokenEnvironmentVariable("PICKET_S3_SESSION_TOKEN");
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--s3-bucket", arguments);
+        Assert.Contains("secret-bucket", arguments);
+        Assert.Contains("--s3-region", arguments);
+        Assert.Contains("us-west-2", arguments);
+        Assert.Contains("--s3-endpoint", arguments);
+        Assert.Contains("https://s3.example", arguments);
+        Assert.Contains("--s3-prefix", arguments);
+        Assert.Contains("prod/", arguments);
+        Assert.Contains("--s3-access-key-id-env", arguments);
+        Assert.Contains("PICKET_S3_ACCESS_KEY_ID", arguments);
+        Assert.Contains("--s3-secret-access-key-env", arguments);
+        Assert.Contains("PICKET_S3_SECRET_ACCESS_KEY", arguments);
+        Assert.Contains("--s3-session-token-env", arguments);
+        Assert.Contains("PICKET_S3_SESSION_TOKEN", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Google Cloud Storage scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsGcsSourceArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.Gcs);
+        scan.SetGcsBucket("secret-bucket");
+        scan.SetGcsEndpoint("https://storage.example");
+        scan.SetGcsPrefix("prod/");
+        scan.SetGcsTokenEnvironmentVariable("PICKET_GCS_TOKEN");
+        scan.SetGcsUserProject("billing-project");
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--gcs-bucket", arguments);
+        Assert.Contains("secret-bucket", arguments);
+        Assert.Contains("--gcs-endpoint", arguments);
+        Assert.Contains("https://storage.example", arguments);
+        Assert.Contains("--gcs-prefix", arguments);
+        Assert.Contains("prod/", arguments);
+        Assert.Contains("--gcs-token-env", arguments);
+        Assert.Contains("PICKET_GCS_TOKEN", arguments);
+        Assert.Contains("--gcs-user-project", arguments);
+        Assert.Contains("billing-project", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Azure Blob Storage scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsAzureBlobSourceArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.AzureBlob);
+        scan.SetAzureBlobEndpoint("https://account.blob.core.windows.net");
+        scan.SetAzureBlobContainer("secrets");
+        scan.SetAzureBlobPrefix("prod/");
+        scan.SetAzureBlobTokenEnvironmentVariable("PICKET_AZURE_BLOB_TOKEN");
+        scan.SetAzureBlobTokenKindByIndex(1);
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--azure-blob-endpoint", arguments);
+        Assert.Contains("https://account.blob.core.windows.net", arguments);
+        Assert.Contains("--azure-blob-container", arguments);
+        Assert.Contains("secrets", arguments);
+        Assert.Contains("--azure-blob-prefix", arguments);
+        Assert.Contains("prod/", arguments);
+        Assert.Contains("--azure-blob-token-env", arguments);
+        Assert.Contains("PICKET_AZURE_BLOB_TOKEN", arguments);
+        Assert.Contains("--azure-blob-token-kind", arguments);
+        Assert.Contains("sas", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
     /// Verifies that Docker archive scans require an archive path before launch.
     /// </summary>
     [TestMethod]
@@ -560,7 +671,7 @@ public sealed class PicketTuiTests
         PicketTuiState state = CreateState();
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
 
-        scan.SetTargetMode(6);
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.DockerArchive);
 
         bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
 
@@ -578,13 +689,71 @@ public sealed class PicketTuiTests
         PicketTuiState state = CreateState();
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
 
-        scan.SetTargetMode(7);
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.OciArchive);
 
         bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
 
         Assert.IsFalse(built);
         Assert.IsEmpty(arguments);
         Assert.Contains("OCI archive scans require an archive path", error);
+    }
+
+    /// <summary>
+    /// Verifies that S3 scans require the CLI's required source inputs before launch.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsIncompleteS3Source()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.S3);
+        scan.SetS3Bucket("secret-bucket");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("S3 scans require a region", error);
+    }
+
+    /// <summary>
+    /// Verifies that Google Cloud Storage scans require the CLI's required source inputs before launch.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsIncompleteGcsSource()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.Gcs);
+        scan.SetGcsBucket("secret-bucket");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("GCS scans require a token environment variable", error);
+    }
+
+    /// <summary>
+    /// Verifies that Azure Blob Storage scans require the CLI's required source inputs before launch.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsIncompleteAzureBlobSource()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.AzureBlob);
+        scan.SetAzureBlobEndpoint("https://account.blob.core.windows.net");
+        scan.SetAzureBlobContainer("secrets");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("Azure Blob scans require a token environment variable", error);
     }
 
     /// <summary>

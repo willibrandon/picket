@@ -36,6 +36,21 @@ internal enum PicketTuiScanTargetMode
     Bitbucket,
 
     /// <summary>
+    /// Scan Amazon S3 or S3-compatible object storage.
+    /// </summary>
+    S3,
+
+    /// <summary>
+    /// Scan Google Cloud Storage objects.
+    /// </summary>
+    Gcs,
+
+    /// <summary>
+    /// Scan Azure Blob Storage objects.
+    /// </summary>
+    AzureBlob,
+
+    /// <summary>
     /// Scan a local Docker image archive.
     /// </summary>
     DockerArchive,

@@ -13,6 +13,7 @@ internal sealed class PicketTuiScanWorkspace
     private const int MaxCapturedOutputLineLength = 180;
     private const int MaxCapturedOutputLines = 500;
     private static readonly char[] s_argumentQuoteCharacters = [' ', '\t', '"'];
+    private static readonly string[] s_azureBlobTokenKinds = ["bearer", "sas"];
     private static readonly string[] s_azureDevOpsTokenKinds = ["pat", "bearer"];
     private static readonly string[] s_bitbucketTokenKinds = ["bearer", "app-password"];
     private static readonly string[] s_giteaIssueStates = ["all", "open", "closed"];
@@ -22,7 +23,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
-    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "Docker", "OCI"];
+    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "S3", "GCS", "Azure Blob", "Docker", "OCI"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
     private readonly Lock _outputLock = new();
@@ -35,6 +36,11 @@ internal sealed class PicketTuiScanWorkspace
     {
         _executor = executor;
     }
+
+    /// <summary>
+    /// Gets the selectable Azure Blob token kinds.
+    /// </summary>
+    internal static IReadOnlyList<string> AzureBlobTokenKinds => s_azureBlobTokenKinds;
 
     /// <summary>
     /// Gets the selectable Azure DevOps token kinds.
@@ -477,6 +483,91 @@ internal sealed class PicketTuiScanWorkspace
     internal bool IncludeBitbucketSnippets { get; private set; }
 
     /// <summary>
+    /// Gets the S3 bucket selector.
+    /// </summary>
+    internal string S3Bucket { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the S3 region used for request signing.
+    /// </summary>
+    internal string S3Region { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the S3-compatible endpoint URI.
+    /// </summary>
+    internal string S3Endpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the S3 object key prefix.
+    /// </summary>
+    internal string S3Prefix { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the S3 access key ID environment variable name.
+    /// </summary>
+    internal string S3AccessKeyIdEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the S3 secret access key environment variable name.
+    /// </summary>
+    internal string S3SecretAccessKeyEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional S3 session token environment variable name.
+    /// </summary>
+    internal string S3SessionTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Google Cloud Storage bucket selector.
+    /// </summary>
+    internal string GcsBucket { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Google Cloud Storage JSON API endpoint URI.
+    /// </summary>
+    internal string GcsEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Google Cloud Storage object prefix.
+    /// </summary>
+    internal string GcsPrefix { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Google Cloud Storage bearer token environment variable name.
+    /// </summary>
+    internal string GcsTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional Google Cloud Storage requester-pays billing project.
+    /// </summary>
+    internal string GcsUserProject { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Azure Blob Storage endpoint URI.
+    /// </summary>
+    internal string AzureBlobEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Azure Blob Storage container selector.
+    /// </summary>
+    internal string AzureBlobContainer { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Azure Blob Storage blob prefix.
+    /// </summary>
+    internal string AzureBlobPrefix { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Azure Blob Storage credential environment variable name.
+    /// </summary>
+    internal string AzureBlobTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Azure Blob Storage credential kind.
+    /// </summary>
+    internal string AzureBlobTokenKind { get; private set; } = "bearer";
+
+    /// <summary>
     /// Gets the native profile name.
     /// </summary>
     internal string Profile { get; private set; } = "picket";
@@ -674,10 +765,18 @@ internal sealed class PicketTuiScanWorkspace
         PicketTuiScanTargetMode.GitLab => 3,
         PicketTuiScanTargetMode.Gitea => 4,
         PicketTuiScanTargetMode.Bitbucket => 5,
-        PicketTuiScanTargetMode.DockerArchive => 6,
-        PicketTuiScanTargetMode.OciArchive => 7,
+        PicketTuiScanTargetMode.S3 => 6,
+        PicketTuiScanTargetMode.Gcs => 7,
+        PicketTuiScanTargetMode.AzureBlob => 8,
+        PicketTuiScanTargetMode.DockerArchive => 9,
+        PicketTuiScanTargetMode.OciArchive => 10,
         _ => 0,
     };
+
+    /// <summary>
+    /// Gets the selected Azure Blob token kind index.
+    /// </summary>
+    internal int AzureBlobTokenKindIndex => IndexOf(s_azureBlobTokenKinds, AzureBlobTokenKind);
 
     /// <summary>
     /// Gets the selected GitHub issue state index.
@@ -736,8 +835,11 @@ internal sealed class PicketTuiScanWorkspace
             3 => PicketTuiScanTargetMode.GitLab,
             4 => PicketTuiScanTargetMode.Gitea,
             5 => PicketTuiScanTargetMode.Bitbucket,
-            6 => PicketTuiScanTargetMode.DockerArchive,
-            7 => PicketTuiScanTargetMode.OciArchive,
+            6 => PicketTuiScanTargetMode.S3,
+            7 => PicketTuiScanTargetMode.Gcs,
+            8 => PicketTuiScanTargetMode.AzureBlob,
+            9 => PicketTuiScanTargetMode.DockerArchive,
+            10 => PicketTuiScanTargetMode.OciArchive,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -1205,6 +1307,108 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetIncludeBitbucketSnippets(bool value) => IncludeBitbucketSnippets = value;
 
     /// <summary>
+    /// Sets the S3 bucket selector.
+    /// </summary>
+    /// <param name="value">The bucket name.</param>
+    internal void SetS3Bucket(string value) => S3Bucket = value;
+
+    /// <summary>
+    /// Sets the S3 region used for request signing.
+    /// </summary>
+    /// <param name="value">The AWS region.</param>
+    internal void SetS3Region(string value) => S3Region = value;
+
+    /// <summary>
+    /// Sets the S3-compatible endpoint URI.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetS3Endpoint(string value) => S3Endpoint = value;
+
+    /// <summary>
+    /// Sets the S3 object key prefix.
+    /// </summary>
+    /// <param name="value">The object key prefix.</param>
+    internal void SetS3Prefix(string value) => S3Prefix = value;
+
+    /// <summary>
+    /// Sets the S3 access key ID environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetS3AccessKeyIdEnvironmentVariable(string value) => S3AccessKeyIdEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the S3 secret access key environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetS3SecretAccessKeyEnvironmentVariable(string value) => S3SecretAccessKeyEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the optional S3 session token environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetS3SessionTokenEnvironmentVariable(string value) => S3SessionTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the Google Cloud Storage bucket selector.
+    /// </summary>
+    /// <param name="value">The bucket name.</param>
+    internal void SetGcsBucket(string value) => GcsBucket = value;
+
+    /// <summary>
+    /// Sets the Google Cloud Storage JSON API endpoint URI.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetGcsEndpoint(string value) => GcsEndpoint = value;
+
+    /// <summary>
+    /// Sets the Google Cloud Storage object prefix.
+    /// </summary>
+    /// <param name="value">The object prefix.</param>
+    internal void SetGcsPrefix(string value) => GcsPrefix = value;
+
+    /// <summary>
+    /// Sets the Google Cloud Storage bearer token environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetGcsTokenEnvironmentVariable(string value) => GcsTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the optional Google Cloud Storage requester-pays billing project.
+    /// </summary>
+    /// <param name="value">The billing project.</param>
+    internal void SetGcsUserProject(string value) => GcsUserProject = value;
+
+    /// <summary>
+    /// Sets the Azure Blob Storage endpoint URI.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetAzureBlobEndpoint(string value) => AzureBlobEndpoint = value;
+
+    /// <summary>
+    /// Sets the Azure Blob Storage container selector.
+    /// </summary>
+    /// <param name="value">The container name.</param>
+    internal void SetAzureBlobContainer(string value) => AzureBlobContainer = value;
+
+    /// <summary>
+    /// Sets the Azure Blob Storage blob prefix.
+    /// </summary>
+    /// <param name="value">The blob prefix.</param>
+    internal void SetAzureBlobPrefix(string value) => AzureBlobPrefix = value;
+
+    /// <summary>
+    /// Sets the Azure Blob Storage credential environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetAzureBlobTokenEnvironmentVariable(string value) => AzureBlobTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the Azure Blob Storage token kind by index.
+    /// </summary>
+    /// <param name="index">The selected token kind index.</param>
+    internal void SetAzureBlobTokenKindByIndex(int index) => AzureBlobTokenKind = s_azureBlobTokenKinds[Math.Clamp(index, 0, s_azureBlobTokenKinds.Length - 1)];
+
+    /// <summary>
     /// Sets the native profile.
     /// </summary>
     /// <param name="value">The profile name.</param>
@@ -1352,7 +1556,10 @@ internal sealed class PicketTuiScanWorkspace
             or PicketTuiScanTargetMode.AzureDevOps
             or PicketTuiScanTargetMode.GitLab
             or PicketTuiScanTargetMode.Gitea
-            or PicketTuiScanTargetMode.Bitbucket)
+            or PicketTuiScanTargetMode.Bitbucket
+            or PicketTuiScanTargetMode.S3
+            or PicketTuiScanTargetMode.Gcs
+            or PicketTuiScanTargetMode.AzureBlob)
         {
             AddFlag(arguments, "--allow-non-public-source-endpoints", AllowNonPublicSourceEndpoints);
             AddFlag(arguments, "--allow-insecure-source-endpoints", AllowInsecureSourceEndpoints);
@@ -1836,6 +2043,29 @@ internal sealed class PicketTuiScanWorkspace
                 AddOptionalNonDefaultValue(arguments, "--bitbucket-token-kind", BitbucketTokenKind, "bearer");
                 AddOptionalValue(arguments, "--bitbucket-api-endpoint", BitbucketApiEndpoint);
                 break;
+            case PicketTuiScanTargetMode.S3:
+                AddOptionalValue(arguments, "--s3-bucket", S3Bucket);
+                AddOptionalValue(arguments, "--s3-region", S3Region);
+                AddOptionalValue(arguments, "--s3-endpoint", S3Endpoint);
+                AddOptionalValue(arguments, "--s3-prefix", S3Prefix);
+                AddOptionalValue(arguments, "--s3-access-key-id-env", S3AccessKeyIdEnvironmentVariable);
+                AddOptionalValue(arguments, "--s3-secret-access-key-env", S3SecretAccessKeyEnvironmentVariable);
+                AddOptionalValue(arguments, "--s3-session-token-env", S3SessionTokenEnvironmentVariable);
+                break;
+            case PicketTuiScanTargetMode.Gcs:
+                AddOptionalValue(arguments, "--gcs-bucket", GcsBucket);
+                AddOptionalValue(arguments, "--gcs-endpoint", GcsEndpoint);
+                AddOptionalValue(arguments, "--gcs-prefix", GcsPrefix);
+                AddOptionalValue(arguments, "--gcs-token-env", GcsTokenEnvironmentVariable);
+                AddOptionalValue(arguments, "--gcs-user-project", GcsUserProject);
+                break;
+            case PicketTuiScanTargetMode.AzureBlob:
+                AddOptionalValue(arguments, "--azure-blob-endpoint", AzureBlobEndpoint);
+                AddOptionalValue(arguments, "--azure-blob-container", AzureBlobContainer);
+                AddOptionalValue(arguments, "--azure-blob-prefix", AzureBlobPrefix);
+                AddOptionalValue(arguments, "--azure-blob-token-env", AzureBlobTokenEnvironmentVariable);
+                AddOptionalNonDefaultValue(arguments, "--azure-blob-token-kind", AzureBlobTokenKind, "bearer");
+                break;
         }
     }
 
@@ -1851,6 +2081,9 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
             PicketTuiScanTargetMode.Gitea => string.Concat("Gitea ", FirstConfigured(GiteaRepository, GiteaOrganization, GiteaUser)),
             PicketTuiScanTargetMode.Bitbucket => string.Concat("Bitbucket ", FirstConfigured(BitbucketRepository, BitbucketWorkspace, BitbucketProject)),
+            PicketTuiScanTargetMode.S3 => string.Concat("S3 ", FirstConfigured(S3Bucket, S3Prefix, S3Endpoint)),
+            PicketTuiScanTargetMode.Gcs => string.Concat("GCS ", FirstConfigured(GcsBucket, GcsPrefix, GcsEndpoint)),
+            PicketTuiScanTargetMode.AzureBlob => string.Concat("Azure Blob ", FirstConfigured(AzureBlobContainer, AzureBlobPrefix, AzureBlobEndpoint)),
             _ => TargetMode.ToString(),
         };
     }
@@ -1888,6 +2121,21 @@ internal sealed class PicketTuiScanWorkspace
         if (TargetMode == PicketTuiScanTargetMode.OciArchive && string.IsNullOrWhiteSpace(OciArchivePath))
         {
             error = "OCI archive scans require an archive path.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.S3 && !ValidateS3(out error))
+        {
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.Gcs && !ValidateGcs(out error))
+        {
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.AzureBlob && !ValidateAzureBlob(out error))
+        {
             return false;
         }
 
@@ -1975,6 +2223,78 @@ internal sealed class PicketTuiScanWorkspace
             && ValidateOptionalNonNegativeInteger(GiteaPullRequest, "--gitea-pull-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaActionsRunId, "--gitea-actions-run-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(BitbucketPullRequest, "--bitbucket-pull-request", min: 1, max: int.MaxValue, out error);
+    }
+
+    private bool ValidateS3(out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(S3Bucket))
+        {
+            error = "S3 scans require a bucket.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(S3Region))
+        {
+            error = "S3 scans require a region.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(S3AccessKeyIdEnvironmentVariable))
+        {
+            error = "S3 scans require an access key ID environment variable.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(S3SecretAccessKeyEnvironmentVariable))
+        {
+            error = "S3 scans require a secret access key environment variable.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateGcs(out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(GcsBucket))
+        {
+            error = "GCS scans require a bucket.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(GcsTokenEnvironmentVariable))
+        {
+            error = "GCS scans require a token environment variable.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateAzureBlob(out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(AzureBlobEndpoint))
+        {
+            error = "Azure Blob scans require an endpoint.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(AzureBlobContainer))
+        {
+            error = "Azure Blob scans require a container.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(AzureBlobTokenEnvironmentVariable))
+        {
+            error = "Azure Blob scans require a token environment variable.";
+            return false;
+        }
+
+        return true;
     }
 
     private bool ValidateGitea(out string error)

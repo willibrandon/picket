@@ -1325,6 +1325,21 @@ internal sealed class PicketTuiState
                 scan.BitbucketWorkspace,
                 string.Empty,
                 "Bitbucket target not selected"),
+            PicketTuiScanTargetMode.S3 => FirstNonEmpty(
+                scan.S3Bucket,
+                scan.S3Prefix,
+                scan.S3Endpoint,
+                "S3 target not selected"),
+            PicketTuiScanTargetMode.Gcs => FirstNonEmpty(
+                scan.GcsBucket,
+                scan.GcsPrefix,
+                scan.GcsEndpoint,
+                "GCS target not selected"),
+            PicketTuiScanTargetMode.AzureBlob => FirstNonEmpty(
+                scan.AzureBlobContainer,
+                scan.AzureBlobPrefix,
+                scan.AzureBlobEndpoint,
+                "Azure Blob target not selected"),
             PicketTuiScanTargetMode.DockerArchive => string.IsNullOrWhiteSpace(scan.DockerArchivePath)
                 ? "Docker archive not selected"
                 : scan.DockerArchivePath,

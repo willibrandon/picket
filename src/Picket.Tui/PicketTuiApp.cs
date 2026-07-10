@@ -472,6 +472,18 @@ internal static class PicketTuiApp
             [
                 BuildBitbucketSourceFields(ctx, scan),
             ],
+            PicketTuiScanTargetMode.S3 =>
+            [
+                BuildS3SourceFields(ctx, scan),
+            ],
+            PicketTuiScanTargetMode.Gcs =>
+            [
+                BuildGcsSourceFields(ctx, scan),
+            ],
+            PicketTuiScanTargetMode.AzureBlob =>
+            [
+                BuildAzureBlobSourceFields(ctx, scan),
+            ],
             PicketTuiScanTargetMode.DockerArchive =>
             [
                 BuildTextField(ctx, "Docker archive", scan.DockerArchivePath, scan.SetDockerArchivePath),
@@ -701,6 +713,82 @@ internal static class PicketTuiApp
         ]).FillWidth();
     }
 
+    private static HStackWidget BuildS3SourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "Bucket", scan.S3Bucket, scan.SetS3Bucket),
+                BuildFieldGap(left),
+                BuildTextField(left, "Region", scan.S3Region, scan.SetS3Region),
+                BuildFieldGap(left),
+                BuildTextField(left, "Endpoint", scan.S3Endpoint, scan.SetS3Endpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Prefix", scan.S3Prefix, scan.SetS3Prefix),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildTextField(right, "Access env", scan.S3AccessKeyIdEnvironmentVariable, scan.SetS3AccessKeyIdEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildTextField(right, "Secret env", scan.S3SecretAccessKeyEnvironmentVariable, scan.SetS3SecretAccessKeyEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildTextField(right, "Session env", scan.S3SessionTokenEnvironmentVariable, scan.SetS3SessionTokenEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
+    private static HStackWidget BuildGcsSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "Bucket", scan.GcsBucket, scan.SetGcsBucket),
+                BuildFieldGap(left),
+                BuildTextField(left, "Endpoint", scan.GcsEndpoint, scan.SetGcsEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Prefix", scan.GcsPrefix, scan.SetGcsPrefix),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildTextField(right, "Token env", scan.GcsTokenEnvironmentVariable, scan.SetGcsTokenEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildTextField(right, "Billing project", scan.GcsUserProject, scan.SetGcsUserProject),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
+    private static HStackWidget BuildAzureBlobSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "Endpoint", scan.AzureBlobEndpoint, scan.SetAzureBlobEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Container", scan.AzureBlobContainer, scan.SetAzureBlobContainer),
+                BuildFieldGap(left),
+                BuildTextField(left, "Prefix", scan.AzureBlobPrefix, scan.SetAzureBlobPrefix),
+                BuildFieldGap(left),
+                BuildTextField(left, "Token env", scan.AzureBlobTokenEnvironmentVariable, scan.SetAzureBlobTokenEnvironmentVariable),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildChoiceField(right, "Token", PicketTuiScanWorkspace.AzureBlobTokenKinds, scan.AzureBlobTokenKindIndex, scan.SetAzureBlobTokenKindByIndex),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
     private static VStackWidget BuildLimitFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
@@ -756,6 +844,21 @@ internal static class PicketTuiApp
                 scan.BitbucketRepository,
                 scan.BitbucketWorkspace,
                 string.Empty,
+                "not selected")),
+            PicketTuiScanTargetMode.S3 => string.Concat("S3 ", FirstNonEmpty(
+                scan.S3Bucket,
+                scan.S3Prefix,
+                scan.S3Endpoint,
+                "not selected")),
+            PicketTuiScanTargetMode.Gcs => string.Concat("GCS ", FirstNonEmpty(
+                scan.GcsBucket,
+                scan.GcsPrefix,
+                scan.GcsEndpoint,
+                "not selected")),
+            PicketTuiScanTargetMode.AzureBlob => string.Concat("Azure Blob ", FirstNonEmpty(
+                scan.AzureBlobContainer,
+                scan.AzureBlobPrefix,
+                scan.AzureBlobEndpoint,
                 "not selected")),
             PicketTuiScanTargetMode.DockerArchive => string.Concat(
                 "Docker archive ",
