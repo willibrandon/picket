@@ -520,7 +520,7 @@ Inline suppression honors `gitleaks:allow` unless `--ignore-gitleaks-allow` is s
 
 Baselines compare the same fields as Gitleaks. Fingerprint is deliberately not the baseline key.
 
-Native mode adds `.picketignore`, glob ignores, content-hash ignores, stale-ignore auditing, and stable fingerprints. Those features never silently affect strict Gitleaks compatibility.
+Native mode adds `.picketignore`, glob ignores, content-hash ignores, stale-ignore auditing, and stable fingerprints. After successful local native scans and baseline creation, stale `sha256:` entries that did not match any scanned file produce stderr warnings with the ignore-file location when known. These features never silently affect strict Gitleaks compatibility.
 
 ### 7.7 Reports
 

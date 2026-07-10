@@ -543,7 +543,7 @@ internal static partial class Program
             try
             {
                 byte[] input = file.ReadAllBytes();
-                if (picketIgnore.IsContentHashIgnored(input))
+                if (picketIgnore.TryIgnoreContentHash(input))
                 {
                     continue;
                 }
@@ -596,6 +596,11 @@ internal static partial class Program
                 Console.Error.WriteLine(ex.Message);
                 hadScanError = true;
             }
+        }
+
+        if (nativeMode && respectNativeIgnoreFiles && !hadScanError)
+        {
+            WritePicketIgnoreStaleWarnings(picketIgnore);
         }
 
         return CompleteFindingsRun(

@@ -32,6 +32,30 @@ public sealed class PicketIgnoreTests
     }
 
     /// <summary>
+    /// Verifies that matched SHA-256 content-hash entries are excluded from stale-ignore audit results.
+    /// </summary>
+    [TestMethod]
+    public void TryIgnoreContentHashRecordsMatchedHashesForAudit()
+    {
+        string matchedContent = "token-12345";
+        string unmatchedContent = "token-23456";
+        string matchedHash = ComputeSha256(matchedContent);
+        string unmatchedHash = ComputeSha256(unmatchedContent);
+        PicketIgnore ignore = PicketIgnore.FromLines([
+            $"sha256:{matchedHash}",
+            $"sha256:{unmatchedHash}",
+        ]);
+
+        Assert.IsTrue(ignore.TryIgnoreContentHash(Encoding.UTF8.GetBytes(matchedContent)));
+
+        List<string> unmatchedEntries = ignore.GetUnmatchedContentHashEntries();
+
+        Assert.HasCount(1, unmatchedEntries);
+        Assert.Contains(unmatchedHash, unmatchedEntries[0]);
+        Assert.DoesNotContain(matchedHash, unmatchedEntries[0]);
+    }
+
+    /// <summary>
     /// Verifies that root and explicit ignore files are loaded together.
     /// </summary>
     [TestMethod]
@@ -49,6 +73,25 @@ public sealed class PicketIgnoreTests
         Assert.AreEqual(2, ignore.ContentHashCount);
         Assert.IsTrue(ignore.IsContentHashIgnored(Encoding.UTF8.GetBytes(rootContent)));
         Assert.IsTrue(ignore.IsContentHashIgnored(Encoding.UTF8.GetBytes(explicitContent)));
+    }
+
+    /// <summary>
+    /// Verifies that loaded SHA-256 content-hash entries preserve their source location for audit output.
+    /// </summary>
+    [TestMethod]
+    public void LoadExistingPreservesContentHashEntryLocations()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string content = "token-12345";
+        string ignorePath = Path.Combine(root.Path, ".picketignore");
+        File.WriteAllText(ignorePath, $"sha256:{ComputeSha256(content)}\n");
+
+        PicketIgnore ignore = PicketIgnore.LoadExisting([ignorePath]);
+
+        List<string> unmatchedEntries = ignore.GetUnmatchedContentHashEntries();
+
+        Assert.HasCount(1, unmatchedEntries);
+        Assert.Contains($"{ignorePath}:1", unmatchedEntries[0]);
     }
 
     private static string ComputeSha256(string value)

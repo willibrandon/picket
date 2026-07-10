@@ -43,6 +43,15 @@ internal static partial class Program
         }
     }
 
+    static void WritePicketIgnoreStaleWarnings(PicketIgnore picketIgnore)
+    {
+        List<string> unmatchedContentHashEntries = picketIgnore.GetUnmatchedContentHashEntries();
+        for (int i = 0; i < unmatchedContentHashEntries.Count; i++)
+        {
+            Console.Error.WriteLine($"warning: stale .picketignore content-hash ignore did not match any scanned file: {unmatchedContentHashEntries[i]}");
+        }
+    }
+
     static List<string?> CreateControlFileDisplayPaths(string root, string? reportPath, List<string> reportPaths)
     {
         var displayPaths = new List<string?>();

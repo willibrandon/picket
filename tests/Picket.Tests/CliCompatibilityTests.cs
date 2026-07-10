@@ -2201,6 +2201,27 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"secret\":\"token-23456\"", result.Stdout);
         Assert.DoesNotContain("ignored.txt", result.Stdout);
         Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("stale .picketignore content-hash ignore", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scans warn about stale .picketignore SHA-256 content hashes.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanWarnsAboutStalePicketIgnoreContentHash()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string staleHash = ComputeSha256("token-12345");
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), $"sha256:{staleHash}\n");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"keep.txt\"", result.Stdout);
+        Assert.Contains("warning: stale .picketignore content-hash ignore did not match any scanned file:", result.Stderr);
+        Assert.Contains(staleHash, result.Stderr);
     }
 
     /// <summary>
@@ -2439,6 +2460,27 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"Secret\": \"token-23456\"", result.Stdout);
         Assert.DoesNotContain("ignored.txt", result.Stdout);
         Assert.DoesNotContain("token-12345", result.Stdout);
+        Assert.DoesNotContain("stale .picketignore content-hash ignore", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that baseline creation warns about stale .picketignore SHA-256 content hashes.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateWarnsAboutStalePicketIgnoreContentHash()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string staleHash = ComputeSha256("token-12345");
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), $"sha256:{staleHash}\n");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult result = await RunCliAsync("baseline", "create", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("\"File\": \"keep.txt\"", result.Stdout);
+        Assert.Contains("warning: stale .picketignore content-hash ignore did not match any scanned file:", result.Stderr);
+        Assert.Contains(staleHash, result.Stderr);
     }
 
     /// <summary>
