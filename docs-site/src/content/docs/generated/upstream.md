@@ -293,6 +293,21 @@ Snippet raw-file redirects are followed only when they stay on the configured
 Bitbucket API endpoint because those redirected API requests still require the
 Bitbucket credential.
 
+Native Bitbucket Data Center repository enumeration is based on Atlassian REST
+API and access-token documentation reviewed on 2026-07-10:
+
+- Bitbucket Data Center REST introduction: `https://developer.atlassian.com/server/bitbucket/rest/v1000/intro/`
+- Bitbucket Data Center repository API: `https://developer.atlassian.com/server/bitbucket/rest/v1000/api-group-repository/`
+- Bitbucket Data Center pull requests API: `https://developer.atlassian.com/server/bitbucket/rest/v1000/api-group-pull-requests/`
+- Bitbucket Data Center personal access tokens: `https://confluence.atlassian.com/bitbucketserver/managing-personal-access-tokens-1005339986.html`
+
+Picket requires an explicit Data Center REST API base path, lists project
+repositories and repository files with `limit=100`, and follows the server's
+`nextPageStart` cursor. It resolves default branches, named refs, and pull
+request source heads to immutable commit IDs before downloading raw files.
+Bearer and Basic credentials are read from environment variables and are sent
+only as request headers. Redirects are disabled.
+
 ## Azure DevOps Source References
 
 Native Azure DevOps repository, wiki, build artifact, build log, release

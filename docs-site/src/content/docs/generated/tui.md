@@ -69,7 +69,7 @@ The workspace keeps the normal path short: choose a target, check the command pr
 - report formats and output paths,
 - optional encrypted source-scan checkpoint and explicit reset controls.
 
-The Scan page groups controls into Source, Output, Validation, and Limits sections so the default view stays readable while every scan option remains reachable.
+The Scan page groups controls into Source, Output, Validation, and Limits sections so the default view stays readable while every scan option remains reachable. Source-host providers use a compact picker so every provider name stays visible without widening the settings pane.
 
 For source-host, object-store, container archive, and registry targets, the Output page can pass a checkpoint path to the CLI. The reset toggle is available beside it and requires a non-empty checkpoint path. Local filesystem scans do not show these controls because checkpointing is a native source-provider workflow. The report and checkpoint paths must differ.
 
@@ -83,7 +83,7 @@ For GitLab targets, the workspace includes project and group selectors, ref, mer
 
 For Gitea targets, the workspace includes repository, organization, user, ref, pull request, issue state, release, Actions artifact, Actions run, generic package, token environment variable, API endpoint, and explicit source endpoint policy controls.
 
-For Bitbucket targets, the workspace includes repository and workspace selectors, project key, ref, pull request, pipeline ID, token environment variable, username environment variable, token kind, API endpoint, download artifact, pipeline log, snippet, and explicit source endpoint policy controls.
+Bitbucket Cloud and Bitbucket Data Center are separate targets. Cloud exposes repository and workspace scopes, project filtering, refs, pull requests, downloads, pipeline logs, snippets, Cloud credential modes, and an optional Cloud API endpoint. Data Center exposes its required REST API base path, project key, optional repository slug, ref or pull request, bearer or Basic credential environment variables, and source endpoint policy controls.
 
 For object-store targets, the workspace includes S3, Google Cloud Storage, and Azure Blob Storage selectors, prefixes, token environment variable names, endpoint overrides where the CLI supports them, and explicit source endpoint policy controls.
 

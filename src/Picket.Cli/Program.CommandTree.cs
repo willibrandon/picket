@@ -69,6 +69,7 @@ internal static partial class Program
         AddGiteaSourceOptions(command, "picket scan");
         AddGitLabSourceOptions(command, "picket scan");
         AddBitbucketSourceOptions(command, "picket scan");
+        AddBitbucketDataCenterSourceOptions(command, "picket scan");
         AddAzureBlobSourceOptions(command, "picket scan");
         AddGcsSourceOptions(command, "picket scan");
         AddS3SourceOptions(command, "picket scan");
@@ -535,6 +536,18 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-username-env", "name"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--bitbucket-token-kind", "kind", "bearer", "app-password"));
         command.Options.Add(CreateValueOption(commandName, "--bitbucket-api-endpoint", "uri"));
+    }
+
+    private static void AddBitbucketDataCenterSourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-data-center-api-endpoint", "uri"));
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-data-center-project", "key"));
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-data-center-repository", "slug"));
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-data-center-ref", "ref"));
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-data-center-pull-request", "id"));
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-data-center-token-env", "name"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--bitbucket-data-center-token-kind", "kind", "bearer", "basic"));
+        command.Options.Add(CreateValueOption(commandName, "--bitbucket-data-center-username-env", "name"));
     }
 
     private static void AddAzureDevOpsSourceOptions(Command command, string commandName)

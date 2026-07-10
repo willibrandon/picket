@@ -34,6 +34,15 @@ internal static partial class Program
         string? bitbucketTokenEnvironmentVariable = null;
         string? bitbucketUsernameEnvironmentVariable = null;
         string bitbucketWorkspace = string.Empty;
+        Uri? bitbucketDataCenterApiEndpoint = null;
+        BitbucketDataCenterCredentialKind bitbucketDataCenterCredentialKind = BitbucketDataCenterCredentialKind.BearerToken;
+        bool bitbucketDataCenterOptionSpecified = false;
+        string bitbucketDataCenterProject = string.Empty;
+        int bitbucketDataCenterPullRequestId = 0;
+        string bitbucketDataCenterRef = string.Empty;
+        string bitbucketDataCenterRepository = string.Empty;
+        string? bitbucketDataCenterTokenEnvironmentVariable = null;
+        string? bitbucketDataCenterUsernameEnvironmentVariable = null;
         AzureDevOpsCredentialKind azureDevOpsCredentialKind = AzureDevOpsCredentialKind.PersonalAccessToken;
         Uri? azureDevOpsEndpoint = null;
         string azureDevOpsFeed = string.Empty;
@@ -635,6 +644,97 @@ internal static partial class Program
                 }
 
                 bitbucketOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterApiEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--bitbucket-data-center-api-endpoint", out bitbucketDataCenterApiEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterProjectFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-project", out string? projectKey))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterProject = projectKey;
+                bitbucketDataCenterOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterRepositoryFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-repository", out string? repositorySlug))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterRepository = repositorySlug;
+                bitbucketDataCenterOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterRefFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-ref", out string? gitRef))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterRef = gitRef;
+                bitbucketDataCenterOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterPullRequestFlag(arg))
+            {
+                if (!TryReadPositiveBitbucketDataCenterPullRequestFlag(args, ref i, out bitbucketDataCenterPullRequestId))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-token-env", out bitbucketDataCenterTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterUsernameEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-username-env", out bitbucketDataCenterUsernameEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterOptionSpecified = true;
+                continue;
+            }
+
+            if (IsBitbucketDataCenterTokenKindFlag(arg))
+            {
+                if (!TryReadBitbucketDataCenterCredentialKindFlag(args, ref i, out bitbucketDataCenterCredentialKind))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                bitbucketDataCenterOptionSpecified = true;
                 continue;
             }
 
@@ -1542,7 +1642,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !registryOptionSpecified && !s3OptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketDataCenterOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !registryOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -1557,6 +1657,7 @@ internal static partial class Program
         int sourceProviderCount = 0;
         sourceProviderCount += azureBlobOptionSpecified ? 1 : 0;
         sourceProviderCount += azureDevOpsOptionSpecified ? 1 : 0;
+        sourceProviderCount += bitbucketDataCenterOptionSpecified ? 1 : 0;
         sourceProviderCount += bitbucketOptionSpecified ? 1 : 0;
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
         sourceProviderCount += gcsOptionSpecified ? 1 : 0;
@@ -1567,6 +1668,7 @@ internal static partial class Program
         sourceProviderCount += s3OptionSpecified ? 1 : 0;
         bool remoteSourceOptionSpecified = azureBlobOptionSpecified
             || azureDevOpsOptionSpecified
+            || bitbucketDataCenterOptionSpecified
             || bitbucketOptionSpecified
             || gcsOptionSpecified
             || githubSourceOptionSpecified
@@ -1635,6 +1737,23 @@ internal static partial class Program
                 bitbucketTokenEnvironmentVariable,
                 bitbucketUsernameEnvironmentVariable,
                 bitbucketCredentialKind,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (bitbucketDataCenterOptionSpecified
+            && !TryCreateBitbucketDataCenterSourceProvider(
+                bitbucketDataCenterApiEndpoint,
+                bitbucketDataCenterProject,
+                bitbucketDataCenterRepository,
+                bitbucketDataCenterRef,
+                bitbucketDataCenterPullRequestId,
+                bitbucketDataCenterTokenEnvironmentVariable,
+                bitbucketDataCenterUsernameEnvironmentVariable,
+                bitbucketDataCenterCredentialKind,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

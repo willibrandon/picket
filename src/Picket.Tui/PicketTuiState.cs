@@ -1318,6 +1318,11 @@ internal sealed class PicketTuiState
                 scan.BitbucketWorkspace,
                 string.Empty,
                 "Bitbucket target not selected"),
+            PicketTuiScanTargetMode.BitbucketDataCenter => FirstNonEmpty(
+                scan.BitbucketDataCenterRepository,
+                scan.BitbucketDataCenterProject,
+                scan.BitbucketDataCenterApiEndpoint,
+                "Bitbucket Data Center target not selected"),
             PicketTuiScanTargetMode.S3 => FirstNonEmpty(
                 scan.S3Bucket,
                 scan.S3Prefix,

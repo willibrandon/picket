@@ -62,6 +62,7 @@ public sealed partial class RepositoryConventionTests
     [
         "src/Picket.Sources/AzureDevOpsPackageSourceClient.cs",
         "src/Picket.Sources/AzureDevOpsSourceClient.cs",
+        "src/Picket.Sources/BitbucketDataCenterSourceClient.cs",
         "src/Picket.Sources/BitbucketSourceClient.cs",
         "src/Picket.Sources/GcsSourceClient.cs",
         "src/Picket.Sources/GiteaSourceClient.cs",
@@ -78,6 +79,7 @@ public sealed partial class RepositoryConventionTests
         "src/Picket.Cli/Program.AzureBlob.cs",
         "src/Picket.Cli/Program.AzureDevOps.cs",
         "src/Picket.Cli/Program.Bitbucket.cs",
+        "src/Picket.Cli/Program.BitbucketDataCenter.cs",
         "src/Picket.Cli/Program.ContainerRegistry.cs",
         "src/Picket.Cli/Program.Gcs.cs",
         "src/Picket.Cli/Program.Gitea.cs",

@@ -387,13 +387,26 @@ internal static class PicketTuiApp
             ]).FixedHeight(1),
             BuildFieldGap(v),
             v.HStack(h => [
-                h.Text("Target").FixedWidth(FieldLabelWidth),
+                h.Text(scan.TargetCategory == PicketTuiScanTargetCategory.SourceHost ? "Provider" : "Target").FixedWidth(FieldLabelWidth),
                 h.Text("  "),
-                h.ToggleSwitch(scan.ActiveTargetModeLabels, scan.TargetModeIndex)
-                    .OnSelectionChanged(e => scan.SetTargetModeByCategoryIndex(e.SelectedIndex))
-                    .FillWidth()
+                BuildTargetModeSelector(h, scan)
             ]).FixedHeight(1)
         ]);
+    }
+
+    private static Hex1bWidget BuildTargetModeSelector<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        if (scan.TargetCategory == PicketTuiScanTargetCategory.SourceHost)
+        {
+            return ctx.Picker(scan.ActiveTargetModeLabels, scan.TargetModeIndex)
+                .OnSelectionChanged(e => scan.SetTargetModeByCategoryIndex(e.SelectedIndex))
+                .FillWidth();
+        }
+
+        return ctx.ToggleSwitch(scan.ActiveTargetModeLabels, scan.TargetModeIndex)
+            .OnSelectionChanged(e => scan.SetTargetModeByCategoryIndex(e.SelectedIndex))
+            .FillWidth();
     }
 
     private static ThemePanelWidget BuildSectionTitle<TParent>(WidgetContext<TParent> ctx, string text)
@@ -503,6 +516,10 @@ internal static class PicketTuiApp
             PicketTuiScanTargetMode.Bitbucket =>
             [
                 BuildBitbucketSourceFields(ctx, scan),
+            ],
+            PicketTuiScanTargetMode.BitbucketDataCenter =>
+            [
+                BuildBitbucketDataCenterSourceFields(ctx, scan),
             ],
             PicketTuiScanTargetMode.S3 =>
             [
@@ -804,6 +821,36 @@ internal static class PicketTuiApp
         ]).FillWidth();
     }
 
+    private static HStackWidget BuildBitbucketDataCenterSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "API endpoint", scan.BitbucketDataCenterApiEndpoint, scan.SetBitbucketDataCenterApiEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Project key", scan.BitbucketDataCenterProject, scan.SetBitbucketDataCenterProject),
+                BuildFieldGap(left),
+                BuildTextField(left, "Repository", scan.BitbucketDataCenterRepository, scan.SetBitbucketDataCenterRepository),
+                BuildFieldGap(left),
+                BuildTextField(left, "Ref", scan.BitbucketDataCenterRef, scan.SetBitbucketDataCenterRef),
+                BuildFieldGap(left),
+                BuildTextField(left, "Pull request", scan.BitbucketDataCenterPullRequest, scan.SetBitbucketDataCenterPullRequest),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildTextField(right, "Token env", scan.BitbucketDataCenterTokenEnvironmentVariable, scan.SetBitbucketDataCenterTokenEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildTextField(right, "Username env", scan.BitbucketDataCenterUsernameEnvironmentVariable, scan.SetBitbucketDataCenterUsernameEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildChoiceField(right, "Token", PicketTuiScanWorkspace.BitbucketDataCenterTokenKinds, scan.BitbucketDataCenterTokenKindIndex, scan.SetBitbucketDataCenterTokenKindByIndex),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
     private static HStackWidget BuildS3SourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
@@ -960,6 +1007,11 @@ internal static class PicketTuiApp
                 scan.BitbucketRepository,
                 scan.BitbucketWorkspace,
                 string.Empty,
+                "not selected")),
+            PicketTuiScanTargetMode.BitbucketDataCenter => string.Concat("Bitbucket Data Center ", FirstNonEmpty(
+                scan.BitbucketDataCenterRepository,
+                scan.BitbucketDataCenterProject,
+                scan.BitbucketDataCenterApiEndpoint,
                 "not selected")),
             PicketTuiScanTargetMode.S3 => string.Concat("S3 ", FirstNonEmpty(
                 scan.S3Bucket,

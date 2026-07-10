@@ -16,6 +16,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly char[] s_argumentQuoteCharacters = [' ', '\t', '"'];
     private static readonly string[] s_azureBlobTokenKinds = ["bearer", "sas"];
     private static readonly string[] s_azureDevOpsTokenKinds = ["pat", "bearer"];
+    private static readonly string[] s_bitbucketDataCenterTokenKinds = ["bearer", "basic"];
     private static readonly string[] s_bitbucketTokenKinds = ["bearer", "app-password"];
     private static readonly string[] s_giteaIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubIssueStates = ["all", "open", "closed"];
@@ -28,7 +29,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_containerTargetModeLabels = ["Docker archive", "OCI archive", "Registry"];
     private static readonly string[] s_localTargetModeLabels = ["Local"];
     private static readonly string[] s_objectStoreTargetModeLabels = ["S3", "GCS", "Azure Blob"];
-    private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket"];
+    private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "Bitbucket Data Center"];
     private static readonly string[] s_targetCategoryLabels = ["Local", "Source host", "Object store", "Container"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
@@ -52,6 +53,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selectable Azure DevOps token kinds.
     /// </summary>
     internal static IReadOnlyList<string> AzureDevOpsTokenKinds => s_azureDevOpsTokenKinds;
+
+    /// <summary>
+    /// Gets the selectable Bitbucket Data Center token kinds.
+    /// </summary>
+    internal static IReadOnlyList<string> BitbucketDataCenterTokenKinds => s_bitbucketDataCenterTokenKinds;
 
     /// <summary>
     /// Gets the selectable Bitbucket token kinds.
@@ -583,6 +589,46 @@ internal sealed class PicketTuiScanWorkspace
     internal bool IncludeBitbucketSnippets { get; private set; }
 
     /// <summary>
+    /// Gets the Bitbucket Data Center REST API endpoint.
+    /// </summary>
+    internal string BitbucketDataCenterApiEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket Data Center project key.
+    /// </summary>
+    internal string BitbucketDataCenterProject { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional Bitbucket Data Center repository slug.
+    /// </summary>
+    internal string BitbucketDataCenterRepository { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional Bitbucket Data Center ref.
+    /// </summary>
+    internal string BitbucketDataCenterRef { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional Bitbucket Data Center pull request ID.
+    /// </summary>
+    internal string BitbucketDataCenterPullRequest { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket Data Center token environment variable name.
+    /// </summary>
+    internal string BitbucketDataCenterTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket Data Center username environment variable name used for Basic authentication.
+    /// </summary>
+    internal string BitbucketDataCenterUsernameEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Bitbucket Data Center token authentication kind.
+    /// </summary>
+    internal string BitbucketDataCenterTokenKind { get; private set; } = "bearer";
+
+    /// <summary>
     /// Gets the S3 bucket selector.
     /// </summary>
     internal string S3Bucket { get; private set; } = string.Empty;
@@ -909,6 +955,7 @@ internal sealed class PicketTuiScanWorkspace
         PicketTuiScanTargetMode.GitLab => 2,
         PicketTuiScanTargetMode.Gitea => 3,
         PicketTuiScanTargetMode.Bitbucket => 4,
+        PicketTuiScanTargetMode.BitbucketDataCenter => 5,
         PicketTuiScanTargetMode.S3 => 0,
         PicketTuiScanTargetMode.Gcs => 1,
         PicketTuiScanTargetMode.AzureBlob => 2,
@@ -952,6 +999,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selected Bitbucket token kind index.
     /// </summary>
     internal int BitbucketTokenKindIndex => IndexOf(s_bitbucketTokenKinds, BitbucketTokenKind);
+
+    /// <summary>
+    /// Gets the selected Bitbucket Data Center token kind index.
+    /// </summary>
+    internal int BitbucketDataCenterTokenKindIndex => IndexOf(s_bitbucketDataCenterTokenKinds, BitbucketDataCenterTokenKind);
 
     /// <summary>
     /// Gets the selected report format index.
@@ -1019,6 +1071,7 @@ internal sealed class PicketTuiScanWorkspace
             9 => PicketTuiScanTargetMode.DockerArchive,
             10 => PicketTuiScanTargetMode.OciArchive,
             11 => PicketTuiScanTargetMode.RegistryImage,
+            12 => PicketTuiScanTargetMode.BitbucketDataCenter,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -1037,6 +1090,7 @@ internal sealed class PicketTuiScanWorkspace
                 2 => PicketTuiScanTargetMode.GitLab,
                 3 => PicketTuiScanTargetMode.Gitea,
                 4 => PicketTuiScanTargetMode.Bitbucket,
+                5 => PicketTuiScanTargetMode.BitbucketDataCenter,
                 _ => PicketTuiScanTargetMode.GitHub,
             },
             PicketTuiScanTargetCategory.ObjectStore => index switch
@@ -1679,6 +1733,54 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetIncludeBitbucketSnippets(bool value) => IncludeBitbucketSnippets = value;
 
     /// <summary>
+    /// Sets the Bitbucket Data Center REST API endpoint.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetBitbucketDataCenterApiEndpoint(string value) => BitbucketDataCenterApiEndpoint = value;
+
+    /// <summary>
+    /// Sets the Bitbucket Data Center project key.
+    /// </summary>
+    /// <param name="value">The project key.</param>
+    internal void SetBitbucketDataCenterProject(string value) => BitbucketDataCenterProject = value;
+
+    /// <summary>
+    /// Sets the optional Bitbucket Data Center repository slug.
+    /// </summary>
+    /// <param name="value">The repository slug.</param>
+    internal void SetBitbucketDataCenterRepository(string value) => BitbucketDataCenterRepository = value;
+
+    /// <summary>
+    /// Sets the optional Bitbucket Data Center ref.
+    /// </summary>
+    /// <param name="value">The ref.</param>
+    internal void SetBitbucketDataCenterRef(string value) => BitbucketDataCenterRef = value;
+
+    /// <summary>
+    /// Sets the optional Bitbucket Data Center pull request ID.
+    /// </summary>
+    /// <param name="value">The pull request ID.</param>
+    internal void SetBitbucketDataCenterPullRequest(string value) => BitbucketDataCenterPullRequest = value;
+
+    /// <summary>
+    /// Sets the Bitbucket Data Center token environment variable name.
+    /// </summary>
+    /// <param name="value">The token environment variable name.</param>
+    internal void SetBitbucketDataCenterTokenEnvironmentVariable(string value) => BitbucketDataCenterTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the Bitbucket Data Center username environment variable name used for Basic authentication.
+    /// </summary>
+    /// <param name="value">The username environment variable name.</param>
+    internal void SetBitbucketDataCenterUsernameEnvironmentVariable(string value) => BitbucketDataCenterUsernameEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the Bitbucket Data Center token kind by index.
+    /// </summary>
+    /// <param name="index">The selected token kind index.</param>
+    internal void SetBitbucketDataCenterTokenKindByIndex(int index) => BitbucketDataCenterTokenKind = s_bitbucketDataCenterTokenKinds[Math.Clamp(index, 0, s_bitbucketDataCenterTokenKinds.Length - 1)];
+
+    /// <summary>
     /// Sets the S3 bucket selector.
     /// </summary>
     /// <param name="value">The bucket name.</param>
@@ -1941,6 +2043,7 @@ internal sealed class PicketTuiScanWorkspace
             or PicketTuiScanTargetMode.GitLab
             or PicketTuiScanTargetMode.Gitea
             or PicketTuiScanTargetMode.Bitbucket
+            or PicketTuiScanTargetMode.BitbucketDataCenter
             or PicketTuiScanTargetMode.S3
             or PicketTuiScanTargetMode.Gcs
             or PicketTuiScanTargetMode.AzureBlob
@@ -2558,6 +2661,16 @@ internal sealed class PicketTuiScanWorkspace
                 AddOptionalNonDefaultValue(arguments, "--bitbucket-token-kind", BitbucketTokenKind, "bearer");
                 AddOptionalValue(arguments, "--bitbucket-api-endpoint", BitbucketApiEndpoint);
                 break;
+            case PicketTuiScanTargetMode.BitbucketDataCenter:
+                AddOptionalValue(arguments, "--bitbucket-data-center-api-endpoint", BitbucketDataCenterApiEndpoint);
+                AddOptionalValue(arguments, "--bitbucket-data-center-project", BitbucketDataCenterProject);
+                AddOptionalValue(arguments, "--bitbucket-data-center-repository", BitbucketDataCenterRepository);
+                AddOptionalValue(arguments, "--bitbucket-data-center-ref", BitbucketDataCenterRef);
+                AddOptionalValue(arguments, "--bitbucket-data-center-pull-request", BitbucketDataCenterPullRequest);
+                AddOptionalValue(arguments, "--bitbucket-data-center-token-env", BitbucketDataCenterTokenEnvironmentVariable);
+                AddOptionalValue(arguments, "--bitbucket-data-center-username-env", BitbucketDataCenterUsernameEnvironmentVariable);
+                AddOptionalNonDefaultValue(arguments, "--bitbucket-data-center-token-kind", BitbucketDataCenterTokenKind, "bearer");
+                break;
             case PicketTuiScanTargetMode.S3:
                 AddOptionalValue(arguments, "--s3-bucket", S3Bucket);
                 AddOptionalValue(arguments, "--s3-region", S3Region);
@@ -2639,6 +2752,7 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
             PicketTuiScanTargetMode.Gitea => string.Concat("Gitea ", FirstConfigured(GiteaRepository, GiteaOrganization, GiteaUser)),
             PicketTuiScanTargetMode.Bitbucket => string.Concat("Bitbucket ", FirstConfigured(BitbucketRepository, BitbucketWorkspace, BitbucketProject)),
+            PicketTuiScanTargetMode.BitbucketDataCenter => string.Concat("Bitbucket Data Center ", FirstConfigured(BitbucketDataCenterRepository, BitbucketDataCenterProject, BitbucketDataCenterApiEndpoint)),
             PicketTuiScanTargetMode.S3 => string.Concat("S3 ", FirstConfigured(S3Bucket, S3Prefix, S3Endpoint)),
             PicketTuiScanTargetMode.Gcs => string.Concat("GCS ", FirstConfigured(GcsBucket, GcsPrefix, GcsEndpoint)),
             PicketTuiScanTargetMode.AzureBlob => string.Concat("Azure Blob ", FirstConfigured(AzureBlobContainer, AzureBlobPrefix, AzureBlobEndpoint)),
@@ -2674,7 +2788,8 @@ internal sealed class PicketTuiScanWorkspace
                 or PicketTuiScanTargetMode.AzureDevOps
                 or PicketTuiScanTargetMode.GitLab
                 or PicketTuiScanTargetMode.Gitea
-                or PicketTuiScanTargetMode.Bitbucket => PicketTuiScanTargetCategory.SourceHost,
+                or PicketTuiScanTargetMode.Bitbucket
+                or PicketTuiScanTargetMode.BitbucketDataCenter => PicketTuiScanTargetCategory.SourceHost,
             PicketTuiScanTargetMode.S3
                 or PicketTuiScanTargetMode.Gcs
                 or PicketTuiScanTargetMode.AzureBlob => PicketTuiScanTargetCategory.ObjectStore,
@@ -2823,6 +2938,11 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
+        if (TargetMode == PicketTuiScanTargetMode.BitbucketDataCenter && !ValidateBitbucketDataCenter(out error))
+        {
+            return false;
+        }
+
         if (string.IsNullOrWhiteSpace(Profile))
         {
             error = "Profile is required.";
@@ -2878,7 +2998,8 @@ internal sealed class PicketTuiScanWorkspace
             && ValidateOptionalNonNegativeInteger(GitLabPipelineId, "--gitlab-pipeline-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaPullRequest, "--gitea-pull-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaActionsRunId, "--gitea-actions-run-id", min: 1, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(BitbucketPullRequest, "--bitbucket-pull-request", min: 1, max: int.MaxValue, out error);
+            && ValidateOptionalNonNegativeInteger(BitbucketPullRequest, "--bitbucket-pull-request", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(BitbucketDataCenterPullRequest, "--bitbucket-data-center-pull-request", min: 1, max: int.MaxValue, out error);
     }
 
     private static bool PathsEqual(string left, string right)
@@ -3178,6 +3299,51 @@ internal sealed class PicketTuiScanWorkspace
         if (!string.IsNullOrWhiteSpace(BitbucketProject) && IncludeBitbucketSnippets)
         {
             error = "Bitbucket project scans cannot be combined with workspace snippets.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateBitbucketDataCenter(out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(BitbucketDataCenterApiEndpoint))
+        {
+            error = "Bitbucket Data Center scans require an API endpoint such as https://bitbucket.example/rest/api/1.0/.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(BitbucketDataCenterProject))
+        {
+            error = "Bitbucket Data Center scans require a project key.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(BitbucketDataCenterTokenEnvironmentVariable))
+        {
+            error = "Bitbucket Data Center scans require a token environment variable name.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketDataCenterPullRequest)
+            && string.IsNullOrWhiteSpace(BitbucketDataCenterRepository))
+        {
+            error = "Bitbucket Data Center pull request scans require a repository slug.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BitbucketDataCenterPullRequest)
+            && !string.IsNullOrWhiteSpace(BitbucketDataCenterRef))
+        {
+            error = "Bitbucket Data Center scans accept either a ref or pull request, not both.";
+            return false;
+        }
+
+        if (BitbucketDataCenterTokenKind.Equals("basic", StringComparison.Ordinal)
+            && string.IsNullOrWhiteSpace(BitbucketDataCenterUsernameEnvironmentVariable))
+        {
+            error = "Bitbucket Data Center Basic authentication requires a username environment variable name.";
             return false;
         }
 

@@ -849,6 +849,154 @@ public sealed class CliBitbucketScanTests
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
     }
 
+    /// <summary>
+    /// Verifies that native scan can enumerate Bitbucket Data Center repository files through the normal report pipeline.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsBitbucketDataCenterRepositoryFiles()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new BitbucketDataCenterFixtureServer("token-54321");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN"] = "data-center-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-data-center-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--bitbucket-data-center-project",
+            "CORE",
+            "--bitbucket-data-center-repository",
+            "picket",
+            "--bitbucket-data-center-token-env",
+            "PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
+        Assert.Contains("\"file\":\"bitbucket-data-center/CORE/picket/src/appsettings.txt\"", result.Stdout);
+        Assert.AreEqual("Bearer data-center-source-secret", server.LastAuthorization);
+        Assert.Contains("application/octet-stream", server.LastAccept);
+        Assert.Contains("/rest/api/1.0/projects/CORE/repos/picket/default-branch", server.RequestTargets);
+        Assert.Contains("/rest/api/1.0/projects/CORE/repos/picket/files?", server.RequestTargets);
+        Assert.Contains("/rest/api/1.0/projects/CORE/repos/picket/raw/src/appsettings.txt?", server.RequestTargets);
+        Assert.DoesNotContain("data-center-source-secret", result.Stdout);
+        Assert.DoesNotContain("data-center-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket Data Center source scans block non-public endpoints by default.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanBlocksNonPublicBitbucketDataCenterEndpointByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN"] = "data-center-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-data-center-api-endpoint",
+            "https://127.0.0.1:1/rest/api/1.0/",
+            "--bitbucket-data-center-project",
+            "CORE",
+            "--bitbucket-data-center-repository",
+            "picket",
+            "--bitbucket-data-center-token-env",
+            "PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("blocked Bitbucket Data Center endpoint: endpoint resolves to a non-public address", result.Stderr);
+        Assert.DoesNotContain("data-center-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket Data Center source scans require an explicit API endpoint.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRequiresBitbucketDataCenterApiEndpoint()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN"] = "data-center-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-data-center-project",
+            "CORE",
+            "--bitbucket-data-center-token-env",
+            "PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("requires --bitbucket-data-center-api-endpoint", result.Stderr);
+        Assert.DoesNotContain("data-center-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that Cloud and Data Center selectors cannot create two native source providers in one scan.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsBitbucketCloudAndDataCenterTogether()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN"] = "data-center-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-repository",
+            "workspace/repository",
+            "--bitbucket-data-center-api-endpoint",
+            "https://bitbucket.example/rest/api/1.0/",
+            "--bitbucket-data-center-project",
+            "CORE",
+            "--bitbucket-data-center-token-env",
+            "PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("scan accepts only one native source provider at a time", result.Stderr);
+    }
+
     private async Task<CliResult> RunCliWithEnvironmentAsync(
         string workingDirectory,
         IReadOnlyDictionary<string, string?> environment,

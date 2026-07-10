@@ -690,7 +690,7 @@ Native source support:
 - GitHub repos, orgs, users, PRs, issues, gists, releases, and Actions artifacts,
 - GitLab groups/projects/MRs/snippets/artifacts,
 - Gitea repositories,
-- Bitbucket Cloud repositories,
+- Bitbucket Cloud and Bitbucket Data Center repositories,
 - Azure DevOps Services and Azure DevOps Server sources, including Azure Repos Git repositories, projects, organizations, pull requests, wiki repositories, build artifacts, pipeline logs, release artifacts, and Azure Artifacts NuGet packages where APIs expose them safely,
 - S3, GCS, Azure Blob,
 - Docker/OCI images and tarballs.
@@ -917,7 +917,7 @@ Gitea source safety rules:
 
 Gitea credentials are read from the environment and sent as `Authorization: token ...` request headers for repository scans, artifact-list, initial artifact ZIP, package-list, package-file-list, and initial generic package file requests. Redirected release asset and artifact ZIP downloads are fetched without forwarding the token. Least-privilege repository enumeration requires read-only access to repository metadata, branch metadata, repository tree entries, and raw repository file content for the selected repository. Organization and user scans also require read-only repository-list access for the selected account. Pull request scans also require read-only access to pull request metadata. Issue scans also require read-only issue and issue-comment access. Release scans also require read-only release metadata and access to selected release asset download URLs. Actions artifact scans also require read-only Actions artifact metadata and artifact ZIP download access. Generic package scans require read-only package metadata, package file metadata, and package file download access. Write, owner, organization administration, package publish/delete, runner, and token-administration scopes are not part of the scanner test contract.
 
-Bitbucket Cloud source support is native Picket behavior, not Gitleaks compatibility behavior.
+Bitbucket Cloud and Bitbucket Data Center source support is native Picket behavior, not Gitleaks compatibility behavior.
 
 Implemented Bitbucket entry points:
 
@@ -964,9 +964,30 @@ Bitbucket source safety rules:
 - Snippet file downloads use the same remote byte cap as repository files.
 - Raw snippet redirects are followed only when the redirected URI stays on the configured Bitbucket API endpoint because those redirected API requests still require the Bitbucket credential.
 - Download artifact archives respect `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
-- Pipeline step logs are explicit opt-ins. Pipeline artifact downloads are not exposed as a direct Bitbucket Cloud REST download endpoint; users who need artifact scanning should publish artifacts to repository downloads or another supported source. Bitbucket Data Center/Server remains a planned explicit source selector.
+- Pipeline step logs are explicit opt-ins. Pipeline artifact downloads are not exposed as a direct Bitbucket Cloud REST download endpoint; users who need artifact scanning should publish artifacts to repository downloads or another supported source.
 
 Bitbucket credentials are read from environment variables. Bearer mode sends `Authorization: Bearer ...`. App-password mode sends HTTP Basic authentication using the username from `--bitbucket-username-env` and the app password from `--bitbucket-token-env`. Least-privilege repository and workspace enumeration requires read-only repository access for repository listings, repository metadata, source directory listings, raw source file content, and download artifacts. Project-scoped workspace scans also require read-only project access for project metadata. Pull request scans also require read-only pull request access. Snippet scans require read-only snippet access. Pipeline log scans require read-only pipeline access. For OAuth-style tokens, Bitbucket documents the `repository` scope for source and download enumeration, the `project` scope for project metadata, the `pullrequest` scope for pull request metadata, the `snippet` scope for snippet enumeration, and the `pipeline` scope for pipeline step and log enumeration. For API tokens, Bitbucket documents `read:repository:bitbucket`, `read:project:bitbucket`, `read:pullrequest:bitbucket`, `read:snippet:bitbucket`, and `read:pipeline:bitbucket`.
+
+Implemented Bitbucket Data Center entry points:
+
+| Scope | Options | Behavior |
+| --- | --- | --- |
+| Repository files | `--bitbucket-data-center-api-endpoint`, `--bitbucket-data-center-project`, `--bitbucket-data-center-repository`, `--bitbucket-data-center-ref`, `--bitbucket-data-center-token-env` | Scans one repository at an immutable commit. Empty ref resolves the default branch; a named ref is resolved through the commits API before file enumeration. |
+| Project repositories | `--bitbucket-data-center-api-endpoint`, `--bitbucket-data-center-project`, `--bitbucket-data-center-token-env` | Lists every readable repository in the project and resolves each repository independently. |
+| Pull request source head | `--bitbucket-data-center-repository`, `--bitbucket-data-center-pull-request` | Resolves `fromRef.latestCommit` and the source repository/project, including a fork, then scans that exact commit. |
+| Basic authentication | `--bitbucket-data-center-token-kind basic`, `--bitbucket-data-center-username-env`, `--bitbucket-data-center-token-env` | Reads the username and credential from named environment variables and sends HTTP Basic authentication. Bearer authentication is the default. |
+
+Bitbucket Data Center API flow and safety rules:
+
+- The API endpoint is required and includes the installation's `rest/api/1.0` path. No public default endpoint is inferred.
+- Project repositories use `/projects/{projectKey}/repos`; recursive file listings use `/files`; raw bytes use `/raw/{path}`.
+- Default branches, named refs, and pull request source heads resolve to immutable commit IDs before file enumeration.
+- Project and file lists request `limit=100`, use the server-provided `nextPageStart`, reject non-advancing cursors, and stop at 1,000 pages.
+- Provider metadata JSON is capped at 10 decimal MB. File bodies use the 100 decimal MB remote default or a positive `--max-target-megabytes` override, enforced while streaming even when `Content-Length` is absent or understated.
+- Paths are normalized, deduplicated, and checked against global path ignores before raw content is requested.
+- Endpoint safety checks run before the first request and at connection time. HTTPS is required unless insecure source endpoints are explicitly allowed. Redirects are disabled, including rejection of responses already redirected by an injected handler.
+- Retryable throttling and service responses are retried once with bounded `Retry-After` handling.
+- Data Center credentials are read from environment variables and sent only in request headers. The required permission set is read access to selected projects, repositories, refs/commits, file content, and pull request metadata when selected; write and administration permissions are not required.
 
 GitHub source support is native Picket behavior, not Gitleaks compatibility behavior.
 

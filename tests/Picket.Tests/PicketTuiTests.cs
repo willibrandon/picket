@@ -543,6 +543,13 @@ public sealed class PicketTuiTests
         Assert.HasCount(3, scan.ActiveTargetModeLabels);
         Assert.Contains("OCI archive", scan.ActiveTargetModeLabels);
         Assert.Contains("Registry", scan.ActiveTargetModeLabels);
+
+        scan.SetTargetCategoryByIndex((int)PicketTuiScanTargetCategory.SourceHost);
+        scan.SetTargetModeByCategoryIndex(5);
+
+        Assert.AreEqual(PicketTuiScanTargetMode.BitbucketDataCenter, scan.TargetMode);
+        Assert.HasCount(6, scan.ActiveTargetModeLabels);
+        Assert.Contains("Bitbucket Data Center", scan.ActiveTargetModeLabels);
     }
 
     /// <summary>
@@ -1395,6 +1402,91 @@ public sealed class PicketTuiTests
         Assert.IsFalse(built);
         Assert.IsEmpty(arguments);
         Assert.Contains("--bitbucket-pipeline-id requires --bitbucket-include-pipeline-logs", error);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Bitbucket Data Center source arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsBitbucketDataCenterArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(12);
+        scan.SetBitbucketDataCenterApiEndpoint("https://bitbucket.example/rest/api/1.0/");
+        scan.SetBitbucketDataCenterProject("CORE");
+        scan.SetBitbucketDataCenterRepository("picket");
+        scan.SetBitbucketDataCenterRef("main");
+        scan.SetBitbucketDataCenterTokenEnvironmentVariable("PICKET_BITBUCKET_DC_TOKEN");
+        scan.SetBitbucketDataCenterUsernameEnvironmentVariable("PICKET_BITBUCKET_DC_USER");
+        scan.SetBitbucketDataCenterTokenKindByIndex(1);
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--bitbucket-data-center-api-endpoint", arguments);
+        Assert.Contains("https://bitbucket.example/rest/api/1.0/", arguments);
+        Assert.Contains("--bitbucket-data-center-project", arguments);
+        Assert.Contains("CORE", arguments);
+        Assert.Contains("--bitbucket-data-center-repository", arguments);
+        Assert.Contains("picket", arguments);
+        Assert.Contains("--bitbucket-data-center-ref", arguments);
+        Assert.Contains("main", arguments);
+        Assert.Contains("--bitbucket-data-center-token-env", arguments);
+        Assert.Contains("PICKET_BITBUCKET_DC_TOKEN", arguments);
+        Assert.Contains("--bitbucket-data-center-username-env", arguments);
+        Assert.Contains("PICKET_BITBUCKET_DC_USER", arguments);
+        Assert.Contains("--bitbucket-data-center-token-kind", arguments);
+        Assert.Contains("basic", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket Data Center pull request scans require a repository slug.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsBitbucketDataCenterPullRequestWithoutRepository()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(12);
+        scan.SetBitbucketDataCenterApiEndpoint("https://bitbucket.example/rest/api/1.0/");
+        scan.SetBitbucketDataCenterProject("CORE");
+        scan.SetBitbucketDataCenterPullRequest("7");
+        scan.SetBitbucketDataCenterTokenEnvironmentVariable("PICKET_BITBUCKET_DC_TOKEN");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("pull request scans require a repository slug", error);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket Data Center Basic authentication requires a username environment variable.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsBitbucketDataCenterBasicWithoutUsername()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(12);
+        scan.SetBitbucketDataCenterApiEndpoint("https://bitbucket.example/rest/api/1.0/");
+        scan.SetBitbucketDataCenterProject("CORE");
+        scan.SetBitbucketDataCenterTokenEnvironmentVariable("PICKET_BITBUCKET_DC_TOKEN");
+        scan.SetBitbucketDataCenterTokenKindByIndex(1);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("Basic authentication requires a username environment variable", error);
     }
 
     /// <summary>
@@ -2308,6 +2400,51 @@ public sealed class PicketTuiTests
         Assert.Contains("Package", screenText);
         Assert.Contains("Version", screenText);
         Assert.Contains("Artifact MB", screenText);
+        Assert.Contains("Non-public", screenText);
+        Assert.Contains("HTTP", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that Bitbucket Data Center source controls expose the required server, scope, and credential fields.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersBitbucketDataCenterSourceControls()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetTargetMode(12);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 150, height: 38);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Project key"), TimeSpan.FromSeconds(5), "Bitbucket Data Center controls to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+        bool providerRowVisible = screenText
+            .Split(Environment.NewLine)
+            .Any(static line => line.Contains("Provider", StringComparison.Ordinal)
+                && line.Contains("Bitbucket Data Center", StringComparison.Ordinal));
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsTrue(providerRowVisible);
+        Assert.Contains("Bitbucket Data Center", screenText);
+        Assert.Contains("API endpoint", screenText);
+        Assert.Contains("Project key", screenText);
+        Assert.Contains("Repository", screenText);
+        Assert.Contains("Pull request", screenText);
+        Assert.Contains("Token env", screenText);
+        Assert.Contains("Username env", screenText);
         Assert.Contains("Non-public", screenText);
         Assert.Contains("HTTP", screenText);
     }

@@ -646,6 +646,54 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this Bitbucket Cloud API endpoint for native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Bitbucket Data Center REST API endpoint, including its rest/api/1.0 path.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-project</code></td>
+              <td data-label="Value"><code>key</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan repositories readable in this Bitbucket Data Center project.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-repository</code></td>
+              <td data-label="Value"><code>slug</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Bitbucket Data Center enumeration to this repository slug.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-ref</code></td>
+              <td data-label="Value"><code>ref</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Bitbucket Data Center branch, tag, or commit.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-pull-request</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Bitbucket Data Center pull request source head; requires a repository.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Bitbucket Data Center HTTP access token or Basic credential from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-token-kind</code></td>
+              <td data-label="Value"><code>kind</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose bearer-token or Basic authentication for Bitbucket Data Center requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--bitbucket-data-center-username-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Bitbucket Data Center username used for Basic authentication from this environment variable.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--azure-blob-endpoint</code></td>
               <td data-label="Value"><code>uri</code></td>
               <td data-label="Required">Optional</td>
