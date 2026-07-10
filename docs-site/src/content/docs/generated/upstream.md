@@ -295,9 +295,9 @@ Bitbucket credential.
 
 ## Azure DevOps Source References
 
-Native Azure DevOps repository, wiki, build artifact, build log, and release
-artifact source enumeration is based on
-Microsoft Learn REST API documentation reviewed on 2026-07-07:
+Native Azure DevOps repository, wiki, build artifact, build log, release
+artifact, and Azure Artifacts NuGet package source enumeration is based on
+Microsoft Learn REST API documentation reviewed on 2026-07-09:
 
 - Azure DevOps repositories list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list?view=azure-devops-rest-7.1`
 - Azure DevOps Git items list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/git/items/list?view=azure-devops-rest-7.1`
@@ -307,6 +307,10 @@ Microsoft Learn REST API documentation reviewed on 2026-07-07:
 - Azure DevOps build logs list REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-logs?view=azure-devops-rest-7.1`
 - Azure DevOps build log REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-log?view=azure-devops-rest-7.1`
 - Azure DevOps release get REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/release/releases/get-release?view=azure-devops-rest-7.1`
+- Azure Artifacts feeds REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/artifacts/feed-management/get-feeds?view=azure-devops-rest-7.1`
+- Azure Artifacts packages REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/artifacts/artifact-details/get-packages?view=azure-devops-rest-7.1`
+- Azure Artifacts NuGet download REST API: `https://learn.microsoft.com/en-us/rest/api/azure/devops/artifactspackagetypes/nuget/download-package?view=azure-devops-rest-7.1`
+- Azure Artifacts Universal Packages download guidance: `https://learn.microsoft.com/en-us/azure/devops/artifacts/quickstarts/download-universal-packages?view=azure-devops`
 
 ## Azure Blob Source References
 

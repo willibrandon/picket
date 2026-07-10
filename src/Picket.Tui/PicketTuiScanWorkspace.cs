@@ -202,6 +202,11 @@ internal sealed class PicketTuiScanWorkspace
     internal string AzureDevOpsEndpoint { get; private set; } = string.Empty;
 
     /// <summary>
+    /// Gets the optional Azure Artifacts feed selector.
+    /// </summary>
+    internal string AzureDevOpsFeed { get; private set; } = string.Empty;
+
+    /// <summary>
     /// Gets the Azure DevOps organization selector.
     /// </summary>
     internal string AzureDevOpsOrganization { get; private set; } = string.Empty;
@@ -225,6 +230,16 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the Azure DevOps pull request selector.
     /// </summary>
     internal string AzureDevOpsPullRequest { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional exact Azure Artifacts NuGet package selector.
+    /// </summary>
+    internal string AzureDevOpsPackage { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional exact Azure Artifacts NuGet package version selector.
+    /// </summary>
+    internal string AzureDevOpsPackageVersion { get; private set; } = string.Empty;
 
     /// <summary>
     /// Gets the Azure DevOps token environment variable name.
@@ -262,6 +277,11 @@ internal sealed class PicketTuiScanWorkspace
     internal string AzureDevOpsMaxLogMegabytes { get; private set; } = string.Empty;
 
     /// <summary>
+    /// Gets the Azure Artifacts package download cap in decimal megabytes.
+    /// </summary>
+    internal string AzureDevOpsMaxPackageMegabytes { get; private set; } = string.Empty;
+
+    /// <summary>
     /// Gets a value indicating whether non-public source endpoints are allowed.
     /// </summary>
     internal bool AllowNonPublicSourceEndpoints { get; private set; }
@@ -280,6 +300,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets a value indicating whether Azure Pipelines build logs are included.
     /// </summary>
     internal bool IncludeAzureDevOpsLogs { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether Azure Artifacts NuGet packages are included.
+    /// </summary>
+    internal bool IncludeAzureDevOpsPackages { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether classic Azure DevOps release artifacts are included.
@@ -1049,6 +1074,12 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetAzureDevOpsEndpoint(string value) => AzureDevOpsEndpoint = value;
 
     /// <summary>
+    /// Sets the optional Azure Artifacts feed selector.
+    /// </summary>
+    /// <param name="value">The feed name or ID.</param>
+    internal void SetAzureDevOpsFeed(string value) => AzureDevOpsFeed = value;
+
+    /// <summary>
     /// Sets the Azure DevOps organization selector.
     /// </summary>
     /// <param name="value">The organization selector.</param>
@@ -1077,6 +1108,18 @@ internal sealed class PicketTuiScanWorkspace
     /// </summary>
     /// <param name="value">The pull request selector.</param>
     internal void SetAzureDevOpsPullRequest(string value) => AzureDevOpsPullRequest = value;
+
+    /// <summary>
+    /// Sets the optional Azure Artifacts NuGet package selector.
+    /// </summary>
+    /// <param name="value">The exact package name.</param>
+    internal void SetAzureDevOpsPackage(string value) => AzureDevOpsPackage = value;
+
+    /// <summary>
+    /// Sets the optional Azure Artifacts NuGet package version selector.
+    /// </summary>
+    /// <param name="value">The exact package version.</param>
+    internal void SetAzureDevOpsPackageVersion(string value) => AzureDevOpsPackageVersion = value;
 
     /// <summary>
     /// Sets the Azure DevOps token environment variable name.
@@ -1121,6 +1164,12 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetAzureDevOpsMaxLogMegabytes(string value) => AzureDevOpsMaxLogMegabytes = value;
 
     /// <summary>
+    /// Sets the Azure Artifacts package download cap in decimal megabytes.
+    /// </summary>
+    /// <param name="value">The package cap.</param>
+    internal void SetAzureDevOpsMaxPackageMegabytes(string value) => AzureDevOpsMaxPackageMegabytes = value;
+
+    /// <summary>
     /// Sets whether non-public source endpoints are allowed.
     /// </summary>
     /// <param name="value">The endpoint policy state.</param>
@@ -1143,6 +1192,12 @@ internal sealed class PicketTuiScanWorkspace
     /// </summary>
     /// <param name="value">The include state.</param>
     internal void SetIncludeAzureDevOpsLogs(bool value) => IncludeAzureDevOpsLogs = value;
+
+    /// <summary>
+    /// Sets whether Azure Artifacts NuGet packages are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeAzureDevOpsPackages(bool value) => IncludeAzureDevOpsPackages = value;
 
     /// <summary>
     /// Sets whether classic Azure DevOps release artifacts are included.
@@ -2076,6 +2131,9 @@ internal sealed class PicketTuiScanWorkspace
                 AddOptionalValue(arguments, "--azure-devops-repository", AzureDevOpsRepository);
                 AddOptionalValue(arguments, "--azure-devops-branch", AzureDevOpsBranch);
                 AddOptionalValue(arguments, "--azure-devops-pull-request", AzureDevOpsPullRequest);
+                AddOptionalValue(arguments, "--azure-devops-feed", AzureDevOpsFeed);
+                AddOptionalValue(arguments, "--azure-devops-package", AzureDevOpsPackage);
+                AddOptionalValue(arguments, "--azure-devops-package-version", AzureDevOpsPackageVersion);
                 AddOptionalValue(arguments, "--azure-devops-token-env", AzureDevOpsTokenEnvironmentVariable);
                 AddOptionalValue(arguments, "--azure-devops-build-id", AzureDevOpsBuildId);
                 AddOptionalValue(arguments, "--azure-devops-release-id", AzureDevOpsReleaseId);
@@ -2083,8 +2141,10 @@ internal sealed class PicketTuiScanWorkspace
                 AddFlag(arguments, "--azure-devops-include-artifacts", IncludeAzureDevOpsArtifacts);
                 AddFlag(arguments, "--azure-devops-include-logs", IncludeAzureDevOpsLogs);
                 AddFlag(arguments, "--azure-devops-include-release-artifacts", IncludeAzureDevOpsReleaseArtifacts);
+                AddFlag(arguments, "--azure-devops-include-packages", IncludeAzureDevOpsPackages);
                 AddOptionalValue(arguments, "--azure-devops-max-artifact-megabytes", AzureDevOpsMaxArtifactMegabytes);
                 AddOptionalValue(arguments, "--azure-devops-max-log-megabytes", AzureDevOpsMaxLogMegabytes);
+                AddOptionalValue(arguments, "--azure-devops-max-package-megabytes", AzureDevOpsMaxPackageMegabytes);
                 break;
             case PicketTuiScanTargetMode.GitLab:
                 AddOptionalValue(arguments, "--gitlab-project", GitLabProject);
@@ -2167,7 +2227,7 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.DockerArchive => string.Concat("Docker archive ", FirstConfigured(DockerArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.OciArchive => string.Concat("OCI archive ", FirstConfigured(OciArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", FirstConfigured(GitHubRepository, GitHubOrganization, GitHubUser)),
-            PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsProject, AzureDevOpsOrganization)),
+            PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsFeed, FirstConfigured(AzureDevOpsProject, AzureDevOpsOrganization, AzureDevOpsEndpoint))),
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
             PicketTuiScanTargetMode.Gitea => string.Concat("Gitea ", FirstConfigured(GiteaRepository, GiteaOrganization, GiteaUser)),
             PicketTuiScanTargetMode.Bitbucket => string.Concat("Bitbucket ", FirstConfigured(BitbucketRepository, BitbucketWorkspace, BitbucketProject)),
@@ -2254,11 +2314,53 @@ internal sealed class PicketTuiScanWorkspace
         }
 
         if (TargetMode == PicketTuiScanTargetMode.AzureDevOps
-            && string.IsNullOrWhiteSpace(AzureDevOpsOrganization)
-            && string.IsNullOrWhiteSpace(AzureDevOpsProject)
-            && string.IsNullOrWhiteSpace(AzureDevOpsRepository))
+            && !string.IsNullOrWhiteSpace(AzureDevOpsOrganization)
+            && !string.IsNullOrWhiteSpace(AzureDevOpsEndpoint))
         {
-            error = "Azure DevOps scans require an organization, project, or repository selector.";
+            error = "Azure DevOps scans accept either an organization or endpoint, not both.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.AzureDevOps
+            && string.IsNullOrWhiteSpace(AzureDevOpsOrganization)
+            && string.IsNullOrWhiteSpace(AzureDevOpsEndpoint))
+        {
+            error = "Azure DevOps scans require an organization or endpoint.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.AzureDevOps
+            && !string.IsNullOrWhiteSpace(AzureDevOpsBranch)
+            && !string.IsNullOrWhiteSpace(AzureDevOpsPullRequest))
+        {
+            error = "Azure DevOps scans accept either a branch or pull request, not both.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.AzureDevOps
+            && !string.IsNullOrWhiteSpace(AzureDevOpsPullRequest)
+            && IncludeAzureDevOpsWikis)
+        {
+            error = "Azure DevOps pull request scans cannot include wikis.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.AzureDevOps
+            && !IncludeAzureDevOpsPackages
+            && (!string.IsNullOrWhiteSpace(AzureDevOpsFeed)
+                || !string.IsNullOrWhiteSpace(AzureDevOpsPackage)
+                || !string.IsNullOrWhiteSpace(AzureDevOpsPackageVersion)
+                || !string.IsNullOrWhiteSpace(AzureDevOpsMaxPackageMegabytes)))
+        {
+            error = "Azure Artifacts feed, package, and package limit settings require Packages to be On.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.AzureDevOps
+            && !string.IsNullOrWhiteSpace(AzureDevOpsPackageVersion)
+            && string.IsNullOrWhiteSpace(AzureDevOpsPackage))
+        {
+            error = "Azure Artifacts package version selection requires a package name.";
             return false;
         }
 
@@ -2315,8 +2417,9 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
+        int minimumTargetMegabytes = GetTargetCategory(TargetMode) is PicketTuiScanTargetCategory.SourceHost or PicketTuiScanTargetCategory.ObjectStore ? 1 : 0;
         return ValidateOptionalNonNegativeInteger(RedactionPercent, "--redact", min: 0, max: 100, out error)
-            && ValidateOptionalNonNegativeInteger(MaxTargetMegabytes, "--max-target-megabytes", min: 0, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(MaxTargetMegabytes, "--max-target-megabytes", min: minimumTargetMegabytes, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(MaxArchiveDepth, "--max-archive-depth", min: 0, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(MaxArchiveEntries, "--max-archive-entries", min: 0, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(MaxArchiveMegabytes, "--max-archive-megabytes", min: 0, max: int.MaxValue, out error)
@@ -2324,8 +2427,9 @@ internal sealed class PicketTuiScanWorkspace
             && ValidateOptionalNonNegativeInteger(TimeoutSeconds, "--timeout", min: 0, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsBuildId, "--azure-devops-build-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsReleaseId, "--azure-devops-release-id", min: 1, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxArtifactMegabytes, "--azure-devops-max-artifact-megabytes", min: 0, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxLogMegabytes, "--azure-devops-max-log-megabytes", min: 0, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxArtifactMegabytes, "--azure-devops-max-artifact-megabytes", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxLogMegabytes, "--azure-devops-max-log-megabytes", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxPackageMegabytes, "--azure-devops-max-package-megabytes", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GitLabMergeRequest, "--gitlab-merge-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GitLabPipelineId, "--gitlab-pipeline-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaPullRequest, "--gitea-pull-request", min: 1, max: int.MaxValue, out error)

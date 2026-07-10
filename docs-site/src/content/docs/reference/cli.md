@@ -820,6 +820,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Include classic Azure DevOps release build artifact contents in native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--azure-devops-include-packages</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include the latest Azure Artifacts NuGet package versions in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-feed</code></td>
+              <td data-label="Value"><code>name-or-id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Azure Artifacts package scanning to one feed name or ID.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-package</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Azure Artifacts package scanning to one exact NuGet package name.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-package-version</code></td>
+              <td data-label="Value"><code>version</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan one exact Azure Artifacts NuGet package version; requires --azure-devops-package.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--azure-devops-max-artifact-megabytes</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -830,6 +854,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Limit each Azure Pipelines log download in decimal megabytes; 0 disables the log-specific cap.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--azure-devops-max-package-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the positive Azure Artifacts package download cap in decimal megabytes; requires package scanning.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-source-endpoints</code></td>

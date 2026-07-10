@@ -353,6 +353,38 @@
       "helpMarkDown": "Include build artifact contents referenced by the selected classic release."
     },
     {
+      "name": "azureDevOpsIncludePackages",
+      "type": "boolean",
+      "label": "Include Azure Artifacts packages",
+      "defaultValue": "false",
+      "required": true,
+      "helpMarkDown": "Include the latest NuGet package versions from readable Azure Artifacts feeds."
+    },
+    {
+      "name": "azureDevOpsFeed",
+      "type": "string",
+      "label": "Azure Artifacts feed",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional feed name or ID filter."
+    },
+    {
+      "name": "azureDevOpsPackage",
+      "type": "string",
+      "label": "Azure Artifacts NuGet package",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional exact NuGet package name filter."
+    },
+    {
+      "name": "azureDevOpsPackageVersion",
+      "type": "string",
+      "label": "Azure Artifacts package version",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional exact NuGet package version. Requires an exact package name."
+    },
+    {
       "name": "azureDevOpsMaxArtifactMegabytes",
       "type": "string",
       "label": "Max artifact MB",
@@ -367,6 +399,14 @@
       "defaultValue": "",
       "required": false,
       "helpMarkDown": "Positive per-log download cap."
+    },
+    {
+      "name": "azureDevOpsMaxPackageMegabytes",
+      "type": "string",
+      "label": "Max package MB",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Positive per-package archive download cap. Requires Azure Artifacts package scanning."
     },
     {
       "name": "allowNonPublicSourceEndpoints",

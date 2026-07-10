@@ -550,8 +550,13 @@ internal static partial class Program
         command.Options.Add(CreateFlagOption(commandName, "--azure-devops-include-logs"));
         command.Options.Add(CreateValueOption(commandName, "--azure-devops-release-id", "id"));
         command.Options.Add(CreateFlagOption(commandName, "--azure-devops-include-release-artifacts"));
+        command.Options.Add(CreateFlagOption(commandName, "--azure-devops-include-packages"));
+        command.Options.Add(CreateValueOption(commandName, "--azure-devops-feed", "name-or-id"));
+        command.Options.Add(CreateValueOption(commandName, "--azure-devops-package", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--azure-devops-package-version", "version"));
         command.Options.Add(CreateValueOption(commandName, "--azure-devops-max-artifact-megabytes", "n"));
         command.Options.Add(CreateValueOption(commandName, "--azure-devops-max-log-megabytes", "n"));
+        command.Options.Add(CreateValueOption(commandName, "--azure-devops-max-package-megabytes", "n"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-non-public-source-endpoints"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-insecure-source-endpoints"));
     }

@@ -3,7 +3,7 @@
 Picket's Azure DevOps support has two layers:
 
 - a pipeline task that scans the checked-out workspace by default,
-- optional native Azure DevOps source enumeration for repositories, pull requests, wikis, artifacts, and logs.
+- optional native Azure DevOps source enumeration for repositories, pull requests, wikis, pipeline artifacts and logs, release artifacts, and Azure Artifacts NuGet packages.
 
 The pipeline task is a distribution wrapper around the same Picket CLI behavior used locally and in other CI systems. Remote Azure DevOps enumeration is native Picket behavior and does not change strict Gitleaks-compatible commands.
 
@@ -77,8 +77,13 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `azureDevOpsIncludeLogs` | `false` | Include build logs for the selected build. |
 | `azureDevOpsReleaseId` | empty | Classic release ID used when scanning release build artifacts. |
 | `azureDevOpsIncludeReleaseArtifacts` | `false` | Include build artifact contents referenced by the selected classic release. |
+| `azureDevOpsIncludePackages` | `false` | Include the latest NuGet package versions from readable Azure Artifacts feeds. |
+| `azureDevOpsFeed` | empty | Optional Azure Artifacts feed name or ID filter. |
+| `azureDevOpsPackage` | empty | Optional exact NuGet package name filter. |
+| `azureDevOpsPackageVersion` | empty | Optional exact NuGet package version. Requires `azureDevOpsPackage`. |
 | `azureDevOpsMaxArtifactMegabytes` | empty | Positive per-artifact archive download cap. |
 | `azureDevOpsMaxLogMegabytes` | empty | Positive per-log download cap. |
+| `azureDevOpsMaxPackageMegabytes` | empty | Positive per-package archive download cap. Requires `azureDevOpsIncludePackages`. |
 | `allowNonPublicSourceEndpoints` | `false` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses. |
 | `allowInsecureSourceEndpoints` | `false` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 | `extraArgs` | empty | Additional CLI arguments appended after validated task inputs. |
@@ -110,7 +115,8 @@ The native Azure DevOps source model includes:
 - wiki repositories,
 - build artifacts,
 - pipeline logs,
-- classic release build artifacts where the server exposes them safely.
+- classic release build artifacts where the server exposes them safely,
+- Azure Artifacts NuGet packages.
 
 Repository file enumeration is implemented.
 
@@ -121,12 +127,13 @@ Additional source kinds are implemented behind explicit options:
 - Build artifact enumeration is available behind `--azure-devops-include-artifacts` and requires `--azure-devops-project` plus `--azure-devops-build-id`. Picket lists artifacts through the Build Artifacts API, downloads each artifact through the returned download URL, follows allowed signed redirects without forwarding credentials, expands archives through the normal archive safety caps, and scans non-archive artifact responses as a single native source.
 - Build log enumeration is available behind `--azure-devops-include-logs` with the same project and build ID requirement. Picket lists logs through the Build Logs API and downloads individual log files.
 - Classic release build artifact enumeration is available behind `--azure-devops-include-release-artifacts` and requires `--azure-devops-project` plus `--azure-devops-release-id`. Picket reads the release through the Release REST API, follows supported Build artifact references back to their build artifacts, downloads each artifact through the returned download URL, follows allowed signed redirects without forwarding credentials, expands archives through the normal archive safety caps, and skips unsupported release artifact types with warnings.
+- Azure Artifacts NuGet package enumeration is available behind `--azure-devops-include-packages`. Picket lists readable feeds when `--azure-devops-feed` is omitted, lists the latest NuGet version of each selected package, downloads package archives through Microsoft's package-content API, removes credentials before following an HTTPS storage redirect, and expands package entries through the normal archive safety caps. `--azure-devops-feed`, `--azure-devops-package`, and `--azure-devops-package-version` narrow the selection; an exact version requires an exact package name.
 
-Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes`, `--azure-devops-max-artifact-megabytes`, and `--azure-devops-max-log-megabytes` can tighten the relevant caps with positive values. Zero keeps its local-scan compatibility meaning, but remote Azure DevOps sources reject zero because remote HTTP bodies are always bounded.
+Remote downloads use a 100 decimal MB default cap. `--max-target-megabytes`, `--azure-devops-max-artifact-megabytes`, `--azure-devops-max-log-megabytes`, and `--azure-devops-max-package-megabytes` can tighten the relevant caps with positive values. Zero keeps its local-scan compatibility meaning, but remote Azure DevOps sources reject zero because remote HTTP bodies are always bounded.
 
 Provider metadata JSON responses are separately capped at 10 decimal MB and skipped with a warning when the cap is exceeded, including responses without a reliable `Content-Length`.
 
-Feed/package sources remain planned native source extensions and must remain explicit opt-ins when added.
+Azure Artifacts scanning currently supports NuGet packages because Azure DevOps exposes a documented direct content API for that protocol. Universal Packages use Microsoft's separate ArtifactTool transfer workflow and are not treated as ordinary REST package downloads.
 
 Repositories that explicitly report no default branch are skipped unless `--azure-devops-branch` or `--azure-devops-pull-request` is supplied. `--azure-devops-pull-request` cannot be combined with `--azure-devops-branch` or `--azure-devops-include-wikis` because the scan scope must resolve to one repository version model at a time. If branch metadata is not returned and a repository cannot list items, Picket warns and continues so an empty or unauthorized repository does not fail the rest of an organization or project scan. Disabled wikis, wikis without a backing repository, and wikis without a version are skipped with warnings.
 
@@ -148,12 +155,17 @@ Provider options include:
 | `--azure-devops-include-logs` | Include build logs for the selected build. |
 | `--azure-devops-release-id` | Classic release ID used when scanning release build artifacts. |
 | `--azure-devops-include-release-artifacts` | Include build artifact contents referenced by the selected classic release. |
+| `--azure-devops-include-packages` | Include the latest Azure Artifacts NuGet package versions. |
+| `--azure-devops-feed` | Optional feed name or ID filter. |
+| `--azure-devops-package` | Optional exact NuGet package name filter. |
+| `--azure-devops-package-version` | Optional exact NuGet package version; requires `--azure-devops-package`. |
 | `--azure-devops-max-artifact-megabytes` | Positive per-artifact archive download cap. Defaults to `--max-target-megabytes` when that cap is set; otherwise the source client applies its 100 decimal MB default cap. |
 | `--azure-devops-max-log-megabytes` | Positive per-log download cap. Defaults to `--max-target-megabytes` when that cap is set; otherwise the source client applies its 100 decimal MB default cap. |
+| `--azure-devops-max-package-megabytes` | Positive per-package archive download cap. Requires `--azure-devops-include-packages`. Defaults to `--max-target-megabytes` when that cap is set; otherwise the source client applies its 100 decimal MB default cap. |
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-hosted Azure DevOps Server. |
 | `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments; source credentials may be sent in cleartext. |
 
-Current enumeration handles repository continuation tokens, wiki mapped paths, branch scope controls, build artifact archives, build logs, classic release build artifacts, allowed unsigned redirect downloads, rejection of responses from injected HTTP handlers that already followed a redirect, server paging limits exposed through continuation headers, bounded retry/backoff for throttling responses, and clear warnings for projects, repositories, wikis, build artifacts, release artifacts, or build logs the token cannot read. Picket caps Azure DevOps continuation-token traversal at 1,000 pages per paged list and emits a warning if that safety limit is reached. Permission failures for one project, repository, wiki, artifact, release artifact, or log should not hide successful scans of other authorized resources.
+Current enumeration handles repository continuation tokens, wiki mapped paths, branch scope controls, build artifact archives, build logs, classic release build artifacts, Azure Artifacts NuGet packages, allowed credential-free redirect downloads, rejection of responses from injected HTTP handlers that already followed a redirect, bounded paging, bounded retry/backoff for throttling responses, and clear warnings for resources the token cannot read. Picket caps paged lists at 1,000 pages and emits a warning if that safety limit is reached. A failure on one independently enumerable resource should not hide successful scans of other authorized resources.
 
 ## Authentication
 
@@ -196,7 +208,7 @@ Credential handling requirements:
 - rate limits and retry caps,
 - explicit opt-in for live validation.
 
-## Artifacts And Logs
+## Artifacts, Packages, And Logs
 
 Artifact and log scanning must protect the agent and the pipeline:
 

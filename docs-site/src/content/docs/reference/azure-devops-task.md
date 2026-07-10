@@ -658,6 +658,70 @@ Version: `1.0.1`
   </article>
   <article class="reference-card">
     <div class="reference-card-heading">
+      <code>azureDevOpsIncludePackages</code><span>boolean</span>
+    </div>
+    <p class="reference-card-description">Include the latest NuGet package versions from readable Azure Artifacts feeds.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsFeed</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional feed name or ID filter.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsPackage</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional exact NuGet package name filter.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsPackageVersion</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional exact NuGet package version. Requires an exact package name.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
       <code>azureDevOpsMaxArtifactMegabytes</code><span>string</span>
     </div>
     <p class="reference-card-description">Positive per-artifact archive download cap.</p>
@@ -677,6 +741,22 @@ Version: `1.0.1`
       <code>azureDevOpsMaxLogMegabytes</code><span>string</span>
     </div>
     <p class="reference-card-description">Positive per-log download cap.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>azureDevOpsMaxPackageMegabytes</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Positive per-package archive download cap. Requires Azure Artifacts package scanning.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>

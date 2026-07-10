@@ -36,7 +36,10 @@ internal static partial class Program
         string bitbucketWorkspace = string.Empty;
         AzureDevOpsCredentialKind azureDevOpsCredentialKind = AzureDevOpsCredentialKind.PersonalAccessToken;
         Uri? azureDevOpsEndpoint = null;
+        string azureDevOpsFeed = string.Empty;
         string? azureDevOpsOrganization = null;
+        string azureDevOpsPackage = string.Empty;
+        string azureDevOpsPackageVersion = string.Empty;
         string? azureDevOpsTokenEnvironmentVariable = null;
         string azureDevOpsBranch = string.Empty;
         string azureDevOpsProject = string.Empty;
@@ -46,6 +49,7 @@ internal static partial class Program
         int azureDevOpsReleaseId = 0;
         long? azureDevOpsMaxArtifactBytes = null;
         long? azureDevOpsMaxLogBytes = null;
+        long? azureDevOpsMaxPackageBytes = null;
         string dockerArchivePath = string.Empty;
         Uri? githubSourceApiEndpoint = null;
         bool githubSourceIncludeAuthenticatedGists = false;
@@ -117,6 +121,7 @@ internal static partial class Program
         bool allowNonPublicSourceEndpoints = false;
         bool azureDevOpsIncludeArtifacts = false;
         bool azureDevOpsIncludeLogs = false;
+        bool azureDevOpsIncludePackages = false;
         bool azureDevOpsIncludeReleaseArtifacts = false;
         bool azureDevOpsIncludeWikis = false;
         bool azureDevOpsOptionSpecified = false;
@@ -1149,6 +1154,42 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsAzureDevOpsFeedFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--azure-devops-feed", out string? feed))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsFeed = feed;
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureDevOpsPackageFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--azure-devops-package", out string? package))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsPackage = package;
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureDevOpsPackageVersionFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--azure-devops-package-version", out string? packageVersion))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsPackageVersion = packageVersion;
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
             if (IsAzureDevOpsBranchFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-branch", out string? branch))
@@ -1254,6 +1295,21 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsAzureDevOpsIncludePackagesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--azure-devops-include-packages", out azureDevOpsIncludePackages))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                if (azureDevOpsIncludePackages)
+                {
+                    azureDevOpsOptionSpecified = true;
+                }
+
+                continue;
+            }
+
             if (IsAzureDevOpsMaxArtifactMegabytesFlag(arg))
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-artifact-megabytes", out azureDevOpsMaxArtifactBytes))
@@ -1268,6 +1324,17 @@ internal static partial class Program
             if (IsAzureDevOpsMaxLogMegabytesFlag(arg))
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-log-megabytes", out azureDevOpsMaxLogBytes))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                azureDevOpsOptionSpecified = true;
+                continue;
+            }
+
+            if (IsAzureDevOpsMaxPackageMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-package-megabytes", out azureDevOpsMaxPackageBytes))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -1425,7 +1492,8 @@ internal static partial class Program
 
         if (azureDevOpsOptionSpecified
             && (HasZeroMegabytesFlag(args, "--azure-devops-max-artifact-megabytes")
-                || HasZeroMegabytesFlag(args, "--azure-devops-max-log-megabytes")))
+                || HasZeroMegabytesFlag(args, "--azure-devops-max-log-megabytes")
+                || HasZeroMegabytesFlag(args, "--azure-devops-max-package-megabytes")))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
             return UnknownFlagExitCode;
@@ -1513,8 +1581,13 @@ internal static partial class Program
                 azureDevOpsIncludeLogs,
                 azureDevOpsReleaseId,
                 azureDevOpsIncludeReleaseArtifacts,
+                azureDevOpsIncludePackages,
+                azureDevOpsFeed,
+                azureDevOpsPackage,
+                azureDevOpsPackageVersion,
                 azureDevOpsMaxArtifactBytes,
                 azureDevOpsMaxLogBytes,
+                azureDevOpsMaxPackageBytes,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

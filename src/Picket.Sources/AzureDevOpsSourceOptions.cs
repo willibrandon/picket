@@ -27,6 +27,11 @@ namespace Picket.Sources;
 /// <param name="isPathAllowed">An optional predicate that returns <see langword="true" /> when a path should be ignored.</param>
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
+/// <param name="includePackages">A value indicating whether Azure Artifacts NuGet packages should be scanned.</param>
+/// <param name="feed">An optional Azure Artifacts feed name or ID filter.</param>
+/// <param name="package">An optional exact NuGet package name filter.</param>
+/// <param name="packageVersion">An optional exact NuGet package version filter.</param>
+/// <param name="maxPackageBytes">The maximum package archive bytes to download, or <see langword="null" /> for the default cap.</param>
 public sealed class AzureDevOpsSourceOptions(
     Uri endpoint,
     string credential,
@@ -51,7 +56,12 @@ public sealed class AzureDevOpsSourceOptions(
     bool allowInsecureCredentialTransport = false,
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    bool includePackages = false,
+    string feed = "",
+    string package = "",
+    string packageVersion = "",
+    long? maxPackageBytes = null)
 {
     private readonly string _credential = RequireCredential(credential);
 
@@ -64,6 +74,16 @@ public sealed class AzureDevOpsSourceOptions(
     /// Gets the normalized classic release API endpoint.
     /// </summary>
     public Uri ReleaseEndpoint { get; } = RequireCredentialTransport(NormalizeReleaseEndpoint(NormalizeEndpoint(endpoint)), RequireCredentialKind(credentialKind), allowInsecureCredentialTransport);
+
+    /// <summary>
+    /// Gets the normalized Azure Artifacts metadata endpoint.
+    /// </summary>
+    public Uri ArtifactsEndpoint { get; } = RequireCredentialTransport(NormalizeArtifactsEndpoint(NormalizeEndpoint(endpoint), "feeds.dev.azure.com"), RequireCredentialKind(credentialKind), allowInsecureCredentialTransport);
+
+    /// <summary>
+    /// Gets the normalized Azure Artifacts package-content endpoint.
+    /// </summary>
+    public Uri PackageContentEndpoint { get; } = RequireCredentialTransport(NormalizeArtifactsEndpoint(NormalizeEndpoint(endpoint), "pkgs.dev.azure.com"), RequireCredentialKind(credentialKind), allowInsecureCredentialTransport);
 
     /// <summary>
     /// Gets the credential transport kind.
@@ -121,6 +141,26 @@ public sealed class AzureDevOpsSourceOptions(
     public bool IncludeReleaseArtifacts { get; } = includeReleaseArtifacts;
 
     /// <summary>
+    /// Gets a value indicating whether Azure Artifacts NuGet packages should be scanned.
+    /// </summary>
+    public bool IncludePackages { get; } = includePackages;
+
+    /// <summary>
+    /// Gets the optional Azure Artifacts feed name or ID filter.
+    /// </summary>
+    public string Feed { get; } = RequirePackageSelector(includePackages, feed, nameof(feed));
+
+    /// <summary>
+    /// Gets the optional exact NuGet package name filter.
+    /// </summary>
+    public string Package { get; } = RequirePackageSelector(includePackages, package, nameof(package));
+
+    /// <summary>
+    /// Gets the optional exact NuGet package version filter.
+    /// </summary>
+    public string PackageVersion { get; } = RequirePackageVersion(includePackages, package, packageVersion);
+
+    /// <summary>
     /// Gets the maximum file content bytes to download.
     /// </summary>
     public long MaxFileBytes { get; } = RequireMaxFileBytes(maxFileBytes, nameof(maxFileBytes));
@@ -134,6 +174,11 @@ public sealed class AzureDevOpsSourceOptions(
     /// Gets the maximum build log bytes to download.
     /// </summary>
     public long MaxLogBytes { get; } = RequireMaxFileBytes(maxLogBytes, nameof(maxLogBytes));
+
+    /// <summary>
+    /// Gets the maximum Azure Artifacts package archive bytes to download.
+    /// </summary>
+    public long MaxPackageBytes { get; } = RequirePackageMaxFileBytes(includePackages, maxPackageBytes, nameof(maxPackageBytes));
 
     /// <summary>
     /// Gets the maximum nested archive depth to inspect for build artifacts.
@@ -245,6 +290,42 @@ public sealed class AzureDevOpsSourceOptions(
         return visualStudioBuilder.Uri;
     }
 
+    private static Uri NormalizeArtifactsEndpoint(Uri endpoint, string servicesHost)
+    {
+        string organization;
+        if (endpoint.Host.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase))
+        {
+            string[] segments = endpoint.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+            {
+                return endpoint;
+            }
+
+            organization = segments[0];
+        }
+        else
+        {
+            const string VisualStudioSuffix = ".visualstudio.com";
+            if (!endpoint.Host.EndsWith(VisualStudioSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return endpoint;
+            }
+
+            organization = endpoint.Host[..^VisualStudioSuffix.Length];
+            if (organization.Length == 0 || organization.Contains('.', StringComparison.Ordinal))
+            {
+                return endpoint;
+            }
+        }
+
+        var builder = new UriBuilder(endpoint)
+        {
+            Host = servicesHost,
+            Path = string.Concat("/", organization, "/"),
+        };
+        return builder.Uri;
+    }
+
     private static string RequireCredential(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -279,6 +360,28 @@ public sealed class AzureDevOpsSourceOptions(
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
+    private static string RequirePackageSelector(bool includePackages, string value, string parameterName)
+    {
+        string normalized = NormalizeOptionalName(value);
+        if (!includePackages && normalized.Length != 0)
+        {
+            throw new ArgumentException("Azure Artifacts selectors require package scanning to be enabled.", parameterName);
+        }
+
+        return normalized;
+    }
+
+    private static string RequirePackageVersion(bool includePackages, string package, string packageVersion)
+    {
+        string normalizedVersion = RequirePackageSelector(includePackages, packageVersion, nameof(packageVersion));
+        if (normalizedVersion.Length != 0 && NormalizeOptionalName(package).Length == 0)
+        {
+            throw new ArgumentException("Azure Artifacts package version selection requires a package name.", nameof(packageVersion));
+        }
+
+        return normalizedVersion;
+    }
+
     private static long RequireMaxFileBytes(long? value, string parameterName)
     {
         if (!value.HasValue)
@@ -292,6 +395,16 @@ public sealed class AzureDevOpsSourceOptions(
         }
 
         return value.Value;
+    }
+
+    private static long RequirePackageMaxFileBytes(bool includePackages, long? value, string parameterName)
+    {
+        if (!includePackages && value.HasValue)
+        {
+            throw new ArgumentException("Azure Artifacts package limits require package scanning to be enabled.", parameterName);
+        }
+
+        return RequireMaxFileBytes(value, parameterName);
     }
 
     private static int RequireMaxArchiveDepth(int value)

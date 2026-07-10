@@ -8,15 +8,17 @@ namespace Picket.Tests;
 internal sealed class AzureDevOpsFixtureServer : IDisposable
 {
     private readonly string _content;
+    private readonly byte[] _packageContent;
     private readonly List<string> _requestTargets = [];
     private readonly Lock _requestTargetsLock = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly TcpListener _listener;
     private readonly Task _serverTask;
 
-    internal AzureDevOpsFixtureServer(string content)
+    internal AzureDevOpsFixtureServer(string content, byte[]? packageContent = null)
     {
         _content = content;
+        _packageContent = packageContent ?? CreateZipBytes("content/package.txt", "package-token-97531");
         _listener = new TcpListener(IPAddress.Loopback, 0);
         _listener.Start();
         int port = ((IPEndPoint)_listener.LocalEndpoint).Port;
@@ -143,6 +145,28 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
                 {"id":88,"artifacts":[{"alias":"release-drop","type":"Build","definitionReference":{"version":{"id":"99"},"project":{"name":"test"}}}]}
                 """;
             await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(ReleaseJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/packaging/feeds/feed-id/nuget/packages/Picket.Sample/versions/1.2.3/content?", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", _packageContent, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/packaging/Feeds/feed-id/packages?", StringComparison.Ordinal))
+        {
+            const string PackagesJson = """
+                {"value":[{"id":"package-id","name":"Picket.Sample","protocolType":"NuGet","versions":[{"version":"1.2.3","normalizedVersion":"1.2.3","isLatest":true}]}]}
+                """;
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PackagesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/_apis/packaging/feeds?", StringComparison.OrdinalIgnoreCase))
+        {
+            const string FeedsJson = """{"value":[{"id":"feed-id","name":"release"}]}""";
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(FeedsJson), cancellationToken).ConfigureAwait(false);
             return;
         }
 

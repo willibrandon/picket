@@ -92,6 +92,18 @@ function readInputs() {
 
   const redact = getInteger("redact", 100, 0, 100);
   const annotationLimit = getInteger("annotationLimit", 50, 0, Number.MAX_SAFE_INTEGER);
+  const azureDevOpsIncludePackages = getBoolean("azureDevOpsIncludePackages", false);
+  const azureDevOpsFeed = getInput("azureDevOpsFeed", "");
+  const azureDevOpsPackage = getInput("azureDevOpsPackage", "");
+  const azureDevOpsPackageVersion = getInput("azureDevOpsPackageVersion", "");
+  const azureDevOpsMaxPackageMegabytes = getOptionalPositiveInteger("azureDevOpsMaxPackageMegabytes");
+  if (!azureDevOpsIncludePackages && (azureDevOpsFeed || azureDevOpsPackage || azureDevOpsPackageVersion || azureDevOpsMaxPackageMegabytes)) {
+    throw new Error("Azure Artifacts feed, package, and package limit settings require azureDevOpsIncludePackages.");
+  }
+
+  if (azureDevOpsPackageVersion && !azureDevOpsPackage) {
+    throw new Error("azureDevOpsPackageVersion requires azureDevOpsPackage.");
+  }
 
   return {
     target,
@@ -134,8 +146,13 @@ function readInputs() {
     azureDevOpsIncludeLogs: getBoolean("azureDevOpsIncludeLogs", false),
     azureDevOpsReleaseId: getOptionalPositiveInteger("azureDevOpsReleaseId"),
     azureDevOpsIncludeReleaseArtifacts: getBoolean("azureDevOpsIncludeReleaseArtifacts", false),
+    azureDevOpsIncludePackages,
+    azureDevOpsFeed,
+    azureDevOpsPackage,
+    azureDevOpsPackageVersion,
     azureDevOpsMaxArtifactMegabytes: getOptionalPositiveInteger("azureDevOpsMaxArtifactMegabytes"),
     azureDevOpsMaxLogMegabytes: getOptionalPositiveInteger("azureDevOpsMaxLogMegabytes"),
+    azureDevOpsMaxPackageMegabytes,
     allowNonPublicSourceEndpoints: getBoolean("allowNonPublicSourceEndpoints", false),
     allowInsecureSourceEndpoints: getBoolean("allowInsecureSourceEndpoints", false),
     extraArgs: splitExtraArgs(getInput("extraArgs", ""))
@@ -195,12 +212,17 @@ function createPicketArguments(inputs, reportPaths) {
   addValue(args, "--azure-devops-pull-request", inputs.azureDevOpsPullRequest);
   addValue(args, "--azure-devops-build-id", inputs.azureDevOpsBuildId);
   addValue(args, "--azure-devops-release-id", inputs.azureDevOpsReleaseId);
+  addValue(args, "--azure-devops-feed", inputs.azureDevOpsFeed);
+  addValue(args, "--azure-devops-package", inputs.azureDevOpsPackage);
+  addValue(args, "--azure-devops-package-version", inputs.azureDevOpsPackageVersion);
   addValue(args, "--azure-devops-max-artifact-megabytes", inputs.azureDevOpsMaxArtifactMegabytes);
   addValue(args, "--azure-devops-max-log-megabytes", inputs.azureDevOpsMaxLogMegabytes);
+  addValue(args, "--azure-devops-max-package-megabytes", inputs.azureDevOpsMaxPackageMegabytes);
   addFlag(args, "--azure-devops-include-wikis", inputs.azureDevOpsIncludeWikis);
   addFlag(args, "--azure-devops-include-artifacts", inputs.azureDevOpsIncludeArtifacts);
   addFlag(args, "--azure-devops-include-logs", inputs.azureDevOpsIncludeLogs);
   addFlag(args, "--azure-devops-include-release-artifacts", inputs.azureDevOpsIncludeReleaseArtifacts);
+  addFlag(args, "--azure-devops-include-packages", inputs.azureDevOpsIncludePackages);
   addFlag(args, "--allow-non-public-source-endpoints", inputs.allowNonPublicSourceEndpoints);
   addFlag(args, "--allow-insecure-source-endpoints", inputs.allowInsecureSourceEndpoints);
 
@@ -469,7 +491,9 @@ function escapeMessage(value) {
 }
 
 module.exports = {
+  createPicketArguments,
   emitAnnotations,
   escapeMessage,
-  escapeProperty
+  escapeProperty,
+  readInputs
 };

@@ -359,6 +359,7 @@ internal static class PicketTuiApp
                 widgets.Add(BuildBlankLine(v));
                 widgets.Add(BuildTextField(v, "Artifact MB", scan.AzureDevOpsMaxArtifactMegabytes, scan.SetAzureDevOpsMaxArtifactMegabytes));
                 widgets.Add(BuildTextField(v, "Log MB", scan.AzureDevOpsMaxLogMegabytes, scan.SetAzureDevOpsMaxLogMegabytes));
+                widgets.Add(BuildTextField(v, "Package MB", scan.AzureDevOpsMaxPackageMegabytes, scan.SetAzureDevOpsMaxPackageMegabytes));
             }
 
             return [.. widgets];
@@ -574,6 +575,12 @@ internal static class PicketTuiApp
                 BuildFieldGap(left),
                 BuildTextField(left, "PR", scan.AzureDevOpsPullRequest, scan.SetAzureDevOpsPullRequest),
                 BuildFieldGap(left),
+                BuildTextField(left, "Feed", scan.AzureDevOpsFeed, scan.SetAzureDevOpsFeed),
+                BuildFieldGap(left),
+                BuildTextField(left, "Package", scan.AzureDevOpsPackage, scan.SetAzureDevOpsPackage),
+                BuildFieldGap(left),
+                BuildTextField(left, "Version", scan.AzureDevOpsPackageVersion, scan.SetAzureDevOpsPackageVersion),
+                BuildFieldGap(left),
                 BuildTextField(left, "Build ID", scan.AzureDevOpsBuildId, scan.SetAzureDevOpsBuildId),
                 BuildFieldGap(left),
                 BuildTextField(left, "Release ID", scan.AzureDevOpsReleaseId, scan.SetAzureDevOpsReleaseId),
@@ -589,6 +596,8 @@ internal static class PicketTuiApp
                 BuildBooleanField(right, "Logs", scan.IncludeAzureDevOpsLogs, scan.SetIncludeAzureDevOpsLogs),
                 BuildFieldGap(right),
                 BuildBooleanField(right, "Releases", scan.IncludeAzureDevOpsReleaseArtifacts, scan.SetIncludeAzureDevOpsReleaseArtifacts),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Packages", scan.IncludeAzureDevOpsPackages, scan.SetIncludeAzureDevOpsPackages),
                 BuildFieldGap(right),
                 BuildTextField(right, "Artifact MB", scan.AzureDevOpsMaxArtifactMegabytes, scan.SetAzureDevOpsMaxArtifactMegabytes),
                 BuildFieldGap(right),
@@ -838,8 +847,10 @@ internal static class PicketTuiApp
                 "not selected")),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstNonEmpty(
                 scan.AzureDevOpsRepository,
+                scan.AzureDevOpsFeed,
                 scan.AzureDevOpsProject,
                 scan.AzureDevOpsOrganization,
+                scan.AzureDevOpsEndpoint,
                 "not selected")),
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstNonEmpty(
                 scan.GitLabProject,
@@ -947,6 +958,37 @@ internal static class PicketTuiApp
         }
 
         return !string.IsNullOrWhiteSpace(fourth) ? fourth : fallback;
+    }
+
+    private static string FirstNonEmpty(
+        string first,
+        string second,
+        string third,
+        string fourth,
+        string fifth,
+        string fallback)
+    {
+        if (!string.IsNullOrWhiteSpace(first))
+        {
+            return first;
+        }
+
+        if (!string.IsNullOrWhiteSpace(second))
+        {
+            return second;
+        }
+
+        if (!string.IsNullOrWhiteSpace(third))
+        {
+            return third;
+        }
+
+        if (!string.IsNullOrWhiteSpace(fourth))
+        {
+            return fourth;
+        }
+
+        return !string.IsNullOrWhiteSpace(fifth) ? fifth : fallback;
     }
 
     private static string FormatElapsed(TimeSpan value)

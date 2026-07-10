@@ -1193,11 +1193,12 @@ public sealed class PicketTuiTests
 
         scan.SetTargetMode(2);
         scan.SetAzureDevOpsEndpoint("https://dev.azure.com/example");
-        scan.SetAzureDevOpsOrganization("example");
         scan.SetAzureDevOpsProject("project");
         scan.SetAzureDevOpsRepository("repo");
         scan.SetAzureDevOpsBranch("main");
-        scan.SetAzureDevOpsPullRequest("5");
+        scan.SetAzureDevOpsFeed("release");
+        scan.SetAzureDevOpsPackage("Picket.Sample");
+        scan.SetAzureDevOpsPackageVersion("1.2.3");
         scan.SetAzureDevOpsTokenEnvironmentVariable("AZURE_DEVOPS_TEST_PAT");
         scan.SetAzureDevOpsTokenKindByIndex(1);
         scan.SetAzureDevOpsBuildId("42");
@@ -1205,9 +1206,11 @@ public sealed class PicketTuiTests
         scan.SetIncludeAzureDevOpsWikis(true);
         scan.SetIncludeAzureDevOpsArtifacts(true);
         scan.SetIncludeAzureDevOpsLogs(true);
+        scan.SetIncludeAzureDevOpsPackages(true);
         scan.SetIncludeAzureDevOpsReleaseArtifacts(true);
         scan.SetAzureDevOpsMaxArtifactMegabytes("25");
         scan.SetAzureDevOpsMaxLogMegabytes("5");
+        scan.SetAzureDevOpsMaxPackageMegabytes("50");
         scan.SetAllowNonPublicSourceEndpoints(true);
         scan.SetAllowInsecureSourceEndpoints(true);
 
@@ -1216,16 +1219,18 @@ public sealed class PicketTuiTests
         Assert.IsTrue(built, error);
         Assert.Contains("--azure-devops-endpoint", arguments);
         Assert.Contains("https://dev.azure.com/example", arguments);
-        Assert.Contains("--azure-devops-organization", arguments);
-        Assert.Contains("example", arguments);
         Assert.Contains("--azure-devops-project", arguments);
         Assert.Contains("project", arguments);
         Assert.Contains("--azure-devops-repository", arguments);
         Assert.Contains("repo", arguments);
         Assert.Contains("--azure-devops-branch", arguments);
         Assert.Contains("main", arguments);
-        Assert.Contains("--azure-devops-pull-request", arguments);
-        Assert.Contains("5", arguments);
+        Assert.Contains("--azure-devops-feed", arguments);
+        Assert.Contains("release", arguments);
+        Assert.Contains("--azure-devops-package", arguments);
+        Assert.Contains("Picket.Sample", arguments);
+        Assert.Contains("--azure-devops-package-version", arguments);
+        Assert.Contains("1.2.3", arguments);
         Assert.Contains("--azure-devops-token-env", arguments);
         Assert.Contains("AZURE_DEVOPS_TEST_PAT", arguments);
         Assert.Contains("--azure-devops-token-kind", arguments);
@@ -1237,12 +1242,75 @@ public sealed class PicketTuiTests
         Assert.Contains("--azure-devops-include-wikis", arguments);
         Assert.Contains("--azure-devops-include-artifacts", arguments);
         Assert.Contains("--azure-devops-include-logs", arguments);
+        Assert.Contains("--azure-devops-include-packages", arguments);
         Assert.Contains("--azure-devops-include-release-artifacts", arguments);
         Assert.Contains("--azure-devops-max-artifact-megabytes", arguments);
         Assert.Contains("25", arguments);
         Assert.Contains("--azure-devops-max-log-megabytes", arguments);
+        Assert.Contains("--azure-devops-max-package-megabytes", arguments);
+        Assert.Contains("50", arguments);
         Assert.Contains("--allow-non-public-source-endpoints", arguments);
         Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects Azure DevOps source combinations that the CLI cannot execute.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsInvalidAzureDevOpsSourceCombinations()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(2);
+        scan.SetAzureDevOpsOrganization("example");
+        scan.SetAzureDevOpsBranch("main");
+        scan.SetAzureDevOpsPullRequest("5");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("either a branch or pull request", error);
+
+        scan.SetAzureDevOpsBranch(string.Empty);
+        scan.SetIncludeAzureDevOpsWikis(true);
+
+        built = scan.TryBuildArguments(out arguments, out error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("pull request scans cannot include wikis", error);
+    }
+
+    /// <summary>
+    /// Verifies that remote Azure DevOps byte caps must be positive in the scan workspace.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsZeroAzureDevOpsRemoteByteCap()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(2);
+        scan.SetAzureDevOpsOrganization("example");
+        scan.SetIncludeAzureDevOpsPackages(true);
+        scan.SetAzureDevOpsMaxPackageMegabytes("0");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("--azure-devops-max-package-megabytes requires an integer from 1", error);
+
+        scan.SetAzureDevOpsMaxPackageMegabytes("1");
+        scan.SetMaxTargetMegabytes("0");
+
+        built = scan.TryBuildArguments(out arguments, out error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("--max-target-megabytes requires an integer from 1", error);
     }
 
     /// <summary>
@@ -1857,6 +1925,9 @@ public sealed class PicketTuiTests
         Assert.Contains("Endpoint", screenText);
         Assert.Contains("Build ID", screenText);
         Assert.Contains("Release ID", screenText);
+        Assert.Contains("Feed", screenText);
+        Assert.Contains("Package", screenText);
+        Assert.Contains("Version", screenText);
         Assert.Contains("Artifact MB", screenText);
         Assert.Contains("Non-public", screenText);
         Assert.Contains("HTTP", screenText);

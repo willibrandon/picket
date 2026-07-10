@@ -44,6 +44,66 @@ test("emitAnnotations escapes finding-controlled file paths and messages", () =>
   }
 });
 
+test("createPicketArguments forwards Azure Artifacts package selectors", () => {
+  const inputs = {
+    target: ".",
+    profile: "picket",
+    redact: 100,
+    cache: false,
+    onlyVerified: false,
+    verify: false,
+    azureDevOpsOrganization: "willibrandon",
+    azureDevOpsTokenKind: "pat",
+    azureDevOpsIncludePackages: true,
+    azureDevOpsFeed: "release",
+    azureDevOpsPackage: "Picket.Sample",
+    azureDevOpsPackageVersion: "1.2.3",
+    azureDevOpsMaxPackageMegabytes: 50,
+    extraArgs: []
+  };
+
+  const args = task.createPicketArguments(inputs, new Map());
+
+  assert.ok(args.includes("--azure-devops-include-packages"));
+  assert.deepEqual(args.slice(args.indexOf("--azure-devops-feed"), args.indexOf("--azure-devops-feed") + 2), ["--azure-devops-feed", "release"]);
+  assert.deepEqual(args.slice(args.indexOf("--azure-devops-package"), args.indexOf("--azure-devops-package") + 2), ["--azure-devops-package", "Picket.Sample"]);
+  assert.deepEqual(args.slice(args.indexOf("--azure-devops-package-version"), args.indexOf("--azure-devops-package-version") + 2), ["--azure-devops-package-version", "1.2.3"]);
+  assert.deepEqual(args.slice(args.indexOf("--azure-devops-max-package-megabytes"), args.indexOf("--azure-devops-max-package-megabytes") + 2), ["--azure-devops-max-package-megabytes", "50"]);
+});
+
+test("readInputs rejects package selectors when package scanning is disabled", () => {
+  withEnvironment({
+    INPUT_azureDevOpsIncludePackages: "false",
+    INPUT_azureDevOpsFeed: "release"
+  }, () => {
+    assert.throws(
+      () => task.readInputs(),
+      /Azure Artifacts feed, package, and package limit settings require azureDevOpsIncludePackages\./);
+  });
+});
+
+test("readInputs rejects a package limit when package scanning is disabled", () => {
+  withEnvironment({
+    INPUT_azureDevOpsIncludePackages: "false",
+    INPUT_azureDevOpsMaxPackageMegabytes: "50"
+  }, () => {
+    assert.throws(
+      () => task.readInputs(),
+      /Azure Artifacts feed, package, and package limit settings require azureDevOpsIncludePackages\./);
+  });
+});
+
+test("readInputs requires a package name for an exact package version", () => {
+  withEnvironment({
+    INPUT_azureDevOpsIncludePackages: "true",
+    INPUT_azureDevOpsPackageVersion: "1.2.3"
+  }, () => {
+    assert.throws(
+      () => task.readInputs(),
+      /azureDevOpsPackageVersion requires azureDevOpsPackage\./);
+  });
+});
+
 function captureConsoleLogs(callback) {
   const originalLog = console.log;
   const logs = [];
@@ -56,4 +116,26 @@ function captureConsoleLogs(callback) {
   }
 
   return logs;
+}
+
+function withEnvironment(values, callback) {
+  const previous = new Map();
+  for (const [name, value] of Object.entries(values)) {
+    previous.set(name, process.env[name]);
+    process.env[name] = value;
+  }
+
+  try {
+    callback();
+  }
+  finally {
+    for (const [name, value] of previous) {
+      if (value === undefined) {
+        delete process.env[name];
+      }
+      else {
+        process.env[name] = value;
+      }
+    }
+  }
 }

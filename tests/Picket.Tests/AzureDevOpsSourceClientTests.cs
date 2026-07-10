@@ -28,6 +28,7 @@ public sealed class AzureDevOpsSourceClientTests
         Assert.AreEqual(100_000_000, options.MaxFileBytes);
         Assert.AreEqual(100_000_000, options.MaxArtifactBytes);
         Assert.AreEqual(100_000_000, options.MaxLogBytes);
+        Assert.AreEqual(100_000_000, options.MaxPackageBytes);
     }
 
     /// <summary>
@@ -41,7 +42,8 @@ public sealed class AzureDevOpsSourceClientTests
             "azdo-test-token",
             maxFileBytes: 0,
             maxArtifactBytes: 0,
-            maxLogBytes: 0));
+            maxLogBytes: 0,
+            maxPackageBytes: 0));
     }
 
     /// <summary>

@@ -60,6 +60,7 @@ public sealed partial class RepositoryConventionTests
     ];
     private static readonly string[] s_remoteSourceClientFiles =
     [
+        "src/Picket.Sources/AzureDevOpsPackageSourceClient.cs",
         "src/Picket.Sources/AzureDevOpsSourceClient.cs",
         "src/Picket.Sources/BitbucketSourceClient.cs",
         "src/Picket.Sources/GcsSourceClient.cs",
@@ -75,6 +76,7 @@ public sealed partial class RepositoryConventionTests
     private static readonly string[] s_sourceEndpointGuardWiringFiles =
     [
         "src/Picket.Cli/Program.AzureBlob.cs",
+        "src/Picket.Cli/Program.AzureDevOps.cs",
         "src/Picket.Cli/Program.Bitbucket.cs",
         "src/Picket.Cli/Program.Gcs.cs",
         "src/Picket.Cli/Program.Gitea.cs",

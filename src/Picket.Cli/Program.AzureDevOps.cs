@@ -42,6 +42,24 @@ internal static partial class Program
             || arg.StartsWith("--azure-devops-repository=", StringComparison.Ordinal);
     }
 
+    static bool IsAzureDevOpsFeedFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-feed", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-feed=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsPackageFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-package", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-package=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsPackageVersionFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-package-version", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-package-version=", StringComparison.Ordinal);
+    }
+
     static bool IsAzureDevOpsBranchFlag(string arg)
     {
         return arg.Equals("--azure-devops-branch", StringComparison.Ordinal)
@@ -90,6 +108,12 @@ internal static partial class Program
             || arg.StartsWith("--azure-devops-include-release-artifacts=", StringComparison.Ordinal);
     }
 
+    static bool IsAzureDevOpsIncludePackagesFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-include-packages", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-include-packages=", StringComparison.Ordinal);
+    }
+
     static bool IsAzureDevOpsMaxArtifactMegabytesFlag(string arg)
     {
         return arg.Equals("--azure-devops-max-artifact-megabytes", StringComparison.Ordinal)
@@ -100,6 +124,12 @@ internal static partial class Program
     {
         return arg.Equals("--azure-devops-max-log-megabytes", StringComparison.Ordinal)
             || arg.StartsWith("--azure-devops-max-log-megabytes=", StringComparison.Ordinal);
+    }
+
+    static bool IsAzureDevOpsMaxPackageMegabytesFlag(string arg)
+    {
+        return arg.Equals("--azure-devops-max-package-megabytes", StringComparison.Ordinal)
+            || arg.StartsWith("--azure-devops-max-package-megabytes=", StringComparison.Ordinal);
     }
 
     static bool IsAllowNonPublicSourceEndpointsFlag(string arg)
@@ -203,8 +233,13 @@ internal static partial class Program
         bool includeLogs,
         int releaseId,
         bool includeReleaseArtifacts,
+        bool includePackages,
+        string feed,
+        string package,
+        string packageVersion,
         long? maxArtifactBytes,
         long? maxLogBytes,
+        long? maxPackageBytes,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
         [NotNullWhen(true)] out NativeSourceProvider? sourceFileProvider)
@@ -269,7 +304,12 @@ internal static partial class Program
                 includeLogs,
                 releaseId,
                 includeReleaseArtifacts,
-                allowInsecureCredentialTransport: allowInsecureSourceEndpoints);
+                allowInsecureCredentialTransport: allowInsecureSourceEndpoints,
+                includePackages: includePackages,
+                feed: feed,
+                package: package,
+                packageVersion: packageVersion,
+                maxPackageBytes: maxPackageBytes);
             sourceEndpoint = validatedOptions.Endpoint;
             releaseEndpoint = validatedOptions.ReleaseEndpoint;
             project = validatedOptions.Project;
@@ -282,6 +322,10 @@ internal static partial class Program
             includeLogs = validatedOptions.IncludeLogs;
             releaseId = validatedOptions.ReleaseId;
             includeReleaseArtifacts = validatedOptions.IncludeReleaseArtifacts;
+            includePackages = validatedOptions.IncludePackages;
+            feed = validatedOptions.Feed;
+            package = validatedOptions.Package;
+            packageVersion = validatedOptions.PackageVersion;
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
@@ -323,6 +367,38 @@ internal static partial class Program
             }
         }
 
+        if (includePackages)
+        {
+            var packageOptions = new AzureDevOpsSourceOptions(
+                sourceEndpoint,
+                credential,
+                credentialKind,
+                project,
+                allowInsecureCredentialTransport: allowInsecureSourceEndpoints,
+                includePackages: true,
+                feed: feed,
+                package: package,
+                packageVersion: packageVersion,
+                maxPackageBytes: maxPackageBytes);
+            EndpointGuardResult artifactsEndpointGuardResult = EndpointGuard.Evaluate(
+                packageOptions.ArtifactsEndpoint,
+                endpointGuardOptions);
+            if (!artifactsEndpointGuardResult.IsAllowed)
+            {
+                Console.Error.WriteLine($"blocked Azure Artifacts metadata endpoint: {artifactsEndpointGuardResult.Message}");
+                return false;
+            }
+
+            EndpointGuardResult packageContentEndpointGuardResult = EndpointGuard.Evaluate(
+                packageOptions.PackageContentEndpoint,
+                endpointGuardOptions);
+            if (!packageContentEndpointGuardResult.IsAllowed)
+            {
+                Console.Error.WriteLine($"blocked Azure Artifacts content endpoint: {packageContentEndpointGuardResult.Message}");
+                return false;
+            }
+        }
+
         sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
@@ -330,7 +406,7 @@ internal static partial class Program
                 EndpointGuardOptions = endpointGuardOptions,
             }), disposeHandler: true);
             var client = new AzureDevOpsSourceClient(httpClient);
-            return client.EnumerateRepositoryFilesAsync(new AzureDevOpsSourceOptions(
+            var options = new AzureDevOpsSourceOptions(
                 sourceEndpoint,
                 credential,
                 credentialKind,
@@ -354,7 +430,20 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                () => IsTimedOut(timeoutTimestamp),
+                includePackages,
+                feed,
+                package,
+                packageVersion,
+                maxPackageBytes ?? maxTargetBytes);
+            List<SourceFile> files = client.EnumerateRepositoryFilesAsync(options).GetAwaiter().GetResult();
+            if (includePackages)
+            {
+                var packageClient = new AzureDevOpsPackageSourceClient(httpClient);
+                files.AddRange(packageClient.EnumeratePackageFilesAsync(options).GetAwaiter().GetResult());
+            }
+
+            return files;
         };
         return true;
     }

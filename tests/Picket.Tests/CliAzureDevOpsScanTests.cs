@@ -271,6 +271,133 @@ public sealed class CliAzureDevOpsScanTests
     }
 
     /// <summary>
+    /// Verifies that native scans can include the latest NuGet packages from Azure Artifacts feeds.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsAzureArtifactsNuGetPackagesWhenEnabled()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new AzureDevOpsFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-project",
+            "test",
+            "--azure-devops-repository",
+            "picket",
+            "--azure-devops-include-packages",
+            "--azure-devops-feed",
+            "feed-id",
+            "--azure-devops-package",
+            "Picket.Sample",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"azure-devops/test/artifacts/feed-id/Picket.Sample/1.2.3/Picket.Sample.nupkg!content/package.txt\"", result.Stdout);
+        Assert.Contains("/_apis/packaging/Feeds/feed-id/packages?", server.RequestTargets);
+        Assert.Contains("/_apis/packaging/feeds/feed-id/nuget/packages/Picket.Sample/versions/1.2.3/content?", server.RequestTargets);
+        Assert.Contains("Basic ", server.LastAuthorization);
+        Assert.DoesNotContain("test-pat-secret", result.Stdout);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that Azure Artifacts package downloads inherit the native target byte cap when no package cap is supplied.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanAppliesTargetByteCapToAzureArtifactsPackages()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new AzureDevOpsFixtureServer("clean", new byte[1_000_001]);
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-project",
+            "test",
+            "--azure-devops-repository",
+            "picket",
+            "--azure-devops-include-packages",
+            "--azure-devops-feed",
+            "feed-id",
+            "--azure-devops-package",
+            "Picket.Sample",
+            "--max-target-megabytes",
+            "1",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("Azure Artifacts package byte limit skipped", result.Stderr);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that package-only settings cannot silently do nothing when Azure Artifacts scanning is disabled.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsAzureArtifactsPackageLimitWithoutPackageScanning()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-devops-organization",
+            "willibrandon",
+            "--azure-devops-token-env",
+            "PICKET_AZURE_DEVOPS_TEST_TOKEN",
+            "--azure-devops-max-package-megabytes",
+            "50",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.Contains("Azure Artifacts package limits require package scanning to be enabled", result.Stderr);
+        Assert.DoesNotContain("test-pat-secret", result.Stdout);
+        Assert.DoesNotContain("test-pat-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that branch and pull request source scopes are mutually exclusive.
     /// </summary>
     [TestMethod]
