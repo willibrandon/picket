@@ -19,7 +19,7 @@ catch (Exception ex) when (ex is ArgumentException or DirectoryNotFoundException
 /// <summary>
 /// Promotes a reviewed compatibility oracle capture into normalized committed fixtures.
 /// </summary>
-internal static class PromoteCompatibilityOracleApp
+internal static partial class PromoteCompatibilityOracleApp
 {
     /// <summary>
     /// Runs the compatibility oracle promotion app.
@@ -121,7 +121,7 @@ internal static class PromoteCompatibilityOracleApp
     /// <returns><see langword="true"/> when the name is portable and safe.</returns>
     private static bool IsValidFixtureName(string name)
     {
-        return Regex.IsMatch(name, "^[A-Za-z0-9][A-Za-z0-9._-]*$", RegexOptions.CultureInvariant);
+        return FixtureNamePattern().IsMatch(name);
     }
 
     /// <summary>
@@ -278,12 +278,8 @@ internal static class PromoteCompatibilityOracleApp
         List<(string Original, string Replacement)> pathReplacements)
     {
         string normalized = content.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
-        normalized = Regex.Replace(normalized, "(?m)^\\d{1,2}:\\d{2}(?:AM|PM)\\s+", "<time> ", RegexOptions.CultureInvariant);
-        normalized = Regex.Replace(
-            normalized,
-            "(?m)( scanned ~[0-9.,]+ [A-Za-z]+ \\([0-9.,]+ [A-Za-z]+\\) in )\\S+",
-            "$1<duration>",
-            RegexOptions.CultureInvariant);
+        normalized = ClockPrefixPattern().Replace(normalized, "<time> ");
+        normalized = ScanDurationPattern().Replace(normalized, "$1<duration>");
 
         foreach ((string original, string replacement) in pathReplacements)
         {
@@ -337,7 +333,7 @@ internal static class PromoteCompatibilityOracleApp
         foreach (string file in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
         {
             string content = ScriptSupport.ReadTextFile(file);
-            if (Regex.IsMatch(content, "(^|[\\s`\"'\\[\\{\\(,])([A-Za-z]:[\\\\/])", RegexOptions.CultureInvariant))
+            if (WindowsAbsolutePathPattern().IsMatch(content))
             {
                 throw new InvalidDataException($"Promoted file '{file}' still contains a Windows absolute path.");
             }
@@ -386,4 +382,32 @@ internal static class PromoteCompatibilityOracleApp
 
         return formats;
     }
+
+    /// <summary>
+    /// Creates the generated fixture-name validation expression.
+    /// </summary>
+    /// <returns>The generated regular expression.</returns>
+    [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9._-]*$", RegexOptions.CultureInvariant)]
+    private static partial Regex FixtureNamePattern();
+
+    /// <summary>
+    /// Creates the generated Windows absolute-path detection expression.
+    /// </summary>
+    /// <returns>The generated regular expression.</returns>
+    [GeneratedRegex("(^|[\\s`\"'\\[\\{\\(,])([A-Za-z]:[\\\\/])", RegexOptions.CultureInvariant)]
+    private static partial Regex WindowsAbsolutePathPattern();
+
+    /// <summary>
+    /// Creates the generated clock-prefix normalization expression.
+    /// </summary>
+    /// <returns>The generated regular expression.</returns>
+    [GeneratedRegex("(?m)^\\d{1,2}:\\d{2}(?:AM|PM)\\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex ClockPrefixPattern();
+
+    /// <summary>
+    /// Creates the generated scan-duration normalization expression.
+    /// </summary>
+    /// <returns>The generated regular expression.</returns>
+    [GeneratedRegex("(?m)( scanned ~[0-9.,]+ [A-Za-z]+ \\([0-9.,]+ [A-Za-z]+\\) in )\\S+", RegexOptions.CultureInvariant)]
+    private static partial Regex ScanDurationPattern();
 }

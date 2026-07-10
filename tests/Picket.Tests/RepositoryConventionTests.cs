@@ -2021,6 +2021,11 @@ public sealed partial class RepositoryConventionTests
                 continue;
             }
 
+            if (trimmed.StartsWith('['))
+            {
+                continue;
+            }
+
             return trimmed.StartsWith("///", StringComparison.Ordinal);
         }
 

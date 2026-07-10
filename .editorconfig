@@ -64,3 +64,4 @@ dotnet_diagnostic.IDE0005.severity = error
 dotnet_diagnostic.IDE0330.severity = error
 dotnet_diagnostic.MSTEST0037.severity = error
 dotnet_diagnostic.MSTEST0061.severity = error
+dotnet_diagnostic.SYSLIB1045.severity = error
