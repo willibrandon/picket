@@ -226,7 +226,7 @@ internal sealed class PicketTuiState
     private async ValueTask RunScanAsync(Action? outputChanged, CancellationToken cancellationToken)
     {
         PicketTuiScanExecutionResult? result = await ScanWorkspace.RunAsync(outputChanged, cancellationToken).ConfigureAwait(false);
-        if (result is null || !File.Exists(result.ReportPath))
+        if (result is null || !ScanWorkspace.LastRunSucceeded)
         {
             StatusMessage = ScanWorkspace.Status;
             return;
@@ -234,9 +234,7 @@ internal sealed class PicketTuiState
 
         LoadReport(result.ReportPath);
         SetView(PicketTuiView.Scan);
-        StatusMessage = Report.Summary.FindingCount == 0
-            ? string.Concat(ScanWorkspace.Status, "; no findings")
-            : string.Concat(ScanWorkspace.Status, "; findings loaded");
+        StatusMessage = ScanWorkspace.Status;
     }
 
     /// <summary>
@@ -498,7 +496,7 @@ internal sealed class PicketTuiState
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            StatusMessage = "Scan cancelled";
+            StatusMessage = ScanWorkspace.Status;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {

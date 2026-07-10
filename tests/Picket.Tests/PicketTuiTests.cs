@@ -1505,6 +1505,127 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that an empty report and the findings exit code are treated as an operational failure.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task ScanWorkspaceRejectsEmptyReportWithFindingsExitCode()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor
+        {
+            ReportContent = string.Empty,
+            StandardError = "GitHub request failed: 401 Unauthorized",
+            StandardOutput = string.Empty,
+        };
+        PicketTuiState state = CreateState(executor);
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        string reportPath = Path.Combine(temp.Path, "picket.jsonl");
+        File.WriteAllText(reportPath, CreateFakeReportJsonLine());
+        scan.SetReportPath(reportPath);
+
+        await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.LastExitCode);
+        Assert.IsFalse(scan.LastRunSucceeded);
+        Assert.AreEqual(0, scan.LastRunReportFindingCount);
+        Assert.Contains("Scan failed: GitHub request failed: 401 Unauthorized", scan.Status);
+        Assert.DoesNotContain("findings reported", scan.Status);
+        Assert.Contains("GitHub request failed: 401 Unauthorized", scan.CapturedOutputText);
+        Assert.AreEqual(CreateFakeReportJsonLine(), File.ReadAllText(reportPath));
+        Assert.AreEqual("report.json", state.Report.Path);
+        Assert.HasCount(3, state.Rows);
+    }
+
+    /// <summary>
+    /// Verifies that an empty report and a successful scanner exit load as a valid no-findings result.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task ScanWorkspaceLoadsEmptyReportWithSuccessExitCode()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor
+        {
+            ExitCode = 0,
+            ReportContent = string.Empty,
+            StandardError = string.Empty,
+        };
+        PicketTuiState state = CreateState(executor);
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        string reportPath = Path.Combine(temp.Path, "picket.jsonl");
+        scan.SetReportPath(reportPath);
+
+        await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, scan.LastExitCode);
+        Assert.IsTrue(scan.LastRunSucceeded);
+        Assert.AreEqual(0, scan.LastRunReportFindingCount);
+        Assert.AreEqual("Scan completed: no findings", scan.Status);
+        Assert.AreEqual(Path.GetFullPath(reportPath), state.Report.Path);
+        Assert.AreEqual(0, state.Report.Summary.FindingCount);
+        Assert.IsEmpty(state.Rows);
+    }
+
+    /// <summary>
+    /// Verifies that a failed scan cannot reuse or discard a report left by an earlier run.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task ScanWorkspacePreservesPreviousReportAfterFailedRun()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor
+        {
+            StandardError = "source enumeration failed",
+            StandardOutput = string.Empty,
+            WriteReport = false,
+        };
+        PicketTuiState state = CreateState(executor);
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        string reportPath = Path.Combine(temp.Path, "picket.jsonl");
+        File.WriteAllText(reportPath, CreateFakeReportJsonLine());
+        scan.SetReportPath(reportPath);
+
+        await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(CreateFakeReportJsonLine(), File.ReadAllText(reportPath));
+        Assert.IsFalse(scan.LastRunSucceeded);
+        Assert.IsNull(scan.LastRunReportFindingCount);
+        Assert.Contains("Scan failed: source enumeration failed", scan.Status);
+        Assert.AreEqual("report.json", state.Report.Path);
+        Assert.HasCount(3, state.Rows);
+    }
+
+    /// <summary>
+    /// Verifies that a malformed report is not loaded after the scanner exits.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task ScanWorkspaceRejectsMalformedReport()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor
+        {
+            ReportContent = "{not-json",
+            StandardError = string.Empty,
+            StandardOutput = string.Empty,
+        };
+        PicketTuiState state = CreateState(executor);
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        scan.SetReportPath(Path.Combine(temp.Path, "picket.jsonl"));
+
+        await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsFalse(scan.LastRunSucceeded);
+        Assert.IsNull(scan.LastRunReportFindingCount);
+        Assert.Contains("format of the file", scan.Status);
+        Assert.DoesNotContain("findings reported", scan.Status);
+        Assert.AreEqual("report.json", state.Report.Path);
+        Assert.HasCount(3, state.Rows);
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace prepares report directories before invoking the scanner.
     /// </summary>
     [TestMethod]
@@ -1541,9 +1662,11 @@ public sealed class PicketTuiTests
         };
         PicketTuiState state = CreateState(executor);
         int invalidationCount = 0;
+        string reportPath = Path.Combine(temp.Path, "picket.jsonl");
+        File.WriteAllText(reportPath, CreateFakeReportJsonLine());
 
         state.ScanWorkspace.SetLocalPath(temp.Path);
-        state.ScanWorkspace.SetReportPath(Path.Combine(temp.Path, "picket.jsonl"));
+        state.ScanWorkspace.SetReportPath(reportPath);
         state.StartScanInBackground(() => Interlocked.Increment(ref invalidationCount), TestContext.CancellationToken);
 
         await executor.Started.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
@@ -1566,6 +1689,7 @@ public sealed class PicketTuiTests
         Assert.AreEqual("Scan cancelled", state.ScanWorkspace.Status);
         Assert.AreEqual("Scan cancelled", state.StatusMessage);
         Assert.Contains("running scan was cancelled", state.ScanWorkspace.CapturedOutputText);
+        Assert.AreEqual(CreateFakeReportJsonLine(), File.ReadAllText(reportPath));
         Assert.IsGreaterThan(0, invalidationCount);
     }
 
@@ -2198,6 +2322,49 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that the full-screen console presents an empty exit-one report as a failure and preserves loaded findings.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRejectsEmptyFindingsReport()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor
+        {
+            ReportContent = string.Empty,
+            StandardError = "GitHub request failed",
+            StandardOutput = string.Empty,
+        };
+        PicketTuiState state = CreateState(executor);
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetReportPath(Path.Combine(temp.Path, "picket.jsonl"));
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Run scan"), TimeSpan.FromSeconds(5), "scan workspace to render")
+            .Ctrl().Key(Hex1bKey.R)
+            .WaitUntil(s => s.ContainsText("Scan failed: GitHub request failed"), TimeSpan.FromSeconds(5), "scan failure to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Scan failed: GitHub request failed", screenText);
+        Assert.DoesNotContain("Scan completed: findings reported", screenText);
+        Assert.HasCount(3, state.Rows);
+    }
+
+    /// <summary>
     /// Verifies that the full-screen scanner console can run a scan from its keyboard command model.
     /// </summary>
     [TestMethod]
@@ -2296,7 +2463,9 @@ public sealed class PicketTuiTests
     [Timeout(10000, CooperativeCancellation = true)]
     public async Task ScanWorkspaceReportsProcessLaunchFailure()
     {
+        using TempDirectory temp = TempDirectory.Create();
         PicketTuiState state = CreateState(new PicketTuiProcessScanExecutor("picket-missing-for-test"));
+        state.ScanWorkspace.SetReportPath(Path.Combine(temp.Path, "picket.jsonl"));
 
         await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
 

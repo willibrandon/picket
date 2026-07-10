@@ -37,6 +37,31 @@ internal sealed class PicketTuiFakeScanExecutor : IPicketTuiScanExecutor
     internal string InitialOutputLine { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the fake scanner exit code.
+    /// </summary>
+    internal int ExitCode { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the report content written by the fake scanner.
+    /// </summary>
+    internal string ReportContent { get; set; } = s_reportJsonLine;
+
+    /// <summary>
+    /// Gets or sets the fake scanner standard output.
+    /// </summary>
+    internal string StandardOutput { get; set; } = "scan complete";
+
+    /// <summary>
+    /// Gets or sets the fake scanner standard error.
+    /// </summary>
+    internal string StandardError { get; set; } = "1 finding";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the fake scanner writes its report.
+    /// </summary>
+    internal bool WriteReport { get; set; } = true;
+
+    /// <summary>
     /// Gets a task that completes when the fake scanner has started.
     /// </summary>
     internal Task Started => _started.Task;
@@ -65,15 +90,27 @@ internal sealed class PicketTuiFakeScanExecutor : IPicketTuiScanExecutor
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
         }
 
-        File.WriteAllText(reportPath, s_reportJsonLine);
+        if (WriteReport)
+        {
+            File.WriteAllText(reportPath, ReportContent);
+        }
+
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
-        output(new PicketTuiScanOutputEvent("stdout", "scan complete", timestamp));
-        output(new PicketTuiScanOutputEvent("stderr", "1 finding", timestamp));
+        if (StandardOutput.Length != 0)
+        {
+            output(new PicketTuiScanOutputEvent("stdout", StandardOutput, timestamp));
+        }
+
+        if (StandardError.Length != 0)
+        {
+            output(new PicketTuiScanOutputEvent("stderr", StandardError, timestamp));
+        }
+
         return new PicketTuiScanExecutionResult(
-            1,
+            ExitCode,
             reportPath,
-            "scan complete",
-            "1 finding",
+            StandardOutput,
+            StandardError,
             timestamp,
             timestamp);
     }

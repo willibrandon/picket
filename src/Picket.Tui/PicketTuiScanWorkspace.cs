@@ -1,3 +1,4 @@
+using Picket.Report;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text;
@@ -757,6 +758,16 @@ internal sealed class PicketTuiScanWorkspace
     internal bool IsRunning { get; private set; }
 
     /// <summary>
+    /// Gets a value indicating whether the last scanner process produced a loadable report consistent with its exit code.
+    /// </summary>
+    internal bool LastRunSucceeded { get; private set; }
+
+    /// <summary>
+    /// Gets the finding count read from the last scanner process report, or <see langword="null" /> when no report could be read.
+    /// </summary>
+    internal int? LastRunReportFindingCount { get; private set; }
+
+    /// <summary>
     /// Gets the last scan exit code.
     /// </summary>
     internal int? LastExitCode { get; private set; }
@@ -826,6 +837,8 @@ internal sealed class PicketTuiScanWorkspace
         ArgumentException.ThrowIfNullOrWhiteSpace(reportPath);
         ClearCapturedOutput();
         LastExitCode = null;
+        LastRunSucceeded = false;
+        LastRunReportFindingCount = null;
         LastStartedAt = null;
         LastCompletedAt = null;
         Status = findingCount == 0
@@ -1960,17 +1973,21 @@ internal sealed class PicketTuiScanWorkspace
             Status = error;
             LastMessage = error;
             LastExitCode = null;
+            LastRunSucceeded = false;
+            LastRunReportFindingCount = null;
             LastStartedAt = null;
             LastCompletedAt = null;
             return null;
         }
 
-        if (!TryEnsureReportDirectory(ReportPath, out string directoryError))
+        if (!TryPrepareReportPath(ReportPath, out string? previousReportPath, out string directoryError))
         {
             DateTimeOffset failedAt = DateTimeOffset.UtcNow;
             Status = "Scan failed: could not prepare report path";
             LastMessage = directoryError;
             LastExitCode = 126;
+            LastRunSucceeded = false;
+            LastRunReportFindingCount = null;
             LastStartedAt = failedAt;
             LastCompletedAt = failedAt;
             return new PicketTuiScanExecutionResult(
@@ -1986,6 +2003,8 @@ internal sealed class PicketTuiScanWorkspace
         Status = string.Concat("Running: ", BuildTargetDescription());
         LastMessage = BuildCommandLinePreview();
         LastExitCode = null;
+        LastRunSucceeded = false;
+        LastRunReportFindingCount = null;
         LastStartedAt = DateTimeOffset.UtcNow;
         LastCompletedAt = null;
         ClearCapturedOutput();
@@ -2001,19 +2020,41 @@ internal sealed class PicketTuiScanWorkspace
                     outputChanged?.Invoke();
                 },
                 cancellationToken).ConfigureAwait(false);
-            bool reportExists = File.Exists(result.ReportPath);
+            bool reportReadable = TryReadReportFindingCount(result.ReportPath, out int findingCount, out string reportError);
             LastExitCode = result.ExitCode;
-            Status = result.ExitCode switch
+            LastRunReportFindingCount = reportReadable ? findingCount : null;
+            LastRunSucceeded = reportReadable
+                && (result.ExitCode == 0 && findingCount == 0
+                    || result.ExitCode == 1 && findingCount > 0);
+            Status = (result.ExitCode, reportReadable, findingCount) switch
             {
-                0 when reportExists => "Scan completed: no findings",
-                0 => "Scan completed: no findings; report not written",
-                1 when reportExists => "Scan completed: findings reported",
-                1 => "Scan failed: report was not written",
-                _ => string.Concat("Scan failed: exit ", result.ExitCode.ToString(CultureInfo.InvariantCulture)),
+                (0, true, 0) => "Scan completed: no findings",
+                (1, true, > 0) => "Scan completed: findings reported",
+                (_, false, _) => CreateFailureStatus(result, reportError),
+                (1, true, 0) => CreateFailureStatus(result, "scanner exited 1 without findings"),
+                (0, true, > 0) => CreateFailureStatus(result, "scanner exited 0 but reported findings"),
+                _ => CreateFailureStatus(
+                    result,
+                    string.Concat("scanner exited ", result.ExitCode.ToString(CultureInfo.InvariantCulture))),
             };
-            LastMessage = CreateResultMessage(result);
+            string finalizationError = string.Empty;
+            if (!TryFinalizeReportPath(result.ReportPath, previousReportPath, LastRunSucceeded, out finalizationError))
+            {
+                LastRunSucceeded = false;
+                Status = string.Concat("Scan failed: could not finalize report: ", finalizationError);
+            }
+
+            string resultReportError = finalizationError.Length != 0
+                ? finalizationError
+                : reportReadable ? string.Empty : reportError;
+            LastMessage = CreateResultMessage(result, resultReportError);
             SetLastRunTiming(result);
             CaptureResultOutputIfEmpty(result);
+            if (!LastRunSucceeded && CapturedOutputLines.Count == 0)
+            {
+                AddCapturedOutputLine(string.Concat("error: ", Status.AsSpan("Scan failed: ".Length)));
+            }
+
             return result;
         }
         catch (OperationCanceledException)
@@ -2021,7 +2062,15 @@ internal sealed class PicketTuiScanWorkspace
             Status = "Scan cancelled";
             LastMessage = "The running scan was cancelled.";
             LastExitCode = 130;
+            LastRunSucceeded = false;
+            LastRunReportFindingCount = null;
             LastCompletedAt = DateTimeOffset.UtcNow;
+            if (!TryFinalizeReportPath(ReportPath, previousReportPath, keepNewReport: false, out string restoreError))
+            {
+                Status = string.Concat("Scan cancelled; could not restore previous report: ", restoreError);
+                LastMessage = Status;
+            }
+
             CaptureMessageOutput("status", LastMessage);
             throw;
         }
@@ -2031,8 +2080,16 @@ internal sealed class PicketTuiScanWorkspace
             Status = "Scan failed: could not start scanner";
             LastMessage = ex.Message;
             LastExitCode = 126;
+            LastRunSucceeded = false;
+            LastRunReportFindingCount = null;
             LastStartedAt ??= failedAt;
             LastCompletedAt = failedAt;
+            if (!TryFinalizeReportPath(ReportPath, previousReportPath, keepNewReport: false, out string restoreError))
+            {
+                Status = string.Concat("Scan failed: could not restore previous report: ", restoreError);
+                LastMessage = string.Concat(ex.Message, " Restore error: ", restoreError);
+            }
+
             CaptureMessageOutput("error", ex.Message);
             return new PicketTuiScanExecutionResult(
                 126,
@@ -2158,8 +2215,9 @@ internal sealed class PicketTuiScanWorkspace
         }
     }
 
-    private static bool TryEnsureReportDirectory(string reportPath, out string error)
+    private static bool TryPrepareReportPath(string reportPath, out string? previousReportPath, out string error)
     {
+        previousReportPath = null;
         error = string.Empty;
         if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
         {
@@ -2172,6 +2230,53 @@ internal sealed class PicketTuiScanWorkspace
             if (!string.IsNullOrWhiteSpace(directory))
             {
                 Directory.CreateDirectory(directory);
+            }
+
+            if (File.Exists(reportPath))
+            {
+                previousReportPath = Path.Combine(
+                    directory ?? ".",
+                    string.Concat(".picket-tui-", Guid.NewGuid().ToString("N"), ".previous"));
+                File.Move(reportPath, previousReportPath);
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private static bool TryFinalizeReportPath(
+        string reportPath,
+        string? previousReportPath,
+        bool keepNewReport,
+        out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        try
+        {
+            if (keepNewReport)
+            {
+                if (previousReportPath is not null)
+                {
+                    File.Delete(previousReportPath);
+                }
+
+                return true;
+            }
+
+            File.Delete(reportPath);
+            if (previousReportPath is not null)
+            {
+                File.Move(previousReportPath, reportPath);
             }
 
             return true;
@@ -2213,7 +2318,35 @@ internal sealed class PicketTuiScanWorkspace
         arguments.Add(value.Trim());
     }
 
-    private static string CreateResultMessage(PicketTuiScanExecutionResult result)
+    private static bool TryReadReportFindingCount(string reportPath, out int findingCount, out string error)
+    {
+        findingCount = 0;
+        if (!File.Exists(reportPath))
+        {
+            error = "report was not written";
+            return false;
+        }
+
+        try
+        {
+            findingCount = ReportSummaryReader.Read(Path.GetFullPath(reportPath)).FindingCount;
+            error = string.Empty;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private static string CreateFailureStatus(PicketTuiScanExecutionResult result, string fallback)
+    {
+        string diagnostic = FirstNonEmptyLine(result.StandardError);
+        return string.Concat("Scan failed: ", diagnostic.Length == 0 ? fallback : diagnostic);
+    }
+
+    private static string CreateResultMessage(PicketTuiScanExecutionResult result, string reportError)
     {
         var builder = new StringBuilder();
         builder.Append("Exit ");
@@ -2228,6 +2361,12 @@ internal sealed class PicketTuiScanWorkspace
         {
             builder.Append(" Message: ");
             builder.Append(diagnostic);
+        }
+
+        if (reportError.Length != 0)
+        {
+            builder.Append(" Report: ");
+            builder.Append(reportError);
         }
 
         return builder.ToString();
