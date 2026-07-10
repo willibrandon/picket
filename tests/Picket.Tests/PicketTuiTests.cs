@@ -1976,7 +1976,7 @@ public sealed class PicketTuiTests
     [Timeout(30000, CooperativeCancellation = true)]
     public async Task CompanionHelpAdvertisesScanWorkspace()
     {
-        CliResult result = await RunTuiCliAsync("--help").ConfigureAwait(false);
+        CliResult result = await RunTuiCliAsync(["--help"], TestContext.CancellationToken).ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.Contains("picket-tui [<report>] [options]", result.Stdout);
@@ -1992,7 +1992,7 @@ public sealed class PicketTuiTests
     [Timeout(30000, CooperativeCancellation = true)]
     public async Task CompanionReportsMissingReportWithoutStackTrace()
     {
-        CliResult result = await RunTuiCliAsync("missing-report.json").ConfigureAwait(false);
+        CliResult result = await RunTuiCliAsync(["missing-report.json"], TestContext.CancellationToken).ConfigureAwait(false);
         string output = string.Concat(result.Stdout, result.Stderr);
 
         Assert.AreEqual(1, result.ExitCode);
@@ -2069,36 +2069,30 @@ public sealed class PicketTuiTests
         Assert.IsGreaterThanOrEqualTo(PicketTuiPalette.UiContrastMinimum, ratio);
     }
 
-    private static async Task<CliResult> RunTuiCliAsync(params string[] arguments)
+    private static async Task<CliResult> RunTuiCliAsync(string[] arguments, CancellationToken cancellationToken)
     {
         string repositoryRoot = FindRepositoryRoot();
-        using TempDirectory outputRoot = TempDirectory.Create();
-        string outputPath = Path.Combine(outputRoot.Path, "picket-tui-cli");
+        string configuration = GetBuildConfiguration();
+        List<string> runArguments =
+        [
+            "run",
+            "--project",
+            Path.Combine("src", "Picket.Tui.Cli", "Picket.Tui.Cli.csproj"),
+            "--no-build",
+            "--configuration",
+            configuration,
+            "--",
+        ];
+        runArguments.AddRange(arguments);
 
-        CliResult build = await RunProcessAsync(
-            "dotnet",
-            [
-                "build",
-                Path.Combine("src", "Picket.Tui.Cli", "Picket.Tui.Cli.csproj"),
-                "--no-restore",
-                "--output",
-                outputPath,
-            ],
-            repositoryRoot).ConfigureAwait(false);
-
-        if (build.ExitCode != 0)
-        {
-            return build;
-        }
-
-        string executablePath = Path.Combine(outputPath, OperatingSystem.IsWindows() ? "picket-tui.exe" : "picket-tui");
-        return await RunProcessAsync(executablePath, arguments, repositoryRoot).ConfigureAwait(false);
+        return await RunProcessAsync("dotnet", [.. runArguments], repositoryRoot, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<CliResult> RunProcessAsync(
         string fileName,
         string[] arguments,
-        string workingDirectory)
+        string workingDirectory,
+        CancellationToken cancellationToken)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo(fileName)
@@ -2114,10 +2108,26 @@ public sealed class PicketTuiTests
         }
 
         process.Start();
-        string stdout = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
-        string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
-        await process.WaitForExitAsync().ConfigureAwait(false);
+        string stdout = await process.StandardOutput.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        string stderr = await process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
         return new CliResult(process.ExitCode, stdout, stderr);
+    }
+
+    private static string GetBuildConfiguration()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory.Parent is not null)
+        {
+            if (string.Equals(directory.Parent.Name, "bin", StringComparison.OrdinalIgnoreCase))
+            {
+                return directory.Name;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not determine the active build configuration.");
     }
 
     private static string FindRepositoryRoot()
