@@ -1334,7 +1334,7 @@ public static class GitleaksConfigLoader
 
     private static void ThrowUnsupported(string sourceName, string feature)
     {
-        throw new NotSupportedException($"{sourceName}: Gitleaks config {feature} are not supported yet");
+        throw new NotSupportedException($"{sourceName}: Gitleaks config {feature} is not supported");
     }
 
     private static RuleSet LoadEmbeddedDefaultRuleSet()

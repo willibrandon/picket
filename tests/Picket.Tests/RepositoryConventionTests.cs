@@ -196,6 +196,11 @@ public sealed partial class RepositoryConventionTests
             {
                 violations.Add(Path.GetRelativePath(root, file));
             }
+
+            if (text.Contains("not supported yet", StringComparison.OrdinalIgnoreCase))
+            {
+                violations.Add(Path.GetRelativePath(root, file));
+            }
         }
 
         Assert.IsEmpty(violations);
