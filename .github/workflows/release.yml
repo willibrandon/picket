@@ -154,8 +154,8 @@ jobs:
       - name: Install Linux musl Native AOT dependencies
         if: startsWith(matrix.rid, 'linux-musl-')
         run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true update
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true install -y musl-tools
 
       - name: Build Linux musl zstandard runtime
         if: startsWith(matrix.rid, 'linux-musl-')

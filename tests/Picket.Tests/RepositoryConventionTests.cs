@@ -483,6 +483,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("THIRD-PARTY-NOTICES.txt", cliProject);
         Assert.Contains("Build-ZstandardMusl.cs", ciWorkflow);
         Assert.Contains("Build-ZstandardMusl.cs", releaseWorkflow);
+        Assert.Contains("Acquire::Retries=5", ciWorkflow);
+        Assert.Contains("Acquire::Retries=5", releaseWorkflow);
+        Assert.Contains("Acquire::ForceIPv4=true", ciWorkflow);
+        Assert.Contains("Acquire::ForceIPv4=true", releaseWorkflow);
         Assert.Contains("/out/libzstd.so /usr/local/bin/libzstd.so", dockerfile);
         Assert.Contains("MIT AND BSD-3-Clause", dockerfile);
         Assert.Contains("ZstdNet", notices);

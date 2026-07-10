@@ -61,8 +61,8 @@ jobs:
       - name: Install Linux musl Native AOT dependencies
         if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true update
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true install -y musl-tools
 
       - name: Build Linux musl zstandard runtime
         if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
