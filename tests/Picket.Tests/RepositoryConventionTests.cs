@@ -2186,6 +2186,7 @@ public sealed partial class RepositoryConventionTests
         AssertProfileProperty(profile, "EnableUnsafeUTF7Encoding", "false");
         AssertProfileProperty(profile, "MetadataUpdaterSupport", "false");
         AssertProfileProperty(profile, "XmlResolverIsNetworkingEnabledByDefault", "false");
+        AssertProfileProperty(profile, "UseSizeOptimizedLinq", "true");
         AssertProfileProperty(profile, "Http3Support", "false");
     }
 

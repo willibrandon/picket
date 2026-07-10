@@ -39,6 +39,7 @@ internal sealed partial class DocumentationGenerator
         "EnableUnsafeUTF7Encoding",
         "MetadataUpdaterSupport",
         "XmlResolverIsNetworkingEnabledByDefault",
+        "UseSizeOptimizedLinq",
         "Http3Support",
     ];
 
