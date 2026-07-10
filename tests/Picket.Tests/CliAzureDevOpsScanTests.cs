@@ -189,6 +189,7 @@ public sealed class CliAzureDevOpsScanTests
         using TempDirectory root = TempDirectory.Create();
         using var server = new AzureDevOpsFixtureServer("token-12345");
         string configPath = WriteTokenConfig(root.Path);
+        string diagnosticsPath = Path.Combine(root.Path, "diagnostics");
         var environment = new Dictionary<string, string?>
         {
             ["PICKET_AZURE_DEVOPS_TEST_TOKEN"] = "test-pat-secret",
@@ -213,7 +214,13 @@ public sealed class CliAzureDevOpsScanTests
             "-c",
             configPath,
             "-f",
-            "jsonl").ConfigureAwait(false);
+            "jsonl",
+            "--redact=100",
+            "--diagnostics",
+            "trace",
+            "--diagnostics-dir",
+            diagnosticsPath).ConfigureAwait(false);
+        string diagnostics = File.ReadAllText(Path.Combine(diagnosticsPath, "trace.jsonl"));
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"file\":\"azure-devops/test/picket/src/appsettings.txt\"", result.Stdout);
@@ -222,8 +229,16 @@ public sealed class CliAzureDevOpsScanTests
         Assert.Contains("/_apis/build/builds/77/artifacts?", server.RequestTargets);
         Assert.Contains("/_apis/build/builds/77/logs?", server.RequestTargets);
         Assert.Contains("Basic ", server.LastAuthorization);
+        Assert.Contains("\"event\":\"scan.stop\"", diagnostics);
+        Assert.DoesNotContain("artifact-token-2468", result.Stdout);
+        Assert.DoesNotContain("artifact-token-2468", result.Stderr);
+        Assert.DoesNotContain("artifact-token-2468", diagnostics);
+        Assert.DoesNotContain("log-token-1357", result.Stdout);
+        Assert.DoesNotContain("log-token-1357", result.Stderr);
+        Assert.DoesNotContain("log-token-1357", diagnostics);
         Assert.DoesNotContain("test-pat-secret", result.Stdout);
         Assert.DoesNotContain("test-pat-secret", result.Stderr);
+        Assert.DoesNotContain("test-pat-secret", diagnostics);
     }
 
     /// <summary>
@@ -359,7 +374,7 @@ public sealed class CliAzureDevOpsScanTests
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.Contains("Azure Artifacts package byte limit skipped", result.Stderr);
+        Assert.Contains("Azure Artifacts package skipped because the byte limit was exceeded", result.Stderr);
         Assert.DoesNotContain("test-pat-secret", result.Stderr);
     }
 

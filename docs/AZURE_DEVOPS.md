@@ -165,7 +165,7 @@ Provider options include:
 | `--allow-non-public-source-endpoints` | Permit private, loopback, link-local, or otherwise non-public endpoint addresses for self-hosted Azure DevOps Server. |
 | `--allow-insecure-source-endpoints` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments; source credentials may be sent in cleartext. |
 
-Current enumeration handles repository continuation tokens, wiki mapped paths, branch scope controls, build artifact archives, build logs, classic release build artifacts, Azure Artifacts NuGet packages, allowed credential-free redirect downloads, rejection of responses from injected HTTP handlers that already followed a redirect, bounded paging, bounded retry/backoff for throttling responses, and clear warnings for resources the token cannot read. Picket caps paged lists at 1,000 pages and emits a warning if that safety limit is reached. A failure on one independently enumerable resource should not hide successful scans of other authorized resources.
+Current enumeration handles repository continuation tokens, wiki mapped paths, branch scope controls, build artifact archives, build logs, classic release build artifacts, Azure Artifacts NuGet packages, allowed credential-free redirect downloads, rejection of responses from injected HTTP handlers that already followed a redirect, bounded paging, bounded retry/backoff for throttling responses, and clear warnings for resources the token cannot read. Picket caps paged lists at 1,000 pages and emits a warning if that safety limit is reached. Repository, wiki, build artifact, build log, and release artifact scopes fail independently so one unavailable source does not hide successful scans of other authorized resources.
 
 ## Authentication
 
@@ -216,7 +216,9 @@ Artifact and log scanning must protect the agent and the pipeline:
 - enforce archive entry and recursion caps,
 - reject path traversal entries,
 - avoid extracting outside task-owned temporary directories,
-- redact logs before diagnostics,
+- keep artifact and log response bytes out of warnings and diagnostics,
+- omit request URIs, signed redirect queries, response bodies, and provider-controlled archive paths from failure diagnostics,
+- apply requested finding redaction before writing reports,
 - keep download and extraction timeouts separate from scanner timeouts,
 - preserve source provenance so reports can point back to the build, job, artifact, log, repository, branch, and commit when available.
 

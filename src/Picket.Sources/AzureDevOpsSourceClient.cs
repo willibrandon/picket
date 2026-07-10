@@ -36,81 +36,102 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             return sourceFiles;
         }
 
-        try
+        await TryEnumerateSourceScopeAsync(
+            () => AddSelectedRepositoryFilesAsync(options, sourceFiles, cancellationToken),
+            options,
+            "skipping Azure DevOps repositories").ConfigureAwait(false);
+
+        if (options.IncludeWikis && !IsCancellationRequested(options))
         {
-            List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)> repositories = await ListRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
-            for (int i = 0; i < repositories.Count; i++)
-            {
-                if (IsCancellationRequested(options))
-                {
-                    break;
-                }
-
-                (string id, string name, string projectName, string defaultBranch, bool hasDefaultBranchMetadata) = repositories[i];
-                if (options.Repository.Length != 0
-                    && !name.Equals(options.Repository, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (projectName.Length == 0)
-                {
-                    options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because its project name was not returned");
-                    continue;
-                }
-
-                if (options.PullRequestId == 0
-                    && options.Branch.Length == 0
-                    && hasDefaultBranchMetadata
-                    && defaultBranch.Length == 0)
-                {
-                    options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because it does not have a default branch");
-                    continue;
-                }
-
-                (bool shouldScan, string scanRepositoryId, string scanRepositoryName, string scanProjectName, string version, string versionType) = await ResolveRepositoryVersionAsync(
-                    options,
-                    id,
-                    name,
-                    projectName,
-                    cancellationToken).ConfigureAwait(false);
-                if (!shouldScan)
-                {
-                    continue;
-                }
-
-                await AddRepositoryFilesAsync(
-                    options,
-                    scanRepositoryId,
-                    scanRepositoryName,
-                    scanProjectName,
-                    version,
-                    versionType,
-                    sourceFiles,
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            if (options.IncludeWikis && !IsCancellationRequested(options))
-            {
-                await AddWikiFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
-
-            if ((options.IncludeArtifacts || options.IncludeLogs) && !IsCancellationRequested(options))
-            {
-                await AddBuildFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (options.IncludeReleaseArtifacts && !IsCancellationRequested(options))
-            {
-                await AddReleaseArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-            }
+            await TryEnumerateSourceScopeAsync(
+                () => AddWikiFilesAsync(options, sourceFiles, cancellationToken),
+                options,
+                "skipping Azure DevOps wikis").ConfigureAwait(false);
         }
-        catch (RemoteMetadataTooLargeException)
+
+        if (options.IncludeArtifacts && !IsCancellationRequested(options))
         {
-            return sourceFiles;
+            await TryEnumerateSourceScopeAsync(
+                () => AddBuildArtifactFilesAsync(options, sourceFiles, cancellationToken),
+                options,
+                "skipping Azure DevOps build artifacts").ConfigureAwait(false);
+        }
+
+        if (options.IncludeLogs && !IsCancellationRequested(options))
+        {
+            await TryEnumerateSourceScopeAsync(
+                () => AddBuildLogFilesAsync(options, sourceFiles, cancellationToken),
+                options,
+                "skipping Azure DevOps build logs").ConfigureAwait(false);
+        }
+
+        if (options.IncludeReleaseArtifacts && !IsCancellationRequested(options))
+        {
+            await TryEnumerateSourceScopeAsync(
+                () => AddReleaseArtifactFilesAsync(options, sourceFiles, cancellationToken),
+                options,
+                "skipping Azure DevOps release artifacts").ConfigureAwait(false);
         }
 
         return sourceFiles;
+    }
+
+    private async Task AddSelectedRepositoryFilesAsync(
+        AzureDevOpsSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)> repositories = await ListRepositoriesAsync(options, cancellationToken).ConfigureAwait(false);
+        for (int i = 0; i < repositories.Count; i++)
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            (string id, string name, string projectName, string defaultBranch, bool hasDefaultBranchMetadata) = repositories[i];
+            if (options.Repository.Length != 0
+                && !name.Equals(options.Repository, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (projectName.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because its project name was not returned");
+                continue;
+            }
+
+            if (options.PullRequestId == 0
+                && options.Branch.Length == 0
+                && hasDefaultBranchMetadata
+                && defaultBranch.Length == 0)
+            {
+                options.WarningSink?.Invoke($"skipping Azure DevOps repository {name} because it does not have a default branch");
+                continue;
+            }
+
+            (bool shouldScan, string scanRepositoryId, string scanRepositoryName, string scanProjectName, string version, string versionType) = await ResolveRepositoryVersionAsync(
+                options,
+                id,
+                name,
+                projectName,
+                cancellationToken).ConfigureAwait(false);
+            if (!shouldScan)
+            {
+                continue;
+            }
+
+            await AddRepositoryFilesAsync(
+                options,
+                scanRepositoryId,
+                scanRepositoryName,
+                scanProjectName,
+                version,
+                versionType,
+                sourceFiles,
+                cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task<List<(string Id, string Name, string ProjectName, string DefaultBranch, bool HasDefaultBranchMetadata)>> ListRepositoriesAsync(
@@ -267,22 +288,6 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
     }
 
-    private async Task AddBuildFilesAsync(
-        AzureDevOpsSourceOptions options,
-        List<SourceFile> sourceFiles,
-        CancellationToken cancellationToken)
-    {
-        if (options.IncludeArtifacts)
-        {
-            await AddBuildArtifactFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (options.IncludeLogs && !IsCancellationRequested(options))
-        {
-            await AddBuildLogFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
     private async Task AddBuildArtifactFilesAsync(
         AzureDevOpsSourceOptions options,
         List<SourceFile> sourceFiles,
@@ -328,14 +333,18 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
 
         string displayPath = CreateBuildArtifactDisplayPath(options, artifactName);
-        await AddArtifactContentAsync(options, artifact, displayPath, "artifact", sourceFiles, cancellationToken).ConfigureAwait(false);
+        string diagnosticTarget = string.Concat(
+            "Azure DevOps build ",
+            options.BuildId.ToString(CultureInfo.InvariantCulture),
+            " artifact");
+        await AddArtifactContentAsync(options, artifact, displayPath, diagnosticTarget, sourceFiles, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task AddArtifactContentAsync(
         AzureDevOpsSourceOptions options,
         JsonElement artifact,
         string displayPath,
-        string limitName,
+        string diagnosticTarget,
         List<SourceFile> sourceFiles,
         CancellationToken cancellationToken)
     {
@@ -344,23 +353,22 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             || !TryGetJsonString(resource, "downloadUrl", out string downloadUrl)
             || !Uri.TryCreate(downloadUrl, UriKind.Absolute, out Uri? downloadUri))
         {
-            options.WarningSink?.Invoke($"skipping Azure DevOps {limitName} {displayPath} because the artifact API did not return a download URL");
+            options.WarningSink?.Invoke($"skipping {diagnosticTarget} because the artifact API did not return a download URL");
             return;
         }
 
         byte[]? content = await DownloadBuildContentAsync(
             options,
             downloadUri,
-            displayPath,
             options.MaxArtifactBytes,
-            limitName,
+            diagnosticTarget,
             cancellationToken).ConfigureAwait(false);
         if (content is null)
         {
             return;
         }
 
-        AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
+        AddContentOrArchiveEntries(options, displayPath, diagnosticTarget, content, sourceFiles);
     }
 
     private async Task AddBuildLogFilesAsync(
@@ -442,13 +450,13 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         string artifactType = GetString(releaseArtifact, "type");
         if (!artifactType.Equals("Build", StringComparison.OrdinalIgnoreCase))
         {
-            options.WarningSink?.Invoke($"skipping Azure DevOps release artifact {alias} because artifact type {artifactType} is not supported");
+            options.WarningSink?.Invoke("skipping an Azure DevOps release artifact because its artifact type is not supported");
             return;
         }
 
         if (!TryGetReleaseArtifactBuildId(releaseArtifact, out int buildId))
         {
-            options.WarningSink?.Invoke($"skipping Azure DevOps release artifact {alias} because it did not include a build version ID");
+            options.WarningSink?.Invoke("skipping an Azure DevOps release artifact because it did not include a build version ID");
             return;
         }
 
@@ -460,7 +468,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             WarnUnsuccessfulResponse(
                 options,
                 response,
-                $"skipping Azure DevOps release artifact {alias} for release {options.ReleaseId.ToString(CultureInfo.InvariantCulture)}");
+                $"skipping an Azure DevOps release artifact for release {options.ReleaseId.ToString(CultureInfo.InvariantCulture)}");
             return;
         }
 
@@ -479,7 +487,11 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 
             string buildArtifactName = GetArtifactName(buildArtifact);
             string displayPath = CreateReleaseArtifactDisplayPath(options, alias, buildArtifactName);
-            await AddArtifactContentAsync(options, buildArtifact, displayPath, "release artifact", sourceFiles, cancellationToken).ConfigureAwait(false);
+            string diagnosticTarget = string.Concat(
+                "Azure DevOps release ",
+                options.ReleaseId.ToString(CultureInfo.InvariantCulture),
+                " artifact");
+            await AddArtifactContentAsync(options, buildArtifact, displayPath, diagnosticTarget, sourceFiles, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -495,20 +507,29 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         }
 
         string displayPath = CreateBuildLogDisplayPath(options, logId);
+        string diagnosticTarget = string.Concat(
+            "Azure DevOps build ",
+            options.BuildId.ToString(CultureInfo.InvariantCulture),
+            " log ",
+            logId.ToString(CultureInfo.InvariantCulture));
         Uri uri = CreateBuildLogDownloadUri(options, logId);
         byte[]? content = await DownloadBuildContentAsync(
             options,
             uri,
-            displayPath,
             options.MaxLogBytes,
-            "log",
+            diagnosticTarget,
             cancellationToken).ConfigureAwait(false);
         if (content is null)
         {
             return;
         }
 
-        AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
+        AddContentOrArchiveEntries(
+            options,
+            displayPath,
+            diagnosticTarget,
+            content,
+            sourceFiles);
     }
 
     private async Task<List<(string Name, string ProjectName, string RepositoryId, string MappedPath, string Version, bool IsDisabled)>> ListWikisAsync(
@@ -659,7 +680,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         if (response.Content.Headers.ContentLength.HasValue
             && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
         {
-            options.WarningSink?.Invoke($"Azure DevOps file byte limit skipped {displayPath}");
+            options.WarningSink?.Invoke($"Azure DevOps file {displayPath} skipped because the byte limit was exceeded");
             return null;
         }
 
@@ -669,14 +690,13 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
     private async Task<byte[]?> DownloadBuildContentAsync(
         AzureDevOpsSourceOptions options,
         Uri uri,
-        string displayPath,
         long? maxBytes,
-        string limitName,
+        string diagnosticTarget,
         CancellationToken cancellationToken)
     {
         if (!IsAllowedAzureDevOpsUri(options.Endpoint, uri))
         {
-            options.WarningSink?.Invoke($"skipping Azure DevOps {limitName} {displayPath} because the download URL is not an allowed Azure DevOps endpoint");
+            options.WarningSink?.Invoke($"skipping {diagnosticTarget} because the download URL is not an allowed Azure DevOps endpoint");
             return null;
         }
 
@@ -688,32 +708,33 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                 : new Uri(uri, response.Headers.Location);
             if (!AzureDevOpsRedirectPolicy.IsAllowed(options.Endpoint, redirectUri))
             {
-                options.WarningSink?.Invoke($"skipping Azure DevOps {limitName} {displayPath} because the redirected download URL is not an allowed Azure DevOps artifact endpoint");
+                options.WarningSink?.Invoke($"skipping {diagnosticTarget} because the redirected download URL is not an allowed Azure DevOps artifact endpoint");
                 return null;
             }
 
             using HttpResponseMessage redirectedResponse = await SendUnauthenticatedRawAsync(redirectUri, cancellationToken).ConfigureAwait(false);
             if (!redirectedResponse.IsSuccessStatusCode)
             {
-                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping Azure DevOps {limitName} {displayPath}");
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping {diagnosticTarget}");
                 return null;
             }
 
-            return await ReadContentWithinLimitAsync(redirectedResponse, maxBytes, options.WarningSink, limitName, displayPath, cancellationToken).ConfigureAwait(false);
+            return await ReadContentWithinLimitAsync(redirectedResponse, maxBytes, options.WarningSink, diagnosticTarget, cancellationToken).ConfigureAwait(false);
         }
 
         if (!response.IsSuccessStatusCode)
         {
-            WarnUnsuccessfulResponse(options, response, $"skipping Azure DevOps {limitName} {displayPath}");
+            WarnUnsuccessfulResponse(options, response, $"skipping {diagnosticTarget}");
             return null;
         }
 
-        return await ReadContentWithinLimitAsync(response, maxBytes, options.WarningSink, limitName, displayPath, cancellationToken).ConfigureAwait(false);
+        return await ReadContentWithinLimitAsync(response, maxBytes, options.WarningSink, diagnosticTarget, cancellationToken).ConfigureAwait(false);
     }
 
     private static void AddContentOrArchiveEntries(
         AzureDevOpsSourceOptions options,
         string displayPath,
+        string diagnosticTarget,
         byte[] content,
         List<SourceFile> sourceFiles)
     {
@@ -725,7 +746,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
 
         if (options.MaxArchiveDepth == 0)
         {
-            options.WarningSink?.Invoke($"skipping Azure DevOps archive {displayPath} because archive traversal is disabled");
+            options.WarningSink?.Invoke($"skipping {diagnosticTarget} because archive traversal is disabled");
             return;
         }
 
@@ -739,7 +760,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             options.MaxArchiveCompressionRatio,
             options.MaxFileBytes,
             options.IsPathAllowed,
-            options.WarningSink,
+            SourceDiagnosticRedactor.CreateArchiveWarningSink(options.WarningSink, diagnosticTarget),
             options.IsCancellationRequested,
             entries))
         {
@@ -792,6 +813,32 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             requestFactory,
             RemoteSourceHttpRetry.IsGenericRetryableResponse,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task TryEnumerateSourceScopeAsync(
+        Func<Task> enumerate,
+        AzureDevOpsSourceOptions options,
+        string failureTarget)
+    {
+        try
+        {
+            await enumerate().ConfigureAwait(false);
+        }
+        catch (RemoteMetadataTooLargeException)
+        {
+        }
+        catch (JsonException)
+        {
+            options.WarningSink?.Invoke($"{failureTarget} because provider metadata was invalid");
+        }
+        catch (HttpRequestException)
+        {
+            options.WarningSink?.Invoke($"{failureTarget} because a request failed");
+        }
+        catch (IOException)
+        {
+            options.WarningSink?.Invoke($"{failureTarget} because a response could not be read");
+        }
     }
 
     private static async Task AddRepositoriesAsync(
@@ -881,22 +928,26 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         string displayPath,
         CancellationToken cancellationToken)
     {
-        return await ReadContentWithinLimitAsync(response, options.MaxFileBytes, options.WarningSink, "file", displayPath, cancellationToken).ConfigureAwait(false);
+        return await ReadContentWithinLimitAsync(
+            response,
+            options.MaxFileBytes,
+            options.WarningSink,
+            string.Concat("Azure DevOps file ", displayPath),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<byte[]?> ReadContentWithinLimitAsync(
         HttpResponseMessage response,
         long? maxBytes,
         Action<string>? warningSink,
-        string limitName,
-        string displayPath,
+        string diagnosticTarget,
         CancellationToken cancellationToken)
     {
         if (maxBytes.HasValue
             && response.Content.Headers.ContentLength.HasValue
             && response.Content.Headers.ContentLength.Value > maxBytes.Value)
         {
-            warningSink?.Invoke($"Azure DevOps {limitName} byte limit skipped {displayPath}");
+            warningSink?.Invoke($"{diagnosticTarget} skipped because the byte limit was exceeded");
             return null;
         }
 
@@ -918,7 +969,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
                     long projectedLength = memory.Length + read;
                     if (projectedLength > maxBytes.Value)
                     {
-                        warningSink?.Invoke($"Azure DevOps {limitName} byte limit skipped {displayPath}");
+                        warningSink?.Invoke($"{diagnosticTarget} skipped because the byte limit was exceeded");
                         return null;
                     }
                 }

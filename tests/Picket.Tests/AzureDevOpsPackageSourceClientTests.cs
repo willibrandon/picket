@@ -268,7 +268,7 @@ public sealed class AzureDevOpsPackageSourceClientTests
         Assert.IsEmpty(files);
         Assert.AreEqual(2, handler.RequestCount);
         Assert.HasCount(1, warnings);
-        Assert.Contains("Azure Artifacts package byte limit skipped", warnings[0]);
+        Assert.Contains("Azure Artifacts package skipped because the byte limit was exceeded", warnings[0]);
     }
 
     /// <summary>
@@ -371,7 +371,7 @@ public sealed class AzureDevOpsPackageSourceClientTests
 
         Assert.IsEmpty(files);
         Assert.HasCount(1, warnings);
-        Assert.Contains("Azure Artifacts package byte limit skipped", warnings[0]);
+        Assert.Contains("Azure Artifacts package skipped because the byte limit was exceeded", warnings[0]);
         Assert.DoesNotContain("token", warnings[0]);
     }
 
@@ -398,7 +398,7 @@ public sealed class AzureDevOpsPackageSourceClientTests
 
         Assert.IsEmpty(files);
         Assert.HasCount(1, warnings);
-        Assert.Contains("Azure Artifacts package byte limit skipped", warnings[0]);
+        Assert.Contains("Azure Artifacts package skipped because the byte limit was exceeded", warnings[0]);
         Assert.DoesNotContain("token", warnings[0]);
     }
 

@@ -425,6 +425,214 @@ public sealed class AzureDevOpsSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that artifact request failures omit signed request details and do not suppress independent log scans.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesContinuesToLogsAfterSafeArtifactRequestFailure()
+    {
+        const string Token = "azdo-test-token";
+        const string SignedQuerySecret = "signed-query-secret-12345";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[]}""");
+            }
+
+            if (url.Contains("artifactName=drop", StringComparison.Ordinal))
+            {
+                throw new HttpRequestException(string.Concat("download failed at ", url));
+            }
+
+            if (url.Contains("/_apis/build/builds/77/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    $$"""
+                    {
+                      "value": [
+                        {
+                          "id": 12,
+                          "name": "drop",
+                          "resource": {
+                            "downloadUrl": "https://dev.azure.com/picket/Project%20One/_apis/build/builds/77/artifacts?artifactName=drop&sig={{SignedQuerySecret}}"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/_apis/build/builds/77/logs?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"id":4}]}""");
+            }
+
+            if (url.Contains("/_apis/build/builds/77/logs/4?", StringComparison.Ordinal))
+            {
+                return BytesResponse("log-token-67890");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            buildId: 77,
+            includeArtifacts: true,
+            includeLogs: true,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+        string diagnostics = string.Join('\n', warnings);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("azure-devops-build/Project%20One/77/logs/4.log", files[0].DisplayPath);
+        Assert.AreEqual("log-token-67890", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains("skipping Azure DevOps build artifacts because a request failed", diagnostics);
+        Assert.DoesNotContain(SignedQuerySecret, diagnostics);
+        Assert.DoesNotContain("download failed at", diagnostics);
+    }
+
+    /// <summary>
+    /// Verifies that build-scoped sources remain available when the credential cannot enumerate repositories.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesReadsBuildSourcesWhenRepositoryEnumerationIsForbidden()
+    {
+        const string Token = "azdo-test-token";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Forbidden);
+            }
+
+            if (url.Contains("artifactName=drop", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("artifact.txt", "artifact-token-12345"));
+            }
+
+            if (url.Contains("/_apis/build/builds/77/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                      "value": [
+                        {
+                          "id": 12,
+                          "name": "drop",
+                          "resource": {
+                            "downloadUrl": "https://dev.azure.com/picket/Project%20One/_apis/build/builds/77/artifacts?artifactName=drop"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (url.Contains("/_apis/build/builds/77/logs?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[{"id":4}]}""");
+            }
+
+            if (url.Contains("/_apis/build/builds/77/logs/4?", StringComparison.Ordinal))
+            {
+                return BytesResponse("log-token-67890");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            buildId: 77,
+            includeArtifacts: true,
+            includeLogs: true,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(2, files);
+        Assert.AreEqual("azure-devops-build/Project%20One/77/artifacts/drop.zip!artifact.txt", files[0].DisplayPath);
+        Assert.AreEqual("azure-devops-build/Project%20One/77/logs/4.log", files[1].DisplayPath);
+        Assert.Contains("skipping Azure DevOps repositories because a request failed", string.Join('\n', warnings));
+    }
+
+    /// <summary>
+    /// Verifies that archive safety warnings omit provider-controlled artifact and entry paths.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesRedactsArtifactPathsFromArchiveWarnings()
+    {
+        const string Token = "azdo-test-token";
+        const string ArtifactNameSecret = "artifact-name-secret-12345";
+        const string EntryNameSecret = "entry-name-secret-67890";
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/_apis/git/repositories?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"value":[]}""");
+            }
+
+            if (url.Contains("artifactName=drop", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes(
+                    "first.txt",
+                    "first",
+                    string.Concat(EntryNameSecret, ".txt"),
+                    "second"));
+            }
+
+            if (url.Contains("/_apis/build/builds/77/artifacts?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    $$"""
+                    {
+                      "value": [
+                        {
+                          "id": 12,
+                          "name": "{{ArtifactNameSecret}}",
+                          "resource": {
+                            "downloadUrl": "https://dev.azure.com/picket/Project%20One/_apis/build/builds/77/artifacts?artifactName=drop"
+                          }
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new AzureDevOpsSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            Token,
+            project: "Project One",
+            buildId: 77,
+            includeArtifacts: true,
+            maxArchiveEntries: 1,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+        string diagnostics = string.Join('\n', warnings);
+
+        Assert.HasCount(1, files);
+        Assert.Contains("archive entry limit reached after 1 entries while reading Azure DevOps build 77 artifact", diagnostics);
+        Assert.DoesNotContain(ArtifactNameSecret, diagnostics);
+        Assert.DoesNotContain(EntryNameSecret, diagnostics);
+    }
+
+    /// <summary>
     /// Verifies that redirected artifact downloads do not forward Azure DevOps credentials.
     /// </summary>
     [TestMethod]
@@ -774,7 +982,7 @@ public sealed class AzureDevOpsSourceClientTests
 
         Assert.IsEmpty(files);
         Assert.HasCount(1, warnings);
-        Assert.Contains("Azure DevOps file byte limit skipped azure-devops/Project%20One/web/large.txt", warnings[0]);
+        Assert.Contains("Azure DevOps file azure-devops/Project%20One/web/large.txt skipped because the byte limit was exceeded", warnings[0]);
         Assert.DoesNotContain(Token, warnings[0]);
     }
 
@@ -832,7 +1040,7 @@ public sealed class AzureDevOpsSourceClientTests
 
         Assert.IsEmpty(files);
         Assert.HasCount(1, warnings);
-        Assert.Contains("Azure DevOps file byte limit skipped azure-devops/Project%20One/web/large.txt", warnings[0]);
+        Assert.Contains("Azure DevOps file azure-devops/Project%20One/web/large.txt skipped because the byte limit was exceeded", warnings[0]);
         Assert.DoesNotContain(Token, warnings[0]);
     }
 
@@ -891,7 +1099,7 @@ public sealed class AzureDevOpsSourceClientTests
 
         Assert.IsEmpty(files);
         Assert.HasCount(1, warnings);
-        Assert.Contains("Azure DevOps file byte limit skipped azure-devops/Project%20One/web/large.txt", warnings[0]);
+        Assert.Contains("Azure DevOps file azure-devops/Project%20One/web/large.txt skipped because the byte limit was exceeded", warnings[0]);
         Assert.DoesNotContain(Token, warnings[0]);
     }
 
@@ -1136,12 +1344,33 @@ public sealed class AzureDevOpsSourceClientTests
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
-            ZipArchiveEntry entry = archive.CreateEntry(entryName);
-            using Stream entryStream = entry.Open();
-            byte[] bytes = Encoding.UTF8.GetBytes(content);
-            entryStream.Write(bytes);
+            WriteZipEntry(archive, entryName, content);
         }
 
         return stream.ToArray();
+    }
+
+    private static byte[] CreateZipBytes(
+        string firstEntryName,
+        string firstContent,
+        string secondEntryName,
+        string secondContent)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteZipEntry(archive, firstEntryName, firstContent);
+            WriteZipEntry(archive, secondEntryName, secondContent);
+        }
+
+        return stream.ToArray();
+    }
+
+    private static void WriteZipEntry(ZipArchive archive, string entryName, string content)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(entryName);
+        using Stream entryStream = entry.Open();
+        byte[] bytes = Encoding.UTF8.GetBytes(content);
+        entryStream.Write(bytes);
     }
 }

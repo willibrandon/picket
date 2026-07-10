@@ -15,6 +15,7 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
 {
     private const string ApiVersion = "7.1";
     private const string PackageContentApiVersion = "7.1-preview.1";
+    private const string PackageDiagnosticTarget = "Azure Artifacts package";
     private const int MaxPages = 1000;
     private const int PageSize = 100;
     private static readonly string s_remoteFullPath = Path.Combine(Path.GetTempPath(), "picket-azure-devops-packages");
@@ -59,6 +60,11 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
             options.WarningSink?.Invoke("skipping Azure Artifacts packages because feed enumeration failed");
             return sourceFiles;
         }
+        catch (IOException)
+        {
+            options.WarningSink?.Invoke("skipping Azure Artifacts packages because a feed response could not be read");
+            return sourceFiles;
+        }
 
         for (int i = 0; i < feeds.Count && !IsCancellationRequested(options); i++)
         {
@@ -96,6 +102,10 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
             catch (HttpRequestException)
             {
                 options.WarningSink?.Invoke($"skipping Azure Artifacts feed {NormalizeDisplaySegment(feedName)} because package enumeration failed");
+            }
+            catch (IOException)
+            {
+                options.WarningSink?.Invoke($"skipping Azure Artifacts feed {NormalizeDisplaySegment(feedName)} because a package response could not be read");
             }
         }
 
@@ -241,7 +251,7 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
         }
 
         Uri uri = CreatePackageContentUri(options, feedId, packageName, packageVersion);
-        byte[]? content = await DownloadPackageAsync(options, uri, displayPath, cancellationToken).ConfigureAwait(false);
+        byte[]? content = await DownloadPackageAsync(options, uri, cancellationToken).ConfigureAwait(false);
         if (content is null)
         {
             return;
@@ -253,7 +263,6 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
     private async Task<byte[]?> DownloadPackageAsync(
         AzureDevOpsSourceOptions options,
         Uri uri,
-        string displayPath,
         CancellationToken cancellationToken)
     {
         using HttpResponseMessage response = await SendAsync(options, uri, acceptJson: false, cancellationToken).ConfigureAwait(false);
@@ -264,27 +273,27 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
                 : new Uri(uri, response.Headers.Location);
             if (!IsSafePackageRedirect(options.PackageContentEndpoint, redirectUri))
             {
-                options.WarningSink?.Invoke($"skipping Azure Artifacts package {displayPath} because its download redirect is not an allowed Azure DevOps artifact endpoint");
+                options.WarningSink?.Invoke($"skipping {PackageDiagnosticTarget} because its download redirect is not an allowed Azure DevOps artifact endpoint");
                 return null;
             }
 
             using HttpResponseMessage redirectedResponse = await SendUnauthenticatedAsync(redirectUri, cancellationToken).ConfigureAwait(false);
             if (!redirectedResponse.IsSuccessStatusCode)
             {
-                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping Azure Artifacts package {displayPath}");
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping {PackageDiagnosticTarget}");
                 return null;
             }
 
-            return await ReadContentWithinLimitAsync(redirectedResponse, options, displayPath, cancellationToken).ConfigureAwait(false);
+            return await ReadContentWithinLimitAsync(redirectedResponse, options, cancellationToken).ConfigureAwait(false);
         }
 
         if (!response.IsSuccessStatusCode)
         {
-            WarnUnsuccessfulResponse(options, response, $"skipping Azure Artifacts package {displayPath}");
+            WarnUnsuccessfulResponse(options, response, $"skipping {PackageDiagnosticTarget}");
             return null;
         }
 
-        return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+        return await ReadContentWithinLimitAsync(response, options, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<HttpResponseMessage> SendAsync(
@@ -334,13 +343,12 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
     private static async Task<byte[]?> ReadContentWithinLimitAsync(
         HttpResponseMessage response,
         AzureDevOpsSourceOptions options,
-        string displayPath,
         CancellationToken cancellationToken)
     {
         if (response.Content.Headers.ContentLength.HasValue
             && response.Content.Headers.ContentLength.Value > options.MaxPackageBytes)
         {
-            options.WarningSink?.Invoke($"Azure Artifacts package byte limit skipped {displayPath}");
+            options.WarningSink?.Invoke($"{PackageDiagnosticTarget} skipped because the byte limit was exceeded");
             return null;
         }
 
@@ -359,7 +367,7 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
 
                 if (memory.Length + read > options.MaxPackageBytes)
                 {
-                    options.WarningSink?.Invoke($"Azure Artifacts package byte limit skipped {displayPath}");
+                    options.WarningSink?.Invoke($"{PackageDiagnosticTarget} skipped because the byte limit was exceeded");
                     return null;
                 }
 
@@ -388,7 +396,7 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
 
         if (options.MaxArchiveDepth == 0)
         {
-            options.WarningSink?.Invoke($"skipping Azure Artifacts package {displayPath} because archive traversal is disabled");
+            options.WarningSink?.Invoke($"skipping {PackageDiagnosticTarget} because archive traversal is disabled");
             return;
         }
 
@@ -402,7 +410,7 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
             options.MaxArchiveCompressionRatio,
             options.MaxFileBytes,
             options.IsPathAllowed,
-            options.WarningSink,
+            SourceDiagnosticRedactor.CreateArchiveWarningSink(options.WarningSink, PackageDiagnosticTarget),
             options.IsCancellationRequested,
             entries))
         {
