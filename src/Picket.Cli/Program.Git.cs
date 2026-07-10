@@ -363,12 +363,13 @@ internal static partial class Program
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         CreateGitLinkContext(root, staged || preCommit, platform, out string scmPlatform, out string remoteUrl);
         diagnosticsSession?.RecordScanInputs(fragments.Count);
-        List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth, timeoutTimestamp, scmPlatform, remoteUrl, out bool timedOut);
+        List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth, nativeMode, timeoutTimestamp, scmPlatform, remoteUrl, out bool timedOut);
         timedOut |= IsTimedOut(timeoutTimestamp);
         IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
         if (nativeMode)
         {
             filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
+            filteredFindings = SecretRandomnessFindingProcessor.Apply(filteredFindings, rules);
         }
 
         if (redactionPercent > 0)

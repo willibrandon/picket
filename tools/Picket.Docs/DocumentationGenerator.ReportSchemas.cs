@@ -44,12 +44,14 @@ internal sealed partial class DocumentationGenerator
             AppendJsonShape(builder, "Native JSON report object", root);
             AppendJsonShape(builder, "Native JSON `rules[]` object", root.GetProperty("rules")[0]);
             AppendJsonShape(builder, "Native JSON `findings[]` object", root.GetProperty("findings")[0]);
+            AppendJsonShape(builder, "Native JSON `findings[].randomness` object", root.GetProperty("findings")[0].GetProperty("randomness"));
             AppendJsonShape(builder, "Native JSON `findings[].provenance` object", root.GetProperty("findings")[0].GetProperty("provenance"));
         }
 
         using (JsonDocument document = JsonDocument.Parse(PicketJsonlReportWriter.Write(findings, rules).Trim()))
         {
             AppendJsonShape(builder, "Native JSONL finding object", document.RootElement);
+            AppendJsonShape(builder, "Native JSONL `randomness` object", document.RootElement.GetProperty("randomness"));
         }
 
         AppendCsvColumns(builder, "Native CSV columns", PicketCsvReportWriter.Write(findings, rules));
@@ -64,6 +66,7 @@ internal sealed partial class DocumentationGenerator
             AppendJsonShape(builder, "Native SARIF driver object", driver);
             AppendJsonShape(builder, "Native SARIF rule object", driver.GetProperty("rules")[0]);
             AppendJsonShape(builder, "Native SARIF result object", run.GetProperty("results")[0]);
+            AppendJsonShape(builder, "Native SARIF result randomness object", run.GetProperty("results")[0].GetProperty("properties").GetProperty("randomness"));
         }
 
         using (JsonDocument document = JsonDocument.Parse(PicketGitLabCodeQualityReportWriter.Write(findings)))
@@ -105,18 +108,21 @@ internal sealed partial class DocumentationGenerator
         return SecretRule.Create(
             "example-rule",
             "Example rule for generated report documentation.",
-            "example-[0-9]+",
+            "example-([A-Za-z0-9]+)",
+            secretGroup: 1,
             keywords: ["example"],
             tags: ["sample", "documentation"],
             severity: "high",
             confidence: "medium",
             rulePack: "picket-default",
             provider: "Example",
-            documentationUrl: "https://example.invalid/picket/rules/example-rule");
+            documentationUrl: "https://example.invalid/picket/rules/example-rule",
+            randomnessThreshold: 0.8);
     }
 
     private static Finding CreateSampleReportFinding()
     {
+        const string SampleSecret = "a8F2kL9mQ4xT7vN1zR6pW3cY";
         return new Finding(
             "example-rule",
             "Example rule for generated report documentation.",
@@ -124,8 +130,8 @@ internal sealed partial class DocumentationGenerator
             3,
             12,
             24,
-            "value=example-1234",
-            "example-1234",
+            "value=example-a8F2kL9mQ4xT7vN1zR6pW3cY",
+            SampleSecret,
             "src/example.txt",
             string.Empty,
             "0123456789abcdef0123456789abcdef01234567",
@@ -136,11 +142,12 @@ internal sealed partial class DocumentationGenerator
             "Add generated report schema fixture",
             ["sample", "documentation"],
             "src/example.txt:example-rule:3",
-            "value=example-1234",
+            "value=example-a8F2kL9mQ4xT7vN1zR6pW3cY",
             "https://example.invalid/picket/blob/src/example.txt#L3",
             validationState: "structurally-valid",
             blobSha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-            decodePath: ["plain"]);
+            decodePath: ["plain"],
+            randomness: SecretRandomnessScorer.Assess(SampleSecret));
     }
 
     private static void AppendJsonShape(StringBuilder builder, string title, JsonElement value)
@@ -154,9 +161,9 @@ internal sealed partial class DocumentationGenerator
         {
             builder.Append("| `");
             builder.Append(EscapeTable(property.Name));
-            builder.Append("` | ");
+            builder.Append("` | `");
             builder.Append(EscapeTable(GetJsonType(property.Value)));
-            builder.AppendLine(" |");
+            builder.AppendLine("` |");
         }
 
         builder.AppendLine();

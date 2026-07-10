@@ -28,6 +28,7 @@ namespace Picket.Engine;
 /// <param name="validationState">The offline validation state for native reports, or an empty string.</param>
 /// <param name="blobSha256">The source blob SHA-256 hash for native reports, or an empty string.</param>
 /// <param name="decodePath">The decode operations that exposed the finding, or <see langword="null" />.</param>
+/// <param name="randomness">The native randomness assessment, or <see langword="null" />.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -53,7 +54,8 @@ public sealed class Finding(
     string matchSha256 = "",
     string validationState = "",
     string blobSha256 = "",
-    IReadOnlyList<string>? decodePath = null)
+    IReadOnlyList<string>? decodePath = null,
+    SecretRandomnessAssessment? randomness = null)
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -179,4 +181,9 @@ public sealed class Finding(
     /// Gets the decode operations that exposed the finding.
     /// </summary>
     public IReadOnlyList<string> DecodePath { get; } = decodePath ?? [];
+
+    /// <summary>
+    /// Gets the native randomness assessment, or <see langword="null" /> when scoring was not enabled.
+    /// </summary>
+    public SecretRandomnessAssessment? Randomness { get; } = randomness;
 }

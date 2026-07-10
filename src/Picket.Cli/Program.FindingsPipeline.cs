@@ -33,6 +33,7 @@ internal static partial class Program
         if (nativeMode)
         {
             filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
+            filteredFindings = SecretRandomnessFindingProcessor.Apply(filteredFindings, rules);
         }
 
         IReadOnlyDictionary<string, CredentialAnalysisMetadata>? analysisMetadata = null;

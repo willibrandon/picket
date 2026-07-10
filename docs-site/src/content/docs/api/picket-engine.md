@@ -13,6 +13,10 @@ Generated from XML documentation for `Picket.Engine`.
 - [CompiledRuleSet](#compiledruleset) - Represents a rule set with precompiled Scout regexes and keyword prefilters.
 - [Finding](#finding) - Represents a detected secret finding using the Gitleaks-compatible field model.
 - [ScanRequest](#scanrequest) - Describes a byte-buffer scan request.
+- [SecretRandomnessAssessment](#secretrandomnessassessment) - Represents a deterministic estimate that secret material resembles a uniformly generated token.
+- [SecretRandomnessFeatures](#secretrandomnessfeatures) - Describes the non-secret statistical features used by the Picket randomness model.
+- [SecretRandomnessFindingProcessor](#secretrandomnessfindingprocessor) - Attaches native randomness assessments and applies explicit per-rule score thresholds.
+- [SecretRandomnessScorer](#secretrandomnessscorer) - Scores whether byte-oriented secret material resembles a uniformly generated token.
 - [SecretScanner](#secretscanner) - Byte-oriented secret scanner.
 - [ShannonEntropy](#shannonentropy) - Computes Shannon entropy over byte data.
 - [SourcePosition](#sourceposition) - Represents a Gitleaks-compatible source line and column.
@@ -75,7 +79,8 @@ Finding(
     string matchSha256,
     string validationState,
     string blobSha256,
-    IReadOnlyList<string> decodePath
+    IReadOnlyList<string> decodePath,
+    SecretRandomnessAssessment randomness
 )
 ```
 
@@ -101,6 +106,7 @@ Represents a detected secret finding using the Gitleaks-compatible field model.
 - `Match` - Gets the full matched text.
 - `MatchSha256` - Gets the original match SHA-256 hash for native reports, or an empty string.
 - `Message` - Gets the git commit message, or an empty string.
+- `Randomness` - Gets the native randomness assessment, or when scoring was not enabled.
 - `RuleID` - Gets the rule identifier.
 - `Secret` - Gets the secret text.
 - `SecretSha256` - Gets the original secret SHA-256 hash for native reports, or an empty string.
@@ -164,6 +170,7 @@ Initializes a new scan request and compiles the supplied source rules.
 - `CancellationToken` - Gets the cancellation token that stops scanning when cancellation is requested.
 - `Commit` - Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string.
 - `EnableCSharpStringConcatenation` - Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
+- `EnableRandomnessScoring` - Gets a value indicating whether native scans calculate and apply deterministic randomness scores.
 - `FileName` - Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
 - `IgnoreGitleaksAllow` - Gets a value indicating whether inline gitleaks:allow suppression comments are ignored.
 - `Input` - Gets the input bytes to scan.
@@ -172,6 +179,114 @@ Initializes a new scan request and compiles the supplied source rules.
 - `MaxTargetBytes` - Gets the maximum content size to scan with content rules, or for no cap.
 - `RuleSet` - Gets the compiled rules used for detection.
 - `SymlinkFile` - Gets the symlink path used in reports, or an empty string.
+
+## SecretRandomnessAssessment
+
+`Picket.Engine.SecretRandomnessAssessment`
+
+Represents a deterministic estimate that secret material resembles a uniformly generated token.
+
+### Methods
+
+#### `Create(...)`
+
+```csharp
+Create(
+    string model,
+    double score,
+    string classification,
+    SecretRandomnessFeatures features,
+    IReadOnlyList<string> signals
+)
+```
+
+Creates an assessment from persisted non-secret model output.
+
+
+### Properties
+
+- `Classification` - Gets the threshold-derived classification.
+- `Features` - Gets the non-secret statistical features used by the model.
+- `Model` - Gets the stable model identifier.
+- `Score` - Gets the deterministic model score from zero through one.
+- `Signals` - Gets the stable signal identifiers that explain material score contributions.
+
+## SecretRandomnessFeatures
+
+`Picket.Engine.SecretRandomnessFeatures`
+
+Describes the non-secret statistical features used by the Picket randomness model.
+
+### Methods
+
+#### `Create(...)`
+
+```csharp
+Create(
+    int sampleOffset,
+    int sampleLength,
+    string alphabet,
+    double lengthScore,
+    double normalizedEntropy,
+    double expectedDistinctRatio,
+    double transitionDiversity,
+    double longestRunRatio,
+    double sequentialPairRatio,
+    double repeatedPatternRatio,
+    double commonBigramRatio,
+    double characterClassBalance,
+    double encodedTextSignal,
+    double placeholderSignal
+)
+```
+
+Creates a feature vector from persisted non-secret metrics.
+
+
+### Properties
+
+- `Alphabet` - Gets the inferred alphabet name.
+- `CharacterClassBalance` - Gets the observed character-class balance relative to the inferred uniform alphabet.
+- `CommonBigramRatio` - Gets the ratio of adjacent ASCII pairs that are common in source identifiers and English text.
+- `EncodedTextSignal` - Gets the bounded signal that the sample is Base64-encoded printable text.
+- `ExpectedDistinctRatio` - Gets the observed distinct-byte count divided by its expectation under a uniform source.
+- `LengthScore` - Gets the logarithmically normalized sample-length feature.
+- `LongestRunRatio` - Gets the longest identical-byte run divided by the sample length.
+- `NormalizedEntropy` - Gets the Shannon entropy normalized for the inferred alphabet and sample length.
+- `PlaceholderSignal` - Gets a value indicating whether the sample contains a known placeholder marker.
+- `RepeatedPatternRatio` - Gets the strongest short-period repetition ratio.
+- `SampleLength` - Gets the sampled byte count.
+- `SampleOffset` - Gets the zero-based byte offset of the token-like sample within the secret.
+- `SequentialPairRatio` - Gets the ratio of adjacent ASCII letter or digit pairs that form ascending or descending sequences.
+- `TransitionDiversity` - Gets the ratio of distinct adjacent byte pairs.
+
+## SecretRandomnessFindingProcessor
+
+`Picket.Engine.SecretRandomnessFindingProcessor`
+
+Attaches native randomness assessments and applies explicit per-rule score thresholds.
+
+### Methods
+
+- `Apply(IReadOnlyList<Finding> findings, CompiledRuleSet rules)` - Enriches findings with deterministic randomness metadata and removes findings below an explicit rule threshold.
+
+## SecretRandomnessScorer
+
+`Picket.Engine.SecretRandomnessScorer`
+
+Scores whether byte-oriented secret material resembles a uniformly generated token.
+
+### Methods
+
+- `Assess(ReadOnlySpan<byte> value)` - Assesses byte-oriented secret material.
+- `Assess(string value)` - Assesses UTF-16 secret text after deterministic UTF-8 encoding.
+- `ExtractFeatures(ReadOnlySpan<byte> value)` - Extracts the non-secret feature vector used by the randomness model.
+
+### Fields
+
+- `LikelyRandomThreshold` - Gets the inclusive score threshold classified as likely random.
+- `LikelyStructuredThreshold` - Gets the inclusive score threshold classified as likely structured.
+- `ModelVersion` - Identifies the coefficients, feature definitions, and calibration corpus used by this model.
 
 ## SecretScanner
 

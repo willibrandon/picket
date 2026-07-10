@@ -24,6 +24,7 @@ namespace Picket.Rules;
 /// <param name="deprecated">A value indicating whether the rule is deprecated.</param>
 /// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
 /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
+/// <param name="randomnessThreshold">The minimum native randomness score required for a finding. Zero disables score filtering.</param>
 public sealed class SecretRule(
     string id,
     string description,
@@ -45,7 +46,8 @@ public sealed class SecretRule(
     IReadOnlyList<string>? revocation = null,
     bool deprecated = false,
     IReadOnlyList<string>? examples = null,
-    IReadOnlyList<string>? negativeExamples = null)
+    IReadOnlyList<string>? negativeExamples = null,
+    double randomnessThreshold = 0)
 {
     /// <summary>
     /// Gets the stable rule identifier.
@@ -153,6 +155,11 @@ public sealed class SecretRule(
     public IReadOnlyList<string> NegativeExamples { get; } = negativeExamples ?? [];
 
     /// <summary>
+    /// Gets the minimum native randomness score required for a finding. Zero disables score filtering.
+    /// </summary>
+    public double RandomnessThreshold { get; } = RequireProbability(randomnessThreshold);
+
+    /// <summary>
     /// Creates a rule and normalizes optional collection arguments.
     /// </summary>
     /// <param name="id">The stable rule identifier.</param>
@@ -176,6 +183,7 @@ public sealed class SecretRule(
     /// <param name="deprecated">A value indicating whether the rule is deprecated.</param>
     /// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
     /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
+    /// <param name="randomnessThreshold">The minimum native randomness score required for a finding. Zero disables score filtering.</param>
     /// <returns>The created rule.</returns>
     public static SecretRule Create(
         string id,
@@ -198,7 +206,8 @@ public sealed class SecretRule(
         IReadOnlyList<string>? revocation = null,
         bool deprecated = false,
         IReadOnlyList<string>? examples = null,
-        IReadOnlyList<string>? negativeExamples = null)
+        IReadOnlyList<string>? negativeExamples = null,
+        double randomnessThreshold = 0)
     {
         return new SecretRule(
             id,
@@ -221,7 +230,8 @@ public sealed class SecretRule(
             revocation ?? [],
             deprecated,
             examples ?? [],
-            negativeExamples ?? []);
+            negativeExamples ?? [],
+            randomnessThreshold);
     }
 
     private static string RequireText(string value)
@@ -255,6 +265,13 @@ public sealed class SecretRule(
             throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be finite.");
         }
 
+        return value;
+    }
+
+    private static double RequireProbability(double value)
+    {
+        RequireNonNegativeFinite(value);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 1);
         return value;
     }
 }

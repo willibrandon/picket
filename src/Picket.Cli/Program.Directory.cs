@@ -720,7 +720,10 @@ internal static partial class Program
                     symlinkFile: file.SymlinkDisplayPath,
                     enableCSharpStringConcatenation: nativeMode,
                     isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
-                    cancellationToken: cancellationToken));
+                    cancellationToken: cancellationToken)
+                {
+                    EnableRandomnessScoring = nativeMode,
+                });
                 if (IsScanStopped(timeoutTimestamp, cancellationToken))
                 {
                     WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);

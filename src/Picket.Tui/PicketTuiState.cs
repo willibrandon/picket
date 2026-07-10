@@ -910,25 +910,39 @@ internal sealed class PicketTuiState
 
     private static string FormatFindingYank(PicketTuiFindingRow row, string reportPath)
     {
-        return string.Join(
-            Environment.NewLine,
-            string.Concat("Rule: ", row.RuleId),
-            string.Concat("Path: ", row.Path),
-            string.Concat("Line: ", row.Line),
-            string.Concat("Fingerprint: ", row.Fingerprint),
-            string.Concat("Report: ", reportPath));
+        List<string> lines = CreateFindingMetadataLines(row);
+        lines.Add(string.Concat("Report: ", reportPath));
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string FormatFindingDetails(PicketTuiFindingRow row)
     {
-        return string.Join(
-            Environment.NewLine,
+        List<string> lines = CreateFindingMetadataLines(row);
+        lines.Add(string.Empty);
+        lines.Add("Secret evidence is intentionally not loaded in this summary view.");
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static List<string> CreateFindingMetadataLines(PicketTuiFindingRow row)
+    {
+        List<string> lines =
+        [
             string.Concat("Rule: ", row.RuleId),
             string.Concat("Path: ", row.Path),
             string.Concat("Line: ", row.Line),
             string.Concat("Fingerprint: ", row.Fingerprint),
-            string.Empty,
-            "Secret evidence is intentionally not loaded in this summary view.");
+        ];
+        if (row.Randomness.Length != 0)
+        {
+            lines.Add(string.Concat("Randomness: ", row.Randomness));
+        }
+
+        if (row.RandomnessModel.Length != 0)
+        {
+            lines.Add(string.Concat("Randomness model: ", row.RandomnessModel));
+        }
+
+        return lines;
     }
 
     private async Task ClearYankNotificationAsync(long generation, Action invalidate, CancellationToken cancellationToken)

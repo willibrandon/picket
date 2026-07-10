@@ -184,7 +184,8 @@ SecretRule(
     IReadOnlyList<string> revocation,
     bool deprecated,
     IReadOnlyList<string> examples,
-    IReadOnlyList<string> negativeExamples
+    IReadOnlyList<string> negativeExamples,
+    double randomnessThreshold
 )
 ```
 
@@ -217,7 +218,8 @@ Create(
     IReadOnlyList<string> revocation,
     bool deprecated,
     IReadOnlyList<string> examples,
-    IReadOnlyList<string> negativeExamples
+    IReadOnlyList<string> negativeExamples,
+    double randomnessThreshold
 )
 ```
 
@@ -239,6 +241,7 @@ Creates a rule and normalizes optional collection arguments.
 - `PathPattern` - Gets the optional path regex pattern in the compatibility dialect.
 - `Pattern` - Gets the content regex pattern in the compatibility dialect. Empty means path-only.
 - `Provider` - Gets the owning provider or credential family.
+- `RandomnessThreshold` - Gets the minimum native randomness score required for a finding. Zero disables score filtering.
 - `RequiredRules` - Gets supporting rules required before a primary finding is reported.
 - `Revocation` - Gets stable revocation template identifiers supported by the rule.
 - `RulePack` - Gets the native rule pack that supplied the rule.

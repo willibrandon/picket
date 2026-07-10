@@ -1,5 +1,6 @@
 using Picket.Engine;
 using Picket.Rules;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -119,6 +120,16 @@ internal static class PicketFindingMetadata
     internal static string CreateFingerprint(Finding finding)
     {
         return StableFindingFingerprint.Create(finding);
+    }
+
+    internal static string FormatRandomnessNumber(double value)
+    {
+        return value.ToString("0.######", CultureInfo.InvariantCulture);
+    }
+
+    internal static string FormatProbability(double value)
+    {
+        return value.ToString("R", CultureInfo.InvariantCulture);
     }
 
     internal static string CreateLocationPath(Finding finding)

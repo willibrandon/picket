@@ -1,3 +1,4 @@
+using Picket.Engine;
 using System.Globalization;
 using System.Text;
 
@@ -77,7 +78,9 @@ public sealed class ScanCacheKey(
         ScanCacheStorageMode storageMode)
     {
         var builder = new StringBuilder();
-        builder.Append("picket.scan-cache-key.v1\nrules:");
+        builder.Append("picket.scan-cache-key.v2\nrandomness-model:");
+        builder.Append(SecretRandomnessScorer.ModelVersion);
+        builder.Append("\nrules:");
         builder.Append(ruleSetFingerprint);
         builder.Append("\ndecode:");
         builder.Append(maxDecodeDepth.ToString(CultureInfo.InvariantCulture));

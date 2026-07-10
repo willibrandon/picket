@@ -32,6 +32,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.Findings[0].Line);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        AssertRandomness(summary.Findings[0]);
     }
 
     /// <summary>
@@ -56,6 +57,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.Findings[0].Line);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        AssertRandomness(summary.Findings[0]);
         Assert.DoesNotContain("secret-value", string.Concat(
             summary.Findings[0].RuleId,
             summary.Findings[0].Path,
@@ -194,6 +196,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.Findings[0].Line);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        AssertRandomness(summary.Findings[0]);
     }
 
     /// <summary>
@@ -302,6 +305,15 @@ public sealed class ReportSummaryReaderTests
             string.Empty,
             ["tag"],
             fingerprint,
-            "line containing secret");
+            "line containing secret",
+            randomness: SecretRandomnessScorer.Assess("secret-value"));
+    }
+
+    private static void AssertRandomness(ReportFindingSummary finding)
+    {
+        SecretRandomnessAssessment expected = SecretRandomnessScorer.Assess("secret-value");
+        Assert.AreEqual(expected.Score, finding.RandomnessScore);
+        Assert.AreEqual(expected.Classification, finding.RandomnessClassification);
+        Assert.AreEqual(expected.Model, finding.RandomnessModel);
     }
 }

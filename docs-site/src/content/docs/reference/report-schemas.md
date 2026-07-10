@@ -17,120 +17,169 @@ Native reports carry Picket schema metadata such as `picket.report.v1` and `pick
 
 | Property | JSON type |
 |---|---|
-| `schema` | string |
-| `tool` | object |
-| `rules` | array<object> |
-| `findings` | array<object> |
+| `schema` | `string` |
+| `tool` | `object` |
+| `rules` | `array<object>` |
+| `findings` | `array<object>` |
 
 ### Native JSON `rules[]` object
 
 | Property | JSON type |
 |---|---|
-| `id` | string |
-| `description` | string |
-| `pattern` | string |
-| `pathPattern` | string |
-| `secretGroup` | number |
-| `entropy` | number |
-| `severity` | string |
-| `confidence` | string |
-| `rulePack` | string |
-| `provider` | string |
-| `documentationUrl` | string |
-| `validation` | array |
-| `revocation` | array |
-| `deprecated` | boolean |
-| `keywords` | array<string> |
-| `tags` | array<string> |
-| `skipReport` | boolean |
+| `id` | `string` |
+| `description` | `string` |
+| `pattern` | `string` |
+| `pathPattern` | `string` |
+| `secretGroup` | `number` |
+| `entropy` | `number` |
+| `randomnessThreshold` | `number` |
+| `severity` | `string` |
+| `confidence` | `string` |
+| `rulePack` | `string` |
+| `provider` | `string` |
+| `documentationUrl` | `string` |
+| `validation` | `array` |
+| `revocation` | `array` |
+| `deprecated` | `boolean` |
+| `keywords` | `array<string>` |
+| `tags` | `array<string>` |
+| `skipReport` | `boolean` |
 
 ### Native JSON `findings[]` object
 
 | Property | JSON type |
 |---|---|
-| `schema` | string |
-| `ruleId` | string |
-| `description` | string |
-| `file` | string |
-| `symlinkFile` | string |
-| `startLine` | number |
-| `endLine` | number |
-| `startColumn` | number |
-| `endColumn` | number |
-| `match` | string |
-| `secret` | string |
-| `secretSha256` | string |
-| `matchSha256` | string |
-| `blobSha256` | string |
-| `line` | string |
-| `commit` | string |
-| `entropy` | number |
-| `author` | string |
-| `email` | string |
-| `date` | string |
-| `message` | string |
-| `tags` | array<string> |
-| `fingerprint` | string |
-| `validationState` | string |
-| `severity` | string |
-| `confidence` | string |
-| `rulePack` | string |
-| `provider` | string |
-| `documentationUrl` | string |
-| `provenance` | object |
-| `decodePath` | array<string> |
-| `baselineStatus` | string |
-| `ignoreReason` | string |
-| `remediationLinks` | array<string> |
-| `link` | string |
+| `schema` | `string` |
+| `ruleId` | `string` |
+| `description` | `string` |
+| `file` | `string` |
+| `symlinkFile` | `string` |
+| `startLine` | `number` |
+| `endLine` | `number` |
+| `startColumn` | `number` |
+| `endColumn` | `number` |
+| `match` | `string` |
+| `secret` | `string` |
+| `secretSha256` | `string` |
+| `matchSha256` | `string` |
+| `blobSha256` | `string` |
+| `line` | `string` |
+| `commit` | `string` |
+| `entropy` | `number` |
+| `randomness` | `object` |
+| `author` | `string` |
+| `email` | `string` |
+| `date` | `string` |
+| `message` | `string` |
+| `tags` | `array<string>` |
+| `fingerprint` | `string` |
+| `validationState` | `string` |
+| `severity` | `string` |
+| `confidence` | `string` |
+| `rulePack` | `string` |
+| `provider` | `string` |
+| `documentationUrl` | `string` |
+| `provenance` | `object` |
+| `decodePath` | `array<string>` |
+| `baselineStatus` | `string` |
+| `ignoreReason` | `string` |
+| `remediationLinks` | `array<string>` |
+| `link` | `string` |
+
+### Native JSON `findings[].randomness` object
+
+| Property | JSON type |
+|---|---|
+| `model` | `string` |
+| `score` | `number` |
+| `classification` | `string` |
+| `sampleOffset` | `number` |
+| `sampleLength` | `number` |
+| `alphabet` | `string` |
+| `lengthScore` | `number` |
+| `normalizedEntropy` | `number` |
+| `expectedDistinctRatio` | `number` |
+| `transitionDiversity` | `number` |
+| `longestRunRatio` | `number` |
+| `sequentialPairRatio` | `number` |
+| `repeatedPatternRatio` | `number` |
+| `commonBigramRatio` | `number` |
+| `characterClassBalance` | `number` |
+| `encodedTextSignal` | `number` |
+| `placeholderSignal` | `number` |
+| `signals` | `array<string>` |
 
 ### Native JSON `findings[].provenance` object
 
 | Property | JSON type |
 |---|---|
-| `type` | string |
-| `path` | string |
-| `commit` | string |
+| `type` | `string` |
+| `path` | `string` |
+| `commit` | `string` |
 
 ### Native JSONL finding object
 
 | Property | JSON type |
 |---|---|
-| `schema` | string |
-| `ruleId` | string |
-| `description` | string |
-| `file` | string |
-| `symlinkFile` | string |
-| `startLine` | number |
-| `endLine` | number |
-| `startColumn` | number |
-| `endColumn` | number |
-| `match` | string |
-| `secret` | string |
-| `secretSha256` | string |
-| `matchSha256` | string |
-| `blobSha256` | string |
-| `line` | string |
-| `commit` | string |
-| `entropy` | number |
-| `author` | string |
-| `email` | string |
-| `date` | string |
-| `message` | string |
-| `tags` | array<string> |
-| `fingerprint` | string |
-| `validationState` | string |
-| `severity` | string |
-| `confidence` | string |
-| `rulePack` | string |
-| `provider` | string |
-| `documentationUrl` | string |
-| `provenance` | object |
-| `decodePath` | array<string> |
-| `baselineStatus` | string |
-| `ignoreReason` | string |
-| `remediationLinks` | array<string> |
-| `link` | string |
+| `schema` | `string` |
+| `ruleId` | `string` |
+| `description` | `string` |
+| `file` | `string` |
+| `symlinkFile` | `string` |
+| `startLine` | `number` |
+| `endLine` | `number` |
+| `startColumn` | `number` |
+| `endColumn` | `number` |
+| `match` | `string` |
+| `secret` | `string` |
+| `secretSha256` | `string` |
+| `matchSha256` | `string` |
+| `blobSha256` | `string` |
+| `line` | `string` |
+| `commit` | `string` |
+| `entropy` | `number` |
+| `randomness` | `object` |
+| `author` | `string` |
+| `email` | `string` |
+| `date` | `string` |
+| `message` | `string` |
+| `tags` | `array<string>` |
+| `fingerprint` | `string` |
+| `validationState` | `string` |
+| `severity` | `string` |
+| `confidence` | `string` |
+| `rulePack` | `string` |
+| `provider` | `string` |
+| `documentationUrl` | `string` |
+| `provenance` | `object` |
+| `decodePath` | `array<string>` |
+| `baselineStatus` | `string` |
+| `ignoreReason` | `string` |
+| `remediationLinks` | `array<string>` |
+| `link` | `string` |
+
+### Native JSONL `randomness` object
+
+| Property | JSON type |
+|---|---|
+| `model` | `string` |
+| `score` | `number` |
+| `classification` | `string` |
+| `sampleOffset` | `number` |
+| `sampleLength` | `number` |
+| `alphabet` | `string` |
+| `lengthScore` | `number` |
+| `normalizedEntropy` | `number` |
+| `expectedDistinctRatio` | `number` |
+| `transitionDiversity` | `number` |
+| `longestRunRatio` | `number` |
+| `sequentialPairRatio` | `number` |
+| `repeatedPatternRatio` | `number` |
+| `commonBigramRatio` | `number` |
+| `characterClassBalance` | `number` |
+| `encodedTextSignal` | `number` |
+| `placeholderSignal` | `number` |
+| `signals` | `array<string>` |
 
 ### Native CSV columns
 
@@ -154,30 +203,48 @@ Native reports carry Picket schema metadata such as `picket.report.v1` and `pick
 | 16 | `Line` |
 | 17 | `Commit` |
 | 18 | `Entropy` |
-| 19 | `Author` |
-| 20 | `Email` |
-| 21 | `Date` |
-| 22 | `Message` |
-| 23 | `Fingerprint` |
-| 24 | `ValidationState` |
-| 25 | `Severity` |
-| 26 | `Confidence` |
-| 27 | `RulePack` |
-| 28 | `Provider` |
-| 29 | `DocumentationUrl` |
-| 30 | `ProvenanceType` |
-| 31 | `BaselineStatus` |
-| 32 | `IgnoreReason` |
-| 33 | `Tags` |
-| 34 | `Link` |
+| 19 | `RandomnessModel` |
+| 20 | `RandomnessScore` |
+| 21 | `RandomnessClassification` |
+| 22 | `RandomnessSampleOffset` |
+| 23 | `RandomnessSampleLength` |
+| 24 | `RandomnessAlphabet` |
+| 25 | `RandomnessLengthScore` |
+| 26 | `RandomnessNormalizedEntropy` |
+| 27 | `RandomnessExpectedDistinctRatio` |
+| 28 | `RandomnessTransitionDiversity` |
+| 29 | `RandomnessLongestRunRatio` |
+| 30 | `RandomnessSequentialPairRatio` |
+| 31 | `RandomnessRepeatedPatternRatio` |
+| 32 | `RandomnessCommonBigramRatio` |
+| 33 | `RandomnessCharacterClassBalance` |
+| 34 | `RandomnessEncodedTextSignal` |
+| 35 | `RandomnessPlaceholderSignal` |
+| 36 | `RandomnessSignals` |
+| 37 | `Author` |
+| 38 | `Email` |
+| 39 | `Date` |
+| 40 | `Message` |
+| 41 | `Fingerprint` |
+| 42 | `ValidationState` |
+| 43 | `Severity` |
+| 44 | `Confidence` |
+| 45 | `RulePack` |
+| 46 | `Provider` |
+| 47 | `DocumentationUrl` |
+| 48 | `ProvenanceType` |
+| 49 | `BaselineStatus` |
+| 50 | `IgnoreReason` |
+| 51 | `Tags` |
+| 52 | `Link` |
 
 ### Native TOON sections
 
 | Section | Fields |
 |---|---|
-| `findings` | `schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,secretSha256,matchSha256,blobSha256,decodePath,line,commit,entropy,author,email,date,message,fingerprint,validationState,severity,confidence,rulePack,provider,provenanceType,baselineStatus,ignoreReason,link` |
+| `findings` | `schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,secretSha256,matchSha256,blobSha256,decodePath,line,commit,entropy,randomnessModel,randomnessScore,randomnessClassification,randomnessSampleOffset,randomnessSampleLength,randomnessAlphabet,randomnessLengthScore,randomnessNormalizedEntropy,randomnessExpectedDistinctRatio,randomnessTransitionDiversity,randomnessLongestRunRatio,randomnessSequentialPairRatio,randomnessRepeatedPatternRatio,randomnessCommonBigramRatio,randomnessCharacterClassBalance,randomnessEncodedTextSignal,randomnessPlaceholderSignal,randomnessSignals,author,email,date,message,fingerprint,validationState,severity,confidence,rulePack,provider,provenanceType,baselineStatus,ignoreReason,link` |
 | `findingTags` | `findingIndex,tag` |
-| `rules` | `id,description,pattern,pathPattern,secretGroup,entropy,severity,confidence,rulePack,provider,documentationUrl,skipReport` |
+| `rules` | `id,description,pattern,pathPattern,secretGroup,entropy,randomnessThreshold,severity,confidence,rulePack,provider,documentationUrl,skipReport` |
 | `ruleKeywords` | `ruleIndex,keyword` |
 | `ruleTags` | `ruleIndex,tag` |
 
@@ -185,50 +252,73 @@ Native reports carry Picket schema metadata such as `picket.report.v1` and `pick
 
 | Property | JSON type |
 |---|---|
-| `$schema` | string |
-| `version` | string |
-| `runs` | array<object> |
+| `$schema` | `string` |
+| `version` | `string` |
+| `runs` | `array<object>` |
 
 ### Native SARIF driver object
 
 | Property | JSON type |
 |---|---|
-| `name` | string |
-| `fullName` | string |
-| `informationUri` | string |
-| `rules` | array<object> |
+| `name` | `string` |
+| `fullName` | `string` |
+| `informationUri` | `string` |
+| `rules` | `array<object>` |
 
 ### Native SARIF rule object
 
 | Property | JSON type |
 |---|---|
-| `id` | string |
-| `name` | string |
-| `shortDescription` | object |
-| `defaultConfiguration` | object |
-| `properties` | object |
+| `id` | `string` |
+| `name` | `string` |
+| `shortDescription` | `object` |
+| `defaultConfiguration` | `object` |
+| `properties` | `object` |
 
 ### Native SARIF result object
 
 | Property | JSON type |
 |---|---|
-| `ruleId` | string |
-| `level` | string |
-| `kind` | string |
-| `message` | object |
-| `locations` | array<object> |
-| `partialFingerprints` | object |
-| `properties` | object |
+| `ruleId` | `string` |
+| `level` | `string` |
+| `kind` | `string` |
+| `message` | `object` |
+| `locations` | `array<object>` |
+| `partialFingerprints` | `object` |
+| `properties` | `object` |
+
+### Native SARIF result randomness object
+
+| Property | JSON type |
+|---|---|
+| `model` | `string` |
+| `score` | `number` |
+| `classification` | `string` |
+| `sampleOffset` | `number` |
+| `sampleLength` | `number` |
+| `alphabet` | `string` |
+| `lengthScore` | `number` |
+| `normalizedEntropy` | `number` |
+| `expectedDistinctRatio` | `number` |
+| `transitionDiversity` | `number` |
+| `longestRunRatio` | `number` |
+| `sequentialPairRatio` | `number` |
+| `repeatedPatternRatio` | `number` |
+| `commonBigramRatio` | `number` |
+| `characterClassBalance` | `number` |
+| `encodedTextSignal` | `number` |
+| `placeholderSignal` | `number` |
+| `signals` | `array<string>` |
 
 ### GitLab Code Quality object
 
 | Property | JSON type |
 |---|---|
-| `description` | string |
-| `check_name` | string |
-| `fingerprint` | string |
-| `severity` | string |
-| `location` | object |
+| `description` | `string` |
+| `check_name` | `string` |
+| `fingerprint` | `string` |
+| `severity` | `string` |
+| `location` | `object` |
 
 ### Native JUnit XML elements
 
@@ -249,25 +339,25 @@ Compatibility reports keep the Gitleaks-shaped field names and ordering expected
 
 | Property | JSON type |
 |---|---|
-| `RuleID` | string |
-| `Description` | string |
-| `StartLine` | number |
-| `EndLine` | number |
-| `StartColumn` | number |
-| `EndColumn` | number |
-| `Match` | string |
-| `Secret` | string |
-| `File` | string |
-| `SymlinkFile` | string |
-| `Commit` | string |
-| `Link` | string |
-| `Entropy` | number |
-| `Author` | string |
-| `Email` | string |
-| `Date` | string |
-| `Message` | string |
-| `Tags` | array<string> |
-| `Fingerprint` | string |
+| `RuleID` | `string` |
+| `Description` | `string` |
+| `StartLine` | `number` |
+| `EndLine` | `number` |
+| `StartColumn` | `number` |
+| `EndColumn` | `number` |
+| `Match` | `string` |
+| `Secret` | `string` |
+| `File` | `string` |
+| `SymlinkFile` | `string` |
+| `Commit` | `string` |
+| `Link` | `string` |
+| `Entropy` | `number` |
+| `Author` | `string` |
+| `Email` | `string` |
+| `Date` | `string` |
+| `Message` | `string` |
+| `Tags` | `array<string>` |
+| `Fingerprint` | `string` |
 
 ### Gitleaks-compatible CSV columns
 
@@ -304,25 +394,25 @@ Compatibility reports keep the Gitleaks-shaped field names and ordering expected
 
 | Property | JSON type |
 |---|---|
-| `$schema` | string |
-| `version` | string |
-| `runs` | array<object> |
+| `$schema` | `string` |
+| `version` | `string` |
+| `runs` | `array<object>` |
 
 ### Gitleaks-compatible SARIF driver object
 
 | Property | JSON type |
 |---|---|
-| `name` | string |
-| `semanticVersion` | string |
-| `informationUri` | string |
-| `rules` | array<object> |
+| `name` | `string` |
+| `semanticVersion` | `string` |
+| `informationUri` | `string` |
+| `rules` | `array<object>` |
 
 ### Gitleaks-compatible SARIF result object
 
 | Property | JSON type |
 |---|---|
-| `message` | object |
-| `ruleId` | string |
-| `locations` | array<object> |
-| `partialFingerprints` | object |
-| `properties` | object |
+| `message` | `object` |
+| `ruleId` | `string` |
+| `locations` | `array<object>` |
+| `partialFingerprints` | `object` |
+| `properties` | `object` |

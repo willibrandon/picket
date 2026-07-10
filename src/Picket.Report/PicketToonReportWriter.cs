@@ -30,6 +30,24 @@ public static class PicketToonReportWriter
         "line",
         "commit",
         "entropy",
+        "randomnessModel",
+        "randomnessScore",
+        "randomnessClassification",
+        "randomnessSampleOffset",
+        "randomnessSampleLength",
+        "randomnessAlphabet",
+        "randomnessLengthScore",
+        "randomnessNormalizedEntropy",
+        "randomnessExpectedDistinctRatio",
+        "randomnessTransitionDiversity",
+        "randomnessLongestRunRatio",
+        "randomnessSequentialPairRatio",
+        "randomnessRepeatedPatternRatio",
+        "randomnessCommonBigramRatio",
+        "randomnessCharacterClassBalance",
+        "randomnessEncodedTextSignal",
+        "randomnessPlaceholderSignal",
+        "randomnessSignals",
         "author",
         "email",
         "date",
@@ -66,6 +84,24 @@ public static class PicketToonReportWriter
         false, // line
         false, // commit
         true, // entropy
+        false, // randomnessModel
+        true, // randomnessScore
+        false, // randomnessClassification
+        true, // randomnessSampleOffset
+        true, // randomnessSampleLength
+        false, // randomnessAlphabet
+        true, // randomnessLengthScore
+        true, // randomnessNormalizedEntropy
+        true, // randomnessExpectedDistinctRatio
+        true, // randomnessTransitionDiversity
+        true, // randomnessLongestRunRatio
+        true, // randomnessSequentialPairRatio
+        true, // randomnessRepeatedPatternRatio
+        true, // randomnessCommonBigramRatio
+        true, // randomnessCharacterClassBalance
+        true, // randomnessEncodedTextSignal
+        true, // randomnessPlaceholderSignal
+        false, // randomnessSignals
         false, // author
         false, // email
         false, // date
@@ -90,6 +126,7 @@ public static class PicketToonReportWriter
         "pathPattern",
         "secretGroup",
         "entropy",
+        "randomnessThreshold",
         "severity",
         "confidence",
         "rulePack",
@@ -104,6 +141,7 @@ public static class PicketToonReportWriter
         false,
         false,
         false,
+        true,
         true,
         true,
         false,
@@ -159,6 +197,8 @@ public static class PicketToonReportWriter
         {
             Finding finding = findings[i];
             SecretRule? rule = PicketFindingMetadata.FindRule(ruleIndex, finding);
+            SecretRandomnessAssessment? randomness = finding.Randomness;
+            SecretRandomnessFeatures? features = randomness?.Features;
             WriteRow(builder, 1, [
                 "picket.finding.v1",
                 finding.RuleID,
@@ -178,6 +218,24 @@ public static class PicketToonReportWriter
                 finding.Line,
                 finding.Commit,
                 FormatNumber(finding.Entropy),
+                randomness?.Model ?? string.Empty,
+                randomness is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(randomness.Score),
+                randomness?.Classification ?? string.Empty,
+                features?.SampleOffset.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                features?.SampleLength.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                features?.Alphabet ?? string.Empty,
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.LengthScore),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.NormalizedEntropy),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.ExpectedDistinctRatio),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.TransitionDiversity),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.LongestRunRatio),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.SequentialPairRatio),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.RepeatedPatternRatio),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.CommonBigramRatio),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.CharacterClassBalance),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.EncodedTextSignal),
+                features is null ? string.Empty : PicketFindingMetadata.FormatRandomnessNumber(features.PlaceholderSignal),
+                randomness is null ? string.Empty : string.Join('>', randomness.Signals),
                 finding.Author,
                 finding.Email,
                 finding.Date,
@@ -243,6 +301,7 @@ public static class PicketToonReportWriter
                 rule.PathPattern,
                 rule.SecretGroup.ToString(CultureInfo.InvariantCulture),
                 FormatNumber(rule.Entropy),
+                PicketFindingMetadata.FormatProbability(rule.RandomnessThreshold),
                 PicketFindingMetadata.CreateSeverity(rule),
                 PicketFindingMetadata.CreateConfidence(rule),
                 PicketFindingMetadata.CreateRulePack(rule),

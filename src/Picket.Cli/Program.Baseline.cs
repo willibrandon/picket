@@ -397,7 +397,11 @@ internal static partial class Program
                     maxDecodeDepth: maxDecodeDepth,
                     maxTargetBytes: maxTargetBytes,
                     symlinkFile: file.SymlinkDisplayPath,
-                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+                    enableCSharpStringConcatenation: true,
+                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
+                {
+                    EnableRandomnessScoring = true,
+                });
                 if (IsTimedOut(timeoutTimestamp))
                 {
                     Console.Error.WriteLine(TimeoutErrorMessage);

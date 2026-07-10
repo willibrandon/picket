@@ -221,6 +221,31 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies secret-hash-only cache entries preserve non-secret randomness assessments.
+    /// </summary>
+    [TestMethod]
+    public void TryReadSecretHashOnlyEntryReturnsRandomnessAssessment()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("prefix token-12345 suffix");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt", includeRandomness: true)]);
+
+        bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsTrue(hit);
+        Assert.IsNotNull(cachedFindings);
+        Assert.HasCount(1, cachedFindings);
+        SecretRandomnessAssessment assessment = cachedFindings[0].Randomness
+            ?? throw new InvalidOperationException("Cached finding did not preserve randomness metadata.");
+        Assert.AreEqual(SecretRandomnessScorer.ModelVersion, assessment.Model);
+        Assert.AreEqual(SecretRandomnessScorer.Assess("token-12345").Score, assessment.Score);
+        Assert.AreEqual("likely-structured", assessment.Classification);
+        Assert.AreEqual("alphanumeric", assessment.Features.Alphabet);
+    }
+
+    /// <summary>
     /// Verifies cache reads reject entries whose storage metadata does not match the active key.
     /// </summary>
     [TestMethod]
@@ -414,10 +439,16 @@ public sealed class PicketScanCacheTests
             string.Empty,
             "token-[0-9]+",
             deprecated: true));
+        string randomnessThreshold = CreateRuleSetFingerprint(SecretRule.Create(
+            "token",
+            string.Empty,
+            "token-[0-9]+",
+            randomnessThreshold: 0.8));
 
         Assert.AreNotEqual(baseline, validation);
         Assert.AreNotEqual(baseline, revocation);
         Assert.AreNotEqual(baseline, deprecated);
+        Assert.AreNotEqual(baseline, randomnessThreshold);
     }
 
     /// <summary>
@@ -796,7 +827,7 @@ public sealed class PicketScanCacheTests
         return CompiledRuleSet.Compile(new RuleSet([rule])).Fingerprint;
     }
 
-    private static Finding CreateFinding(string file)
+    private static Finding CreateFinding(string file, bool includeRandomness = false)
     {
         return new Finding(
             "token",
@@ -818,7 +849,8 @@ public sealed class PicketScanCacheTests
             [],
             $"{file}:token:1",
             "token-12345",
-            decodePath: ["base64"]);
+            decodePath: ["base64"],
+            randomness: includeRandomness ? SecretRandomnessScorer.Assess("token-12345") : null);
     }
 
     private static string CreateLegacyEntry(string blobHash, string keyFingerprint)

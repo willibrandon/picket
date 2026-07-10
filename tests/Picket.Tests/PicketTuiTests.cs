@@ -122,6 +122,8 @@ public sealed class PicketTuiTests
         Assert.Contains("Path: src/auth.cs", text);
         Assert.Contains("Line: 12", text);
         Assert.Contains("Fingerprint: fp-auth-1", text);
+        Assert.Contains("Randomness: 0.902542 (likely-random)", text);
+        Assert.Contains("Randomness model: picket-random-v1", text);
         Assert.Contains("Report: report.json", text);
         Assert.DoesNotContain("Secret", text);
     }
@@ -2742,7 +2744,15 @@ public sealed class PicketTuiTests
         var summary = new ReportSummary(
             "picket-json",
             [
-                new ReportFindingSummary("github-token", "src/auth.cs", 12, "fp-auth-1", 7),
+                new ReportFindingSummary(
+                    "github-token",
+                    "src/auth.cs",
+                    12,
+                    "fp-auth-1",
+                    7,
+                    randomnessScore: 0.902542,
+                    randomnessClassification: "likely-random",
+                    randomnessModel: "picket-random-v1"),
                 new ReportFindingSummary("github-token", "src/auth.cs", 18, "fp-auth-2", 8),
                 new ReportFindingSummary("aws-key", "infra/main.tf", 4, "fp-infra-1", 3),
             ]);

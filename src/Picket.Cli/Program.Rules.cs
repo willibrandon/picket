@@ -342,17 +342,22 @@ internal static partial class Program
             }
 
             byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+            CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(selectedRuleSet);
             IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
                 inputBytes,
                 fileName,
-                CompiledRuleSet.Compile(selectedRuleSet),
+                compiledRuleSet,
                 ignoreGitleaksAllow,
                 maxDecodeDepth: maxDecodeDepth,
                 maxTargetBytes: maxTargetBytes,
-                enableCSharpStringConcatenation: nativeMode));
+                enableCSharpStringConcatenation: nativeMode)
+            {
+                EnableRandomnessScoring = nativeMode,
+            });
             if (nativeMode)
             {
                 findings = OfflineSecretValidator.AnnotateAll(findings);
+                findings = SecretRandomnessFindingProcessor.Apply(findings, compiledRuleSet);
             }
 
             if (redactionPercent > 0)
@@ -618,7 +623,13 @@ internal static partial class Program
             fileName = "rules-example.txt";
         }
 
-        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, fileName, compiledRuleSet));
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            fileName,
+            compiledRuleSet)
+        {
+            EnableRandomnessScoring = true,
+        });
         foreach (Finding finding in findings)
         {
             if (finding.RuleID.Equals(rule.Id, StringComparison.Ordinal))

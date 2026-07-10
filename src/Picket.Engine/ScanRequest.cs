@@ -105,6 +105,11 @@ public sealed class ScanRequest(
     public bool EnableCSharpStringConcatenation { get; } = enableCSharpStringConcatenation;
 
     /// <summary>
+    /// Gets a value indicating whether native scans calculate and apply deterministic randomness scores.
+    /// </summary>
+    public bool EnableRandomnessScoring { get; init; }
+
+    /// <summary>
     /// Gets an optional predicate that stops scanning when it returns <see langword="true" />.
     /// </summary>
     public Func<bool>? IsCancellationRequested { get; } = isCancellationRequested;

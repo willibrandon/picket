@@ -41,6 +41,7 @@ Native reports can include:
 - source line,
 - commit and author metadata when available,
 - entropy,
+- deterministic randomness model, score, classification, component features, and explanatory signals when native scoring ran,
 - tags,
 - stable Picket fingerprint,
 - validation state,

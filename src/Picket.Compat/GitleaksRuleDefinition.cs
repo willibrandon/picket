@@ -24,7 +24,9 @@ internal sealed class GitleaksRuleDefinition(
     IReadOnlyList<string>? revocation = null,
     bool deprecated = false,
     IReadOnlyList<string>? examples = null,
-    IReadOnlyList<string>? negativeExamples = null)
+    IReadOnlyList<string>? negativeExamples = null,
+    double randomnessThreshold = 0,
+    bool randomnessThresholdSet = false)
 {
     internal string Id { get; } = id ?? string.Empty;
 
@@ -68,6 +70,10 @@ internal sealed class GitleaksRuleDefinition(
 
     internal IReadOnlyList<string> NegativeExamples { get; } = negativeExamples ?? [];
 
+    internal double RandomnessThreshold { get; } = randomnessThreshold;
+
+    internal bool RandomnessThresholdSet { get; } = randomnessThresholdSet;
+
     internal static GitleaksRuleDefinition FromRule(SecretRule rule)
     {
         return new GitleaksRuleDefinition(
@@ -91,7 +97,9 @@ internal sealed class GitleaksRuleDefinition(
             rule.Revocation,
             rule.Deprecated,
             rule.Examples,
-            rule.NegativeExamples);
+            rule.NegativeExamples,
+            rule.RandomnessThreshold,
+            randomnessThresholdSet: true);
     }
 
     internal GitleaksRuleDefinition MergeWithBase(SecretRule baseRule)
@@ -117,7 +125,9 @@ internal sealed class GitleaksRuleDefinition(
             Revocation.Count != 0 ? Revocation : baseRule.Revocation,
             Deprecated || baseRule.Deprecated,
             Examples.Count != 0 ? Examples : baseRule.Examples,
-            NegativeExamples.Count != 0 ? NegativeExamples : baseRule.NegativeExamples);
+            NegativeExamples.Count != 0 ? NegativeExamples : baseRule.NegativeExamples,
+            RandomnessThresholdSet ? RandomnessThreshold : baseRule.RandomnessThreshold,
+            randomnessThresholdSet: true);
     }
 
     internal SecretRule ToRule(string sourceName)
@@ -162,7 +172,8 @@ internal sealed class GitleaksRuleDefinition(
             revocation: Revocation,
             deprecated: Deprecated,
             examples: Examples,
-            negativeExamples: NegativeExamples);
+            negativeExamples: NegativeExamples,
+            randomnessThreshold: RandomnessThreshold);
     }
 
     internal static string CreateMissingIdMessage(string description, string pattern, string pathPattern)
@@ -282,6 +293,8 @@ internal sealed class GitleaksRuleDefinition(
             Revocation,
             Deprecated,
             Examples,
-            NegativeExamples);
+            NegativeExamples,
+            RandomnessThreshold,
+            RandomnessThresholdSet);
     }
 }

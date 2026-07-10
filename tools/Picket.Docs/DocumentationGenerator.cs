@@ -13,6 +13,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     {
         ["DESIGN"] = 10,
         ["RULES"] = 20,
+        ["RANDOMNESS"] = 25,
         ["REPORTS"] = 30,
         ["VALIDATION"] = 40,
         ["CACHE"] = 50,

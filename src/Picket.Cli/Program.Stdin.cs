@@ -262,7 +262,10 @@ internal static partial class Program
             ignoreGitleaksAllow,
             maxDecodeDepth: maxDecodeDepth,
             maxTargetBytes: maxTargetBytes,
-            isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+            isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
+        {
+            EnableRandomnessScoring = nativeMode,
+        });
         if (IsTimedOut(timeoutTimestamp))
         {
             Console.Error.WriteLine(TimeoutErrorMessage);
@@ -278,6 +281,7 @@ internal static partial class Program
         if (nativeMode)
         {
             findings = OfflineSecretValidator.AnnotateAll(findings);
+            findings = SecretRandomnessFindingProcessor.Apply(findings, rules);
         }
 
         if (redactionPercent > 0)

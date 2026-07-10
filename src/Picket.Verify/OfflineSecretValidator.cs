@@ -1032,7 +1032,8 @@ public static class OfflineSecretValidator
             finding.MatchSha256,
             validationState,
             finding.BlobSha256,
-            finding.DecodePath);
+            finding.DecodePath,
+            finding.Randomness);
     }
 
     private static bool IsTestCredential(string secret)

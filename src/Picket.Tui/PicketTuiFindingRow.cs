@@ -55,6 +55,16 @@ internal sealed class PicketTuiFindingRow(ReportFindingSummary finding, int inde
     /// </summary>
     internal string Fingerprint { get; } = EmptyAsUnknown(finding.Fingerprint);
 
+    /// <summary>
+    /// Gets the displayed randomness score and classification, or an empty string when unavailable.
+    /// </summary>
+    internal string Randomness { get; } = CreateRandomness(finding);
+
+    /// <summary>
+    /// Gets the displayed randomness model identifier, or an empty string when unavailable.
+    /// </summary>
+    internal string RandomnessModel { get; } = finding.RandomnessModel;
+
     private static string CreateKey(ReportFindingSummary finding, int index)
     {
         return string.Concat(
@@ -70,6 +80,19 @@ internal sealed class PicketTuiFindingRow(ReportFindingSummary finding, int inde
         return finding.Line == 0
             ? EmptyAsUnknown(finding.Path)
             : string.Concat(finding.Path, ":", finding.Line.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static string CreateRandomness(ReportFindingSummary finding)
+    {
+        if (!finding.RandomnessScore.HasValue)
+        {
+            return string.Empty;
+        }
+
+        string score = finding.RandomnessScore.Value.ToString("0.######", CultureInfo.InvariantCulture);
+        return finding.RandomnessClassification.Length == 0
+            ? score
+            : string.Concat(score, " (", finding.RandomnessClassification, ")");
     }
 
     private static string EmptyAsUnknown(string value)

@@ -13,6 +13,7 @@ namespace Picket.Engine;
 public sealed class CompiledRuleSet(RuleSet rules)
 {
     private const string LowerHex = "0123456789abcdef";
+    private readonly Dictionary<string, double>? _randomnessThresholds = CreateRandomnessThresholds(rules);
 
     /// <summary>
     /// Gets the source rules in deterministic evaluation order.
@@ -35,6 +36,8 @@ public sealed class CompiledRuleSet(RuleSet rules)
         rules.Allowlists,
         rules.RegexesPrevalidated,
         "[[allowlists]]");
+
+    internal bool HasRandomnessThresholds => _randomnessThresholds is not null;
 
     /// <summary>
     /// Returns a value indicating whether a global Gitleaks path allowlist matches the supplied path.
@@ -63,6 +66,17 @@ public sealed class CompiledRuleSet(RuleSet rules)
     public static CompiledRuleSet Compile(RuleSet rules)
     {
         return new CompiledRuleSet(rules);
+    }
+
+    internal bool TryGetRandomnessThreshold(string ruleId, out double threshold)
+    {
+        if (_randomnessThresholds is null)
+        {
+            threshold = 0;
+            return false;
+        }
+
+        return _randomnessThresholds.TryGetValue(ruleId, out threshold);
     }
 
     private static RuleSet RequireRules(RuleSet rules)
@@ -100,6 +114,26 @@ public sealed class CompiledRuleSet(RuleSet rules)
         }
 
         return compiledRules;
+    }
+
+    private static Dictionary<string, double>? CreateRandomnessThresholds(RuleSet rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+
+        Dictionary<string, double>? thresholds = null;
+        for (int i = 0; i < rules.Rules.Count; i++)
+        {
+            SecretRule rule = rules.Rules[i];
+            if (rule.RandomnessThreshold == 0)
+            {
+                continue;
+            }
+
+            thresholds ??= new Dictionary<string, double>(StringComparer.Ordinal);
+            thresholds.TryAdd(rule.Id, rule.RandomnessThreshold);
+        }
+
+        return thresholds;
     }
 
     private static bool IsPicketNativeRulePack(string rulePack)
@@ -154,6 +188,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
             AppendValue(builder, rule.Pattern);
             AppendValue(builder, rule.SecretGroup.ToString(CultureInfo.InvariantCulture));
             AppendValue(builder, rule.Entropy.ToString("G17", CultureInfo.InvariantCulture));
+            AppendValue(builder, rule.RandomnessThreshold.ToString("G17", CultureInfo.InvariantCulture));
             AppendValue(builder, rule.PathPattern);
             AppendValues(builder, rule.Keywords);
             AppendValues(builder, rule.Tags);

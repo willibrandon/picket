@@ -161,6 +161,7 @@ public sealed class GitleaksConfigLoaderTests
             deprecated = true
             examples = ["token-12345"]
             negativeExamples = ["token-value"]
+            randomnessThreshold = 0.8
             """,
             "memory");
 
@@ -179,6 +180,26 @@ public sealed class GitleaksConfigLoaderTests
         Assert.AreEqual("token-12345", rule.Examples[0]);
         Assert.HasCount(1, rule.NegativeExamples);
         Assert.AreEqual("token-value", rule.NegativeExamples[0]);
+        Assert.AreEqual(0.8, rule.RandomnessThreshold);
+    }
+
+    /// <summary>
+    /// Verifies native randomness thresholds reject values outside the probability range.
+    /// </summary>
+    [TestMethod]
+    public void FromTomlRejectsRandomnessThresholdAboveOne()
+    {
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => GitleaksConfigLoader.FromToml(
+            """
+            [[rules]]
+            id = "custom-token"
+            regex = '''token-[0-9]+'''
+            randomnessThreshold = 1.01
+            """,
+            "memory"));
+
+        Assert.Contains("randomnessThreshold", exception.Message);
+        Assert.Contains("between zero and one", exception.Message);
     }
 
     /// <summary>
@@ -216,6 +237,29 @@ public sealed class GitleaksConfigLoaderTests
         Assert.Contains("\\u0001", toml);
         Assert.HasCount(1, loadedRuleSet.Rules);
         Assert.AreEqual("control\u0001description", loadedRuleSet.Rules[0].Description);
+    }
+
+    /// <summary>
+    /// Verifies generated configs preserve the exact native randomness threshold.
+    /// </summary>
+    [TestMethod]
+    public void WriteThenLoadRoundTripsRandomnessThreshold()
+    {
+        const double threshold = 0.8123456789012345;
+        var sourceRuleSet = new RuleSet([
+            SecretRule.Create(
+                "random-token",
+                "random token",
+                "token-[0-9]+",
+                randomnessThreshold: threshold),
+        ]);
+
+        string toml = GitleaksConfigWriter.Write(sourceRuleSet);
+        RuleSet loadedRuleSet = GitleaksConfigLoader.FromToml(toml, "memory");
+
+        Assert.Contains("randomnessThreshold = ", toml);
+        Assert.HasCount(1, loadedRuleSet.Rules);
+        Assert.AreEqual(threshold, loadedRuleSet.Rules[0].RandomnessThreshold);
     }
 
     /// <summary>
@@ -806,6 +850,7 @@ public sealed class GitleaksConfigLoaderTests
                 path = '''\.txt$'''
                 secretGroup = 1
                 entropy = 2.1
+                randomnessThreshold = 0.8
                 keywords = ["base-key"]
                 tags = ["base-tag"]
 
@@ -822,6 +867,7 @@ public sealed class GitleaksConfigLoaderTests
                 [[rules]]
                 id = "shared-token"
                 description = "child shared"
+                randomnessThreshold = 0
                 keywords = ["child-key"]
                 tags = ["child-tag"]
 
@@ -846,6 +892,7 @@ public sealed class GitleaksConfigLoaderTests
             Assert.AreEqual(@"\.txt$", sharedRule.PathPattern);
             Assert.AreEqual(1, sharedRule.SecretGroup);
             Assert.AreEqual(2.1, sharedRule.Entropy);
+            Assert.AreEqual(0, sharedRule.RandomnessThreshold);
             Assert.Contains("base-key", sharedRule.Keywords);
             Assert.Contains("child-key", sharedRule.Keywords);
             Assert.Contains("base-tag", sharedRule.Tags);

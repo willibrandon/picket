@@ -101,7 +101,10 @@ public static class ReportSummaryReader
                 GetString(finding, "path"),
                 GetInt32(finding, "line"),
                 GetString(finding, "fingerprint"),
-                GetInt32(finding, "startColumn")));
+                GetInt32(finding, "startColumn"),
+                GetOptionalDouble(finding, "randomnessScore"),
+                GetString(finding, "randomnessClassification"),
+                GetString(finding, "randomnessModel")));
         }
 
         return new ReportSummary("picket-html", findings);
@@ -298,12 +301,27 @@ public static class ReportSummaryReader
             throw new InvalidDataException();
         }
 
+        JsonElement randomness = finding.TryGetProperty("randomness", out JsonElement randomnessElement)
+            && randomnessElement.ValueKind == JsonValueKind.Object
+            ? randomnessElement
+            : default;
+        double? randomnessScore = GetOptionalDouble(randomness, "score")
+            ?? GetOptionalDouble(finding, "randomnessScore");
+        string randomnessClassification = GetFirstNonEmptyString(
+            GetString(randomness, "classification"),
+            GetString(finding, "randomnessClassification"));
+        string randomnessModel = GetFirstNonEmptyString(
+            GetString(randomness, "model"),
+            GetString(finding, "randomnessModel"));
         return new ReportFindingSummary(
             GetString(finding, "ruleId"),
             GetDisplayPath(finding, "file", "symlinkFile"),
             GetInt32(finding, "startLine"),
             GetString(finding, "fingerprint"),
-            GetInt32(finding, "startColumn"));
+            GetInt32(finding, "startColumn"),
+            randomnessScore,
+            randomnessClassification,
+            randomnessModel);
     }
 
     private static ReportFindingSummary ReadTruffleHogFinding(JsonElement finding)
@@ -394,12 +412,19 @@ public static class ReportSummaryReader
             fingerprint = GetString(partialFingerprints, "picketFingerprint");
         }
 
+        JsonElement randomness = properties.TryGetProperty("randomness", out JsonElement randomnessElement)
+            && randomnessElement.ValueKind == JsonValueKind.Object
+            ? randomnessElement
+            : default;
         return new ReportFindingSummary(
             GetString(result, "ruleId"),
             GetString(artifactLocation, "uri"),
             GetInt32(region, "startLine"),
             fingerprint,
-            GetInt32(region, "startColumn"));
+            GetInt32(region, "startColumn"),
+            GetOptionalDouble(randomness, "score"),
+            GetString(randomness, "classification"),
+            GetString(randomness, "model"));
     }
 
     private static JsonElement GetFirstArrayObject(JsonElement element, string name)
@@ -484,6 +509,26 @@ public static class ReportSummaryReader
         }
 
         return property.ValueKind == JsonValueKind.String ? property.GetString() ?? string.Empty : string.Empty;
+    }
+
+    private static double? GetOptionalDouble(JsonElement element, string name)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty(name, out JsonElement property)
+            || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out double number))
+        {
+            return number;
+        }
+
+        return property.ValueKind == JsonValueKind.String
+            && double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number)
+                ? number
+                : null;
     }
 
     private static string FindString(JsonElement element, params string[] names)

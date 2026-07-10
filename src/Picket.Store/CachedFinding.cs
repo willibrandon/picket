@@ -20,9 +20,10 @@ internal sealed class CachedFinding(
     string secretSha256,
     string matchSha256,
     string validationState,
-    IReadOnlyList<string> decodePath)
+    IReadOnlyList<string> decodePath,
+    SecretRandomnessAssessment? randomness)
 {
-    private const int CurrentFieldCount = 15;
+    private const int CurrentFieldCount = 33;
 
     internal static CachedFinding FromFinding(
         Finding finding,
@@ -49,7 +50,8 @@ internal sealed class CachedFinding(
                 ProtectedCacheField.Protect(fieldProtectionKey, secretSha256),
                 ProtectedCacheField.Protect(fieldProtectionKey, matchSha256),
                 finding.ValidationState,
-                finding.DecodePath);
+                finding.DecodePath,
+                finding.Randomness);
         }
 
         return new CachedFinding(
@@ -67,7 +69,8 @@ internal sealed class CachedFinding(
             finding.SecretSha256,
             finding.MatchSha256,
             finding.ValidationState,
-            finding.DecodePath);
+            finding.DecodePath,
+            finding.Randomness);
     }
 
     internal static bool TryParse(
@@ -102,6 +105,11 @@ internal sealed class CachedFinding(
                 return false;
             }
 
+            if (!TryParseRandomness(fields, out SecretRandomnessAssessment? randomness))
+            {
+                return false;
+            }
+
             finding = new CachedFinding(
                 TextFieldCodec.Decode(fields[0]),
                 TextFieldCodec.Decode(fields[1]),
@@ -117,10 +125,11 @@ internal sealed class CachedFinding(
                 secretSha256,
                 matchSha256,
                 TextFieldCodec.Decode(fields[13]),
-                TextFieldCodec.DecodeTags(fields[14]));
+                TextFieldCodec.DecodeTags(fields[14]),
+                randomness);
             return true;
         }
-        catch (FormatException)
+        catch (Exception exception) when (exception is ArgumentException or FormatException)
         {
             finding = null;
             return false;
@@ -145,6 +154,7 @@ internal sealed class CachedFinding(
         Append(builder, TextFieldCodec.Encode(matchSha256));
         Append(builder, TextFieldCodec.Encode(validationState));
         Append(builder, TextFieldCodec.EncodeTags(decodePath));
+        AppendRandomness(builder, randomness);
         builder.Append('\n');
     }
 
@@ -175,7 +185,99 @@ internal sealed class CachedFinding(
             matchSha256,
             validationState,
             blobSha256,
-            decodePath);
+            decodePath,
+            randomness);
+    }
+
+    private static void AppendRandomness(StringBuilder builder, SecretRandomnessAssessment? assessment)
+    {
+        if (assessment is null)
+        {
+            for (int i = 15; i < CurrentFieldCount; i++)
+            {
+                Append(builder, string.Empty);
+            }
+
+            return;
+        }
+
+        SecretRandomnessFeatures features = assessment.Features;
+        Append(builder, TextFieldCodec.Encode(assessment.Model));
+        Append(builder, assessment.Score.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, TextFieldCodec.Encode(assessment.Classification));
+        Append(builder, features.SampleOffset.ToString(CultureInfo.InvariantCulture));
+        Append(builder, features.SampleLength.ToString(CultureInfo.InvariantCulture));
+        Append(builder, TextFieldCodec.Encode(features.Alphabet));
+        Append(builder, features.LengthScore.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.NormalizedEntropy.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.ExpectedDistinctRatio.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.TransitionDiversity.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.LongestRunRatio.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.SequentialPairRatio.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.RepeatedPatternRatio.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.CommonBigramRatio.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.CharacterClassBalance.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.EncodedTextSignal.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, features.PlaceholderSignal.ToString("G17", CultureInfo.InvariantCulture));
+        Append(builder, TextFieldCodec.EncodeTags(assessment.Signals));
+    }
+
+    private static bool TryParseRandomness(ReadOnlySpan<string> fields, out SecretRandomnessAssessment? assessment)
+    {
+        assessment = null;
+        if (fields[15].Length == 0)
+        {
+            for (int i = 16; i < CurrentFieldCount; i++)
+            {
+                if (fields[i].Length != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (!double.TryParse(fields[16], CultureInfo.InvariantCulture, out double score)
+            || !int.TryParse(fields[18], CultureInfo.InvariantCulture, out int sampleOffset)
+            || !int.TryParse(fields[19], CultureInfo.InvariantCulture, out int sampleLength)
+            || !double.TryParse(fields[21], CultureInfo.InvariantCulture, out double lengthScore)
+            || !double.TryParse(fields[22], CultureInfo.InvariantCulture, out double normalizedEntropy)
+            || !double.TryParse(fields[23], CultureInfo.InvariantCulture, out double expectedDistinctRatio)
+            || !double.TryParse(fields[24], CultureInfo.InvariantCulture, out double transitionDiversity)
+            || !double.TryParse(fields[25], CultureInfo.InvariantCulture, out double longestRunRatio)
+            || !double.TryParse(fields[26], CultureInfo.InvariantCulture, out double sequentialPairRatio)
+            || !double.TryParse(fields[27], CultureInfo.InvariantCulture, out double repeatedPatternRatio)
+            || !double.TryParse(fields[28], CultureInfo.InvariantCulture, out double commonBigramRatio)
+            || !double.TryParse(fields[29], CultureInfo.InvariantCulture, out double characterClassBalance)
+            || !double.TryParse(fields[30], CultureInfo.InvariantCulture, out double encodedTextSignal)
+            || !double.TryParse(fields[31], CultureInfo.InvariantCulture, out double placeholderSignal))
+        {
+            return false;
+        }
+
+        SecretRandomnessFeatures features = SecretRandomnessFeatures.Create(
+            sampleOffset,
+            sampleLength,
+            TextFieldCodec.Decode(fields[20]),
+            lengthScore,
+            normalizedEntropy,
+            expectedDistinctRatio,
+            transitionDiversity,
+            longestRunRatio,
+            sequentialPairRatio,
+            repeatedPatternRatio,
+            commonBigramRatio,
+            characterClassBalance,
+            encodedTextSignal,
+            placeholderSignal);
+        assessment = SecretRandomnessAssessment.Create(
+            TextFieldCodec.Decode(fields[15]),
+            score,
+            TextFieldCodec.Decode(fields[17]),
+            features,
+            TextFieldCodec.DecodeTags(fields[32]));
+        return true;
     }
 
     private static void Append(StringBuilder builder, string value)

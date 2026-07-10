@@ -298,6 +298,7 @@ node_modules/
 docs-site/.astro/
 docs-site/dist/
 .playwright-cli/
+/output/
 picket-results/
 *.checkpoint
 *.checkpoint.lock

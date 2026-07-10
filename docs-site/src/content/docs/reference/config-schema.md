@@ -60,6 +60,7 @@ Each `[[rules]]` table defines one scanner rule. Native metadata fields are igno
 | `path` | `string` | strict + native | Path regex pattern. |
 | `secretGroup` | `integer` | strict + native | Capture group containing the secret. \`0\` keeps Gitleaks-compatible automatic behavior. |
 | `entropy` | `number` | strict + native | Minimum Shannon entropy threshold. The comparison is strict \`>\`. |
+| `randomnessThreshold` | `number` | native | Minimum deterministic randomness score from \`0.0\` through \`1.0\`. Zero disables score filtering. |
 | `keywords` | `string[]` | strict + native | Literal prefilter terms for the rule. |
 | `tags` | `string[]` | strict + native | Rule tags copied into findings and reports. |
 | `skipReport` | `bool` | strict + native | Runs the rule but omits matching findings from reports. |

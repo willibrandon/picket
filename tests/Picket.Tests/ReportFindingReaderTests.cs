@@ -53,6 +53,32 @@ public sealed class ReportFindingReaderTests
     }
 
     /// <summary>
+    /// Verifies Picket JSON Lines round-trips explainable randomness metadata.
+    /// </summary>
+    [TestMethod]
+    public void TryReadPreservesPicketRandomnessMetadata()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        Finding finding = CreateFinding("picket-rule", "auth.py", "a8F2kL9mQ4xT7vN1zR6pW3cY", includeRandomness: true);
+        string report = PicketJsonlReportWriter.Write([finding]);
+        string reportPath = WriteReport(root.Path, "report.jsonl", report);
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsTrue(read);
+        Assert.IsNotNull(findings);
+        Assert.HasCount(1, findings);
+        SecretRandomnessAssessment assessment = findings[0].Randomness
+            ?? throw new InvalidOperationException("Report finding did not preserve randomness metadata.");
+        Assert.AreEqual(0.902542, assessment.Score);
+        Assert.AreEqual("likely-random", assessment.Classification);
+        Assert.AreEqual("alphanumeric", assessment.Features.Alphabet);
+        Assert.Contains("balanced-character-classes", assessment.Signals);
+        Assert.Contains("\"randomness\":{", report);
+        Assert.DoesNotContain("randomnessSample", report);
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks JSON reports can be read as findings.
     /// </summary>
     [TestMethod]
@@ -210,7 +236,7 @@ public sealed class ReportFindingReaderTests
         return reportPath;
     }
 
-    private static Finding CreateFinding(string ruleId, string file, string secret)
+    private static Finding CreateFinding(string ruleId, string file, string secret, bool includeRandomness = false)
     {
         return new Finding(
             ruleId,
@@ -231,6 +257,7 @@ public sealed class ReportFindingReaderTests
             string.Empty,
             ["tag"],
             $"{file}:{ruleId}:1",
-            $"line containing {secret}");
+            $"line containing {secret}",
+            randomness: includeRandomness ? SecretRandomnessScorer.Assess(secret) : null);
     }
 }

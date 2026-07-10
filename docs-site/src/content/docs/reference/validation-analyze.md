@@ -232,31 +232,31 @@ JSON reports use schema `picket.analysis.report.v1`. JSON Lines emits one `picke
 
 | Property | JSON type |
 |---|---|
-| `schema` | string |
-| `summary` | object |
-| `analyses` | array<object> |
+| `schema` | `string` |
+| `summary` | `object` |
+| `analyses` | `array<object>` |
 
 ### Analysis JSON `analyses[]` object
 
 | Property | JSON type |
 |---|---|
-| `schema` | string |
-| `ruleId` | string |
-| `provider` | string |
-| `credentialType` | string |
-| `file` | string |
-| `startLine` | number |
-| `startColumn` | number |
-| `fingerprint` | string |
-| `secretSha256` | string |
-| `validationState` | string |
-| `risk` | string |
-| `identity` | string |
-| `scopes` | array<string> |
-| `reachableResources` | array<string> |
-| `riskSummary` | string |
-| `recommendedActions` | array<string> |
-| `revocationAvailable` | boolean |
-| `revocationCommands` | array<string> |
-| `revocationGuidance` | array<string> |
-| `evidence` | array<string> |
+| `schema` | `string` |
+| `ruleId` | `string` |
+| `provider` | `string` |
+| `credentialType` | `string` |
+| `file` | `string` |
+| `startLine` | `number` |
+| `startColumn` | `number` |
+| `fingerprint` | `string` |
+| `secretSha256` | `string` |
+| `validationState` | `string` |
+| `risk` | `string` |
+| `identity` | `string` |
+| `scopes` | `array<string>` |
+| `reachableResources` | `array<string>` |
+| `riskSummary` | `string` |
+| `recommendedActions` | `array<string>` |
+| `revocationAvailable` | `boolean` |
+| `revocationCommands` | `array<string>` |
+| `revocationGuidance` | `array<string>` |
+| `evidence` | `array<string>` |

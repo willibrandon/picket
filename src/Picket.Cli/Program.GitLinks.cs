@@ -19,6 +19,7 @@ internal static partial class Program
         bool ignoreGitleaksAllow,
         long? maxTargetBytes,
         int maxDecodeDepth,
+        bool nativeMode,
         long timeoutTimestamp,
         string scmPlatform,
         string remoteUrl,
@@ -42,7 +43,10 @@ internal static partial class Program
                 fragment.Commit,
                 maxDecodeDepth,
                 maxTargetBytes,
-                isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+                isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
+            {
+                EnableRandomnessScoring = nativeMode,
+            });
             if (IsTimedOut(timeoutTimestamp))
             {
                 timedOut = true;
@@ -88,7 +92,8 @@ internal static partial class Program
             finding.MatchSha256,
             finding.ValidationState,
             finding.BlobSha256,
-            finding.DecodePath);
+            finding.DecodePath,
+            finding.Randomness);
     }
 
     static void CreateGitLinkContext(string root, bool disableLinks, string? platform, out string scmPlatform, out string remoteUrl)

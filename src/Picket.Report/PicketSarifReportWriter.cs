@@ -127,6 +127,7 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 8, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
         WriteStringProperty(builder, 8, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
         WriteStringProperty(builder, 8, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
+        WriteProbabilityProperty(builder, 8, "randomnessThreshold", rule.RandomnessThreshold, comma: true);
         WritePropertyName(builder, 8, "tags");
         builder.Append(" [");
         WriteRuleTags(builder, rule.Tags);
@@ -263,6 +264,7 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 6, "fingerprint", CreateFingerprint(finding), comma: true);
         WriteStringProperty(builder, 6, "commit", finding.Commit, comma: true);
         WriteNumberProperty(builder, 6, "entropy", finding.Entropy, comma: true);
+        WriteRandomnessProperty(builder, finding.Randomness, comma: true);
         WriteStringProperty(builder, 6, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "matchSha256", PicketFindingMetadata.CreateMatchSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "blobSha256", PicketFindingMetadata.CreateBlobSha256(finding), comma: true);
@@ -280,6 +282,44 @@ public static class PicketSarifReportWriter
         WriteArrayProperty(builder, 6, "tags", finding.Tags, comma: true);
         WriteStringProperty(builder, 6, "link", finding.Link, comma: false);
         Indent(builder, 5);
+        builder.Append('}');
+        WriteComma(builder, comma);
+        builder.Append('\n');
+    }
+
+    private static void WriteRandomnessProperty(StringBuilder builder, SecretRandomnessAssessment? assessment, bool comma)
+    {
+        WritePropertyName(builder, 6, "randomness");
+        builder.Append(' ');
+        if (assessment is null)
+        {
+            builder.Append("null");
+            WriteComma(builder, comma);
+            builder.Append('\n');
+            return;
+        }
+
+        SecretRandomnessFeatures features = assessment.Features;
+        builder.Append("{\n");
+        WriteStringProperty(builder, 7, "model", assessment.Model, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "score", assessment.Score, comma: true);
+        WriteStringProperty(builder, 7, "classification", assessment.Classification, comma: true);
+        WriteIntProperty(builder, 7, "sampleOffset", features.SampleOffset, comma: true);
+        WriteIntProperty(builder, 7, "sampleLength", features.SampleLength, comma: true);
+        WriteStringProperty(builder, 7, "alphabet", features.Alphabet, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "lengthScore", features.LengthScore, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "normalizedEntropy", features.NormalizedEntropy, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "expectedDistinctRatio", features.ExpectedDistinctRatio, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "transitionDiversity", features.TransitionDiversity, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "longestRunRatio", features.LongestRunRatio, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "sequentialPairRatio", features.SequentialPairRatio, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "repeatedPatternRatio", features.RepeatedPatternRatio, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "commonBigramRatio", features.CommonBigramRatio, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "characterClassBalance", features.CharacterClassBalance, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "encodedTextSignal", features.EncodedTextSignal, comma: true);
+        WriteRandomnessNumberProperty(builder, 7, "placeholderSignal", features.PlaceholderSignal, comma: true);
+        WriteArrayProperty(builder, 7, "signals", assessment.Signals, comma: false);
+        Indent(builder, 6);
         builder.Append('}');
         WriteComma(builder, comma);
         builder.Append('\n');
@@ -386,6 +426,24 @@ public static class PicketSarifReportWriter
         WritePropertyName(builder, depth, name);
         builder.Append(' ');
         builder.Append(ReportNumberFormatter.FormatJsonDouble(value));
+        WriteComma(builder, comma);
+        builder.Append('\n');
+    }
+
+    private static void WriteRandomnessNumberProperty(StringBuilder builder, int depth, string name, double value, bool comma)
+    {
+        WritePropertyName(builder, depth, name);
+        builder.Append(' ');
+        builder.Append(PicketFindingMetadata.FormatRandomnessNumber(value));
+        WriteComma(builder, comma);
+        builder.Append('\n');
+    }
+
+    private static void WriteProbabilityProperty(StringBuilder builder, int depth, string name, double value, bool comma)
+    {
+        WritePropertyName(builder, depth, name);
+        builder.Append(' ');
+        builder.Append(PicketFindingMetadata.FormatProbability(value));
         WriteComma(builder, comma);
         builder.Append('\n');
     }

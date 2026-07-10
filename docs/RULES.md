@@ -40,6 +40,7 @@ Supported rule fields:
 - `path`: path pattern.
 - `secretGroup`: capture group containing the secret. `0` means automatic first non-empty capture behavior.
 - `entropy`: minimum Shannon entropy. `0` disables entropy filtering.
+- `randomnessThreshold`: minimum native `p(random)` score from `0.0` through `1.0`. `0` disables score filtering. See [Randomness Scoring](randomness.md).
 - `keywords`: case-insensitive prefilter terms.
 - `tags`: classification labels.
 - `skipReport`: run supporting detection without reporting normal findings.
@@ -71,6 +72,8 @@ documentationUrl = "https://example.invalid/rules/sample-token"
 examples = ["token-12345"]
 negativeExamples = ["token-value"]
 ```
+
+Randomness thresholds are native-only. A positive threshold suppresses a finding when its score is lower than the configured value; strict compatibility scans ignore the field. Keep the default of zero until reviewed positive and negative examples establish a safe threshold for that specific rule.
 
 Supported validation template identifiers are:
 

@@ -130,8 +130,27 @@ public static class PicketHtmlReportWriter
         WriteJsonString(builder, "path", CreateLocationPath(finding), comma: true);
         WriteJsonNumber(builder, "line", finding.StartLine, comma: true);
         WriteJsonNumber(builder, "startColumn", finding.StartColumn, comma: true);
-        WriteJsonString(builder, "fingerprint", CreateFingerprint(finding), comma: false);
+        WriteJsonString(builder, "fingerprint", CreateFingerprint(finding), comma: finding.Randomness is not null);
+        if (finding.Randomness is not null)
+        {
+            WriteJsonRandomnessNumber(builder, "randomnessScore", finding.Randomness.Score, comma: true);
+            WriteJsonString(builder, "randomnessClassification", finding.Randomness.Classification, comma: true);
+            WriteJsonString(builder, "randomnessModel", finding.Randomness.Model, comma: false);
+        }
+
         builder.Append('}');
+    }
+
+    private static void WriteJsonRandomnessNumber(StringBuilder builder, string name, double value, bool comma)
+    {
+        builder.Append('"');
+        builder.Append(name);
+        builder.Append("\":");
+        builder.Append(PicketFindingMetadata.FormatRandomnessNumber(value));
+        if (comma)
+        {
+            builder.Append(',');
+        }
     }
 
     private static void WriteMetric(StringBuilder builder, string label, int value)
@@ -217,6 +236,17 @@ public static class PicketHtmlReportWriter
         WriteOptionalMetadata(builder, "Provider", PicketFindingMetadata.CreateProvider(rule));
         WriteOptionalMetadata(builder, "Docs", PicketFindingMetadata.CreateDocumentationUrl(rule));
         WriteMetadata(builder, "Validation", PicketFindingMetadata.CreateValidationState(finding));
+        if (finding.Randomness is not null)
+        {
+            WriteMetadata(builder, "Randomness", string.Concat(
+                PicketFindingMetadata.FormatRandomnessNumber(finding.Randomness.Score),
+                " (",
+                finding.Randomness.Classification,
+                ")"));
+            WriteMetadata(builder, "Randomness Model", finding.Randomness.Model);
+            WriteOptionalMetadata(builder, "Randomness Signals", string.Join(", ", finding.Randomness.Signals));
+        }
+
         WriteMetadata(builder, "Provenance", PicketFindingMetadata.CreateProvenanceType(finding));
         WriteOptionalMetadata(builder, "Secret SHA-256", PicketFindingMetadata.CreateSecretSha256(finding));
         WriteOptionalMetadata(builder, "Blob SHA-256", PicketFindingMetadata.CreateBlobSha256(finding));

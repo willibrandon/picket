@@ -67,6 +67,7 @@ public static class PicketJsonlReportWriter
         WriteString(builder, "line", finding.Line, comma: true);
         WriteString(builder, "commit", finding.Commit, comma: true);
         WriteNumber(builder, "entropy", finding.Entropy, comma: true);
+        WriteRandomness(builder, finding.Randomness, comma: true);
         WriteString(builder, "author", finding.Author, comma: true);
         WriteString(builder, "email", finding.Email, comma: true);
         WriteString(builder, "date", finding.Date, comma: true);
@@ -99,10 +100,51 @@ public static class PicketJsonlReportWriter
         WriteComma(builder, comma);
     }
 
+    private static void WriteRandomness(StringBuilder builder, SecretRandomnessAssessment? assessment, bool comma)
+    {
+        WritePropertyName(builder, "randomness");
+        if (assessment is null)
+        {
+            builder.Append("null");
+            WriteComma(builder, comma);
+            return;
+        }
+
+        SecretRandomnessFeatures features = assessment.Features;
+        builder.Append('{');
+        WriteString(builder, "model", assessment.Model, comma: true);
+        WriteRandomnessNumber(builder, "score", assessment.Score, comma: true);
+        WriteString(builder, "classification", assessment.Classification, comma: true);
+        WriteNumber(builder, "sampleOffset", features.SampleOffset, comma: true);
+        WriteNumber(builder, "sampleLength", features.SampleLength, comma: true);
+        WriteString(builder, "alphabet", features.Alphabet, comma: true);
+        WriteRandomnessNumber(builder, "lengthScore", features.LengthScore, comma: true);
+        WriteRandomnessNumber(builder, "normalizedEntropy", features.NormalizedEntropy, comma: true);
+        WriteRandomnessNumber(builder, "expectedDistinctRatio", features.ExpectedDistinctRatio, comma: true);
+        WriteRandomnessNumber(builder, "transitionDiversity", features.TransitionDiversity, comma: true);
+        WriteRandomnessNumber(builder, "longestRunRatio", features.LongestRunRatio, comma: true);
+        WriteRandomnessNumber(builder, "sequentialPairRatio", features.SequentialPairRatio, comma: true);
+        WriteRandomnessNumber(builder, "repeatedPatternRatio", features.RepeatedPatternRatio, comma: true);
+        WriteRandomnessNumber(builder, "commonBigramRatio", features.CommonBigramRatio, comma: true);
+        WriteRandomnessNumber(builder, "characterClassBalance", features.CharacterClassBalance, comma: true);
+        WriteRandomnessNumber(builder, "encodedTextSignal", features.EncodedTextSignal, comma: true);
+        WriteRandomnessNumber(builder, "placeholderSignal", features.PlaceholderSignal, comma: true);
+        WriteArray(builder, "signals", assessment.Signals, comma: false);
+        builder.Append('}');
+        WriteComma(builder, comma);
+    }
+
     private static void WriteString(StringBuilder builder, string name, string value, bool comma)
     {
         WritePropertyName(builder, name);
         AppendJsonString(builder, value);
+        WriteComma(builder, comma);
+    }
+
+    private static void WriteRandomnessNumber(StringBuilder builder, string name, double value, bool comma)
+    {
+        WritePropertyName(builder, name);
+        builder.Append(PicketFindingMetadata.FormatRandomnessNumber(value));
         WriteComma(builder, comma);
     }
 

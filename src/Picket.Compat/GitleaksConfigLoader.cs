@@ -155,6 +155,8 @@ public static class GitleaksConfigLoader
         string pathPattern = string.Empty;
         int secretGroup = 0;
         double entropy = 0;
+        double randomnessThreshold = 0;
+        bool randomnessThresholdSet = false;
         bool skipReport = false;
         IReadOnlyList<string> keywords = [];
         IReadOnlyList<string> tags = [];
@@ -211,6 +213,8 @@ public static class GitleaksConfigLoader
                     pathPattern = string.Empty;
                     secretGroup = 0;
                     entropy = 0;
+                    randomnessThreshold = 0;
+                    randomnessThresholdSet = false;
                     skipReport = false;
                     keywords = [];
                     tags = [];
@@ -431,6 +435,10 @@ public static class GitleaksConfigLoader
                     break;
                 case "entropy":
                     entropy = ParseNonNegativeDouble(value, sourceName, key);
+                    break;
+                case "randomnessThreshold":
+                    randomnessThreshold = ParseProbability(value, sourceName, key);
+                    randomnessThresholdSet = true;
                     break;
                 case "keywords":
                     keywords = ParseStringArray(value, sourceName, key);
@@ -657,7 +665,9 @@ public static class GitleaksConfigLoader
                 revocation,
                 deprecated,
                 examples,
-                negativeExamples));
+                negativeExamples,
+                randomnessThreshold,
+                randomnessThresholdSet));
             ruleAllowlists = [];
             ruleRequiredRules = [];
             hasRule = false;
@@ -1101,6 +1111,17 @@ public static class GitleaksConfigLoader
             || !double.IsFinite(result))
         {
             throw new InvalidDataException($"{sourceName}: '{key}' must be a non-negative finite number");
+        }
+
+        return result;
+    }
+
+    private static double ParseProbability(string value, string sourceName, string key)
+    {
+        double result = ParseNonNegativeDouble(value, sourceName, key);
+        if (result > 1)
+        {
+            throw new InvalidDataException($"{sourceName}: '{key}' must be between zero and one");
         }
 
         return result;

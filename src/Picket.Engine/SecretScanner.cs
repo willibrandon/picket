@@ -46,13 +46,14 @@ public sealed class SecretScanner
             request.SymlinkFile,
             blobIdentity,
             findings,
+            request.EnableRandomnessScoring,
             isCancellationRequested);
 
         if (request.MaxDecodeDepth == 0
             || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes)
             || IsCancellationRequested(isCancellationRequested))
         {
-            return findings;
+            return CompleteScan(request, findings);
         }
 
         DecodedInput current = DecodedInput.CreateOriginal(originalInput);
@@ -82,6 +83,7 @@ public sealed class SecretScanner
                 request.SymlinkFile,
                 blobIdentity,
                 findings,
+                request.EnableRandomnessScoring,
                 isCancellationRequested);
             if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes)
                 || IsCancellationRequested(isCancellationRequested))
@@ -92,7 +94,23 @@ public sealed class SecretScanner
             current = decoded;
         }
 
-        return findings;
+        return CompleteScan(request, findings);
+    }
+
+    private static List<Finding> CompleteScan(ScanRequest request, List<Finding> findings)
+    {
+        return request.EnableRandomnessScoring
+            ? SecretRandomnessFindingProcessor.Apply(findings, request.RuleSet)
+            : findings;
+    }
+
+    private static SecretRandomnessAssessment? CreateRandomnessAssessment(
+        ReadOnlySpan<byte> secret,
+        bool enableRandomnessScoring)
+    {
+        return enableRandomnessScoring && !secret.IsEmpty
+            ? SecretRandomnessScorer.Assess(secret)
+            : null;
     }
 
     private static Func<bool>? CreateCancellationPredicate(ScanRequest request)
@@ -125,6 +143,7 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         List<Finding> findings,
+        bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
         foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
@@ -151,6 +170,7 @@ public sealed class SecretScanner
                 blobIdentity,
                 compiledRule,
                 includeSkipReport: false,
+                enableRandomnessScoring,
                 isCancellationRequested);
             if (compiledRule.Rule.RequiredRules.Count != 0)
             {
@@ -170,6 +190,7 @@ public sealed class SecretScanner
                     symlinkFile,
                     blobIdentity,
                     compiledRule,
+                    enableRandomnessScoring,
                     isCancellationRequested);
             }
 
@@ -197,6 +218,7 @@ public sealed class SecretScanner
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         bool includeSkipReport,
+        bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
         var findings = new List<Finding>();
@@ -259,6 +281,7 @@ public sealed class SecretScanner
                     blobIdentity,
                     compiledRule,
                     findings,
+                    enableRandomnessScoring,
                     isCancellationRequested);
             }
 
@@ -284,6 +307,7 @@ public sealed class SecretScanner
                     blobIdentity,
                     compiledRule,
                     findings,
+                    enableRandomnessScoring,
                     isCancellationRequested);
             }
 
@@ -309,6 +333,7 @@ public sealed class SecretScanner
                     blobIdentity,
                     compiledRule,
                     findings,
+                    enableRandomnessScoring,
                     isCancellationRequested);
             }
 
@@ -334,6 +359,7 @@ public sealed class SecretScanner
                 compiledRule,
                 regex,
                 findings,
+                enableRandomnessScoring,
                 isCancellationRequested);
         }
 
@@ -356,6 +382,7 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         CompiledRule primaryRule,
+        bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
         if (primaryFindings.Count == 0 || IsCancellationRequested(isCancellationRequested))
@@ -392,6 +419,7 @@ public sealed class SecretScanner
                         blobIdentity,
                         compiledRequiredRule,
                         includeSkipReport: true,
+                        enableRandomnessScoring,
                         isCancellationRequested));
         }
 
@@ -498,6 +526,7 @@ public sealed class SecretScanner
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         List<Finding> findings,
+        bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
@@ -581,7 +610,8 @@ public sealed class SecretScanner
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText,
                 blobSha256: blobIdentity.Sha256,
-                decodePath: decodePath));
+                decodePath: decodePath,
+                randomness: CreateRandomnessAssessment(secretBytes, enableRandomnessScoring)));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -602,6 +632,7 @@ public sealed class SecretScanner
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         List<Finding> findings,
+        bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
@@ -685,7 +716,8 @@ public sealed class SecretScanner
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText,
                 blobSha256: blobIdentity.Sha256,
-                decodePath: decodePath));
+                decodePath: decodePath,
+                randomness: CreateRandomnessAssessment(secretBytes, enableRandomnessScoring)));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -706,6 +738,7 @@ public sealed class SecretScanner
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
         List<Finding> findings,
+        bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
@@ -787,7 +820,8 @@ public sealed class SecretScanner
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText,
                 blobSha256: blobIdentity.Sha256,
-                decodePath: decodePath));
+                decodePath: decodePath,
+                randomness: CreateRandomnessAssessment(secretBytes, enableRandomnessScoring)));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -809,6 +843,7 @@ public sealed class SecretScanner
         CompiledRule compiledRule,
         ByteRegex regex,
         List<Finding> findings,
+        bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
         SecretRule rule = compiledRule.Rule;
@@ -900,7 +935,8 @@ public sealed class SecretScanner
                 CreateFingerprint(commit, fileName, rule.Id, start.Line),
                 lineText,
                 blobSha256: blobIdentity.Sha256,
-                decodePath: decodePath));
+                decodePath: decodePath,
+                randomness: CreateRandomnessAssessment(secretBytes, enableRandomnessScoring)));
 
             offset = AdvanceAfterMatch(match, input.Length);
         }

@@ -30,7 +30,7 @@ public sealed class PicketScanCache
     private const string ImportStagingDirectoryPrefix = ".import-";
     private const string LocksDirectoryName = "locks";
     private const string MacHeader = "mac";
-    private const string SchemaLine = "picket.scan-cache.v3";
+    private const string SchemaLine = "picket.scan-cache.v4";
     private const string ShardHeader = "shard";
     private const string StorageModeHeader = "storageMode";
     private readonly string _entriesPath;

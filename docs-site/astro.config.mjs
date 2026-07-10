@@ -5,6 +5,7 @@ import starlight from "@astrojs/starlight";
 const projectDocsSidebar = [
   { label: "Picket Design", slug: "generated/design" },
   { label: "Rule Authoring", slug: "generated/rules" },
+  { label: "Randomness Scoring", slug: "generated/randomness" },
   { label: "Reports", slug: "generated/reports" },
   { label: "Validation and Privacy", slug: "generated/validation" },
   { label: "Native Scan Cache", slug: "generated/cache" },

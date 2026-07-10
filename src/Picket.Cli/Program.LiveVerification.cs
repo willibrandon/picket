@@ -208,7 +208,8 @@ internal static partial class Program
             finding.MatchSha256,
             validationState,
             finding.BlobSha256,
-            finding.DecodePath);
+            finding.DecodePath,
+            finding.Randomness);
     }
 
     private static CredentialAnalysisMetadata CreateAnalysisMetadata(SecretValidationResult result)

@@ -20,6 +20,7 @@ public sealed partial class RepositoryConventionTests
     [
         "{ label: \"Picket Design\", slug: \"generated/design\" }",
         "{ label: \"Rule Authoring\", slug: \"generated/rules\" }",
+        "{ label: \"Randomness Scoring\", slug: \"generated/randomness\" }",
         "{ label: \"Reports\", slug: \"generated/reports\" }",
         "{ label: \"Validation and Privacy\", slug: \"generated/validation\" }",
         "{ label: \"Native Scan Cache\", slug: \"generated/cache\" }",
@@ -1243,7 +1244,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("scanner configuration fingerprint", cache);
         Assert.Contains("--cache-mode", cache);
         Assert.Contains("--ignore-gitleaks-allow", cache);
-        Assert.Contains("picket.scan-cache.v3", cache);
+        Assert.Contains("picket.scan-cache.v4", cache);
         Assert.Contains("protected secret and match hashes", cache);
         Assert.Contains("earlier schema versions", cache);
         Assert.Contains("PicketScanCache.GetStats()", cache);
@@ -1453,6 +1454,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Gitleaks-compatible SARIF result object", reportSchemas);
         Assert.Contains("secretSha256", reportSchemas);
         Assert.Contains("RuleID", reportSchemas);
+        Assert.Contains("| `rules` | `array<object>` |", reportSchemas);
+        Assert.DoesNotContain("| array<object> |", reportSchemas);
         Assert.Contains("Rule Catalog", ruleCatalog);
         Assert.Contains("Gitleaks-compatible default", ruleCatalog);
         Assert.Contains("Picket-native additions", ruleCatalog);
@@ -1481,6 +1484,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("GitLab personal access token", validationAnalyze);
         Assert.Contains("picket.analysis.report.v1", validationAnalyze);
         Assert.Contains("Analysis JSON `analyses[]` object", validationAnalyze);
+        Assert.Contains("| `analyses` | `array<object>` |", validationAnalyze);
+        Assert.DoesNotContain("| array<object> |", validationAnalyze);
         Assert.DoesNotContain("EXAMPLEEXAMPLE", validationAnalyze);
         Assert.DoesNotContain("ghp_", validationAnalyze);
         Assert.DoesNotContain("AKIA", validationAnalyze);
@@ -1657,11 +1662,42 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(9, scripts);
+        Assert.HasCount(10, scripts);
 
         foreach (string scriptPath in scripts)
         {
             await BuildFileBasedAppAsync(Path.GetRelativePath(root, scriptPath)).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the reproducible randomness calibration matches the checked-in model and published holdout metrics.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    [Timeout(300000, CooperativeCancellation = true)]
+    public async Task RandomnessCalibrationMatchesCheckedInModel()
+    {
+        const string ScriptPath = "scripts/Calibrate-RandomnessModel.cs";
+        await BuildFileBasedAppAsync(ScriptPath).ConfigureAwait(false);
+        await s_fileBasedAppBuildLock.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        try
+        {
+            using Process process = CreateFileBasedAppProcess(ScriptPath, noBuild: true);
+            process.StartInfo.ArgumentList.Add("--verify");
+
+            Assert.IsTrue(process.Start(), "Could not start randomness calibration.");
+            (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+
+            Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+            Assert.Contains("accuracy: 0.998047", stdout);
+            Assert.Contains("brier score: 0.014483", stdout);
+            Assert.Contains("likely-random precision: 1.000000", stdout);
+            Assert.Contains("maximum checked-in score delta: 0.000000", stdout);
+        }
+        finally
+        {
+            s_fileBasedAppBuildLock.Release();
         }
     }
 

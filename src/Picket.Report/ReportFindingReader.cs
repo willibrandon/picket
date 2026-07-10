@@ -31,7 +31,7 @@ public static class ReportFindingReader
             using JsonDocument document = JsonDocument.Parse(stream);
             return TryReadJson(document.RootElement, out findings);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or InvalidOperationException or FormatException)
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or JsonException or InvalidDataException or InvalidOperationException or FormatException)
         {
             findings = null;
             return false;
@@ -151,8 +151,45 @@ public static class ReportFindingReader
             GetString(element, "matchSha256"),
             GetString(element, "validationState"),
             GetString(element, "blobSha256"),
-            GetStringArray(element, "decodePath"));
+            GetStringArray(element, "decodePath"),
+            GetRandomness(element));
         return true;
+    }
+
+    private static SecretRandomnessAssessment? GetRandomness(JsonElement element)
+    {
+        if (!element.TryGetProperty("randomness", out JsonElement randomness)
+            || randomness.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        if (randomness.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("randomness metadata must be an object or null");
+        }
+
+        SecretRandomnessFeatures features = SecretRandomnessFeatures.Create(
+            GetInt32(randomness, "sampleOffset"),
+            GetInt32(randomness, "sampleLength"),
+            GetString(randomness, "alphabet"),
+            GetDouble(randomness, "lengthScore"),
+            GetDouble(randomness, "normalizedEntropy"),
+            GetDouble(randomness, "expectedDistinctRatio"),
+            GetDouble(randomness, "transitionDiversity"),
+            GetDouble(randomness, "longestRunRatio"),
+            GetDouble(randomness, "sequentialPairRatio"),
+            GetDouble(randomness, "repeatedPatternRatio"),
+            GetDouble(randomness, "commonBigramRatio"),
+            GetDouble(randomness, "characterClassBalance"),
+            GetDouble(randomness, "encodedTextSignal"),
+            GetDouble(randomness, "placeholderSignal"));
+        return SecretRandomnessAssessment.Create(
+            GetString(randomness, "model"),
+            GetDouble(randomness, "score"),
+            GetString(randomness, "classification"),
+            features,
+            GetStringArray(randomness, "signals"));
     }
 
     private static bool TryReadGitleaksJson(JsonElement root, [NotNullWhen(true)] out List<Finding>? findings)

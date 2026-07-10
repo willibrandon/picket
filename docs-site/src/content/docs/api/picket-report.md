@@ -193,13 +193,32 @@ Represents the non-secret fields needed to triage a report finding.
 
 ### Constructors
 
-- `ReportFindingSummary(string ruleId, string path, int line, string fingerprint, int startColumn)` - Represents the non-secret fields needed to triage a report finding.
+#### `ReportFindingSummary(...)`
+
+```csharp
+ReportFindingSummary(
+    string ruleId,
+    string path,
+    int line,
+    string fingerprint,
+    int startColumn,
+    double? randomnessScore,
+    string randomnessClassification,
+    string randomnessModel
+)
+```
+
+Represents the non-secret fields needed to triage a report finding.
+
 
 ### Properties
 
 - `Fingerprint` - Gets the stable fingerprint associated with the finding, or an empty string when unavailable.
 - `Line` - Gets the one-based start line for the finding, or zero when unavailable.
 - `Path` - Gets the reported path for the finding.
+- `RandomnessClassification` - Gets the native randomness classification, or an empty string when unavailable.
+- `RandomnessModel` - Gets the native randomness model identifier, or an empty string when unavailable.
+- `RandomnessScore` - Gets the native randomness score, or when unavailable.
 - `RuleId` - Gets the rule identifier associated with the finding.
 - `StartColumn` - Gets the one-based start column for the finding, or zero when unavailable.
 

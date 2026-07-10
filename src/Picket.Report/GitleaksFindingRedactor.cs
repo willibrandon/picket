@@ -101,7 +101,8 @@ public static class GitleaksFindingRedactor
             matchSha256,
             finding.ValidationState,
             finding.BlobSha256,
-            finding.DecodePath);
+            finding.DecodePath,
+            finding.Randomness);
     }
 
     private static string RedactLine(Finding finding, string redactedSecret)

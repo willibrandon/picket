@@ -56,6 +56,11 @@ public static class GitleaksConfigWriter
                 AppendNumber(builder, "entropy", rule.Entropy);
             }
 
+            if (rule.RandomnessThreshold != 0)
+            {
+                AppendProbability(builder, "randomnessThreshold", rule.RandomnessThreshold);
+            }
+
             AppendStringArray(builder, "keywords", rule.Keywords);
             AppendStringArray(builder, "tags", rule.Tags);
             if (!rule.Severity.Equals("critical", StringComparison.Ordinal))
@@ -179,6 +184,14 @@ public static class GitleaksConfigWriter
         builder.Append(name);
         builder.Append(" = ");
         builder.Append(value.ToString("G17", CultureInfo.InvariantCulture));
+        builder.AppendLine();
+    }
+
+    private static void AppendProbability(StringBuilder builder, string name, double value)
+    {
+        builder.Append(name);
+        builder.Append(" = ");
+        builder.Append(value.ToString("R", CultureInfo.InvariantCulture));
         builder.AppendLine();
     }
 

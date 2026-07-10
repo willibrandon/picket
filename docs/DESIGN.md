@@ -599,7 +599,7 @@ Native profiles combine:
 - severity/confidence thresholds,
 - explicit reporting of suppressed findings when requested.
 
-`p(random)` is not a vague ML promise. It is a deterministic scoring component with documented training data, calibration fixtures, stable thresholds, and explainable fields in native reports.
+`p(random)` is implemented by the versioned `picket-random-v1` logistic model described in [Randomness Scoring](randomness.md). Its deterministic synthetic corpus, independent holdout metrics, fixed coefficients, six-decimal quantization, stable thresholds, and reproduction command are committed with the scanner. Native rules opt into suppression with an explicit `randomnessThreshold`; rules without one receive explainable report metadata without losing findings. Strict Gitleaks compatibility never runs or applies this model.
 
 ### 8.4 Verification
 
