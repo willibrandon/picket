@@ -4,15 +4,22 @@ internal sealed class SourceLineIndex
 {
     private readonly int _inputLength;
     private readonly int[] _lineStarts;
+    private readonly int _startColumn;
+    private readonly int _startLine;
 
-    private SourceLineIndex(int inputLength, int[] lineStarts)
+    private SourceLineIndex(int inputLength, int[] lineStarts, int startLine, int startColumn)
     {
         _inputLength = inputLength;
         _lineStarts = lineStarts;
+        _startLine = startLine;
+        _startColumn = startColumn;
     }
 
-    internal static SourceLineIndex Create(ReadOnlySpan<byte> input)
+    internal static SourceLineIndex Create(ReadOnlySpan<byte> input, int startLine = 1, int startColumn = 1)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(startLine, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(startColumn, 1);
+
         int lineCount = 1;
         foreach (byte value in input)
         {
@@ -33,7 +40,7 @@ internal sealed class SourceLineIndex
             }
         }
 
-        return new SourceLineIndex(input.Length, lineStarts);
+        return new SourceLineIndex(input.Length, lineStarts, startLine, startColumn);
     }
 
     internal SourcePosition FromExclusiveEndOffset(int startOffset, int endOffset)
@@ -53,8 +60,8 @@ internal sealed class SourceLineIndex
         }
 
         int column = lineIndex == 0
-            ? offset - _lineStarts[lineIndex] + 1
+            ? offset - _lineStarts[lineIndex] + _startColumn
             : offset - _lineStarts[lineIndex] + 2;
-        return new SourcePosition(lineIndex + 1, column);
+        return new SourcePosition(_startLine + lineIndex, column);
     }
 }

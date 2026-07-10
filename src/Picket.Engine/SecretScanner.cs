@@ -27,8 +27,8 @@ public sealed class SecretScanner
 
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
         byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
-        var blobIdentity = new SourceBlobIdentity(request.Input);
-        SourceLineIndex originalLineIndex = SourceLineIndex.Create(originalInput);
+        var blobIdentity = new SourceBlobIdentity(request.Input, request.BlobSha256);
+        SourceLineIndex originalLineIndex = SourceLineIndex.Create(originalInput, request.SourceStartLine, request.SourceStartColumn);
         var findings = new List<Finding>();
 
         ScanPass(

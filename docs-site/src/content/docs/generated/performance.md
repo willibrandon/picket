@@ -52,6 +52,29 @@ The `cpu.json`, `mem.json`, and `trace.jsonl` artifacts include `scanInputs`,
 `findings`, `cacheHits`, `cacheMisses`, and `cacheWrites` counters, which are the
 preferred evidence for cache hit-rate changes.
 
+## Large Local Files
+
+Local files larger than 100,000 bytes are read through pooled, bounded
+fragments. Strict Gitleaks-compatible commands use a 100,000-byte primary
+fragment and read ahead by at most 25,000 bytes to a blank-line boundary. They
+do not overlap fragments because a hard boundary is part of the pinned
+Gitleaks behavior.
+
+Binary classification uses only the first 100,000 bytes, before safe-boundary
+read-ahead, matching the compatibility source reader. Binary files therefore
+stop after one bounded probe even when native caching is enabled.
+
+Native filesystem and baseline scans also inspect a combined window containing
+the current fragment and the final 64 KiB of the preceding fragment. The
+overlap expands backward to a line boundary when one is available, and duplicate
+findings from the standalone and combined windows are removed. Source positions
+remain absolute, and `blobSha256` identifies the complete file.
+
+This path does not allocate an array proportional to the file length, so local
+files beyond the managed single-array limit can be scanned or rejected as
+binary without a full-buffer failure. A positive `--max-target-megabytes`
+continues to skip files above the requested cap.
+
 For repository-level comparison:
 
 - use `scripts/Capture-CompatibilityOracle.cs` for Gitleaks parity,

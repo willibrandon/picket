@@ -167,6 +167,7 @@ Initializes a new scan request and compiles the supplied source rules.
 
 ### Properties
 
+- `BlobSha256` - Gets a precomputed SHA-256 identity for the complete source blob, or an empty string to hash the request input.
 - `CancellationToken` - Gets the cancellation token that stops scanning when cancellation is requested.
 - `Commit` - Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string.
 - `EnableCSharpStringConcatenation` - Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
@@ -178,6 +179,8 @@ Initializes a new scan request and compiles the supplied source rules.
 - `MaxDecodeDepth` - Gets the maximum recursive decode depth.
 - `MaxTargetBytes` - Gets the maximum content size to scan with content rules, or for no cap.
 - `RuleSet` - Gets the compiled rules used for detection.
+- `SourceStartColumn` - Gets the one-based source column represented by the first input byte.
+- `SourceStartLine` - Gets the one-based source line represented by the first input byte.
 - `SymlinkFile` - Gets the symlink path used in reports, or an empty string.
 
 ## SecretRandomnessAssessment

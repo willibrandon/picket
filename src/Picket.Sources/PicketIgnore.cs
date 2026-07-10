@@ -131,7 +131,23 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
             return false;
         }
 
-        string hash = ComputeSha256(content);
+        return TryIgnoreContentHash(ComputeSha256(content));
+    }
+
+    /// <summary>
+    /// Returns a value indicating whether a precomputed content SHA-256 is ignored and records the match for stale-ignore auditing.
+    /// </summary>
+    /// <param name="sha256">The hexadecimal SHA-256 content identity to test.</param>
+    /// <returns><see langword="true" /> when the content hash is ignored.</returns>
+    public bool TryIgnoreContentHash(string sha256)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sha256);
+        if (!IsSha256Hex(sha256))
+        {
+            throw new ArgumentException("The value must be a 64-character SHA-256 hexadecimal hash.", nameof(sha256));
+        }
+
+        string hash = sha256;
         if (!_contentSha256Hashes.Contains(hash))
         {
             return false;

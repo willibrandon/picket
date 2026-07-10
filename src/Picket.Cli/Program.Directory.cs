@@ -683,6 +683,32 @@ internal static partial class Program
 
             try
             {
+                if (checkpointFile is null && file.Length > SourceFragmentReader.DefaultBufferSize)
+                {
+                    List<Finding> fragmentFindings = ScanSourceFileFragments(
+                        file,
+                        rules,
+                        picketIgnore,
+                        ignoreGitleaksAllow,
+                        maxDecodeDepth,
+                        maxTargetBytes,
+                        nativeMode,
+                        timeoutTimestamp,
+                        scanCache,
+                        diagnosticsSession,
+                        out bool stopped,
+                        cancellationToken);
+                    if (stopped)
+                    {
+                        WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
+                        hadScanError = true;
+                        break;
+                    }
+
+                    findings.AddRange(fragmentFindings);
+                    continue;
+                }
+
                 byte[] input = checkpointFile?.Content ?? file.ReadAllBytes();
                 if (picketIgnore.TryIgnoreContentHash(input))
                 {

@@ -2,12 +2,12 @@ using System.Security.Cryptography;
 
 namespace Picket.Engine;
 
-internal sealed class SourceBlobIdentity(ReadOnlyMemory<byte> input)
+internal sealed class SourceBlobIdentity(ReadOnlyMemory<byte> input, string? sha256 = null)
 {
     private const string LowerHex = "0123456789abcdef";
 
     private readonly ReadOnlyMemory<byte> _input = input;
-    private string? _sha256;
+    private string? _sha256 = string.IsNullOrEmpty(sha256) ? null : sha256;
 
     internal string Sha256 => _sha256 ??= CreateSha256Hex(_input.Span);
 

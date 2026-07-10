@@ -186,4 +186,35 @@ public sealed class Finding(
     /// Gets the native randomness assessment, or <see langword="null" /> when scoring was not enabled.
     /// </summary>
     public SecretRandomnessAssessment? Randomness { get; } = randomness;
+
+    internal Finding WithBlobSha256(string blobSha256)
+    {
+        return new Finding(
+            RuleID,
+            Description,
+            StartLine,
+            EndLine,
+            StartColumn,
+            EndColumn,
+            Match,
+            Secret,
+            File,
+            SymlinkFile,
+            Commit,
+            Entropy,
+            Author,
+            Email,
+            Date,
+            Message,
+            Tags,
+            Fingerprint,
+            Line,
+            Link,
+            SecretSha256,
+            MatchSha256,
+            ValidationState,
+            blobSha256,
+            DecodePath,
+            Randomness);
+    }
 }

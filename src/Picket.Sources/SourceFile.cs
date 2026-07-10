@@ -38,6 +38,32 @@ public sealed class SourceFile(string fullPath, string displayPath, string symli
     public string SymlinkDisplayPath { get; } = NormalizeOptionalDisplayPath(symlinkDisplayPath);
 
     /// <summary>
+    /// Gets the source content length in bytes.
+    /// </summary>
+    public long Length => _content?.LongLength ?? new FileInfo(FullPath).Length;
+
+    /// <summary>
+    /// Opens a readable source stream positioned at the beginning of the content.
+    /// </summary>
+    /// <returns>A stream owned by the caller.</returns>
+    public Stream OpenRead()
+    {
+        if (_content is not null)
+        {
+            return new MemoryStream(_content, writable: false);
+        }
+
+        return new FileStream(FullPath, new FileStreamOptions
+        {
+            Access = FileAccess.Read,
+            BufferSize = 64 * 1024,
+            Mode = FileMode.Open,
+            Options = FileOptions.SequentialScan,
+            Share = FileShare.Read,
+        });
+    }
+
+    /// <summary>
     /// Reads all bytes for this source file.
     /// </summary>
     /// <returns>The source content bytes.</returns>

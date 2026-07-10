@@ -1438,6 +1438,51 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that fragmented local files use their complete content identity for native cache hits.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCachesFragmentedFilesByWholeBlobIdentity()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        string diagnosticsDir = Path.Combine(root.Path, "diagnostics");
+        File.WriteAllText(Path.Combine(root.Path, "large.txt"), string.Concat(new string('a', 130_000), " token-12345"));
+
+        CliResult first = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--cache-dir",
+            cachePath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+        CliResult second = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--cache-dir",
+            cachePath,
+            "-f",
+            "jsonl",
+            "--diagnostics",
+            "cpu",
+            "--diagnostics-dir",
+            diagnosticsDir).ConfigureAwait(false);
+
+        Assert.AreEqual(1, first.ExitCode);
+        Assert.AreEqual(1, second.ExitCode);
+        Assert.HasCount(1, first.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.HasCount(1, second.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        string cpu = File.ReadAllText(Path.Combine(diagnosticsDir, "cpu.json"));
+        Assert.Contains("\"cacheHits\": 1", cpu);
+        Assert.Contains("\"cacheMisses\": 0", cpu);
+        Assert.Contains("\"cacheWrites\": 0", cpu);
+    }
+
+    /// <summary>
     /// Verifies that native scan caching deduplicates identical same-extension blobs.
     /// </summary>
     [TestMethod]
@@ -2354,6 +2399,34 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that baseline creation detects a native finding spanning a local-file fragment boundary.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateScansFragmentedFilesWithNativeOverlap()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string baselinePath = Path.Combine(root.Path, "baseline.json");
+        File.WriteAllText(
+            Path.Combine(root.Path, "large.txt"),
+            string.Concat(new string('a', 124_995), "token-12345", new string('z', 32)));
+
+        CliResult result = await RunCliAsync(
+            "baseline",
+            "create",
+            root.Path,
+            "-c",
+            configPath,
+            "-r",
+            baselinePath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        string baseline = File.ReadAllText(baselinePath);
+        Assert.Contains("\"RuleID\": \"token\"", baseline);
+        Assert.Contains("\"StartColumn\": 124996", baseline);
+    }
+
+    /// <summary>
     /// Verifies that secret-hash-only cache entries do not bypass baseline suppression.
     /// </summary>
     [TestMethod]
@@ -2974,6 +3047,97 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that binary classification does not inspect Gitleaks safe-boundary read-ahead bytes.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanLimitsBinaryProbeToCompatiblePrimaryFragment()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        byte[] content = new byte[100_001 + " token-12345".Length];
+        content.AsSpan(0, 100_000).Fill((byte)'a');
+        Encoding.UTF8.GetBytes(" token-12345", content.AsSpan(100_001));
+        File.WriteAllBytes(Path.Combine(root.Path, "large.txt"), content);
+
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that strict scans preserve Gitleaks hard boundaries while native overlap recovers a split finding.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanUsesCompatibleChunksAndNativeOverlap()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string sourcePath = Path.Combine(root.Path, "large.txt");
+        string reportPath = Path.Combine(root.Path, "report.jsonl");
+        string content = string.Concat(new string('a', 124_995), "token-12345", new string('z', 32));
+        File.WriteAllText(sourcePath, content);
+
+        CliResult compatible = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult native = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--report-format",
+            "jsonl",
+            "--report-path",
+            reportPath,
+            "--redact=100").ConfigureAwait(false);
+
+        Assert.AreEqual(0, compatible.ExitCode);
+        Assert.AreEqual("[]\n", compatible.Stdout);
+        Assert.AreEqual(1, native.ExitCode);
+        string[] reportLines = File.ReadAllLines(reportPath);
+        Assert.HasCount(1, reportLines);
+        Assert.Contains("\"ruleId\":\"token\"", reportLines[0]);
+        Assert.Contains("\"startColumn\":124996", reportLines[0]);
+        Assert.Contains($"\"blobSha256\":\"{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content)))}\"", reportLines[0]);
+    }
+
+    /// <summary>
+    /// Verifies that files beyond the single-array limit are probed and skipped as binary without a full-buffer failure.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task NativeScanHandlesSparseBinaryFileBeyondArrayLimit()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string sourcePath = Path.Combine(root.Path, "large.bin");
+        string reportPath = Path.Combine(root.Path, "report.jsonl");
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        using (FileStream stream = File.Create(sourcePath))
+        {
+            stream.SetLength((long)int.MaxValue + 1);
+        }
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--report-format",
+            "jsonl",
+            "--report-path",
+            reportPath,
+            "--cache-dir",
+            cachePath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.IsTrue(File.Exists(reportPath));
+        Assert.AreEqual(0, new FileInfo(reportPath).Length);
+        Assert.Contains($"report written: {reportPath}", result.Stderr);
+        Assert.DoesNotContain("less than 2 gigabytes", result.Stderr);
+        Assert.DoesNotContain("scan incomplete", result.Stderr);
     }
 
     /// <summary>

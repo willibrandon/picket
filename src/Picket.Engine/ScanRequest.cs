@@ -1,4 +1,5 @@
 using Picket.Rules;
+using System.Security.Cryptography;
 
 namespace Picket.Engine;
 
@@ -29,6 +30,10 @@ public sealed class ScanRequest(
     Func<bool>? isCancellationRequested = null,
     CancellationToken cancellationToken = default)
 {
+    private string _blobSha256 = string.Empty;
+    private int _sourceStartColumn = 1;
+    private int _sourceStartLine = 1;
+
     /// <summary>
     /// Initializes a new scan request and compiles the supplied source rules.
     /// </summary>
@@ -110,6 +115,41 @@ public sealed class ScanRequest(
     public bool EnableRandomnessScoring { get; init; }
 
     /// <summary>
+    /// Gets the one-based source line represented by the first input byte.
+    /// </summary>
+    public int SourceStartLine
+    {
+        get => _sourceStartLine;
+        init
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _sourceStartLine = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets the one-based source column represented by the first input byte.
+    /// </summary>
+    public int SourceStartColumn
+    {
+        get => _sourceStartColumn;
+        init
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _sourceStartColumn = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets a precomputed SHA-256 identity for the complete source blob, or an empty string to hash the request input.
+    /// </summary>
+    public string BlobSha256
+    {
+        get => _blobSha256;
+        init => _blobSha256 = RequireOptionalSha256(value);
+    }
+
+    /// <summary>
     /// Gets an optional predicate that stops scanning when it returns <see langword="true" />.
     /// </summary>
     public Func<bool>? IsCancellationRequested { get; } = isCancellationRequested;
@@ -129,6 +169,30 @@ public sealed class ScanRequest(
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         return value;
+    }
+
+    private static string RequireOptionalSha256(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        if (value.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (value.Length != SHA256.HashSizeInBytes * 2)
+        {
+            throw new ArgumentException("The value must be empty or a 64-character SHA-256 hexadecimal hash.", nameof(BlobSha256));
+        }
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (!char.IsAsciiHexDigit(value[i]))
+            {
+                throw new ArgumentException("The value must be empty or a 64-character SHA-256 hexadecimal hash.", nameof(BlobSha256));
+            }
+        }
+
+        return value.ToLowerInvariant();
     }
 
     private static long? RequireNonNegative(long? value)

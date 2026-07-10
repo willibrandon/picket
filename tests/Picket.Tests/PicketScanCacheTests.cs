@@ -15,6 +15,11 @@ namespace Picket.Tests;
 public sealed class PicketScanCacheTests
 {
     /// <summary>
+    /// Gets or sets the MSTest context for the current test.
+    /// </summary>
+    public TestContext TestContext { get; set; } = null!;
+
+    /// <summary>
     /// Verifies stable SHA-256 content identities.
     /// </summary>
     [TestMethod]
@@ -23,6 +28,21 @@ public sealed class PicketScanCacheTests
         string hash = BlobHasher.ComputeSha256Hex("abc");
 
         Assert.AreEqual("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", hash);
+    }
+
+    /// <summary>
+    /// Verifies stable stream hashing without closing the caller-owned stream.
+    /// </summary>
+    [TestMethod]
+    public void BlobHasherComputesStableStreamSha256()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("abc"));
+
+        string hash = BlobHasher.ComputeSha256Hex(stream, TestContext.CancellationToken);
+
+        Assert.AreEqual("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", hash);
+        Assert.AreEqual(stream.Length, stream.Position);
+        Assert.IsTrue(stream.CanRead);
     }
 
     /// <summary>
@@ -57,6 +77,40 @@ public sealed class PicketScanCacheTests
         Assert.AreEqual(BlobHasher.ComputeSha256Hex(content), cachedFindings[0].BlobSha256);
         Assert.HasCount(1, cachedFindings[0].DecodePath);
         Assert.AreEqual("base64", cachedFindings[0].DecodePath[0]);
+    }
+
+    /// <summary>
+    /// Verifies that precomputed blob identities address the same authenticated cache entries as content bytes.
+    /// </summary>
+    [TestMethod]
+    public void TryReadReturnsCachedFindingsForPrecomputedBlobHash()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path);
+        byte[] content = Encoding.UTF8.GetBytes("prefix token-12345 suffix");
+        string blobSha256 = BlobHasher.ComputeSha256Hex(content);
+
+        cache.Write(blobSha256, "secret.txt", [CreateFinding("secret.txt")]);
+
+        bool hit = cache.TryRead(blobSha256, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsTrue(hit);
+        Assert.IsNotNull(cachedFindings);
+        Assert.HasCount(1, cachedFindings);
+        Assert.AreEqual(blobSha256, cachedFindings[0].BlobSha256);
+    }
+
+    /// <summary>
+    /// Verifies that precomputed cache identities reject values that cannot be safe entry names.
+    /// </summary>
+    [TestMethod]
+    public void PrecomputedBlobHashRejectsInvalidSha256()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path);
+
+        Assert.ThrowsExactly<ArgumentException>(() => cache.TryRead("../unsafe", "secret.txt", string.Empty, out _));
+        Assert.ThrowsExactly<ArgumentException>(() => cache.Write("../unsafe", "secret.txt", [CreateFinding("secret.txt")]));
     }
 
     /// <summary>

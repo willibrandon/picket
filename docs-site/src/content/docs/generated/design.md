@@ -283,7 +283,8 @@ Filesystem scanning is tuned by measurement, not folklore.
 - Use `FileStreamOptions` with explicit access, share, buffer size, async mode, and sequential-scan policy.
 - Benchmark buffer sizes per platform and file-size bucket; do not assume the default 4 KiB buffer is optimal.
 - Avoid double buffering when reading a file fully into a pooled blob buffer.
-- For very large files, stream in bounded windows with overlap sufficient for multiline rules and decoder boundaries.
+- Local files larger than 100,000 bytes are streamed through pooled fragments instead of being materialized as one managed array. Strict compatibility uses Gitleaks' 100,000-byte primary fragment and reads ahead by at most 25,000 bytes to a blank-line boundary, with no overlap between fragments. Native filesystem and baseline scans inspect the same fragments plus the final 64 KiB of the preceding fragment, expanded backward to a line boundary when available, and deduplicate overlap findings by rule, absolute location, evidence, and decode path. This preserves Gitleaks' hard-boundary behavior on the compatibility surface while allowing native rules and decoders to detect ordinary cross-boundary secrets.
+- Fragment positions retain the original one-based line and column. Reports and native cache entries use the SHA-256 identity of the complete file rather than a fragment hash. The first 100,000 bytes provide the Gitleaks-compatible binary probe; safe-boundary read-ahead bytes do not affect classification. Native content-hash ignores and cache lookups prehash the bounded stream. When scanning continues after that prehash, Picket rejects a file that changes before its scan completes.
 - Memory mapping is optional and benchmark-gated; it must not increase address-space pressure or complicate archive/decoder offset mapping.
 - Parallelism is bounded by IO pressure, CPU pressure, and memory budget, not just processor count.
 
@@ -556,6 +557,8 @@ Compatibility mode follows Gitleaks for:
 - decimal megabyte size caps.
 
 Native decoding treats percent, Unicode, hex, base64, and deterministic C# string-literal concatenations as bounded candidate transforms with original-offset remapping. Hex and base64 candidates are probed once per maximal token; failed long tokens are skipped as a unit so attacker-controlled encoded-looking text cannot force quadratic decoder retries. C# concatenation transforms are native-only, limited to `.cs` inputs, require literal-only `string.Concat(...)` calls or binary `+` literal chains, and report `csharp-string-concat` in the decode path.
+
+For local files, compatibility large-file chunking is the pinned Gitleaks 100,000-byte primary buffer with up to 25,000 bytes of blank-line read-ahead and no overlap. Native scans add the bounded line-aligned overlap described in section 6.7. Both modes check cancellation between bounded reads and match loops, preserve absolute source positions, and avoid the managed single-array size limit.
 
 Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, cooperative timeouts during source enumeration and archive reads, path traversal protection, temp-file policy, and clear diagnostics. Native directory, git, verify, analyze, and baseline workflows scan first-level archives by default and cap archive enumeration at depth 1, 4096 entries, 512 decimal MB of decompressed archive payload, and a 1000:1 archive expansion ratio; `--max-archive-depth 0` disables archive traversal, and `--max-archive-entries 0`, `--max-archive-megabytes 0`, and `--max-archive-ratio 0` disable those caps for trusted inputs.
 

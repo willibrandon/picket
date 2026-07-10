@@ -56,6 +56,31 @@ public sealed class PicketIgnoreTests
     }
 
     /// <summary>
+    /// Verifies that precomputed SHA-256 identities participate in stale-ignore auditing.
+    /// </summary>
+    [TestMethod]
+    public void TryIgnoreContentHashAcceptsPrecomputedHash()
+    {
+        string content = "token-12345";
+        string hash = ComputeSha256(content);
+        PicketIgnore ignore = PicketIgnore.FromLines([$"sha256:{hash}"]);
+
+        bool ignored = ignore.TryIgnoreContentHash(hash.ToLowerInvariant());
+
+        Assert.IsTrue(ignored);
+        Assert.IsEmpty(ignore.GetUnmatchedContentHashEntries());
+    }
+
+    /// <summary>
+    /// Verifies that precomputed ignore identities require a complete SHA-256 value.
+    /// </summary>
+    [TestMethod]
+    public void TryIgnoreContentHashRejectsInvalidSha256()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => PicketIgnore.Empty.TryIgnoreContentHash("../unsafe"));
+    }
+
+    /// <summary>
     /// Verifies that root and explicit ignore files are loaded together.
     /// </summary>
     [TestMethod]

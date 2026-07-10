@@ -85,9 +85,23 @@ public sealed class PicketScanCache
     /// <returns><see langword="true" /> when a valid cache entry was read; otherwise <see langword="false" />.</returns>
     public bool TryRead(ReadOnlySpan<byte> content, string fileName, string symlinkFile, [NotNullWhen(true)] out List<Finding>? findings)
     {
+        string blobHash = BlobHasher.ComputeSha256Hex(content);
+        return TryRead(blobHash, fileName, symlinkFile, out findings);
+    }
+
+    /// <summary>
+    /// Reads cached findings for a precomputed blob SHA-256 and report path when available.
+    /// </summary>
+    /// <param name="blobSha256">The lowercase or uppercase hexadecimal SHA-256 identity of the source blob.</param>
+    /// <param name="fileName">The current logical report path.</param>
+    /// <param name="symlinkFile">The current symlink report path, or an empty string.</param>
+    /// <param name="findings">The cached findings when the method returns <see langword="true" />.</param>
+    /// <returns><see langword="true" /> when a valid cache entry was read; otherwise <see langword="false" />.</returns>
+    public bool TryRead(string blobSha256, string fileName, string symlinkFile, [NotNullWhen(true)] out List<Finding>? findings)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
-        string blobHash = BlobHasher.ComputeSha256Hex(content);
+        string blobHash = BlobHasher.RequireSha256Hex(blobSha256, nameof(blobSha256));
         string addressHash = CreateAddressHash(fileName);
         string entryPath = CreateEntryPath(blobHash, addressHash);
         findings = null;
@@ -115,12 +129,25 @@ public sealed class PicketScanCache
     /// <param name="findings">The findings to cache.</param>
     public void Write(ReadOnlySpan<byte> content, string fileName, IReadOnlyList<Finding> findings)
     {
+        string blobHash = BlobHasher.ComputeSha256Hex(content);
+        Write(blobHash, fileName, findings);
+    }
+
+    /// <summary>
+    /// Writes findings for a precomputed blob SHA-256 and report path.
+    /// </summary>
+    /// <param name="blobSha256">The lowercase or uppercase hexadecimal SHA-256 identity of the source blob.</param>
+    /// <param name="fileName">The logical report path used to produce the findings.</param>
+    /// <param name="findings">The findings to cache.</param>
+    public void Write(string blobSha256, string fileName, IReadOnlyList<Finding> findings)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentNullException.ThrowIfNull(findings);
 
+        string blobHash = BlobHasher.RequireSha256Hex(blobSha256, nameof(blobSha256));
+
         try
         {
-            string blobHash = BlobHasher.ComputeSha256Hex(content);
             string addressHash = CreateAddressHash(fileName);
             string shard = CreateEntryShard(blobHash);
             string entryPath = CreateEntryPath(blobHash, addressHash);

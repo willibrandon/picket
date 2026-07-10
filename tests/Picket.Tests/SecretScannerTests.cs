@@ -52,6 +52,46 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that fragment origin metadata produces absolute locations and preserves whole-blob identity.
+    /// </summary>
+    [TestMethod]
+    public void ScanUsesFragmentOriginAndBlobIdentity()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("xx token-12345");
+        CompiledRuleSet rules = CompileTokenRule();
+        string blobSha256 = new('A', 64);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules)
+        {
+            BlobSha256 = blobSha256,
+            SourceStartColumn = 20,
+            SourceStartLine = 10,
+        });
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual(10, findings[0].StartLine);
+        Assert.AreEqual(10, findings[0].EndLine);
+        Assert.AreEqual(23, findings[0].StartColumn);
+        Assert.AreEqual(33, findings[0].EndColumn);
+        Assert.AreEqual("secret.txt:token:10", findings[0].Fingerprint);
+        Assert.AreEqual(blobSha256.ToLowerInvariant(), findings[0].BlobSha256);
+    }
+
+    /// <summary>
+    /// Verifies that fragment requests reject malformed whole-blob identities.
+    /// </summary>
+    [TestMethod]
+    public void ScanRequestRejectsInvalidBlobIdentity()
+    {
+        CompiledRuleSet rules = CompileTokenRule();
+
+        Assert.ThrowsExactly<ArgumentException>(() => new ScanRequest(ReadOnlyMemory<byte>.Empty, "secret.txt", rules)
+        {
+            BlobSha256 = "../unsafe",
+        });
+    }
+
+    /// <summary>
     /// Verifies invalid UTF-8 bytes are decoded with replacement characters before reporting.
     /// </summary>
     [TestMethod]

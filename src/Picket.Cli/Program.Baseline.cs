@@ -377,6 +377,32 @@ internal static partial class Program
 
             try
             {
+                if (file.Length > SourceFragmentReader.DefaultBufferSize)
+                {
+                    List<Finding> fragmentFindings = ScanSourceFileFragments(
+                        file,
+                        rules,
+                        picketIgnore,
+                        ignoreGitleaksAllow,
+                        maxDecodeDepth,
+                        maxTargetBytes,
+                        nativeMode: true,
+                        timeoutTimestamp,
+                        scanCache: null,
+                        diagnosticsSession,
+                        out bool stopped,
+                        CancellationToken.None);
+                    if (stopped)
+                    {
+                        Console.Error.WriteLine(TimeoutErrorMessage);
+                        hadScanError = true;
+                        break;
+                    }
+
+                    findings.AddRange(fragmentFindings);
+                    continue;
+                }
+
                 byte[] input = file.ReadAllBytes();
                 if (picketIgnore.TryIgnoreContentHash(input))
                 {
