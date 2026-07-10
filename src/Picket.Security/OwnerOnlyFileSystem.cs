@@ -40,12 +40,17 @@ internal static class OwnerOnlyFileSystem
             Share = FileShare.None,
             Options = FileOptions.SequentialScan,
         };
-        if (!OperatingSystem.IsWindows())
+        if (!OperatingSystem.IsWindows() && CanCreateFile(mode))
         {
             options.UnixCreateMode = OwnerOnlyFileMode;
         }
 
         return new FileStream(path, options);
+    }
+
+    private static bool CanCreateFile(FileMode mode)
+    {
+        return mode is FileMode.Append or FileMode.Create or FileMode.CreateNew or FileMode.OpenOrCreate;
     }
 
     internal static void ProtectFile(string path)
