@@ -79,3 +79,27 @@ picket cache import --cache-dir .picket/cache --source . --input .picket/cache.z
 `picket cache export` and `picket cache import` move only entries for the active scanner configuration key. Pass the same `--config`, `--source`, `--cache-mode`, `--max-decode-depth`, `--max-target-megabytes`, and `--ignore-gitleaks-allow` values used by the scan whose cache is being moved.
 
 When scan diagnostics are enabled with `--diagnostics cpu`, `--diagnostics mem`, or `--diagnostics trace`, the diagnostics artifacts include aggregate `scanInputs`, `findings`, `cacheHits`, `cacheMisses`, and `cacheWrites` counters. Use these counters to verify incremental behavior without parsing report payloads or exposing raw secret evidence.
+
+## Interrupted Source Scans
+
+The scan cache and a scan checkpoint solve different problems. `--cache-dir` reuses matching work for unchanged blobs across completed scans. `--checkpoint <path>` preserves the consecutive work completed by one native source scan so an interrupted invocation can produce a complete report when retried.
+
+Checkpointing is available only when `picket scan` uses a native source option such as `--github-repository`, `--s3-bucket`, `--registry-image`, `--docker-archive`, or `--oci-archive`.
+
+```powershell
+picket scan --github-repository willibrandon/picket --github-token-env PICKET_GITHUB_SOURCE_TOKEN --checkpoint .picket/github.checkpoint --report-format jsonl --report-path picket-results/github.jsonl --redact=100
+```
+
+Run the same command again after cancellation, timeout, or another operational failure. Picket re-enumerates the source, verifies the complete ordered path-and-content manifest, restores findings for the consecutive completed files, and continues at the first unfinished file. A changed source snapshot, rule set, scanner version, decode limit, target-size limit, or `--ignore-gitleaks-allow` setting rejects the checkpoint instead of silently mixing results.
+
+Use `--checkpoint-reset` only when discarding the prior scan is intentional:
+
+```powershell
+picket scan --github-repository willibrandon/picket --github-token-env PICKET_GITHUB_SOURCE_TOKEN --checkpoint .picket/github.checkpoint --checkpoint-reset --report-format jsonl --report-path picket-results/github.jsonl --redact=100
+```
+
+Picket removes a checkpoint only after all requested reports are written successfully. Output-stage settings such as report format, report path, redaction, baseline, validation-result filtering, and live verification can change on a retry because they are applied again to the restored raw findings.
+
+Checkpoint files contain the raw finding state required to reproduce a complete report, but each header and file record is authenticated and encrypted with a per-user key stored outside the checkpoint location. Records form a hash chain, files and locks use owner-only permissions, concurrent writers are rejected, and the default checkpoint file limit is 100 decimal MB. A copied checkpoint cannot be read under a different user profile. Do not use the same path for a checkpoint and a report.
+
+The repository `.gitignore` excludes `*.checkpoint` and `*.checkpoint.lock`. Keep equivalent entries in repositories that use a different checkpoint naming convention so encrypted incident state is not committed accidentally.

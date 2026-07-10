@@ -566,6 +566,63 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that source scans can persist and explicitly reset checkpoint state.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsCheckpointArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.DockerArchive);
+        scan.SetDockerArchivePath("images/app.tar");
+        scan.SetCheckpointPath("picket-results/app.checkpoint");
+        scan.SetResetCheckpoint(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--checkpoint", arguments);
+        Assert.Contains("picket-results/app.checkpoint", arguments);
+        Assert.Contains("--checkpoint-reset", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that local filesystem scans reject source checkpointing.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsCheckpointForLocalTarget()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        scan.SetCheckpointPath("picket-results/local.checkpoint");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("Checkpointing requires", error);
+    }
+
+    /// <summary>
+    /// Verifies that reset cannot be selected without a checkpoint path.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsCheckpointResetWithoutPath()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.DockerArchive);
+        scan.SetDockerArchivePath("images/app.tar");
+        scan.SetResetCheckpoint(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("requires a checkpoint path", error);
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace builds OCI archive scan arguments.
     /// </summary>
     [TestMethod]
@@ -2054,6 +2111,42 @@ public sealed class PicketTuiTests
         Assert.Contains("Profile", screenText);
         Assert.Contains("Config", screenText);
         Assert.Contains("Ignore", screenText);
+        Assert.DoesNotContain("Checkpoint", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that source-provider output settings render checkpoint controls.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersCheckpointControls()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetTargetMode((int)PicketTuiScanTargetMode.DockerArchive);
+        state.ScanWorkspace.SetDockerArchivePath("images/app.tar");
+        state.ScanWorkspace.SetScanSettingPageByIndex(1);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Checkpoint"), TimeSpan.FromSeconds(5), "checkpoint controls to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Checkpoint", screenText);
+        Assert.Contains("Reset state", screenText);
     }
 
     /// <summary>

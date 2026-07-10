@@ -605,6 +605,18 @@ internal static partial class Program
             || arg.StartsWith("--cache-mode=", StringComparison.Ordinal);
     }
 
+    static bool IsCheckpointPathFlag(string arg)
+    {
+        return arg.Equals("--checkpoint", StringComparison.Ordinal)
+            || arg.StartsWith("--checkpoint=", StringComparison.Ordinal);
+    }
+
+    static bool IsCheckpointResetFlag(string arg)
+    {
+        return arg.Equals("--checkpoint-reset", StringComparison.Ordinal)
+            || arg.StartsWith("--checkpoint-reset=", StringComparison.Ordinal);
+    }
+
     static bool IsOtherKeysFlag(string arg)
     {
         return arg.Equals("--other-keys", StringComparison.Ordinal)

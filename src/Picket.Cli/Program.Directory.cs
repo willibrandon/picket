@@ -35,6 +35,7 @@ internal static partial class Program
 
         string? baselinePath = null;
         string? cacheDir = null;
+        string? checkpointPath = null;
         string? configPath = null;
         string? diagnostics = null;
         string? diagnosticsDir = null;
@@ -49,6 +50,7 @@ internal static partial class Program
         int exitCode = 1;
         bool followSymlinks = false;
         bool ignoreGitleaksAllow = false;
+        bool resetCheckpoint = false;
         bool respectNativeIgnoreFiles = nativeMode;
         ScanCacheStorageMode cacheStorageMode = ScanCacheStorageMode.SecretHashOnly;
         int maxArchiveEntries = nativeMode ? DefaultNativeMaxArchiveEntries : 0;
@@ -106,6 +108,26 @@ internal static partial class Program
             if (nativeMode && IsCacheModeFlag(arg))
             {
                 if (!TryReadScanCacheStorageMode(args, ref i, out cacheStorageMode))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (nativeMode && IsCheckpointPathFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--checkpoint", out checkpointPath))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (nativeMode && IsCheckpointResetFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--checkpoint-reset", out resetCheckpoint))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -385,6 +407,44 @@ internal static partial class Program
             root = defaultRoot;
         }
 
+        if (resetCheckpoint && string.IsNullOrWhiteSpace(checkpointPath))
+        {
+            Console.Error.WriteLine("--checkpoint-reset requires --checkpoint");
+            return UnknownFlagExitCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(checkpointPath))
+        {
+            if (checkpointPath.Equals("-", StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine("--checkpoint requires a file path");
+                return UnknownFlagExitCode;
+            }
+
+            if (sourceFileProvider is null)
+            {
+                Console.Error.WriteLine("--checkpoint requires a native source option such as --github-repository, --s3-bucket, or --registry-image");
+                return UnknownFlagExitCode;
+            }
+
+            bool collidesWithReport;
+            try
+            {
+                collidesWithReport = ReportPathsContainCheckpoint(reportPath, reportPaths, checkpointPath);
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                Console.Error.WriteLine($"invalid checkpoint path: {exception.Message}");
+                return UnknownFlagExitCode;
+            }
+
+            if (collidesWithReport)
+            {
+                Console.Error.WriteLine("checkpoint path must be different from every report path");
+                return UnknownFlagExitCode;
+            }
+        }
+
         if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, diagnosticsCommand, Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
         {
             return UnknownFlagExitCode;
@@ -506,6 +566,33 @@ internal static partial class Program
             return CompleteRun(1, diagnosticsSession);
         }
 
+        List<CheckpointSourceFile>? checkpointFiles = null;
+        RemoteScanCheckpoint? openedCheckpoint = null;
+        if (!string.IsNullOrWhiteSpace(checkpointPath))
+        {
+            try
+            {
+                checkpointFiles = RemoteScanManifest.CreateFiles(files);
+                string manifestFingerprint = RemoteScanManifest.CreateFingerprint(checkpointFiles);
+                string scanFingerprint = CreateRemoteCheckpointScanFingerprint(
+                    rules,
+                    maxDecodeDepth,
+                    maxTargetBytes,
+                    ignoreGitleaksAllow);
+                openedCheckpoint = RemoteScanCheckpoint.Open(
+                    checkpointPath,
+                    new RemoteScanCheckpointKey(scanFingerprint, manifestFingerprint),
+                    resetCheckpoint);
+            }
+            catch (Exception exception) when (exception is ArgumentException or IOException or InvalidDataException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine($"failed to open checkpoint: {exception.Message}");
+                return CompleteRun(1, diagnosticsSession);
+            }
+        }
+
+        using RemoteScanCheckpoint? scanCheckpoint = openedCheckpoint;
+
         string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath);
         string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
         List<string?> reportDisplayPaths = CreateControlFileDisplayPaths(root, reportPath, reportPaths);
@@ -514,14 +601,57 @@ internal static partial class Program
             : [];
         string? cacheDisplayPath = nativeMode ? CreateControlFileDisplayPath(root, cacheDir) : null;
         var findings = new List<Finding>();
+        int startFileIndex = 0;
+        if (scanCheckpoint is not null)
+        {
+            try
+            {
+                if (scanCheckpoint.CompletedFileCount > checkpointFiles!.Count)
+                {
+                    throw new InvalidDataException("Checkpoint low-water mark exceeds the current source manifest.");
+                }
+
+                for (; startFileIndex < scanCheckpoint.CompletedFileCount; startFileIndex++)
+                {
+                    CheckpointSourceFile checkpointFile = checkpointFiles![startFileIndex];
+                    SourceFile sourceFile = checkpointFile.SourceFile;
+                    if (!scanCheckpoint.TryRestoreFile(
+                        startFileIndex,
+                        sourceFile.DisplayPath,
+                        sourceFile.SymlinkDisplayPath,
+                        checkpointFile.Content,
+                        out List<Finding>? restoredFindings))
+                    {
+                        throw new InvalidDataException("Checkpoint ended before its recorded low-water mark.");
+                    }
+
+                    findings.AddRange(restoredFindings);
+                    diagnosticsSession?.RecordScanInput();
+                }
+
+                if (startFileIndex != 0)
+                {
+                    Console.Error.WriteLine($"resuming checkpoint: {startFileIndex} of {checkpointFiles!.Count} files completed");
+                }
+            }
+            catch (InvalidDataException exception)
+            {
+                Console.Error.WriteLine($"failed to restore checkpoint: {exception.Message}");
+                return CompleteRun(1, diagnosticsSession);
+            }
+        }
+
         bool hadScanError = IsScanStopped(timeoutTimestamp, cancellationToken);
         if (hadScanError)
         {
             WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
         }
 
-        foreach (SourceFile file in files)
+        int sourceFileCount = checkpointFiles?.Count ?? files.Count;
+        for (int fileIndex = startFileIndex; fileIndex < sourceFileCount; fileIndex++)
         {
+            CheckpointSourceFile? checkpointFile = checkpointFiles?[fileIndex];
+            SourceFile file = checkpointFile?.SourceFile ?? files[fileIndex];
             if (hadScanError)
             {
                 break;
@@ -538,19 +668,31 @@ internal static partial class Program
                 || IsControlDirectoryFile(file, cacheDisplayPath)
                 || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)))
             {
+                try
+                {
+                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, checkpointFile!.Content, []);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    Console.Error.WriteLine(exception.Message);
+                    hadScanError = true;
+                }
+
                 continue;
             }
 
             try
             {
-                byte[] input = file.ReadAllBytes();
+                byte[] input = checkpointFile?.Content ?? file.ReadAllBytes();
                 if (picketIgnore.TryIgnoreContentHash(input))
                 {
+                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
                     continue;
                 }
 
                 if (LooksBinary(input))
                 {
+                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
                     continue;
                 }
 
@@ -559,6 +701,7 @@ internal static partial class Program
                 {
                     diagnosticsSession?.RecordCacheHit();
                     findings.AddRange(cachedFindings);
+                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, cachedFindings);
                     continue;
                 }
 
@@ -591,6 +734,8 @@ internal static partial class Program
                     scanCache.Write(input, file.DisplayPath, scannedFindings);
                     diagnosticsSession?.RecordCacheWrite();
                 }
+
+                scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, scannedFindings);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -622,7 +767,10 @@ internal static partial class Program
             diagnosticsSession,
             nativeResultWriter,
             exitCode,
-            hadScanError);
+            hadScanError,
+            scanCheckpoint is null
+                ? null
+                : () => CompleteRemoteScanCheckpoint(scanCheckpoint));
     }
 
     private static bool IsScanStopped(long timeoutTimestamp, CancellationToken cancellationToken)

@@ -444,6 +444,8 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--ignore-path", "path"));
         command.Options.Add(CreateFlagOption(commandName, "--no-ignore"));
         AddCacheOptions(command, commandName);
+        command.Options.Add(CreateValueOption(commandName, "--checkpoint", "path"));
+        command.Options.Add(CreateFlagOption(commandName, "--checkpoint-reset"));
         command.Options.Add(CreateValueOption(commandName, "--enable-rule", "id"));
         command.Options.Add(CreateFlagOption(commandName, "--verify"));
     }

@@ -299,6 +299,8 @@ docs-site/.astro/
 docs-site/dist/
 .playwright-cli/
 picket-results/
+*.checkpoint
+*.checkpoint.lock
 
 # Visual Studio 6 build log
 *.plg

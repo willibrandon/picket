@@ -14,7 +14,6 @@ namespace Picket.Store;
 /// </summary>
 public sealed class PicketScanCache
 {
-    private const int AuthenticationKeyByteLength = 32;
     private const int DefaultMaxImportEntries = 100_000;
     private const int Sha256HexLength = 64;
     private const long DefaultMaxImportEntryBytes = 100_000_000;
@@ -31,7 +30,6 @@ public sealed class PicketScanCache
     private const string ImportStagingDirectoryPrefix = ".import-";
     private const string LocksDirectoryName = "locks";
     private const string MacHeader = "mac";
-    private const string ProductDirectoryName = "Picket";
     private const string SchemaLine = "picket.scan-cache.v3";
     private const string ShardHeader = "shard";
     private const string StorageModeHeader = "storageMode";
@@ -45,7 +43,7 @@ public sealed class PicketScanCache
     {
         RootPath = Path.GetFullPath(rootPath);
         Key = key;
-        _authenticationKey = LoadOrCreateAuthenticationKey();
+        _authenticationKey = PicketStateProtectionKey.LoadOrCreate(AuthenticationKeyFileName);
         _fieldProtectionKey = ProtectedCacheField.DeriveKey(_authenticationKey);
         _entriesPath = Path.Combine(RootPath, EntriesDirectoryName);
         _locksPath = Path.Combine(RootPath, LocksDirectoryName);
@@ -475,91 +473,6 @@ public sealed class PicketScanCache
         FileStream stream = OpenOwnerOnlyFile(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
         SetOwnerOnlyFile(lockPath);
         return stream;
-    }
-
-    private static byte[] LoadOrCreateAuthenticationKey()
-    {
-        string keyPath = GetAuthenticationKeyPath();
-        string? keyDirectory = Path.GetDirectoryName(keyPath);
-        if (!string.IsNullOrEmpty(keyDirectory))
-        {
-            CreateOwnerOnlyDirectory(keyDirectory);
-        }
-
-        try
-        {
-            if (File.Exists(keyPath))
-            {
-                byte[] existing = File.ReadAllBytes(keyPath);
-                if (existing.Length == AuthenticationKeyByteLength)
-                {
-                    SetOwnerOnlyFile(keyPath);
-                    return existing;
-                }
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-        }
-
-        byte[] key = RandomNumberGenerator.GetBytes(AuthenticationKeyByteLength);
-        string tempPath = CreateTempPath(keyPath);
-        try
-        {
-            using (FileStream stream = OpenOwnerOnlyNewFile(tempPath))
-            {
-                stream.Write(key);
-            }
-
-            try
-            {
-                File.Move(tempPath, keyPath, overwrite: false);
-                SetOwnerOnlyFile(keyPath);
-                return key;
-            }
-            catch (IOException)
-            {
-                byte[] existing = File.ReadAllBytes(keyPath);
-                if (existing.Length == AuthenticationKeyByteLength)
-                {
-                    SetOwnerOnlyFile(keyPath);
-                    return existing;
-                }
-
-                File.Move(tempPath, keyPath, overwrite: true);
-                SetOwnerOnlyFile(keyPath);
-                return key;
-            }
-        }
-        finally
-        {
-            TryDelete(tempPath);
-        }
-    }
-
-    private static string GetAuthenticationKeyPath()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            string? stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
-            if (!string.IsNullOrWhiteSpace(stateHome))
-            {
-                return Path.Combine(stateHome, "picket", AuthenticationKeyFileName);
-            }
-        }
-
-        string basePath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (string.IsNullOrWhiteSpace(basePath))
-        {
-            basePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        }
-
-        if (string.IsNullOrWhiteSpace(basePath))
-        {
-            basePath = Path.GetTempPath();
-        }
-
-        return Path.Combine(basePath, ProductDirectoryName, AuthenticationKeyFileName);
     }
 
     private static FileStream OpenOwnerOnlyNewFile(string path)

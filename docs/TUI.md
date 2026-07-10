@@ -58,9 +58,12 @@ The workspace keeps the normal path short: choose a target, check the command pr
 - result filters,
 - archive and target-size limits,
 - redaction,
-- report formats and output paths.
+- report formats and output paths,
+- optional encrypted source-scan checkpoint and explicit reset controls.
 
 The Scan page groups controls into Source, Output, Validation, and Limits sections so the default view stays readable while every scan option remains reachable.
+
+For source-host, object-store, container archive, and registry targets, the Output page can pass a checkpoint path to the CLI. The reset toggle is available beside it and requires a non-empty checkpoint path. Local filesystem scans do not show these controls because checkpointing is a native source-provider workflow. The report and checkpoint paths must differ.
 
 Container targets include Docker archives, OCI image-layout archives, and remote registry images. The registry mode exposes the image reference, endpoint overrides, environment-variable credential names, platform filter, aggregate image cap, and source endpoint policy controls. All container modes use the shared archive and target-size limits from the Limits section.
 

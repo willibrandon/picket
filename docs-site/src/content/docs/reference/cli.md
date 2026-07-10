@@ -250,6 +250,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Choose whether scan cache entries store raw evidence or secret and match hashes only.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--checkpoint</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Persist encrypted native source-scan progress here and resume it when the source snapshot still matches.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--checkpoint-reset</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Discard existing checkpoint state before starting the native source scan.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--enable-rule</code></td>
               <td data-label="Value"><code>id</code></td>
               <td data-label="Required">Optional</td>

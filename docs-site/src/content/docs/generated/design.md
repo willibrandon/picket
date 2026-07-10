@@ -697,6 +697,16 @@ Native source support:
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
 
+Remote scan checkpointing is explicit native behavior through `--checkpoint <path>`. Picket binds a checkpoint to both the matching-behavior fingerprint and a SHA-256 manifest of the complete ordered source snapshot. A retry re-enumerates the source and verifies that manifest before restoring any prior finding. Source or scanner changes fail closed; `--checkpoint-reset` is the explicit instruction to discard incompatible state and start again.
+
+The checkpoint is an append-only low-water journal. A file advances the low-water mark only after it has been skipped by a deterministic filter, restored from the scan cache, or scanned successfully. Each record includes the preceding encrypted-record hash, so removal or reordering is detected. A truncated final record is treated as uncommitted work and rescanned. Raw findings needed to produce a complete resumed report are authenticated and encrypted with a per-user key stored outside the checkpoint location. Checkpoint and lock files are owner-only, concurrent writers are excluded, symbolic-link state files are rejected, and checkpoint size is bounded.
+
+Default repository ignores cover `*.checkpoint` and `*.checkpoint.lock` so resumable incident state is not committed accidentally.
+
+Picket retains checkpoint state after cancellation, timeout, source-file failure, validation failure, or report-write failure. It removes state only after every requested report has been written successfully. Redaction, baseline suppression, validation-result filters, and live verification run again after restoration, so a retry may safely change those output-stage choices. Strict Gitleaks-compatible commands do not accept checkpoint options.
+
+The source-manifest baseline deliberately replays listing and bounded downloads before it trusts a checkpoint. Provider-specific continuation cursors may reduce that replay only when they preserve the same immutable-manifest validation and post-processing low-water invariant; a pagination token alone is never evidence that an item was scanned.
+
 Container image scanning is native Picket behavior, not Gitleaks compatibility behavior.
 
 | Source | Option | Behavior |

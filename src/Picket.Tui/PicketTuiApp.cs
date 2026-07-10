@@ -441,15 +441,28 @@ internal static class PicketTuiApp
     private static VStackWidget BuildOutputPathFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
-        return ctx.VStack(v => [
-            BuildTextField(v, "Report", scan.ReportPath, scan.SetReportPath),
-            BuildFieldGap(v),
-            BuildTextField(v, "Profile", scan.Profile, scan.SetProfile),
-            BuildFieldGap(v),
-            BuildTextField(v, "Config", scan.ConfigPath, scan.SetConfigPath),
-            BuildFieldGap(v),
-            BuildTextField(v, "Ignore", scan.IgnorePath, scan.SetIgnorePath)
-        ]);
+        return ctx.VStack(v =>
+        {
+            var fields = new List<Hex1bWidget>
+            {
+                BuildTextField(v, "Report", scan.ReportPath, scan.SetReportPath),
+            };
+            if (scan.TargetMode != PicketTuiScanTargetMode.Local)
+            {
+                fields.Add(BuildFieldGap(v));
+                fields.Add(BuildTextField(v, "Checkpoint", scan.CheckpointPath, scan.SetCheckpointPath));
+                fields.Add(BuildFieldGap(v));
+                fields.Add(BuildBooleanField(v, "Reset state", scan.ResetCheckpoint, scan.SetResetCheckpoint));
+            }
+
+            fields.Add(BuildFieldGap(v));
+            fields.Add(BuildTextField(v, "Profile", scan.Profile, scan.SetProfile));
+            fields.Add(BuildFieldGap(v));
+            fields.Add(BuildTextField(v, "Config", scan.ConfigPath, scan.SetConfigPath));
+            fields.Add(BuildFieldGap(v));
+            fields.Add(BuildTextField(v, "Ignore", scan.IgnorePath, scan.SetIgnorePath));
+            return [.. fields];
+        });
     }
 
     private static VStackWidget BuildFilterFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)

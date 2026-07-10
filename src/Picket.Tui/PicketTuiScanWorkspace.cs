@@ -713,6 +713,16 @@ internal sealed class PicketTuiScanWorkspace
     internal string ReportPath { get; private set; } = DefaultReportPath;
 
     /// <summary>
+    /// Gets the optional native source scan checkpoint path.
+    /// </summary>
+    internal string CheckpointPath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether existing checkpoint state is reset before scanning.
+    /// </summary>
+    internal bool ResetCheckpoint { get; private set; }
+
+    /// <summary>
     /// Gets the redaction percentage.
     /// </summary>
     internal string RedactionPercent { get; private set; } = "100";
@@ -1833,6 +1843,18 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetReportPath(string value) => ReportPath = value;
 
     /// <summary>
+    /// Sets the native source scan checkpoint path.
+    /// </summary>
+    /// <param name="value">The checkpoint path.</param>
+    internal void SetCheckpointPath(string value) => CheckpointPath = value;
+
+    /// <summary>
+    /// Sets whether existing checkpoint state is reset before scanning.
+    /// </summary>
+    /// <param name="value">The checkpoint reset state.</param>
+    internal void SetResetCheckpoint(bool value) => ResetCheckpoint = value;
+
+    /// <summary>
     /// Sets the redaction percentage.
     /// </summary>
     /// <param name="value">The redaction percentage.</param>
@@ -1930,6 +1952,8 @@ internal sealed class PicketTuiScanWorkspace
 
         AddOptionalValue(arguments, "--report-format", ReportFormat);
         AddOptionalValue(arguments, "--report-path", ReportPath);
+        AddOptionalValue(arguments, "--checkpoint", CheckpointPath);
+        AddFlag(arguments, "--checkpoint-reset", ResetCheckpoint);
         AddOptionalValue(arguments, "--max-target-megabytes", MaxTargetMegabytes);
         AddOptionalValue(arguments, "--max-archive-depth", MaxArchiveDepth);
         AddOptionalValue(arguments, "--max-archive-entries", MaxArchiveEntries);
@@ -2811,6 +2835,24 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
+        if (!string.IsNullOrWhiteSpace(CheckpointPath) && TargetMode == PicketTuiScanTargetMode.Local)
+        {
+            error = "Checkpointing requires a source-host, object-store, container archive, or registry target.";
+            return false;
+        }
+
+        if (ResetCheckpoint && string.IsNullOrWhiteSpace(CheckpointPath))
+        {
+            error = "Checkpoint reset requires a checkpoint path.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(CheckpointPath) && PathsEqual(CheckpointPath, ReportPath))
+        {
+            error = "Checkpoint and report paths must be different.";
+            return false;
+        }
+
         int minimumTargetMegabytes = GetTargetCategory(TargetMode) is PicketTuiScanTargetCategory.SourceHost or PicketTuiScanTargetCategory.ObjectStore
             || TargetMode == PicketTuiScanTargetMode.RegistryImage
             ? 1
@@ -2837,6 +2879,21 @@ internal sealed class PicketTuiScanWorkspace
             && ValidateOptionalNonNegativeInteger(GiteaPullRequest, "--gitea-pull-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaActionsRunId, "--gitea-actions-run-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(BitbucketPullRequest, "--bitbucket-pull-request", min: 1, max: int.MaxValue, out error);
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        try
+        {
+            return Path.GetFullPath(left).Equals(Path.GetFullPath(right), comparison);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return left.Equals(right, comparison);
+        }
     }
 
     private bool ValidateContainerRegistry(out string error)

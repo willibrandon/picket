@@ -82,6 +82,8 @@ internal static class CliOptionMetadata
             "--bitbucket-workspace" => "Scan repositories in this Bitbucket workspace through native source enumeration.",
             "--cache-dir" => "Read or write scanner cache data in this directory.",
             "--cache-mode" => "Choose whether scan cache entries store raw evidence or secret and match hashes only.",
+            "--checkpoint" => "Persist encrypted native source-scan progress here and resume it when the source snapshot still matches.",
+            "--checkpoint-reset" => "Discard existing checkpoint state before starting the native source scan.",
             "--command" => "Use this command path in generated hook scripts.",
             "--config" => "Load a config file.",
             "--diagnostics" => "Write structured diagnostics for the selected modes.",
