@@ -509,47 +509,49 @@ internal static class PicketTuiApp
         };
     }
 
-    private static HStackWidget BuildGitHubSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+    private static VStackWidget BuildGitHubSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
-        return ctx.HStack(h => [
-            h.VStack(left => [
-                BuildTextField(left, "Repository", scan.GitHubRepository, scan.SetGitHubRepository),
-                BuildFieldGap(left),
-                BuildTextField(left, "Org", scan.GitHubOrganization, scan.SetGitHubOrganization),
-                BuildFieldGap(left),
-                BuildTextField(left, "User", scan.GitHubUser, scan.SetGitHubUser),
-                BuildFieldGap(left),
-                BuildTextField(left, "Token env", scan.GitHubTokenEnvironmentVariable, scan.SetGitHubTokenEnvironmentVariable),
-                BuildFieldGap(left),
-                BuildTextField(left, "Gist", scan.GitHubGist, scan.SetGitHubGist),
-                BuildFieldGap(left),
-                BuildTextField(left, "User gists", scan.GitHubUserGists, scan.SetGitHubUserGists),
-                BuildFieldGap(left),
-                BuildTextField(left, "Endpoint", scan.GitHubSourceApiEndpoint, scan.SetGitHubSourceApiEndpoint),
-                BuildFieldGap(left),
-                BuildTextField(left, "Ref", scan.GitHubRef, scan.SetGitHubRef),
-                BuildFieldGap(left),
-                BuildTextField(left, "PR", scan.GitHubPullRequest, scan.SetGitHubPullRequest),
-            ]).FillWidth(),
-            h.Text("      "),
-            h.VStack(right => [
-                BuildChoiceField(right, "Repo type", PicketTuiScanWorkspace.GitHubRepositoryTypes, scan.GitHubRepositoryTypeIndex, scan.SetGitHubRepositoryTypeByIndex),
-                BuildFieldGap(right),
-                BuildChoiceField(right, "Issue state", PicketTuiScanWorkspace.GitHubIssueStates, scan.GitHubIssueStateIndex, scan.SetGitHubIssueStateByIndex),
-                BuildFieldGap(right),
-                BuildBooleanField(right, "Issues", scan.IncludeGitHubIssues, scan.SetIncludeGitHubIssues),
-                BuildFieldGap(right),
-                BuildBooleanField(right, "Releases", scan.IncludeGitHubReleases, scan.SetIncludeGitHubReleases),
-                BuildFieldGap(right),
-                BuildBooleanField(right, "Actions", scan.IncludeGitHubActionsArtifacts, scan.SetIncludeGitHubActionsArtifacts),
-                BuildFieldGap(right),
-                BuildBooleanField(right, "Gists", scan.IncludeGitHubGists, scan.SetIncludeGitHubGists),
-                BuildFieldGap(right),
-                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
-                BuildFieldGap(right),
-                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
-            ]).FillWidth(),
+        return ctx.VStack(v => [
+            BuildChoiceField(v, "Repo type", PicketTuiScanWorkspace.GitHubRepositoryTypes, scan.GitHubRepositoryTypeIndex, scan.SetGitHubRepositoryTypeByIndex),
+            BuildFieldGap(v),
+            BuildChoiceField(v, "Issue state", PicketTuiScanWorkspace.GitHubIssueStates, scan.GitHubIssueStateIndex, scan.SetGitHubIssueStateByIndex),
+            BuildFieldGap(v),
+            v.HStack(h => [
+                h.VStack(left => [
+                    BuildTextField(left, "Repository", scan.GitHubRepository, scan.SetGitHubRepository),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "Org", scan.GitHubOrganization, scan.SetGitHubOrganization),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "User", scan.GitHubUser, scan.SetGitHubUser),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "Token env", scan.GitHubTokenEnvironmentVariable, scan.SetGitHubTokenEnvironmentVariable),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "Gist", scan.GitHubGist, scan.SetGitHubGist),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "User gists", scan.GitHubUserGists, scan.SetGitHubUserGists),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "Endpoint", scan.GitHubSourceApiEndpoint, scan.SetGitHubSourceApiEndpoint),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "Ref", scan.GitHubRef, scan.SetGitHubRef),
+                    BuildFieldGap(left),
+                    BuildTextField(left, "PR", scan.GitHubPullRequest, scan.SetGitHubPullRequest),
+                ]).FillWidth(),
+                h.Text("      "),
+                h.VStack(right => [
+                    BuildBooleanField(right, "Issues", scan.IncludeGitHubIssues, scan.SetIncludeGitHubIssues),
+                    BuildFieldGap(right),
+                    BuildBooleanField(right, "Releases", scan.IncludeGitHubReleases, scan.SetIncludeGitHubReleases),
+                    BuildFieldGap(right),
+                    BuildBooleanField(right, "Actions", scan.IncludeGitHubActionsArtifacts, scan.SetIncludeGitHubActionsArtifacts),
+                    BuildFieldGap(right),
+                    BuildBooleanField(right, "Gists", scan.IncludeGitHubGists, scan.SetIncludeGitHubGists),
+                    BuildFieldGap(right),
+                    BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                    BuildFieldGap(right),
+                    BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+                ]).FillWidth(),
+            ]).FillWidth()
         ]).FillWidth();
     }
 

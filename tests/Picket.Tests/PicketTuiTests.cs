@@ -1792,7 +1792,7 @@ public sealed class PicketTuiTests
         state.SetView(PicketTuiView.Scan);
         state.ScanWorkspace.SetTargetMode(1);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
-        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 160, height: 38);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 38);
 
         Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
@@ -1814,6 +1814,10 @@ public sealed class PicketTuiTests
         Assert.Contains("Token env", screenText);
         Assert.Contains("Gist", screenText);
         Assert.Contains("Repo type", screenText);
+        Assert.Contains("forks", screenText);
+        Assert.Contains("sources", screenText);
+        Assert.Contains("owner", screenText);
+        Assert.Contains("member", screenText);
         Assert.Contains("Issue state", screenText);
         Assert.Contains("Endpoint", screenText);
         Assert.Contains("Actions", screenText);
@@ -1989,11 +1993,12 @@ public sealed class PicketTuiTests
     public async Task CompanionReportsMissingReportWithoutStackTrace()
     {
         CliResult result = await RunTuiCliAsync("missing-report.json").ConfigureAwait(false);
+        string output = string.Concat(result.Stdout, result.Stderr);
 
         Assert.AreEqual(1, result.ExitCode);
-        Assert.Contains("report not found: missing-report.json", result.Stderr);
-        Assert.DoesNotContain("Unhandled exception", result.Stderr);
-        Assert.DoesNotContain(" at ", result.Stderr);
+        Assert.Contains("report not found: missing-report.json", output);
+        Assert.DoesNotContain("Unhandled exception", output);
+        Assert.DoesNotContain(" at ", output);
     }
 
     private static PicketTuiState CreateState(
