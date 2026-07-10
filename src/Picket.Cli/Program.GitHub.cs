@@ -191,7 +191,7 @@ internal static partial class Program
 
         if (sourceSelectorCount != 1)
         {
-            Console.Error.WriteLine("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-user, --github-gist, --github-gists, or --github-user-gists");
+            Console.Error.WriteLine("Choose one GitHub scan target: --github-repository owner/name, --github-organization login, --github-user login, --github-gist id, --github-gists, or --github-user-gists login");
             return false;
         }
 

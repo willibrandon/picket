@@ -1298,12 +1298,7 @@ internal sealed class PicketTuiState
     {
         return scan.TargetMode switch
         {
-            PicketTuiScanTargetMode.GitHub => FirstNonEmpty(
-                scan.GitHubRepository,
-                scan.GitHubOrganization,
-                scan.GitHubUser,
-                scan.GitHubGist,
-                "GitHub target not selected"),
+            PicketTuiScanTargetMode.GitHub => scan.GitHubTargetDisplayValue,
             PicketTuiScanTargetMode.AzureDevOps => FirstNonEmpty(
                 scan.AzureDevOpsRepository,
                 scan.AzureDevOpsProject,

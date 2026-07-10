@@ -663,7 +663,7 @@ public sealed class CliGitHubScanTests
             "jsonl").ConfigureAwait(false);
 
         Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
-        Assert.Contains("GitHub source scan requires exactly one of --github-repository, --github-organization, --github-user, --github-gist, --github-gists, or --github-user-gists", result.Stderr);
+        Assert.Contains("Choose one GitHub scan target: --github-repository owner/name, --github-organization login, --github-user login, --github-gist id, --github-gists, or --github-user-gists login", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }

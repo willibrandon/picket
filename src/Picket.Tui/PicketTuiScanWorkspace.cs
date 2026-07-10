@@ -19,6 +19,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_giteaIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubRepositoryTypes = ["all", "public", "private", "forks", "sources", "owner", "member"];
+    private static readonly string[] s_githubScopeLabels = ["Repository", "Organization", "User", "Gist", "My gists", "User gists"];
     private static readonly string[] s_reportFormats = ["jsonl", "json", "sarif", "html", "csv", "junit", "gitlab", "toon"];
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
@@ -70,6 +71,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selectable GitHub repository type filters.
     /// </summary>
     internal static IReadOnlyList<string> GitHubRepositoryTypes => s_githubRepositoryTypes;
+
+    /// <summary>
+    /// Gets the selectable GitHub source scopes.
+    /// </summary>
+    internal static IReadOnlyList<string> GitHubScopeLabels => s_githubScopeLabels;
 
     /// <summary>
     /// Gets the selectable report formats.
@@ -162,6 +168,25 @@ internal sealed class PicketTuiScanWorkspace
     internal string RegistryMaxImageMegabytes { get; private set; } = string.Empty;
 
     /// <summary>
+    /// Gets the selected GitHub source scope.
+    /// </summary>
+    internal PicketTuiGitHubScope GitHubScope { get; private set; }
+
+    /// <summary>
+    /// Gets the selected GitHub target value for display.
+    /// </summary>
+    internal string GitHubTargetDisplayValue => GitHubScope switch
+    {
+        PicketTuiGitHubScope.Repository => ConfiguredOrNotSelected(GitHubRepository),
+        PicketTuiGitHubScope.Organization => ConfiguredOrNotSelected(GitHubOrganization),
+        PicketTuiGitHubScope.User => ConfiguredOrNotSelected(GitHubUser),
+        PicketTuiGitHubScope.Gist => ConfiguredOrNotSelected(GitHubGist),
+        PicketTuiGitHubScope.AuthenticatedGists => "authenticated gists",
+        PicketTuiGitHubScope.UserGists => ConfiguredOrNotSelected(GitHubUserGists),
+        _ => "not selected",
+    };
+
+    /// <summary>
     /// Gets the GitHub repository selector.
     /// </summary>
     internal string GitHubRepository { get; private set; } = string.Empty;
@@ -189,7 +214,7 @@ internal sealed class PicketTuiScanWorkspace
     /// <summary>
     /// Gets a value indicating whether the authenticated user's GitHub gists are included.
     /// </summary>
-    internal bool IncludeGitHubGists { get; private set; }
+    internal bool IncludeGitHubGists => GitHubScope == PicketTuiGitHubScope.AuthenticatedGists;
 
     /// <summary>
     /// Gets the public GitHub user whose gists should be scanned.
@@ -886,6 +911,11 @@ internal sealed class PicketTuiScanWorkspace
     internal int GitHubRepositoryTypeIndex => IndexOf(s_githubRepositoryTypes, GitHubRepositoryType);
 
     /// <summary>
+    /// Gets the selected GitHub source scope index.
+    /// </summary>
+    internal int GitHubScopeIndex => (int)GitHubScope;
+
+    /// <summary>
     /// Gets the selected Azure DevOps token kind index.
     /// </summary>
     internal int AzureDevOpsTokenKindIndex => IndexOf(s_azureDevOpsTokenKinds, AzureDevOpsTokenKind);
@@ -1072,91 +1102,174 @@ internal sealed class PicketTuiScanWorkspace
     /// Sets the GitHub repository selector.
     /// </summary>
     /// <param name="value">The repository selector.</param>
-    internal void SetGitHubRepository(string value) => GitHubRepository = value;
+    internal void SetGitHubRepository(string value)
+    {
+        GitHubRepository = value;
+        SelectGitHubScopeWhenConfigured(PicketTuiGitHubScope.Repository, value);
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub organization selector.
     /// </summary>
     /// <param name="value">The organization selector.</param>
-    internal void SetGitHubOrganization(string value) => GitHubOrganization = value;
+    internal void SetGitHubOrganization(string value)
+    {
+        GitHubOrganization = value;
+        SelectGitHubScopeWhenConfigured(PicketTuiGitHubScope.Organization, value);
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub user selector.
     /// </summary>
     /// <param name="value">The user selector.</param>
-    internal void SetGitHubUser(string value) => GitHubUser = value;
+    internal void SetGitHubUser(string value)
+    {
+        GitHubUser = value;
+        SelectGitHubScopeWhenConfigured(PicketTuiGitHubScope.User, value);
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub repository type filter by index.
     /// </summary>
     /// <param name="index">The selected repository type index.</param>
-    internal void SetGitHubRepositoryTypeByIndex(int index) => GitHubRepositoryType = s_githubRepositoryTypes[Math.Clamp(index, 0, s_githubRepositoryTypes.Length - 1)];
+    internal void SetGitHubRepositoryTypeByIndex(int index)
+    {
+        GitHubRepositoryType = s_githubRepositoryTypes[Math.Clamp(index, 0, s_githubRepositoryTypes.Length - 1)];
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the GitHub source scope by index.
+    /// </summary>
+    /// <param name="index">The selected source scope index.</param>
+    internal void SetGitHubScopeByIndex(int index)
+    {
+        GitHubScope = (PicketTuiGitHubScope)Math.Clamp(index, 0, s_githubScopeLabels.Length - 1);
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub gist selector.
     /// </summary>
     /// <param name="value">The gist selector.</param>
-    internal void SetGitHubGist(string value) => GitHubGist = value;
+    internal void SetGitHubGist(string value)
+    {
+        GitHubGist = value;
+        SelectGitHubScopeWhenConfigured(PicketTuiGitHubScope.Gist, value);
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets whether the authenticated user's GitHub gists are included.
     /// </summary>
     /// <param name="value">The include state.</param>
-    internal void SetIncludeGitHubGists(bool value) => IncludeGitHubGists = value;
+    internal void SetIncludeGitHubGists(bool value)
+    {
+        if (value)
+        {
+            GitHubScope = PicketTuiGitHubScope.AuthenticatedGists;
+        }
+        else if (GitHubScope == PicketTuiGitHubScope.AuthenticatedGists)
+        {
+            GitHubScope = PicketTuiGitHubScope.Repository;
+        }
+
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the public GitHub user whose gists should be scanned.
     /// </summary>
     /// <param name="value">The GitHub user login.</param>
-    internal void SetGitHubUserGists(string value) => GitHubUserGists = value;
+    internal void SetGitHubUserGists(string value)
+    {
+        GitHubUserGists = value;
+        SelectGitHubScopeWhenConfigured(PicketTuiGitHubScope.UserGists, value);
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub ref selector.
     /// </summary>
     /// <param name="value">The ref selector.</param>
-    internal void SetGitHubRef(string value) => GitHubRef = value;
+    internal void SetGitHubRef(string value)
+    {
+        GitHubRef = value;
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub pull request selector.
     /// </summary>
     /// <param name="value">The pull request selector.</param>
-    internal void SetGitHubPullRequest(string value) => GitHubPullRequest = value;
+    internal void SetGitHubPullRequest(string value)
+    {
+        GitHubPullRequest = value;
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub token environment variable name.
     /// </summary>
     /// <param name="value">The token environment variable name.</param>
-    internal void SetGitHubTokenEnvironmentVariable(string value) => GitHubTokenEnvironmentVariable = value;
+    internal void SetGitHubTokenEnvironmentVariable(string value)
+    {
+        GitHubTokenEnvironmentVariable = value;
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets whether GitHub issue bodies and comments are included.
     /// </summary>
     /// <param name="value">The include state.</param>
-    internal void SetIncludeGitHubIssues(bool value) => IncludeGitHubIssues = value;
+    internal void SetIncludeGitHubIssues(bool value)
+    {
+        IncludeGitHubIssues = value;
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub issue state filter by index.
     /// </summary>
     /// <param name="index">The selected issue state index.</param>
-    internal void SetGitHubIssueStateByIndex(int index) => GitHubIssueState = s_githubIssueStates[Math.Clamp(index, 0, s_githubIssueStates.Length - 1)];
+    internal void SetGitHubIssueStateByIndex(int index)
+    {
+        GitHubIssueState = s_githubIssueStates[Math.Clamp(index, 0, s_githubIssueStates.Length - 1)];
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets whether GitHub releases and release assets are included.
     /// </summary>
     /// <param name="value">The include state.</param>
-    internal void SetIncludeGitHubReleases(bool value) => IncludeGitHubReleases = value;
+    internal void SetIncludeGitHubReleases(bool value)
+    {
+        IncludeGitHubReleases = value;
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets whether GitHub Actions artifacts are included.
     /// </summary>
     /// <param name="value">The include state.</param>
-    internal void SetIncludeGitHubActionsArtifacts(bool value) => IncludeGitHubActionsArtifacts = value;
+    internal void SetIncludeGitHubActionsArtifacts(bool value)
+    {
+        IncludeGitHubActionsArtifacts = value;
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the GitHub source API endpoint.
     /// </summary>
     /// <param name="value">The endpoint URI.</param>
-    internal void SetGitHubSourceApiEndpoint(string value) => GitHubSourceApiEndpoint = value;
+    internal void SetGitHubSourceApiEndpoint(string value)
+    {
+        GitHubSourceApiEndpoint = value;
+        MarkConfigurationChanged();
+    }
 
     /// <summary>
     /// Sets the Azure DevOps Services or Server endpoint.
@@ -1754,9 +1867,9 @@ internal sealed class PicketTuiScanWorkspace
     /// <returns>The display-ready command line.</returns>
     internal string BuildCommandLinePreview()
     {
-        return TryBuildArguments(out List<string> arguments, out string error)
+        return TryBuildArguments(out List<string> arguments, out _)
             ? string.Concat("picket ", JoinArguments(arguments))
-            : string.Concat("Cannot build command: ", error);
+            : string.Empty;
     }
 
     /// <summary>
@@ -1844,12 +1957,11 @@ internal sealed class PicketTuiScanWorkspace
 
         if (!TryBuildArguments(out List<string> arguments, out string error))
         {
-            Status = "Scan request is invalid";
+            Status = error;
             LastMessage = error;
             LastExitCode = null;
             LastStartedAt = null;
             LastCompletedAt = null;
-            CaptureMessageOutput("validation", error);
             return null;
         }
 
@@ -2209,20 +2321,8 @@ internal sealed class PicketTuiScanWorkspace
                 AddOptionalValue(arguments, "--registry-max-image-megabytes", RegistryMaxImageMegabytes);
                 break;
             case PicketTuiScanTargetMode.GitHub:
-                AddOptionalValue(arguments, "--github-repository", GitHubRepository);
-                AddOptionalValue(arguments, "--github-organization", GitHubOrganization);
-                AddOptionalValue(arguments, "--github-user", GitHubUser);
-                AddOptionalNonDefaultValue(arguments, "--github-repository-type", GitHubRepositoryType, "all");
-                AddOptionalValue(arguments, "--github-gist", GitHubGist);
-                AddFlag(arguments, "--github-gists", IncludeGitHubGists);
-                AddOptionalValue(arguments, "--github-user-gists", GitHubUserGists);
-                AddOptionalValue(arguments, "--github-ref", GitHubRef);
-                AddOptionalValue(arguments, "--github-pull-request", GitHubPullRequest);
+                AddGitHubTargetArguments(arguments);
                 AddOptionalValue(arguments, "--github-token-env", GitHubTokenEnvironmentVariable);
-                AddFlag(arguments, "--github-include-issues", IncludeGitHubIssues);
-                AddOptionalNonDefaultValue(arguments, "--github-issue-state", GitHubIssueState, "all");
-                AddFlag(arguments, "--github-include-releases", IncludeGitHubReleases);
-                AddFlag(arguments, "--github-include-actions-artifacts", IncludeGitHubActionsArtifacts);
                 AddOptionalValue(arguments, "--github-source-api-endpoint", GitHubSourceApiEndpoint);
                 break;
             case PicketTuiScanTargetMode.AzureDevOps:
@@ -2321,6 +2421,48 @@ internal sealed class PicketTuiScanWorkspace
         }
     }
 
+    private void AddGitHubTargetArguments(List<string> arguments)
+    {
+        switch (GitHubScope)
+        {
+            case PicketTuiGitHubScope.Repository:
+                AddOptionalValue(arguments, "--github-repository", GitHubRepository);
+                break;
+            case PicketTuiGitHubScope.Organization:
+                AddOptionalValue(arguments, "--github-organization", GitHubOrganization);
+                break;
+            case PicketTuiGitHubScope.User:
+                AddOptionalValue(arguments, "--github-user", GitHubUser);
+                break;
+            case PicketTuiGitHubScope.Gist:
+                AddOptionalValue(arguments, "--github-gist", GitHubGist);
+                break;
+            case PicketTuiGitHubScope.AuthenticatedGists:
+                arguments.Add("--github-gists");
+                break;
+            case PicketTuiGitHubScope.UserGists:
+                AddOptionalValue(arguments, "--github-user-gists", GitHubUserGists);
+                break;
+        }
+
+        if (GitHubScope is not (PicketTuiGitHubScope.Repository or PicketTuiGitHubScope.Organization or PicketTuiGitHubScope.User))
+        {
+            return;
+        }
+
+        AddOptionalNonDefaultValue(arguments, "--github-repository-type", GitHubRepositoryType, "all");
+        AddOptionalValue(arguments, "--github-ref", GitHubRef);
+        if (GitHubScope == PicketTuiGitHubScope.Repository)
+        {
+            AddOptionalValue(arguments, "--github-pull-request", GitHubPullRequest);
+        }
+
+        AddFlag(arguments, "--github-include-issues", IncludeGitHubIssues);
+        AddOptionalNonDefaultValue(arguments, "--github-issue-state", GitHubIssueState, "all");
+        AddFlag(arguments, "--github-include-releases", IncludeGitHubReleases);
+        AddFlag(arguments, "--github-include-actions-artifacts", IncludeGitHubActionsArtifacts);
+    }
+
     private string BuildTargetDescription()
     {
         return TargetMode switch
@@ -2329,7 +2471,7 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.DockerArchive => string.Concat("Docker archive ", FirstConfigured(DockerArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.OciArchive => string.Concat("OCI archive ", FirstConfigured(OciArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.RegistryImage => string.Concat("Registry image ", FirstConfigured(RegistryImage, RegistryEndpoint, string.Empty)),
-            PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", FirstConfigured(GitHubRepository, GitHubOrganization, GitHubUser)),
+            PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", GitHubTargetDisplayValue),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsFeed, FirstConfigured(AzureDevOpsProject, AzureDevOpsOrganization, AzureDevOpsEndpoint))),
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
             PicketTuiScanTargetMode.Gitea => string.Concat("Gitea ", FirstConfigured(GiteaRepository, GiteaOrganization, GiteaUser)),
@@ -2354,6 +2496,11 @@ internal sealed class PicketTuiScanWorkspace
         }
 
         return string.IsNullOrWhiteSpace(third) ? "target" : third;
+    }
+
+    private static string ConfiguredOrNotSelected(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "not selected" : value;
     }
 
     private static PicketTuiScanTargetCategory GetTargetCategory(PicketTuiScanTargetMode mode)
@@ -2416,9 +2563,8 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
-        if (TargetMode == PicketTuiScanTargetMode.GitHub && CountGitHubSourceSelectors() != 1)
+        if (TargetMode == PicketTuiScanTargetMode.GitHub && !ValidateGitHub(out error))
         {
-            error = "GitHub scans require exactly one repository, organization, user, gist, authenticated-gists, or user-gists selector.";
             return false;
         }
 
@@ -2569,6 +2715,52 @@ internal sealed class PicketTuiScanWorkspace
         if (hasToken && (hasUsername || hasPassword) || hasUsername != hasPassword)
         {
             error = "Registry authentication accepts a token environment variable or both username and password environment variables.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateGitHub(out string error)
+    {
+        error = GitHubScope switch
+        {
+            PicketTuiGitHubScope.Repository when string.IsNullOrWhiteSpace(GitHubRepository)
+                => "Repository required: enter owner/name; personal repos use your username as owner.",
+            PicketTuiGitHubScope.Organization when string.IsNullOrWhiteSpace(GitHubOrganization)
+                => "Organization required: enter its GitHub login.",
+            PicketTuiGitHubScope.User when string.IsNullOrWhiteSpace(GitHubUser)
+                => "User required: enter the GitHub login whose repositories should be scanned.",
+            PicketTuiGitHubScope.Gist when string.IsNullOrWhiteSpace(GitHubGist)
+                => "Gist required: enter the GitHub gist ID.",
+            PicketTuiGitHubScope.UserGists when string.IsNullOrWhiteSpace(GitHubUserGists)
+                => "User required: enter the GitHub login whose public gists should be scanned.",
+            _ => string.Empty,
+        };
+        if (error.Length != 0)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(GitHubTokenEnvironmentVariable))
+        {
+            error = "Token env required: enter the variable name containing your GitHub token.";
+            return false;
+        }
+
+        if (GitHubScope == PicketTuiGitHubScope.Repository
+            && !string.IsNullOrWhiteSpace(GitHubRef)
+            && !string.IsNullOrWhiteSpace(GitHubPullRequest))
+        {
+            error = "Choose either a Git ref or a pull request, not both.";
+            return false;
+        }
+
+        if (GitHubScope == PicketTuiGitHubScope.Repository
+            && !string.IsNullOrWhiteSpace(GitHubPullRequest)
+            && (IncludeGitHubIssues || IncludeGitHubReleases || IncludeGitHubActionsArtifacts))
+        {
+            error = "A pull request scan cannot also include issues, releases, or Actions artifacts.";
             return false;
         }
 
@@ -2815,40 +3007,20 @@ internal sealed class PicketTuiScanWorkspace
         return true;
     }
 
-    private int CountGitHubSourceSelectors()
+    private void SelectGitHubScopeWhenConfigured(PicketTuiGitHubScope scope, string value)
     {
-        int count = 0;
-        if (!string.IsNullOrWhiteSpace(GitHubRepository))
+        if (!string.IsNullOrWhiteSpace(value))
         {
-            count++;
+            GitHubScope = scope;
         }
+    }
 
-        if (!string.IsNullOrWhiteSpace(GitHubOrganization))
+    private void MarkConfigurationChanged()
+    {
+        if (!IsRunning)
         {
-            count++;
+            Status = "Ready to scan";
         }
-
-        if (!string.IsNullOrWhiteSpace(GitHubUser))
-        {
-            count++;
-        }
-
-        if (!string.IsNullOrWhiteSpace(GitHubGist))
-        {
-            count++;
-        }
-
-        if (IncludeGitHubGists)
-        {
-            count++;
-        }
-
-        if (!string.IsNullOrWhiteSpace(GitHubUserGists))
-        {
-            count++;
-        }
-
-        return count;
     }
 
     private int CountGitLabSourceSelectors()

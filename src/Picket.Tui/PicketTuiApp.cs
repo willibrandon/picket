@@ -526,46 +526,91 @@ internal static class PicketTuiApp
         where TParent : Hex1bWidget
     {
         return ctx.VStack(v => [
-            BuildChoiceField(v, "Repo type", PicketTuiScanWorkspace.GitHubRepositoryTypes, scan.GitHubRepositoryTypeIndex, scan.SetGitHubRepositoryTypeByIndex),
-            BuildFieldGap(v),
-            BuildChoiceField(v, "Issue state", PicketTuiScanWorkspace.GitHubIssueStates, scan.GitHubIssueStateIndex, scan.SetGitHubIssueStateByIndex),
+            BuildPickerField(v, "Scope", PicketTuiScanWorkspace.GitHubScopeLabels, scan.GitHubScopeIndex, scan.SetGitHubScopeByIndex),
             BuildFieldGap(v),
             v.HStack(h => [
-                h.VStack(left => [
-                    BuildTextField(left, "Repository", scan.GitHubRepository, scan.SetGitHubRepository),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "Org", scan.GitHubOrganization, scan.SetGitHubOrganization),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "User", scan.GitHubUser, scan.SetGitHubUser),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "Token env", scan.GitHubTokenEnvironmentVariable, scan.SetGitHubTokenEnvironmentVariable),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "Gist", scan.GitHubGist, scan.SetGitHubGist),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "User gists", scan.GitHubUserGists, scan.SetGitHubUserGists),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "Endpoint", scan.GitHubSourceApiEndpoint, scan.SetGitHubSourceApiEndpoint),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "Ref", scan.GitHubRef, scan.SetGitHubRef),
-                    BuildFieldGap(left),
-                    BuildTextField(left, "PR", scan.GitHubPullRequest, scan.SetGitHubPullRequest),
-                ]).FillWidth(),
+                BuildGitHubPrimaryFields(h, scan).FillWidth(),
                 h.Text("      "),
-                h.VStack(right => [
-                    BuildBooleanField(right, "Issues", scan.IncludeGitHubIssues, scan.SetIncludeGitHubIssues),
-                    BuildFieldGap(right),
-                    BuildBooleanField(right, "Releases", scan.IncludeGitHubReleases, scan.SetIncludeGitHubReleases),
-                    BuildFieldGap(right),
-                    BuildBooleanField(right, "Actions", scan.IncludeGitHubActionsArtifacts, scan.SetIncludeGitHubActionsArtifacts),
-                    BuildFieldGap(right),
-                    BuildBooleanField(right, "Gists", scan.IncludeGitHubGists, scan.SetIncludeGitHubGists),
-                    BuildFieldGap(right),
-                    BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
-                    BuildFieldGap(right),
-                    BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
-                ]).FillWidth(),
+                BuildGitHubOptionFields(h, scan).FillWidth(),
             ]).FillWidth()
         ]).FillWidth();
+    }
+
+    private static VStackWidget BuildGitHubPrimaryFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.VStack(v =>
+        {
+            var widgets = new List<Hex1bWidget>();
+            switch (scan.GitHubScope)
+            {
+                case PicketTuiGitHubScope.Repository:
+                    widgets.Add(BuildTextField(v, "Repo owner/name", scan.GitHubRepository, scan.SetGitHubRepository));
+                    break;
+                case PicketTuiGitHubScope.Organization:
+                    widgets.Add(BuildTextField(v, "Organization", scan.GitHubOrganization, scan.SetGitHubOrganization));
+                    break;
+                case PicketTuiGitHubScope.User:
+                    widgets.Add(BuildTextField(v, "User login", scan.GitHubUser, scan.SetGitHubUser));
+                    break;
+                case PicketTuiGitHubScope.Gist:
+                    widgets.Add(BuildTextField(v, "Gist ID", scan.GitHubGist, scan.SetGitHubGist));
+                    break;
+                case PicketTuiGitHubScope.UserGists:
+                    widgets.Add(BuildTextField(v, "User login", scan.GitHubUserGists, scan.SetGitHubUserGists));
+                    break;
+            }
+
+            if (widgets.Count != 0)
+            {
+                widgets.Add(BuildFieldGap(v));
+            }
+
+            widgets.Add(BuildTextField(v, "Token env", scan.GitHubTokenEnvironmentVariable, scan.SetGitHubTokenEnvironmentVariable));
+            widgets.Add(BuildFieldGap(v));
+            widgets.Add(BuildTextField(v, "Endpoint", scan.GitHubSourceApiEndpoint, scan.SetGitHubSourceApiEndpoint));
+
+            if (scan.GitHubScope is PicketTuiGitHubScope.Repository or PicketTuiGitHubScope.Organization or PicketTuiGitHubScope.User)
+            {
+                widgets.Add(BuildFieldGap(v));
+                widgets.Add(BuildTextField(v, "Ref", scan.GitHubRef, scan.SetGitHubRef));
+            }
+
+            if (scan.GitHubScope == PicketTuiGitHubScope.Repository)
+            {
+                widgets.Add(BuildFieldGap(v));
+                widgets.Add(BuildTextField(v, "Pull request", scan.GitHubPullRequest, scan.SetGitHubPullRequest));
+            }
+
+            return [.. widgets];
+        });
+    }
+
+    private static VStackWidget BuildGitHubOptionFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.VStack(v =>
+        {
+            var widgets = new List<Hex1bWidget>();
+            if (scan.GitHubScope is PicketTuiGitHubScope.Repository or PicketTuiGitHubScope.Organization or PicketTuiGitHubScope.User)
+            {
+                widgets.Add(BuildPickerField(v, "Repo type", PicketTuiScanWorkspace.GitHubRepositoryTypes, scan.GitHubRepositoryTypeIndex, scan.SetGitHubRepositoryTypeByIndex));
+                widgets.Add(BuildFieldGap(v));
+                widgets.Add(BuildChoiceField(v, "Issue state", PicketTuiScanWorkspace.GitHubIssueStates, scan.GitHubIssueStateIndex, scan.SetGitHubIssueStateByIndex));
+                widgets.Add(BuildFieldGap(v));
+                widgets.Add(BuildBooleanField(v, "Issues", scan.IncludeGitHubIssues, scan.SetIncludeGitHubIssues));
+                widgets.Add(BuildFieldGap(v));
+                widgets.Add(BuildBooleanField(v, "Releases", scan.IncludeGitHubReleases, scan.SetIncludeGitHubReleases));
+                widgets.Add(BuildFieldGap(v));
+                widgets.Add(BuildBooleanField(v, "Actions", scan.IncludeGitHubActionsArtifacts, scan.SetIncludeGitHubActionsArtifacts));
+                widgets.Add(BuildFieldGap(v));
+            }
+
+            widgets.Add(BuildBooleanField(v, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints));
+            widgets.Add(BuildFieldGap(v));
+            widgets.Add(BuildBooleanField(v, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints));
+            return [.. widgets];
+        });
     }
 
     private static HStackWidget BuildAzureDevOpsSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
@@ -879,12 +924,7 @@ internal static class PicketTuiApp
     {
         return scan.TargetMode switch
         {
-            PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", FirstNonEmpty(
-                scan.GitHubRepository,
-                scan.GitHubOrganization,
-                scan.GitHubUser,
-                scan.GitHubGist,
-                "not selected")),
+            PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", scan.GitHubTargetDisplayValue),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstNonEmpty(
                 scan.AzureDevOpsRepository,
                 scan.AzureDevOpsFeed,
@@ -1102,6 +1142,23 @@ internal static class PicketTuiApp
             h.Text(label).FixedWidth(FieldLabelWidth),
             h.Text("  "),
             h.ToggleSwitch(options, selectedIndex)
+                .OnSelectionChanged(e => setValue(e.SelectedIndex))
+                .FillWidth()
+        ]).FixedHeight(1);
+    }
+
+    private static HStackWidget BuildPickerField<TParent>(
+        WidgetContext<TParent> ctx,
+        string label,
+        IReadOnlyList<string> options,
+        int selectedIndex,
+        Action<int> setValue)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.Text(label).FixedWidth(FieldLabelWidth),
+            h.Text("  "),
+            h.Picker(options, selectedIndex)
                 .OnSelectionChanged(e => setValue(e.SelectedIndex))
                 .FillWidth()
         ]).FixedHeight(1);

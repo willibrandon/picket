@@ -960,23 +960,73 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that the scan workspace rejects ambiguous GitHub source selectors before launching the scanner.
+    /// Verifies that the selected GitHub scope prevents retained values from creating a second source target.
     /// </summary>
     [TestMethod]
-    public void ScanWorkspaceRejectsMultipleGitHubSourceSelectors()
+    public void ScanWorkspaceBuildsOnlySelectedGitHubSourceScope()
     {
         PicketTuiState state = CreateState();
         PicketTuiScanWorkspace scan = state.ScanWorkspace;
 
         scan.SetTargetMode(1);
         scan.SetGitHubRepository("owner/repo");
+        scan.SetGitHubOrganization("organization");
         scan.SetGitHubGist("abc123");
+        scan.SetGitHubTokenEnvironmentVariable("PICKET_GITHUB_SECRET_SCANNING_PAT");
+        scan.SetGitHubScopeByIndex((int)PicketTuiGitHubScope.Repository);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--github-repository", arguments);
+        Assert.Contains("owner/repo", arguments);
+        Assert.DoesNotContain("--github-organization", arguments);
+        Assert.DoesNotContain("--github-gist", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that an incomplete GitHub repository scope reports the field and accepted value shape.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceExplainsIncompleteGitHubRepositoryScope()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(1);
+        scan.SetGitHubTokenEnvironmentVariable("PICKET_GITHUB_SECRET_SCANNING_PAT");
 
         bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
 
         Assert.IsFalse(built);
         Assert.IsEmpty(arguments);
-        Assert.Contains("exactly one repository, organization, user, gist, authenticated-gists, or user-gists selector", error);
+        Assert.AreEqual(
+            "Repository required: enter owner/name; personal repos use your username as owner.",
+            error);
+        Assert.IsEmpty(scan.BuildCommandLinePreview());
+    }
+
+    /// <summary>
+    /// Verifies that failed TUI validation surfaces one actionable status without scanner-output duplication.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanWorkspaceUsesActionableGitHubValidationAsStatus()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        scan.SetTargetMode(1);
+        scan.SetGitHubRepository("willibrandon/picket");
+
+        PicketTuiScanExecutionResult? result = await scan.RunAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsNull(result);
+        Assert.AreEqual("Token env required: enter the variable name containing your GitHub token.", scan.Status);
+        Assert.AreEqual(scan.Status, scan.LastMessage);
+        Assert.IsEmpty(scan.CapturedOutputLines);
+
+        scan.SetGitHubTokenEnvironmentVariable("PICKET_GITHUB_SECRET_SCANNING_PAT");
+
+        Assert.AreEqual("Ready to scan", scan.Status);
     }
 
     /// <summary>
@@ -1986,19 +2036,23 @@ public sealed class PicketTuiTests
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
+        Assert.Contains("Scope", screenText);
         Assert.Contains("Repository", screenText);
+        Assert.Contains("Repo owner/name", screenText);
         Assert.Contains("Token env", screenText);
-        Assert.Contains("Gist", screenText);
         Assert.Contains("Repo type", screenText);
-        Assert.Contains("forks", screenText);
-        Assert.Contains("sources", screenText);
-        Assert.Contains("owner", screenText);
-        Assert.Contains("member", screenText);
         Assert.Contains("Issue state", screenText);
         Assert.Contains("Endpoint", screenText);
         Assert.Contains("Actions", screenText);
         Assert.Contains("Non-public", screenText);
         Assert.Contains("HTTP", screenText);
+        Assert.Contains("Organization", PicketTuiScanWorkspace.GitHubScopeLabels);
+        Assert.Contains("My gists", PicketTuiScanWorkspace.GitHubScopeLabels);
+        Assert.Contains("User gists", PicketTuiScanWorkspace.GitHubScopeLabels);
+        Assert.Contains("forks", PicketTuiScanWorkspace.GitHubRepositoryTypes);
+        Assert.Contains("sources", PicketTuiScanWorkspace.GitHubRepositoryTypes);
+        Assert.Contains("owner", PicketTuiScanWorkspace.GitHubRepositoryTypes);
+        Assert.Contains("member", PicketTuiScanWorkspace.GitHubRepositoryTypes);
     }
 
     /// <summary>
@@ -2080,6 +2134,67 @@ public sealed class PicketTuiTests
         Assert.Contains("Password env", screenText);
         Assert.Contains("Non-public", screenText);
         Assert.Contains("HTTP", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that repository and token values entered through Hex1b produce one GitHub repository target.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleBuildsGitHubRepositoryScanFromEnteredFields()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor();
+        PicketTuiState state = CreateState(executor);
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        state.SetView(PicketTuiView.Scan);
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.GitHub);
+        scan.SetGitHubOrganization("retained-organization");
+        scan.SetGitHubScopeByIndex((int)PicketTuiGitHubScope.Repository);
+        scan.SetReportPath(Path.Combine(temp.Path, "picket.jsonl"));
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 140, height: 38);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot initialSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Repo owner/name"), TimeSpan.FromSeconds(5), "GitHub repository field to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        (int repositoryLine, int repositoryColumn) = initialSnapshot.FindText("Repo owner/name").Single();
+        Hex1bTerminalSnapshot repositorySnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .ClickAt(repositoryColumn + 18, repositoryLine)
+            .Type("willibrandon/picket")
+            .WaitUntil(_ => scan.GitHubRepository == "willibrandon/picket", TimeSpan.FromSeconds(5), "repository input to update")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        (int tokenLine, int tokenColumn) = repositorySnapshot.FindText("Token env").Single();
+        Hex1bTerminalSnapshot completedSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .ClickAt(tokenColumn + 18, tokenLine)
+            .Type("PICKET_GITHUB_SECRET_SCANNING_PAT")
+            .WaitUntil(_ => scan.GitHubTokenEnvironmentVariable == "PICKET_GITHUB_SECRET_SCANNING_PAT", TimeSpan.FromSeconds(5), "token environment input to update")
+            .Ctrl().Key(Hex1bKey.R)
+            .WaitUntil(s => s.ContainsText("Scan completed: findings reported"), TimeSpan.FromSeconds(5), "GitHub scan to complete")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = completedSnapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("GitHub willibrandon/picket", screenText);
+        Assert.Contains("--github-repository", executor.CapturedArguments);
+        Assert.Contains("willibrandon/picket", executor.CapturedArguments);
+        Assert.Contains("--github-token-env", executor.CapturedArguments);
+        Assert.Contains("PICKET_GITHUB_SECRET_SCANNING_PAT", executor.CapturedArguments);
+        Assert.DoesNotContain("--github-organization", executor.CapturedArguments);
     }
 
     /// <summary>

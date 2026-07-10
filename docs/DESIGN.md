@@ -1035,6 +1035,8 @@ The full-screen console is an operator interface, not a marketing screen. Openin
 
 The scanner console also has a native scan workspace. The workspace covers local paths, local container archives, remote registry images, source hosts, and object stores. Profile, config, ignore behavior, verification, result filters, limits, redaction, and report controls are grouped into Source, Output, Validation, and Limits sections.
 
+GitHub setup uses one explicit scope picker for repository, organization repositories, user repositories, one gist, authenticated-user gists, or public gists for one user. The workspace renders and emits only the selected scope. Repository input is `owner/name`, including personal repositories where `owner` is the account login. Retained values from another scope must not create an ambiguous command, and incomplete input must identify the required field and accepted value shape rather than report a combined selector-count error.
+
 The workspace displays the command-equivalent `picket scan` request and runs that scanner executable. It prepares the report directory, shows text status, exit code, start/completion/elapsed timing, output availability, and cancellation state, then reloads the generated report summary. The Logs view owns captured stdout and stderr.
 
 Completed scans show the loaded finding count and a direct `g f` path to Findings instead of duplicating findings on Scan. While a scan is running, the primary action changes from Run scan to Cancel and `Ctrl+C` requests cancellation without closing the console. The TUI must not create a separate scanner behavior path from the CLI.
