@@ -306,7 +306,7 @@ internal static class PicketTuiApp
         return ctx.VStack(v => [
             BuildSectionTitle(v, "Target"),
             BuildBlankLine(v),
-            BuildTargetModeRow(v, scan),
+            BuildTargetSelectionRows(v, scan),
             BuildSectionGap(v),
             .. BuildPrimaryTargetFields(v, scan)
         ]);
@@ -365,16 +365,26 @@ internal static class PicketTuiApp
         });
     }
 
-    private static HStackWidget BuildTargetModeRow<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+    private static VStackWidget BuildTargetSelectionRows<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
-        return ctx.HStack(h => [
-            h.Text("Target").FixedWidth(FieldLabelWidth),
-            h.Text("  "),
-            h.ToggleSwitch(PicketTuiScanWorkspace.TargetModeLabels, scan.TargetModeIndex)
-                .OnSelectionChanged(e => scan.SetTargetMode(e.SelectedIndex))
-                .FillWidth()
-        ]).FixedHeight(1);
+        return ctx.VStack(v => [
+            v.HStack(h => [
+                h.Text("Kind").FixedWidth(FieldLabelWidth),
+                h.Text("  "),
+                h.ToggleSwitch(PicketTuiScanWorkspace.TargetCategoryLabels, scan.TargetCategoryIndex)
+                    .OnSelectionChanged(e => scan.SetTargetCategoryByIndex(e.SelectedIndex))
+                    .FillWidth()
+            ]).FixedHeight(1),
+            BuildFieldGap(v),
+            v.HStack(h => [
+                h.Text("Target").FixedWidth(FieldLabelWidth),
+                h.Text("  "),
+                h.ToggleSwitch(scan.ActiveTargetModeLabels, scan.TargetModeIndex)
+                    .OnSelectionChanged(e => scan.SetTargetModeByCategoryIndex(e.SelectedIndex))
+                    .FillWidth()
+            ]).FixedHeight(1)
+        ]);
     }
 
     private static ThemePanelWidget BuildSectionTitle<TParent>(WidgetContext<TParent> ctx, string text)

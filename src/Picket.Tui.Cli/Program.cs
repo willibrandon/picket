@@ -53,7 +53,18 @@ static RootCommand CreateRootCommand()
         scanOption,
     };
 
-    rootCommand.SetAction(async parseResult =>
+    rootCommand.SetAction(parseResult => RunRootCommandActionAsync(parseResult, reportArgument, flowOption, scanOption));
+
+    return rootCommand;
+}
+
+static async Task<int> RunRootCommandActionAsync(
+    ParseResult parseResult,
+    Argument<string?> reportArgument,
+    Option<bool> flowOption,
+    Option<bool> scanOption)
+{
+    try
     {
         string? reportPath = parseResult.GetValue(reportArgument);
         bool flow = parseResult.GetValue(flowOption);
@@ -78,6 +89,11 @@ static RootCommand CreateRootCommand()
 
         if (flow)
         {
+            if (!string.IsNullOrWhiteSpace(reportPath) && !TryValidateReportPath(reportPath))
+            {
+                return 1;
+            }
+
             return await PicketTuiFlowRunner.RunAsync(reportPath).ConfigureAwait(false);
         }
 
@@ -86,10 +102,35 @@ static RootCommand CreateRootCommand()
             return await PicketTuiRunner.RunScanWorkspaceAsync().ConfigureAwait(false);
         }
 
-        return await PicketTuiRunner.RunAsync(reportPath).ConfigureAwait(false);
-    });
+        if (!TryValidateReportPath(reportPath))
+        {
+            return 1;
+        }
 
-    return rootCommand;
+        return await PicketTuiRunner.RunAsync(reportPath).ConfigureAwait(false);
+    }
+    catch (OperationCanceledException)
+    {
+        return 130;
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        return 1;
+    }
+}
+
+static bool TryValidateReportPath(string reportPath)
+{
+    if (File.Exists(reportPath))
+    {
+        return true;
+    }
+
+    Console.Error.WriteLine(Directory.Exists(reportPath)
+        ? string.Concat("report path is a directory: ", reportPath)
+        : string.Concat("report not found: ", reportPath));
+    return false;
 }
 
 static void RestoreTerminal()

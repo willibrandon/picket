@@ -512,6 +512,39 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that the scan workspace groups targets so the TUI selector stays readable.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceGroupsTargetModesByCategory()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        Assert.AreEqual(PicketTuiScanTargetCategory.Local, scan.TargetCategory);
+        Assert.HasCount(4, PicketTuiScanWorkspace.TargetCategoryLabels);
+        Assert.HasCount(1, scan.ActiveTargetModeLabels);
+
+        scan.SetTargetCategoryByIndex((int)PicketTuiScanTargetCategory.ObjectStore);
+
+        Assert.AreEqual(PicketTuiScanTargetMode.S3, scan.TargetMode);
+        Assert.AreEqual(0, scan.TargetModeIndex);
+        Assert.HasCount(3, scan.ActiveTargetModeLabels);
+        Assert.Contains("Azure Blob", scan.ActiveTargetModeLabels);
+
+        scan.SetTargetModeByCategoryIndex(2);
+
+        Assert.AreEqual(PicketTuiScanTargetMode.AzureBlob, scan.TargetMode);
+        Assert.AreEqual(PicketTuiScanTargetCategory.ObjectStore, scan.TargetCategory);
+        Assert.AreEqual(2, scan.TargetModeIndex);
+
+        scan.SetTargetCategoryByIndex((int)PicketTuiScanTargetCategory.Archive);
+
+        Assert.AreEqual(PicketTuiScanTargetMode.DockerArchive, scan.TargetMode);
+        Assert.HasCount(2, scan.ActiveTargetModeLabels);
+        Assert.Contains("OCI", scan.ActiveTargetModeLabels);
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace builds Docker archive scan arguments.
     /// </summary>
     [TestMethod]
@@ -1616,6 +1649,9 @@ public sealed class PicketTuiTests
         Assert.AreEqual(0, exitCode);
         Assert.Contains("Ready to scan", screenText);
         Assert.Contains("Target", screenText);
+        Assert.Contains("Kind", screenText);
+        Assert.Contains("Source host", screenText);
+        Assert.Contains("Object store", screenText);
         Assert.Contains("Source", screenText);
         Assert.Contains("Output", screenText);
         Assert.Contains("Validation", screenText);
@@ -1943,6 +1979,21 @@ public sealed class PicketTuiTests
         Assert.Contains("--flow", result.Stdout);
         Assert.Contains("--scan", result.Stdout);
         Assert.Contains("--version", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that a missing report path reports a CLI error instead of an unhandled exception.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task CompanionReportsMissingReportWithoutStackTrace()
+    {
+        CliResult result = await RunTuiCliAsync("missing-report.json").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("report not found: missing-report.json", result.Stderr);
+        Assert.DoesNotContain("Unhandled exception", result.Stderr);
+        Assert.DoesNotContain(" at ", result.Stderr);
     }
 
     private static PicketTuiState CreateState(

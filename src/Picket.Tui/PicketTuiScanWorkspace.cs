@@ -23,7 +23,11 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
-    private static readonly string[] s_targetModeLabels = ["Local", "GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "S3", "GCS", "Azure Blob", "Docker", "OCI"];
+    private static readonly string[] s_archiveTargetModeLabels = ["Docker", "OCI"];
+    private static readonly string[] s_localTargetModeLabels = ["Local"];
+    private static readonly string[] s_objectStoreTargetModeLabels = ["S3", "GCS", "Azure Blob"];
+    private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket"];
+    private static readonly string[] s_targetCategoryLabels = ["Local", "Source host", "Object store", "Archive"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
     private readonly Lock _outputLock = new();
@@ -88,14 +92,19 @@ internal sealed class PicketTuiScanWorkspace
     internal static IReadOnlyList<string> ScanSettingPages => s_scanSettingPages;
 
     /// <summary>
-    /// Gets the selectable target mode labels.
+    /// Gets the selectable target category labels.
     /// </summary>
-    internal static IReadOnlyList<string> TargetModeLabels => s_targetModeLabels;
+    internal static IReadOnlyList<string> TargetCategoryLabels => s_targetCategoryLabels;
 
     /// <summary>
     /// Gets the selected scan target mode.
     /// </summary>
     internal PicketTuiScanTargetMode TargetMode { get; private set; }
+
+    /// <summary>
+    /// Gets the selected scan target category.
+    /// </summary>
+    internal PicketTuiScanTargetCategory TargetCategory => GetTargetCategory(TargetMode);
 
     /// <summary>
     /// Gets the local filesystem path to scan.
@@ -755,21 +764,43 @@ internal sealed class PicketTuiScanWorkspace
     }
 
     /// <summary>
-    /// Gets the selected target mode index.
+    /// Gets the selected target category index.
+    /// </summary>
+    internal int TargetCategoryIndex => TargetCategory switch
+    {
+        PicketTuiScanTargetCategory.SourceHost => 1,
+        PicketTuiScanTargetCategory.ObjectStore => 2,
+        PicketTuiScanTargetCategory.Archive => 3,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// Gets the target mode labels available for the selected category.
+    /// </summary>
+    internal IReadOnlyList<string> ActiveTargetModeLabels => TargetCategory switch
+    {
+        PicketTuiScanTargetCategory.SourceHost => s_sourceHostTargetModeLabels,
+        PicketTuiScanTargetCategory.ObjectStore => s_objectStoreTargetModeLabels,
+        PicketTuiScanTargetCategory.Archive => s_archiveTargetModeLabels,
+        _ => s_localTargetModeLabels,
+    };
+
+    /// <summary>
+    /// Gets the selected target mode index within the selected category.
     /// </summary>
     internal int TargetModeIndex => TargetMode switch
     {
         PicketTuiScanTargetMode.Local => 0,
-        PicketTuiScanTargetMode.GitHub => 1,
-        PicketTuiScanTargetMode.AzureDevOps => 2,
-        PicketTuiScanTargetMode.GitLab => 3,
-        PicketTuiScanTargetMode.Gitea => 4,
-        PicketTuiScanTargetMode.Bitbucket => 5,
-        PicketTuiScanTargetMode.S3 => 6,
-        PicketTuiScanTargetMode.Gcs => 7,
-        PicketTuiScanTargetMode.AzureBlob => 8,
-        PicketTuiScanTargetMode.DockerArchive => 9,
-        PicketTuiScanTargetMode.OciArchive => 10,
+        PicketTuiScanTargetMode.GitHub => 0,
+        PicketTuiScanTargetMode.AzureDevOps => 1,
+        PicketTuiScanTargetMode.GitLab => 2,
+        PicketTuiScanTargetMode.Gitea => 3,
+        PicketTuiScanTargetMode.Bitbucket => 4,
+        PicketTuiScanTargetMode.S3 => 0,
+        PicketTuiScanTargetMode.Gcs => 1,
+        PicketTuiScanTargetMode.AzureBlob => 2,
+        PicketTuiScanTargetMode.DockerArchive => 0,
+        PicketTuiScanTargetMode.OciArchive => 1,
         _ => 0,
     };
 
@@ -823,7 +854,35 @@ internal sealed class PicketTuiScanWorkspace
     }
 
     /// <summary>
-    /// Sets the selected target mode by index.
+    /// Sets the selected target category by index.
+    /// </summary>
+    /// <param name="index">The category index.</param>
+    internal void SetTargetCategoryByIndex(int index)
+    {
+        PicketTuiScanTargetCategory category = index switch
+        {
+            1 => PicketTuiScanTargetCategory.SourceHost,
+            2 => PicketTuiScanTargetCategory.ObjectStore,
+            3 => PicketTuiScanTargetCategory.Archive,
+            _ => PicketTuiScanTargetCategory.Local,
+        };
+
+        if (category == TargetCategory)
+        {
+            return;
+        }
+
+        TargetMode = category switch
+        {
+            PicketTuiScanTargetCategory.SourceHost => PicketTuiScanTargetMode.GitHub,
+            PicketTuiScanTargetCategory.ObjectStore => PicketTuiScanTargetMode.S3,
+            PicketTuiScanTargetCategory.Archive => PicketTuiScanTargetMode.DockerArchive,
+            _ => PicketTuiScanTargetMode.Local,
+        };
+    }
+
+    /// <summary>
+    /// Sets the selected target mode by absolute legacy index.
     /// </summary>
     /// <param name="index">The target mode index.</param>
     internal void SetTargetMode(int index)
@@ -840,6 +899,37 @@ internal sealed class PicketTuiScanWorkspace
             8 => PicketTuiScanTargetMode.AzureBlob,
             9 => PicketTuiScanTargetMode.DockerArchive,
             10 => PicketTuiScanTargetMode.OciArchive,
+            _ => PicketTuiScanTargetMode.Local,
+        };
+    }
+
+    /// <summary>
+    /// Sets the selected target mode by index within the selected category.
+    /// </summary>
+    /// <param name="index">The category-local target mode index.</param>
+    internal void SetTargetModeByCategoryIndex(int index)
+    {
+        TargetMode = TargetCategory switch
+        {
+            PicketTuiScanTargetCategory.SourceHost => index switch
+            {
+                1 => PicketTuiScanTargetMode.AzureDevOps,
+                2 => PicketTuiScanTargetMode.GitLab,
+                3 => PicketTuiScanTargetMode.Gitea,
+                4 => PicketTuiScanTargetMode.Bitbucket,
+                _ => PicketTuiScanTargetMode.GitHub,
+            },
+            PicketTuiScanTargetCategory.ObjectStore => index switch
+            {
+                1 => PicketTuiScanTargetMode.Gcs,
+                2 => PicketTuiScanTargetMode.AzureBlob,
+                _ => PicketTuiScanTargetMode.S3,
+            },
+            PicketTuiScanTargetCategory.Archive => index switch
+            {
+                1 => PicketTuiScanTargetMode.OciArchive,
+                _ => PicketTuiScanTargetMode.DockerArchive,
+            },
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -2101,6 +2191,24 @@ internal sealed class PicketTuiScanWorkspace
         }
 
         return string.IsNullOrWhiteSpace(third) ? "target" : third;
+    }
+
+    private static PicketTuiScanTargetCategory GetTargetCategory(PicketTuiScanTargetMode mode)
+    {
+        return mode switch
+        {
+            PicketTuiScanTargetMode.GitHub
+                or PicketTuiScanTargetMode.AzureDevOps
+                or PicketTuiScanTargetMode.GitLab
+                or PicketTuiScanTargetMode.Gitea
+                or PicketTuiScanTargetMode.Bitbucket => PicketTuiScanTargetCategory.SourceHost,
+            PicketTuiScanTargetMode.S3
+                or PicketTuiScanTargetMode.Gcs
+                or PicketTuiScanTargetMode.AzureBlob => PicketTuiScanTargetCategory.ObjectStore,
+            PicketTuiScanTargetMode.DockerArchive
+                or PicketTuiScanTargetMode.OciArchive => PicketTuiScanTargetCategory.Archive,
+            _ => PicketTuiScanTargetCategory.Local,
+        };
     }
 
     private bool Validate(out string error)
