@@ -43,6 +43,8 @@ Every CI run also packs the Native AOT dotnet tool packages:
 
 The release workflow packs each tool twice: once as a top-level pointer package, and once per supported RID with `dotnet pack -r <RID>`. RID-specific packages are pushed to NuGet before the pointer packages so installs can resolve immediately.
 
+Scanner release archives, RID-specific `Picket` tool packages, and the container image include `THIRD-PARTY-NOTICES.txt` beside their license materials. This preserves the BSD notices required by the bundled zstandard runtime.
+
 The CI pack gate runs on Windows, Linux, and macOS so package metadata, root readme packaging, icon packaging, symbol packages, project-reference dependencies, tool manifests, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
 
 ## Native AOT Publish Validation
@@ -58,7 +60,17 @@ Every CI run also publishes `picket` and `picket-tui` with `release-speed` for t
 - `osx-x64` on `macos-26-intel`
 - `osx-arm64` on `macos-26`
 
-This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced. The Linux jobs install `musl-tools` and additionally publish/package the matching musl RID so Alpine-friendly artifacts are validated before release.
+This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced.
+
+The Linux jobs install `musl-tools`, build the decompression-only zstandard 1.5.7 runtime from its SHA-256-pinned upstream archive, and publish/package the matching musl RID. `Picket.Cli` fails a musl publish when `PICKET_ZSTANDARD_MUSL_LIBRARY` does not identify that verified runtime, preventing NuGet's generic Linux asset fallback from placing a glibc library in Alpine artifacts.
+
+For a manual musl publish on Linux:
+
+```bash
+dotnet run --file ./scripts/Build-ZstandardMusl.cs -- -OutputDirectory ./artifacts/zstd-musl
+export PICKET_ZSTANDARD_MUSL_LIBRARY="$PWD/artifacts/zstd-musl/libzstd.so"
+dotnet publish src/Picket.Cli/Picket.Cli.csproj -p:PublishProfile=release-speed -r linux-musl-x64
+```
 
 ## Container Image
 

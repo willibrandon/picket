@@ -399,7 +399,7 @@ internal static partial class Program
             }
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp, cancellationToken) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -430,17 +430,17 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp),
+                () => IsScanStopped(timeoutTimestamp, cancellationToken),
                 includePackages,
                 feed,
                 package,
                 packageVersion,
                 maxPackageBytes ?? maxTargetBytes);
-            List<SourceFile> files = client.EnumerateRepositoryFilesAsync(options).GetAwaiter().GetResult();
+            List<SourceFile> files = client.EnumerateRepositoryFilesAsync(options, cancellationToken).GetAwaiter().GetResult();
             if (includePackages)
             {
                 var packageClient = new AzureDevOpsPackageSourceClient(httpClient);
-                files.AddRange(packageClient.EnumeratePackageFilesAsync(options).GetAwaiter().GetResult());
+                files.AddRange(packageClient.EnumeratePackageFilesAsync(options, cancellationToken).GetAwaiter().GetResult());
             }
 
             return files;

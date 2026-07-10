@@ -1,5 +1,6 @@
 using Picket.Sources;
 using System.Text;
+using ZstdSharp;
 
 namespace Picket.Tests;
 
@@ -75,6 +76,39 @@ public sealed class ContainerArchiveSourceTests
     }
 
     /// <summary>
+    /// Verifies that OCI image archive zstd layer blobs enumerate through the shared bounded archive reader.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateReadsOciZstandardLayerBlobs()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string archivePath = Path.Combine(temp.Path, "image-zstd.tar");
+        byte[] layerTarBytes = TarTestData.CreateTarBytes(("etc/zstd-secret.conf", Encoding.UTF8.GetBytes("token-zstd-12345")));
+        byte[] layerZstandardBytes = CreateZstandardBytes(layerTarBytes);
+        File.WriteAllBytes(
+            archivePath,
+            TarTestData.CreateTarBytes(
+                ("oci-layout", Encoding.UTF8.GetBytes("""{"imageLayoutVersion":"1.0.0"}""")),
+                ("index.json", Encoding.UTF8.GetBytes("""{"manifests":[]}""")),
+                ("blobs/sha256/layer", layerZstandardBytes)));
+
+        List<SourceFile> files = ContainerArchiveSource.Enumerate(
+            archivePath,
+            "oci-archive",
+            maxArchiveDepth: 1,
+            maxArchiveEntries: 16,
+            maxArchiveBytes: 1_000_000,
+            maxArchiveCompressionRatio: 100,
+            maxTargetBytes: null);
+        SourceFile? layerFile = files.FirstOrDefault(static file => file.DisplayPath.Equals(
+            "oci-archive/image-zstd.tar!blobs/sha256/layer!etc/zstd-secret.conf",
+            StringComparison.Ordinal));
+
+        Assert.IsNotNull(layerFile);
+        Assert.AreEqual("token-zstd-12345", Encoding.UTF8.GetString(layerFile.ReadAllBytes()));
+    }
+
+    /// <summary>
     /// Verifies that archive traversal can be disabled for container image archives.
     /// </summary>
     [TestMethod]
@@ -96,5 +130,16 @@ public sealed class ContainerArchiveSourceTests
             maxTargetBytes: null);
 
         Assert.IsEmpty(files);
+    }
+
+    private static byte[] CreateZstandardBytes(byte[] content)
+    {
+        using var stream = new MemoryStream();
+        using (var compressionStream = new CompressionStream(stream, leaveOpen: true))
+        {
+            compressionStream.Write(content);
+        }
+
+        return stream.ToArray();
     }
 }

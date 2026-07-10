@@ -66,6 +66,8 @@ This page is generated from publish profiles, packable project files, central pa
 | `Scout.Text.Regex` | `0.4.2` |
 | `System.CommandLine` | `2.0.9` |
 | `System.IO.FileSystem.AccessControl` | `5.0.0` |
+| `ZstdNet` | `1.5.7` |
+| `ZstdSharp.Port` | `0.8.8` |
 
 ## Workflow Runtime Identifiers
 

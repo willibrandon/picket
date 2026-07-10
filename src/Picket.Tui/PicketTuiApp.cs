@@ -347,7 +347,7 @@ internal static class PicketTuiApp
         {
             var widgets = new List<Hex1bWidget>
             {
-                BuildSectionTitle(v, "Local and archive limits"),
+                BuildSectionTitle(v, "Scan and archive limits"),
                 BuildBlankLine(v),
                 BuildLimitFields(v, scan),
             };
@@ -360,6 +360,14 @@ internal static class PicketTuiApp
                 widgets.Add(BuildTextField(v, "Artifact MB", scan.AzureDevOpsMaxArtifactMegabytes, scan.SetAzureDevOpsMaxArtifactMegabytes));
                 widgets.Add(BuildTextField(v, "Log MB", scan.AzureDevOpsMaxLogMegabytes, scan.SetAzureDevOpsMaxLogMegabytes));
                 widgets.Add(BuildTextField(v, "Package MB", scan.AzureDevOpsMaxPackageMegabytes, scan.SetAzureDevOpsMaxPackageMegabytes));
+            }
+
+            if (scan.TargetMode == PicketTuiScanTargetMode.RegistryImage)
+            {
+                widgets.Add(BuildBlankLine(v));
+                widgets.Add(BuildSectionTitle(v, "Registry transfer limit"));
+                widgets.Add(BuildBlankLine(v));
+                widgets.Add(BuildTextField(v, "Image MB", scan.RegistryMaxImageMegabytes, scan.SetRegistryMaxImageMegabytes));
             }
 
             return [.. widgets];
@@ -502,6 +510,10 @@ internal static class PicketTuiApp
             PicketTuiScanTargetMode.OciArchive =>
             [
                 BuildTextField(ctx, "OCI archive", scan.OciArchivePath, scan.SetOciArchivePath),
+            ],
+            PicketTuiScanTargetMode.RegistryImage =>
+            [
+                BuildContainerRegistrySourceFields(ctx, scan),
             ],
             _ =>
             [
@@ -810,6 +822,34 @@ internal static class PicketTuiApp
         ]).FillWidth();
     }
 
+    private static HStackWidget BuildContainerRegistrySourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left => [
+                BuildTextField(left, "Image", scan.RegistryImage, scan.SetRegistryImage),
+                BuildFieldGap(left),
+                BuildTextField(left, "Endpoint", scan.RegistryEndpoint, scan.SetRegistryEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Auth endpoint", scan.RegistryAuthenticationEndpoint, scan.SetRegistryAuthenticationEndpoint),
+                BuildFieldGap(left),
+                BuildTextField(left, "Platform", scan.RegistryPlatform, scan.SetRegistryPlatform),
+            ]).FillWidth(),
+            h.Text("      "),
+            h.VStack(right => [
+                BuildTextField(right, "Token env", scan.RegistryTokenEnvironmentVariable, scan.SetRegistryTokenEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildTextField(right, "Username env", scan.RegistryUsernameEnvironmentVariable, scan.SetRegistryUsernameEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildTextField(right, "Password env", scan.RegistryPasswordEnvironmentVariable, scan.SetRegistryPasswordEnvironmentVariable),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
+                BuildFieldGap(right),
+                BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
+            ]).FillWidth(),
+        ]).FillWidth();
+    }
+
     private static VStackWidget BuildLimitFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
         where TParent : Hex1bWidget
     {
@@ -889,6 +929,9 @@ internal static class PicketTuiApp
             PicketTuiScanTargetMode.OciArchive => string.Concat(
                 "OCI archive ",
                 string.IsNullOrWhiteSpace(scan.OciArchivePath) ? "not selected" : scan.OciArchivePath),
+            PicketTuiScanTargetMode.RegistryImage => string.Concat(
+                "Registry image ",
+                string.IsNullOrWhiteSpace(scan.RegistryImage) ? "not selected" : scan.RegistryImage),
             _ => string.Concat("Local ", string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath),
         };
     }

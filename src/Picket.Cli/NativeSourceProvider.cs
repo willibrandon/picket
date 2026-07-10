@@ -14,4 +14,5 @@ internal delegate List<SourceFile> NativeSourceProvider(
     int maxArchiveEntries,
     long? maxArchiveBytes,
     int maxArchiveCompressionRatio,
-    long timeoutTimestamp);
+    long timeoutTimestamp,
+    CancellationToken cancellationToken);

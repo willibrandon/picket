@@ -361,7 +361,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp, cancellationToken) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -387,7 +387,8 @@ internal static partial class Program
                     maxArchiveCompressionRatio,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                    () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                    cancellationToken).GetAwaiter().GetResult();
             }
 
             if (organizationSpecified)
@@ -409,7 +410,8 @@ internal static partial class Program
                     maxArchiveCompressionRatio,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                    () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                    cancellationToken).GetAwaiter().GetResult();
             }
 
             if (userSpecified)
@@ -431,7 +433,8 @@ internal static partial class Program
                     maxArchiveCompressionRatio,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                    () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                    cancellationToken).GetAwaiter().GetResult();
             }
 
             return client.EnumerateGistFilesAsync(new GitHubGistSourceOptions(
@@ -442,7 +445,8 @@ internal static partial class Program
                 gistUserName,
                 maxTargetBytes,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                cancellationToken).GetAwaiter().GetResult();
         };
         return true;
     }

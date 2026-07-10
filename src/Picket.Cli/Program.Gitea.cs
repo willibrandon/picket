@@ -404,7 +404,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp, cancellationToken) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -430,7 +430,8 @@ internal static partial class Program
                         allowInsecureSourceEndpoints,
                         rules.IsGlobalPathAllowed,
                         Console.Error.WriteLine,
-                        () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                        () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                        cancellationToken).GetAwaiter().GetResult();
                 }
 
                 return client.EnumerateGenericPackageFilesAsync(new GiteaGenericPackageOwnerSourceOptions(
@@ -445,7 +446,8 @@ internal static partial class Program
                     allowInsecureSourceEndpoints,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                    () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                    cancellationToken).GetAwaiter().GetResult();
             }
 
             if (repositorySpecified)
@@ -461,7 +463,7 @@ internal static partial class Program
                     allowInsecureCredentialTransport: allowInsecureSourceEndpoints,
                     isPathAllowed: rules.IsGlobalPathAllowed,
                     warningSink: Console.Error.WriteLine,
-                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
+                    isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
                     pullRequestId: pullRequestId,
                     includeReleases: includeReleases,
                     includeActionArtifacts: includeActionArtifacts,
@@ -469,7 +471,7 @@ internal static partial class Program
                     maxArchiveDepth: maxArchiveDepth,
                     maxArchiveEntries: maxArchiveEntries,
                     maxArchiveBytes: maxArchiveBytes,
-                    maxArchiveCompressionRatio: maxArchiveCompressionRatio)).GetAwaiter().GetResult();
+                    maxArchiveCompressionRatio: maxArchiveCompressionRatio), cancellationToken).GetAwaiter().GetResult();
             }
 
             if (organizationSpecified)
@@ -492,7 +494,8 @@ internal static partial class Program
                     allowInsecureSourceEndpoints,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                    () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                    cancellationToken).GetAwaiter().GetResult();
             }
 
             return client.EnumerateUserRepositoryFilesAsync(new GiteaUserSourceOptions(
@@ -513,7 +516,8 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                cancellationToken).GetAwaiter().GetResult();
         };
         return true;
     }

@@ -21,7 +21,7 @@ internal enum PicketTuiScanTargetCategory
     ObjectStore,
 
     /// <summary>
-    /// Container image archive scans.
+    /// Local container archive and remote registry image scans.
     /// </summary>
-    Archive,
+    Container,
 }

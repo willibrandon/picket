@@ -33,7 +33,7 @@ internal static partial class Program
 
         string archivePath = dockerArchiveSpecified ? dockerArchivePath : ociArchivePath;
         string displayPrefix = dockerArchiveSpecified ? "docker-archive" : "oci-archive";
-        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp, cancellationToken) =>
         {
             return ContainerArchiveSource.Enumerate(
                 archivePath,
@@ -45,7 +45,7 @@ internal static partial class Program
                 maxTargetBytes,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp));
+                () => IsScanStopped(timeoutTimestamp, cancellationToken));
         };
 
         return true;

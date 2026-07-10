@@ -874,6 +874,54 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Allow HTTP source-host endpoints for trusted local tests or explicitly accepted self-hosted environments; source credentials may be sent in cleartext.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--registry-image</code></td>
+              <td data-label="Value"><code>image</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this OCI or Docker registry image reference, including Docker Hub shorthand.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--registry-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the OCI Distribution API endpoint derived from the image reference.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--registry-auth-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this explicitly trusted cross-host bearer-token service instead of the registry challenge realm.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--registry-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read a pre-issued registry bearer token from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--registry-username-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the registry username for basic authentication from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--registry-password-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the registry password or personal access token for basic authentication from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--registry-platform</code></td>
+              <td data-label="Value"><code>os/architecture[/variant]</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan only this os/architecture[/variant] image from a multi-platform index; all platforms are scanned when omitted.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--registry-max-image-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit aggregate unique manifest, config, and layer downloads for the image in decimal megabytes.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--docker-archive</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>

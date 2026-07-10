@@ -59,4 +59,9 @@ internal enum PicketTuiScanTargetMode
     /// Scan a local OCI image-layout archive.
     /// </summary>
     OciArchive,
+
+    /// <summary>
+    /// Scan an OCI or Docker image from a remote registry.
+    /// </summary>
+    RegistryImage,
 }

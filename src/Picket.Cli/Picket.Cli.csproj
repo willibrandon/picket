@@ -36,6 +36,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" CopyToPublishDirectory="PreserveNewest" Link="THIRD-PARTY-NOTICES.txt" />
     <PackageReference Include="System.CommandLine" IsAotCompatible="true" />
   </ItemGroup>
 
@@ -50,4 +51,10 @@
     <ProjectReference Include="..\Picket.Store\Picket.Store.csproj" />
     <ProjectReference Include="..\Picket.Verify\Picket.Verify.csproj" />
   </ItemGroup>
+
+  <Target Name="CopyMuslZstandardRuntime" AfterTargets="Publish" Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-musl-', StringComparison.Ordinal))">
+    <Error Condition="'$(PICKET_ZSTANDARD_MUSL_LIBRARY)' == ''" Text="PICKET_ZSTANDARD_MUSL_LIBRARY must identify a musl libzstd.so before publishing $(RuntimeIdentifier)." />
+    <Error Condition="!Exists('$(PICKET_ZSTANDARD_MUSL_LIBRARY)')" Text="PICKET_ZSTANDARD_MUSL_LIBRARY does not exist: $(PICKET_ZSTANDARD_MUSL_LIBRARY)" />
+    <Copy SourceFiles="$(PICKET_ZSTANDARD_MUSL_LIBRARY)" DestinationFiles="$(PublishDir)libzstd.so" />
+  </Target>
 </Project>

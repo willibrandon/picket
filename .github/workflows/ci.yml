@@ -64,6 +64,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
+      - name: Build Linux musl zstandard runtime
+        if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
+        shell: pwsh
+        run: |
+          $muslRid = if ('${{ matrix.rid }}' -eq 'linux-x64') { 'linux-musl-x64' } else { 'linux-musl-arm64' }
+          $outputDirectory = Join-Path $env:RUNNER_TEMP "picket-zstd-$muslRid"
+          dotnet run --file ./scripts/Build-ZstandardMusl.cs -- -OutputDirectory $outputDirectory
+          "PICKET_ZSTANDARD_MUSL_LIBRARY=$(Join-Path $outputDirectory 'libzstd.so')" >> $env:GITHUB_ENV
+
       - name: Verify formatting
         run: dotnet format Picket.slnx --verify-no-changes --verbosity minimal
 

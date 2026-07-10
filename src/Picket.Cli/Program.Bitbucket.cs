@@ -311,7 +311,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp, cancellationToken) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -337,9 +337,9 @@ internal static partial class Program
                     allowInsecureSourceEndpoints,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
+                    isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
                     pipelineId: pipelineId,
-                    includePipelineLogs: includePipelineLogs)).GetAwaiter().GetResult();
+                    includePipelineLogs: includePipelineLogs), cancellationToken).GetAwaiter().GetResult();
             }
 
             return client.EnumerateWorkspaceRepositoryFilesAsync(new BitbucketWorkspaceSourceOptions(
@@ -360,7 +360,8 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                cancellationToken).GetAwaiter().GetResult();
         };
         return true;
     }

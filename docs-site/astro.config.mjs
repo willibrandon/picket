@@ -17,7 +17,7 @@ const projectDocsSidebar = [
   { label: "Gitea", slug: "generated/gitea" },
   { label: "Bitbucket", slug: "generated/bitbucket" },
   { label: "Object Stores", slug: "generated/object-stores" },
-  { label: "Container Archives", slug: "generated/containers" },
+  { label: "Container Images", slug: "generated/containers" },
   { label: "Git Hooks", slug: "generated/hooks" },
   { label: "Terminal UI", slug: "generated/tui" },
   { label: "Marketplaces", slug: "generated/marketplaces" },

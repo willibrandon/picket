@@ -157,6 +157,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
+      - name: Build Linux musl zstandard runtime
+        if: startsWith(matrix.rid, 'linux-musl-')
+        shell: pwsh
+        run: |
+          $outputDirectory = Join-Path $env:RUNNER_TEMP "picket-zstd-${{ matrix.rid }}"
+          dotnet run --file ./scripts/Build-ZstandardMusl.cs -- -OutputDirectory $outputDirectory
+          "PICKET_ZSTANDARD_MUSL_LIBRARY=$(Join-Path $outputDirectory 'libzstd.so')" >> $env:GITHUB_ENV
+
       - name: Publish Native AOT binaries
         shell: pwsh
         run: |

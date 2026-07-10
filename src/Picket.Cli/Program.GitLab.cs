@@ -239,7 +239,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, maxArchiveDepth, maxArchiveEntries, maxArchiveBytes, maxArchiveCompressionRatio, timeoutTimestamp, cancellationToken) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -264,8 +264,8 @@ internal static partial class Program
                     maxArchiveCompressionRatio,
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
-                    () => IsTimedOut(timeoutTimestamp),
-                    includePackages)).GetAwaiter().GetResult();
+                    () => IsScanStopped(timeoutTimestamp, cancellationToken),
+                    includePackages), cancellationToken).GetAwaiter().GetResult();
             }
 
             return client.EnumerateRepositoryFilesAsync(new GitLabSourceOptions(
@@ -285,8 +285,8 @@ internal static partial class Program
                 maxArchiveCompressionRatio,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp),
-                includePackages)).GetAwaiter().GetResult();
+                () => IsScanStopped(timeoutTimestamp, cancellationToken),
+                includePackages), cancellationToken).GetAwaiter().GetResult();
         };
         return true;
     }

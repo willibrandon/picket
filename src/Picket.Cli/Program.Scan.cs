@@ -130,6 +130,15 @@ internal static partial class Program
         bool githubSourceOptionSpecified = false;
         bool liveProviderOptionSpecified = false;
         string ociArchivePath = string.Empty;
+        Uri? registryAuthenticationEndpoint = null;
+        Uri? registryEndpoint = null;
+        string registryImage = string.Empty;
+        long? registryMaxImageBytes = null;
+        bool registryOptionSpecified = false;
+        string registryPlatform = string.Empty;
+        string? registryPasswordEnvironmentVariable = null;
+        string? registryTokenEnvironmentVariable = null;
+        string? registryUsernameEnvironmentVariable = null;
         bool sourceEndpointPolicySpecified = false;
         for (int i = 0; i < args.Length; i++)
         {
@@ -187,6 +196,96 @@ internal static partial class Program
 
                 ociArchivePath = archivePath;
                 containerArchiveOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryImageFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--registry-image", out string? image))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryImage = image;
+                registryOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--registry-endpoint", out registryEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryAuthenticationEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--registry-auth-endpoint", out registryAuthenticationEndpoint))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--registry-token-env", out registryTokenEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryUsernameEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--registry-username-env", out registryUsernameEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryPasswordEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--registry-password-env", out registryPasswordEnvironmentVariable))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryPlatformFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--registry-platform", out string? platform))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryPlatform = platform;
+                registryOptionSpecified = true;
+                continue;
+            }
+
+            if (IsRegistryMaxImageMegabytesFlag(arg))
+            {
+                if (!TryReadMegabytesFlag(args, ref i, "--registry-max-image-megabytes", out registryMaxImageBytes))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                registryOptionSpecified = true;
                 continue;
             }
 
@@ -1443,7 +1542,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !s3OptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !registryOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return UnknownFlagExitCode;
@@ -1464,6 +1563,7 @@ internal static partial class Program
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
         sourceProviderCount += giteaOptionSpecified ? 1 : 0;
         sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
+        sourceProviderCount += registryOptionSpecified ? 1 : 0;
         sourceProviderCount += s3OptionSpecified ? 1 : 0;
         bool remoteSourceOptionSpecified = azureBlobOptionSpecified
             || azureDevOpsOptionSpecified
@@ -1472,6 +1572,7 @@ internal static partial class Program
             || githubSourceOptionSpecified
             || giteaOptionSpecified
             || gitLabOptionSpecified
+            || registryOptionSpecified
             || s3OptionSpecified;
         if (sourceProviderCount > 1)
         {
@@ -1494,6 +1595,12 @@ internal static partial class Program
             && (HasZeroMegabytesFlag(args, "--azure-devops-max-artifact-megabytes")
                 || HasZeroMegabytesFlag(args, "--azure-devops-max-log-megabytes")
                 || HasZeroMegabytesFlag(args, "--azure-devops-max-package-megabytes")))
+        {
+            Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
+            return UnknownFlagExitCode;
+        }
+
+        if (registryOptionSpecified && HasZeroMegabytesFlag(args, "--registry-max-image-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
             return UnknownFlagExitCode;
@@ -1669,6 +1776,23 @@ internal static partial class Program
             && !TryCreateContainerArchiveSourceProvider(
                 dockerArchivePath,
                 ociArchivePath,
+                out sourceFileProvider))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (registryOptionSpecified
+            && !TryCreateContainerRegistrySourceProvider(
+                registryImage,
+                registryEndpoint,
+                registryAuthenticationEndpoint,
+                registryTokenEnvironmentVariable,
+                registryUsernameEnvironmentVariable,
+                registryPasswordEnvironmentVariable,
+                registryPlatform,
+                registryMaxImageBytes,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
             return UnknownFlagExitCode;

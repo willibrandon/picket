@@ -1346,6 +1346,9 @@ internal sealed class PicketTuiState
             PicketTuiScanTargetMode.OciArchive => string.IsNullOrWhiteSpace(scan.OciArchivePath)
                 ? "OCI archive not selected"
                 : scan.OciArchivePath,
+            PicketTuiScanTargetMode.RegistryImage => string.IsNullOrWhiteSpace(scan.RegistryImage)
+                ? "Registry image not selected"
+                : scan.RegistryImage,
             _ => string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath,
         };
     }

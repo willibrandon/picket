@@ -148,7 +148,7 @@ internal static partial class Program
             return false;
         }
 
-        sourceFileProvider = (_, rules, maxTargetBytes, _, _, _, _, timeoutTimestamp) =>
+        sourceFileProvider = (_, rules, maxTargetBytes, _, _, _, _, timeoutTimestamp, cancellationToken) =>
         {
             using var httpClient = new HttpClient(EndpointGuardHttpHandlerFactory.Create(new EndpointGuardHttpHandlerOptions
             {
@@ -167,7 +167,8 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
-                () => IsTimedOut(timeoutTimestamp))).GetAwaiter().GetResult();
+                () => IsScanStopped(timeoutTimestamp, cancellationToken)),
+                cancellationToken).GetAwaiter().GetResult();
         };
         return true;
     }

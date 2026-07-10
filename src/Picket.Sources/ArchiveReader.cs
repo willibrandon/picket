@@ -10,6 +10,7 @@ internal static class ArchiveReader
     private const int ArchiveKindGzip = 1;
     private const int ArchiveKindTar = 2;
     private const int ArchiveKindZip = 3;
+    private const int ArchiveKindZstandard = 4;
     private const int TarMagicOffset = 257;
     private const int TarMagicLength = 5;
 
@@ -136,6 +137,9 @@ internal static class ArchiveReader
                 break;
             case ArchiveKindZip:
                 AddZipEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth);
+                break;
+            case ArchiveKindZstandard:
+                AddZstandardEntries(displayPath, stream, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth);
                 break;
         }
     }
@@ -287,7 +291,60 @@ internal static class ArchiveReader
         int innerArchiveKind = IdentifyArchiveKind(decompressedContent);
         if (innerArchiveKind != ArchiveKindNone)
         {
-            int innerArchiveDepth = innerArchiveKind == ArchiveKindGzip ? archiveDepth + 1 : archiveDepth;
+            int innerArchiveDepth = IsCompressedArchiveKind(innerArchiveKind) ? archiveDepth + 1 : archiveDepth;
+            if (innerArchiveDepth > maxArchiveDepth)
+            {
+                return;
+            }
+
+            using var innerStream = new MemoryStream(decompressedContent, writable: false);
+            AddEntries(displayPath, innerStream, innerArchiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, innerArchiveDepth);
+            return;
+        }
+
+        if (!budget.TryConsumeEntry(displayPath)
+            || !budget.TryConsumeBytes(displayPath, decompressedContent.Length))
+        {
+            return;
+        }
+
+        entries.Add(new ArchiveEntry(displayPath, decompressedContent));
+    }
+
+    private static void AddZstandardEntries(
+        string displayPath,
+        Stream stream,
+        int maxArchiveDepth,
+        long? maxEntryBytes,
+        Func<string, bool>? isPathAllowed,
+        ArchiveReadBudget budget,
+        List<ArchiveEntry> entries,
+        int archiveDepth)
+    {
+        if (!budget.TryContinue(displayPath))
+        {
+            return;
+        }
+
+        long? compressedLength = TryGetRemainingLength(stream);
+        using var zstandardStream = new ZstandardDecompressionStream(stream, maxEntryBytes, leaveOpen: true);
+        if (!TryReadStreamBytes(
+            displayPath,
+            zstandardStream,
+            length: null,
+            compressedLength,
+            maxEntryBytes,
+            budget,
+            out byte[] decompressedContent,
+            chargeBudgetBytes: false))
+        {
+            return;
+        }
+
+        int innerArchiveKind = IdentifyArchiveKind(decompressedContent);
+        if (innerArchiveKind != ArchiveKindNone)
+        {
+            int innerArchiveDepth = IsCompressedArchiveKind(innerArchiveKind) ? archiveDepth + 1 : archiveDepth;
             if (innerArchiveDepth > maxArchiveDepth)
             {
                 return;
@@ -444,7 +501,17 @@ internal static class ArchiveReader
             return ArchiveKindGzip;
         }
 
+        if (IsZstandardHeader(header))
+        {
+            return ArchiveKindZstandard;
+        }
+
         return IsTarHeader(header) ? ArchiveKindTar : ArchiveKindNone;
+    }
+
+    private static bool IsCompressedArchiveKind(int archiveKind)
+    {
+        return archiveKind is ArchiveKindGzip or ArchiveKindZstandard;
     }
 
     private static bool IsZipHeader(ReadOnlySpan<byte> header)
@@ -466,6 +533,15 @@ internal static class ArchiveReader
     private static bool IsGzipHeader(ReadOnlySpan<byte> header)
     {
         return header.Length >= 3 && header[0] == 0x1F && header[1] == 0x8B && header[2] == 0x08;
+    }
+
+    private static bool IsZstandardHeader(ReadOnlySpan<byte> header)
+    {
+        return header.Length >= 4
+            && header[0] == 0x28
+            && header[1] == 0xB5
+            && header[2] == 0x2F
+            && header[3] == 0xFD;
     }
 
     private static bool IsTarHeader(ReadOnlySpan<byte> header)

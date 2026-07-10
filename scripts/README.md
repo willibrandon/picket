@@ -63,6 +63,7 @@ Current utilities:
 
 | App | Purpose |
 | --- | --- |
+| `Build-ZstandardMusl.cs` | Build the pinned decompression-only zstandard runtime used by musl release artifacts. |
 | `Capture-UpstreamPins.cs` | Refresh or print upstream reference clone pins. |
 | `Capture-GitleaksOracle.cs` | Capture pinned Gitleaks oracle reports. |
 | `Capture-CompatibilityOracle.cs` | Capture side-by-side Gitleaks/Picket oracle bundles. |

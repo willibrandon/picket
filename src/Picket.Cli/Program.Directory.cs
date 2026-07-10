@@ -490,7 +490,8 @@ internal static partial class Program
                     maxArchiveEntries,
                     maxArchiveBytes,
                     maxArchiveCompressionRatio,
-                    timeoutTimestamp);
+                    timeoutTimestamp,
+                    cancellationToken);
             }
             catch (Exception ex) when (ex is ArgumentException or HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
             {

@@ -32,7 +32,7 @@ public sealed partial class RepositoryConventionTests
         "{ label: \"Gitea\", slug: \"generated/gitea\" }",
         "{ label: \"Bitbucket\", slug: \"generated/bitbucket\" }",
         "{ label: \"Object Stores\", slug: \"generated/object-stores\" }",
-        "{ label: \"Container Archives\", slug: \"generated/containers\" }",
+        "{ label: \"Container Images\", slug: \"generated/containers\" }",
         "{ label: \"Git Hooks\", slug: \"generated/hooks\" }",
         "{ label: \"Terminal UI\", slug: \"generated/tui\" }",
         "{ label: \"Marketplaces\", slug: \"generated/marketplaces\" }",
@@ -78,6 +78,7 @@ public sealed partial class RepositoryConventionTests
         "src/Picket.Cli/Program.AzureBlob.cs",
         "src/Picket.Cli/Program.AzureDevOps.cs",
         "src/Picket.Cli/Program.Bitbucket.cs",
+        "src/Picket.Cli/Program.ContainerRegistry.cs",
         "src/Picket.Cli/Program.Gcs.cs",
         "src/Picket.Cli/Program.Gitea.cs",
         "src/Picket.Cli/Program.GitHub.cs",
@@ -461,6 +462,32 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("picket:dev git . --report-format json --redact=100 --exit-code 0", releaseDocumentation);
         Assert.Contains("trusts `/work` for mounted repository scans", releaseDocumentation);
         Assert.Contains("non-root default user", releaseDocumentation);
+    }
+
+    /// <summary>
+    /// Verifies that zstandard runtime assets remain Native AOT-safe, musl-correct, and license-complete.
+    /// </summary>
+    [TestMethod]
+    public void ZstandardRuntimePackagingMatchesReleaseContract()
+    {
+        string ciWorkflow = ReadRepositoryFile(".github/workflows/ci.yml");
+        string cliProject = ReadRepositoryFile("src/Picket.Cli/Picket.Cli.csproj");
+        string dockerfile = ReadRepositoryFile("Dockerfile");
+        string notices = ReadRepositoryFile("THIRD-PARTY-NOTICES.txt");
+        string releaseWorkflow = ReadRepositoryFile(".github/workflows/release.yml");
+        string sourcesProject = ReadRepositoryFile("src/Picket.Sources/Picket.Sources.csproj");
+
+        Assert.Contains("ZstdNet\" IncludeAssets=\"native\"", sourcesProject);
+        Assert.Contains("CopyMuslZstandardRuntime", cliProject);
+        Assert.Contains("PICKET_ZSTANDARD_MUSL_LIBRARY", cliProject);
+        Assert.Contains("THIRD-PARTY-NOTICES.txt", cliProject);
+        Assert.Contains("Build-ZstandardMusl.cs", ciWorkflow);
+        Assert.Contains("Build-ZstandardMusl.cs", releaseWorkflow);
+        Assert.Contains("/out/libzstd.so /usr/local/bin/libzstd.so", dockerfile);
+        Assert.Contains("MIT AND BSD-3-Clause", dockerfile);
+        Assert.Contains("ZstdNet", notices);
+        Assert.Contains("Zstandard", notices);
+        Assert.Contains("Meta Platforms", notices);
     }
 
     /// <summary>
@@ -1071,6 +1098,24 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that remote container registry scans bound raw content and authenticate through environment variables.
+    /// </summary>
+    [TestMethod]
+    public void ContainerRegistrySourceKeepsRemoteContentAndCredentialBoundaries()
+    {
+        string client = ReadRepositoryFile("src/Picket.Sources/ContainerRegistrySourceClient.cs");
+        string wiring = ReadRepositoryFile("src/Picket.Cli/Program.ContainerRegistry.cs");
+
+        Assert.Contains("ReadBoundedContentAsync", client);
+        Assert.Contains("ContainerRegistrySourceOptions.MaxManifestBytes", client);
+        Assert.Contains("Content.Headers.ContentLength", client);
+        Assert.Contains("CryptographicOperations.FixedTimeEquals", client);
+        Assert.Contains("Environment.GetEnvironmentVariable", wiring);
+        Assert.DoesNotContain("--registry-password ", wiring);
+        Assert.DoesNotContain("--registry-token ", wiring);
+    }
+
+    /// <summary>
     /// Verifies that CLI source-provider wiring uses the connect-time endpoint guard.
     /// </summary>
     [TestMethod]
@@ -1606,7 +1651,7 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(8, scripts);
+        Assert.HasCount(9, scripts);
 
         foreach (string scriptPath in scripts)
         {

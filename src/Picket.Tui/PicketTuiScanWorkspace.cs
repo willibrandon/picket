@@ -23,11 +23,11 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
-    private static readonly string[] s_archiveTargetModeLabels = ["Docker", "OCI"];
+    private static readonly string[] s_containerTargetModeLabels = ["Docker archive", "OCI archive", "Registry"];
     private static readonly string[] s_localTargetModeLabels = ["Local"];
     private static readonly string[] s_objectStoreTargetModeLabels = ["S3", "GCS", "Azure Blob"];
     private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket"];
-    private static readonly string[] s_targetCategoryLabels = ["Local", "Source host", "Object store", "Archive"];
+    private static readonly string[] s_targetCategoryLabels = ["Local", "Source host", "Object store", "Container"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
     private readonly Lock _outputLock = new();
@@ -120,6 +120,46 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the local OCI image-layout archive path to scan.
     /// </summary>
     internal string OciArchivePath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the remote container registry image reference.
+    /// </summary>
+    internal string RegistryImage { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional container registry API endpoint.
+    /// </summary>
+    internal string RegistryEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional explicitly trusted registry authentication endpoint.
+    /// </summary>
+    internal string RegistryAuthenticationEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the pre-issued registry bearer-token environment variable name.
+    /// </summary>
+    internal string RegistryTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the registry basic-auth username environment variable name.
+    /// </summary>
+    internal string RegistryUsernameEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the registry basic-auth password or personal access token environment variable name.
+    /// </summary>
+    internal string RegistryPasswordEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional registry image platform filter.
+    /// </summary>
+    internal string RegistryPlatform { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the aggregate registry image download cap in decimal megabytes.
+    /// </summary>
+    internal string RegistryMaxImageMegabytes { get; private set; } = string.Empty;
 
     /// <summary>
     /// Gets the GitHub repository selector.
@@ -795,7 +835,7 @@ internal sealed class PicketTuiScanWorkspace
     {
         PicketTuiScanTargetCategory.SourceHost => 1,
         PicketTuiScanTargetCategory.ObjectStore => 2,
-        PicketTuiScanTargetCategory.Archive => 3,
+        PicketTuiScanTargetCategory.Container => 3,
         _ => 0,
     };
 
@@ -806,7 +846,7 @@ internal sealed class PicketTuiScanWorkspace
     {
         PicketTuiScanTargetCategory.SourceHost => s_sourceHostTargetModeLabels,
         PicketTuiScanTargetCategory.ObjectStore => s_objectStoreTargetModeLabels,
-        PicketTuiScanTargetCategory.Archive => s_archiveTargetModeLabels,
+        PicketTuiScanTargetCategory.Container => s_containerTargetModeLabels,
         _ => s_localTargetModeLabels,
     };
 
@@ -826,6 +866,7 @@ internal sealed class PicketTuiScanWorkspace
         PicketTuiScanTargetMode.AzureBlob => 2,
         PicketTuiScanTargetMode.DockerArchive => 0,
         PicketTuiScanTargetMode.OciArchive => 1,
+        PicketTuiScanTargetMode.RegistryImage => 2,
         _ => 0,
     };
 
@@ -888,7 +929,7 @@ internal sealed class PicketTuiScanWorkspace
         {
             1 => PicketTuiScanTargetCategory.SourceHost,
             2 => PicketTuiScanTargetCategory.ObjectStore,
-            3 => PicketTuiScanTargetCategory.Archive,
+            3 => PicketTuiScanTargetCategory.Container,
             _ => PicketTuiScanTargetCategory.Local,
         };
 
@@ -901,7 +942,7 @@ internal sealed class PicketTuiScanWorkspace
         {
             PicketTuiScanTargetCategory.SourceHost => PicketTuiScanTargetMode.GitHub,
             PicketTuiScanTargetCategory.ObjectStore => PicketTuiScanTargetMode.S3,
-            PicketTuiScanTargetCategory.Archive => PicketTuiScanTargetMode.DockerArchive,
+            PicketTuiScanTargetCategory.Container => PicketTuiScanTargetMode.DockerArchive,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -924,6 +965,7 @@ internal sealed class PicketTuiScanWorkspace
             8 => PicketTuiScanTargetMode.AzureBlob,
             9 => PicketTuiScanTargetMode.DockerArchive,
             10 => PicketTuiScanTargetMode.OciArchive,
+            11 => PicketTuiScanTargetMode.RegistryImage,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -950,9 +992,10 @@ internal sealed class PicketTuiScanWorkspace
                 2 => PicketTuiScanTargetMode.AzureBlob,
                 _ => PicketTuiScanTargetMode.S3,
             },
-            PicketTuiScanTargetCategory.Archive => index switch
+            PicketTuiScanTargetCategory.Container => index switch
             {
                 1 => PicketTuiScanTargetMode.OciArchive,
+                2 => PicketTuiScanTargetMode.RegistryImage,
                 _ => PicketTuiScanTargetMode.DockerArchive,
             },
             _ => PicketTuiScanTargetMode.Local,
@@ -976,6 +1019,54 @@ internal sealed class PicketTuiScanWorkspace
     /// </summary>
     /// <param name="value">The archive path.</param>
     internal void SetOciArchivePath(string value) => OciArchivePath = value;
+
+    /// <summary>
+    /// Sets the remote container registry image reference.
+    /// </summary>
+    /// <param name="value">The image reference.</param>
+    internal void SetRegistryImage(string value) => RegistryImage = value;
+
+    /// <summary>
+    /// Sets the optional container registry API endpoint.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetRegistryEndpoint(string value) => RegistryEndpoint = value;
+
+    /// <summary>
+    /// Sets the optional explicitly trusted registry authentication endpoint.
+    /// </summary>
+    /// <param name="value">The authentication endpoint URI.</param>
+    internal void SetRegistryAuthenticationEndpoint(string value) => RegistryAuthenticationEndpoint = value;
+
+    /// <summary>
+    /// Sets the pre-issued registry bearer-token environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetRegistryTokenEnvironmentVariable(string value) => RegistryTokenEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the registry basic-auth username environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetRegistryUsernameEnvironmentVariable(string value) => RegistryUsernameEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the registry basic-auth password or personal access token environment variable name.
+    /// </summary>
+    /// <param name="value">The environment variable name.</param>
+    internal void SetRegistryPasswordEnvironmentVariable(string value) => RegistryPasswordEnvironmentVariable = value;
+
+    /// <summary>
+    /// Sets the optional registry platform filter.
+    /// </summary>
+    /// <param name="value">The OCI platform filter.</param>
+    internal void SetRegistryPlatform(string value) => RegistryPlatform = value;
+
+    /// <summary>
+    /// Sets the aggregate registry image download cap in decimal megabytes.
+    /// </summary>
+    /// <param name="value">The image download cap.</param>
+    internal void SetRegistryMaxImageMegabytes(string value) => RegistryMaxImageMegabytes = value;
 
     /// <summary>
     /// Sets the GitHub repository selector.
@@ -1704,7 +1795,8 @@ internal sealed class PicketTuiScanWorkspace
             or PicketTuiScanTargetMode.Bitbucket
             or PicketTuiScanTargetMode.S3
             or PicketTuiScanTargetMode.Gcs
-            or PicketTuiScanTargetMode.AzureBlob)
+            or PicketTuiScanTargetMode.AzureBlob
+            or PicketTuiScanTargetMode.RegistryImage)
         {
             AddFlag(arguments, "--allow-non-public-source-endpoints", AllowNonPublicSourceEndpoints);
             AddFlag(arguments, "--allow-insecure-source-endpoints", AllowInsecureSourceEndpoints);
@@ -2106,6 +2198,16 @@ internal sealed class PicketTuiScanWorkspace
             case PicketTuiScanTargetMode.OciArchive:
                 AddOptionalValue(arguments, "--oci-archive", OciArchivePath);
                 break;
+            case PicketTuiScanTargetMode.RegistryImage:
+                AddOptionalValue(arguments, "--registry-image", RegistryImage);
+                AddOptionalValue(arguments, "--registry-endpoint", RegistryEndpoint);
+                AddOptionalValue(arguments, "--registry-auth-endpoint", RegistryAuthenticationEndpoint);
+                AddOptionalValue(arguments, "--registry-token-env", RegistryTokenEnvironmentVariable);
+                AddOptionalValue(arguments, "--registry-username-env", RegistryUsernameEnvironmentVariable);
+                AddOptionalValue(arguments, "--registry-password-env", RegistryPasswordEnvironmentVariable);
+                AddOptionalValue(arguments, "--registry-platform", RegistryPlatform);
+                AddOptionalValue(arguments, "--registry-max-image-megabytes", RegistryMaxImageMegabytes);
+                break;
             case PicketTuiScanTargetMode.GitHub:
                 AddOptionalValue(arguments, "--github-repository", GitHubRepository);
                 AddOptionalValue(arguments, "--github-organization", GitHubOrganization);
@@ -2226,6 +2328,7 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.Local => string.Concat("local ", LocalPath),
             PicketTuiScanTargetMode.DockerArchive => string.Concat("Docker archive ", FirstConfigured(DockerArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.OciArchive => string.Concat("OCI archive ", FirstConfigured(OciArchivePath, string.Empty, string.Empty)),
+            PicketTuiScanTargetMode.RegistryImage => string.Concat("Registry image ", FirstConfigured(RegistryImage, RegistryEndpoint, string.Empty)),
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", FirstConfigured(GitHubRepository, GitHubOrganization, GitHubUser)),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsFeed, FirstConfigured(AzureDevOpsProject, AzureDevOpsOrganization, AzureDevOpsEndpoint))),
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
@@ -2266,7 +2369,8 @@ internal sealed class PicketTuiScanWorkspace
                 or PicketTuiScanTargetMode.Gcs
                 or PicketTuiScanTargetMode.AzureBlob => PicketTuiScanTargetCategory.ObjectStore,
             PicketTuiScanTargetMode.DockerArchive
-                or PicketTuiScanTargetMode.OciArchive => PicketTuiScanTargetCategory.Archive,
+                or PicketTuiScanTargetMode.OciArchive
+                or PicketTuiScanTargetMode.RegistryImage => PicketTuiScanTargetCategory.Container,
             _ => PicketTuiScanTargetCategory.Local,
         };
     }
@@ -2289,6 +2393,11 @@ internal sealed class PicketTuiScanWorkspace
         if (TargetMode == PicketTuiScanTargetMode.OciArchive && string.IsNullOrWhiteSpace(OciArchivePath))
         {
             error = "OCI archive scans require an archive path.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.RegistryImage && !ValidateContainerRegistry(out error))
+        {
             return false;
         }
 
@@ -2417,24 +2526,53 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
-        int minimumTargetMegabytes = GetTargetCategory(TargetMode) is PicketTuiScanTargetCategory.SourceHost or PicketTuiScanTargetCategory.ObjectStore ? 1 : 0;
+        int minimumTargetMegabytes = GetTargetCategory(TargetMode) is PicketTuiScanTargetCategory.SourceHost or PicketTuiScanTargetCategory.ObjectStore
+            || TargetMode == PicketTuiScanTargetMode.RegistryImage
+            ? 1
+            : 0;
+        int minimumArchiveLimit = TargetMode == PicketTuiScanTargetMode.RegistryImage
+            && !MaxArchiveDepth.Trim().Equals("0", StringComparison.Ordinal)
+            ? 1
+            : 0;
         return ValidateOptionalNonNegativeInteger(RedactionPercent, "--redact", min: 0, max: 100, out error)
             && ValidateOptionalNonNegativeInteger(MaxTargetMegabytes, "--max-target-megabytes", min: minimumTargetMegabytes, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(MaxArchiveDepth, "--max-archive-depth", min: 0, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(MaxArchiveEntries, "--max-archive-entries", min: 0, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(MaxArchiveMegabytes, "--max-archive-megabytes", min: 0, max: int.MaxValue, out error)
-            && ValidateOptionalNonNegativeInteger(MaxArchiveRatio, "--max-archive-ratio", min: 0, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(MaxArchiveEntries, "--max-archive-entries", min: minimumArchiveLimit, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(MaxArchiveMegabytes, "--max-archive-megabytes", min: minimumArchiveLimit, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(MaxArchiveRatio, "--max-archive-ratio", min: minimumArchiveLimit, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(TimeoutSeconds, "--timeout", min: 0, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsBuildId, "--azure-devops-build-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsReleaseId, "--azure-devops-release-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxArtifactMegabytes, "--azure-devops-max-artifact-megabytes", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxLogMegabytes, "--azure-devops-max-log-megabytes", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(AzureDevOpsMaxPackageMegabytes, "--azure-devops-max-package-megabytes", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(RegistryMaxImageMegabytes, "--registry-max-image-megabytes", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GitLabMergeRequest, "--gitlab-merge-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GitLabPipelineId, "--gitlab-pipeline-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaPullRequest, "--gitea-pull-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaActionsRunId, "--gitea-actions-run-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(BitbucketPullRequest, "--bitbucket-pull-request", min: 1, max: int.MaxValue, out error);
+    }
+
+    private bool ValidateContainerRegistry(out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(RegistryImage))
+        {
+            error = "Container registry scans require an image reference.";
+            return false;
+        }
+
+        bool hasToken = !string.IsNullOrWhiteSpace(RegistryTokenEnvironmentVariable);
+        bool hasUsername = !string.IsNullOrWhiteSpace(RegistryUsernameEnvironmentVariable);
+        bool hasPassword = !string.IsNullOrWhiteSpace(RegistryPasswordEnvironmentVariable);
+        if (hasToken && (hasUsername || hasPassword) || hasUsername != hasPassword)
+        {
+            error = "Registry authentication accepts a token environment variable or both username and password environment variables.";
+            return false;
+        }
+
+        return true;
     }
 
     private bool ValidateS3(out string error)

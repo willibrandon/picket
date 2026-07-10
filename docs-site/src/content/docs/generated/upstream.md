@@ -359,6 +359,32 @@ Picket uses the Cloud Storage JSON API `objects.list` method with
 `objects.get` and `alt=media`. OAuth bearer tokens are read from environment
 variables and are not logged.
 
+## Container Registry and Zstandard References
+
+Native registry image enumeration is based on specifications and primary
+implementation guidance reviewed on 2026-07-09:
+
+- OCI Distribution Specification 1.1.1: `https://github.com/opencontainers/distribution-spec/blob/v1.1.1/spec.md`
+- OCI Image Specification 1.1.1 manifests: `https://github.com/opencontainers/image-spec/blob/v1.1.1/manifest.md`
+- OCI Image Specification 1.1.1 image indexes: `https://github.com/opencontainers/image-spec/blob/v1.1.1/image-index.md`
+- OCI Image Specification 1.1.1 layer media types: `https://github.com/opencontainers/image-spec/blob/v1.1.1/media-types.md`
+- Docker Registry token authentication: `https://docs.docker.com/reference/api/registry/auth/`
+
+Picket resolves exact tags or digests through manifest and blob endpoints. It
+does not enumerate catalogs or tags. Bearer challenges request repository pull
+scope, cross-origin blob redirects are credential-free, and SHA-256 descriptor
+digests are verified before content is scanned.
+
+Zstandard decompression uses the stable upstream streaming C API through
+source-generated `LibraryImport` bindings. Normal Windows, glibc Linux, and
+macOS runtime assets come from the native asset set in `ZstdNet` 1.5.7,
+repository commit `04902458f73940a2163c330b4c412852ac53ade0`; its managed
+wrapper is excluded. Musl releases build the decompression-only zstandard
+1.5.7 shared library from the official release archive pinned to SHA-256
+`eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3`.
+`ZstdSharp.Port` is test-only and generates independent compressed fixtures; it
+is not linked into shipped Picket binaries.
+
 ## GitHub Secret Scanning Oracle
 
 GitHub Secret Protection secret scanning is a hosted proprietary system, not a

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+
 namespace Picket.Tests;
 
 /// <summary>
@@ -124,6 +125,21 @@ public sealed class CliSourceEndpointGuardTests
             "logs",
             "--azure-blob-token-env",
             TokenEnvironmentVariable).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Verifies that native container registry endpoints are guarded before any registry request is made.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanBlocksNonPublicContainerRegistryEndpointByDefault()
+    {
+        await AssertBlocksNonPublicEndpointAsync(
+            "blocked container registry endpoint",
+            new Dictionary<string, string?>(),
+            "--registry-image",
+            "registry.example/team/image:latest",
+            "--registry-endpoint",
+            "https://127.0.0.1/").ConfigureAwait(false);
     }
 
     private async Task AssertBlocksNonPublicEndpointAsync(

@@ -1,41 +1,103 @@
-# Container Archives
+# Container Images
 
-Picket native scans can read local Docker and OCI image archives without contacting a registry.
+Picket native scans can read local Docker/OCI archives and pull exact image references from OCI Distribution registries.
 
-## Image Archive Scanning
+## Local Image Archives
 
-Use `--docker-archive` for archives produced by `docker save`:
+Use `--docker-archive` for an archive produced by `docker save`:
 
 ```bash
 picket scan --docker-archive image.tar --report-format jsonl --redact=100
 ```
 
-Use `--oci-archive` for OCI image-layout archives:
+Use `--oci-archive` for an OCI image-layout archive:
 
 ```bash
 picket scan --oci-archive image-oci.tar --report-format jsonl --redact=100
 ```
 
-Container archive scanning is native Picket behavior. It is not part of the Gitleaks-compatible `git`, `dir`, or `stdin` surfaces.
-
-The scanner treats the image archive as a source envelope. It scans metadata files such as manifests and configs, expands layer tarballs or gzip-compressed layer blobs, and reports paths with container provenance:
+Picket scans image manifests and configs, then expands tar, gzip, and zstd layer content. Findings retain the enclosing archive and layer path:
 
 ```text
 docker-archive/image.tar!layer/layer.tar!app/settings.txt
 oci-archive/image-oci.tar!blobs/sha256/<digest>!etc/secret.conf
 ```
 
-The normal archive safety controls apply:
+## Registry Images
+
+Pass a tagged or digest-pinned image name to `--registry-image`:
+
+```bash
+picket scan --registry-image ghcr.io/example/app:latest --report-format jsonl --redact=100
+```
+
+Docker Hub shorthand is accepted. This scans `docker.io/library/ubuntu:latest`:
+
+```bash
+picket scan --registry-image ubuntu --report-format jsonl --redact=100
+```
+
+For a multi-platform index, Picket scans every supported manifest by default. Select one platform when only one image is relevant:
+
+```bash
+picket scan --registry-image example/app:latest --registry-platform linux/amd64 --report-format sarif --report-path picket.sarif --redact=100
+```
+
+The platform form is `os/architecture[/variant]`. `x64`, `x86_64`, and `aarch64` normalize to their OCI names.
+
+### Authentication
+
+Anonymous pull is the default. Credentials are read from environment variables so values do not enter process arguments.
+
+Use a pre-issued bearer token:
+
+```bash
+picket scan --registry-image ghcr.io/example/private-app:latest --registry-token-env PICKET_REGISTRY_TOKEN --redact=100
+```
+
+Use Basic authentication with a username and password or personal access token:
+
+```bash
+picket scan --registry-image registry.example/team/app:latest --registry-username-env PICKET_REGISTRY_USERNAME --registry-password-env PICKET_REGISTRY_PASSWORD --redact=100
+```
+
+The token form and Basic form are mutually exclusive. For a cross-host bearer challenge that needs Basic credentials, set the trusted token service explicitly:
+
+```bash
+picket scan --registry-image registry.example/team/app:latest --registry-username-env PICKET_REGISTRY_USERNAME --registry-password-env PICKET_REGISTRY_PASSWORD --registry-auth-endpoint https://auth.registry.example/token --redact=100
+```
+
+Use `--registry-endpoint` for a registry mirror or self-hosted API endpoint that differs from the host in the image name.
+
+### Provenance
+
+Registry paths include the requested reference and immutable resolved digest:
+
+```text
+registry/ghcr.io/example/app/tags/latest/resolved/sha256/<root-digest>/manifests/sha256/<manifest-digest>/manifest.json
+registry/ghcr.io/example/app/tags/latest/resolved/sha256/<root-digest>/blobs/sha256/<layer-digest>/layer.tar.gz!app/settings.txt
+```
+
+Picket verifies descriptor and `Docker-Content-Digest` SHA-256 values before scanning content. It requests layers through the registry blob endpoint and does not follow external URLs embedded in descriptors.
+
+## Limits and Endpoint Policy
 
 | Option | Behavior |
 |---|---|
-| `--max-archive-depth` | Limits nested archive traversal inside the image envelope. |
-| `--max-archive-entries` | Caps extracted entries. |
-| `--max-archive-megabytes` | Caps decompressed archive bytes. |
-| `--max-archive-ratio` | Caps archive expansion ratio. |
-| `--max-target-megabytes` | Skips oversized yielded files. |
-| `--timeout` | Stops long scans between scanner work units. |
+| `--registry-max-image-megabytes` | Caps aggregate unique manifest, config, and layer downloads. The default is 512 decimal MB. |
+| `--max-target-megabytes` | Caps each remote object and yielded file. The remote default is 100 decimal MB. |
+| `--max-archive-depth` | Limits nested archive traversal inside layers. |
+| `--max-archive-entries` | Caps extracted entries across the image. |
+| `--max-archive-megabytes` | Caps decompressed bytes across the image. |
+| `--max-archive-ratio` | Caps compressed-layer expansion. |
+| `--timeout` | Cancels source enumeration and scanning at the configured deadline. |
 
-Only one native source provider can be selected for a scan. Do not combine `--docker-archive` or `--oci-archive` with GitHub, Gitea, GitLab, Bitbucket, Azure DevOps, or object-store source enumeration flags.
+Remote byte caps must be positive. Registry manifests have a separate 10 decimal MB cap, image indexes are limited to 128 manifests, and image manifests are limited to 512 layers.
 
-Registry pulls and remote image references are separate planned source providers. They need credential handling, endpoint policy, redirect policy, and provenance rules before they become part of the scanner contract.
+When registry layer traversal is enabled, archive entry, decompressed-byte, and expansion-ratio caps must also be positive. Set `--max-archive-depth 0` for a metadata-only registry scan that intentionally skips every layer.
+
+HTTPS and public endpoints are required by default. `--allow-non-public-source-endpoints` and `--allow-insecure-source-endpoints` are explicit exceptions for controlled development environments.
+
+Blob downloads follow at most one redirect. Registry authorization is retained only for a same-origin redirect and is removed before any cross-origin request.
+
+Only one native source provider can be selected for a scan. Container archive and registry flags cannot be combined with source-host or object-store source flags.

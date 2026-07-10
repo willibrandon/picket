@@ -73,6 +73,7 @@ internal static partial class Program
         AddGcsSourceOptions(command, "picket scan");
         AddS3SourceOptions(command, "picket scan");
         AddAzureDevOpsSourceOptions(command, "picket scan");
+        AddContainerRegistrySourceOptions(command, "picket scan");
         AddContainerArchiveSourceOptions(command, "picket scan");
         AddResultFilterOptions(command, "picket scan");
         AddScanLimitOptions(command, "picket scan", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
@@ -610,6 +611,18 @@ internal static partial class Program
     {
         command.Options.Add(CreateValueOption(commandName, "--docker-archive", "path"));
         command.Options.Add(CreateValueOption(commandName, "--oci-archive", "path"));
+    }
+
+    private static void AddContainerRegistrySourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--registry-image", "image"));
+        command.Options.Add(CreateValueOption(commandName, "--registry-endpoint", "uri"));
+        command.Options.Add(CreateValueOption(commandName, "--registry-auth-endpoint", "uri"));
+        command.Options.Add(CreateValueOption(commandName, "--registry-token-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--registry-username-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--registry-password-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--registry-platform", "os/architecture[/variant]"));
+        command.Options.Add(CreateValueOption(commandName, "--registry-max-image-megabytes", "n"));
     }
 
     private static void AddResultFilterOptions(Command command, string commandName)

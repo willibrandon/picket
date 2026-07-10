@@ -30,7 +30,7 @@ ARG VERSION=0.1.0
 LABEL org.opencontainers.image.title="Picket"
 LABEL org.opencontainers.image.description="Gitleaks-compatible Native AOT secrets scanner for .NET."
 LABEL org.opencontainers.image.source="https://github.com/willibrandon/picket"
-LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.licenses="MIT AND BSD-3-Clause"
 LABEL org.opencontainers.image.version="$VERSION"
 
 RUN apt-get update \
@@ -41,7 +41,9 @@ RUN apt-get update \
 WORKDIR /work
 COPY --from=build /out/picket /usr/local/bin/picket
 COPY --from=build /out/picket-tui /usr/local/bin/picket-tui
+COPY --from=build /out/libzstd.so /usr/local/bin/libzstd.so
 COPY --from=build /src/LICENSE /licenses/Picket/LICENSE
+COPY --from=build /src/THIRD-PARTY-NOTICES.txt /licenses/Picket/THIRD-PARTY-NOTICES.txt
 
 USER $APP_UID
 ENTRYPOINT ["/usr/local/bin/picket"]

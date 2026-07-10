@@ -697,16 +697,41 @@ Native source support:
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
 
-Local container archive scanning is native Picket behavior, not Gitleaks compatibility behavior.
+Container image scanning is native Picket behavior, not Gitleaks compatibility behavior.
 
 | Source | Option | Behavior |
 | --- | --- | --- |
 | Docker archive | `--docker-archive <path>` | Scans a Docker image archive produced by `docker save`. |
 | OCI image layout | `--oci-archive <path>` | Scans a local OCI image-layout archive. |
+| OCI Distribution registry | `--registry-image <name>` | Pulls one tagged or digest-pinned OCI/Docker image through the registry v2 API. Docker Hub shorthand such as `ubuntu` resolves to `docker.io/library/ubuntu:latest`. |
 
-Picket treats the image archive as a source envelope, scans metadata files such as manifests and configs, expands layer tarballs and gzip-compressed layer blobs through the same archive safety caps as local archives, and reports provenance paths such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
+Picket treats each image as a source envelope. It scans manifests and configs, expands tar, gzip, and zstd layers through the shared archive safety caps, and retains deleted or overwritten content from earlier layers because secret history remains relevant. Local provenance includes the archive and nested layer path, such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
 
-Container archive flags cannot be combined with GitHub, Gitea, GitLab, Bitbucket, Azure DevOps, or object-store source enumeration flags because a native scan has one source provider. Registry pulls and remote image references remain planned until credential handling, endpoint policy, redirect policy, registry pagination, and image provenance rules are specified and tested.
+Registry options:
+
+| Purpose | Options | Contract |
+| --- | --- | --- |
+| Endpoint | `--registry-endpoint`, `--registry-auth-endpoint` | Overrides the image-derived registry endpoint and, when needed, explicitly trusts a bearer-token service. HTTPS is required unless insecure source endpoints are explicitly allowed. |
+| Authentication | `--registry-token-env` or `--registry-username-env` with `--registry-password-env` | Reads a pre-issued bearer token or Basic username/password/PAT from environment variables. Anonymous pull is the default. Credential values never appear in arguments, reports, warnings, or status text. |
+| Platform | `--registry-platform os/architecture[/variant]` | Selects one platform from an image index. Omitting it scans every supported manifest in the bounded index. Common `x64`, `x86_64`, and `aarch64` aliases normalize to OCI architecture names. |
+| Image transfer cap | `--registry-max-image-megabytes` | Caps aggregate unique manifest, config, and layer bytes. The default is 512 decimal MB and the value must be positive. |
+
+Registry behavior and security rules:
+
+- Only exact image references are resolved. Picket does not enumerate registry catalogs or tags.
+- OCI image manifests/indexes and Docker schema 2 manifests/lists are supported. Schema 1 and unrelated artifact manifests are skipped.
+- Descriptor and `Docker-Content-Digest` SHA-256 values are verified before content is scanned or expanded.
+- Standard OCI distributable and nondistributable tar, gzip, and zstd layer media types are recognized, together with Docker uncompressed, gzip, and foreign gzip layer media types.
+- Layer bytes are requested from the registry blob endpoint. Descriptor-provided external URLs are not followed.
+- Failures warn and continue across independently verifiable manifests and layers. A missing config does not suppress layers when platform selection is already known.
+- A bearer challenge may acquire a pull-scoped token. Basic credentials reach only the registry host, its subdomains, Docker Hub's documented auth host, or an explicit `--registry-auth-endpoint`.
+- Blob downloads follow at most one safe HTTP redirect. Same-origin requests may retain registry authorization; cross-origin redirects never receive credentials.
+- Endpoint checks run before the first request and at connect time. Private, loopback, link-local, and metadata destinations remain blocked unless the user explicitly allows non-public source endpoints.
+- Manifest responses are capped at 10 decimal MB, each remote object at 100 decimal MB by default, and streamed reads enforce the cap when `Content-Length` is absent or understated.
+- Manifest count, layer count, aggregate image bytes, archive entries, decompressed bytes, expansion ratio, nested depth, target bytes, timeout, and cancellation all have bounded enforcement. Registry entry, decompressed-byte, and ratio caps cannot be disabled while layer traversal is enabled; depth zero provides an explicit metadata-only mode.
+- Registry provenance includes the normalized image name, requested tag or digest, resolved root digest, descriptor digest, and nested layer path. Tag scans therefore remain attributable to immutable content.
+
+Container source flags cannot be combined with source-host or object-store enumeration flags because a native scan has one source provider.
 
 Azure Blob source support is native Picket behavior, not Gitleaks compatibility behavior.
 
@@ -1016,7 +1041,11 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 
 The full-screen console is an operator interface, not a marketing screen. Opening without a report starts on the Scan page; opening a report with findings starts on Findings. The Scan page is for setting up and running a scan: Run scan, target inputs, command preview, status, exit code, scan timing, report path, result count summary, and an output-availability signal. The Logs page owns captured scanner output. The Findings page owns row triage: filtering, selected-row focus, finding details, and finding-specific yank text. This prevents the Scan page from becoming a duplicate findings browser while still making the next action obvious after a scan completes. It favors readable scanner-console density, stable row keys, clear focus, keyboard navigation, and text labels over decorative graphics.
 
-The scanner console also has a native scan workspace. The scan workspace lets users choose a local path, container archive, source-host target, or object-store target; profile; config; ignore behavior; verification mode; result filter; archive limits; redaction; and report outputs through terminal controls grouped into Source, Output, Validation, and Limits sections. It builds and displays the command-equivalent `picket scan` request, prepares the report output directory, runs the scanner executable, displays text status, exit code state, started/completed/elapsed-time diagnostics, captured-output availability, and cancellation status, then reloads the generated report summary when the scan completes. The Logs view owns captured stdout/stderr. Completed scans expose the loaded finding count and a direct `g f` path to the Findings page rather than duplicating findings on Scan. While a scan is running, the primary action changes from Run scan to Cancel and `Ctrl+C` requests scan cancellation without closing the console. It must not create a separate behavior path from the CLI.
+The scanner console also has a native scan workspace. The workspace covers local paths, local container archives, remote registry images, source hosts, and object stores. Profile, config, ignore behavior, verification, result filters, limits, redaction, and report controls are grouped into Source, Output, Validation, and Limits sections.
+
+The workspace displays the command-equivalent `picket scan` request and runs that scanner executable. It prepares the report directory, shows text status, exit code, start/completion/elapsed timing, output availability, and cancellation state, then reloads the generated report summary. The Logs view owns captured stdout and stderr.
+
+Completed scans show the loaded finding count and a direct `g f` path to Findings instead of duplicating findings on Scan. While a scan is running, the primary action changes from Run scan to Cancel and `Ctrl+C` requests cancellation without closing the console. The TUI must not create a separate scanner behavior path from the CLI.
 
 `picket tui <report> --flow` renders interactive steps inline in the normal terminal buffer. The inline flow can prompt for a report path, show a frozen summary in scrollback, and open the same full-screen console through a full-screen step when the user needs a larger workspace. Inline steps keep output suitable for normal terminal history; full-screen steps use the alternate screen buffer only for the scanner console.
 

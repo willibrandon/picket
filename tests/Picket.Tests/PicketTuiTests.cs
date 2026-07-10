@@ -537,11 +537,12 @@ public sealed class PicketTuiTests
         Assert.AreEqual(PicketTuiScanTargetCategory.ObjectStore, scan.TargetCategory);
         Assert.AreEqual(2, scan.TargetModeIndex);
 
-        scan.SetTargetCategoryByIndex((int)PicketTuiScanTargetCategory.Archive);
+        scan.SetTargetCategoryByIndex((int)PicketTuiScanTargetCategory.Container);
 
         Assert.AreEqual(PicketTuiScanTargetMode.DockerArchive, scan.TargetMode);
-        Assert.HasCount(2, scan.ActiveTargetModeLabels);
-        Assert.Contains("OCI", scan.ActiveTargetModeLabels);
+        Assert.HasCount(3, scan.ActiveTargetModeLabels);
+        Assert.Contains("OCI archive", scan.ActiveTargetModeLabels);
+        Assert.Contains("Registry", scan.ActiveTargetModeLabels);
     }
 
     /// <summary>
@@ -582,6 +583,44 @@ public sealed class PicketTuiTests
         Assert.Contains("--oci-archive", arguments);
         Assert.Contains("images/app.oci.tar", arguments);
         Assert.DoesNotContain("--docker-archive", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds remote container-registry scan arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsContainerRegistryScanArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.RegistryImage);
+        scan.SetRegistryImage("ghcr.io/willibrandon/picket:latest");
+        scan.SetRegistryEndpoint("https://ghcr.io/");
+        scan.SetRegistryAuthenticationEndpoint("https://ghcr.io/token");
+        scan.SetRegistryTokenEnvironmentVariable("PICKET_REGISTRY_TOKEN");
+        scan.SetRegistryPlatform("linux/amd64");
+        scan.SetRegistryMaxImageMegabytes("256");
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--registry-image", arguments);
+        Assert.Contains("ghcr.io/willibrandon/picket:latest", arguments);
+        Assert.Contains("--registry-endpoint", arguments);
+        Assert.Contains("https://ghcr.io/", arguments);
+        Assert.Contains("--registry-auth-endpoint", arguments);
+        Assert.Contains("https://ghcr.io/token", arguments);
+        Assert.Contains("--registry-token-env", arguments);
+        Assert.Contains("PICKET_REGISTRY_TOKEN", arguments);
+        Assert.Contains("--registry-platform", arguments);
+        Assert.Contains("linux/amd64", arguments);
+        Assert.Contains("--registry-max-image-megabytes", arguments);
+        Assert.Contains("256", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
     }
 
     /// <summary>
@@ -729,6 +768,75 @@ public sealed class PicketTuiTests
         Assert.IsFalse(built);
         Assert.IsEmpty(arguments);
         Assert.Contains("OCI archive scans require an archive path", error);
+    }
+
+    /// <summary>
+    /// Verifies that remote container-registry scans require an image reference before launch.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsMissingContainerRegistryImage()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.RegistryImage);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("Container registry scans require an image reference", error);
+    }
+
+    /// <summary>
+    /// Verifies that remote container-registry scans reject ambiguous credential modes.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsAmbiguousContainerRegistryCredentials()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.RegistryImage);
+        scan.SetRegistryImage("registry.example/team/app:latest");
+        scan.SetRegistryTokenEnvironmentVariable("PICKET_REGISTRY_TOKEN");
+        scan.SetRegistryUsernameEnvironmentVariable("PICKET_REGISTRY_USERNAME");
+        scan.SetRegistryPasswordEnvironmentVariable("PICKET_REGISTRY_PASSWORD");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("Registry authentication accepts a token environment variable or both username and password environment variables", error);
+    }
+
+    /// <summary>
+    /// Verifies registry layer traversal keeps archive safety limits unless traversal is disabled.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRequiresContainerRegistryArchiveLimits()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.RegistryImage);
+        scan.SetRegistryImage("registry.example/team/app:latest");
+        scan.SetMaxArchiveEntries("0");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("--max-archive-entries requires an integer from 1", error);
+
+        scan.SetMaxArchiveDepth("0");
+        scan.SetMaxArchiveMegabytes("0");
+        scan.SetMaxArchiveRatio("0");
+        built = scan.TryBuildArguments(out arguments, out error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--max-archive-depth", arguments);
+        Assert.Contains("0", arguments);
     }
 
     /// <summary>
@@ -1929,6 +2037,47 @@ public sealed class PicketTuiTests
         Assert.Contains("Package", screenText);
         Assert.Contains("Version", screenText);
         Assert.Contains("Artifact MB", screenText);
+        Assert.Contains("Non-public", screenText);
+        Assert.Contains("HTTP", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that remote container-registry controls expose image, platform, and credential settings.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersContainerRegistryControls()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetTargetMode((int)PicketTuiScanTargetMode.RegistryImage);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 160, height: 38);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Auth endpoint"), TimeSpan.FromSeconds(5), "container registry controls to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Registry", screenText);
+        Assert.Contains("Image", screenText);
+        Assert.Contains("Endpoint", screenText);
+        Assert.Contains("Auth endpoint", screenText);
+        Assert.Contains("Platform", screenText);
+        Assert.Contains("Token env", screenText);
+        Assert.Contains("Username env", screenText);
+        Assert.Contains("Password env", screenText);
         Assert.Contains("Non-public", screenText);
         Assert.Contains("HTTP", screenText);
     }
