@@ -11,6 +11,13 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class AzureDevOpsPackageSourceClientTests
 {
+    private static readonly string[] s_unsafeRedirectUris =
+    [
+        "http://picket.blob.core.windows.net/package.nupkg",
+        "https://user@picket.blob.core.windows.net/package.nupkg",
+    ];
+    private static readonly string s_fullPackagePageJson = CreateFullPackagePageJson();
+
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
     /// </summary>
@@ -149,7 +156,7 @@ public sealed class AzureDevOpsPackageSourceClientTests
             {
                 return new HttpResponseMessage(HttpStatusCode.Redirect)
                 {
-                    Headers = { Location = new Uri("https://blob.example/package.nupkg?signature=redacted") },
+                    Headers = { Location = new Uri("https://picket.blob.core.windows.net/package.nupkg?signature=redacted") },
                 };
             }
 
@@ -170,6 +177,175 @@ public sealed class AzureDevOpsPackageSourceClientTests
         Assert.HasCount(2, authorizationHeaders);
         Assert.IsTrue(authorizationHeaders[0].StartsWith("Basic ", StringComparison.Ordinal));
         Assert.IsEmpty(authorizationHeaders[1]);
+    }
+
+    /// <summary>
+    /// Verifies that package redirects outside Azure DevOps artifact hosts are rejected before another request is sent.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumeratePackageFilesRejectsRedirectOutsideAzureDevOpsArtifactHosts()
+    {
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(static _ => RedirectResponse("https://downloads.example/package.nupkg"));
+        using var httpClient = new HttpClient(handler);
+        var client = new AzureDevOpsPackageSourceClient(httpClient);
+
+        List<SourceFile> files = await client.EnumeratePackageFilesAsync(
+            CreateExactPackageOptions(warnings.Add),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(1, handler.RequestCount);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("download redirect is not an allowed Azure DevOps artifact endpoint", warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that insecure and userinfo-bearing package redirects are rejected.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumeratePackageFilesRejectsInsecureDownloadRedirect()
+    {
+        for (int i = 0; i < s_unsafeRedirectUris.Length; i++)
+        {
+            var warnings = new List<string>();
+            string redirectUri = s_unsafeRedirectUris[i];
+            var handler = new FakeHttpMessageHandler(_ => RedirectResponse(redirectUri));
+            using var httpClient = new HttpClient(handler);
+            var client = new AzureDevOpsPackageSourceClient(httpClient);
+
+            List<SourceFile> files = await client.EnumeratePackageFilesAsync(
+                CreateExactPackageOptions(warnings.Add),
+                TestContext.CancellationToken).ConfigureAwait(false);
+
+            Assert.IsEmpty(files);
+            Assert.AreEqual(1, handler.RequestCount);
+            Assert.HasCount(1, warnings);
+            Assert.Contains("download redirect is not an allowed Azure DevOps artifact endpoint", warnings[0]);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a redirected package response cannot initiate a second redirect hop.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumeratePackageFilesDoesNotFollowSecondRedirectHop()
+    {
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(request => request.RequestUri!.Host.Equals("pkgs.dev.azure.com", StringComparison.OrdinalIgnoreCase)
+            ? RedirectResponse("https://picket.blob.core.windows.net/first.nupkg")
+            : RedirectResponse("https://picket.blob.core.windows.net/second.nupkg"));
+        using var httpClient = new HttpClient(handler);
+        var client = new AzureDevOpsPackageSourceClient(httpClient);
+
+        List<SourceFile> files = await client.EnumeratePackageFilesAsync(
+            CreateExactPackageOptions(warnings.Add),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(2, handler.RequestCount);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Azure DevOps returned 302", warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that redirected package bodies remain subject to the configured byte cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumeratePackageFilesAppliesByteCapToRedirectedDownload()
+    {
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(request => request.RequestUri!.Host.Equals("pkgs.dev.azure.com", StringComparison.OrdinalIgnoreCase)
+            ? RedirectResponse("https://picket.blob.core.windows.net/package.nupkg")
+            : StreamingBinaryResponse(9));
+        using var httpClient = new HttpClient(handler);
+        var client = new AzureDevOpsPackageSourceClient(httpClient);
+
+        List<SourceFile> files = await client.EnumeratePackageFilesAsync(
+            CreateExactPackageOptions(warnings.Add, maxPackageBytes: 4),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(2, handler.RequestCount);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Azure Artifacts package byte limit skipped", warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that responses from handlers that already followed a package redirect are rejected.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumeratePackageFilesBlocksAutoFollowedDownloadRedirects()
+    {
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(static _ => AutoRedirectedBinaryResponse(
+            "package-token",
+            "https://picket.blob.core.windows.net/package.nupkg"));
+        using var httpClient = new HttpClient(handler);
+        var client = new AzureDevOpsPackageSourceClient(httpClient);
+
+        List<SourceFile> files = await client.EnumeratePackageFilesAsync(
+            CreateExactPackageOptions(warnings.Add),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(1, handler.RequestCount);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("Azure DevOps returned 421", warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that provider-controlled feed, package, and version names cannot create unsafe display paths.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumeratePackageFilesNormalizesUnsafeDisplayPathSegments()
+    {
+        int requestCount = 0;
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(_ => ++requestCount switch
+        {
+            1 => JsonResponse("""{"value":[{"id":"feed-id","name":".."}]}"""),
+            2 => JsonResponse("""{"value":[{"name":"a\\b","protocolType":"NuGet","versions":[{"version":"../1","isLatest":true}]}]}"""),
+            _ => BinaryResponse(Encoding.UTF8.GetBytes("package-token")),
+        }));
+        var client = new AzureDevOpsPackageSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "token",
+            project: "test",
+            includePackages: true);
+
+        List<SourceFile> files = await client.EnumeratePackageFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("azure-devops/test/artifacts/_/a_b/.._1/a_b.nupkg", files[0].DisplayPath);
+        Assert.DoesNotContain("\\", files[0].DisplayPath);
+        Assert.DoesNotContain("/../", files[0].DisplayPath);
+    }
+
+    /// <summary>
+    /// Verifies that package enumeration stops at its bounded pagination ceiling.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task EnumeratePackageFilesStopsAtPaginationSafetyLimit()
+    {
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(_ => JsonResponse(s_fullPackagePageJson));
+        using var httpClient = new HttpClient(handler);
+        var client = new AzureDevOpsPackageSourceClient(httpClient);
+        var options = new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "token",
+            warningSink: warnings.Add,
+            includePackages: true,
+            feed: "release");
+
+        List<SourceFile> files = await client.EnumeratePackageFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(1000, handler.RequestCount);
+        Assert.HasCount(1, warnings);
+        Assert.Contains("pagination safety limit", warnings[0]);
     }
 
     /// <summary>
@@ -295,6 +471,55 @@ public sealed class AzureDevOpsPackageSourceClientTests
         {
             Content = new StreamContent(new RepeatingReadStream(length, (byte)'x')),
         };
+    }
+
+    private static HttpResponseMessage RedirectResponse(string location)
+    {
+        return new HttpResponseMessage(HttpStatusCode.Redirect)
+        {
+            Headers = { Location = new Uri(location) },
+        };
+    }
+
+    private static HttpResponseMessage AutoRedirectedBinaryResponse(string content, string redirectedUri)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes(content)),
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, redirectedUri),
+        };
+    }
+
+    private static AzureDevOpsSourceOptions CreateExactPackageOptions(
+        Action<string>? warningSink = null,
+        long? maxPackageBytes = null)
+    {
+        return new AzureDevOpsSourceOptions(
+            AzureDevOpsSourceOptions.CreateServicesEndpoint("picket"),
+            "token",
+            warningSink: warningSink,
+            includePackages: true,
+            feed: "release",
+            package: "Picket.Sample",
+            packageVersion: "2.0.0",
+            maxPackageBytes: maxPackageBytes);
+    }
+
+    private static string CreateFullPackagePageJson()
+    {
+        var builder = new StringBuilder("{\"value\":[");
+        for (int i = 0; i < 100; i++)
+        {
+            if (i != 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append("{}");
+        }
+
+        builder.Append("]}");
+        return builder.ToString();
     }
 
     private static HttpResponseMessage OversizedMetadataResponse()

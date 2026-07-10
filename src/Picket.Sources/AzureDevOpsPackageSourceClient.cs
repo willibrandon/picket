@@ -262,9 +262,9 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
             Uri redirectUri = response.Headers.Location.IsAbsoluteUri
                 ? response.Headers.Location
                 : new Uri(uri, response.Headers.Location);
-            if (!IsSafePackageRedirect(redirectUri))
+            if (!IsSafePackageRedirect(options.PackageContentEndpoint, redirectUri))
             {
-                options.WarningSink?.Invoke($"skipping Azure Artifacts package {displayPath} because its download redirect is not a credential-free HTTPS endpoint");
+                options.WarningSink?.Invoke($"skipping Azure Artifacts package {displayPath} because its download redirect is not an allowed Azure DevOps artifact endpoint");
                 return null;
             }
 
@@ -598,11 +598,10 @@ public sealed class AzureDevOpsPackageSourceClient(HttpClient httpClient)
         return propertyValue.Length != 0;
     }
 
-    private static bool IsSafePackageRedirect(Uri uri)
+    private static bool IsSafePackageRedirect(Uri endpoint, Uri uri)
     {
-        return uri.IsAbsoluteUri
-            && uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)
-            && string.IsNullOrEmpty(uri.UserInfo);
+        return uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)
+            && AzureDevOpsRedirectPolicy.IsAllowed(endpoint, uri);
     }
 
     private static bool IsRedirect(HttpResponseMessage response)

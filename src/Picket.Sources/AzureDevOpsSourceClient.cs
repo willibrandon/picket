@@ -686,7 +686,7 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
             Uri redirectUri = response.Headers.Location.IsAbsoluteUri
                 ? response.Headers.Location
                 : new Uri(uri, response.Headers.Location);
-            if (!IsAllowedAzureDevOpsRedirectUri(options.Endpoint, redirectUri))
+            if (!AzureDevOpsRedirectPolicy.IsAllowed(options.Endpoint, redirectUri))
             {
                 options.WarningSink?.Invoke($"skipping Azure DevOps {limitName} {displayPath} because the redirected download URL is not an allowed Azure DevOps artifact endpoint");
                 return null;
@@ -1477,36 +1477,6 @@ public sealed class AzureDevOpsSourceClient(HttpClient httpClient)
         string endpointPath = endpoint.AbsolutePath.TrimEnd('/');
         return endpointPath.Length == 0
             || uri.AbsolutePath.StartsWith(string.Concat(endpointPath, "/"), StringComparison.Ordinal);
-    }
-
-    private static bool IsAllowedAzureDevOpsRedirectUri(Uri endpoint, Uri uri)
-    {
-        if (!uri.IsAbsoluteUri
-            || !string.IsNullOrEmpty(uri.UserInfo)
-            || uri.Scheme is not "https" and not "http")
-        {
-            return false;
-        }
-
-        if (uri.Scheme.Equals("http", StringComparison.Ordinal)
-            && !endpoint.Scheme.Equals("http", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        bool sameHost = uri.Host.Equals(endpoint.Host, StringComparison.OrdinalIgnoreCase);
-        bool subdomainOfEndpoint = uri.Host.EndsWith(string.Concat(".", endpoint.Host), StringComparison.OrdinalIgnoreCase);
-        bool publicAzureDevOpsArtifactHost = IsPublicAzureDevOpsEndpoint(endpoint)
-            && (uri.Host.EndsWith(".blob.core.windows.net", StringComparison.OrdinalIgnoreCase)
-                || uri.Host.EndsWith(".vsassets.io", StringComparison.OrdinalIgnoreCase)
-                || uri.Host.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase));
-        return sameHost || subdomainOfEndpoint || publicAzureDevOpsArtifactHost;
-    }
-
-    private static bool IsPublicAzureDevOpsEndpoint(Uri endpoint)
-    {
-        return endpoint.Host.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase)
-            || endpoint.Host.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string EscapeDisplaySegment(string value)
