@@ -59,7 +59,7 @@ The TUI includes a scan workspace for running native scans interactively. It bui
 
 The workspace keeps the normal path short: choose a target, check the command preview, press Run scan, then jump to Findings when row triage is needed. It exposes commonly changed options directly:
 
-- local path, local container archive, or source-host target,
+- local path, local container archive, source-host target, or object-store target,
 - profile and config,
 - ignore behavior,
 - verification mode,
@@ -81,6 +81,8 @@ For GitLab targets, the workspace includes project and group selectors, ref, mer
 For Gitea targets, the workspace includes repository, organization, user, ref, pull request, issue state, release, Actions artifact, Actions run, generic package, token environment variable, API endpoint, and explicit source endpoint policy controls.
 
 For Bitbucket targets, the workspace includes repository and workspace selectors, project key, ref, pull request, pipeline ID, token environment variable, username environment variable, token kind, API endpoint, download artifact, pipeline log, snippet, and explicit source endpoint policy controls.
+
+For object-store targets, the workspace includes S3, Google Cloud Storage, and Azure Blob Storage selectors, prefixes, token environment variable names, endpoint overrides where the CLI supports them, and explicit source endpoint policy controls.
 
 During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr so the Scan page does not compete with finding triage. Logs can be searched without changing the finding filter. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console. It prepares the report output directory before launch, writes normal Picket reports, reloads the generated report summary when the scan completes, and shows the loaded finding count and report path on the Scan page. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
 
