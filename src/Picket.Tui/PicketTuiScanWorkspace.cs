@@ -13,6 +13,7 @@ internal sealed class PicketTuiScanWorkspace
     private const string DefaultReportPath = "picket-results/picket-tui.jsonl";
     private const int MaxCapturedOutputLineLength = 180;
     private const int MaxCapturedOutputLines = 500;
+    private const string PartialScanDiagnosticPrefix = "scan incomplete:";
     private static readonly char[] s_argumentQuoteCharacters = [' ', '\t', '"'];
     private static readonly string[] s_azureBlobTokenKinds = ["bearer", "sas"];
     private static readonly string[] s_azureDevOpsTokenKinds = ["pat", "bearer"];
@@ -819,6 +820,11 @@ internal sealed class PicketTuiScanWorkspace
     internal bool LastRunSucceeded { get; private set; }
 
     /// <summary>
+    /// Gets a value indicating whether the last scanner process produced a readable report.
+    /// </summary>
+    internal bool LastRunReportAvailable { get; private set; }
+
+    /// <summary>
     /// Gets the finding count read from the last scanner process report, or <see langword="null" /> when no report could be read.
     /// </summary>
     internal int? LastRunReportFindingCount { get; private set; }
@@ -894,6 +900,7 @@ internal sealed class PicketTuiScanWorkspace
         ClearCapturedOutput();
         LastExitCode = null;
         LastRunSucceeded = false;
+        LastRunReportAvailable = false;
         LastRunReportFindingCount = null;
         LastStartedAt = null;
         LastCompletedAt = null;
@@ -2101,6 +2108,7 @@ internal sealed class PicketTuiScanWorkspace
             LastMessage = error;
             LastExitCode = null;
             LastRunSucceeded = false;
+            LastRunReportAvailable = false;
             LastRunReportFindingCount = null;
             LastStartedAt = null;
             LastCompletedAt = null;
@@ -2114,6 +2122,7 @@ internal sealed class PicketTuiScanWorkspace
             LastMessage = directoryError;
             LastExitCode = 126;
             LastRunSucceeded = false;
+            LastRunReportAvailable = false;
             LastRunReportFindingCount = null;
             LastStartedAt = failedAt;
             LastCompletedAt = failedAt;
@@ -2131,6 +2140,7 @@ internal sealed class PicketTuiScanWorkspace
         LastMessage = BuildCommandLinePreview();
         LastExitCode = null;
         LastRunSucceeded = false;
+        LastRunReportAvailable = false;
         LastRunReportFindingCount = null;
         LastStartedAt = DateTimeOffset.UtcNow;
         LastCompletedAt = null;
@@ -2148,24 +2158,27 @@ internal sealed class PicketTuiScanWorkspace
                 },
                 cancellationToken).ConfigureAwait(false);
             bool reportReadable = TryReadReportFindingCount(result.ReportPath, out int findingCount, out string reportError);
+            bool partialScan = reportReadable && IsPartialScan(result, findingCount);
             LastExitCode = result.ExitCode;
+            LastRunReportAvailable = reportReadable;
             LastRunReportFindingCount = reportReadable ? findingCount : null;
             LastRunSucceeded = reportReadable
+                && !partialScan
                 && (result.ExitCode == 0 && findingCount == 0
                     || result.ExitCode == 1 && findingCount > 0);
-            Status = (result.ExitCode, reportReadable, findingCount) switch
+            Status = (result.ExitCode, reportReadable, findingCount, partialScan) switch
             {
-                (0, true, 0) => "Scan completed: no findings",
-                (1, true, > 0) => "Scan completed: findings reported",
-                (_, false, _) => CreateFailureStatus(result, reportError),
-                (1, true, 0) => CreateFailureStatus(result, "scanner exited 1 without findings"),
-                (0, true, > 0) => CreateFailureStatus(result, "scanner exited 0 but reported findings"),
+                (0, true, 0, false) => "Scan completed: no findings",
+                (1, true, > 0, false) => "Scan completed: findings reported",
+                (_, true, _, true) => CreatePartialScanStatus(findingCount),
+                (_, false, _, _) => CreateFailureStatus(result, reportError),
+                (0, true, > 0, false) => "Scan failed: exit code does not match report; report retained",
                 _ => CreateFailureStatus(
                     result,
                     string.Concat("scanner exited ", result.ExitCode.ToString(CultureInfo.InvariantCulture))),
             };
             string finalizationError = string.Empty;
-            if (!TryFinalizeReportPath(result.ReportPath, previousReportPath, LastRunSucceeded, out finalizationError))
+            if (!TryFinalizeReportPath(result.ReportPath, previousReportPath, reportReadable, out finalizationError))
             {
                 LastRunSucceeded = false;
                 Status = string.Concat("Scan failed: could not finalize report: ", finalizationError);
@@ -2190,6 +2203,7 @@ internal sealed class PicketTuiScanWorkspace
             LastMessage = "The running scan was cancelled.";
             LastExitCode = 130;
             LastRunSucceeded = false;
+            LastRunReportAvailable = false;
             LastRunReportFindingCount = null;
             LastCompletedAt = DateTimeOffset.UtcNow;
             if (!TryFinalizeReportPath(ReportPath, previousReportPath, keepNewReport: false, out string restoreError))
@@ -2208,6 +2222,7 @@ internal sealed class PicketTuiScanWorkspace
             LastMessage = ex.Message;
             LastExitCode = 126;
             LastRunSucceeded = false;
+            LastRunReportAvailable = false;
             LastRunReportFindingCount = null;
             LastStartedAt ??= failedAt;
             LastCompletedAt = failedAt;
@@ -2471,6 +2486,22 @@ internal sealed class PicketTuiScanWorkspace
     {
         string diagnostic = FirstNonEmptyLine(result.StandardError);
         return string.Concat("Scan failed: ", diagnostic.Length == 0 ? fallback : diagnostic);
+    }
+
+    private static string CreatePartialScanStatus(int findingCount)
+    {
+        return string.Concat(
+            "Scan incomplete: ",
+            findingCount.ToString(CultureInfo.InvariantCulture),
+            findingCount == 1 ? " finding" : " findings",
+            "; partial report retained");
+    }
+
+    private static bool IsPartialScan(PicketTuiScanExecutionResult result, int findingCount)
+    {
+        return result.ExitCode is not 0 and not 1
+            || result.ExitCode == 1 && findingCount == 0
+            || result.StandardError.Contains(PartialScanDiagnosticPrefix, StringComparison.Ordinal);
     }
 
     private static string CreateResultMessage(PicketTuiScanExecutionResult result, string reportError)

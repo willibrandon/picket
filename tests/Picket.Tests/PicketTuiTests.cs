@@ -1656,17 +1656,17 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that an empty report and the findings exit code are treated as an operational failure.
+    /// Verifies that a readable empty report from an incomplete scan replaces the previous report.
     /// </summary>
     [TestMethod]
     [Timeout(10000, CooperativeCancellation = true)]
-    public async Task ScanWorkspaceRejectsEmptyReportWithFindingsExitCode()
+    public async Task ScanWorkspaceRetainsEmptyReportFromIncompleteScan()
     {
         using TempDirectory temp = TempDirectory.Create();
         var executor = new PicketTuiFakeScanExecutor
         {
             ReportContent = string.Empty,
-            StandardError = "GitHub request failed: 401 Unauthorized",
+            StandardError = "scan incomplete: one or more inputs could not be scanned",
             StandardOutput = string.Empty,
         };
         PicketTuiState state = CreateState(executor);
@@ -1679,13 +1679,45 @@ public sealed class PicketTuiTests
 
         Assert.AreEqual(1, scan.LastExitCode);
         Assert.IsFalse(scan.LastRunSucceeded);
+        Assert.IsTrue(scan.LastRunReportAvailable);
         Assert.AreEqual(0, scan.LastRunReportFindingCount);
-        Assert.Contains("Scan failed: GitHub request failed: 401 Unauthorized", scan.Status);
+        Assert.AreEqual("Scan incomplete: 0 findings; partial report retained", scan.Status);
         Assert.DoesNotContain("findings reported", scan.Status);
-        Assert.Contains("GitHub request failed: 401 Unauthorized", scan.CapturedOutputText);
-        Assert.AreEqual(CreateFakeReportJsonLine(), File.ReadAllText(reportPath));
-        Assert.AreEqual("report.json", state.Report.Path);
-        Assert.HasCount(3, state.Rows);
+        Assert.Contains("scan incomplete", scan.CapturedOutputText);
+        Assert.IsEmpty(File.ReadAllText(reportPath));
+        Assert.AreEqual(Path.GetFullPath(reportPath), state.Report.Path);
+        Assert.IsEmpty(state.Rows);
+    }
+
+    /// <summary>
+    /// Verifies that findings produced before an incomplete scan are retained and loaded for triage.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task ScanWorkspaceRetainsFindingsReportFromIncompleteScan()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor
+        {
+            StandardError = "scan incomplete: one or more inputs could not be scanned",
+            StandardOutput = string.Empty,
+        };
+        PicketTuiState state = CreateState(executor);
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        string reportPath = Path.Combine(temp.Path, "picket.jsonl");
+        scan.SetReportPath(reportPath);
+
+        await state.RunScanAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(1, scan.LastExitCode);
+        Assert.IsFalse(scan.LastRunSucceeded);
+        Assert.IsTrue(scan.LastRunReportAvailable);
+        Assert.AreEqual(1, scan.LastRunReportFindingCount);
+        Assert.AreEqual("Scan incomplete: 1 finding; partial report retained", scan.Status);
+        Assert.IsTrue(File.Exists(reportPath));
+        Assert.AreEqual(Path.GetFullPath(reportPath), state.Report.Path);
+        Assert.HasCount(1, state.Rows);
+        Assert.AreEqual("fake-rule", state.Rows[0].RuleId);
     }
 
     /// <summary>
@@ -2554,11 +2586,11 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that the full-screen console presents an empty exit-one report as a failure and preserves loaded findings.
+    /// Verifies that the full-screen console presents an empty exit-one report as a retained partial result.
     /// </summary>
     [TestMethod]
     [Timeout(10000, CooperativeCancellation = true)]
-    public async Task Hex1bFullScreenConsoleRejectsEmptyFindingsReport()
+    public async Task Hex1bFullScreenConsoleRetainsEmptyPartialReport()
     {
         using TempDirectory temp = TempDirectory.Create();
         var executor = new PicketTuiFakeScanExecutor
@@ -2577,7 +2609,7 @@ public sealed class PicketTuiTests
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
             .WaitUntil(s => s.ContainsText("Run scan"), TimeSpan.FromSeconds(5), "scan workspace to render")
             .Ctrl().Key(Hex1bKey.R)
-            .WaitUntil(s => s.ContainsText("Scan failed: GitHub request failed"), TimeSpan.FromSeconds(5), "scan failure to render")
+            .WaitUntil(s => s.ContainsText("Scan incomplete: 0 findings"), TimeSpan.FromSeconds(5), "partial scan to render")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
@@ -2591,9 +2623,10 @@ public sealed class PicketTuiTests
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
-        Assert.Contains("Scan failed: GitHub request failed", screenText);
+        Assert.Contains("Scan incomplete: 0 findings", screenText);
+        Assert.Contains("partial report retained", screenText);
         Assert.DoesNotContain("Scan completed: findings reported", screenText);
-        Assert.HasCount(3, state.Rows);
+        Assert.IsEmpty(state.Rows);
     }
 
     /// <summary>

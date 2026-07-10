@@ -82,6 +82,11 @@ internal static partial class Program
 
         if (hadScanError)
         {
+            if (nativeMode)
+            {
+                Console.Error.WriteLine(IncompleteScanMessage);
+            }
+
             return CompleteRun(1, diagnosticsSession);
         }
 

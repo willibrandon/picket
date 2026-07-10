@@ -89,7 +89,7 @@ For object-store targets, the workspace includes S3, Google Cloud Storage, and A
 
 During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr and can be searched without changing the finding filter. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console.
 
-Before launch, the workspace prepares the report output directory and moves any previous output aside. A generated report replaces the previous report and loaded results only when it is readable and agrees with the scanner exit code: exit `0` requires zero findings, and exit `1` requires at least one finding. A missing, malformed, or inconsistent report shows the scanner failure and restores the previous report and loaded results.
+Before launch, the workspace prepares the report output directory and moves any previous output aside. A readable report from the current scan replaces the previous report and is loaded even when one or more inputs could not be scanned. The status identifies it as a partial report and operational success remains false. Clean completion requires exit `0` with zero findings or exit `1` with one or more findings. An exit/report mismatch is reported as a failure while preserving the readable artifact. A missing or malformed report restores the previous report and loaded results.
 
 The Scan page shows the loaded finding count and report path. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
 

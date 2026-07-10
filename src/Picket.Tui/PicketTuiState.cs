@@ -226,7 +226,7 @@ internal sealed class PicketTuiState
     private async ValueTask RunScanAsync(Action? outputChanged, CancellationToken cancellationToken)
     {
         PicketTuiScanExecutionResult? result = await ScanWorkspace.RunAsync(outputChanged, cancellationToken).ConfigureAwait(false);
-        if (result is null || !ScanWorkspace.LastRunSucceeded)
+        if (result is null || !ScanWorkspace.LastRunReportAvailable)
         {
             StatusMessage = ScanWorkspace.Status;
             return;
