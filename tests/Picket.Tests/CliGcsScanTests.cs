@@ -62,6 +62,40 @@ public sealed class CliGcsScanTests
     }
 
     /// <summary>
+    /// Verifies that GCS source scans block non-public endpoints by default.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanBlocksNonPublicGcsEndpointByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GCS_SOURCE_TEST_TOKEN"] = "gcs-source-token",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gcs-endpoint",
+            "https://127.0.0.1:1/",
+            "--gcs-bucket",
+            "secrets",
+            "--gcs-token-env",
+            "PICKET_GCS_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("blocked GCS endpoint: endpoint resolves to a non-public address", result.Stderr);
+        Assert.DoesNotContain("gcs-source-token", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that GCS remote source scans reject unbounded download caps.
     /// </summary>
     [TestMethod]

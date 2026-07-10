@@ -75,6 +75,45 @@ public sealed class CliS3ScanTests
     }
 
     /// <summary>
+    /// Verifies that S3 source scans block non-public endpoints by default.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanBlocksNonPublicS3EndpointByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_S3_SOURCE_TEST_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE",
+            ["PICKET_S3_SOURCE_TEST_SECRET_ACCESS_KEY"] = "s3-secret-access-key",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--s3-endpoint",
+            "https://127.0.0.1:1/",
+            "--s3-bucket",
+            "secrets",
+            "--s3-region",
+            "us-east-1",
+            "--s3-access-key-id-env",
+            "PICKET_S3_SOURCE_TEST_ACCESS_KEY_ID",
+            "--s3-secret-access-key-env",
+            "PICKET_S3_SOURCE_TEST_SECRET_ACCESS_KEY",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("blocked S3 endpoint: endpoint resolves to a non-public address", result.Stderr);
+        Assert.DoesNotContain("s3-secret-access-key", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that S3 remote source scans reject unbounded download caps.
     /// </summary>
     [TestMethod]

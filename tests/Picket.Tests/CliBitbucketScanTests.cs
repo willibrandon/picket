@@ -61,6 +61,40 @@ public sealed class CliBitbucketScanTests
     }
 
     /// <summary>
+    /// Verifies that Bitbucket source scans block non-public endpoints by default.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanBlocksNonPublicBitbucketEndpointByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_SOURCE_TEST_TOKEN"] = "bitbucket-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-api-endpoint",
+            "https://127.0.0.1:1/",
+            "--bitbucket-repository",
+            "willibrandon/picket",
+            "--bitbucket-token-env",
+            "PICKET_BITBUCKET_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("blocked Bitbucket endpoint: endpoint resolves to a non-public address", result.Stderr);
+        Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate Bitbucket pull request source files.
     /// </summary>
     [TestMethod]

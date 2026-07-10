@@ -61,6 +61,40 @@ public sealed class CliAzureBlobScanTests
     }
 
     /// <summary>
+    /// Verifies that Azure Blob source scans block non-public endpoints by default.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanBlocksNonPublicAzureBlobEndpointByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_AZURE_BLOB_SOURCE_TEST_TOKEN"] = "azure-blob-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--azure-blob-endpoint",
+            "https://127.0.0.1:1/",
+            "--azure-blob-container",
+            "secrets",
+            "--azure-blob-token-env",
+            "PICKET_AZURE_BLOB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("blocked Azure Blob endpoint: endpoint resolves to a non-public address", result.Stderr);
+        Assert.DoesNotContain("azure-blob-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate Azure Blob Storage objects with a shared access signature.
     /// </summary>
     [TestMethod]

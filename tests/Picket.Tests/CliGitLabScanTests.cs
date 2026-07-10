@@ -58,6 +58,40 @@ public sealed class CliGitLabScanTests
     }
 
     /// <summary>
+    /// Verifies that GitLab source scans block non-public endpoints by default.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanBlocksNonPublicGitLabEndpointByDefault()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-api-endpoint",
+            "https://127.0.0.1:1/",
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("blocked GitLab endpoint: endpoint resolves to a non-public address", result.Stderr);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate a GitLab merge request source head.
     /// </summary>
     [TestMethod]
