@@ -1,0 +1,131 @@
+using Scout.Text.Regex;
+using System.Text;
+
+namespace Picket.Engine;
+
+internal static class GitleaksRegexCompiler
+{
+    internal const string DialectVersion = "gitleaks-go-regexp-v1";
+
+    private const string AsciiDigitClass = "[0-9]";
+    private const string AsciiDigitClassContent = "0-9";
+    private const string AsciiNotDigitClass = "[\\x{0}-\\x{2f}\\x{3a}-\\x{10ffff}]";
+    private const string AsciiNotDigitClassContent = "\\x{0}-\\x{2f}\\x{3a}-\\x{10ffff}";
+    private const string AsciiNotWhitespaceClass = "[\\x{0}-\\x{8}\\x{b}\\x{e}-\\x{1f}\\x{21}-\\x{10ffff}]";
+    private const string AsciiNotWhitespaceClassContent = "\\x{0}-\\x{8}\\x{b}\\x{e}-\\x{1f}\\x{21}-\\x{10ffff}";
+    private const string AsciiNotWordClass = "[\\x{0}-\\x{2f}\\x{3a}-\\x{40}\\x{5b}-\\x{5e}\\x{60}\\x{7b}-\\x{10ffff}]";
+    private const string AsciiNotWordClassContent = "\\x{0}-\\x{2f}\\x{3a}-\\x{40}\\x{5b}-\\x{5e}\\x{60}\\x{7b}-\\x{10ffff}";
+    private const string AsciiWhitespaceClass = "[\\t\\n\\f\\r ]";
+    private const string AsciiWhitespaceClassContent = "\\t\\n\\f\\r ";
+    private const string AsciiWordBoundary = "(?u:\\b|\\B)(?-u:\\b)";
+    private const string AsciiNotWordBoundary = "(?u:\\b|\\B)(?-u:\\B)";
+    private const string AsciiWordClass = "[0-9A-Z_a-z]";
+    private const string AsciiWordClassContent = "0-9A-Z_a-z";
+
+    internal static ByteRegex Compile(string pattern)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+
+        return ByteRegex.Compile(TranslatePattern(pattern));
+    }
+
+    private static string TranslatePattern(string pattern)
+    {
+        StringBuilder? builder = null;
+        int copyStart = 0;
+        bool inClass = false;
+        for (int index = 0; index < pattern.Length; index++)
+        {
+            char value = pattern[index];
+            if (value == '\\' && index + 1 < pattern.Length)
+            {
+                string? replacement = GetReplacement(pattern[index + 1], inClass);
+                if (replacement is not null)
+                {
+                    builder ??= new StringBuilder(pattern.Length + 32);
+                    builder.Append(pattern, copyStart, index - copyStart);
+                    builder.Append(replacement);
+                    index++;
+                    copyStart = index + 1;
+                    continue;
+                }
+
+                index++;
+                continue;
+            }
+
+            if (!inClass)
+            {
+                inClass = value == '[';
+                continue;
+            }
+
+            if (value == '[' &&
+                index + 1 < pattern.Length &&
+                pattern[index + 1] == ':' &&
+                TryFindPosixClassEnd(pattern, index + 2, out int posixClassEnd))
+            {
+                index = posixClassEnd;
+                continue;
+            }
+
+            if (value == ']')
+            {
+                inClass = false;
+            }
+        }
+
+        if (builder is null)
+        {
+            return pattern;
+        }
+
+        builder.Append(pattern, copyStart, pattern.Length - copyStart);
+        return builder.ToString();
+    }
+
+    private static string? GetReplacement(char escaped, bool inClass)
+    {
+        if (inClass)
+        {
+            return escaped switch
+            {
+                'd' => AsciiDigitClassContent,
+                'D' => AsciiNotDigitClassContent,
+                's' => AsciiWhitespaceClassContent,
+                'S' => AsciiNotWhitespaceClassContent,
+                'w' => AsciiWordClassContent,
+                'W' => AsciiNotWordClassContent,
+                _ => null,
+            };
+        }
+
+        return escaped switch
+        {
+            'b' => AsciiWordBoundary,
+            'B' => AsciiNotWordBoundary,
+            'd' => AsciiDigitClass,
+            'D' => AsciiNotDigitClass,
+            's' => AsciiWhitespaceClass,
+            'S' => AsciiNotWhitespaceClass,
+            'w' => AsciiWordClass,
+            'W' => AsciiNotWordClass,
+            _ => null,
+        };
+    }
+
+    private static bool TryFindPosixClassEnd(string pattern, int start, out int end)
+    {
+        for (int index = start; index + 1 < pattern.Length; index++)
+        {
+            if (pattern[index] == ':' && pattern[index + 1] == ']')
+            {
+                end = index + 1;
+                return true;
+            }
+        }
+
+        end = -1;
+        return false;
+    }
+}

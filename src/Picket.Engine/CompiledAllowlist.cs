@@ -34,7 +34,7 @@ internal sealed class CompiledAllowlist(SecretAllowlist allowlist, bool deferReg
         {
             try
             {
-                regexes.Add(ByteRegex.Compile(pattern));
+                regexes.Add(GitleaksRegexCompiler.Compile(pattern));
             }
             catch (ByteRegexParseException exception)
             {

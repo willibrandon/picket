@@ -88,6 +88,41 @@ public sealed class CompatibilityOracleFixtureTests
     }
 
     /// <summary>
+    /// Verifies Go's ASCII Perl classes and Unicode controls match the promoted Gitleaks oracle.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task GoRegexAsciiClassesJsonReportMatchesPromotedGitleaksOracle()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "go-regex-ascii-classes-json");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "go-regex-ascii-classes-json");
+        string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", "json");
+        string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", "json");
+        using TempDirectory output = TempDirectory.Create();
+        string reportPath = Path.Combine(output.Path, "report.json");
+
+        CliResult result = await RunCliFromDirectoryAsync(
+            inputRoot,
+            "dir",
+            ".",
+            "-c",
+            ".gitleaks.toml",
+            "-f",
+            "json",
+            "-r",
+            reportPath,
+            "--no-banner",
+            "--no-color").ConfigureAwait(false);
+
+        Assert.AreEqual(expectedReport, promotedPicketReport);
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+        Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+    }
+
+    /// <summary>
     /// Verifies that the stdin JSON fixture still matches the promoted Gitleaks oracle report.
     /// </summary>
     [TestMethod]

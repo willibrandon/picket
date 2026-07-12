@@ -478,9 +478,12 @@ The dialect layer defines behavior for:
 - anchors and multiline flags,
 - named captures,
 - POSIX classes,
+- Go's ASCII-only `\d`, `\s`, `\w`, `\b`, and complementary forms while preserving explicit Unicode literals, properties, and case folding,
 - case-insensitive matching,
 - secret-group extraction,
 - unsupported constructs.
+
+Malformed UTF-8 is evaluated as one `U+FFFD` replacement rune per invalid byte, matching Go string iteration, while size limits, blob hashes, report locations, and fingerprints remain anchored to the original bytes.
 
 Every default Gitleaks rule and selected community config is compiled and run through both real Gitleaks and Picket in the differential suite. The design goal is not "roughly RE2-like"; it is tested Gitleaks rule behavior.
 
@@ -495,7 +498,7 @@ Compatibility matching reproduces Gitleaks' observable algorithm:
 - captures are extracted per rule,
 - `secretGroup = 0` uses the first non-empty capture group when Gitleaks does,
 - a finding whose rule ID contains `generic` yields to a differently named non-generic rule when both findings have the same start line and commit and the non-generic secret contains the generic secret,
-- entropy uses strict `>` comparison,
+- entropy uses strict `>` comparison and reproduces Gitleaks' Unicode behavior by counting decoded runes against the Go string's UTF-8 byte length,
 - allowlists run in the same order and against the same targets,
 - skipped rules and `skipReport` follow Gitleaks.
 

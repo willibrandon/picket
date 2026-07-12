@@ -1,0 +1,5 @@
+word-token
+word-é
+greek-δει
+fold-Δ
+é

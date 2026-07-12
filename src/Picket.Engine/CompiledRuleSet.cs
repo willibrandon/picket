@@ -177,7 +177,8 @@ public sealed class CompiledRuleSet(RuleSet rules)
         ArgumentNullException.ThrowIfNull(rules);
 
         var builder = new StringBuilder();
-        AppendValue(builder, "picket.ruleset.v1");
+        AppendValue(builder, "picket.ruleset.v2");
+        AppendValue(builder, GitleaksRegexCompiler.DialectVersion);
         AppendValue(builder, rules.RegexesPrevalidated ? "prevalidated" : "compile");
         AppendAllowlists(builder, rules.Allowlists);
         for (int i = 0; i < rules.Rules.Count; i++)
@@ -278,7 +279,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
 
         try
         {
-            return ByteRegex.Compile(pattern);
+            return GitleaksRegexCompiler.Compile(pattern);
         }
         catch (ByteRegexParseException exception)
         {

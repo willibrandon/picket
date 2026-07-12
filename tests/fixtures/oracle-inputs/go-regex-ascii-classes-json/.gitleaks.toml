@@ -1,0 +1,10 @@
+title = "Go regexp ASCII class compatibility"
+
+[[allowlists]]
+description = "Keep fixture metadata out of the scan."
+paths = ['''(?:^|/)(?:\.gitleaks\.toml|README\.md)$''']
+
+[[rules]]
+id = "go-regex-dialect"
+description = "Pins Go ASCII classes while retaining explicit Unicode behavior."
+regex = '''(?:\bword-\w+\b|greek-\p{Greek}+|(?i:fold-δ+)|\Bé\B)'''

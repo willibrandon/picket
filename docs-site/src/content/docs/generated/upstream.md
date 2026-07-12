@@ -33,7 +33,7 @@ clone next to this repository.
 | Project | Version | Commit | Remote |
 |---|---:|---|---|
 | Gitleaks | `v8.30.0-23-g4c232b5` | `4c232b5014f7618360bd992b4c489cb055881c6b` | `https://github.com/gitleaks/gitleaks.git` |
-| Scout | `v0.4.2` | `823716053dcc9a7856ef31ad1b59bed2e1cab3d7` | `https://github.com/willibrandon/scout.git` |
+| Scout | `v0.4.4` | `ec53ea0e34dbb81b65917ffe0c6bb4beb7707c9a` | `https://github.com/willibrandon/scout.git` |
 | TruffleHog | `v3.95.8-1-gf2cd191b9` | `f2cd191b97098913a07522227d2b5e40e57252f4` | `https://github.com/trufflesecurity/trufflehog.git` |
 | Nosey Parker | `v0.24.0-31-g2e6e7f36` | `2e6e7f36ce36619852532bbe698d8cb7a26d2da7` | `https://github.com/praetorian-inc/noseyparker.git` |
 | Kingfisher | `v1.105.0` | `78904df5ea7354a7dc3700e3c41a124524d23083` | `https://github.com/mongodb/kingfisher.git` |

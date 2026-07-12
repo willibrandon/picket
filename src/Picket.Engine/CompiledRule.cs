@@ -31,6 +31,8 @@ internal sealed class CompiledRule(
 
     internal bool HasContentPattern => _pattern.Length != 0 || UsesAwsCredentialPairMatcher || UsesGenericApiKeyMatcher || UsesGcpServiceAccountKeyMatcher;
 
+    internal bool UsesExplicitByteMode => _pattern.Contains("(?-u", StringComparison.Ordinal);
+
     internal List<CompiledAllowlist> Allowlists { get; } = allowlists ?? throw new ArgumentNullException(nameof(allowlists));
 
     internal KeywordPrefilter Prefilter { get; } = prefilter ?? throw new ArgumentNullException(nameof(prefilter));
@@ -57,7 +59,7 @@ internal sealed class CompiledRule(
 
         try
         {
-            regex = ByteRegex.Compile(pattern);
+            regex = GitleaksRegexCompiler.Compile(pattern);
         }
         catch (ByteRegexParseException exception)
         {
