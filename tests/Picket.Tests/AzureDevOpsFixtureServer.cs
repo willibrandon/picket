@@ -65,8 +65,22 @@ internal sealed class AzureDevOpsFixtureServer : IDisposable
         while (!cancellationToken.IsCancellationRequested)
         {
             using TcpClient client = await _listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
-            await HandleAsync(client, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await HandleAsync(client, cancellationToken).ConfigureAwait(false);
+            }
+            catch (IOException exception) when (IsClientDisconnect(exception))
+            {
+            }
         }
+    }
+
+    private static bool IsClientDisconnect(IOException exception)
+    {
+        return exception.InnerException is SocketException
+        {
+            SocketErrorCode: SocketError.ConnectionAborted or SocketError.ConnectionReset or SocketError.Shutdown,
+        };
     }
 
     private async Task HandleAsync(TcpClient client, CancellationToken cancellationToken)

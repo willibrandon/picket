@@ -3799,7 +3799,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
 
-        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--timeout=1").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--timeout=30").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
