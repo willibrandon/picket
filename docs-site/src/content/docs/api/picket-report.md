@@ -131,7 +131,7 @@ Writes Picket-native JSON reports with schema and rule metadata.
 
 ### Methods
 
-- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and rule metadata to a deterministic JSON report.
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules, bool scanComplete)` - Writes findings and rule metadata to a deterministic JSON report.
 
 ## PicketJsonlReportWriter
 
@@ -163,7 +163,7 @@ Writes Picket-native SARIF 2.1.0 reports for code-scanning systems.
 
 ### Methods
 
-- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)` - Writes findings and ordered rules to a deterministic SARIF JSON string.
+- `Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules, bool scanComplete)` - Writes findings and ordered rules to a deterministic SARIF JSON string.
 
 ## PicketToonReportWriter
 

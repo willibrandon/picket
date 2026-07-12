@@ -67,6 +67,6 @@ Lossless native JSON, JSON Lines, and SARIF findings include a `randomness` obje
 
 Native CSV and TOON expose the same values as stable columns. HTML presents the score, classification, model, and material signals. JUnit embeds the native JSON finding. Summary-only third-party formats keep their constrained schemas.
 
-Randomness metadata contains no raw secret bytes. Redaction preserves the assessment calculated from the original finding, and secret-hash-only scan-cache rows persist the assessment without persisting match, secret, or line evidence.
+Randomness metadata contains no raw secret bytes, but its features describe structural properties derived from the original secret. Any non-zero report redaction removes the complete assessment. Secret-hash-only scan-cache rows preserve the assessment only as authenticated ciphertext and do not persist match, secret, or line evidence.
 
 The scan-cache identity includes the model version. Report input carrying an older model is rescored when raw evidence is available; when evidence is redacted or absent, Picket preserves the older assessment for visibility but never uses it for threshold suppression.

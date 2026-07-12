@@ -105,7 +105,7 @@ internal static class ArchiveReader
             AddEntries(displayPath, stream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth: 1);
             return true;
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
             return false;
         }
@@ -396,7 +396,7 @@ internal static class ArchiveReader
         {
             AddEntries(entryDisplayPath, innerStream, archiveKind, maxArchiveDepth, maxEntryBytes, isPathAllowed, budget, entries, archiveDepth + 1);
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
             entries.Add(new ArchiveEntry(entryDisplayPath, entryContent));
         }

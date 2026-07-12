@@ -62,9 +62,14 @@ public static class GitleaksFindingRedactor
         ArgumentNullException.ThrowIfNull(finding);
         ValidateRedactionPercent(redactionPercent);
 
-        if (redactionPercent == 0 || finding.Secret.Length == 0)
+        if (redactionPercent == 0)
         {
             return finding;
+        }
+
+        if (finding.Secret.Length == 0)
+        {
+            return finding.Randomness is null ? finding : WithoutRandomness(finding);
         }
 
         string secret = MaskSecret(finding.Secret, redactionPercent, requirePartialMask);
@@ -102,7 +107,38 @@ public static class GitleaksFindingRedactor
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath,
-            finding.Randomness);
+            randomness: null);
+    }
+
+    private static Finding WithoutRandomness(Finding finding)
+    {
+        return new Finding(
+            finding.RuleID,
+            finding.Description,
+            finding.StartLine,
+            finding.EndLine,
+            finding.StartColumn,
+            finding.EndColumn,
+            finding.Match,
+            finding.Secret,
+            finding.File,
+            finding.SymlinkFile,
+            finding.Commit,
+            finding.Entropy,
+            finding.Author,
+            finding.Email,
+            finding.Date,
+            finding.Message,
+            finding.Tags,
+            finding.Fingerprint,
+            finding.Line,
+            finding.Link,
+            finding.SecretSha256,
+            finding.MatchSha256,
+            finding.ValidationState,
+            finding.BlobSha256,
+            finding.DecodePath,
+            randomness: null);
     }
 
     private static string RedactLine(Finding finding, string redactedSecret)

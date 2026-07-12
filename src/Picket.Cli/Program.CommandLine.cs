@@ -10,6 +10,7 @@ namespace Picket;
 
 internal static partial class Program
 {
+    private static bool s_checkpointWarningWritten;
     private static bool s_rawScanCacheWarningWritten;
 
     static bool IsHelp(string arg)
@@ -1075,6 +1076,17 @@ internal static partial class Program
 
         s_rawScanCacheWarningWritten = true;
         Console.Error.WriteLine("warning: raw scan-cache mode stores finding match, secret, and line text; use secret-hash-only for shared or public caches");
+    }
+
+    static void WarnIfCheckpointEnabled()
+    {
+        if (s_checkpointWarningWritten)
+        {
+            return;
+        }
+
+        s_checkpointWarningWritten = true;
+        Console.Error.WriteLine("warning: checkpoints temporarily store encrypted finding match, secret, and line text; protect the checkpoint and user profile state paths");
     }
 
     static bool TryValidatePlatform(string? platform)

@@ -13,7 +13,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .
-RUN dotnet restore Picket.slnx
+RUN dotnet restore Picket.slnx --locked-mode
 RUN if [ -z "$RID" ]; then \
         case "$TARGETARCH" in \
             amd64) export RID=linux-x64 ;; \

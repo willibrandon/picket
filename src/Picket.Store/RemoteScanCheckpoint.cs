@@ -42,8 +42,8 @@ public sealed class RemoteScanCheckpoint : IDisposable
 
         try
         {
-            RejectSymbolicLink(_lockPath);
-            RejectSymbolicLink(Path);
+            OwnerOnlyFileSystem.RejectSymbolicLink(_lockPath, "Checkpoint lock path");
+            OwnerOnlyFileSystem.RejectSymbolicLink(Path, "Checkpoint path");
             _lockStream = OwnerOnlyFileSystem.OpenFile(_lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             OwnerOnlyFileSystem.ProtectFile(_lockPath);
 
@@ -64,14 +64,14 @@ public sealed class RemoteScanCheckpoint : IDisposable
 
             if (File.Exists(Path))
             {
-                RejectSymbolicLink(Path);
+                OwnerOnlyFileSystem.RejectSymbolicLink(Path, "Checkpoint path");
                 _stateStream = OwnerOnlyFileSystem.OpenFile(Path, FileMode.Open, FileAccess.ReadWrite);
                 Load();
             }
             else
             {
                 Create();
-                RejectSymbolicLink(Path);
+                OwnerOnlyFileSystem.RejectSymbolicLink(Path, "Checkpoint path");
                 _stateStream = OwnerOnlyFileSystem.OpenFile(Path, FileMode.Open, FileAccess.ReadWrite);
             }
         }
@@ -361,14 +361,6 @@ public sealed class RemoteScanCheckpoint : IDisposable
 
         value = line[prefix.Length..];
         return true;
-    }
-
-    private static void RejectSymbolicLink(string path)
-    {
-        if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
-        {
-            throw new IOException($"Checkpoint path must not be a symbolic link: {path}");
-        }
     }
 
     private void ReleaseLock()

@@ -1,7 +1,6 @@
-using Picket.Security;
 using System.Security.Cryptography;
 
-namespace Picket.Store;
+namespace Picket.Security;
 
 internal static class PicketStateProtectionKey
 {
@@ -23,6 +22,7 @@ internal static class PicketStateProtectionKey
         ArgumentException.ThrowIfNullOrWhiteSpace(keyPath);
 
         string fullKeyPath = Path.GetFullPath(keyPath);
+        OwnerOnlyFileSystem.RejectSymbolicLink(fullKeyPath, "State-protection key path");
         byte[]? existing = TryReadKey(fullKeyPath);
         if (existing is not null)
         {
@@ -37,9 +37,11 @@ internal static class PicketStateProtectionKey
         }
 
         string lockPath = string.Concat(fullKeyPath, LockSuffix);
+        OwnerOnlyFileSystem.RejectSymbolicLink(lockPath, "State-protection key lock path");
         using FileStream _ = OpenLock(lockPath);
         OwnerOnlyFileSystem.ProtectFile(lockPath);
 
+        OwnerOnlyFileSystem.RejectSymbolicLink(fullKeyPath, "State-protection key path");
         existing = TryReadKey(fullKeyPath);
         if (existing is not null)
         {
@@ -62,6 +64,7 @@ internal static class PicketStateProtectionKey
                 stream.Flush(flushToDisk: true);
             }
 
+            OwnerOnlyFileSystem.RejectSymbolicLink(keyPath, "State-protection key path");
             MoveIntoPlace(tempPath, keyPath);
             OwnerOnlyFileSystem.ProtectFile(keyPath);
             return key;
@@ -82,6 +85,7 @@ internal static class PicketStateProtectionKey
         IOException? lastException = null;
         for (int attempt = 0; attempt < FileOperationRetryCount; attempt++)
         {
+            OwnerOnlyFileSystem.RejectSymbolicLink(lockPath, "State-protection key lock path");
             try
             {
                 return OwnerOnlyFileSystem.OpenFile(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
@@ -106,6 +110,7 @@ internal static class PicketStateProtectionKey
 
         try
         {
+            OwnerOnlyFileSystem.RejectSymbolicLink(keyPath, "State-protection key path");
             if (!File.Exists(keyPath))
             {
                 return null;
@@ -153,6 +158,7 @@ internal static class PicketStateProtectionKey
         Exception? lastException = null;
         for (int attempt = 0; attempt < FileOperationRetryCount; attempt++)
         {
+            OwnerOnlyFileSystem.RejectSymbolicLink(keyPath, "State-protection key path");
             try
             {
                 File.Move(tempPath, keyPath, overwrite: true);

@@ -30,7 +30,7 @@ public sealed class PicketScanCache
     private const string ImportStagingDirectoryPrefix = ".import-";
     private const string LocksDirectoryName = "locks";
     private const string MacHeader = "mac";
-    private const string SchemaLine = "picket.scan-cache.v4";
+    private const string SchemaLine = "picket.scan-cache.v5";
     private const string ShardHeader = "shard";
     private const string StorageModeHeader = "storageMode";
     private readonly string _entriesPath;
@@ -591,7 +591,7 @@ public sealed class PicketScanCache
         builder.Append('\n');
         for (int i = 0; i < findings.Count; i++)
         {
-            CachedFinding.FromFinding(findings[i], storageMode, _fieldProtectionKey).Write(builder);
+            CachedFinding.FromFinding(findings[i], storageMode, _fieldProtectionKey).Write(builder, _fieldProtectionKey);
         }
 
         return builder.ToString();

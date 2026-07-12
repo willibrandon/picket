@@ -32,6 +32,7 @@ public sealed class PicketJsonReportWriterTests
 
         Assert.Contains("\"schema\":\"picket.report.v1\"", json);
         Assert.Contains("\"tool\":{\"name\":\"picket\"}", json);
+        Assert.Contains("\"scan\":{\"complete\":true}", json);
         Assert.Contains("\"rules\":[{\"id\":\"token\"", json);
         Assert.Contains("\"severity\":\"critical\"", json);
         Assert.Contains("\"confidence\":\"high\"", json);
@@ -41,6 +42,18 @@ public sealed class PicketJsonReportWriterTests
         Assert.Contains("\"deprecated\":true", json);
         Assert.Contains("\"tags\":[\"secret\"]", json);
         Assert.Contains("\"findings\":[]", json);
+    }
+
+    /// <summary>
+    /// Verifies an interrupted scan is marked incomplete in the report envelope.
+    /// </summary>
+    [TestMethod]
+    public void WriteMarksIncompleteScan()
+    {
+        string json = PicketJsonReportWriter.Write([], [], scanComplete: false);
+        using JsonDocument document = JsonDocument.Parse(json);
+
+        Assert.IsFalse(document.RootElement.GetProperty("scan").GetProperty("complete").GetBoolean());
     }
 
     /// <summary>

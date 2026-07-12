@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -596,6 +597,68 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("cache-dependency-path: azure-devops/package-lock.json", release);
         Assert.Contains("\"lockfileVersion\": 3", azureDevOpsLock);
         Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
+    }
+
+    /// <summary>
+    /// Verifies that NuGet restores pin package payloads and fail when lock files drift.
+    /// </summary>
+    [TestMethod]
+    public void NuGetRestoresUseCommittedLockFiles()
+    {
+        const string ZstdNetContentHash = "BpQLIV4HtklLEkCkCjepKTxxy/dcBNSrEfh5LPcIjpPaN2Cmuwg1TUVCWhn5zGn4z3Aur6V9taWdvn+BJzmEhw==";
+        string root = FindRepositoryRoot();
+        string buildProperties = ReadRepositoryFile("Directory.Build.props");
+        XDocument solution = XDocument.Load(Path.Combine(root, "Picket.slnx"));
+
+        Assert.Contains("<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>", buildProperties);
+        Assert.Contains("<RestoreLockedMode Condition=\"'$(CI)' == 'true'\">true</RestoreLockedMode>", buildProperties);
+
+        foreach (XElement project in solution.Descendants("Project"))
+        {
+            XAttribute? pathAttribute = project.Attribute("Path");
+            Assert.IsNotNull(pathAttribute);
+            string projectPath = pathAttribute.Value;
+            string lockPath = Path.Combine(root, Path.GetDirectoryName(projectPath)!, "packages.lock.json");
+
+            Assert.IsTrue(File.Exists(lockPath), $"Missing NuGet lock file for {projectPath}.");
+        }
+
+        JsonNode? sourcesLock = JsonNode.Parse(ReadRepositoryFile("src/Picket.Sources/packages.lock.json"));
+        Assert.IsNotNull(sourcesLock);
+        Assert.IsInstanceOfType<JsonObject>(sourcesLock["dependencies"]);
+        JsonObject dependencies = (JsonObject)sourcesLock["dependencies"]!;
+        foreach ((string framework, JsonNode? frameworkNode) in dependencies)
+        {
+            Assert.IsInstanceOfType<JsonObject>(frameworkNode);
+            JsonObject frameworkDependencies = (JsonObject)frameworkNode!;
+            Assert.IsInstanceOfType<JsonObject>(frameworkDependencies["ZstdNet"]);
+            JsonObject zstdNet = (JsonObject)frameworkDependencies["ZstdNet"]!;
+
+            Assert.AreEqual("1.5.7", zstdNet["resolved"]?.GetValue<string>(), framework);
+            Assert.AreEqual(ZstdNetContentHash, zstdNet["contentHash"]?.GetValue<string>(), framework);
+        }
+
+        Assert.Contains("dotnet restore Picket.slnx --locked-mode", ReadRepositoryFile(".github/workflows/ci.yml"));
+        Assert.Contains("dotnet restore Picket.slnx --locked-mode", ReadRepositoryFile(".github/workflows/release.yml"));
+        Assert.Contains("dotnet restore \"$env:GITHUB_ACTION_PATH/Picket.slnx\" --locked-mode", ReadRepositoryFile("action.yml"));
+        Assert.Contains("dotnet restore Picket.slnx --locked-mode", ReadRepositoryFile("azure-pipelines.yml"));
+        Assert.Contains("dotnet restore Picket.slnx --locked-mode", ReadRepositoryFile("Dockerfile"));
+    }
+
+    /// <summary>
+    /// Verifies all authenticated state stores use the shared serialized key loader.
+    /// </summary>
+    [TestMethod]
+    public void AuthenticatedStateStoresUseSharedProtectionKeyLoader()
+    {
+        string scanCache = ReadRepositoryFile("src/Picket.Store/PicketScanCache.cs");
+        string checkpoint = ReadRepositoryFile("src/Picket.Store/RemoteScanCheckpoint.cs");
+        string validationCache = ReadRepositoryFile("src/Picket.Verify/SecretValidationCache.cs");
+
+        Assert.Contains("PicketStateProtectionKey.LoadOrCreate", scanCache);
+        Assert.Contains("PicketStateProtectionKey.LoadOrCreate", checkpoint);
+        Assert.Contains("PicketStateProtectionKey.LoadOrCreate", validationCache);
+        Assert.DoesNotContain("LoadOrCreateAuthenticationKey", validationCache);
     }
 
     /// <summary>
@@ -1244,7 +1307,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("scanner configuration fingerprint", cache);
         Assert.Contains("--cache-mode", cache);
         Assert.Contains("--ignore-gitleaks-allow", cache);
-        Assert.Contains("picket.scan-cache.v4", cache);
+        Assert.Contains("picket.scan-cache.v5", cache);
         Assert.Contains("protected secret and match hashes", cache);
         Assert.Contains("earlier schema versions", cache);
         Assert.Contains("PicketScanCache.GetStats()", cache);
@@ -1662,12 +1725,102 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(10, scripts);
+        Assert.HasCount(11, scripts);
 
         foreach (string scriptPath in scripts)
         {
             await BuildFileBasedAppAsync(Path.GetRelativePath(root, scriptPath)).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Verifies that end-to-end performance documentation preserves the reproducibility and secret-handling contract.
+    /// </summary>
+    [TestMethod]
+    public void PerformanceDocumentationCoversReproducibleScannerHarness()
+    {
+        string design = ReadRepositoryFile("docs/DESIGN.md");
+        string performance = ReadRepositoryFile("docs/PERFORMANCE.md");
+        string scriptsReadme = ReadRepositoryFile("scripts/README.md");
+        string scenarioReadme = ReadRepositoryFile("benchmarks/scenarios/README.md");
+        string scenario = ReadRepositoryFile("benchmarks/scenarios/gitleaks-compatible-tracked.json");
+
+        Assert.Contains("scripts/Measure-ScannerPerformance.cs", design);
+        Assert.Contains("benchmarks/scenarios/", design);
+        Assert.Contains("gitleaks-compatible-tracked.json", performance);
+        Assert.Contains("ProcessStartInfo.ArgumentList", performance);
+        Assert.Contains("-FailOnParityDifference", performance);
+        Assert.Contains("fresh process", performance);
+        Assert.Contains("cold OS-cache", performance);
+        Assert.Contains("-KeepWork", scriptsReadme);
+        Assert.Contains("can retain secret material", scenarioReadme);
+        Assert.Contains("picket.performance-scenario.v1", scenario);
+        Assert.Contains("\"ParityGroup\": \"strict-gitleaks\"", scenario);
+        Assert.Contains("\"RedactionPercent\": 100", scenario);
+    }
+
+    /// <summary>
+    /// Verifies that the scanner performance harness records metrics and compares canonical finding sets without retaining secrets.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    [Timeout(300000, CooperativeCancellation = true)]
+    public async Task ScannerPerformanceHarnessWritesSecretSafeParityResult()
+    {
+        const string ScriptPath = "scripts/Measure-ScannerPerformance.cs";
+        string root = FindRepositoryRoot();
+        string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
+        string picketPath = CliExecutablePath.Resolve(root, configuration);
+        using TempDirectory temp = TempDirectory.Create();
+        string scenarioPath = Path.Combine(temp.Path, "scenario.json");
+        string outputPath = Path.Combine(temp.Path, "result.json");
+        JsonObject firstTool = CreatePerformanceHarnessTestTool("Picket A");
+        JsonObject secondTool = CreatePerformanceHarnessTestTool("Picket B");
+        var scenario = new JsonObject
+        {
+            ["Schema"] = "picket.performance-scenario.v1",
+            ["Name"] = "repository-convention-test",
+            ["ColdIterations"] = 1,
+            ["WarmupIterations"] = 0,
+            ["WarmIterations"] = 1,
+            ["Corpus"] = new JsonObject
+            {
+                ["Kind"] = "git-tracked-copy",
+                ["Repository"] = "{repositoryRoot}",
+                ["PathPrefixes"] = new JsonArray("tests/fixtures/oracle-inputs/basic-dir-json/"),
+            },
+            ["Tools"] = new JsonArray(firstTool, secondTool),
+        };
+        File.WriteAllText(scenarioPath, scenario.ToJsonString());
+
+        await BuildFileBasedAppAsync(ScriptPath).ConfigureAwait(false);
+        using Process process = CreateFileBasedAppProcess(ScriptPath, noBuild: true);
+        process.StartInfo.Environment["PICKET_PERFORMANCE_TEST_BIN"] = picketPath;
+        process.StartInfo.ArgumentList.Add("-ScenarioPath");
+        process.StartInfo.ArgumentList.Add(scenarioPath);
+        process.StartInfo.ArgumentList.Add("-OutputPath");
+        process.StartInfo.ArgumentList.Add(outputPath);
+        process.StartInfo.ArgumentList.Add("-FailOnParityDifference");
+
+        Assert.IsTrue(process.Start(), "Could not start scanner performance harness.");
+        (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+        Assert.Contains("parity: passed", stdout);
+        string resultText = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("oracle-secret-12345", resultText);
+        using JsonDocument document = JsonDocument.Parse(resultText);
+        JsonElement result = document.RootElement;
+        Assert.AreEqual("picket.performance-result.v1", result.GetProperty("Schema").GetString());
+        Assert.IsTrue(result.GetProperty("ParityPassed").GetBoolean());
+        Assert.AreEqual(3, result.GetProperty("Corpus").GetProperty("FileCount").GetInt32());
+        JsonElement[] tools = [.. result.GetProperty("Tools").EnumerateArray()];
+        Assert.HasCount(2, tools);
+        JsonElement[] runs = [.. tools[0].GetProperty("Runs").EnumerateArray()];
+        Assert.HasCount(2, runs);
+        Assert.AreEqual(1, tools[0].GetProperty("Summary").GetProperty("Warm").GetProperty("FindingCount").GetInt32());
+        Assert.IsFalse(result.TryGetProperty("WorkDirectory", out _));
+        Assert.AreEqual(JsonValueKind.Null, result.GetProperty("Corpus").GetProperty("GeneratedPath").ValueKind);
     }
 
     /// <summary>
@@ -1959,6 +2112,31 @@ public sealed partial class RepositoryConventionTests
             Assert.IsLessThan(currentIndex, previousIndex, $"Expected `{value}` to appear after the previous sidebar item.");
             previousIndex = currentIndex;
         }
+    }
+
+    private static JsonObject CreatePerformanceHarnessTestTool(string name)
+    {
+        return new JsonObject
+        {
+            ["Name"] = name,
+            ["ExecutableEnvironmentVariable"] = "PICKET_PERFORMANCE_TEST_BIN",
+            ["Repository"] = "{repositoryRoot}",
+            ["WorkingDirectory"] = "{corpus}",
+            ["VersionArguments"] = new JsonArray("version"),
+            ["Arguments"] = new JsonArray(
+                "dir",
+                "tests/fixtures/oracle-inputs/basic-dir-json",
+                "--config",
+                "tests/fixtures/oracle-inputs/basic-dir-json/.gitleaks.toml",
+                "--report-format",
+                "json",
+                "--report-path",
+                "{report}",
+                "--redact=100"),
+            ["AllowedExitCodes"] = new JsonArray(0, 1),
+            ["ReportFormat"] = "gitleaks-json",
+            ["ParityGroup"] = "test-parity",
+        };
     }
 
     private async Task BuildFileBasedAppAsync(string relativePath)

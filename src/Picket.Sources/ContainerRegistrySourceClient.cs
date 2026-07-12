@@ -256,12 +256,20 @@ public sealed class ContainerRegistrySourceClient(HttpClient httpClient)
         }
         else
         {
-            string configPlatform = GetConfigPlatform(configContent);
-            string resolvedPlatform = platformHint.Length == 0 ? configPlatform : platformHint;
-            if (!MatchesPlatform(session.Options.Platform, resolvedPlatform))
+            if (session.Options.Platform.Length != 0)
             {
-                session.Options.WarningSink?.Invoke($"container registry image manifest did not match platform {session.Options.Platform}");
-                return;
+                if (configContent.LongLength > ContainerRegistrySourceOptions.MaxManifestBytes)
+                {
+                    session.Options.WarningSink?.Invoke("container registry image config exceeded the platform metadata safety limit");
+                    return;
+                }
+
+                string resolvedPlatform = platformHint.Length == 0 ? GetConfigPlatform(configContent) : platformHint;
+                if (!MatchesPlatform(session.Options.Platform, resolvedPlatform))
+                {
+                    session.Options.WarningSink?.Invoke($"container registry image manifest did not match platform {session.Options.Platform}");
+                    return;
+                }
             }
 
             AddSourceFile(

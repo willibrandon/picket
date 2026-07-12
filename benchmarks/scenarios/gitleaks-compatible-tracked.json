@@ -1,0 +1,78 @@
+{
+  "Schema": "picket.performance-scenario.v1",
+  "Name": "gitleaks-compatible-tracked",
+  "Description": "Strict Gitleaks-compatible directory scan over tracked Picket source and test files.",
+  "Comparability": "Strict compatibility: identical corpus, embedded Gitleaks rules, redaction, report shape, archive behavior, and filesystem mode.",
+  "ColdIterations": 1,
+  "WarmupIterations": 1,
+  "WarmIterations": 5,
+  "ProcessTimeoutSeconds": 300,
+  "Conditions": {
+    "SourceMode": "filesystem",
+    "History": false,
+    "Verification": false,
+    "Cache": false,
+    "ReportFormat": "gitleaks-json",
+    "RedactionPercent": 100
+  },
+  "Corpus": {
+    "Kind": "git-tracked-copy",
+    "Repository": "{repositoryRoot}",
+    "PathPrefixes": [
+      "src/",
+      "tests/"
+    ]
+  },
+  "Tools": [
+    {
+      "Name": "Picket",
+      "ExecutableEnvironmentVariable": "PICKET_BIN",
+      "Executable": "picket",
+      "Repository": "{repositoryRoot}",
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "version"
+      ],
+      "Arguments": [
+        "dir",
+        ".",
+        "--report-format",
+        "json",
+        "--report-path",
+        "{report}",
+        "--redact=100"
+      ],
+      "AllowedExitCodes": [
+        0,
+        1
+      ],
+      "ReportFormat": "gitleaks-json",
+      "ParityGroup": "strict-gitleaks"
+    },
+    {
+      "Name": "Gitleaks",
+      "ExecutableEnvironmentVariable": "PICKET_GITLEAKS_BIN",
+      "Executable": "gitleaks",
+      "Repository": "{repositoryRoot}/../gitleaks",
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "version"
+      ],
+      "Arguments": [
+        "dir",
+        ".",
+        "--report-format",
+        "json",
+        "--report-path",
+        "{report}",
+        "--redact=100"
+      ],
+      "AllowedExitCodes": [
+        0,
+        1
+      ],
+      "ReportFormat": "gitleaks-json",
+      "ParityGroup": "strict-gitleaks"
+    }
+  ]
+}

@@ -49,6 +49,64 @@ Run benchmarks before and after hot-path changes and keep the output in ignored
 machine-specific benchmark output unless it has been normalized into a reviewed
 fixture.
 
+## End-to-End Scanner Harness
+
+`scripts/Measure-ScannerPerformance.cs` measures Native AOT scanner processes
+from a checked-in JSON scenario. The default strict-compatibility scenario is
+`benchmarks/scenarios/gitleaks-compatible-tracked.json`. It creates an immutable
+copy of the selected Git-tracked files, runs Picket and the pinned Gitleaks
+binary from the same working directory, and removes the generated corpus and
+reports after measurement.
+
+Publish the current scanner, identify the two direct executable paths, build the
+file-based app once, and run the scenario:
+
+```powershell
+dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release --no-restore -p:PublishProfile=release-speed -r win-x64 -o artifacts/performance/tools/picket
+$env:PICKET_BIN = (Resolve-Path artifacts/performance/tools/picket/picket.exe).Path
+$env:PICKET_GITLEAKS_BIN = (Resolve-Path artifacts/tools/gitleaks.exe).Path
+dotnet build ./scripts/Measure-ScannerPerformance.cs --nologo --verbosity quiet
+dotnet run --file ./scripts/Measure-ScannerPerformance.cs --no-build -- -ScenarioPath ./benchmarks/scenarios/gitleaks-compatible-tracked.json -FailOnParityDifference
+```
+
+On Unix-like systems, set `PICKET_BIN` and `PICKET_GITLEAKS_BIN` to the
+corresponding executable paths before running the same `dotnet build` and
+`dotnet run` commands. A scenario falls back to executable names on `PATH` when
+its environment variable is not set.
+
+The result schema is `picket.performance-result.v1`. Each capture records:
+
+- scenario, corpus manifest, Picket commit, tool repository commit, executable
+  SHA-256, and version output,
+- OS, architecture, processor, effective processor count, GC-visible memory,
+  filesystem, runner type, .NET runtime, and SDK,
+- wall time, child-process CPU time, peak child-process working set, exit code,
+  output byte counts and hashes, report byte count and hash, and finding count,
+- a canonical finding-set hash for parity groups, so report ordering does not
+  create a false difference.
+
+The default schedule records one pre-warmup run, discards one warmup round, then
+records five warmed rounds. Tool order rotates between rounds to reduce fixed
+order and thermal bias. Every scanner invocation is a fresh process. "Warm"
+therefore describes warmed host and filesystem state, not retained in-process
+scanner caches. A genuinely cold OS-cache measurement requires a fresh host or
+an explicit host-level cache reset and must be recorded in the scenario
+conditions.
+
+The harness invokes executables directly through `ProcessStartInfo.ArgumentList`.
+Do not benchmark `dotnet run`, a shell wrapper, or a build command as if it were
+scanner time. It stores only hashes and byte counts for scanner stdout, stderr,
+and canonical findings. Generated reports can contain secrets and are deleted by
+default. `-KeepWork` is an explicit debugging option and must be used only for a
+trusted artifact location.
+
+Only tools in the same `ParityGroup` are required to produce the same canonical
+finding set. Native comparisons with TruffleHog, Kingfisher, or another scanner
+must omit a parity group unless rules, decoding, verification, source traversal,
+history behavior, ignores, and report filtering have actually been aligned.
+Capability-separated measurements remain valid, but they are not presented as
+an equivalent winner/loser comparison.
+
 Steady-state scan scenarios compile deferred regexes during global setup. The
 fresh-rule-set scenarios create a new compiled rule set for every operation and
 therefore include candidate regex compilation on first use. Compilation

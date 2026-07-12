@@ -19,6 +19,7 @@ Native reports carry Picket schema metadata such as `picket.report.v1` and `pick
 |---|---|
 | `schema` | `string` |
 | `tool` | `object` |
+| `scan` | `object` |
 | `rules` | `array<object>` |
 | `findings` | `array<object>` |
 

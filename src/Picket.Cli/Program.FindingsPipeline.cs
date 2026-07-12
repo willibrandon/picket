@@ -73,7 +73,15 @@ internal static partial class Program
 
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
         bool wroteResults = nativeResultWriter is null
-            ? TryWriteReports(filteredFindings, rules.Rules, reportPath, reportPaths, reportFormat, reportTemplatePath, nativeMode)
+            ? TryWriteReports(
+                filteredFindings,
+                rules.Rules,
+                reportPath,
+                reportPaths,
+                reportFormat,
+                reportTemplatePath,
+                nativeMode,
+                scanComplete: !hadScanError)
             : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath, analysisMetadata);
         if (!wroteResults)
         {

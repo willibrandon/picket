@@ -1,6 +1,7 @@
 using Picket.Sources;
 using System.IO.Compression;
 using System.Text;
+using ZstdSharp;
 
 namespace Picket.Tests;
 
@@ -676,6 +677,64 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies zstandard expansion is bounded by the aggregate archive-byte limit.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateHonorsZstandardArchiveByteLimit()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] content = Encoding.UTF8.GetBytes(string.Concat("token-12345\n", new string('!', 8192)));
+            File.WriteAllBytes(Path.Combine(root, "secrets.zst"), CreateZstandardBytes(content));
+            var warnings = new List<string>();
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxArchiveDepth: 1,
+                maxArchiveBytes: content.Length - 1,
+                warningSink: warnings.Add));
+
+            Assert.IsEmpty(files);
+            Assert.HasCount(1, warnings);
+            Assert.Contains("archive byte limit reached while reading secrets.zst", warnings[0]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies zstandard expansion is bounded by the archive compression-ratio limit.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateHonorsZstandardCompressionRatioLimit()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] content = Encoding.UTF8.GetBytes(string.Concat("token-12345\n", new string('!', 8192)));
+            File.WriteAllBytes(Path.Combine(root, "secrets.zst"), CreateZstandardBytes(content));
+            var warnings = new List<string>();
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxArchiveDepth: 1,
+                warningSink: warnings.Add,
+                maxArchiveCompressionRatio: 1));
+
+            Assert.IsEmpty(files);
+            Assert.HasCount(1, warnings);
+            Assert.Contains("archive compression ratio limit reached while reading secrets.zst", warnings[0]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that archive enumeration stops when cancellation is requested.
     /// </summary>
     [TestMethod]
@@ -738,6 +797,17 @@ public sealed class DirectorySourceTests
                 using Stream entryStream = entry.Open();
                 entryStream.Write(content);
             }
+        }
+
+        return stream.ToArray();
+    }
+
+    private static byte[] CreateZstandardBytes(byte[] content)
+    {
+        using var stream = new MemoryStream();
+        using (var compressionStream = new CompressionStream(stream, leaveOpen: true))
+        {
+            compressionStream.Write(content);
         }
 
         return stream.ToArray();

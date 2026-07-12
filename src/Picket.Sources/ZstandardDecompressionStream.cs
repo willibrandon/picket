@@ -9,7 +9,7 @@ namespace Picket.Sources;
 internal sealed class ZstandardDecompressionStream : Stream
 {
     private const int DefaultInputBufferSize = 64 * 1024;
-    private const int DefaultMaximumWindowLog = 27;
+    private const int DefaultMaximumWindowLog = 26;
     private const int MaximumWindowLog = 30;
     private const int MinimumWindowLog = 10;
     private const int WindowLogMaxParameter = 100;

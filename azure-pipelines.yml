@@ -23,7 +23,7 @@ steps:
     packageType: sdk
     version: 10.0.301
 
-- pwsh: dotnet restore Picket.slnx
+- pwsh: dotnet restore Picket.slnx --locked-mode
   displayName: Restore
 
 - pwsh: dotnet build Picket.slnx --configuration $(buildConfiguration) --no-restore

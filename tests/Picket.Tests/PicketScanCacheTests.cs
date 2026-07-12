@@ -247,6 +247,29 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies cache entries from the plaintext-randomness schema are treated as misses.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsVersionFourEntry()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt", includeRandomness: true)]);
+        string entryPath = GetSingleEntryPath(root.Path);
+        string entry = File.ReadAllText(entryPath).Replace(
+            "picket.scan-cache.v5",
+            "picket.scan-cache.v4",
+            StringComparison.Ordinal);
+        File.WriteAllText(entryPath, entry);
+
+        bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+        Assert.IsFalse(hit);
+        Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
     /// Verifies path-sensitive cache keys do not reuse findings across logical paths.
     /// </summary>
     [TestMethod]
@@ -306,6 +329,7 @@ public sealed class PicketScanCacheTests
 
         cache.Write(content, "secret.txt", [CreateFinding("secret.txt", includeRandomness: true)]);
 
+        string entryText = File.ReadAllText(GetSingleEntryPath(root.Path));
         bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
 
         Assert.IsTrue(hit);
@@ -317,6 +341,9 @@ public sealed class PicketScanCacheTests
         Assert.AreEqual(SecretRandomnessScorer.Assess("token-12345").Score, assessment.Score);
         Assert.AreEqual("likely-structured", assessment.Classification);
         Assert.AreEqual("alphanumeric", assessment.Features.Alphabet);
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes(SecretRandomnessScorer.ModelVersion)), entryText);
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes("alphanumeric")), entryText);
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes("likely-structured")), entryText);
     }
 
     /// <summary>
@@ -542,6 +569,54 @@ public sealed class PicketScanCacheTests
 
         Assert.IsFalse(hit);
         Assert.IsNull(cachedFindings);
+    }
+
+    /// <summary>
+    /// Verifies concurrent cache reads and writes preserve authenticated complete entries.
+    /// </summary>
+    [TestMethod]
+    [Timeout(15000, CooperativeCancellation = true)]
+    public async Task ConcurrentReadsAndWritesNeverReturnPartialEntries()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
+        byte[] content = Encoding.UTF8.GetBytes("prefix token-12345 suffix");
+        Finding finding = CreateFinding("secret.txt", includeRandomness: true);
+        Finding[] findings = [finding];
+        string expectedSecretSha256 = BlobHasher.ComputeSha256Hex(finding.Secret);
+        cache.Write(content, "secret.txt", findings);
+        CancellationToken cancellationToken = TestContext.CancellationToken;
+        var tasks = new Task[16];
+        for (int taskIndex = 0; taskIndex < tasks.Length; taskIndex++)
+        {
+            tasks[taskIndex] = Task.Run(() =>
+            {
+                for (int iteration = 0; iteration < 25; iteration++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    cache.Write(content, "secret.txt", findings);
+                    bool hit = cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? cachedFindings);
+
+                    if (hit)
+                    {
+                        Assert.IsNotNull(cachedFindings);
+                        Assert.HasCount(1, cachedFindings);
+                        Assert.AreEqual(expectedSecretSha256, cachedFindings[0].SecretSha256);
+                    }
+                    else
+                    {
+                        Assert.IsNull(cachedFindings);
+                    }
+                }
+            }, cancellationToken);
+        }
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        Assert.IsTrue(cache.TryRead(content, "secret.txt", string.Empty, out List<Finding>? finalFindings));
+        Assert.IsNotNull(finalFindings);
+        Assert.HasCount(1, finalFindings);
+        Assert.AreEqual(expectedSecretSha256, finalFindings[0].SecretSha256);
     }
 
     /// <summary>

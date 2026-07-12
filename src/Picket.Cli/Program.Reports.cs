@@ -37,11 +37,12 @@ internal static partial class Program
         List<string> reportPaths,
         string? reportFormat,
         string? reportTemplatePath,
-        bool nativeReportFormats = false)
+        bool nativeReportFormats = false,
+        bool scanComplete = true)
     {
         if (!nativeReportFormats || reportPaths.Count <= 1)
         {
-            return TryWriteReport(findings, rules, reportPath, reportFormat, reportTemplatePath, nativeReportFormats);
+            return TryWriteReport(findings, rules, reportPath, reportFormat, reportTemplatePath, nativeReportFormats, scanComplete);
         }
 
         if (!string.IsNullOrWhiteSpace(reportFormat))
@@ -70,7 +71,7 @@ internal static partial class Program
                 wroteStdout = true;
             }
 
-            if (!TryWriteReport(findings, rules, path, reportFormat: null, reportTemplatePath: null, nativeReportFormats))
+            if (!TryWriteReport(findings, rules, path, reportFormat: null, reportTemplatePath: null, nativeReportFormats, scanComplete))
             {
                 return false;
             }
@@ -198,7 +199,8 @@ internal static partial class Program
         string? reportPath,
         string? reportFormat,
         string? reportTemplatePath,
-        bool nativeReportFormats = false)
+        bool nativeReportFormats = false,
+        bool scanComplete = true)
     {
         if (!TryResolveReportFormat(reportPath, reportFormat, reportTemplatePath, nativeReportFormats, out string? resolvedReportFormat))
         {
@@ -214,9 +216,9 @@ internal static partial class Program
                 "gitlab" => PicketGitLabCodeQualityReportWriter.Write(findings),
                 "html" => PicketHtmlReportWriter.Write(findings, rules),
                 "junit" => nativeReportFormats ? PicketJunitReportWriter.Write(findings, rules) : GitleaksJunitReportWriter.Write(findings),
-                "json" => nativeReportFormats ? PicketJsonReportWriter.Write(findings, rules) : GitleaksJsonReportWriter.Write(findings),
+                "json" => nativeReportFormats ? PicketJsonReportWriter.Write(findings, rules, scanComplete) : GitleaksJsonReportWriter.Write(findings),
                 "jsonl" => PicketJsonlReportWriter.Write(findings, rules),
-                "sarif" => nativeReportFormats ? PicketSarifReportWriter.Write(findings, rules) : GitleaksSarifReportWriter.Write(findings, rules),
+                "sarif" => nativeReportFormats ? PicketSarifReportWriter.Write(findings, rules, scanComplete) : GitleaksSarifReportWriter.Write(findings, rules),
                 "template" => GitleaksTemplateReportWriter.Write(findings, ReadReportTemplate(reportTemplatePath)),
                 "toon" => PicketToonReportWriter.Write(findings, rules),
                 _ => throw new InvalidOperationException($"unsupported report format: {resolvedReportFormat}"),

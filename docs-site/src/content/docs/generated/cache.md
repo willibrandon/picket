@@ -42,7 +42,7 @@ Current entries include:
 - cached finding rows,
 - entry authentication tag.
 
-Entries use the authenticated `picket.scan-cache.v4` format. Picket signs each entry body with HMAC-SHA-256 using a per-user key stored outside the cache root. Edited entries, unsigned legacy entries, earlier schema versions, and imports that cannot authenticate under the current user profile are treated as invalid cache misses. This keeps cache export/import useful across cache roots for the same build identity while preventing an untrusted archive or writable cache directory from silently suppressing findings.
+Entries use the authenticated `picket.scan-cache.v5` format. Picket signs each entry body with HMAC-SHA-256 using a per-user key stored outside the cache root. In `secret-hash-only` mode, secret and match hashes and raw-secret-derived randomness assessments are sealed with authenticated encryption before they are written. Edited entries, unsigned legacy entries, earlier schema versions, and imports that cannot authenticate under the current user profile are treated as invalid cache misses. This keeps cache export/import useful across cache roots for the same build identity while preventing an untrusted archive or writable cache directory from silently suppressing findings.
 
 ## Privacy
 

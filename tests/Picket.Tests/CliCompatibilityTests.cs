@@ -2517,6 +2517,73 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies fragmented native scans apply generic-rule precedence with whole-file context.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeFragmentedScanMatchesWholeFileGenericPrecedence()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "rules.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "generic-oracle-token"
+            description = "Generic token"
+            regex = '''token\s*=\s*(secret-[0-9]{5})'''
+            secretGroup = 1
+            keywords = ["token"]
+
+            [[rules]]
+            id = "provider-oracle-token"
+            description = "Provider token"
+            regex = '''prefix-secret-[0-9]{5}-suffix'''
+            keywords = ["prefix-secret-"]
+            """);
+        const string Prefix = "token = secret-12345; ";
+        const string Specific = "prefix-secret-12345-suffix";
+        string smallPath = Path.Combine(root.Path, "small.txt");
+        string largePath = Path.Combine(root.Path, "large.txt");
+        File.WriteAllText(smallPath, string.Concat(Prefix, Specific));
+        File.WriteAllText(largePath, string.Concat(Prefix, new string('a', 124_995 - Prefix.Length), Specific));
+
+        CliResult whole = await RunCliAsync("scan", smallPath, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult fragmented = await RunCliAsync("scan", largePath, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, whole.ExitCode);
+        Assert.AreEqual(1, fragmented.ExitCode);
+        Assert.HasCount(1, whole.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.HasCount(1, fragmented.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.Contains("\"ruleId\":\"provider-oracle-token\"", whole.Stdout);
+        Assert.Contains("\"ruleId\":\"provider-oracle-token\"", fragmented.Stdout);
+        Assert.DoesNotContain("generic-oracle-token", fragmented.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies native overlap scanning honors an inline allow comment after a forced fragment boundary.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeOverlapHonorsGitleaksAllowOnForceCutContinuedLine()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string smallPath = Path.Combine(root.Path, "small.txt");
+        string largePath = Path.Combine(root.Path, "large.txt");
+        File.WriteAllText(smallPath, "token-12345 # gitleaks:allow");
+        File.WriteAllText(
+            largePath,
+            string.Concat(new string('a', 124_970), "token-12345", new string(' ', 30), "# gitleaks:allow"));
+
+        CliResult whole = await RunCliAsync("scan", smallPath, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+        CliResult fragmented = await RunCliAsync("scan", largePath, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, whole.ExitCode);
+        Assert.AreEqual(0, fragmented.ExitCode);
+        Assert.IsEmpty(whole.Stdout);
+        Assert.IsEmpty(fragmented.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that secret-hash-only cache entries do not bypass baseline suppression.
     /// </summary>
     [TestMethod]

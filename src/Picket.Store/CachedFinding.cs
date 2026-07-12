@@ -21,7 +21,8 @@ internal sealed class CachedFinding(
     string matchSha256,
     string validationState,
     IReadOnlyList<string> decodePath,
-    SecretRandomnessAssessment? randomness)
+    SecretRandomnessAssessment? randomness,
+    bool protectRandomness)
 {
     private const int CurrentFieldCount = 33;
 
@@ -51,7 +52,8 @@ internal sealed class CachedFinding(
                 ProtectedCacheField.Protect(fieldProtectionKey, matchSha256),
                 finding.ValidationState,
                 finding.DecodePath,
-                finding.Randomness);
+                finding.Randomness,
+                protectRandomness: true);
         }
 
         return new CachedFinding(
@@ -70,7 +72,8 @@ internal sealed class CachedFinding(
             finding.MatchSha256,
             finding.ValidationState,
             finding.DecodePath,
-            finding.Randomness);
+            finding.Randomness,
+            protectRandomness: false);
     }
 
     internal static bool TryParse(
@@ -105,7 +108,7 @@ internal sealed class CachedFinding(
                 return false;
             }
 
-            if (!TryParseRandomness(fields, out SecretRandomnessAssessment? randomness))
+            if (!TryParseRandomness(fields, storageMode, fieldProtectionKey, out SecretRandomnessAssessment? randomness))
             {
                 return false;
             }
@@ -126,7 +129,8 @@ internal sealed class CachedFinding(
                 matchSha256,
                 TextFieldCodec.Decode(fields[13]),
                 TextFieldCodec.DecodeTags(fields[14]),
-                randomness);
+                randomness,
+                storageMode == ScanCacheStorageMode.SecretHashOnly);
             return true;
         }
         catch (Exception exception) when (exception is ArgumentException or FormatException)
@@ -136,7 +140,7 @@ internal sealed class CachedFinding(
         }
     }
 
-    internal void Write(StringBuilder builder)
+    internal void Write(StringBuilder builder, ReadOnlySpan<byte> fieldProtectionKey)
     {
         builder.Append("finding");
         Append(builder, TextFieldCodec.Encode(ruleId));
@@ -154,7 +158,15 @@ internal sealed class CachedFinding(
         Append(builder, TextFieldCodec.Encode(matchSha256));
         Append(builder, TextFieldCodec.Encode(validationState));
         Append(builder, TextFieldCodec.EncodeTags(decodePath));
-        AppendRandomness(builder, randomness);
+        if (protectRandomness)
+        {
+            AppendProtectedRandomness(builder, randomness, fieldProtectionKey);
+        }
+        else
+        {
+            AppendRandomness(builder, randomness);
+        }
+
         builder.Append('\n');
     }
 
@@ -222,7 +234,32 @@ internal sealed class CachedFinding(
         Append(builder, TextFieldCodec.EncodeTags(assessment.Signals));
     }
 
-    private static bool TryParseRandomness(ReadOnlySpan<string> fields, out SecretRandomnessAssessment? assessment)
+    private static void AppendProtectedRandomness(
+        StringBuilder builder,
+        SecretRandomnessAssessment? assessment,
+        ReadOnlySpan<byte> fieldProtectionKey)
+    {
+        if (assessment is null)
+        {
+            AppendRandomness(builder, assessment);
+            return;
+        }
+
+        var payloadBuilder = new StringBuilder();
+        AppendRandomness(payloadBuilder, assessment);
+        string payload = payloadBuilder.ToString(1, payloadBuilder.Length - 1);
+        Append(builder, TextFieldCodec.Encode(ProtectedCacheField.Protect(fieldProtectionKey, payload)));
+        for (int i = 16; i < CurrentFieldCount; i++)
+        {
+            Append(builder, string.Empty);
+        }
+    }
+
+    private static bool TryParseRandomness(
+        ReadOnlySpan<string> fields,
+        ScanCacheStorageMode storageMode,
+        ReadOnlySpan<byte> fieldProtectionKey,
+        out SecretRandomnessAssessment? assessment)
     {
         assessment = null;
         if (fields[15].Length == 0)
@@ -238,20 +275,51 @@ internal sealed class CachedFinding(
             return true;
         }
 
-        if (!double.TryParse(fields[16], CultureInfo.InvariantCulture, out double score)
-            || !int.TryParse(fields[18], CultureInfo.InvariantCulture, out int sampleOffset)
-            || !int.TryParse(fields[19], CultureInfo.InvariantCulture, out int sampleLength)
-            || !double.TryParse(fields[21], CultureInfo.InvariantCulture, out double lengthScore)
-            || !double.TryParse(fields[22], CultureInfo.InvariantCulture, out double normalizedEntropy)
-            || !double.TryParse(fields[23], CultureInfo.InvariantCulture, out double expectedDistinctRatio)
-            || !double.TryParse(fields[24], CultureInfo.InvariantCulture, out double transitionDiversity)
-            || !double.TryParse(fields[25], CultureInfo.InvariantCulture, out double longestRunRatio)
-            || !double.TryParse(fields[26], CultureInfo.InvariantCulture, out double sequentialPairRatio)
-            || !double.TryParse(fields[27], CultureInfo.InvariantCulture, out double repeatedPatternRatio)
-            || !double.TryParse(fields[28], CultureInfo.InvariantCulture, out double commonBigramRatio)
-            || !double.TryParse(fields[29], CultureInfo.InvariantCulture, out double characterClassBalance)
-            || !double.TryParse(fields[30], CultureInfo.InvariantCulture, out double encodedTextSignal)
-            || !double.TryParse(fields[31], CultureInfo.InvariantCulture, out double placeholderSignal))
+        if (storageMode == ScanCacheStorageMode.SecretHashOnly)
+        {
+            for (int i = 16; i < CurrentFieldCount; i++)
+            {
+                if (fields[i].Length != 0)
+                {
+                    assessment = null;
+                    return false;
+                }
+            }
+
+            string protectedPayload = TextFieldCodec.Decode(fields[15]);
+            if (!ProtectedCacheField.TryUnprotect(fieldProtectionKey, protectedPayload, out string payload))
+            {
+                assessment = null;
+                return false;
+            }
+
+            string[] protectedFields = payload.Split('\t');
+            return TryParseRandomnessFields(protectedFields, out assessment);
+        }
+
+        return TryParseRandomnessFields(fields[15..], out assessment);
+    }
+
+    private static bool TryParseRandomnessFields(
+        ReadOnlySpan<string> fields,
+        out SecretRandomnessAssessment? assessment)
+    {
+        assessment = null;
+        if (fields.Length != CurrentFieldCount - 15
+            || !double.TryParse(fields[1], CultureInfo.InvariantCulture, out double score)
+            || !int.TryParse(fields[3], CultureInfo.InvariantCulture, out int sampleOffset)
+            || !int.TryParse(fields[4], CultureInfo.InvariantCulture, out int sampleLength)
+            || !double.TryParse(fields[6], CultureInfo.InvariantCulture, out double lengthScore)
+            || !double.TryParse(fields[7], CultureInfo.InvariantCulture, out double normalizedEntropy)
+            || !double.TryParse(fields[8], CultureInfo.InvariantCulture, out double expectedDistinctRatio)
+            || !double.TryParse(fields[9], CultureInfo.InvariantCulture, out double transitionDiversity)
+            || !double.TryParse(fields[10], CultureInfo.InvariantCulture, out double longestRunRatio)
+            || !double.TryParse(fields[11], CultureInfo.InvariantCulture, out double sequentialPairRatio)
+            || !double.TryParse(fields[12], CultureInfo.InvariantCulture, out double repeatedPatternRatio)
+            || !double.TryParse(fields[13], CultureInfo.InvariantCulture, out double commonBigramRatio)
+            || !double.TryParse(fields[14], CultureInfo.InvariantCulture, out double characterClassBalance)
+            || !double.TryParse(fields[15], CultureInfo.InvariantCulture, out double encodedTextSignal)
+            || !double.TryParse(fields[16], CultureInfo.InvariantCulture, out double placeholderSignal))
         {
             return false;
         }
@@ -259,7 +327,7 @@ internal sealed class CachedFinding(
         SecretRandomnessFeatures features = SecretRandomnessFeatures.Create(
             sampleOffset,
             sampleLength,
-            TextFieldCodec.Decode(fields[20]),
+            TextFieldCodec.Decode(fields[5]),
             lengthScore,
             normalizedEntropy,
             expectedDistinctRatio,
@@ -272,11 +340,11 @@ internal sealed class CachedFinding(
             encodedTextSignal,
             placeholderSignal);
         assessment = SecretRandomnessAssessment.Create(
-            TextFieldCodec.Decode(fields[15]),
+            TextFieldCodec.Decode(fields[0]),
             score,
-            TextFieldCodec.Decode(fields[17]),
+            TextFieldCodec.Decode(fields[2]),
             features,
-            TextFieldCodec.DecodeTags(fields[32]));
+            TextFieldCodec.DecodeTags(fields[17]));
         return true;
     }
 

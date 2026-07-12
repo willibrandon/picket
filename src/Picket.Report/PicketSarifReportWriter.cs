@@ -21,8 +21,12 @@ public static class PicketSarifReportWriter
     /// </summary>
     /// <param name="findings">The findings to report.</param>
     /// <param name="rules">The ordered rules from the active configuration.</param>
+    /// <param name="scanComplete">A value indicating whether every requested input was scanned.</param>
     /// <returns>The SARIF JSON report with a trailing newline.</returns>
-    public static string Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)
+    public static string Write(
+        IReadOnlyList<Finding> findings,
+        IReadOnlyList<SecretRule> rules,
+        bool scanComplete = true)
     {
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(rules);
@@ -33,7 +37,7 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 1, "version", "2.1.0", comma: true);
         WritePropertyName(builder, 1, "runs");
         builder.Append(" [\n");
-        WriteRun(builder, rules, findings);
+        WriteRun(builder, rules, findings, scanComplete);
         builder.Append('\n');
         Indent(builder, 1);
         builder.Append("]\n");
@@ -41,16 +45,49 @@ public static class PicketSarifReportWriter
         return builder.ToString();
     }
 
-    private static void WriteRun(StringBuilder builder, IReadOnlyList<SecretRule> rules, IReadOnlyList<Finding> findings)
+    private static void WriteRun(
+        StringBuilder builder,
+        IReadOnlyList<SecretRule> rules,
+        IReadOnlyList<Finding> findings,
+        bool scanComplete)
     {
         Indent(builder, 2);
         builder.Append("{\n");
         WriteTool(builder, rules);
         builder.Append(",\n");
+        WriteInvocations(builder, scanComplete);
+        builder.Append(",\n");
         WriteResults(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules));
         builder.Append('\n');
         Indent(builder, 2);
         builder.Append('}');
+    }
+
+    private static void WriteInvocations(StringBuilder builder, bool scanComplete)
+    {
+        WritePropertyName(builder, 3, "invocations");
+        builder.Append(" [\n");
+        Indent(builder, 4);
+        builder.Append("{\n");
+        WriteBooleanProperty(builder, 5, "executionSuccessful", scanComplete, comma: !scanComplete);
+        if (!scanComplete)
+        {
+            WritePropertyName(builder, 5, "toolExecutionNotifications");
+            builder.Append(" [\n");
+            Indent(builder, 6);
+            builder.Append("{\n");
+            WriteStringProperty(builder, 7, "level", "error", comma: true);
+            WriteMessageObject(builder, 7, "message", "Picket did not scan every requested input.", comma: false);
+            Indent(builder, 6);
+            builder.Append("}\n");
+            Indent(builder, 5);
+            builder.Append("]\n");
+        }
+
+        Indent(builder, 4);
+        builder.Append("}\n");
+        Indent(builder, 3);
+        builder.Append(']');
     }
 
     private static void WriteTool(StringBuilder builder, IReadOnlyList<SecretRule> rules)
@@ -408,6 +445,14 @@ public static class PicketSarifReportWriter
         WritePropertyName(builder, depth, name);
         builder.Append(' ');
         AppendJsonString(builder, value);
+        WriteComma(builder, comma);
+        builder.Append('\n');
+    }
+
+    private static void WriteBooleanProperty(StringBuilder builder, int depth, string name, bool value, bool comma)
+    {
+        WritePropertyName(builder, depth, name);
+        builder.Append(value ? " true" : " false");
         WriteComma(builder, comma);
         builder.Append('\n');
     }

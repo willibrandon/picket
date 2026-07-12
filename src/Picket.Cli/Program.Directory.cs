@@ -570,6 +570,7 @@ internal static partial class Program
         RemoteScanCheckpoint? openedCheckpoint = null;
         if (!string.IsNullOrWhiteSpace(checkpointPath))
         {
+            WarnIfCheckpointEnabled();
             try
             {
                 checkpointFiles = RemoteScanManifest.CreateFiles(files);

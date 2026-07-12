@@ -15,8 +15,12 @@ public static class PicketJsonReportWriter
     /// </summary>
     /// <param name="findings">The findings to write.</param>
     /// <param name="rules">The rules used for the scan.</param>
+    /// <param name="scanComplete">A value indicating whether every requested input was scanned.</param>
     /// <returns>A JSON report with a trailing newline.</returns>
-    public static string Write(IReadOnlyList<Finding> findings, IReadOnlyList<SecretRule> rules)
+    public static string Write(
+        IReadOnlyList<Finding> findings,
+        IReadOnlyList<SecretRule> rules,
+        bool scanComplete = true)
     {
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(rules);
@@ -25,11 +29,21 @@ public static class PicketJsonReportWriter
         builder.Append('{');
         WriteString(builder, "schema", "picket.report.v1", comma: true);
         WriteTool(builder, comma: true);
+        WriteScan(builder, scanComplete, comma: true);
         WriteRules(builder, rules, comma: true);
         WriteFindings(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules), comma: false);
         builder.Append('}');
         builder.Append('\n');
         return builder.ToString();
+    }
+
+    private static void WriteScan(StringBuilder builder, bool complete, bool comma)
+    {
+        WritePropertyName(builder, "scan");
+        builder.Append('{');
+        WriteBoolean(builder, "complete", complete, comma: false);
+        builder.Append('}');
+        WriteComma(builder, comma);
     }
 
     private static void WriteTool(StringBuilder builder, bool comma)

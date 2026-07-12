@@ -130,6 +130,7 @@ public sealed class CliContainerArchiveScanTests
 
         Assert.AreEqual(1, failed.ExitCode);
         Assert.Contains("failed to write report", failed.Stderr);
+        Assert.Contains("checkpoints temporarily store encrypted finding match, secret, and line text", failed.Stderr);
         Assert.IsTrue(File.Exists(checkpointPath));
 
         string reportPath = Path.Combine(temp.Path, "result.jsonl");

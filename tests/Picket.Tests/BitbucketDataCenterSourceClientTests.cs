@@ -178,6 +178,58 @@ public sealed class BitbucketDataCenterSourceClientTests
     }
 
     /// <summary>
+    /// Verifies a failed repository does not prevent later project repositories from being scanned.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateFilesIsolatesPerRepositoryFailures()
+    {
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.EndsWith("/projects/CORE/repos?limit=100&start=0", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"isLastPage":true,"values":[{"slug":"one"},{"slug":"two"}]}""");
+            }
+
+            if (url.EndsWith("/projects/CORE/repos/one/default-branch", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            if (url.EndsWith("/projects/CORE/repos/two/default-branch", StringComparison.Ordinal))
+            {
+                return JsonResponse($$"""{"latestCommit":"{{CommitA}}"}""");
+            }
+
+            if (url.Contains($"/projects/CORE/repos/two/files?at={CommitA}", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"isLastPage":true,"values":["secret.txt"]}""");
+            }
+
+            if (url.Contains($"/projects/CORE/repos/two/raw/secret.txt?at={CommitA}", StringComparison.Ordinal))
+            {
+                return BytesResponse("token-12345");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketDataCenterSourceClient(httpClient);
+        var options = new BitbucketDataCenterSourceOptions(
+            CreateEndpoint(),
+            "CORE",
+            "test-token",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("bitbucket-data-center/CORE/two/secret.txt", files[0].DisplayPath);
+        Assert.AreEqual("token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.Contains(static warning => warning.Contains("repository CORE/one", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
     /// Verifies that pull request enumeration scans the immutable source commit and source repository, including forks.
     /// </summary>
     [TestMethod]

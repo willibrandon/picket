@@ -63,6 +63,66 @@ public sealed class SecretRandomnessReportTests
         Assert.DoesNotContain("randomness", sarif, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies redacted native reports omit metadata derived from the original secret.
+    /// </summary>
+    [TestMethod]
+    public void RedactedNativeReportsOmitRandomnessAssessment()
+    {
+        Finding finding = GitleaksFindingRedactor.Redact(CreateFinding(), redactionPercent: 100, requirePartialMask: true);
+        SecretRule rule = CreateRule();
+        string[] reports =
+        [
+            PicketJsonReportWriter.Write([finding], [rule]),
+            PicketJsonlReportWriter.Write([finding], [rule]),
+            PicketCsvReportWriter.Write([finding], [rule]),
+            PicketToonReportWriter.Write([finding], [rule]),
+            PicketSarifReportWriter.Write([finding], [rule]),
+            PicketHtmlReportWriter.Write([finding], [rule]),
+            PicketJunitReportWriter.Write([finding], [rule]),
+        ];
+
+        foreach (string report in reports)
+        {
+            Assert.DoesNotContain(SecretRandomnessScorer.ModelVersion, report);
+            Assert.DoesNotContain("alphanumeric", report);
+            Assert.DoesNotContain("likely-random", report);
+        }
+    }
+
+    /// <summary>
+    /// Verifies redaction removes imported randomness metadata even when secret evidence is absent.
+    /// </summary>
+    [TestMethod]
+    public void RedactionRemovesRandomnessFromFindingWithoutSecretEvidence()
+    {
+        var finding = new Finding(
+            "random-token",
+            "Detected a random token.",
+            1,
+            1,
+            1,
+            1,
+            string.Empty,
+            string.Empty,
+            "secret.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "secret.txt:random-token:1",
+            randomness: SecretRandomnessScorer.Assess(RandomSample));
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, redactionPercent: 100, requirePartialMask: true);
+
+        Assert.IsNull(redacted.Randomness);
+        Assert.IsEmpty(redacted.Secret);
+    }
+
     private static Finding CreateFinding()
     {
         return new Finding(

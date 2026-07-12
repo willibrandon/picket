@@ -225,6 +225,7 @@ internal static partial class Program
         int overlapLength = 0;
         int overlapStartColumn = 1;
         int overlapStartLine = 1;
+        List<Finding> deferredFindings = [];
         SourceFragment? fragment = firstFragment;
         try
         {
@@ -233,32 +234,28 @@ internal static partial class Program
                 using (fragment)
                 {
                     scannedHash.AppendData(fragment.Content.Span);
+                    IReadOnlyList<Finding> fragmentFindings;
                     if (overlap is not null)
                     {
-                        AddUniqueFindings(
-                            findings,
-                            seen,
-                            ScanCombinedSourceFragment(
-                                overlap,
-                                overlapLength,
-                                fragment,
-                                file,
-                                rules,
-                                ignoreGitleaksAllow,
-                                maxDecodeDepth,
-                                overlapStartLine,
-                                overlapStartColumn,
-                                blobSha256,
-                                timeoutTimestamp,
-                                cancellationToken));
+                        fragmentFindings = ScanCombinedSourceFragment(
+                            overlap,
+                            overlapLength,
+                            fragment,
+                            file,
+                            rules,
+                            ignoreGitleaksAllow,
+                            maxDecodeDepth,
+                            overlapStartLine,
+                            overlapStartColumn,
+                            blobSha256,
+                            timeoutTimestamp,
+                            cancellationToken);
                         ArrayPool<byte>.Shared.Return(overlap, clearArray: true);
                         overlap = null;
                     }
-
-                    AddUniqueFindings(
-                        findings,
-                        seen,
-                        ScanSourceFragment(
+                    else
+                    {
+                        fragmentFindings = ScanSourceFragment(
                             fragment.Content,
                             file,
                             rules,
@@ -269,9 +266,16 @@ internal static partial class Program
                             fragment.StartColumn,
                             blobSha256,
                             timeoutTimestamp,
-                            cancellationToken));
+                            cancellationToken);
+                    }
 
                     overlap = CreateOverlap(fragment, out overlapLength, out overlapStartLine, out overlapStartColumn);
+                    deferredFindings = AddFinalizedFindings(
+                        findings,
+                        seen,
+                        fragmentFindings,
+                        overlapStartLine,
+                        overlapStartColumn);
                 }
 
                 if (IsScanStopped(timeoutTimestamp, cancellationToken))
@@ -283,7 +287,8 @@ internal static partial class Program
                 fragment = reader.ReadNext(cancellationToken);
             }
 
-            return findings;
+            AddUniqueFindings(findings, seen, deferredFindings);
+            return SecretScanner.ApplyGitleaksGenericRulePrecedence(findings);
         }
         finally
         {
@@ -436,24 +441,56 @@ internal static partial class Program
     private static void AddUniqueFindings(
         List<Finding> destination,
         HashSet<(string RuleId, int StartLine, int EndLine, int StartColumn, int EndColumn, string Match, string Secret, string DecodePath)> seen,
-        IReadOnlyList<Finding> findings)
+        List<Finding> findings)
     {
         for (int i = 0; i < findings.Count; i++)
         {
+            AddUniqueFinding(destination, seen, findings[i]);
+        }
+    }
+
+    private static List<Finding> AddFinalizedFindings(
+        List<Finding> destination,
+        HashSet<(string RuleId, int StartLine, int EndLine, int StartColumn, int EndColumn, string Match, string Secret, string DecodePath)> seen,
+        IReadOnlyList<Finding> findings,
+        int overlapStartLine,
+        int overlapStartColumn)
+    {
+        var deferred = new List<Finding>();
+        for (int i = 0; i < findings.Count; i++)
+        {
             Finding finding = findings[i];
-            var key = (
-                finding.RuleID,
-                finding.StartLine,
-                finding.EndLine,
-                finding.StartColumn,
-                finding.EndColumn,
-                finding.Match,
-                finding.Secret,
-                string.Join('\u001f', finding.DecodePath));
-            if (seen.Add(key))
+            if (finding.EndLine < overlapStartLine
+                || (finding.EndLine == overlapStartLine && finding.EndColumn <= overlapStartColumn))
             {
-                destination.Add(finding);
+                AddUniqueFinding(destination, seen, finding);
             }
+            else
+            {
+                deferred.Add(finding);
+            }
+        }
+
+        return deferred;
+    }
+
+    private static void AddUniqueFinding(
+        List<Finding> destination,
+        HashSet<(string RuleId, int StartLine, int EndLine, int StartColumn, int EndColumn, string Match, string Secret, string DecodePath)> seen,
+        Finding finding)
+    {
+        var key = (
+            finding.RuleID,
+            finding.StartLine,
+            finding.EndLine,
+            finding.StartColumn,
+            finding.EndColumn,
+            finding.Match,
+            finding.Secret,
+            string.Join('\u001f', finding.DecodePath));
+        if (seen.Add(key))
+        {
+            destination.Add(finding);
         }
     }
 

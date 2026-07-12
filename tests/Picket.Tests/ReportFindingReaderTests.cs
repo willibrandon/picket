@@ -1,6 +1,7 @@
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using System.Text.Json.Nodes;
 
 namespace Picket.Tests;
 
@@ -76,6 +77,44 @@ public sealed class ReportFindingReaderTests
         Assert.Contains("balanced-character-classes", assessment.Signals);
         Assert.Contains("\"randomness\":{", report);
         Assert.DoesNotContain("randomnessSample", report);
+    }
+
+    /// <summary>
+    /// Verifies out-of-range randomness scores make a report invalid without escaping exceptions.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsOutOfRangeRandomnessScore()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        Finding finding = CreateFinding("picket-rule", "auth.py", "a8F2kL9mQ4xT7vN1zR6pW3cY", includeRandomness: true);
+        string report = PicketJsonlReportWriter.Write([finding]).Replace(
+            "\"score\":0.902542",
+            "\"score\":2",
+            StringComparison.Ordinal);
+        string reportPath = WriteReport(root.Path, "report.jsonl", report);
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsFalse(read);
+        Assert.IsNull(findings);
+    }
+
+    /// <summary>
+    /// Verifies non-object randomness metadata makes a report invalid without escaping exceptions.
+    /// </summary>
+    [TestMethod]
+    public void TryReadRejectsNonObjectRandomnessMetadata()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        Finding finding = CreateFinding("picket-rule", "auth.py", "a8F2kL9mQ4xT7vN1zR6pW3cY", includeRandomness: true);
+        JsonObject report = JsonNode.Parse(PicketJsonlReportWriter.Write([finding]))!.AsObject();
+        report["randomness"] = "invalid";
+        string reportPath = WriteReport(root.Path, "report.jsonl", report.ToJsonString());
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsFalse(read);
+        Assert.IsNull(findings);
     }
 
     /// <summary>

@@ -128,7 +128,7 @@ runs:
 
     - name: Restore Picket
       shell: pwsh
-      run: dotnet restore "$env:GITHUB_ACTION_PATH/Picket.slnx"
+      run: dotnet restore "$env:GITHUB_ACTION_PATH/Picket.slnx" --locked-mode
 
     - name: Restore scan cache
       id: cache-restore

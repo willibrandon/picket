@@ -94,10 +94,12 @@ Picket verifies descriptor and `Docker-Content-Digest` SHA-256 values before sca
 
 Remote byte caps must be positive. Registry manifests have a separate 10 decimal MB cap, image indexes are limited to 128 manifests, and image manifests are limited to 512 layers.
 
+Zstandard decoding applies a native window limit before expansion. When no per-target byte limit is configured, the maximum window is 64 MiB; an explicit target limit derives the decoder window from that bound.
+
 When registry layer traversal is enabled, archive entry, decompressed-byte, and expansion-ratio caps must also be positive. Set `--max-archive-depth 0` for a metadata-only registry scan that intentionally skips every layer.
 
 HTTPS and public endpoints are required by default. `--allow-non-public-source-endpoints` and `--allow-insecure-source-endpoints` are explicit exceptions for controlled development environments.
 
-Blob downloads follow at most one redirect. Registry authorization is retained only for a same-origin redirect and is removed before any cross-origin request.
+Blob downloads follow at most one redirect. Registry authorization is retained only for a same-origin redirect and is removed before any cross-origin request. Registry-provided token realms and blob redirects may use public CDN hosts; every discovered connection is still resolved once and checked against the endpoint guard before the socket opens.
 
 Only one native source provider can be selected for a scan. Container archive and registry flags cannot be combined with source-host or object-store source flags.

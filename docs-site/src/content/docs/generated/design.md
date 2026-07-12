@@ -566,7 +566,7 @@ Native decoding treats percent, Unicode, hex, base64, and deterministic C# strin
 
 For local files, compatibility large-file chunking is the pinned Gitleaks 100,000-byte primary buffer with up to 25,000 bytes of blank-line read-ahead and no overlap. Native scans add the bounded line-aligned overlap described in section 6.7. Both modes check cancellation between bounded reads and match loops, preserve absolute source positions, and avoid the managed single-array size limit.
 
-Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, cooperative timeouts during source enumeration and archive reads, path traversal protection, temp-file policy, and clear diagnostics. Native directory, git, verify, analyze, and baseline workflows scan first-level archives by default and cap archive enumeration at depth 1, 4096 entries, 512 decimal MB of decompressed archive payload, and a 1000:1 archive expansion ratio; `--max-archive-depth 0` disables archive traversal, and `--max-archive-entries 0`, `--max-archive-megabytes 0`, and `--max-archive-ratio 0` disable those caps for trusted inputs.
+Native mode adds stricter archive-safety controls: decompressed byte caps, entry count caps, recursion caps, compression-ratio checks, cooperative timeouts during source enumeration and archive reads, path traversal protection, temp-file policy, and clear diagnostics. Zstandard decoding also caps the native decoder window before expansion; an uncapped target uses a 64 MiB window ceiling. Native directory, git, verify, analyze, and baseline workflows scan first-level archives by default and cap archive enumeration at depth 1, 4096 entries, 512 decimal MB of decompressed archive payload, and a 1000:1 archive expansion ratio; `--max-archive-depth 0` disables archive traversal, and `--max-archive-entries 0`, `--max-archive-megabytes 0`, and `--max-archive-ratio 0` disable those caps for trusted inputs.
 
 ---
 
@@ -1395,6 +1395,8 @@ Marketplace publishing can be implemented late in the milestone. It is a release
 Gate: performance results are reproducible enough to review, behavior is unchanged, and any optimization is justified by measured wins for a named Picket scenario.
 
 Critical Scout performance blockers pause Picket work until the Scout issue is fixed or the design is updated with an acceptable fallback.
+
+End-to-end measurements use `scripts/Measure-ScannerPerformance.cs` and checked-in manifests under `benchmarks/scenarios/`. The harness stages an immutable Git-tracked corpus, invokes direct scanner executables without a shell, rotates tool order, separates pre-warmup and warmed fresh-process rounds, records tool, binary, source, host, and resource evidence, deletes generated reports by default, and hashes canonical finding sets for scenarios that are genuinely parity-comparable. Scenario conditions must state when host-level caches were not reset; a warmed filesystem run is not described as a cold OS-cache measurement. Tools with different rules, validation, history, decoding, or source behavior are measured in separate capability scenarios without a parity claim.
 
 ### M9: Optional Stretch
 

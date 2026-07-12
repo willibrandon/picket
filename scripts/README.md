@@ -55,9 +55,10 @@ Keep file-based apps under `scripts/`, outside project directories. The local
 package metadata and project settings used by the shipped Picket projects.
 
 Repository tests build every executable utility app with `dotnet build` and run
-stable fake-input coverage for the GitHub oracle capture and comparison apps.
-When adding a utility, keep its top-level launcher thin and put behavior in a
-documented app class so XML documentation and convention tests cover helpers.
+stable fake-input coverage for the GitHub oracle capture and comparison apps
+and the scanner performance harness. When adding a utility, keep its top-level
+launcher thin and put behavior in a documented app class so XML documentation
+and convention tests cover helpers.
 
 Current utilities:
 
@@ -71,8 +72,11 @@ Current utilities:
 | `Promote-CompatibilityOracle.cs` | Normalize reviewed oracle captures into committed fixtures. |
 | `Capture-GitHubSecretScanningOracle.cs` | Capture sanitized hosted GitHub secret-scanning alert metadata. |
 | `Compare-GitHubSecretScanningOracle.cs` | Compare hosted alert metadata to a Picket JSONL report. |
+| `Measure-ScannerPerformance.cs` | Measure direct scanner processes from a reproducible scenario manifest and compare canonical finding sets. |
 | `Generate-PackageManagerManifests.cs` | Generate Homebrew, Scoop, and WinGet manifests from release checksums. |
 
 Do not store secrets in utility arguments, logs, or committed fixtures. Oracle
 capture output remains under ignored `artifacts/` paths until it has been
-reviewed and normalized.
+reviewed and normalized. Performance reports are deleted after measurement by
+default. `Measure-ScannerPerformance.cs -KeepWork` retains those reports for
+debugging and must be used only with a trusted, access-controlled artifact path.

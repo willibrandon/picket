@@ -50,7 +50,7 @@ jobs:
           cache-dependency-path: docs-site/pnpm-lock.yaml
 
       - name: Restore
-        run: dotnet restore Picket.slnx
+        run: dotnet restore Picket.slnx --locked-mode
 
       - name: Install docs dependencies
         run: pnpm --dir docs-site install --frozen-lockfile
@@ -149,7 +149,7 @@ jobs:
             10.0.301
 
       - name: Restore
-        run: dotnet restore Picket.slnx
+        run: dotnet restore Picket.slnx --locked-mode
 
       - name: Install Linux musl Native AOT dependencies
         if: startsWith(matrix.rid, 'linux-musl-')
@@ -291,7 +291,7 @@ jobs:
             10.0.301
 
       - name: Restore
-        run: dotnet restore Picket.slnx
+        run: dotnet restore Picket.slnx --locked-mode
 
       - name: Pack public packages
         shell: pwsh

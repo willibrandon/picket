@@ -10,6 +10,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class ZstandardDecompressionStreamTests
 {
+    private static readonly byte[] s_frameRequiring128MiBWindow = [0x28, 0xb5, 0x2f, 0xfd, 0x00, 0x88, 0x01, 0x00, 0x00];
+
     /// <summary>
     /// Verifies that a complete zstandard frame is decompressed.
     /// </summary>
@@ -56,6 +58,33 @@ public sealed class ZstandardDecompressionStreamTests
         using var output = new MemoryStream();
 
         Assert.Throws<InvalidDataException>(() => stream.CopyTo(output));
+    }
+
+    /// <summary>
+    /// Verifies the default decoder limit refuses frames requiring a 128 MiB window.
+    /// </summary>
+    [TestMethod]
+    public void ReadRejectsFrameExceedingDefaultWindowLimit()
+    {
+        using var input = new MemoryStream(s_frameRequiring128MiBWindow, writable: false);
+        using var stream = new ZstandardDecompressionStream(input, maximumWindowBytes: null, leaveOpen: false);
+
+        Assert.Throws<InvalidDataException>(() => stream.ReadByte());
+    }
+
+    /// <summary>
+    /// Verifies disposal is idempotent and subsequent reads fail predictably.
+    /// </summary>
+    [TestMethod]
+    public void DisposeIsIdempotentAndReadAfterDisposeThrows()
+    {
+        using var input = new MemoryStream(Compress(Encoding.UTF8.GetBytes("content")), writable: false);
+        var stream = new ZstandardDecompressionStream(input, maximumWindowBytes: null, leaveOpen: true);
+
+        stream.Dispose();
+        stream.Dispose();
+
+        Assert.ThrowsExactly<ObjectDisposedException>(() => stream.ReadByte());
     }
 
     private static byte[] Compress(byte[] content)

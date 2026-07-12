@@ -37,7 +37,9 @@ Native commands support:
 
 Gitleaks-compatible git, filesystem, and stdin commands can opt into this native report surface with `--profile picket`. Without that explicit profile, `picket git`, `picket dir`, `picket file`, `picket directory`, and `picket stdin` keep Gitleaks-compatible report selection and reject native-only formats such as JSON Lines, HTML, TOON, and GitLab code-quality.
 
-Native finding records use schema `picket.finding.v1`. Rich JSON reports use schema `picket.report.v1`.
+Native finding records use schema `picket.finding.v1`. Rich JSON reports use schema `picket.report.v1`. Its `scan.complete` field is `false` when an operational error or interruption prevented Picket from scanning every requested input. Native SARIF reports carry the same state in `runs[].invocations[].executionSuccessful` and include a tool-execution notification when incomplete.
+
+Row-oriented native formats such as JSON Lines, CSV, and GitLab code quality do not have a run-level envelope. Consumers of those formats must treat Picket's nonzero process exit as incomplete coverage even when a partial report was retained.
 
 Native reports can include:
 

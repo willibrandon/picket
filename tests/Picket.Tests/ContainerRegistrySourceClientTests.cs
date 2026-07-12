@@ -250,6 +250,22 @@ public sealed class ContainerRegistrySourceClientTests
     }
 
     /// <summary>
+    /// Verifies image config platform metadata is not parsed when no platform filter is requested.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesSkipsConfigPlatformParseWithoutFilter()
+    {
+        byte[] config = Encoding.UTF8.GetBytes("not-json-platform-metadata");
+        byte[] layer = CreateTarBytes("app/settings.txt", "layer-value");
+
+        List<SourceFile> files = await EnumerateSingleLayerImageAsync(layer, OciLayerMediaType, config).ConfigureAwait(false);
+
+        Assert.Contains(static file => file.DisplayPath.EndsWith("/config.json", StringComparison.Ordinal), files);
+        SourceFile layerFile = files.Single(static file => file.DisplayPath.EndsWith("!app/settings.txt", StringComparison.Ordinal));
+        Assert.AreEqual("layer-value", Encoding.UTF8.GetString(layerFile.ReadAllBytes()));
+    }
+
+    /// <summary>
     /// Verifies basic credentials are not sent to an untrusted cross-host token service.
     /// </summary>
     [TestMethod]
@@ -644,9 +660,12 @@ public sealed class ContainerRegistrySourceClientTests
         return Encoding.UTF8.GetBytes(json);
     }
 
-    private async Task<List<SourceFile>> EnumerateSingleLayerImageAsync(byte[] layer, string layerMediaType)
+    private async Task<List<SourceFile>> EnumerateSingleLayerImageAsync(
+        byte[] layer,
+        string layerMediaType,
+        byte[]? config = null)
     {
-        byte[] config = Encoding.UTF8.GetBytes("{\"architecture\":\"amd64\",\"os\":\"linux\"}");
+        config ??= Encoding.UTF8.GetBytes("{\"architecture\":\"amd64\",\"os\":\"linux\"}");
         byte[] manifest = CreateImageManifest(config, layer, layerMediaType);
         string configDigest = CreateDigest(config);
         string layerDigest = CreateDigest(layer);

@@ -124,12 +124,12 @@ internal static class PicketFindingMetadata
 
     internal static string FormatRandomnessNumber(double value)
     {
-        return value.ToString("0.######", CultureInfo.InvariantCulture);
+        return double.IsFinite(value) ? value.ToString("0.######", CultureInfo.InvariantCulture) : "0";
     }
 
     internal static string FormatProbability(double value)
     {
-        return value.ToString("R", CultureInfo.InvariantCulture);
+        return double.IsFinite(value) ? value.ToString("R", CultureInfo.InvariantCulture) : "0";
     }
 
     internal static string CreateLocationPath(Finding finding)

@@ -41,6 +41,8 @@ Every CI run also packs the Native AOT dotnet tool packages:
 - `Picket`, with `ToolCommandName=picket`
 - `Picket.Tui.Cli`, with `ToolCommandName=picket-tui`
 
+Every solution project commits a NuGet `packages.lock.json`. The lock files pin resolved versions and package content hashes, including the `ZstdNet` package that supplies native zstandard libraries. CI, release, container, GitHub Action, and Azure Pipelines builds restore with `--locked-mode`, so dependency drift or a package payload mismatch fails before compilation.
+
 The release workflow packs each tool twice: once as a top-level pointer package, and once per supported RID with `dotnet pack -r <RID>`. RID-specific packages are pushed to NuGet before the pointer packages so installs can resolve immediately.
 
 Scanner release archives, RID-specific `Picket` tool packages, and the container image include `THIRD-PARTY-NOTICES.txt` beside their license materials. This preserves the BSD notices required by the bundled zstandard runtime.

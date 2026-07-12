@@ -110,7 +110,7 @@ public sealed class SecretScanner
         return ApplyGitleaksGenericRulePrecedence(completedFindings);
     }
 
-    private static List<Finding> ApplyGitleaksGenericRulePrecedence(List<Finding> findings)
+    internal static List<Finding> ApplyGitleaksGenericRulePrecedence(List<Finding> findings)
     {
         if (findings.Count < 2)
         {

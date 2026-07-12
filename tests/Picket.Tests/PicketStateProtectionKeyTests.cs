@@ -1,4 +1,5 @@
-using Picket.Store;
+using Picket.Security;
+using System.Runtime.Versioning;
 
 namespace Picket.Tests;
 
@@ -90,5 +91,88 @@ public sealed class PicketStateProtectionKeyTests
 
         Assert.HasCount(32, key);
         CollectionAssert.AreEqual(key, File.ReadAllBytes(keyPath));
+    }
+
+    /// <summary>
+    /// Verifies state-protection keys do not follow symbolic-link paths.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    [SupportedOSPlatform("freebsd")]
+    public void LoadOrCreatePathRejectsSymbolicLinkKeyFile()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string targetPath = Path.Combine(temp.Path, "target.key");
+        string keyPath = Path.Combine(temp.Path, "state.key");
+        byte[] target = Enumerable.Repeat((byte)0x5a, 32).ToArray();
+        File.WriteAllBytes(targetPath, target);
+        File.CreateSymbolicLink(keyPath, targetPath);
+
+        Assert.ThrowsExactly<IOException>(() => PicketStateProtectionKey.LoadOrCreatePath(keyPath));
+        CollectionAssert.AreEqual(target, File.ReadAllBytes(targetPath));
+    }
+
+    /// <summary>
+    /// Verifies state-protection key locking does not follow symbolic-link paths.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    [SupportedOSPlatform("freebsd")]
+    public void LoadOrCreatePathRejectsSymbolicLinkLockFile()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string targetPath = Path.Combine(temp.Path, "target.lock");
+        string keyPath = Path.Combine(temp.Path, "state.key");
+        File.WriteAllText(targetPath, "unchanged");
+        File.CreateSymbolicLink(string.Concat(keyPath, ".lock"), targetPath);
+
+        Assert.ThrowsExactly<IOException>(() => PicketStateProtectionKey.LoadOrCreatePath(keyPath));
+        Assert.AreEqual("unchanged", File.ReadAllText(targetPath));
+    }
+
+    /// <summary>
+    /// Verifies state-protection key and lock files are owner-only on Unix-like systems.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    [SupportedOSPlatform("freebsd")]
+    public void LoadOrCreatePathCreatesOwnerOnlyFilesOnUnix()
+    {
+        const UnixFileMode GroupOrOther = UnixFileMode.GroupRead
+            | UnixFileMode.GroupWrite
+            | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead
+            | UnixFileMode.OtherWrite
+            | UnixFileMode.OtherExecute;
+        using TempDirectory temp = TempDirectory.Create();
+        string keyPath = Path.Combine(temp.Path, "state.key");
+
+        _ = PicketStateProtectionKey.LoadOrCreatePath(keyPath);
+
+        Assert.AreEqual((UnixFileMode)0, File.GetUnixFileMode(keyPath) & GroupOrOther);
+        Assert.AreEqual((UnixFileMode)0, File.GetUnixFileMode(string.Concat(keyPath, ".lock")) & GroupOrOther);
+    }
+
+    /// <summary>
+    /// Verifies state-protection key and lock files allow only the current Windows user.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    [SupportedOSPlatform("windows")]
+    public void LoadOrCreatePathCreatesOwnerOnlyFilesOnWindows()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string keyPath = Path.Combine(temp.Path, "state.key");
+
+        _ = PicketStateProtectionKey.LoadOrCreatePath(keyPath);
+
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(keyPath);
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(string.Concat(keyPath, ".lock"));
     }
 }

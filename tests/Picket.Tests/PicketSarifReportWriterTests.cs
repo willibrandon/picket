@@ -25,7 +25,26 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"fullName\": \"Picket secrets scanner\"", sarif);
         Assert.Contains("\"informationUri\": \"https://github.com/willibrandon/picket\"", sarif);
         Assert.Contains("\"rules\": []", sarif);
+        Assert.Contains("\"executionSuccessful\": true", sarif);
         Assert.Contains("\"results\": []", sarif);
+    }
+
+    /// <summary>
+    /// Verifies an interrupted scan is represented as an unsuccessful SARIF invocation.
+    /// </summary>
+    [TestMethod]
+    public void WriteMarksIncompleteScan()
+    {
+        string sarif = PicketSarifReportWriter.Write([], [], scanComplete: false);
+        using JsonDocument document = JsonDocument.Parse(sarif);
+        JsonElement invocation = document.RootElement
+            .GetProperty("runs")[0]
+            .GetProperty("invocations")[0];
+
+        Assert.IsFalse(invocation.GetProperty("executionSuccessful").GetBoolean());
+        Assert.AreEqual(
+            "Picket did not scan every requested input.",
+            invocation.GetProperty("toolExecutionNotifications")[0].GetProperty("message").GetProperty("text").GetString());
     }
 
     /// <summary>

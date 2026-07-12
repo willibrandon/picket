@@ -48,6 +48,19 @@ internal static class OwnerOnlyFileSystem
         return new FileStream(path, options);
     }
 
+    internal static void RejectSymbolicLink(string path, string description)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+
+        var file = new FileInfo(path);
+        file.Refresh();
+        if (file.LinkTarget is not null || (file.Exists && (file.Attributes & FileAttributes.ReparsePoint) != 0))
+        {
+            throw new IOException($"{description} must not be a symbolic link: {path}");
+        }
+    }
+
     private static bool CanCreateFile(FileMode mode)
     {
         return mode is FileMode.Append or FileMode.Create or FileMode.CreateNew or FileMode.OpenOrCreate;
