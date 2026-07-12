@@ -600,6 +600,7 @@ internal static partial class Program
             ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
             : [];
         string? cacheDisplayPath = nativeMode ? CreateControlFileDisplayPath(root, cacheDir) : null;
+        string?[] controlDisplayPaths = [baselineDisplayPath, configDisplayPath, .. reportDisplayPaths, .. nativeIgnoreDisplayPaths];
         var findings = new List<Finding>();
         int startFileIndex = 0;
         if (scanCheckpoint is not null)
@@ -648,108 +649,57 @@ internal static partial class Program
         }
 
         int sourceFileCount = checkpointFiles?.Count ?? files.Count;
-        for (int fileIndex = startFileIndex; fileIndex < sourceFileCount; fileIndex++)
+        if (scanCheckpoint is null)
         {
-            CheckpointSourceFile? checkpointFile = checkpointFiles?[fileIndex];
-            SourceFile file = checkpointFile?.SourceFile ?? files[fileIndex];
-            if (hadScanError)
+            if (!hadScanError)
             {
-                break;
-            }
-
-            if (IsScanStopped(timeoutTimestamp, cancellationToken))
-            {
-                WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
-                hadScanError = true;
-                break;
-            }
-
-            if (IsControlFile(file, [baselineDisplayPath, configDisplayPath, .. reportDisplayPaths, .. nativeIgnoreDisplayPaths])
-                || IsControlDirectoryFile(file, cacheDisplayPath)
-                || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)))
-            {
-                try
+                int parallelScanDegree = GetSourceFileScanDegree(sourceFileCount - startFileIndex);
+                bool completed = ScanSourceFiles(
+                    files,
+                    startFileIndex,
+                    file => IsControlFile(file, controlDisplayPaths)
+                        || IsControlDirectoryFile(file, cacheDisplayPath)
+                        || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)),
+                    rules,
+                    picketIgnore,
+                    ignoreGitleaksAllow,
+                    maxDecodeDepth,
+                    maxTargetBytes,
+                    nativeMode,
+                    timeoutTimestamp,
+                    parallelScanDegree,
+                    scanCache,
+                    diagnosticsSession,
+                    findings,
+                    out bool stopped,
+                    out Exception? scanError,
+                    cancellationToken);
+                if (!completed)
                 {
-                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, checkpointFile!.Content, []);
-                }
-                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-                {
-                    Console.Error.WriteLine(exception.Message);
-                    hadScanError = true;
-                }
-
-                continue;
-            }
-
-            try
-            {
-                if (checkpointFile is null && file.Length > SourceFragmentReader.DefaultBufferSize)
-                {
-                    List<Finding> fragmentFindings = ScanSourceFileFragments(
-                        file,
-                        rules,
-                        picketIgnore,
-                        ignoreGitleaksAllow,
-                        maxDecodeDepth,
-                        maxTargetBytes,
-                        nativeMode,
-                        timeoutTimestamp,
-                        scanCache,
-                        diagnosticsSession,
-                        out bool stopped,
-                        cancellationToken);
                     if (stopped)
                     {
                         WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
-                        hadScanError = true;
-                        break;
+                    }
+                    else if (scanError is not null)
+                    {
+                        Console.Error.WriteLine(scanError.Message);
                     }
 
-                    findings.AddRange(fragmentFindings);
-                    continue;
+                    hadScanError = true;
+                }
+            }
+        }
+        else
+        {
+            for (int fileIndex = startFileIndex; fileIndex < sourceFileCount; fileIndex++)
+            {
+                CheckpointSourceFile? checkpointFile = checkpointFiles?[fileIndex];
+                SourceFile file = checkpointFile?.SourceFile ?? files[fileIndex];
+                if (hadScanError)
+                {
+                    break;
                 }
 
-                byte[] input = checkpointFile?.Content ?? file.ReadAllBytes();
-                if (picketIgnore.TryIgnoreContentHash(input))
-                {
-                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
-                    continue;
-                }
-
-                if (LooksBinary(input))
-                {
-                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
-                    continue;
-                }
-
-                diagnosticsSession?.RecordScanInput();
-                if (scanCache is not null && scanCache.TryRead(input, file.DisplayPath, file.SymlinkDisplayPath, out List<Finding>? cachedFindings))
-                {
-                    diagnosticsSession?.RecordCacheHit();
-                    findings.AddRange(cachedFindings);
-                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, cachedFindings);
-                    continue;
-                }
-
-                if (scanCache is not null)
-                {
-                    diagnosticsSession?.RecordCacheMiss();
-                }
-
-                IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
-                    input,
-                    file.DisplayPath,
-                    rules,
-                    ignoreGitleaksAllow,
-                    maxDecodeDepth: maxDecodeDepth,
-                    maxTargetBytes: maxTargetBytes,
-                    symlinkFile: file.SymlinkDisplayPath,
-                    enableCSharpStringConcatenation: nativeMode,
-                    isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
-                    cancellationToken: cancellationToken)
-                {
-                    EnableRandomnessScoring = nativeMode,
-                });
                 if (IsScanStopped(timeoutTimestamp, cancellationToken))
                 {
                     WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
@@ -757,19 +707,113 @@ internal static partial class Program
                     break;
                 }
 
-                findings.AddRange(scannedFindings);
-                if (scanCache is not null)
+                if (IsControlFile(file, controlDisplayPaths)
+                    || IsControlDirectoryFile(file, cacheDisplayPath)
+                    || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)))
                 {
-                    scanCache.Write(input, file.DisplayPath, scannedFindings);
-                    diagnosticsSession?.RecordCacheWrite();
+                    try
+                    {
+                        scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, checkpointFile!.Content, []);
+                    }
+                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                    {
+                        Console.Error.WriteLine(exception.Message);
+                        hadScanError = true;
+                    }
+
+                    continue;
                 }
 
-                scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, scannedFindings);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Console.Error.WriteLine(ex.Message);
-                hadScanError = true;
+                try
+                {
+                    if (checkpointFile is null && file.Length > SourceFragmentReader.DefaultBufferSize)
+                    {
+                        List<Finding> fragmentFindings = ScanSourceFileFragments(
+                            file,
+                            rules,
+                            picketIgnore,
+                            ignoreGitleaksAllow,
+                            maxDecodeDepth,
+                            maxTargetBytes,
+                            nativeMode,
+                            timeoutTimestamp,
+                            scanCache,
+                            diagnosticsSession,
+                            out bool stopped,
+                            cancellationToken);
+                        if (stopped)
+                        {
+                            WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
+                            hadScanError = true;
+                            break;
+                        }
+
+                        findings.AddRange(fragmentFindings);
+                        continue;
+                    }
+
+                    byte[] input = checkpointFile?.Content ?? file.ReadAllBytes();
+                    if (picketIgnore.TryIgnoreContentHash(input))
+                    {
+                        scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
+                        continue;
+                    }
+
+                    if (LooksBinary(input))
+                    {
+                        scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
+                        continue;
+                    }
+
+                    diagnosticsSession?.RecordScanInput();
+                    if (scanCache is not null && scanCache.TryRead(input, file.DisplayPath, file.SymlinkDisplayPath, out List<Finding>? cachedFindings))
+                    {
+                        diagnosticsSession?.RecordCacheHit();
+                        findings.AddRange(cachedFindings);
+                        scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, cachedFindings);
+                        continue;
+                    }
+
+                    if (scanCache is not null)
+                    {
+                        diagnosticsSession?.RecordCacheMiss();
+                    }
+
+                    IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
+                        input,
+                        file.DisplayPath,
+                        rules,
+                        ignoreGitleaksAllow,
+                        maxDecodeDepth: maxDecodeDepth,
+                        maxTargetBytes: maxTargetBytes,
+                        symlinkFile: file.SymlinkDisplayPath,
+                        enableCSharpStringConcatenation: nativeMode,
+                        isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
+                        cancellationToken: cancellationToken)
+                    {
+                        EnableRandomnessScoring = nativeMode,
+                    });
+                    if (IsScanStopped(timeoutTimestamp, cancellationToken))
+                    {
+                        WriteScanStoppedMessage(timeoutTimestamp, cancellationToken);
+                        hadScanError = true;
+                        break;
+                    }
+
+                    findings.AddRange(scannedFindings);
+                    if (scanCache is not null)
+                    {
+                        scanCache.Write(input, file.DisplayPath, scannedFindings);
+                        diagnosticsSession?.RecordCacheWrite();
+                    }
+
+                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, scannedFindings);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Console.Error.WriteLine(ex.Message);
+                    hadScanError = true;
+                }
             }
         }
 

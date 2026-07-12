@@ -14,6 +14,7 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
     private readonly HashSet<string> _contentSha256Hashes = CreateHashSet(contentSha256Hashes);
     private readonly Dictionary<string, string> _contentSha256Locations = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _matchedContentSha256Hashes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Lock _matchedContentSha256HashesLock = new();
 
     /// <summary>
     /// Gets an empty native ignore set.
@@ -153,7 +154,11 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
             return false;
         }
 
-        _matchedContentSha256Hashes.Add(hash);
+        lock (_matchedContentSha256HashesLock)
+        {
+            _matchedContentSha256Hashes.Add(hash);
+        }
+
         return true;
     }
 
@@ -163,19 +168,22 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
     /// <returns>The unmatched SHA-256 ignore entries in deterministic order.</returns>
     public List<string> GetUnmatchedContentHashEntries()
     {
-        var entries = new List<string>();
-        foreach (string hash in _contentSha256Hashes)
+        lock (_matchedContentSha256HashesLock)
         {
-            if (_matchedContentSha256Hashes.Contains(hash))
+            var entries = new List<string>();
+            foreach (string hash in _contentSha256Hashes)
             {
-                continue;
+                if (_matchedContentSha256Hashes.Contains(hash))
+                {
+                    continue;
+                }
+
+                entries.Add(FormatContentHashEntry(hash));
             }
 
-            entries.Add(FormatContentHashEntry(hash));
+            entries.Sort(StringComparer.OrdinalIgnoreCase);
+            return entries;
         }
-
-        entries.Sort(StringComparer.OrdinalIgnoreCase);
-        return entries;
     }
 
     private static string ComputeSha256(ReadOnlySpan<byte> content)

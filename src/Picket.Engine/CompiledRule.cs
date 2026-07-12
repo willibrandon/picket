@@ -17,6 +17,7 @@ internal sealed class CompiledRule(
     string regexContext,
     string pathRegexContext)
 {
+    private readonly Lock _regexCompilationLock = new();
     private readonly string _pattern = rule.Pattern;
     private readonly string _pathPattern = rule.PathPattern;
     private readonly bool _deferRegexCompilation = deferRegexCompilation;
@@ -52,20 +53,29 @@ internal sealed class CompiledRule(
             return null;
         }
 
-        if (regex is not null || !_deferRegexCompilation)
+        ByteRegex? compiledRegex = Volatile.Read(ref regex);
+        if (compiledRegex is not null || !_deferRegexCompilation)
         {
-            return regex;
+            return compiledRegex;
         }
 
-        try
+        lock (_regexCompilationLock)
         {
-            regex = GitleaksRegexCompiler.Compile(pattern);
-        }
-        catch (ByteRegexParseException exception)
-        {
-            throw new InvalidDataException($"{context} pattern '{pattern}': {exception.Message}", exception);
+            compiledRegex = regex;
+            if (compiledRegex is null)
+            {
+                try
+                {
+                    compiledRegex = GitleaksRegexCompiler.Compile(pattern);
+                    Volatile.Write(ref regex, compiledRegex);
+                }
+                catch (ByteRegexParseException exception)
+                {
+                    throw new InvalidDataException($"{context} pattern '{pattern}': {exception.Message}", exception);
+                }
+            }
         }
 
-        return regex;
+        return compiledRegex;
     }
 }

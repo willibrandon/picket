@@ -348,6 +348,7 @@ internal static partial class Program
         List<string?> nativeIgnoreDisplayPaths = respectNativeIgnoreFiles
             ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
             : [];
+        string?[] controlDisplayPaths = [configDisplayPath, reportDisplayPath, .. nativeIgnoreDisplayPaths];
         var findings = new List<Finding>();
         bool hadScanError = IsTimedOut(timeoutTimestamp);
         if (hadScanError)
@@ -355,91 +356,39 @@ internal static partial class Program
             Console.Error.WriteLine(TimeoutErrorMessage);
         }
 
-        foreach (SourceFile file in files)
+        int parallelScanDegree = GetSourceFileScanDegree(files.Count);
+        if (!hadScanError)
         {
-            if (hadScanError)
+            bool completed = ScanSourceFiles(
+                files,
+                startFileIndex: 0,
+                file => IsControlFile(file, controlDisplayPaths)
+                    || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)),
+                rules,
+                picketIgnore,
+                ignoreGitleaksAllow,
+                maxDecodeDepth,
+                maxTargetBytes,
+                nativeMode: true,
+                timeoutTimestamp,
+                parallelScanDegree,
+                scanCache: null,
+                diagnosticsSession,
+                findings,
+                out bool stopped,
+                out Exception? scanError,
+                CancellationToken.None);
+            if (!completed)
             {
-                break;
-            }
-
-            if (IsTimedOut(timeoutTimestamp))
-            {
-                Console.Error.WriteLine(TimeoutErrorMessage);
-                hadScanError = true;
-                break;
-            }
-
-            if (IsControlFile(file, [configDisplayPath, reportDisplayPath, .. nativeIgnoreDisplayPaths])
-                || (respectNativeIgnoreFiles && IsNativeIgnoreFile(file)))
-            {
-                continue;
-            }
-
-            try
-            {
-                if (file.Length > SourceFragmentReader.DefaultBufferSize)
-                {
-                    List<Finding> fragmentFindings = ScanSourceFileFragments(
-                        file,
-                        rules,
-                        picketIgnore,
-                        ignoreGitleaksAllow,
-                        maxDecodeDepth,
-                        maxTargetBytes,
-                        nativeMode: true,
-                        timeoutTimestamp,
-                        scanCache: null,
-                        diagnosticsSession,
-                        out bool stopped,
-                        CancellationToken.None);
-                    if (stopped)
-                    {
-                        Console.Error.WriteLine(TimeoutErrorMessage);
-                        hadScanError = true;
-                        break;
-                    }
-
-                    findings.AddRange(fragmentFindings);
-                    continue;
-                }
-
-                byte[] input = file.ReadAllBytes();
-                if (picketIgnore.TryIgnoreContentHash(input))
-                {
-                    continue;
-                }
-
-                if (LooksBinary(input))
-                {
-                    continue;
-                }
-
-                diagnosticsSession?.RecordScanInput();
-                IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
-                    input,
-                    file.DisplayPath,
-                    rules,
-                    ignoreGitleaksAllow,
-                    maxDecodeDepth: maxDecodeDepth,
-                    maxTargetBytes: maxTargetBytes,
-                    symlinkFile: file.SymlinkDisplayPath,
-                    enableCSharpStringConcatenation: true,
-                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
-                {
-                    EnableRandomnessScoring = true,
-                });
-                if (IsTimedOut(timeoutTimestamp))
+                if (stopped)
                 {
                     Console.Error.WriteLine(TimeoutErrorMessage);
-                    hadScanError = true;
-                    break;
+                }
+                else if (scanError is not null)
+                {
+                    Console.Error.WriteLine(scanError.Message);
                 }
 
-                findings.AddRange(scannedFindings);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Console.Error.WriteLine(ex.Message);
                 hadScanError = true;
             }
         }

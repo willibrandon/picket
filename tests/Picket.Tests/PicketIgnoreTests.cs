@@ -72,6 +72,26 @@ public sealed class PicketIgnoreTests
     }
 
     /// <summary>
+    /// Verifies that parallel scans can record the same matched content hash safely.
+    /// </summary>
+    [TestMethod]
+    public void TryIgnoreContentHashRecordsConcurrentMatches()
+    {
+        const int OperationCount = 256;
+        string hash = ComputeSha256("token-12345");
+        PicketIgnore ignore = PicketIgnore.FromLines([$"sha256:{hash}"]);
+        var ignored = new bool[OperationCount];
+
+        Parallel.For(0, OperationCount, operationIndex =>
+        {
+            ignored[operationIndex] = ignore.TryIgnoreContentHash(hash);
+        });
+
+        Assert.DoesNotContain(false, ignored);
+        Assert.IsEmpty(ignore.GetUnmatchedContentHashEntries());
+    }
+
+    /// <summary>
     /// Verifies that precomputed ignore identities require a complete SHA-256 value.
     /// </summary>
     [TestMethod]

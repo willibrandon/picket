@@ -49,6 +49,10 @@ public class SecretScanBenchmarks
         _nativeGitHubSecretScanningRules = CompiledRuleSet.Compile(_nativeGitHubSecretScanningRuleSet);
         _nativeGoogleApiKeyRule = CompiledRuleSet.Compile(SelectRules(_nativeDefaultRuleSet, "picket-google-api-key"));
         _gitleaksCompatibilityRules = CompiledRuleSet.Compile(_gitleaksCompatibilityRuleSet);
+        _nativeDefaultRules.CompileDeferredRegexes();
+        _nativeGitHubSecretScanningRules.CompileDeferredRegexes();
+        _nativeGoogleApiKeyRule.CompileDeferredRegexes();
+        _gitleaksCompatibilityRules.CompileDeferredRegexes();
     }
 
     /// <summary>
@@ -70,12 +74,32 @@ public class SecretScanBenchmarks
     }
 
     /// <summary>
+    /// Scans the embedded Gitleaks config with a fresh strict Gitleaks-compatible rule set.
+    /// </summary>
+    [Benchmark]
+    public int ScanEmbeddedGitleaksConfigWithFreshGitleaksCompatibilityRules()
+    {
+        CompiledRuleSet rules = CompiledRuleSet.Compile(_gitleaksCompatibilityRuleSet);
+        return Scan(_embeddedGitleaksConfig, "src/Picket.Compat/EmbeddedGitleaksConfig.cs", rules);
+    }
+
+    /// <summary>
     /// Scans the embedded Gitleaks config with native default rules.
     /// </summary>
     [Benchmark]
     public int ScanEmbeddedGitleaksConfigWithNativeDefault()
     {
         return Scan(_embeddedGitleaksConfig, "src/Picket.Compat/EmbeddedGitleaksConfig.cs", _nativeDefaultRules);
+    }
+
+    /// <summary>
+    /// Scans the embedded Gitleaks config with a fresh native default rule set.
+    /// </summary>
+    [Benchmark]
+    public int ScanEmbeddedGitleaksConfigWithFreshNativeDefaultRules()
+    {
+        CompiledRuleSet rules = CompiledRuleSet.Compile(_nativeDefaultRuleSet);
+        return Scan(_embeddedGitleaksConfig, "src/Picket.Compat/EmbeddedGitleaksConfig.cs", rules);
     }
 
     /// <summary>
@@ -102,7 +126,9 @@ public class SecretScanBenchmarks
     [Benchmark]
     public string CompileNativeDefaultRules()
     {
-        return CompiledRuleSet.Compile(_nativeDefaultRuleSet).Fingerprint;
+        CompiledRuleSet rules = CompiledRuleSet.Compile(_nativeDefaultRuleSet);
+        rules.CompileDeferredRegexes();
+        return rules.Fingerprint;
     }
 
     /// <summary>
@@ -111,7 +137,9 @@ public class SecretScanBenchmarks
     [Benchmark]
     public string CompileGitleaksCompatibilityRules()
     {
-        return CompiledRuleSet.Compile(_gitleaksCompatibilityRuleSet).Fingerprint;
+        CompiledRuleSet rules = CompiledRuleSet.Compile(_gitleaksCompatibilityRuleSet);
+        rules.CompileDeferredRegexes();
+        return rules.Fingerprint;
     }
 
     /// <summary>
@@ -120,7 +148,9 @@ public class SecretScanBenchmarks
     [Benchmark]
     public string CompileGitHubSecretScanningMappedNativeRules()
     {
-        return CompiledRuleSet.Compile(_nativeGitHubSecretScanningRuleSet).Fingerprint;
+        CompiledRuleSet rules = CompiledRuleSet.Compile(_nativeGitHubSecretScanningRuleSet);
+        rules.CompileDeferredRegexes();
+        return rules.Fingerprint;
     }
 
     private static int Scan(byte[] input, string fileName, CompiledRuleSet rules)

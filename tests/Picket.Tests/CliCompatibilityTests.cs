@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -89,6 +90,54 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
         Assert.DoesNotContain("\"schema\":\"picket.report.v1\"", result.Stdout);
         Assert.DoesNotContain("blobSha256", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that parallel directory scans preserve deterministic file order and diagnostics counts.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanPreservesFileOrderWhenScanningInParallel()
+    {
+        const int FileCount = 32;
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string diagnosticsPath = Path.Combine(root.Path, "diagnostics");
+        var expectedFiles = new string[FileCount];
+        for (int fileIndex = 0; fileIndex < FileCount; fileIndex++)
+        {
+            string fileName = $"{fileIndex:D2}.txt";
+            expectedFiles[fileIndex] = fileName;
+            File.WriteAllText(Path.Combine(root.Path, fileName), $"token-{fileIndex:D5}");
+        }
+
+        CliResult result = await RunCliAsync(
+            "dir",
+            root.Path,
+            "-c",
+            configPath,
+            "--exit-code",
+            "0",
+            "-f",
+            "json",
+            "--diagnostics",
+            "cpu",
+            "--diagnostics-dir",
+            diagnosticsPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        using JsonDocument report = JsonDocument.Parse(result.Stdout);
+        string[] actualFiles = [.. report.RootElement
+            .EnumerateArray()
+            .Select(finding => finding.GetProperty("File").GetString()!)];
+        Assert.HasCount(FileCount, actualFiles);
+        for (int fileIndex = 0; fileIndex < FileCount; fileIndex++)
+        {
+            Assert.AreEqual(expectedFiles[fileIndex], actualFiles[fileIndex]);
+        }
+
+        string diagnostics = File.ReadAllText(Path.Combine(diagnosticsPath, "cpu.json"));
+        Assert.Contains($"\"scanInputs\": {FileCount}", diagnostics);
+        Assert.Contains($"\"findings\": {FileCount}", diagnostics);
     }
 
     /// <summary>
@@ -1401,11 +1450,15 @@ public sealed class CliCompatibilityTests
     [TestMethod]
     public async Task NativeScanUsesCacheDirectoryWithoutScanningCacheFiles()
     {
+        const int FileCount = 16;
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteFindingWordConfig(root.Path);
         string cachePath = Path.Combine(root.Path, ".picket", "cache");
         string diagnosticsDir = Path.Combine(root.Path, "diagnostics");
-        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "finding");
+        for (int fileIndex = 0; fileIndex < FileCount; fileIndex++)
+        {
+            File.WriteAllText(Path.Combine(root.Path, $"secret-{fileIndex:D2}.txt"), "finding");
+        }
 
         CliResult first = await RunCliAsync("scan", root.Path, "-c", configPath, "--cache-dir", cachePath, "-f", "jsonl").ConfigureAwait(false);
         CliResult second = await RunCliAsync(
@@ -1427,12 +1480,13 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, first.ExitCode);
         Assert.AreEqual(1, second.ExitCode);
         Assert.IsTrue(Directory.Exists(cachePath));
-        Assert.HasCount(1, secondLines);
-        Assert.Contains("\"file\":\"secret.txt\"", secondLines[0]);
+        Assert.HasCount(FileCount, secondLines);
+        Assert.Contains("\"file\":\"secret-00.txt\"", secondLines[0]);
+        Assert.Contains("\"file\":\"secret-15.txt\"", secondLines[^1]);
         Assert.DoesNotContain(".picket/cache", second.Stdout);
-        Assert.Contains("\"scanInputs\": 1", cpu);
-        Assert.Contains("\"findings\": 1", cpu);
-        Assert.Contains("\"cacheHits\": 1", cpu);
+        Assert.Contains($"\"scanInputs\": {FileCount}", cpu);
+        Assert.Contains($"\"findings\": {FileCount}", cpu);
+        Assert.Contains($"\"cacheHits\": {FileCount}", cpu);
         Assert.Contains("\"cacheMisses\": 0", cpu);
         Assert.Contains("\"cacheWrites\": 0", cpu);
     }
@@ -2396,6 +2450,42 @@ public sealed class CliCompatibilityTests
         Assert.DoesNotContain("token-99991", baseline);
         Assert.AreEqual(0, scan.ExitCode);
         Assert.IsEmpty(scan.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that parallel baseline creation preserves deterministic file order.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreatePreservesFileOrderWhenScanningInParallel()
+    {
+        const int FileCount = 16;
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string baselinePath = Path.Combine(root.Path, "baseline.json");
+        for (int fileIndex = 0; fileIndex < FileCount; fileIndex++)
+        {
+            File.WriteAllText(Path.Combine(root.Path, $"{fileIndex:D2}.txt"), $"token-{fileIndex:D5}");
+        }
+
+        CliResult result = await RunCliAsync(
+            "baseline",
+            "create",
+            root.Path,
+            "-c",
+            configPath,
+            "-r",
+            baselinePath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        using JsonDocument baseline = JsonDocument.Parse(File.ReadAllText(baselinePath));
+        string[] files = [.. baseline.RootElement
+            .EnumerateArray()
+            .Select(finding => finding.GetProperty("File").GetString()!)];
+        Assert.HasCount(FileCount, files);
+        for (int fileIndex = 0; fileIndex < FileCount; fileIndex++)
+        {
+            Assert.AreEqual($"{fileIndex:D2}.txt", files[fileIndex]);
+        }
     }
 
     /// <summary>

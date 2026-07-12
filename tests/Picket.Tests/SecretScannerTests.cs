@@ -34,6 +34,36 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that concurrent scans can compile and share prevalidated regexes on first use.
+    /// </summary>
+    [TestMethod]
+    public void ScanSupportsConcurrentFirstUseOfPrevalidatedRegexes()
+    {
+        const int ScanCount = 64;
+        byte[] input = Encoding.UTF8.GetBytes("token-12345");
+        SecretRule rule = SecretRule.Create(
+            "token",
+            "Token",
+            "token-[0-9]+",
+            pathPattern: "[.]txt$",
+            allowlists: [SecretAllowlist.Create(
+                pathPatterns: ["^excluded/"],
+                regexPatterns: ["never-match"])]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([rule], regexesPrevalidated: true));
+        var findingCounts = new int[ScanCount];
+
+        Parallel.For(0, ScanCount, scanIndex =>
+        {
+            findingCounts[scanIndex] = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules)).Count;
+        });
+
+        for (int scanIndex = 0; scanIndex < ScanCount; scanIndex++)
+        {
+            Assert.AreEqual(1, findingCounts[scanIndex]);
+        }
+    }
+
+    /// <summary>
     /// Verifies that reported columns after a newline match Gitleaks' compatibility location model.
     /// </summary>
     [TestMethod]

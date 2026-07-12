@@ -197,32 +197,32 @@ internal sealed class CompatibilityDiagnosticsSession
 
     internal void RecordCacheHit()
     {
-        _cacheHitCount++;
+        Interlocked.Increment(ref _cacheHitCount);
     }
 
     internal void RecordCacheMiss()
     {
-        _cacheMissCount++;
+        Interlocked.Increment(ref _cacheMissCount);
     }
 
     internal void RecordCacheWrite()
     {
-        _cacheWriteCount++;
+        Interlocked.Increment(ref _cacheWriteCount);
     }
 
     internal void RecordFindingCount(int count)
     {
-        _findingCount = count;
+        Interlocked.Exchange(ref _findingCount, count);
     }
 
     internal void RecordScanInput()
     {
-        _scanInputCount++;
+        Interlocked.Increment(ref _scanInputCount);
     }
 
     internal void RecordScanInputs(int count)
     {
-        _scanInputCount += count;
+        Interlocked.Add(ref _scanInputCount, count);
     }
 
     private bool TryStartHttp(TextWriter error)
@@ -425,20 +425,20 @@ internal sealed class CompatibilityDiagnosticsSession
 
     private void AppendScanCounters(StringBuilder builder)
     {
-        AppendNumber(builder, "scanInputs", _scanInputCount);
-        AppendNumber(builder, "findings", _findingCount);
-        AppendNumber(builder, "cacheHits", _cacheHitCount);
-        AppendNumber(builder, "cacheMisses", _cacheMissCount);
-        AppendNumber(builder, "cacheWrites", _cacheWriteCount);
+        AppendNumber(builder, "scanInputs", Volatile.Read(ref _scanInputCount));
+        AppendNumber(builder, "findings", Volatile.Read(ref _findingCount));
+        AppendNumber(builder, "cacheHits", Volatile.Read(ref _cacheHitCount));
+        AppendNumber(builder, "cacheMisses", Volatile.Read(ref _cacheMissCount));
+        AppendNumber(builder, "cacheWrites", Volatile.Read(ref _cacheWriteCount));
     }
 
     private void AppendInlineScanCounters(StringBuilder builder)
     {
-        AppendInlineNumber(builder, "scanInputs", _scanInputCount);
-        AppendInlineNumber(builder, "findings", _findingCount);
-        AppendInlineNumber(builder, "cacheHits", _cacheHitCount);
-        AppendInlineNumber(builder, "cacheMisses", _cacheMissCount);
-        AppendInlineNumber(builder, "cacheWrites", _cacheWriteCount);
+        AppendInlineNumber(builder, "scanInputs", Volatile.Read(ref _scanInputCount));
+        AppendInlineNumber(builder, "findings", Volatile.Read(ref _findingCount));
+        AppendInlineNumber(builder, "cacheHits", Volatile.Read(ref _cacheHitCount));
+        AppendInlineNumber(builder, "cacheMisses", Volatile.Read(ref _cacheMissCount));
+        AppendInlineNumber(builder, "cacheWrites", Volatile.Read(ref _cacheWriteCount));
     }
 
     private void AppendTraceEvent(StringBuilder builder, string name, DateTimeOffset timestamp, double elapsedMilliseconds, int exitCode, bool includeScanCounters = false)

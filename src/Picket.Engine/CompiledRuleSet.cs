@@ -68,6 +68,18 @@ public sealed class CompiledRuleSet(RuleSet rules)
         return new CompiledRuleSet(rules);
     }
 
+    internal void CompileDeferredRegexes()
+    {
+        foreach (CompiledRule compiledRule in CompiledRules)
+        {
+            _ = compiledRule.Regex;
+            _ = compiledRule.PathRegex;
+            CompileDeferredAllowlists(compiledRule.Allowlists);
+        }
+
+        CompileDeferredAllowlists(Allowlists);
+    }
+
     internal bool TryGetRandomnessThreshold(string ruleId, out double threshold)
     {
         if (_randomnessThresholds is null)
@@ -83,6 +95,15 @@ public sealed class CompiledRuleSet(RuleSet rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
         return rules;
+    }
+
+    private static void CompileDeferredAllowlists(List<CompiledAllowlist> allowlists)
+    {
+        foreach (CompiledAllowlist allowlist in allowlists)
+        {
+            _ = allowlist.PathRegexes;
+            _ = allowlist.Regexes;
+        }
     }
 
     private static List<CompiledRule> CompileRules(RuleSet rules)
