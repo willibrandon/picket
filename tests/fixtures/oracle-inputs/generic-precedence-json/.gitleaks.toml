@@ -1,0 +1,18 @@
+title = "picket generic precedence oracle"
+
+[[rules]]
+id = "generic-oracle-token"
+description = "Synthetic generic token used for oracle compatibility tests."
+regex = '''token\s*=\s*["']?([a-z0-9-]{12,})'''
+secretGroup = 1
+keywords = [
+    "token",
+]
+
+[[rules]]
+id = "provider-oracle-token"
+description = "Synthetic provider token used for oracle compatibility tests."
+regex = '''oracle-secret-[0-9]{5}'''
+keywords = [
+    "oracle-secret-",
+]

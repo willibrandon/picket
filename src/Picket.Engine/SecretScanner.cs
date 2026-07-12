@@ -9,6 +9,11 @@ namespace Picket.Engine;
 /// </summary>
 public sealed class SecretScanner
 {
+    /// <summary>
+    /// Gets the stable version of matching behavior that participates in cache and checkpoint identities.
+    /// </summary>
+    public const string MatchingBehaviorVersion = "picket.matching.v2";
+
     private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
 
     /// <summary>
@@ -99,9 +104,86 @@ public sealed class SecretScanner
 
     private static List<Finding> CompleteScan(ScanRequest request, List<Finding> findings)
     {
-        return request.EnableRandomnessScoring
+        List<Finding> completedFindings = request.EnableRandomnessScoring
             ? SecretRandomnessFindingProcessor.Apply(findings, request.RuleSet)
             : findings;
+        return ApplyGitleaksGenericRulePrecedence(completedFindings);
+    }
+
+    private static List<Finding> ApplyGitleaksGenericRulePrecedence(List<Finding> findings)
+    {
+        if (findings.Count < 2)
+        {
+            return findings;
+        }
+
+        Dictionary<(int StartLine, string Commit), List<Finding>>? specificFindingsByLocation = null;
+        for (int i = 0; i < findings.Count; i++)
+        {
+            Finding finding = findings[i];
+            if (IsGenericRule(finding.RuleID))
+            {
+                continue;
+            }
+
+            specificFindingsByLocation ??= [];
+            (int StartLine, string Commit) key = (finding.StartLine, finding.Commit);
+            if (!specificFindingsByLocation.TryGetValue(key, out List<Finding>? specificFindings))
+            {
+                specificFindings = [];
+                specificFindingsByLocation.Add(key, specificFindings);
+            }
+
+            specificFindings.Add(finding);
+        }
+
+        if (specificFindingsByLocation is null)
+        {
+            return findings;
+        }
+
+        List<Finding>? filteredFindings = null;
+        for (int i = 0; i < findings.Count; i++)
+        {
+            Finding finding = findings[i];
+            if (IsGenericRule(finding.RuleID)
+                && specificFindingsByLocation.TryGetValue((finding.StartLine, finding.Commit), out List<Finding>? specificFindings)
+                && ContainsSpecificSecret(specificFindings, finding.Secret))
+            {
+                if (filteredFindings is null)
+                {
+                    filteredFindings = new List<Finding>(findings.Count - 1);
+                    for (int precedingIndex = 0; precedingIndex < i; precedingIndex++)
+                    {
+                        filteredFindings.Add(findings[precedingIndex]);
+                    }
+                }
+
+                continue;
+            }
+
+            filteredFindings?.Add(finding);
+        }
+
+        return filteredFindings ?? findings;
+    }
+
+    private static bool ContainsSpecificSecret(List<Finding> specificFindings, string genericSecret)
+    {
+        for (int i = 0; i < specificFindings.Count; i++)
+        {
+            if (specificFindings[i].Secret.Contains(genericSecret, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsGenericRule(string ruleId)
+    {
+        return ruleId.Contains("generic", StringComparison.OrdinalIgnoreCase);
     }
 
     private static SecretRandomnessAssessment? CreateRandomnessAssessment(

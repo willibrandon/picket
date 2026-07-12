@@ -78,7 +78,9 @@ public sealed class ScanCacheKey(
         ScanCacheStorageMode storageMode)
     {
         var builder = new StringBuilder();
-        builder.Append("picket.scan-cache-key.v2\nrandomness-model:");
+        builder.Append("picket.scan-cache-key.v3\nmatching-behavior:");
+        builder.Append(SecretScanner.MatchingBehaviorVersion);
+        builder.Append("\nrandomness-model:");
         builder.Append(SecretRandomnessScorer.ModelVersion);
         builder.Append("\nrules:");
         builder.Append(ruleSetFingerprint);

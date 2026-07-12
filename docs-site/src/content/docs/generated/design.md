@@ -502,6 +502,7 @@ Compatibility matching reproduces Gitleaks' observable algorithm:
 - all matches for each rule are considered,
 - captures are extracted per rule,
 - `secretGroup = 0` uses the first non-empty capture group when Gitleaks does,
+- a finding whose rule ID contains `generic` yields to a differently named non-generic rule when both findings have the same start line and commit and the non-generic secret contains the generic secret,
 - entropy uses strict `>` comparison,
 - allowlists run in the same order and against the same targets,
 - skipped rules and `skipReport` follow Gitleaks.

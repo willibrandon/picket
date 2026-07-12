@@ -52,6 +52,51 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that a specific rule takes precedence over a generic rule for the same secret and line.
+    /// </summary>
+    [TestMethod]
+    public void ScanPrefersSpecificRuleOverGenericRuleOnSameLine()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token = secret-12345; provider = prefix-secret-12345-suffix");
+        CompiledRuleSet rules = CompileGenericPrecedenceRules();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "source.txt", rules, maxDecodeDepth: 0));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("provider-oracle-token", findings[0].RuleID);
+        Assert.AreEqual("prefix-secret-12345-suffix", findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that generic precedence does not suppress findings on another source line.
+    /// </summary>
+    [TestMethod]
+    public void ScanKeepsGenericRuleWhenSpecificRuleMatchesAnotherLine()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("token = oracle-secret-12345\nprovider = oracle-secret-12345");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "generic-oracle-token",
+                "Generic token",
+                "token\\s*=\\s*(oracle-secret-[0-9]{5})",
+                secretGroup: 1,
+                keywords: ["token"]),
+            SecretRule.Create(
+                "provider-oracle-token",
+                "Provider token",
+                "provider\\s*=\\s*(oracle-secret-[0-9]{5})",
+                secretGroup: 1,
+                keywords: ["provider"]),
+        ]));
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "source.txt", rules, maxDecodeDepth: 0));
+
+        Assert.HasCount(2, findings);
+        Assert.AreEqual("generic-oracle-token", findings[0].RuleID);
+        Assert.AreEqual("provider-oracle-token", findings[1].RuleID);
+    }
+
+    /// <summary>
     /// Verifies that fragment origin metadata produces absolute locations and preserves whole-blob identity.
     /// </summary>
     [TestMethod]
@@ -1192,6 +1237,23 @@ public sealed class SecretScannerTests
             """,
             "memory");
         return CompiledRuleSet.Compile(sourceRules);
+    }
+
+    private static CompiledRuleSet CompileGenericPrecedenceRules()
+    {
+        return CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "generic-oracle-token",
+                "Generic token",
+                "token\\s*=\\s*(secret-[0-9]{5})",
+                secretGroup: 1,
+                keywords: ["token"]),
+            SecretRule.Create(
+                "provider-oracle-token",
+                "Provider token",
+                "prefix-secret-[0-9]{5}-suffix",
+                keywords: ["prefix-secret-"]),
+        ]));
     }
 
     private static RuleSet SelectRules(RuleSet ruleSet, string ruleId)

@@ -301,6 +301,10 @@ Byte-oriented secret scanner.
 
 - `Scan(ScanRequest)` - Scans a byte buffer and returns findings in rule evaluation order.
 
+### Fields
+
+- `MatchingBehaviorVersion` - Gets the stable version of matching behavior that participates in cache and checkpoint identities.
+
 ## ShannonEntropy
 
 `Picket.Engine.ShannonEntropy`

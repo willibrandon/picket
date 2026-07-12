@@ -55,6 +55,26 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
+    /// Verifies that scanner matching behavior participates in scan-cache identities.
+    /// </summary>
+    [TestMethod]
+    public void ScanCacheKeyIncludesMatchingBehaviorVersion()
+    {
+        string ruleSetFingerprint = new('a', 64);
+        ScanCacheKey key = ScanCacheKey.Create(ruleSetFingerprint, maxDecodeDepth: 5, maxTargetBytes: null);
+        string material = string.Concat(
+            "picket.scan-cache-key.v3\nmatching-behavior:",
+            SecretScanner.MatchingBehaviorVersion,
+            "\nrandomness-model:",
+            SecretRandomnessScorer.ModelVersion,
+            "\nrules:",
+            ruleSetFingerprint,
+            "\ndecode:5\ntarget:none\nignore-gitleaks-allow:false\nstorage-mode:SecretHashOnly");
+
+        Assert.AreEqual(BlobHasher.ComputeSha256Hex(material), key.Fingerprint);
+    }
+
+    /// <summary>
     /// Verifies cached findings are rehydrated with the current source path.
     /// </summary>
     [TestMethod]

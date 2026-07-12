@@ -10,6 +10,8 @@ Each entry is addressed by:
 - an address discriminator,
 - scanner configuration fingerprint.
 
+The cache key includes the rule-set fingerprint, scanner matching-behavior version, randomness-model version, decoder depth, target-size limit, inline-allow behavior, address mode, and storage mode. Matching changes therefore invalidate entries even when the selected rules and CLI options are unchanged.
+
 The address discriminator is the narrowest safe value for the active scan behavior. Path-sensitive rule sets use the logical report path. Path-insensitive native scans that can run file-extension-specific decoders use the file extension. Scans with no path-dependent rule or decoder behavior use a content-only discriminator, so identical blobs can reuse matching work across paths while reports are rehydrated with the current path and symlink provenance.
 
 Large local files are hashed through a bounded stream before cache lookup. The cache key and every cached finding retain the SHA-256 identity of the complete file, not an individual scan fragment. On a cache miss, Picket rewinds the file for scanning and rejects the result if the content identity changes before the scan completes.

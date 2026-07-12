@@ -53,6 +53,41 @@ public sealed class CompatibilityOracleFixtureTests
     }
 
     /// <summary>
+    /// Verifies that provider-specific findings take precedence over generic findings like Gitleaks.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task GenericPrecedenceJsonReportMatchesPromotedGitleaksOracle()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "generic-precedence-json");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "generic-precedence-json");
+        string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", "json");
+        string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", "json");
+        using TempDirectory output = TempDirectory.Create();
+        string reportPath = Path.Combine(output.Path, "report.json");
+
+        CliResult result = await RunCliFromDirectoryAsync(
+            inputRoot,
+            "dir",
+            ".",
+            "-c",
+            ".gitleaks.toml",
+            "-f",
+            "json",
+            "-r",
+            reportPath,
+            "--no-banner",
+            "--no-color").ConfigureAwait(false);
+
+        Assert.AreEqual(expectedReport, promotedPicketReport);
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+        Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+    }
+
+    /// <summary>
     /// Verifies that the stdin JSON fixture still matches the promoted Gitleaks oracle report.
     /// </summary>
     [TestMethod]
