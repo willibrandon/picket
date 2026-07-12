@@ -47,4 +47,48 @@ public sealed class PicketStateProtectionKeyTests
 
         CollectionAssert.AreEqual(keys[0], File.ReadAllBytes(keyPath));
     }
+
+    /// <summary>
+    /// Verifies key repair waits for a Windows reader that temporarily blocks atomic replacement.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    public async Task LoadOrCreatePathWaitsForTransientDestinationReader()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string keyPath = Path.Combine(temp.Path, "state.key");
+        File.WriteAllBytes(keyPath, [0x01]);
+        CancellationToken cancellationToken = TestContext.CancellationToken;
+        FileStream reader = File.Open(keyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        Task<byte[]> repair = Task.Run(
+            () => PicketStateProtectionKey.LoadOrCreatePath(keyPath),
+            cancellationToken);
+        try
+        {
+            bool tempFileObserved = false;
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                if (Directory.EnumerateFiles(temp.Path, "state.key.*.tmp").Any())
+                {
+                    tempFileObserved = true;
+                    break;
+                }
+
+                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            }
+
+            Assert.IsTrue(tempFileObserved);
+            Assert.IsFalse(repair.IsCompleted);
+        }
+        finally
+        {
+            reader.Dispose();
+        }
+
+        byte[] key = await repair.ConfigureAwait(false);
+
+        Assert.HasCount(32, key);
+        CollectionAssert.AreEqual(key, File.ReadAllBytes(keyPath));
+    }
 }

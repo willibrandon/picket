@@ -5,9 +5,9 @@ namespace Picket.Store;
 
 internal static class PicketStateProtectionKey
 {
+    private const int FileOperationRetryCount = 200;
+    private const int FileOperationRetryDelayMilliseconds = 25;
     private const int KeyByteLength = 32;
-    private const int LockRetryCount = 200;
-    private const int LockRetryDelayMilliseconds = 25;
     private const string LockSuffix = ".lock";
     private const string ProductDirectoryName = "Picket";
 
@@ -62,7 +62,7 @@ internal static class PicketStateProtectionKey
                 stream.Flush(flushToDisk: true);
             }
 
-            File.Move(tempPath, keyPath, overwrite: true);
+            MoveIntoPlace(tempPath, keyPath);
             OwnerOnlyFileSystem.ProtectFile(keyPath);
             return key;
         }
@@ -80,7 +80,7 @@ internal static class PicketStateProtectionKey
     private static FileStream OpenLock(string lockPath)
     {
         IOException? lastException = null;
-        for (int attempt = 0; attempt < LockRetryCount; attempt++)
+        for (int attempt = 0; attempt < FileOperationRetryCount; attempt++)
         {
             try
             {
@@ -89,7 +89,7 @@ internal static class PicketStateProtectionKey
             catch (IOException exception)
             {
                 lastException = exception;
-                Thread.Sleep(LockRetryDelayMilliseconds);
+                Thread.Sleep(FileOperationRetryDelayMilliseconds);
             }
         }
 
@@ -111,19 +111,61 @@ internal static class PicketStateProtectionKey
                 return null;
             }
 
-            byte[] existing = File.ReadAllBytes(keyPath);
-            if (existing.Length == KeyByteLength)
+            using FileStream stream = OpenKeyForRead(keyPath);
+            if (stream.Length != KeyByteLength)
             {
-                return existing;
+                return null;
             }
 
-            CryptographicOperations.ZeroMemory(existing);
+            byte[] existing = GC.AllocateUninitializedArray<byte>(KeyByteLength);
+            try
+            {
+                stream.ReadExactly(existing);
+                return existing;
+            }
+            catch
+            {
+                CryptographicOperations.ZeroMemory(existing);
+                throw;
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
         }
 
         return null;
+    }
+
+    private static FileStream OpenKeyForRead(string keyPath)
+    {
+        var options = new FileStreamOptions
+        {
+            Access = FileAccess.Read,
+            Mode = FileMode.Open,
+            Share = FileShare.Read | FileShare.Delete,
+            Options = FileOptions.SequentialScan,
+        };
+        return new FileStream(keyPath, options);
+    }
+
+    private static void MoveIntoPlace(string tempPath, string keyPath)
+    {
+        Exception? lastException = null;
+        for (int attempt = 0; attempt < FileOperationRetryCount; attempt++)
+        {
+            try
+            {
+                File.Move(tempPath, keyPath, overwrite: true);
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                lastException = exception;
+                Thread.Sleep(FileOperationRetryDelayMilliseconds);
+            }
+        }
+
+        throw new IOException("Timed out while replacing the state-protection key.", lastException);
     }
 
     private static string GetKeyPath(string fileName)
