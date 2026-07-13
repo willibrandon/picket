@@ -411,6 +411,26 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that narrow AOT metadata suppressions are documented, tracked, and covered by real publish gates.
+    /// </summary>
+    [TestMethod]
+    public void AotMetadataSuppressionsAreTrackedAndPublishTested()
+    {
+        string cliProject = ReadRepositoryFile("src/Picket.Cli/Picket.Cli.csproj");
+        string tuiProject = ReadRepositoryFile("src/Picket.Tui/Picket.Tui.csproj");
+        string tuiCliProject = ReadRepositoryFile("src/Picket.Tui.Cli/Picket.Tui.Cli.csproj");
+        string workflow = ReadRepositoryFile(".github/workflows/ci.yml");
+
+        AssertAotMetadataSuppression(cliProject);
+        AssertAotMetadataSuppression(tuiProject);
+        AssertAotMetadataSuppression(tuiCliProject);
+
+        Assert.Contains("dotnet publish src/Picket.Cli/Picket.Cli.csproj", workflow);
+        Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        Assert.Contains("PublishProfile=release-speed", workflow);
+    }
+
+    /// <summary>
     /// Verifies that release documentation covers the named Native AOT publish profiles.
     /// </summary>
     [TestMethod]
@@ -2927,6 +2947,12 @@ public sealed partial class RepositoryConventionTests
             .ToArray() ?? [];
         Assert.HasCount(1, properties, $"Unexpected project property {name} with condition {condition}.");
         Assert.AreEqual(expected, properties[0].Value, $"Unexpected project property {name} with condition {condition}.");
+    }
+
+    private static void AssertAotMetadataSuppression(string project)
+    {
+        Assert.Contains("<NoWarn>$(NoWarn);IL3058</NoWarn>", project);
+        Assert.Contains("https://github.com/willibrandon/picket/issues/1", project);
     }
 
     private static void AssertProfileStripSymbolsExceptMacOs(XElement profile)

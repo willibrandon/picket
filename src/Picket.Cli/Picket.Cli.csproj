@@ -22,7 +22,8 @@
     <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <!-- System.CommandLine 2.0.9 is documented as trim-friendly/AOT-capable and its source project is annotated
-         IsAotCompatible=true, but the shipped assembly does not carry the metadata consumed by IL3058. -->
+         IsAotCompatible=true, but the shipped assembly does not carry the metadata consumed by IL3058.
+         Tracking: https://github.com/willibrandon/picket/issues/1 -->
     <NoWarn>$(NoWarn);IL3058</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
     <OptimizationPreference>Speed</OptimizationPreference>
