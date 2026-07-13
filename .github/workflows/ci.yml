@@ -110,6 +110,7 @@ jobs:
           $fixtureDirectory = Join-Path $env:RUNNER_TEMP "picket-zstd-smoke-$muslRid"
           $sourcePath = Join-Path $fixtureDirectory 'secret.txt'
           $archivePath = "$sourcePath.zst"
+          $alpineImage = 'alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce'
           New-Item -ItemType Directory -Force -Path $fixtureDirectory | Out-Null
           Set-Content -LiteralPath $sourcePath -NoNewline -Encoding utf8NoBOM -Value ('aws_access_key_id = ' + 'AKIA' + 'ABCDEFGHIJKLMNOP')
           & zstd -q -f $sourcePath -o $archivePath
@@ -117,7 +118,7 @@ jobs:
             throw "zstd fixture creation failed with exit code $LASTEXITCODE."
           }
 
-          $scanOutput = & (Join-Path $publishOutput 'picket') scan $archivePath --report-format jsonl --redact=100 2>&1
+          $scanOutput = & docker run --rm --read-only --network none --user 65534:65534 --volume "${publishOutput}:/picket:ro" --volume "${fixtureDirectory}:/fixtures:ro" $alpineImage /picket/picket scan /fixtures/secret.txt.zst --report-format jsonl --redact=100 2>&1
           $scanExitCode = $LASTEXITCODE
           if ($scanExitCode -ne 1) {
             throw "musl zstandard scan returned exit code $scanExitCode."
