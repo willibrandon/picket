@@ -491,12 +491,18 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("THIRD-PARTY-NOTICES.txt", cliProject);
         Assert.Contains("Build-ZstandardMusl.cs", ciWorkflow);
         Assert.Contains("Build-ZstandardMusl.cs", releaseWorkflow);
+        Assert.Contains("Publish-LinuxMusl.cs", ciWorkflow);
+        Assert.Contains("Publish-LinuxMusl.cs", releaseWorkflow);
+        Assert.Contains("mcr.microsoft.com/dotnet/sdk@sha256:999d96611287a92e064668b8aec18ee97cd7c2f3e5796d22f1e8b720d944ff69", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
         Assert.Contains("Smoke test Linux musl zstandard scan", ciWorkflow);
         Assert.Contains("Smoke test Linux musl zstandard scan", releaseWorkflow);
         Assert.Contains("musl-tools zstd", ciWorkflow);
         Assert.Contains("musl-tools zstd", releaseWorkflow);
         Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps@sha256:", ciWorkflow);
         Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps@sha256:", releaseWorkflow);
+        Assert.Contains("readelf", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
+        Assert.Contains("ld-musl-", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
+        Assert.Contains("ToolPackageOutputDirectory", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
         Assert.Contains("--read-only --network none --user 65534:65534", ciWorkflow);
         Assert.Contains("--read-only --network none --user 65534:65534", releaseWorkflow);
         Assert.Contains("aws-access-token", ciWorkflow);
@@ -1824,7 +1830,7 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(13, scripts);
+        Assert.HasCount(14, scripts);
 
         foreach (string scriptPath in scripts)
         {

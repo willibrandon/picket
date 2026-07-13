@@ -98,8 +98,8 @@ jobs:
         run: |
           $muslRid = if ('${{ matrix.rid }}' -eq 'linux-x64') { 'linux-musl-x64' } else { 'linux-musl-arm64' }
           $publishOutput = Join-Path $env:RUNNER_TEMP "picket-native-$muslRid"
-          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $publishOutput
-          dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $publishOutput
+          $packageOutput = Join-Path $env:RUNNER_TEMP 'picket-packages'
+          dotnet run --file ./scripts/Publish-LinuxMusl.cs -- -RuntimeIdentifier $muslRid -OutputDirectory $publishOutput -ToolPackageOutputDirectory $packageOutput -ZstandardLibrary $env:PICKET_ZSTANDARD_MUSL_LIBRARY
 
       - name: Smoke test Linux musl zstandard scan
         if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
@@ -110,7 +110,7 @@ jobs:
           $fixtureDirectory = Join-Path $env:RUNNER_TEMP "picket-zstd-smoke-$muslRid"
           $sourcePath = Join-Path $fixtureDirectory 'secret.txt'
           $archivePath = "$sourcePath.zst"
-          $runtimeImage = 'mcr.microsoft.com/dotnet/runtime-deps@sha256:dede21dd11890c0f687e49408e4479e129fb9464809b9a1ce162fbad004cf987'
+          $runtimeImage = 'mcr.microsoft.com/dotnet/runtime-deps@sha256:297e573be253dafcba4eee8ab29e8e05ab3c5f13f966b3537af2256864de5668'
           New-Item -ItemType Directory -Force -Path $fixtureDirectory | Out-Null
           Set-Content -LiteralPath $sourcePath -NoNewline -Encoding utf8NoBOM -Value ('aws_access_key_id = ' + 'AKIA' + 'ABCDEFGHIJKLMNOP')
           & zstd -q -f $sourcePath -o $archivePath
@@ -147,12 +147,6 @@ jobs:
           dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release --no-build -p:IncludeSymbols=false -o $packageOutput
           dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $packageOutput
           dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $packageOutput
-
-          if ('${{ matrix.rid }}' -eq 'linux-x64' -or '${{ matrix.rid }}' -eq 'linux-arm64') {
-            $muslRid = if ('${{ matrix.rid }}' -eq 'linux-x64') { 'linux-musl-x64' } else { 'linux-musl-arm64' }
-            dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $packageOutput
-            dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r $muslRid --no-restore -o $packageOutput
-          }
 
       - name: Validate Azure DevOps VSIX package
         if: matrix.os == 'ubuntu-latest'

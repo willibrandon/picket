@@ -73,6 +73,7 @@ Current utilities:
 | `Capture-GitHubSecretScanningOracle.cs` | Capture sanitized hosted GitHub secret-scanning alert metadata. |
 | `Compare-GitHubSecretScanningOracle.cs` | Compare hosted alert metadata to a Picket JSONL report. |
 | `Measure-ScannerPerformance.cs` | Measure direct scanner processes from a reproducible scenario manifest, compare canonical finding sets, and capture bounded diagnostic counters. |
+| `Publish-LinuxMusl.cs` | Publish and optionally pack Linux musl Native AOT tools inside the pinned Alpine AOT SDK toolchain. |
 | `Generate-PackageManagerManifests.cs` | Generate Homebrew, Scoop, and WinGet manifests from release checksums. |
 | `Generate-ReleaseArtifactManifest.cs` | Generate deterministic byte-size and SHA-256 metadata for final release payload assets. |
 | `Validate-MarketplaceRelease.cs` | Verify a stable release VSIX, checksum sidecar, package structure, identity, task metadata, and icon dimensions before Marketplace promotion. |

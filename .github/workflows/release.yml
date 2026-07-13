@@ -178,8 +178,14 @@ jobs:
           }
 
           $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}"
-          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
-          dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
+          if ('${{ matrix.rid }}'.StartsWith('linux-musl-', [StringComparison]::Ordinal)) {
+            $packageOutput = Join-Path $env:RUNNER_TEMP "picket-tool-packages-${{ matrix.rid }}"
+            dotnet run --file ./scripts/Publish-LinuxMusl.cs -- -RuntimeIdentifier '${{ matrix.rid }}' -OutputDirectory $publishOutput -ToolPackageOutputDirectory $packageOutput -ZstandardLibrary $env:PICKET_ZSTANDARD_MUSL_LIBRARY -Version $version
+          }
+          else {
+            dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
+            dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
+          }
 
       - name: Smoke test Linux musl zstandard scan
         if: startsWith(matrix.rid, 'linux-musl-')
@@ -189,7 +195,7 @@ jobs:
           $fixtureDirectory = Join-Path $env:RUNNER_TEMP "picket-zstd-smoke-${{ matrix.rid }}"
           $sourcePath = Join-Path $fixtureDirectory 'secret.txt'
           $archivePath = "$sourcePath.zst"
-          $runtimeImage = 'mcr.microsoft.com/dotnet/runtime-deps@sha256:dede21dd11890c0f687e49408e4479e129fb9464809b9a1ce162fbad004cf987'
+          $runtimeImage = 'mcr.microsoft.com/dotnet/runtime-deps@sha256:297e573be253dafcba4eee8ab29e8e05ab3c5f13f966b3537af2256864de5668'
           New-Item -ItemType Directory -Force -Path $fixtureDirectory | Out-Null
           Set-Content -LiteralPath $sourcePath -NoNewline -Encoding utf8NoBOM -Value ('aws_access_key_id = ' + 'AKIA' + 'ABCDEFGHIJKLMNOP')
           & zstd -q -f $sourcePath -o $archivePath
@@ -261,8 +267,10 @@ jobs:
           $archivePath = Join-Path $staging $archiveName
 
           New-Item -ItemType Directory -Force -Path $packageOutput, $staging | Out-Null
-          dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid --no-restore -o $packageOutput
-          dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid --no-restore -o $packageOutput
+          if (!$rid.StartsWith('linux-musl-', [StringComparison]::Ordinal)) {
+            dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid --no-restore -o $packageOutput
+            dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid --no-restore -o $packageOutput
+          }
 
           Compress-Archive -Path (Join-Path $packageOutput '*') -DestinationPath $archivePath -Force
           $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()

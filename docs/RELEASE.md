@@ -64,14 +64,13 @@ Every CI run also publishes `picket` and `picket-tui` with `release-speed` for t
 
 This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced.
 
-The Linux jobs install `musl-tools`, build the decompression-only zstandard 1.5.7 runtime from its SHA-256-pinned upstream archive, and publish/package the matching musl RID. The pinned archive hash matches Meta's published [`zstd-1.5.7.tar.gz.sha256`](https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz.sha256) release asset. `Picket.Cli` fails a musl publish when `PICKET_ZSTANDARD_MUSL_LIBRARY` does not identify that verified runtime, preventing NuGet's generic Linux asset fallback from placing a glibc library in Alpine artifacts. CI and release jobs then run the published musl scanner against a generated zstandard-compressed fixture in a digest-pinned .NET runtime-deps Alpine container, so a missing, unloadable, or nonfunctional runtime fails before packaging.
+The Linux jobs install `musl-tools`, build the decompression-only zstandard 1.5.7 runtime from its SHA-256-pinned upstream archive, and pass it to `scripts/Publish-LinuxMusl.cs`. The pinned archive hash matches Meta's published [`zstd-1.5.7.tar.gz.sha256`](https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz.sha256) release asset. The publish app builds both executables and RID-specific tool packages in a digest-pinned Alpine AOT SDK image and rejects an executable unless its ELF interpreter is musl. `Picket.Cli` also fails when `PICKET_ZSTANDARD_MUSL_LIBRARY` does not identify the verified runtime, preventing NuGet's generic Linux asset fallback from placing a glibc library in Alpine artifacts. CI and release jobs then run the published scanner against a generated zstandard-compressed fixture in a digest-pinned .NET runtime-deps Alpine container, so a mislabeled executable, missing library, unloadable runtime, or nonfunctional decompressor fails before packaging.
 
 For a manual musl publish on Linux:
 
 ```bash
 dotnet run --file ./scripts/Build-ZstandardMusl.cs -- -OutputDirectory ./artifacts/zstd-musl
-export PICKET_ZSTANDARD_MUSL_LIBRARY="$PWD/artifacts/zstd-musl/libzstd.so"
-dotnet publish src/Picket.Cli/Picket.Cli.csproj -p:PublishProfile=release-speed -r linux-musl-x64
+dotnet run --file ./scripts/Publish-LinuxMusl.cs -- -RuntimeIdentifier linux-musl-x64 -OutputDirectory ./artifacts/picket-linux-musl-x64 -ZstandardLibrary ./artifacts/zstd-musl/libzstd.so
 ```
 
 ## Container Image
