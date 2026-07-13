@@ -1345,6 +1345,86 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that GitHub revocation help explains irreversible, environment-only credential input.
+    /// </summary>
+    [TestMethod]
+    public async Task GitHubRevocationHelpExplainsSafetyBoundary()
+    {
+        CliResult result = await RunCliAsync("revoke", "github", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket revoke github", result.Stdout);
+        Assert.Contains("irreversible", result.Stdout);
+        Assert.Contains("--credential-env", result.Stdout);
+        Assert.Contains("values never appear in command arguments", result.Stdout);
+        Assert.Contains("--confirm-revocation", result.Stdout);
+        Assert.Contains("--github-api-endpoint", result.Stdout);
+        Assert.Contains("--github-api-proxy", result.Stdout);
+        Assert.Contains("--timeout", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub revocation cannot run without explicit confirmation.
+    /// </summary>
+    [TestMethod]
+    public async Task GitHubRevocationRequiresExplicitConfirmation()
+    {
+        string credential = CreateGitHubPatFixture();
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { ["PICKET_TEST_REVOCATION_CREDENTIAL"] = credential },
+            "revoke",
+            "github",
+            "--credential-env",
+            "PICKET_TEST_REVOCATION_CREDENTIAL").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("--confirm-revocation", string.Concat(result.Stdout, result.Stderr));
+        Assert.DoesNotContain(credential, result.Stdout);
+        Assert.DoesNotContain(credential, result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that missing revocation credential variables are named without exposing values.
+    /// </summary>
+    [TestMethod]
+    public async Task GitHubRevocationReportsMissingCredentialEnvironmentVariable()
+    {
+        const string Variable = "PICKET_TEST_MISSING_REVOCATION_CREDENTIAL";
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { [Variable] = null },
+            "revoke",
+            "github",
+            "--credential-env",
+            Variable,
+            "--confirm-revocation").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains(Variable, result.Stderr);
+        Assert.Contains("not set or empty", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that unsupported credential values are rejected locally and never echoed.
+    /// </summary>
+    [TestMethod]
+    public async Task GitHubRevocationRejectsUnsupportedCredentialWithoutEchoingIt()
+    {
+        const string Credential = "not-a-github-credential";
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { ["PICKET_TEST_REVOCATION_CREDENTIAL"] = Credential },
+            "revoke",
+            "github",
+            "--credential-env",
+            "PICKET_TEST_REVOCATION_CREDENTIAL",
+            "--confirm-revocation").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("not a supported GitHub token type", result.Stderr);
+        Assert.DoesNotContain(Credential, result.Stdout);
+        Assert.DoesNotContain(Credential, result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that root help advertises the command index instead of every command option.
     /// </summary>
     [TestMethod]
@@ -1358,6 +1438,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("scan <path>", result.Stdout);
         Assert.Contains("verify <path>", result.Stdout);
         Assert.Contains("analyze <path>", result.Stdout);
+        Assert.Contains("revoke", result.Stdout);
         Assert.Contains("git <repo>", result.Stdout);
         Assert.Contains("dir, directory, file <path>", result.Stdout);
         Assert.Contains("stdin", result.Stdout);
@@ -2660,6 +2741,30 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(0, fragmented.ExitCode);
         Assert.IsEmpty(whole.Stdout);
         Assert.IsEmpty(fragmented.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies native scans honor an allow comment on a source line spanning more than two fragments.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeOverlapHonorsGitleaksAllowAfterMultipleForceCuts()
+    {
+        const string Prefix = "prefix token-12345";
+        const int CompleteSourcePassBufferSize = 128 * 1024;
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string largePath = Path.Combine(root.Path, "large.txt");
+        File.WriteAllText(
+            largePath,
+            string.Concat(
+                Prefix,
+                new string(' ', (CompleteSourcePassBufferSize * 3) - Prefix.Length - 5),
+                "# gitleaks:allow"));
+
+        CliResult result = await RunCliAsync("scan", largePath, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
     }
 
     /// <summary>

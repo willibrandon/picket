@@ -17,6 +17,7 @@ Picket separates offline structural validation from live provider verification.
 - Plain `picket scan` and compatibility commands do not contact provider APIs.
 - `picket verify --offline` and native scan validation use local checks only.
 - `picket scan --verify`, `picket verify --live`, and `picket analyze --live` are explicit opt-in provider calls. The initial live provider is GitHub token validation.
+- `picket revoke` commands are separate, explicit, irreversible provider mutations and never run as part of scanning, verification, or analysis.
 
 ## Offline Validation
 
@@ -93,10 +94,35 @@ Before additional providers can be enabled in the CLI, each validator also requi
 
 Provider requests must use `Picket.Security` endpoint checks to block loopback, private, link-local, metadata-service, reserved, and non-public redirect targets by default. Redirects are disabled unless a provider implements explicit target re-checking before following. Responses must be size-limited and redacted before diagnostics.
 
+## Explicit Revocation
+
+`picket revoke github` submits exposed GitHub credentials to GitHub's credential revocation API. The workflow is intentionally separate from live verification and analysis:
+
+```text
+picket revoke github --credential-env EXPOSED_GITHUB_TOKEN --confirm-revocation
+```
+
+Repeat `--credential-env` to submit more than one credential. The named variables must already exist in the process environment; Picket does not accept raw credential values as command arguments. The command requires `--confirm-revocation` because GitHub cannot reactivate a revoked credential.
+
+The GitHub workflow has these boundaries:
+
+- accepted families: `ghp_`, `github_pat_`, `gho_`, `ghu_`, and `ghr_`,
+- default endpoint: `https://api.github.com/credentials/revoke`,
+- request authentication: none; GitHub rejects authenticated requests to this endpoint,
+- request limit: 1,000 credentials and one request per command invocation,
+- provider rate limit: 60 unauthenticated requests per hour,
+- endpoint policy: HTTPS, preflight and connect-time address checks, non-public addresses blocked by default, no user info/query/fragment in endpoint overrides, and no automatic redirects,
+- proxy policy: optional HTTPS proxy with no user info/query/fragment,
+- retry policy: none, because replaying an irreversible request after a timeout or transport failure can hide whether the first request succeeded,
+- response handling: `202` is accepted, provider validation and client errors are rejected, redirects are blocked, and transport failures, timeouts, unexpected success responses, and server errors are indeterminate,
+- output: fixed non-secret reasons and credential counts only; request and response bodies are not logged, cached, or included in diagnostics.
+
+An accepted result exits `0`, a rejected or locally blocked result exits `1`, and an indeterminate provider outcome exits `2`. Invalid command input also exits nonzero without contacting GitHub. The command reports acceptance rather than claiming completed revocation because GitHub's documented success response is `202 Accepted`. See the [GitHub credential revocation API](https://docs.github.com/en/rest/credentials/revoke) for the provider contract.
+
 ## Reporting
 
 Native report writers expose validation state in Picket JSON, JSONL, SARIF, CSV, JUnit, HTML, TOON, and GitLab code-quality outputs where the format supports it. Gitleaks-compatible report writers preserve the compatibility schema and do not add Picket-native validation fields.
 
-Native analysis reports can include provider-specific revocation availability, command templates, and guidance. Current offline analysis guidance covers AWS, Azure Storage, database connection URLs, GCP, GitHub, GitLab token families, and Sourcegraph access tokens; live provider verification remains opt-in and GitHub-focused until additional provider validators have endpoint threat models and tests. Revocation is never automatic during scan, verification, or analysis. Command templates must be derived from non-secret identifiers and must never include raw secret values.
+Native analysis reports can include provider-specific revocation availability, command templates, and guidance. Current offline analysis guidance covers AWS, Azure Storage, database connection URLs, GCP, GitHub, GitLab token families, and Sourcegraph access tokens; live provider verification remains opt-in and GitHub-focused until additional provider validators have endpoint threat models and tests. Revocation is never automatic during scan, verification, or analysis. Command templates must be derived from non-secret identifiers and must never include raw secret values. Direct revocation uses provider-specific typed clients and never executes report command-template text as a shell command.
 
 Secrets must be redacted before logs, action annotations, summaries, diagnostics, and crash data. Secret hashes are intended for deduplication and triage, not as proof that a credential is safe to disclose.

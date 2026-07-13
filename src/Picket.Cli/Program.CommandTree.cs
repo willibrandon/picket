@@ -37,6 +37,7 @@ internal static partial class Program
         rootCommand.Subcommands.Add(CreateScanCommand(args));
         rootCommand.Subcommands.Add(CreateVerifyCommand(args));
         rootCommand.Subcommands.Add(CreateAnalyzeCommand(args));
+        rootCommand.Subcommands.Add(CreateRevokeCommand());
         rootCommand.Subcommands.Add(CreateBaselineCommand(args));
         rootCommand.Subcommands.Add(CreateCacheCommand(args));
         rootCommand.Subcommands.Add(CreateGitCommand(args));
@@ -116,6 +117,75 @@ internal static partial class Program
         AddResultFilterOptions(command, "picket analyze");
         AddScanLimitOptions(command, "picket analyze", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, "picket analyze");
+        return command;
+    }
+
+    private static Command CreateRevokeCommand()
+    {
+        var command = new Command("revoke", "Explicit credential revocation workflows.")
+        {
+            TreatUnmatchedTokensAsErrors = true,
+        };
+        var githubCommand = new Command("github", "Submit exposed GitHub credentials for irreversible revocation.")
+        {
+            TreatUnmatchedTokensAsErrors = true,
+        };
+        var credentialEnvironmentOption = new Option<string[]>("--credential-env")
+        {
+            AllowMultipleArgumentsPerToken = true,
+            Arity = ArgumentArity.OneOrMore,
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--credential-env"),
+            HelpName = "name",
+            Required = true,
+        };
+        var confirmOption = new Option<bool>("--confirm-revocation")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--confirm-revocation"),
+            Required = true,
+        };
+        var endpointOption = new Option<Uri?>("--github-api-endpoint")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--github-api-endpoint"),
+            HelpName = "uri",
+        };
+        var proxyOption = new Option<Uri?>("--github-api-proxy")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--github-api-proxy"),
+            HelpName = "uri",
+        };
+        var allowNonPublicEndpointsOption = new Option<bool>("--allow-non-public-endpoints")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--allow-non-public-endpoints"),
+        };
+        var timeoutOption = new Option<int>("--timeout")
+        {
+            DefaultValueFactory = _ => 10,
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--timeout"),
+            HelpName = "seconds",
+        };
+        timeoutOption.Validators.Add(result =>
+        {
+            if (result.GetValueOrDefault<int>() <= 0)
+            {
+                result.AddError("--timeout must be greater than zero");
+            }
+        });
+
+        githubCommand.Options.Add(credentialEnvironmentOption);
+        githubCommand.Options.Add(confirmOption);
+        githubCommand.Options.Add(endpointOption);
+        githubCommand.Options.Add(proxyOption);
+        githubCommand.Options.Add(allowNonPublicEndpointsOption);
+        githubCommand.Options.Add(timeoutOption);
+        githubCommand.SetAction((parseResult, cancellationToken) => RunGitHubRevocationAsync(
+            parseResult.GetValue(credentialEnvironmentOption) ?? [],
+            parseResult.GetValue(confirmOption),
+            parseResult.GetValue(endpointOption),
+            parseResult.GetValue(proxyOption),
+            parseResult.GetValue(timeoutOption),
+            parseResult.GetValue(allowNonPublicEndpointsOption),
+            cancellationToken));
+        command.Subcommands.Add(githubCommand);
         return command;
     }
 
@@ -926,6 +996,7 @@ internal static partial class Program
         return command.Equals("scan", StringComparison.OrdinalIgnoreCase)
             || command.Equals("verify", StringComparison.OrdinalIgnoreCase)
             || command.Equals("analyze", StringComparison.OrdinalIgnoreCase)
+            || command.Equals("revoke", StringComparison.OrdinalIgnoreCase)
             || command.Equals("baseline", StringComparison.OrdinalIgnoreCase)
             || command.Equals("cache", StringComparison.OrdinalIgnoreCase)
             || command.Equals("view", StringComparison.OrdinalIgnoreCase)
@@ -944,6 +1015,7 @@ internal static partial class Program
     {
         return command.Equals("baseline", StringComparison.Ordinal)
             || command.Equals("cache", StringComparison.Ordinal)
+            || command.Equals("revoke", StringComparison.Ordinal)
             || command.Equals("rules", StringComparison.Ordinal)
             || command.Equals("hooks", StringComparison.Ordinal);
     }
@@ -957,6 +1029,7 @@ internal static partial class Program
                 || subcommand.Equals("prune", StringComparison.OrdinalIgnoreCase)
                 || subcommand.Equals("export", StringComparison.OrdinalIgnoreCase)
                 || subcommand.Equals("import", StringComparison.OrdinalIgnoreCase),
+            "revoke" => subcommand.Equals("github", StringComparison.OrdinalIgnoreCase),
             "rules" => subcommand.Equals("check", StringComparison.OrdinalIgnoreCase)
                 || subcommand.Equals("test", StringComparison.OrdinalIgnoreCase),
             "hooks" => subcommand.Equals("install", StringComparison.OrdinalIgnoreCase),

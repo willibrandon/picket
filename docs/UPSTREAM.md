@@ -175,8 +175,8 @@ config diagnostics, exit codes, and stderr text against this pinned version.
 
 ## Provider Revocation References
 
-Native analysis revocation command templates are based on provider
-documentation reviewed on 2026-07-06:
+Native analysis and direct revocation behavior are based on provider
+documentation reviewed on 2026-07-13:
 
 - GitHub credential revocation API: `https://docs.github.com/en/rest/credentials/revoke`
 - GitHub token expiration and revocation: `https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/token-expiration-and-revocation`

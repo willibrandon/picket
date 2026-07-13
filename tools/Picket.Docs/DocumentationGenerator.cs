@@ -718,6 +718,13 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             ["picket scan", "picket verify", "picket analyze"]);
         AppendCliCommandGroup(
             builder,
+            "Credential revocation",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            ["picket revoke github"]);
+        AppendCliCommandGroup(
+            builder,
             "Reports and baselines",
             availableCommands,
             renderedCommands,
@@ -1198,7 +1205,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         foreach (string line in optionLines)
         {
             if (!TryReadCliHelpRow(line, out string syntax, out string description)
-                || !TryReadCliHelpOptionSyntax(syntax, out string option, out string value))
+                || !TryReadCliHelpOptionSyntax(syntax, out string option, out string value, out bool required))
             {
                 continue;
             }
@@ -1212,7 +1219,9 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             rows.Add((
                 option,
                 FormatCliOptionValue(value),
-                IsCliRequiredOption(command, option) ? "Required" : "Optional",
+                FormatCliRequirement(
+                    optional: !required && !IsCliRequiredOption(command, option),
+                    repeatable: IsCliRepeatableOption(command, option)),
                 description.Length == 0 ? GetCliOptionDescription(command, option) : description));
         }
 
@@ -1322,10 +1331,21 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         return -1;
     }
 
-    private static bool TryReadCliHelpOptionSyntax(string syntax, out string option, out string value)
+    private static bool TryReadCliHelpOptionSyntax(
+        string syntax,
+        out string option,
+        out string value,
+        out bool required)
     {
+        const string RequiredSuffix = " (REQUIRED)";
         option = string.Empty;
         value = string.Empty;
+        required = syntax.EndsWith(RequiredSuffix, StringComparison.Ordinal);
+        if (required)
+        {
+            syntax = syntax[..^RequiredSuffix.Length];
+        }
+
         int valueStart = syntax.IndexOf(" <", StringComparison.Ordinal);
         if (valueStart >= 0 && syntax.EndsWith('>'))
         {
@@ -1366,6 +1386,13 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "picket cache import" => longOption is "--cache-dir" or "--input",
             _ => false,
         };
+    }
+
+    private static bool IsCliRepeatableOption(string command, string option)
+    {
+        string longOption = ReadCliLongOption(option);
+        return command.Equals("picket revoke github", StringComparison.Ordinal)
+            && longOption.Equals("--credential-env", StringComparison.Ordinal);
     }
 
     private static string ReadCliLongOption(string option)
@@ -1431,6 +1458,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         return command switch
         {
             "picket scan" or "picket verify" or "picket analyze" => "Scan and triage",
+            "picket revoke github" => "Credential revocation",
             "picket baseline create" or "picket view" or "picket tui" => "Reports and baselines",
             "picket rules check" or "picket rules test" => "Rules",
             "picket cache stats" or "picket cache prune" or "picket cache export" or "picket cache import" or "picket hooks install" => "Maintenance",
@@ -1446,6 +1474,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "picket scan" => "Optional filesystem path",
             "picket verify" => "Optional report or scan path",
             "picket analyze" => "Optional report or scan path",
+            "picket revoke github" => "Required credential environment variable names",
             "picket baseline create" => "Optional filesystem path",
             "picket cache stats" or "picket cache prune" or "picket cache export" or "picket cache import" => "Optional cache source",
             "picket git" => "Optional git repository",
@@ -1485,7 +1514,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
                 continue;
             }
 
-            if (TryReadCliHelpOptionSyntax(syntax, out _, out string value) && value.Length != 0)
+            if (TryReadCliHelpOptionSyntax(syntax, out _, out string value, out _) && value.Length != 0)
             {
                 return value.Replace("|", ", ", StringComparison.Ordinal);
             }

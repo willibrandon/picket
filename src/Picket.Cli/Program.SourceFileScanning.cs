@@ -9,6 +9,7 @@ namespace Picket;
 internal static partial class Program
 {
     private const int NativeFragmentOverlapBytes = 64 * 1024;
+    private const int SourceFragmentForceCutBytes = SourceFragmentReader.DefaultBufferSize + SourceFragmentReader.DefaultMaxPeekBytes;
     private const int SourceHashBufferSize = 128 * 1024;
 
     static List<Finding> ScanSourceFileFragments(
@@ -73,6 +74,7 @@ internal static partial class Program
 
             using IncrementalHash scannedHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             List<Finding> findings;
+            HashSet<int>? forceCutLines = null;
             if (firstFragment is null)
             {
                 findings = [.. ScanSourceFragment(
@@ -90,6 +92,7 @@ internal static partial class Program
             }
             else if (nativeMode)
             {
+                forceCutLines = [];
                 SourceFragment ownedFirstFragment = firstFragment;
                 firstFragment = null;
                 findings = ScanNativeSourceFragments(
@@ -101,6 +104,7 @@ internal static partial class Program
                     maxDecodeDepth,
                     blobSha256,
                     scannedHash,
+                    forceCutLines,
                     timeoutTimestamp,
                     out stopped,
                     cancellationToken);
@@ -133,6 +137,26 @@ internal static partial class Program
             if (blobSha256.Length != 0 && !blobSha256.Equals(scannedBlobSha256, StringComparison.Ordinal))
             {
                 throw new IOException($"source changed while scanning: {file.DisplayPath}");
+            }
+
+            if (!ignoreGitleaksAllow
+                && findings.Count != 0
+                && forceCutLines is { Count: > 0 })
+            {
+                stream.Position = 0;
+                RemoveFindingsAllowedOnForceCutLines(
+                    stream,
+                    findings,
+                    forceCutLines,
+                    scannedBlobSha256,
+                    file.DisplayPath,
+                    timeoutTimestamp,
+                    out stopped,
+                    cancellationToken);
+                if (stopped)
+                {
+                    return [];
+                }
             }
 
             blobSha256 = scannedBlobSha256;
@@ -219,6 +243,7 @@ internal static partial class Program
         int maxDecodeDepth,
         string blobSha256,
         IncrementalHash scannedHash,
+        HashSet<int> forceCutLines,
         long timeoutTimestamp,
         out bool stopped,
         CancellationToken cancellationToken)
@@ -239,6 +264,7 @@ internal static partial class Program
                 using (fragment)
                 {
                     scannedHash.AppendData(fragment.Content.Span);
+                    RecordForceCutLine(fragment, forceCutLines);
                     IReadOnlyList<Finding> fragmentFindings;
                     if (overlap is not null)
                     {
@@ -496,6 +522,119 @@ internal static partial class Program
         if (seen.Add(key))
         {
             destination.Add(finding);
+        }
+    }
+
+    private static void RecordForceCutLine(SourceFragment fragment, HashSet<int> forceCutLines)
+    {
+        ReadOnlySpan<byte> content = fragment.Content.Span;
+        if (content.Length != SourceFragmentForceCutBytes || content[^1] == (byte)'\n')
+        {
+            return;
+        }
+
+        CalculatePosition(
+            content,
+            fragment.StartLine,
+            fragment.StartColumn,
+            out int line,
+            out _);
+        forceCutLines.Add(line);
+    }
+
+    private static void RemoveFindingsAllowedOnForceCutLines(
+        Stream stream,
+        List<Finding> findings,
+        HashSet<int> forceCutLines,
+        string expectedBlobSha256,
+        string displayPath,
+        long timeoutTimestamp,
+        out bool stopped,
+        CancellationToken cancellationToken)
+    {
+        stopped = false;
+        int[] candidateLines = [.. findings
+            .Select(static finding => finding.StartLine)
+            .Where(forceCutLines.Contains)
+            .Distinct()
+            .Order()];
+        if (candidateLines.Length == 0)
+        {
+            return;
+        }
+
+        ReadOnlySpan<byte> marker = "gitleaks:allow"u8;
+        var allowedLines = new HashSet<int>();
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(SourceHashBufferSize);
+        int candidateIndex = 0;
+        int currentLine = 1;
+        int markerOffset = 0;
+        try
+        {
+            while (true)
+            {
+                if (IsScanStopped(timeoutTimestamp, cancellationToken))
+                {
+                    stopped = true;
+                    return;
+                }
+
+                int read = stream.Read(buffer, 0, buffer.Length);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                hash.AppendData(buffer, 0, read);
+                for (int i = 0; i < read; i++)
+                {
+                    byte value = buffer[i];
+                    if (candidateIndex < candidateLines.Length && currentLine == candidateLines[candidateIndex])
+                    {
+                        if (value == marker[markerOffset])
+                        {
+                            markerOffset++;
+                            if (markerOffset == marker.Length)
+                            {
+                                allowedLines.Add(currentLine);
+                                markerOffset = 0;
+                            }
+                        }
+                        else
+                        {
+                            markerOffset = value == marker[0] ? 1 : 0;
+                        }
+                    }
+
+                    if (value != (byte)'\n')
+                    {
+                        continue;
+                    }
+
+                    currentLine++;
+                    markerOffset = 0;
+                    while (candidateIndex < candidateLines.Length && candidateLines[candidateIndex] < currentLine)
+                    {
+                        candidateIndex++;
+                    }
+                }
+            }
+
+            string actualBlobSha256 = Convert.ToHexStringLower(hash.GetHashAndReset());
+            if (!actualBlobSha256.Equals(expectedBlobSha256, StringComparison.Ordinal))
+            {
+                throw new IOException($"source changed while scanning: {displayPath}");
+            }
+
+            if (allowedLines.Count != 0)
+            {
+                findings.RemoveAll(finding => allowedLines.Contains(finding.StartLine));
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
         }
     }
 

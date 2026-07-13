@@ -21,7 +21,7 @@ namespace Picket.Engine;
 /// <param name="message">The git commit message, or an empty string.</param>
 /// <param name="tags">The rule tags.</param>
 /// <param name="fingerprint">The Gitleaks-compatible fingerprint.</param>
-/// <param name="line">The full source line that contains the match.</param>
+/// <param name="line">Source-line evidence that contains the match.</param>
 /// <param name="link">The source control link, or an empty string.</param>
 /// <param name="secretSha256">The original secret SHA-256 hash for native reports, or an empty string.</param>
 /// <param name="matchSha256">The original match SHA-256 hash for native reports, or an empty string.</param>
@@ -88,8 +88,12 @@ public sealed class Finding(
     public int EndColumn { get; } = endColumn;
 
     /// <summary>
-    /// Gets the full source line that contains the match.
+    /// Gets source-line evidence that contains the match.
     /// </summary>
+    /// <remarks>
+    /// Filesystem scans bound this evidence when an attacker-controlled line exceeds the fragment limit.
+    /// Location fields still refer to the complete source.
+    /// </remarks>
     public string Line { get; } = line.Length == 0 ? match : line;
 
     /// <summary>

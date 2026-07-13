@@ -101,7 +101,7 @@ Represents a detected secret finding using the Gitleaks-compatible field model.
 - `Entropy` - Gets the Shannon entropy of the secret.
 - `File` - Gets the logical file path.
 - `Fingerprint` - Gets the Gitleaks-compatible fingerprint.
-- `Line` - Gets the full source line that contains the match.
+- `Line` - Gets source-line evidence that contains the match.
 - `Link` - Gets the source control link, or an empty string.
 - `Match` - Gets the full matched text.
 - `MatchSha256` - Gets the original match SHA-256 hash for native reports, or an empty string.

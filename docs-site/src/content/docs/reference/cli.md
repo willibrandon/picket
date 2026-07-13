@@ -38,6 +38,17 @@ Use the grouped index to jump to the workflow you need.
     </ul>
   </section>
   <section class="cli-command-group">
+    <p class="cli-command-group-title">Credential revocation</p>
+    <ul class="cli-command-list">
+      <li>
+        <a class="cli-command-link" href="#picket-revoke-github">
+          <code>picket revoke github</code>
+          <span>Submit exposed GitHub credentials for irreversible revocation.</span>
+        </a>
+      </li>
+    </ul>
+  </section>
+  <section class="cli-command-group">
     <p class="cli-command-group-title">Reports and baselines</p>
     <ul class="cli-command-list">
       <li>
@@ -1492,6 +1503,84 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+### picket revoke github
+
+<div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket revoke github</code>
+    <span class="cli-command-badge">Credential revocation</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Required credential environment variable names</dd>
+    </div>
+  </dl>
+  <p class="cli-command-summary">Submit exposed GitHub credentials for irreversible revocation.</p>
+  <div class="cli-usage-list">
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage</p>
+      <pre class="cli-usage-code"><code>picket revoke github [options]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--credential-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Required, repeatable</td>
+              <td data-label="Description">Read a credential from this environment variable. Repeat for additional credentials; values never appear in command arguments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--confirm-revocation</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Confirm the irreversible revocation request.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this full GitHub credential revocation endpoint instead of https://api.github.com/credentials/revoke.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-proxy</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this HTTPS proxy for the GitHub credential revocation request.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow a guarded GitHub revocation endpoint that resolves to a non-public address.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>seconds</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop waiting for the GitHub revocation response after this many seconds. [default: 10]</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>

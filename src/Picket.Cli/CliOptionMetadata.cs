@@ -27,6 +27,20 @@ internal static class CliOptionMetadata
         }
 
         string key = GetOptionKey(option);
+        if (command.Equals("picket revoke github", StringComparison.Ordinal))
+        {
+            return key switch
+            {
+                "--allow-non-public-endpoints" => "Allow a guarded GitHub revocation endpoint that resolves to a non-public address.",
+                "--confirm-revocation" => "Confirm the irreversible revocation request.",
+                "--credential-env" => "Read a credential from this environment variable. Repeat for additional credentials; values never appear in command arguments.",
+                "--github-api-endpoint" => "Use this full GitHub credential revocation endpoint instead of https://api.github.com/credentials/revoke.",
+                "--github-api-proxy" => "Use this HTTPS proxy for the GitHub credential revocation request.",
+                "--timeout" => "Stop waiting for the GitHub revocation response after this many seconds.",
+                _ => "GitHub credential revocation option.",
+            };
+        }
+
         return key switch
         {
             "--" => "End option parsing before literal input.",
