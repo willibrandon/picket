@@ -1,5 +1,6 @@
 using Picket.Sources;
 using System.Formats.Tar;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -15,6 +16,7 @@ public sealed class ContainerRegistrySourceClientTests
 {
     private const string OciImageIndexMediaType = "application/vnd.oci.image.index.v1+json";
     private const string OciImageManifestMediaType = "application/vnd.oci.image.manifest.v1+json";
+    private const string OciLayerGzipMediaType = "application/vnd.oci.image.layer.v1.tar+gzip";
     private const string OciLayerMediaType = "application/vnd.oci.image.layer.v1.tar";
     private const string DockerLayerMediaType = "application/vnd.docker.image.rootfs.diff.tar";
     private const string OciNondistributableLayerZstandardMediaType = "application/vnd.oci.image.layer.nondistributable.v1.tar+zstd";
@@ -636,6 +638,244 @@ public sealed class ContainerRegistrySourceClientTests
         Assert.Contains(static warning => warning.Contains("declared size exceeded a byte limit", StringComparison.Ordinal), warnings);
     }
 
+    /// <summary>
+    /// Verifies unsupported manifest schema versions are rejected before descriptors are processed.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesRejectsUnsupportedManifestSchema()
+    {
+        byte[] manifest = Encoding.UTF8.GetBytes(
+            "{\"schemaVersion\":1,\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\"}");
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(
+            _ => ManifestResponse(manifest, OciImageManifestMediaType)));
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.Contains(static warning => warning.Contains("unsupported manifest schema", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
+    /// Verifies response and body media types must identify the same manifest kind.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesRejectsInconsistentManifestMediaType()
+    {
+        byte[] manifest = Encoding.UTF8.GetBytes(string.Concat(
+            "{\"schemaVersion\":2,\"mediaType\":\"",
+            OciImageIndexMediaType,
+            "\",\"manifests\":[]}"));
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(
+            _ => ManifestResponse(manifest, OciImageManifestMediaType)));
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.Contains(static warning => warning.Contains("inconsistent manifest media type", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
+    /// Verifies recursive image indexes stop at the manifest nesting limit.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesStopsAtManifestNestingLimit()
+    {
+        byte[][] indexes = new byte[6][];
+        indexes[^1] = CreateImageIndex(Array.Empty<string>());
+        for (int i = indexes.Length - 2; i >= 0; i--)
+        {
+            indexes[i] = CreateImageIndex([CreateManifestDescriptor(indexes[i + 1], OciImageIndexMediaType)]);
+        }
+
+        Dictionary<string, byte[]> manifestsByDigest = indexes.ToDictionary(CreateDigest, static value => value);
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(request =>
+        {
+            string path = Uri.UnescapeDataString(request.RequestUri!.AbsolutePath);
+            if (path.EndsWith("/manifests/latest", StringComparison.Ordinal))
+            {
+                return ManifestResponse(indexes[0], OciImageIndexMediaType);
+            }
+
+            string digest = path[(path.LastIndexOf('/') + 1)..];
+            return manifestsByDigest.TryGetValue(digest, out byte[]? manifest)
+                ? ManifestResponse(manifest, OciImageIndexMediaType)
+                : new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var httpClient = new HttpClient(handler);
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(5, files);
+        Assert.AreEqual(6, handler.RequestCount);
+        Assert.Contains(static warning => warning.Contains("manifest nesting exceeded", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
+    /// Verifies image indexes stop enumerating descriptors at the configured count limit.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesStopsAtIndexManifestCountLimit()
+    {
+        string[] descriptors = Enumerable.Repeat(
+            "{}",
+            ContainerRegistrySourceOptions.MaxIndexManifestCount + 1).ToArray();
+        byte[] index = CreateImageIndex(descriptors);
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(_ => ManifestResponse(index, OciImageIndexMediaType));
+        using var httpClient = new HttpClient(handler);
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.ContainsSingle(static file => file.DisplayPath.EndsWith("/index.json", StringComparison.Ordinal), files);
+        Assert.AreEqual(1, handler.RequestCount);
+        Assert.Contains(static warning => warning.Contains("manifest descriptor limit", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
+    /// Verifies image manifests reject layer arrays beyond the configured count limit.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesRejectsExcessiveLayerCount()
+    {
+        byte[] config = Encoding.UTF8.GetBytes("{\"architecture\":\"amd64\",\"os\":\"linux\"}");
+        byte[] manifest = CreateImageManifestWithLayerCount(
+            config,
+            ContainerRegistrySourceOptions.MaxLayerCount + 1);
+        var warnings = new List<string>();
+        var handler = new FakeHttpMessageHandler(_ => ManifestResponse(manifest, OciImageManifestMediaType));
+        using var httpClient = new HttpClient(handler);
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(1, handler.RequestCount);
+        Assert.Contains(static warning => warning.Contains("layer count safety limit", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
+    /// Verifies layer expansion applies the configured archive compression-ratio limit.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesAppliesArchiveCompressionRatioLimit()
+    {
+        byte[] config = Encoding.UTF8.GetBytes("{\"architecture\":\"amd64\",\"os\":\"linux\"}");
+        byte[] layer = CreateGzipBytes(CreateTarBytes("app/settings.txt", new string('a', 200_000)));
+        byte[] manifest = CreateImageManifest(config, layer, OciLayerGzipMediaType);
+        string configDigest = CreateDigest(config);
+        string layerDigest = CreateDigest(layer);
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string path = Uri.UnescapeDataString(request.RequestUri!.AbsolutePath);
+            if (path.EndsWith("/manifests/latest", StringComparison.Ordinal))
+            {
+                return ManifestResponse(manifest, OciImageManifestMediaType);
+            }
+
+            if (path.EndsWith(string.Concat("/blobs/", configDigest), StringComparison.Ordinal))
+            {
+                return BlobResponse(config);
+            }
+
+            return path.EndsWith(string.Concat("/blobs/", layerDigest), StringComparison.Ordinal)
+                ? BlobResponse(layer)
+                : new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            maxArchiveCompressionRatio: 2,
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.DoesNotContain(static file => file.DisplayPath.Contains('!'), files);
+        Assert.Contains(static warning => warning.Contains("archive compression ratio limit reached", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
+    /// Verifies an explicit authentication endpoint receives Basic credentials and returns the pull bearer token.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesUsesExplicitBasicAuthenticationEndpoint()
+    {
+        const string Password = "registry-password";
+        const string Username = "picket-user";
+        byte[] manifest = Encoding.UTF8.GetBytes(
+            "{\"schemaVersion\":1,\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\"}");
+        var requests = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string authorization = request.Headers.Authorization?.ToString() ?? string.Empty;
+            requests.Add(string.Concat(request.RequestUri!.Host, "|", authorization));
+            if (request.RequestUri.Host.Equals("auth.example", StringComparison.OrdinalIgnoreCase))
+            {
+                return JsonResponse("{\"token\":\"registry-token\"}");
+            }
+
+            return authorization.Equals("Bearer registry-token", StringComparison.Ordinal)
+                ? ManifestResponse(manifest, OciImageManifestMediaType)
+                : BearerChallengeResponse("https://untrusted.example/token", "registry.example");
+        }));
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            credentialKind: ContainerRegistryCredentialKind.Basic,
+            credential: Password,
+            username: Username,
+            authenticationEndpoint: new Uri("https://auth.example/token"),
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        string expectedBasicAuthorization = string.Concat(
+            "Basic ",
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Concat(Username, ":", Password))));
+        Assert.IsEmpty(files);
+        Assert.Contains(string.Concat("auth.example|", expectedBasicAuthorization), requests);
+        Assert.Contains("registry.example|Bearer registry-token", requests);
+        Assert.DoesNotContain(static request => request.StartsWith("untrusted.example|", StringComparison.Ordinal), requests);
+        Assert.DoesNotContain(Password, string.Join('\n', warnings));
+    }
+
     private static byte[] CreateImageManifest(
         byte[] config,
         byte[] layer,
@@ -656,6 +896,22 @@ public sealed class ContainerRegistrySourceClientTests
             "\",\"size\":",
             (layerSize ?? layer.Length).ToString(System.Globalization.CultureInfo.InvariantCulture),
             "}]}"
+        );
+        return Encoding.UTF8.GetBytes(json);
+    }
+
+    private static byte[] CreateImageManifestWithLayerCount(byte[] config, int layerCount)
+    {
+        string json = string.Concat(
+            "{\"schemaVersion\":2,\"mediaType\":\"",
+            OciImageManifestMediaType,
+            "\",\"config\":{\"mediaType\":\"application/vnd.oci.image.config.v1+json\",\"digest\":\"",
+            CreateDigest(config),
+            "\",\"size\":",
+            config.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "},\"layers\":[",
+            string.Join(',', Enumerable.Repeat("{}", layerCount)),
+            "]}"
         );
         return Encoding.UTF8.GetBytes(json);
     }
@@ -704,6 +960,29 @@ public sealed class ContainerRegistrySourceClientTests
         return stream.ToArray();
     }
 
+    private static byte[] CreateGzipBytes(byte[] content)
+    {
+        using var stream = new MemoryStream();
+        using (var compressionStream = new GZipStream(stream, CompressionLevel.SmallestSize, leaveOpen: true))
+        {
+            compressionStream.Write(content);
+        }
+
+        return stream.ToArray();
+    }
+
+    private static byte[] CreateImageIndex(string[] descriptors)
+    {
+        string json = string.Concat(
+            "{\"schemaVersion\":2,\"mediaType\":\"",
+            OciImageIndexMediaType,
+            "\",\"manifests\":[",
+            string.Join(',', descriptors),
+            "]}"
+        );
+        return Encoding.UTF8.GetBytes(json);
+    }
+
     private static byte[] CreateImageIndex(byte[] amd64Manifest, byte[] arm64Manifest)
     {
         string json = string.Concat(
@@ -730,6 +1009,19 @@ public sealed class ContainerRegistrySourceClientTests
             ",\"platform\":{\"architecture\":\"",
             architecture,
             "\",\"os\":\"linux\"}}"
+        );
+    }
+
+    private static string CreateManifestDescriptor(byte[] manifest, string mediaType)
+    {
+        return string.Concat(
+            "{\"mediaType\":\"",
+            mediaType,
+            "\",\"digest\":\"",
+            CreateDigest(manifest),
+            "\",\"size\":",
+            manifest.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "}"
         );
     }
 

@@ -120,6 +120,47 @@ public sealed class CliContainerRegistryScanTests
         Assert.Contains("environment variable name is invalid", invalid.Stderr);
     }
 
+    /// <summary>
+    /// Verifies registry scans reject mixed or incomplete credential modes before making a request.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsAmbiguousCredentialModes()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var environment = new Dictionary<string, string?>
+        {
+            [TokenEnvironmentVariable] = "registry-token",
+            ["PICKET_REGISTRY_TEST_PASSWORD"] = "registry-password",
+            ["PICKET_REGISTRY_TEST_USERNAME"] = "picket-user",
+        };
+
+        CliResult mixed = await RunCliWithEnvironmentAsync(
+            temp.Path,
+            environment,
+            "scan",
+            "--registry-image",
+            "ubuntu",
+            "--registry-token-env",
+            TokenEnvironmentVariable,
+            "--registry-username-env",
+            "PICKET_REGISTRY_TEST_USERNAME",
+            "--registry-password-env",
+            "PICKET_REGISTRY_TEST_PASSWORD").ConfigureAwait(false);
+        CliResult incomplete = await RunCliWithEnvironmentAsync(
+            temp.Path,
+            environment,
+            "scan",
+            "--registry-image",
+            "ubuntu",
+            "--registry-username-env",
+            "PICKET_REGISTRY_TEST_USERNAME").ConfigureAwait(false);
+
+        Assert.AreEqual(126, mixed.ExitCode);
+        Assert.Contains("either --registry-token-env or both --registry-username-env and --registry-password-env", mixed.Stderr);
+        Assert.AreEqual(126, incomplete.ExitCode);
+        Assert.Contains("either --registry-token-env or both --registry-username-env and --registry-password-env", incomplete.Stderr);
+    }
+
     private async Task<CliResult> RunCliWithEnvironmentAsync(
         string workingDirectory,
         IReadOnlyDictionary<string, string?> environment,

@@ -247,10 +247,12 @@ public sealed class PicketScanCacheTests
     }
 
     /// <summary>
-    /// Verifies cache entries from the plaintext-randomness schema are treated as misses.
+    /// Verifies cache entries from previous schemas are treated as misses.
     /// </summary>
     [TestMethod]
-    public void TryReadRejectsVersionFourEntry()
+    [DataRow("picket.scan-cache.v3")]
+    [DataRow("picket.scan-cache.v4")]
+    public void TryReadRejectsPreviousSchemaEntry(string schema)
     {
         using TempDirectory root = TempDirectory.Create();
         PicketScanCache cache = CreateCache(root.Path, storageMode: ScanCacheStorageMode.SecretHashOnly);
@@ -259,7 +261,7 @@ public sealed class PicketScanCacheTests
         string entryPath = GetSingleEntryPath(root.Path);
         string entry = File.ReadAllText(entryPath).Replace(
             "picket.scan-cache.v5",
-            "picket.scan-cache.v4",
+            schema,
             StringComparison.Ordinal);
         File.WriteAllText(entryPath, entry);
 

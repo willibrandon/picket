@@ -230,6 +230,50 @@ public sealed class BitbucketDataCenterSourceClientTests
     }
 
     /// <summary>
+    /// Verifies invalid repository slugs returned by the server are skipped without affecting valid repositories.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateFilesSkipsInvalidRepositorySlugsFromProjectListing()
+    {
+        var requests = new List<string>();
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            requests.Add(url);
+            if (url.EndsWith("/projects/CORE/repos?limit=100&start=0", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"isLastPage":true,"values":[{"slug":"../outside"},{"slug":"valid"}]}""");
+            }
+
+            if (url.EndsWith("/projects/CORE/repos/valid/default-branch", StringComparison.Ordinal))
+            {
+                return JsonResponse($$"""{"latestCommit":"{{CommitA}}"}""");
+            }
+
+            if (url.Contains($"/projects/CORE/repos/valid/files?at={CommitA}", StringComparison.Ordinal))
+            {
+                return EmptyPageResponse();
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new BitbucketDataCenterSourceClient(httpClient);
+        var options = new BitbucketDataCenterSourceOptions(
+            CreateEndpoint(),
+            "CORE",
+            "test-token",
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.DoesNotContain(static request => request.Contains("outside", StringComparison.Ordinal), requests);
+        Assert.Contains(static request => request.Contains("/repos/valid/files", StringComparison.Ordinal), requests);
+        Assert.Contains(static warning => warning.Contains("invalid repository returned", StringComparison.Ordinal), warnings);
+    }
+
+    /// <summary>
     /// Verifies that pull request enumeration scans the immutable source commit and source repository, including forks.
     /// </summary>
     [TestMethod]

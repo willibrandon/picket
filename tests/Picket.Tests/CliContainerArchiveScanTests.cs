@@ -198,6 +198,70 @@ public sealed class CliContainerArchiveScanTests
     }
 
     /// <summary>
+    /// Verifies changes to decode behavior or rules invalidate retained checkpoint state.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanCheckpointRejectsChangedScanFingerprint()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string configPath = WriteTokenConfig(temp.Path);
+        string archivePath = WriteDockerArchive(temp.Path, "token-12345");
+        string checkpointPath = Path.Combine(temp.Path, "scan.checkpoint");
+        CliResult failed = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            archivePath,
+            "-c",
+            configPath,
+            "--checkpoint",
+            checkpointPath,
+            "-f",
+            "jsonl",
+            "-r",
+            temp.Path).ConfigureAwait(false);
+        Assert.AreEqual(1, failed.ExitCode);
+
+        CliResult changedDecodeDepth = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            archivePath,
+            "-c",
+            configPath,
+            "--checkpoint",
+            checkpointPath,
+            "--max-decode-depth=0",
+            "-f",
+            "jsonl").ConfigureAwait(false);
+        File.AppendAllText(
+            configPath,
+            """
+
+            [[rules]]
+            id = "second-token"
+            regex = '''second-[0-9]+'''
+            """);
+        CliResult changedRules = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            archivePath,
+            "-c",
+            configPath,
+            "--checkpoint",
+            checkpointPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, changedDecodeDepth.ExitCode);
+        Assert.Contains("checkpoint does not match the current scan or source snapshot", changedDecodeDepth.Stderr.ToLowerInvariant());
+        Assert.AreEqual(1, changedRules.ExitCode);
+        Assert.Contains("checkpoint does not match the current scan or source snapshot", changedRules.Stderr.ToLowerInvariant());
+        Assert.IsTrue(File.Exists(checkpointPath));
+    }
+
+    /// <summary>
     /// Verifies explicit reset starts a changed source snapshot from the beginning.
     /// </summary>
     [TestMethod]
