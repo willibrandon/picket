@@ -5,7 +5,7 @@ using System.Text;
 namespace Picket.Compat;
 
 /// <summary>
-/// Loads the Gitleaks-compatible rule subset currently implemented by Picket.
+/// Loads Gitleaks-compatible rule configuration.
 /// </summary>
 public static class GitleaksConfigLoader
 {

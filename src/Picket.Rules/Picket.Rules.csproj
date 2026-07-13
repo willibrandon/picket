@@ -3,7 +3,7 @@
     <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <PackageId>Picket.Rules</PackageId>
-    <Description>AOT-safe rule model and embedded compatibility rule packs for Picket secret scanning.</Description>
+    <Description>AOT-safe rule and allowlist models for Picket secret scanning.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>$(PackageTags);rules;security</PackageTags>
     <IsAotCompatible>true</IsAotCompatible>

@@ -641,7 +641,7 @@ Live verification:
 
 ### 8.5 Revocation
 
-Where provider APIs support safe self-service revocation, Picket can emit and explicitly run revocation workflows. Revocation is never automatic during scan, verification, or analysis. Analysis reports include `revocationAvailable`, `revocationCommands`, and `revocationGuidance`; command templates are emitted only when Picket can build them from non-secret identifiers such as an AWS access key ID, Azure Storage account name, or GCP service-account key ID, or with explicit placeholders such as GitHub's credential revocation API token parameter. Provider workflows that cannot be safely expressed as a command still set revocation availability and explain the manual workflow without raw secret values.
+Where provider APIs support safe self-service revocation, Picket can emit and explicitly run revocation workflows. Revocation is never automatic during scan, verification, or analysis. Analysis reports include `revocationAvailable`, `revocationCommands`, and `revocationGuidance`; command templates are emitted only when Picket can build them from non-secret identifiers such as an AWS access key ID, Azure Storage account name, or GCP service-account key ID, or when a guarded Picket provider command can read the credential from a named environment variable. Provider workflows that cannot be safely expressed as a command still set revocation availability and explain the manual workflow without raw secret values.
 
 The first direct workflow is `picket revoke github`. It reads each credential only from a named environment variable supplied through repeatable `--credential-env` options and requires `--confirm-revocation`. It accepts only credential families documented by GitHub's revocation API, sends an unauthenticated `POST /credentials/revoke` request, and never puts credentials in command arguments, output, diagnostics, response evidence, or cache entries. The request is limited to 1,000 credentials, guarded before DNS connection and again at socket connect time, HTTPS-only, non-public-address-denying by default, redirect-free, and non-retrying. A `202` response means GitHub accepted the request; validation failures are rejected; transport failures, timeouts, unexpected success responses, and server errors are indeterminate because the mutation may already have reached the provider. Provider-specific revocation commands must preserve these irreversible-operation semantics rather than reusing live-verification retry or cache behavior.
 
@@ -1128,16 +1128,17 @@ Pre-receive support handles bare repositories, quarantine environment variables,
 
 ### 8.12 Embeddable .NET API
 
-`Picket.Engine`, `Picket.Rules`, `Picket.Report`, and `Picket.Security` are AOT-safe NuGet packages for analyzers, MSBuild tasks, CI systems, IDE integrations, and internal security platforms.
+`Picket.Compat`, `Picket.Engine`, `Picket.Rules`, `Picket.Report`, and `Picket.Security` are AOT-safe NuGet packages for analyzers, MSBuild tasks, CI systems, IDE integrations, and internal security platforms.
 
 The initial public package surface is intentionally narrow:
 
-- `Picket.Rules` contains rule, allowlist, required-rule, and embedded compatibility-rule models.
+- `Picket.Compat` contains Gitleaks-compatible configuration loading and writing, embedded Gitleaks and Picket default rule-set loading, baseline filtering, and `.gitleaksignore` handling.
+- `Picket.Rules` contains rule, allowlist, and required-rule models.
 - `Picket.Engine` contains compiled rule sets, findings, entropy helpers, scan requests, and byte-oriented scanning.
 - `Picket.Report` contains Gitleaks-compatible and Picket-native report writers.
 - `Picket.Security` contains egress policy and endpoint safety primitives for live validation, source connectors, and user-configured provider endpoints.
 
-`Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are not public library NuGet packages until their contracts are explicitly designed and documented. The CLI and TUI companion ship as RID-specific Native AOT `dotnet tool` packages for Windows, Linux, and macOS x64/Arm64 package-manager workflows; the Native AOT archives remain the direct executable distribution.
+`Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are not public library NuGet packages until their contracts are explicitly designed and documented. The CLI and TUI companion ship as RID-specific Native AOT `dotnet tool` packages for Windows, Linux, and macOS x64/Arm64 package-manager workflows; the Native AOT archives remain the direct executable distribution.
 
 Public APIs are documented, cancellation-aware where operations can block or stream, streaming-first where result volume can be large, and stable across minor releases.
 
@@ -1158,6 +1159,8 @@ Security requirements:
 - temporary files are avoided or securely managed,
 - crash diagnostics are scrubbed,
 - action logs are safe for public CI by default.
+
+The scanner and TUI executable entry points catch otherwise-unhandled managed exceptions at their outer boundary. They emit the exception type with fixed explanatory text, but never the exception message or stack trace, because either can contain scanned source, credential-bearing provider data, or secret-bearing paths. Expected input and operational errors continue to use their specific non-secret diagnostics before reaching that boundary.
 
 Every validator has a threat-model entry: data sent, endpoint contacted, auth required, rate limits, expected success/failure codes, retry policy, cache key, revocation support, and known provider side effects.
 

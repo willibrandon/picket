@@ -1,3 +1,4 @@
+using Picket.Security;
 using Picket.Tui;
 using System.CommandLine;
 
@@ -23,6 +24,11 @@ static async Task<int> RunAsync(string[] args)
     catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
     {
         Console.Error.WriteLine(ex.Message);
+        return 1;
+    }
+    catch (Exception exception)
+    {
+        CrashDiagnosticWriter.Write(Console.Error, exception);
         return 1;
     }
     finally

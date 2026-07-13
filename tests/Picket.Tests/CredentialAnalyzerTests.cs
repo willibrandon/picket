@@ -162,8 +162,9 @@ public sealed class CredentialAnalyzerTests
         Assert.AreEqual("critical", analysis.Risk);
         Assert.Contains("Rotate or revoke the GitHub token", string.Join('\n', analysis.RecommendedActions));
         Assert.IsTrue(analysis.RevocationAvailable);
-        Assert.Contains("<github-token>", string.Join('\n', analysis.RevocationCommands));
-        Assert.Contains("https://api.github.com/credentials/revoke", string.Join('\n', analysis.RevocationCommands));
+        Assert.Contains(
+            "picket revoke github --credential-env PICKET_GITHUB_CREDENTIAL --confirm-revocation",
+            analysis.RevocationCommands);
         Assert.Contains("Submit the leaked token to GitHub's credential revocation API or revoke it from the owner's token settings.", analysis.RevocationGuidance);
         Assert.DoesNotContain(token, string.Join('\n', analysis.RevocationCommands));
         Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));

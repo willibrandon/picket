@@ -1,3 +1,5 @@
+using Picket.Security;
+
 namespace Picket;
 
 internal static partial class Program
@@ -16,6 +18,18 @@ internal static partial class Program
 
     private static async Task<int> Main(string[] args)
     {
-        return await RunCommandLineAsync(args).ConfigureAwait(false);
+        try
+        {
+            return await RunCommandLineAsync(args).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return 130;
+        }
+        catch (Exception exception)
+        {
+            CrashDiagnosticWriter.Write(Console.Error, exception);
+            return 1;
+        }
     }
 }

@@ -71,6 +71,12 @@
       "picket.rules": {
         "type": "Project"
       },
+      "picket.security": {
+        "type": "Project",
+        "dependencies": {
+          "System.IO.FileSystem.AccessControl": "[5.0.0, )"
+        }
+      },
       "picket.tui": {
         "type": "Project",
         "dependencies": {
@@ -93,6 +99,12 @@
         "requested": "[0.4.4, )",
         "resolved": "0.4.4",
         "contentHash": "2lIfg2OpVuHkSnuva44rHd4f4Ny7au/lxKSAHRh9GqsSMd/DSlx46CBdwKt0SZVVQJjC04QowwcpMU2WXaMFFA=="
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/linux-arm64": {
@@ -132,6 +144,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/linux-musl-arm64": {
@@ -171,6 +189,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/linux-musl-x64": {
@@ -210,6 +234,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/linux-x64": {
@@ -249,6 +279,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/osx-arm64": {
@@ -288,6 +324,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/osx-x64": {
@@ -327,6 +369,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/win-arm64": {
@@ -366,6 +414,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
     "net10.0/win-x64": {
@@ -405,6 +459,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "System.IO.FileSystem.AccessControl": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     }
   }

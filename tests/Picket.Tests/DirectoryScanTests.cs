@@ -1,6 +1,5 @@
 using Picket.Compat;
 using Picket.Engine;
-using Picket.Rules;
 using Picket.Sources;
 
 namespace Picket.Tests;
@@ -24,7 +23,7 @@ public sealed class DirectoryScanTests
             Directory.CreateDirectory(nested);
             File.WriteAllText(Path.Combine(nested, "secret.txt"), "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF");
 
-            CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+            CompiledRuleSet rules = CompiledRuleSet.Compile(TestRuleSets.AwsAccessToken);
             var findings = new List<Finding>();
             foreach (SourceFile file in DirectorySource.Enumerate(new DirectoryScanOptions(root)))
             {
@@ -54,7 +53,7 @@ public sealed class DirectoryScanTests
             File.WriteAllText(Path.Combine(root, "secret.txt"), "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF");
             File.WriteAllText(Path.Combine(root, ".gitleaksignore"), "secret.txt:aws-access-token:1");
 
-            CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+            CompiledRuleSet rules = CompiledRuleSet.Compile(TestRuleSets.AwsAccessToken);
             GitleaksIgnore ignore = GitleaksIgnore.Load(Path.Combine(root, ".gitleaksignore"));
             var findings = new List<Finding>();
             foreach (SourceFile file in DirectorySource.Enumerate(new DirectoryScanOptions(root)))

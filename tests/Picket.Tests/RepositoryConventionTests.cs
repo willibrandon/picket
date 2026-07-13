@@ -48,9 +48,10 @@ public sealed partial class RepositoryConventionTests
     ];
     private static readonly string[] s_apiSidebarItems =
     [
+        "{ label: \"Picket.Compat API\", slug: \"api/picket-compat\" }",
         "{ label: \"Picket.Engine API\", slug: \"api/picket-engine\" }",
-        "{ label: \"Picket.Rules API\", slug: \"api/picket-rules\" }",
         "{ label: \"Picket.Report API\", slug: \"api/picket-report\" }",
+        "{ label: \"Picket.Rules API\", slug: \"api/picket-rules\" }",
         "{ label: \"Picket.Security API\", slug: \"api/picket-security\" }",
     ];
     private static readonly string[] s_referenceSidebarItems =
@@ -559,6 +560,7 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("if: ${{ matrix.os == 'ubuntu-latest' }}", workflow);
         Assert.DoesNotContain("path: tests/fixtures/github-secret-scanning", workflow);
         Assert.DoesNotContain("Write GitHub Action smoke summary", workflow);
+        Assert.Contains("dotnet pack src/Picket.Compat/Picket.Compat.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Rules/Picket.Rules.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("dotnet pack src/Picket.Report/Picket.Report.csproj", workflow);
@@ -972,12 +974,27 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains(".sha256", workflow);
         Assert.Contains("gh release create", workflow);
         Assert.Contains("gh release upload", workflow);
+        Assert.Contains("Picket.Compat/Picket.Compat.csproj", workflow);
         Assert.Contains("Picket.Rules/Picket.Rules.csproj", workflow);
         Assert.Contains("Picket.Engine/Picket.Engine.csproj", workflow);
         Assert.Contains("Picket.Report/Picket.Report.csproj", workflow);
         Assert.Contains("Picket.Security/Picket.Security.csproj", workflow);
         Assert.Contains("Picket.Cli/Picket.Cli.csproj", workflow);
         Assert.Contains("Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        AssertContainsInOrder(workflow,
+        [
+            "'Picket.Rules.'",
+            "'Picket.Engine.'",
+            "'Picket.Compat.'",
+            "'Picket.Report.'",
+            "'Picket.Security.'",
+        ]);
+        AssertContainsInOrder(workflow,
+        [
+            "foreach ($package in $libraryPackages)",
+            "foreach ($package in $runtimePackages)",
+            "foreach ($package in $pointerPackages)",
+        ]);
         Assert.Contains("-p:IncludeSymbols=false", workflow);
         Assert.Contains("publish-nuget", workflow);
         Assert.Contains("build-azure-devops-extension:", workflow);
@@ -1139,6 +1156,7 @@ public sealed partial class RepositoryConventionTests
     [TestMethod]
     public void EmbeddableProjectsDefinePackageContract()
     {
+        AssertEmbeddablePackage("src/Picket.Compat/Picket.Compat.csproj", "Picket.Compat");
         AssertEmbeddablePackage("src/Picket.Rules/Picket.Rules.csproj", "Picket.Rules");
         AssertEmbeddablePackage("src/Picket.Engine/Picket.Engine.csproj", "Picket.Engine");
         AssertEmbeddablePackage("src/Picket.Report/Picket.Report.csproj", "Picket.Report");
@@ -1169,13 +1187,25 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that both executable entry points scrub unexpected exception details.
+    /// </summary>
+    [TestMethod]
+    public void CliEntryPointsUseScrubbedCrashDiagnostics()
+    {
+        string scanner = ReadRepositoryFile("src/Picket.Cli/Program.cs");
+        string tui = ReadRepositoryFile("src/Picket.Tui.Cli/Program.cs");
+
+        Assert.Contains("CrashDiagnosticWriter.Write(Console.Error, exception);", scanner);
+        Assert.Contains("CrashDiagnosticWriter.Write(Console.Error, exception);", tui);
+    }
+
+    /// <summary>
     /// Verifies that internal workflow assemblies are not accidentally packed as public APIs.
     /// </summary>
     [TestMethod]
     public void InternalProjectsAreNotAccidentallyPackable()
     {
         AssertProjectIsNotPackable("src/Picket.Analyze/Picket.Analyze.csproj");
-        AssertProjectIsNotPackable("src/Picket.Compat/Picket.Compat.csproj");
         AssertProjectIsNotPackable("src/Picket.Sources/Picket.Sources.csproj");
         AssertProjectIsNotPackable("src/Picket.Store/Picket.Store.csproj");
         AssertProjectIsNotPackable("src/Picket.Verify/Picket.Verify.csproj");
@@ -1189,6 +1219,7 @@ public sealed partial class RepositoryConventionTests
     {
         string documentation = ReadRepositoryFile("docs/EMBEDDING.md");
 
+        Assert.Contains("Picket.Compat", documentation);
         Assert.Contains("Picket.Rules", documentation);
         Assert.Contains("Picket.Engine", documentation);
         Assert.Contains("Picket.Report", documentation);
@@ -1200,6 +1231,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("CompiledRuleSet.Compile", documentation);
         Assert.Contains("PicketJsonlReportWriter", documentation);
         Assert.Contains("EndpointGuard.Evaluate", documentation);
+        Assert.Contains("PicketConfigLoader.LoadDefaultRuleSet", documentation);
         Assert.Contains("not public library packages yet", documentation);
     }
 
@@ -1480,6 +1512,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Native AOT", release);
         Assert.Contains("NUGET_API_KEY", release);
         Assert.Contains("wslc run", release);
+        Assert.Contains("Picket.Compat", embedding);
         Assert.Contains("Picket.Engine", embedding);
         Assert.Contains("Picket.Rules", embedding);
         Assert.Contains("Picket.Report", embedding);
@@ -1531,6 +1564,7 @@ public sealed partial class RepositoryConventionTests
         string reportSchemas = ReadRepositoryFile("docs-site/src/content/docs/reference/report-schemas.md");
         string ruleCatalog = ReadRepositoryFile("docs-site/src/content/docs/reference/rule-catalog.md");
         string validationAnalyze = ReadRepositoryFile("docs-site/src/content/docs/reference/validation-analyze.md");
+        string compatApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-compat.md");
         string rulesApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-rules.md");
         string engineApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-engine.md");
         string reportApi = ReadRepositoryFile("docs-site/src/content/docs/api/picket-report.md");
@@ -1544,6 +1578,7 @@ public sealed partial class RepositoryConventionTests
         AssertContainsInOrder(siteConfig, s_apiSidebarItems);
         AssertContainsInOrder(siteConfig, s_referenceSidebarItems);
         Assert.Contains("docs:api-build", packageJson);
+        Assert.Contains("Picket.Compat.csproj", packageJson);
         Assert.Contains("Picket.Rules.csproj", packageJson);
         Assert.Contains("Picket.Engine.csproj", packageJson);
         Assert.Contains("Picket.Report.csproj", packageJson);
@@ -1603,6 +1638,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PublishAot", releaseProfiles);
         Assert.Contains("OptimizationPreference", releaseProfiles);
         Assert.Contains("PackageLicenseExpression", releaseProfiles);
+        Assert.Contains("Picket.Compat", releaseProfiles);
         Assert.Contains("Picket.Rules", releaseProfiles);
         Assert.Contains("Picket.Engine", releaseProfiles);
         Assert.Contains("Picket.Report", releaseProfiles);
@@ -1662,6 +1698,9 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("EXAMPLEEXAMPLE", validationAnalyze);
         Assert.DoesNotContain("ghp_", validationAnalyze);
         Assert.DoesNotContain("AKIA", validationAnalyze);
+        Assert.Contains("Picket.Compat API", compatApi);
+        Assert.Contains("GitleaksConfigLoader", compatApi);
+        Assert.Contains("PicketConfigLoader", compatApi);
         Assert.Contains("Picket.Rules API", rulesApi);
         Assert.Contains("SecretRule", rulesApi);
         Assert.Contains("Picket.Engine API", engineApi);

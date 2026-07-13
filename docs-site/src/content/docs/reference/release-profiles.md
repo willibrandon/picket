@@ -49,11 +49,12 @@ This page is generated from publish profiles, packable project files, central pa
 | Package | Target frameworks | Description | Package references | Project references |
 |---|---|---|---|---|
 | `Picket` | `net10.0` | Gitleaks-compatible secrets scanner for .NET with Picket-native validation, reports, source enumeration, and Native AOT release binaries. | System.CommandLine | Picket.Analyze, Picket.Compat, Picket.Engine, Picket.Report, Picket.Rules, Picket.Security, Picket.Sources, Picket.Store, Picket.Verify |
+| `Picket.Compat` | `net9.0;net10.0` | AOT-safe Gitleaks-compatible configuration, baseline, and ignore-file support for Picket. | - | Picket.Engine, Picket.Rules |
 | `Picket.Engine` | `net9.0;net10.0` | AOT-safe secret scanning engine for Picket using Scout.Text.Regex for byte-oriented matching. | Scout.Text.Regex | Picket.Rules |
 | `Picket.Report` | `net9.0;net10.0` | AOT-safe report writers for Picket and Gitleaks-compatible secret scan results. | - | Picket.Engine, Picket.Rules |
-| `Picket.Rules` | `net9.0;net10.0` | AOT-safe rule model and embedded compatibility rule packs for Picket secret scanning. | - | - |
+| `Picket.Rules` | `net9.0;net10.0` | AOT-safe rule and allowlist models for Picket secret scanning. | - | - |
 | `Picket.Security` | `net9.0;net10.0` | AOT-safe egress and endpoint safety primitives for Picket live verification and source connectors. | System.IO.FileSystem.AccessControl | - |
-| `Picket.Tui.Cli` | `net10.0` | Interactive terminal triage companion for Picket secret scan reports. | System.CommandLine | Picket.Tui |
+| `Picket.Tui.Cli` | `net10.0` | Interactive terminal triage companion for Picket secret scan reports. | System.CommandLine | Picket.Security, Picket.Tui |
 
 ## Central Package Versions
 

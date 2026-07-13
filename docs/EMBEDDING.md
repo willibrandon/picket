@@ -1,13 +1,14 @@
 # Embedding Picket
 
-Picket exposes four initial AOT-safe library packages for host applications:
+Picket exposes five AOT-safe library packages for host applications:
 
-- `Picket.Rules`: rule and allowlist models, plus embedded compatibility rules.
+- `Picket.Compat`: Gitleaks-compatible configuration, built-in rule sets, baselines, and ignore files.
 - `Picket.Engine`: byte-oriented scanning over caller-owned buffers.
 - `Picket.Report`: Gitleaks-compatible and Picket-native report writers.
+- `Picket.Rules`: rule and allowlist models.
 - `Picket.Security`: egress and endpoint safety primitives for live verification and source connectors.
 
-These packages target `net9.0` and `net10.0`, enable trim, Native AOT, and single-file analyzers, and avoid dynamic plugin or reflection-only runtime behavior. The current library surface is intentionally narrow. `Picket.Compat`, `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are implementation or workflow assemblies and are not public library packages yet.
+These packages target `net9.0` and `net10.0`, enable trim, Native AOT, and single-file analyzers, and avoid dynamic plugin or reflection-only runtime behavior. The current library surface is intentionally narrow. `Picket.Sources`, `Picket.Store`, `Picket.Verify`, `Picket.Analyze`, and TUI internals are implementation or workflow assemblies and are not public library packages yet.
 
 Picket also publishes RID-specific Native AOT dotnet tool packages for package-manager workflows:
 
@@ -22,6 +23,7 @@ The top-level tool packages are pointer packages; the matching RID packages cont
 
 ```xml
 <ItemGroup>
+  <PackageReference Include="Picket.Compat" Version="0.1.0" />
   <PackageReference Include="Picket.Engine" Version="0.1.0" />
   <PackageReference Include="Picket.Report" Version="0.1.0" />
   <PackageReference Include="Picket.Rules" Version="0.1.0" />
@@ -29,7 +31,21 @@ The top-level tool packages are pointer packages; the matching RID packages cont
 </ItemGroup>
 ```
 
-`Picket.Engine` depends on `Picket.Rules`, and `Picket.Report` depends on both. `Picket.Security` has no Picket package dependencies. Hosts can reference only the highest-level package they need.
+`Picket.Engine` depends on `Picket.Rules`. `Picket.Compat` and `Picket.Report` depend on both. `Picket.Security` has no Picket package dependencies. Hosts can reference only the highest-level package they need.
+
+## Load Built-In Rules
+
+Use `PicketConfigLoader` for the native default rule set and `GitleaksConfigLoader` when strict Gitleaks compatibility is required:
+
+```csharp
+using Picket.Compat;
+using Picket.Rules;
+
+RuleSet nativeRules = PicketConfigLoader.LoadDefaultRuleSet();
+RuleSet compatibleRules = GitleaksConfigLoader.LoadDefaultRuleSet();
+```
+
+The default-loading methods do not read environment variables or target-local files. Use `LoadRuleSet(configPath, source)` when the host intentionally wants the corresponding CLI configuration-precedence behavior.
 
 ## Scan a Buffer
 

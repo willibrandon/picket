@@ -29,7 +29,7 @@ internal static partial class Program
 
     private static RootCommand CreateRootCommand(string[] args)
     {
-        var rootCommand = new RootCommand("Bootstrap secrets scanner.")
+        var rootCommand = new RootCommand("Scan code, repositories, artifacts, and cloud sources for secrets.")
         {
             TreatUnmatchedTokensAsErrors = true,
         };

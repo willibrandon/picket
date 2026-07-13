@@ -14,14 +14,14 @@ namespace Picket.Tests;
 public sealed class SecretScannerTests
 {
     /// <summary>
-    /// Verifies that the bootstrap scanner detects an AWS access key from byte input.
+    /// Verifies that the scanner detects an AWS access key from byte input.
     /// </summary>
     [TestMethod]
     public void ScanFindsAwsAccessTokenInByteInput()
     {
         byte[] input = Encoding.UTF8.GetBytes("before\nAWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF\nafter\n");
 
-        CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(TestRuleSets.AwsAccessToken);
 
         IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 
@@ -213,7 +213,7 @@ public sealed class SecretScannerTests
     {
         byte[] input = Encoding.UTF8.GetBytes("no secrets here");
 
-        CompiledRuleSet rules = CompiledRuleSet.Compile(EmbeddedGitleaksRules.Bootstrap);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(TestRuleSets.AwsAccessToken);
 
         IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
 

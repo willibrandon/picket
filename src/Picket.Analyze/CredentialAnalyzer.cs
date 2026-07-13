@@ -402,7 +402,7 @@ public static class CredentialAnalyzer
         if (provider.Equals("GitHub", StringComparison.Ordinal))
         {
             return [
-                "curl -L -X POST -H \"Accept: application/vnd.github+json\" -H \"X-GitHub-Api-Version: 2026-03-10\" https://api.github.com/credentials/revoke -d '{\"credentials\":[\"<github-token>\"]}'"
+                "picket revoke github --credential-env PICKET_GITHUB_CREDENTIAL --confirm-revocation"
             ];
         }
 

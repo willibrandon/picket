@@ -12,7 +12,6 @@ Generated from XML documentation for `Picket.Rules`.
 
 - [AllowlistCondition](#allowlistcondition) - Describes how checks inside a secret allowlist are combined.
 - [AllowlistRegexTarget](#allowlistregextarget) - Describes the finding field tested by allowlist regexes.
-- [EmbeddedGitleaksRules](#embeddedgitleaksrules) - Small bootstrap subset of the pinned Gitleaks ruleset.
 - [RuleSet](#ruleset) - Immutable collection of secret detection rules.
 - [SecretAllowlist](#secretallowlist) - Describes Gitleaks-compatible allowlist checks for suppressing findings.
 - [SecretRequiredRule](#secretrequiredrule) - Describes a Gitleaks-compatible supporting rule required by a primary rule.
@@ -40,16 +39,6 @@ Describes the finding field tested by allowlist regexes.
 - `Line` - Tests the full source line containing the finding.
 - `Match` - Tests the full regex match.
 - `Secret` - Tests the captured secret value.
-
-## EmbeddedGitleaksRules
-
-`Picket.Rules.EmbeddedGitleaksRules`
-
-Small bootstrap subset of the pinned Gitleaks ruleset.
-
-### Properties
-
-- `Bootstrap` - Gets the bootstrap compatibility rule set used until the full pinned Gitleaks config loader lands.
 
 ## RuleSet
 

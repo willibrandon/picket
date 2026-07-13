@@ -351,6 +351,7 @@ jobs:
 
           dotnet pack src/Picket.Rules/Picket.Rules.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
           dotnet pack src/Picket.Engine/Picket.Engine.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
+          dotnet pack src/Picket.Compat/Picket.Compat.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
           dotnet pack src/Picket.Report/Picket.Report.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
           dotnet pack src/Picket.Security/Picket.Security.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -o $packageOutput
           dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:Version=$version -p:PackageVersion=$version -p:IncludeSymbols=false -o $packageOutput
@@ -441,8 +442,26 @@ jobs:
           })
           $pointerPaths = @($pointerPackages | ForEach-Object FullName)
           $nonPointerPackages = @($packages | Where-Object { $pointerPaths -notcontains $_.FullName })
+          $libraryPackagePrefixes = @(
+            'Picket.Rules.',
+            'Picket.Engine.',
+            'Picket.Compat.',
+            'Picket.Report.',
+            'Picket.Security.'
+          )
+          $libraryPackages = @(
+            foreach ($prefix in $libraryPackagePrefixes) {
+              $nonPointerPackages | Where-Object { $_.Name.StartsWith($prefix, [StringComparison]::Ordinal) }
+            }
+          )
+          $libraryPaths = @($libraryPackages | ForEach-Object FullName)
+          $runtimePackages = @($nonPointerPackages | Where-Object { $libraryPaths -notcontains $_.FullName })
 
-          foreach ($package in $nonPointerPackages) {
+          foreach ($package in $libraryPackages) {
+            dotnet nuget push $package.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
+          }
+
+          foreach ($package in $runtimePackages) {
             dotnet nuget push $package.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
           }
 

@@ -10,12 +10,23 @@ Generated from XML documentation for `Picket.Security`.
 
 ## Types
 
+- [CrashDiagnosticWriter](#crashdiagnosticwriter) - Writes bounded crash diagnostics without exposing exception messages or stack traces.
 - [EndpointGuard](#endpointguard) - Validates outbound provider endpoints before live verification or analysis can contact them.
 - [EndpointGuardBlockReason](#endpointguardblockreason) - Describes why an outbound endpoint was blocked.
 - [EndpointGuardHttpHandlerFactory](#endpointguardhttphandlerfactory) - Creates HTTP handlers that enforce endpoint guard checks against the address used for each socket connection.
 - [EndpointGuardHttpHandlerOptions](#endpointguardhttphandleroptions) - Configures a guarded HTTP handler created by the endpoint guard HTTP handler factory.
 - [EndpointGuardOptions](#endpointguardoptions) - Configures outbound endpoint safety checks.
 - [EndpointGuardResult](#endpointguardresult) - Represents an outbound endpoint safety decision.
+
+## CrashDiagnosticWriter
+
+`Picket.Security.CrashDiagnosticWriter`
+
+Writes bounded crash diagnostics without exposing exception messages or stack traces.
+
+### Methods
+
+- `Write(TextWriter writer, Exception exception)` - Writes a non-secret diagnostic for an unexpected exception.
 
 ## EndpointGuard
 

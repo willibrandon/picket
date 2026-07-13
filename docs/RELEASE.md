@@ -33,6 +33,7 @@ Every CI run packs the public embeddable library packages after build and test:
 
 - `Picket.Rules`
 - `Picket.Engine`
+- `Picket.Compat`
 - `Picket.Report`
 - `Picket.Security`
 

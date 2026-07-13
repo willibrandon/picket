@@ -1,14 +1,16 @@
-namespace Picket.Rules;
+using Picket.Rules;
+
+namespace Picket.Tests;
 
 /// <summary>
-/// Small bootstrap subset of the pinned Gitleaks ruleset.
+/// Provides focused rule sets for scanner integration tests.
 /// </summary>
-public static class EmbeddedGitleaksRules
+internal static class TestRuleSets
 {
     /// <summary>
-    /// Gets the bootstrap compatibility rule set used until the full pinned Gitleaks config loader lands.
+    /// Gets a rule set that detects AWS access-key identifiers.
     /// </summary>
-    public static RuleSet Bootstrap { get; } = new(
+    internal static RuleSet AwsAccessToken { get; } = new(
     [
         SecretRule.Create(
             "aws-access-token",

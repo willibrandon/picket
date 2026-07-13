@@ -1197,8 +1197,7 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"validationState\":\"structurally-valid\"", result.Stdout);
         Assert.Contains("\"recommendedActions\"", result.Stdout);
         Assert.Contains("\"revocationAvailable\":true", result.Stdout);
-        Assert.Contains("https://api.github.com/credentials/revoke", result.Stdout);
-        Assert.Contains("<github-token>", result.Stdout);
+        Assert.Contains("picket revoke github --credential-env PICKET_GITHUB_CREDENTIAL --confirm-revocation", result.Stdout);
         Assert.Contains("\"revocationGuidance\"", result.Stdout);
         Assert.DoesNotContain(token, result.Stdout);
     }
@@ -1433,6 +1432,8 @@ public sealed class CliCompatibilityTests
         CliResult result = await RunCliAsync("--help").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("Scan code, repositories, artifacts, and cloud sources for secrets.", result.Stdout);
+        Assert.DoesNotContain("Bootstrap secrets scanner", result.Stdout);
         Assert.Contains("picket [command] [options]", result.Stdout);
         Assert.Contains("Commands:", result.Stdout);
         Assert.Contains("scan <path>", result.Stdout);

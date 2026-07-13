@@ -28,9 +28,10 @@ const projectDocsSidebar = [
 ];
 
 const apiSidebar = [
+  { label: "Picket.Compat API", slug: "api/picket-compat" },
   { label: "Picket.Engine API", slug: "api/picket-engine" },
-  { label: "Picket.Rules API", slug: "api/picket-rules" },
   { label: "Picket.Report API", slug: "api/picket-report" },
+  { label: "Picket.Rules API", slug: "api/picket-rules" },
   { label: "Picket.Security API", slug: "api/picket-security" }
 ];
 
