@@ -1,5 +1,7 @@
 using Picket.Security;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 
 namespace Picket.Tests;
 
@@ -172,6 +174,39 @@ public sealed class PicketStateProtectionKeyTests
 
         _ = PicketStateProtectionKey.LoadOrCreatePath(keyPath);
 
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(keyPath);
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(string.Concat(keyPath, ".lock"));
+    }
+
+    /// <summary>
+    /// Verifies an owner-correct Windows directory can be protected without rewriting its owner.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    [SupportedOSPlatform("windows")]
+    public void LoadOrCreatePathDoesNotRewriteMatchingWindowsOwner()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string keyDirectory = Path.Combine(temp.Path, "restricted");
+        Directory.CreateDirectory(keyDirectory);
+        var directory = new DirectoryInfo(keyDirectory);
+        DirectorySecurity security = FileSystemAclExtensions.GetAccessControl(directory);
+        SecurityIdentifier owner = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("Could not resolve the current Windows user SID.");
+        security.SetOwner(owner);
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.SetAccessRule(new FileSystemAccessRule(
+            owner,
+            FileSystemRights.Modify,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+        FileSystemAclExtensions.SetAccessControl(directory, security);
+        string keyPath = Path.Combine(keyDirectory, "state.key");
+
+        _ = PicketStateProtectionKey.LoadOrCreatePath(keyPath);
+
+        WindowsAccessControlAssert.AllowsOnlyCurrentUser(keyDirectory);
         WindowsAccessControlAssert.AllowsOnlyCurrentUser(keyPath);
         WindowsAccessControlAssert.AllowsOnlyCurrentUser(string.Concat(keyPath, ".lock"));
     }

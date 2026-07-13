@@ -10,6 +10,11 @@ namespace Picket.Verify;
 /// </summary>
 public static class OfflineSecretValidator
 {
+    /// <summary>
+    /// Gets the offline validation model version used by persistent scan-cache identities.
+    /// </summary>
+    public const string ModelVersion = "picket.offline-validation.v1";
+
     private static readonly Encoding s_strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     /// <summary>

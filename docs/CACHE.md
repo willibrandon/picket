@@ -10,13 +10,13 @@ Each entry is addressed by:
 - an address discriminator,
 - scanner configuration fingerprint.
 
-The cache key includes the rule-set fingerprint, scanner matching-behavior version, randomness-model version, decoder depth, target-size limit, inline-allow behavior, address mode, and storage mode. Matching changes therefore invalidate entries even when the selected rules and CLI options are unchanged.
+The cache key includes the rule-set fingerprint, scanner matching-behavior version, randomness-model version, offline-validation-model version, decoder depth, target-size limit, inline-allow behavior, address mode, and storage mode. Matching, randomness, or offline validation changes therefore invalidate entries even when the selected rules and CLI options are unchanged.
 
 The address discriminator is the narrowest safe value for the active scan behavior. Path-sensitive rule sets use the logical report path. Path-insensitive native scans that can run file-extension-specific decoders use the file extension. Scans with no path-dependent rule or decoder behavior use a content-only discriminator, so identical blobs can reuse matching work across paths while reports are rehydrated with the current path and symlink provenance.
 
 Large local files are hashed through a bounded stream before cache lookup. The cache key and every cached finding retain the SHA-256 identity of the complete file, not an individual scan fragment. On a cache miss, Picket rewinds the file for scanning and rejects the result if the content identity changes before the scan completes.
 
-The scanner configuration fingerprint includes the randomness model version, compiled rule-set fingerprint, maximum decode depth, maximum target size, whether `--ignore-gitleaks-allow` was enabled, the cache address mode when it is not the legacy path mode, and the cache storage mode when the mode is not the legacy raw mode. Changing the model, rules, or these scan options invalidates old entries without deleting them.
+The scanner configuration fingerprint includes the randomness model version, offline validation model version, compiled rule-set fingerprint, maximum decode depth, maximum target size, whether `--ignore-gitleaks-allow` was enabled, the cache address mode when it is not the legacy path mode, and the cache storage mode when the mode is not the legacy raw mode. Changing a model, rules, or these scan options invalidates old entries without deleting them.
 
 ## Entry Format
 
@@ -38,7 +38,7 @@ Entries use the authenticated `picket.scan-cache.v5` format. Picket signs each e
 
 ## Privacy
 
-The default cache mode is `secret-hash-only`. Cache rows keep rule, location, entropy, validation, randomness assessment, tags, decode path, blob hash, and protected secret and match hashes, but omit raw match, secret, and line text. The protected hashes are encrypted at rest with a key derived from the per-user cache authentication key, so a copied cache root does not expose bare SHA-256 values for low-entropy secrets. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hashes, stable fingerprints, randomness metadata, and provenance remain available. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
+The default cache mode is `secret-hash-only`. Cache rows keep rule, location, entropy, validation, randomness assessment, tags, decode path, blob hash, and protected secret and match hashes, but omit raw match, secret, and line text. The protected hashes are encrypted at rest with a key derived from the per-user cache authentication key, so a copied cache root does not expose bare SHA-256 values for low-entropy secrets. A cache hit in this mode replays hash-only findings, so raw report fields are empty while hashes, stable fingerprints, randomness metadata, and provenance remain available. When redaction is enabled, a hash-only hit emits `REDACTED` for unavailable evidence and hashes that marker instead of exposing the protected original hashes. First-pass scan output still follows the selected report and redaction settings; use `--redact=100` when report output must also avoid raw secrets.
 
 Use `--cache-mode raw` only for trusted private caches that need cached reports to replay match, secret, and line fields exactly. Raw mode may contain recoverable secret material, and the CLI writes a warning when raw mode is active.
 

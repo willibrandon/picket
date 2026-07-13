@@ -10,11 +10,30 @@ with the same strict-compatible directory command. Set `PICKET_BIN` and
 `PICKET_GITLEAKS_BIN` to direct executable paths. The executable names on
 `PATH` are fallbacks.
 
+`native-cache-tracked.json` runs the same Native AOT Picket binary and native
+rule set with cache disabled and with an initially empty secret-hash-only cache.
+The recorded cold run populates the cache; the discarded warmup and recorded
+warm runs reuse it. Both tools emit CPU diagnostics, and the harness extracts
+only scan-input, finding, cache-hit, cache-miss, and cache-write counters. Keep
+the manifest's single cold iteration when using this cache-state contract.
+
 The manifest records the capability conditions, corpus selection, process
 arguments, accepted exit codes, report parser, and optional parity group. Paths
-use `{repositoryRoot}`, `{scenarioDirectory}`, `{corpus}`, and `{report}`
-placeholders. Arguments are passed as individual process arguments, not through
-a shell.
+use `{repositoryRoot}`, `{scenarioDirectory}`, `{session}`, `{corpus}`, and
+`{report}` placeholders. `{session}` identifies the generated per-measurement
+workspace and is suitable for persistent caches shared across rounds. Arguments
+are passed as individual process arguments, not through a shell.
+
+Tools may declare `DiagnosticsFile` and `DiagnosticsFormat`. The supported
+`picket-cpu-json` format records only bounded artifact metadata and non-secret
+scan counters in the result. Diagnostic text and timestamps are not retained.
+
+`ParityExcludedProperties` may contain only `line`, `match`, `matchSha256`, and
+`secret`. Use it when comparing a secret-hash-only cache hit with an uncached
+scan because that cache mode omits raw evidence and cannot reconstruct the
+redacted match context used to calculate `matchSha256`. Report hashes still
+expose byte-level differences, and every other finding property remains part of
+the canonical parity hash.
 
 Only assign the same `ParityGroup` to tools expected to produce the same finding
 set. Different built-in rules, decoders, validation behavior, history modes, or

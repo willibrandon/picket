@@ -144,6 +144,11 @@ internal static partial class Program
                 }
             }
 
+            if (scanCache is not null && nativeMode)
+            {
+                findings = AnnotateFindingsForNativeCache(findings);
+            }
+
             if (scanCache is not null)
             {
                 scanCache.Write(blobSha256, file.DisplayPath, findings);

@@ -1210,7 +1210,8 @@ internal static partial class Program
             maxTargetBytes,
             ignoreGitleaksAllow,
             CreateNativeScanCacheAddressMode(rules, maxDecodeDepth),
-            cacheStorageMode);
+            cacheStorageMode,
+            OfflineSecretValidator.ModelVersion);
     }
 
     static ScanCacheAddressMode CreateNativeScanCacheAddressMode(CompiledRuleSet rules, int maxDecodeDepth)

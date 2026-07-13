@@ -801,6 +801,11 @@ internal static partial class Program
                         break;
                     }
 
+                    if (scanCache is not null && nativeMode)
+                    {
+                        scannedFindings = AnnotateFindingsForNativeCache(scannedFindings);
+                    }
+
                     findings.AddRange(scannedFindings);
                     if (scanCache is not null)
                     {

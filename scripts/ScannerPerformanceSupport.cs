@@ -23,6 +23,22 @@ internal static class ScannerPerformanceSupport
     private const string ResultSchema = "picket.performance-result.v1";
 
     /// <summary>
+    /// Maximum diagnostic artifact bytes parsed after one measured run.
+    /// </summary>
+    private const int MaxDiagnosticsBytes = 1_000_000;
+
+    /// <summary>
+    /// Top-level raw evidence properties that a parity scenario may explicitly omit.
+    /// </summary>
+    private static readonly HashSet<string> s_supportedParityExcludedProperties = new(StringComparer.Ordinal)
+    {
+        "line",
+        "match",
+        "matchSha256",
+        "secret",
+    };
+
+    /// <summary>
     /// Measures every tool in a scanner performance scenario.
     /// </summary>
     /// <param name="scenario">The parsed scenario.</param>
@@ -58,7 +74,7 @@ internal static class ScannerPerformanceSupport
         {
             JsonObject corpus = PrepareCorpus(scenario, scenarioPath, repositoryRoot, sessionDirectory);
             string corpusPath = ScriptSupport.GetString(corpus, "Path");
-            JsonArray tools = ResolveTools(scenario, scenarioPath, repositoryRoot, corpusPath);
+            JsonArray tools = ResolveTools(scenario, scenarioPath, repositoryRoot, sessionDirectory, corpusPath);
             TimeSpan timeout = TimeSpan.FromSeconds(processTimeoutSeconds);
 
             foreach (JsonNode? toolNode in tools)
@@ -204,6 +220,34 @@ internal static class ScannerPerformanceSupport
             {
                 throw new InvalidDataException($"Performance tool '{name}' must define Arguments.");
             }
+
+            string diagnosticsFile = ScriptSupport.GetString(tool, "DiagnosticsFile");
+            string diagnosticsFormat = GetString(tool, "DiagnosticsFormat", "none");
+            bool hasDiagnosticsFile = diagnosticsFile.Length != 0;
+            bool hasDiagnosticsFormat = !diagnosticsFormat.Equals("none", StringComparison.Ordinal);
+            if (hasDiagnosticsFile != hasDiagnosticsFormat)
+            {
+                throw new InvalidDataException($"Performance tool '{name}' must define DiagnosticsFile and DiagnosticsFormat together.");
+            }
+
+            if (diagnosticsFormat is not "none" and not "picket-cpu-json")
+            {
+                throw new InvalidDataException($"Performance tool '{name}' uses unsupported diagnostics format '{diagnosticsFormat}'.");
+            }
+
+            string[] parityExcludedProperties = ReadStringArray(tool, "ParityExcludedProperties");
+            if (parityExcludedProperties.Distinct(StringComparer.Ordinal).Count() != parityExcludedProperties.Length
+                || parityExcludedProperties.Any(property => !s_supportedParityExcludedProperties.Contains(property)))
+            {
+                throw new InvalidDataException(
+                    $"Performance tool '{name}' may exclude only line, match, matchSha256, and secret once each from parity comparison.");
+            }
+
+            if (parityExcludedProperties.Length != 0
+                && string.IsNullOrEmpty(ScriptSupport.GetString(tool, "ParityGroup")))
+            {
+                throw new InvalidDataException($"Performance tool '{name}' excludes parity properties without defining ParityGroup.");
+            }
         }
     }
 
@@ -229,6 +273,7 @@ internal static class ScannerPerformanceSupport
             GetString(corpus, "Repository", "{repositoryRoot}"),
             repositoryRoot,
             scenarioDirectory,
+            sessionDirectory,
             string.Empty,
             string.Empty);
         string sourceRepository = Path.GetFullPath(sourceRepositoryValue, scenarioDirectory);
@@ -303,9 +348,15 @@ internal static class ScannerPerformanceSupport
     /// <param name="scenario">The scenario object.</param>
     /// <param name="scenarioPath">The scenario path.</param>
     /// <param name="repositoryRoot">The Picket repository root.</param>
+    /// <param name="sessionDirectory">The generated measurement session directory.</param>
     /// <param name="corpusPath">The prepared corpus path.</param>
     /// <returns>The resolved tools.</returns>
-    private static JsonArray ResolveTools(JsonObject scenario, string scenarioPath, string repositoryRoot, string corpusPath)
+    private static JsonArray ResolveTools(
+        JsonObject scenario,
+        string scenarioPath,
+        string repositoryRoot,
+        string sessionDirectory,
+        string corpusPath)
     {
         string scenarioDirectory = Path.GetDirectoryName(scenarioPath) ?? repositoryRoot;
         var result = new JsonArray();
@@ -327,12 +378,19 @@ internal static class ScannerPerformanceSupport
                 throw new InvalidDataException($"Performance tool '{name}' must define Executable or ExecutableEnvironmentVariable.");
             }
 
-            executableValue = ReplacePathPlaceholders(executableValue, repositoryRoot, scenarioDirectory, corpusPath, string.Empty);
+            executableValue = ReplacePathPlaceholders(
+                executableValue,
+                repositoryRoot,
+                scenarioDirectory,
+                sessionDirectory,
+                corpusPath,
+                string.Empty);
             string executable = ScriptSupport.ResolveCommandPath(executableValue, $"{name} executable");
             string repositoryValue = ReplacePathPlaceholders(
                 ScriptSupport.GetString(source, "Repository"),
                 repositoryRoot,
                 scenarioDirectory,
+                sessionDirectory,
                 corpusPath,
                 string.Empty);
             string toolRepository = repositoryValue.Length == 0 ? string.Empty : Path.GetFullPath(repositoryValue, scenarioDirectory);
@@ -340,6 +398,7 @@ internal static class ScannerPerformanceSupport
                 GetString(source, "WorkingDirectory", "{corpus}"),
                 repositoryRoot,
                 scenarioDirectory,
+                sessionDirectory,
                 corpusPath,
                 string.Empty);
             workingDirectory = Path.GetFullPath(workingDirectory, scenarioDirectory);
@@ -361,7 +420,10 @@ internal static class ScannerPerformanceSupport
                 ["AllowedExitCodes"] = source["AllowedExitCodes"]?.DeepClone() ?? new JsonArray(0),
                 ["ReportFormat"] = GetString(source, "ReportFormat", "none"),
                 ["ParityGroup"] = ScriptSupport.GetString(source, "ParityGroup"),
+                ["ParityExcludedProperties"] = source["ParityExcludedProperties"]?.DeepClone() ?? new JsonArray(),
                 ["StandardInputPath"] = ScriptSupport.GetString(source, "StandardInputPath"),
+                ["DiagnosticsFile"] = ScriptSupport.GetString(source, "DiagnosticsFile"),
+                ["DiagnosticsFormat"] = GetString(source, "DiagnosticsFormat", "none"),
                 ["Runs"] = new JsonArray(),
             };
             ScriptSupport.AddNode(result, tool);
@@ -439,12 +501,19 @@ internal static class ScannerPerformanceSupport
         string reportPath = Path.Combine(reportDirectory, $"{SanitizeFileName(name)}-{phase}-{iteration}.report");
         string workingDirectory = ScriptSupport.GetString(tool, "WorkingDirectory");
         string[] arguments = ReadStringArray(tool, "Arguments")
-            .Select(value => ReplacePathPlaceholders(value, repositoryRoot, workingDirectory, corpusPath, reportPath))
+            .Select(value => ReplacePathPlaceholders(
+                value,
+                repositoryRoot,
+                workingDirectory,
+                sessionDirectory,
+                corpusPath,
+                reportPath))
             .ToArray();
         string standardInputPath = ReplacePathPlaceholders(
             ScriptSupport.GetString(tool, "StandardInputPath"),
             repositoryRoot,
             workingDirectory,
+            sessionDirectory,
             corpusPath,
             reportPath);
         if (standardInputPath.Length != 0)
@@ -465,13 +534,31 @@ internal static class ScannerPerformanceSupport
             throw new InvalidOperationException($"Performance tool '{name}' exited with code {exitCode} during {phase} iteration {iteration}.");
         }
 
-        JsonObject report = AnalyzeReport(reportPath, ScriptSupport.GetString(tool, "ReportFormat"));
+        JsonObject report = AnalyzeReport(
+            reportPath,
+            ScriptSupport.GetString(tool, "ReportFormat"),
+            ReadStringArray(tool, "ParityExcludedProperties"));
         processResult["Phase"] = phase;
         processResult["Iteration"] = iteration;
         processResult["ReportBytes"] = report["Bytes"]?.DeepClone();
         processResult["ReportSha256"] = report["Sha256"]?.DeepClone();
         processResult["FindingCount"] = report["FindingCount"]?.DeepClone();
         processResult["NormalizedFindingSetSha256"] = report["NormalizedFindingSetSha256"]?.DeepClone();
+        string diagnosticsPath = ReplacePathPlaceholders(
+            ScriptSupport.GetString(tool, "DiagnosticsFile"),
+            repositoryRoot,
+            workingDirectory,
+            sessionDirectory,
+            corpusPath,
+            reportPath);
+        JsonObject diagnostics = AnalyzeDiagnostics(
+            diagnosticsPath,
+            ScriptSupport.GetString(tool, "DiagnosticsFormat"));
+        foreach (KeyValuePair<string, JsonNode?> property in diagnostics)
+        {
+            processResult[property.Key] = property.Value?.DeepClone();
+        }
+
         return processResult;
     }
 
@@ -619,8 +706,9 @@ internal static class ScannerPerformanceSupport
     /// </summary>
     /// <param name="reportPath">The report path.</param>
     /// <param name="format">The report format.</param>
+    /// <param name="parityExcludedProperties">Top-level evidence properties omitted from canonical parity comparison.</param>
     /// <returns>The report metrics.</returns>
-    private static JsonObject AnalyzeReport(string reportPath, string format)
+    private static JsonObject AnalyzeReport(string reportPath, string format, string[] parityExcludedProperties)
     {
         if (format.Equals("none", StringComparison.Ordinal))
         {
@@ -640,18 +728,87 @@ internal static class ScannerPerformanceSupport
 
         return format switch
         {
-            "gitleaks-json" => AnalyzeJsonArrayReport(reportPath),
-            "jsonl" => AnalyzeJsonLinesReport(reportPath),
+            "gitleaks-json" => AnalyzeJsonArrayReport(reportPath, parityExcludedProperties),
+            "jsonl" => AnalyzeJsonLinesReport(reportPath, parityExcludedProperties),
             _ => throw new InvalidDataException($"Unsupported performance report format '{format}'."),
         };
+    }
+
+    /// <summary>
+    /// Extracts bounded non-secret counters from one generated diagnostics artifact.
+    /// </summary>
+    /// <param name="diagnosticsPath">The generated diagnostics file path.</param>
+    /// <param name="format">The diagnostics format identifier.</param>
+    /// <returns>The diagnostic artifact metadata and counters.</returns>
+    private static JsonObject AnalyzeDiagnostics(string diagnosticsPath, string format)
+    {
+        if (format.Equals("none", StringComparison.Ordinal))
+        {
+            return [];
+        }
+
+        if (!File.Exists(diagnosticsPath))
+        {
+            throw new FileNotFoundException($"Scanner did not write expected diagnostics '{diagnosticsPath}'.", diagnosticsPath);
+        }
+
+        var info = new FileInfo(diagnosticsPath);
+        if (info.Length > MaxDiagnosticsBytes)
+        {
+            throw new InvalidDataException($"Scanner diagnostics '{diagnosticsPath}' exceeded {MaxDiagnosticsBytes} bytes.");
+        }
+
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllBytes(diagnosticsPath));
+        JsonElement root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException($"Expected a diagnostics object in '{diagnosticsPath}'.");
+        }
+
+        if (!format.Equals("picket-cpu-json", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"Unsupported performance diagnostics format '{format}'.");
+        }
+
+        return new JsonObject
+        {
+            ["DiagnosticsBytes"] = info.Length,
+            ["DiagnosticsSha256"] = ScriptSupport.GetFileSha256(diagnosticsPath),
+            ["ScanInputs"] = ReadDiagnosticCounter(root, "scanInputs", diagnosticsPath),
+            ["DiagnosticFindingCount"] = ReadDiagnosticCounter(root, "findings", diagnosticsPath),
+            ["CacheHits"] = ReadDiagnosticCounter(root, "cacheHits", diagnosticsPath),
+            ["CacheMisses"] = ReadDiagnosticCounter(root, "cacheMisses", diagnosticsPath),
+            ["CacheWrites"] = ReadDiagnosticCounter(root, "cacheWrites", diagnosticsPath),
+        };
+    }
+
+    /// <summary>
+    /// Reads one required non-negative diagnostics counter.
+    /// </summary>
+    /// <param name="root">The diagnostics object.</param>
+    /// <param name="name">The counter property name.</param>
+    /// <param name="diagnosticsPath">The diagnostics file used in errors.</param>
+    /// <returns>The counter value.</returns>
+    private static long ReadDiagnosticCounter(JsonElement root, string name, string diagnosticsPath)
+    {
+        if (!root.TryGetProperty(name, out JsonElement value)
+            || value.ValueKind != JsonValueKind.Number
+            || !value.TryGetInt64(out long counter)
+            || counter < 0)
+        {
+            throw new InvalidDataException($"Scanner diagnostics '{diagnosticsPath}' did not contain a valid {name} counter.");
+        }
+
+        return counter;
     }
 
     /// <summary>
     /// Analyzes a Gitleaks-shaped JSON array report.
     /// </summary>
     /// <param name="reportPath">The report path.</param>
+    /// <param name="parityExcludedProperties">Top-level evidence properties omitted from canonical parity comparison.</param>
     /// <returns>The report metrics.</returns>
-    private static JsonObject AnalyzeJsonArrayReport(string reportPath)
+    private static JsonObject AnalyzeJsonArrayReport(string reportPath, string[] parityExcludedProperties)
     {
         using JsonDocument document = JsonDocument.Parse(File.ReadAllBytes(reportPath));
         if (document.RootElement.ValueKind != JsonValueKind.Array)
@@ -663,7 +820,7 @@ internal static class ScannerPerformanceSupport
         foreach (JsonElement finding in document.RootElement.EnumerateArray())
         {
             var builder = new StringBuilder();
-            AppendCanonicalJson(builder, finding);
+            AppendCanonicalFinding(builder, finding, parityExcludedProperties);
             findings.Add(builder.ToString());
         }
 
@@ -675,8 +832,9 @@ internal static class ScannerPerformanceSupport
     /// Analyzes a JSON Lines report.
     /// </summary>
     /// <param name="reportPath">The report path.</param>
+    /// <param name="parityExcludedProperties">Top-level evidence properties omitted from canonical parity comparison.</param>
     /// <returns>The report metrics.</returns>
-    private static JsonObject AnalyzeJsonLinesReport(string reportPath)
+    private static JsonObject AnalyzeJsonLinesReport(string reportPath, string[] parityExcludedProperties)
     {
         var findings = new List<string>();
         foreach (string line in File.ReadLines(reportPath))
@@ -688,12 +846,51 @@ internal static class ScannerPerformanceSupport
 
             using JsonDocument document = JsonDocument.Parse(line);
             var builder = new StringBuilder();
-            AppendCanonicalJson(builder, document.RootElement);
+            AppendCanonicalFinding(builder, document.RootElement, parityExcludedProperties);
             findings.Add(builder.ToString());
         }
 
         findings.Sort(StringComparer.Ordinal);
         return CreateReportMetrics(reportPath, findings);
+    }
+
+    /// <summary>
+    /// Appends one canonical finding while omitting explicitly permitted top-level evidence properties.
+    /// </summary>
+    /// <param name="builder">The destination builder.</param>
+    /// <param name="finding">The finding object.</param>
+    /// <param name="excludedProperties">The top-level property names to omit.</param>
+    private static void AppendCanonicalFinding(
+        StringBuilder builder,
+        JsonElement finding,
+        string[] excludedProperties)
+    {
+        if (finding.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("Expected each scanner finding to be a JSON object.");
+        }
+
+        builder.Append('{');
+        bool firstProperty = true;
+        foreach (JsonProperty property in finding.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal))
+        {
+            if (excludedProperties.Contains(property.Name, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            if (!firstProperty)
+            {
+                builder.Append(',');
+            }
+
+            AppendJsonString(builder, property.Name);
+            builder.Append(':');
+            AppendCanonicalJson(builder, property.Value);
+            firstProperty = false;
+        }
+
+        builder.Append('}');
     }
 
     /// <summary>
@@ -819,7 +1016,7 @@ internal static class ScannerPerformanceSupport
         double[] processor = ReadDoubleValues(runs, "ProcessorMilliseconds");
         long[] peakWorkingSet = ReadLongValues(runs, "PeakWorkingSetBytes");
         int[] findingCounts = ReadIntValues(runs, "FindingCount");
-        return new JsonObject
+        var summary = new JsonObject
         {
             ["RunCount"] = runs.Count,
             ["ElapsedMillisecondsMinimum"] = elapsed.Min(),
@@ -831,6 +1028,46 @@ internal static class ScannerPerformanceSupport
             ["PeakWorkingSetBytesMaximum"] = peakWorkingSet.Max(),
             ["FindingCount"] = findingCounts.Distinct().Count() == 1 ? findingCounts[0] : -1,
         };
+        AppendOptionalCounterSummary(summary, runs, "ScanInputs");
+        AppendOptionalCounterSummary(summary, runs, "DiagnosticFindingCount");
+        AppendOptionalCounterSummary(summary, runs, "CacheHits");
+        AppendOptionalCounterSummary(summary, runs, "CacheMisses");
+        AppendOptionalCounterSummary(summary, runs, "CacheWrites");
+        return summary;
+    }
+
+    /// <summary>
+    /// Adds minimum, median, and maximum statistics for an optional per-run counter.
+    /// </summary>
+    /// <param name="summary">The destination phase summary.</param>
+    /// <param name="runs">The measured runs.</param>
+    /// <param name="name">The counter property name.</param>
+    private static void AppendOptionalCounterSummary(JsonObject summary, JsonArray runs, string name)
+    {
+        var values = new List<long>(runs.Count);
+        foreach (JsonNode? run in runs)
+        {
+            JsonNode? value = run?[name];
+            if (value is not null)
+            {
+                values.Add(value.GetValue<long>());
+            }
+        }
+
+        if (values.Count == 0)
+        {
+            return;
+        }
+
+        if (values.Count != runs.Count)
+        {
+            throw new InvalidDataException($"Performance runs contained inconsistent {name} diagnostics counters.");
+        }
+
+        long[] counters = [.. values];
+        summary[string.Concat(name, "Minimum")] = counters.Min();
+        summary[string.Concat(name, "Median")] = Median(counters);
+        summary[string.Concat(name, "Maximum")] = counters.Max();
     }
 
     /// <summary>
@@ -1011,6 +1248,7 @@ internal static class ScannerPerformanceSupport
     /// <param name="value">The source value.</param>
     /// <param name="repositoryRoot">The repository root.</param>
     /// <param name="scenarioDirectory">The scenario or working directory.</param>
+    /// <param name="sessionPath">The generated measurement session directory.</param>
     /// <param name="corpusPath">The corpus path.</param>
     /// <param name="reportPath">The report path.</param>
     /// <returns>The expanded value.</returns>
@@ -1018,12 +1256,14 @@ internal static class ScannerPerformanceSupport
         string value,
         string repositoryRoot,
         string scenarioDirectory,
+        string sessionPath,
         string corpusPath,
         string reportPath)
     {
         return value
             .Replace("{repositoryRoot}", repositoryRoot, StringComparison.Ordinal)
             .Replace("{scenarioDirectory}", scenarioDirectory, StringComparison.Ordinal)
+            .Replace("{session}", sessionPath, StringComparison.Ordinal)
             .Replace("{corpus}", corpusPath, StringComparison.Ordinal)
             .Replace("{report}", reportPath, StringComparison.Ordinal);
     }

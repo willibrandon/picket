@@ -50,6 +50,18 @@ copy of the selected Git-tracked files, runs Picket and the pinned Gitleaks
 binary from the same working directory, and removes the generated corpus and
 reports after measurement.
 
+The native incremental scenario is
+`benchmarks/scenarios/native-cache-tracked.json`. It compares the same Picket
+binary and native scan with cache disabled and with an initially empty
+secret-hash-only cache. Its one recorded cold run populates the cache before the
+warmup and warm rounds. Report parity is mandatory, and bounded CPU diagnostics
+record scan inputs, findings, cache hits, misses, and writes for every run.
+Canonical parity excludes raw `line`, `match`, and `secret` fields because
+secret-hash-only cache hits intentionally omit them, plus `matchSha256` because
+the missing match context cannot be reconstructed. Secret hashes, stable
+fingerprints, full report hashes, and all other finding properties are still
+recorded and compared.
+
 Publish the current scanner, identify the two direct executable paths, build the
 file-based app once, and run the scenario:
 
@@ -59,6 +71,12 @@ $env:PICKET_BIN = (Resolve-Path artifacts/performance/tools/picket/picket.exe).P
 $env:PICKET_GITLEAKS_BIN = (Resolve-Path artifacts/tools/gitleaks.exe).Path
 dotnet build ./scripts/Measure-ScannerPerformance.cs --nologo --verbosity quiet
 dotnet run --file ./scripts/Measure-ScannerPerformance.cs --no-build -- -ScenarioPath ./benchmarks/scenarios/gitleaks-compatible-tracked.json -FailOnParityDifference
+```
+
+Run the cache scenario with the same `PICKET_BIN` value:
+
+```powershell
+dotnet run --file ./scripts/Measure-ScannerPerformance.cs --no-build -- -ScenarioPath ./benchmarks/scenarios/native-cache-tracked.json -FailOnParityDifference
 ```
 
 On Unix-like systems, set `PICKET_BIN` and `PICKET_GITLEAKS_BIN` to the
@@ -75,7 +93,9 @@ The result schema is `picket.performance-result.v1`. Each capture records:
 - wall time, child-process CPU time, peak child-process working set, exit code,
   output byte counts and hashes, report byte count and hash, and finding count,
 - a canonical finding-set hash for parity groups, so report ordering does not
-  create a false difference.
+  create a false difference,
+- optional bounded diagnostic artifact metadata and non-secret scan-input,
+  finding, cache-hit, cache-miss, and cache-write counters.
 
 The default schedule records one pre-warmup run, discards one warmup round, then
 records five warmed rounds. Tool order rotates between rounds to reduce fixed

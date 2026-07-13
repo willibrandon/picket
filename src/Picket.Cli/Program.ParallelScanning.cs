@@ -207,6 +207,11 @@ internal static partial class Program
             return [];
         }
 
+        if (scanCache is not null && nativeMode)
+        {
+            scannedFindings = AnnotateFindingsForNativeCache(scannedFindings);
+        }
+
         if (scanCache is not null)
         {
             scanCache.Write(input, file.DisplayPath, scannedFindings);

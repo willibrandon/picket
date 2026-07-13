@@ -120,7 +120,9 @@ public sealed class SecretRandomnessReportTests
         Finding redacted = GitleaksFindingRedactor.Redact(finding, redactionPercent: 100, requirePartialMask: true);
 
         Assert.IsNull(redacted.Randomness);
-        Assert.IsEmpty(redacted.Secret);
+        Assert.AreEqual("REDACTED", redacted.Secret);
+        Assert.AreEqual("REDACTED", redacted.Match);
+        Assert.AreEqual("REDACTED", redacted.Line);
     }
 
     private static Finding CreateFinding()

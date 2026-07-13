@@ -1,0 +1,110 @@
+{
+  "Schema": "picket.performance-scenario.v1",
+  "Name": "native-cache-tracked",
+  "Description": "Picket-native filesystem scan with cache disabled versus an initially empty secret-hash-only cache.",
+  "Comparability": "Same Picket binary, corpus, native rules, redaction, report format, archive behavior, and filesystem mode. Only persistent scan-cache use differs.",
+  "ColdIterations": 1,
+  "WarmupIterations": 1,
+  "WarmIterations": 5,
+  "ProcessTimeoutSeconds": 300,
+  "Conditions": {
+    "SourceMode": "filesystem",
+    "History": false,
+    "Verification": false,
+    "Cache": "disabled-versus-secret-hash-only",
+    "CacheInitialState": "empty",
+    "WarmState": "The cache-enabled tool reuses state populated by its recorded cold run.",
+    "ReportFormat": "jsonl",
+    "RedactionPercent": 100
+  },
+  "Corpus": {
+    "Kind": "git-tracked-copy",
+    "Repository": "{repositoryRoot}",
+    "PathPrefixes": [
+      "src/",
+      "tests/"
+    ]
+  },
+  "Tools": [
+    {
+      "Name": "Picket native without cache",
+      "ExecutableEnvironmentVariable": "PICKET_BIN",
+      "Executable": "picket",
+      "Repository": "{repositoryRoot}",
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "version"
+      ],
+      "Arguments": [
+        "scan",
+        ".",
+        "--profile",
+        "picket",
+        "--report-format",
+        "jsonl",
+        "--report-path",
+        "{report}",
+        "--redact=100",
+        "--diagnostics=cpu",
+        "--diagnostics-dir",
+        "{report}.diagnostics"
+      ],
+      "AllowedExitCodes": [
+        0,
+        1
+      ],
+      "ReportFormat": "jsonl",
+      "DiagnosticsFile": "{report}.diagnostics/cpu.json",
+      "DiagnosticsFormat": "picket-cpu-json",
+      "ParityExcludedProperties": [
+        "line",
+        "match",
+        "matchSha256",
+        "secret"
+      ],
+      "ParityGroup": "native-cache"
+    },
+    {
+      "Name": "Picket native with secret-hash-only cache",
+      "ExecutableEnvironmentVariable": "PICKET_BIN",
+      "Executable": "picket",
+      "Repository": "{repositoryRoot}",
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "version"
+      ],
+      "Arguments": [
+        "scan",
+        ".",
+        "--profile",
+        "picket",
+        "--cache-dir",
+        "{session}/cache/native-default",
+        "--cache-mode",
+        "secret-hash-only",
+        "--report-format",
+        "jsonl",
+        "--report-path",
+        "{report}",
+        "--redact=100",
+        "--diagnostics=cpu",
+        "--diagnostics-dir",
+        "{report}.diagnostics"
+      ],
+      "AllowedExitCodes": [
+        0,
+        1
+      ],
+      "ReportFormat": "jsonl",
+      "DiagnosticsFile": "{report}.diagnostics/cpu.json",
+      "DiagnosticsFormat": "picket-cpu-json",
+      "ParityExcludedProperties": [
+        "line",
+        "match",
+        "matchSha256",
+        "secret"
+      ],
+      "ParityGroup": "native-cache"
+    }
+  ]
+}

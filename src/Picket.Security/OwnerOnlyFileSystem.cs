@@ -85,7 +85,7 @@ internal static class OwnerOnlyFileSystem
     {
         DirectorySecurity security = FileSystemAclExtensions.GetAccessControl(new DirectoryInfo(path));
         SecurityIdentifier owner = GetCurrentUserSid();
-        security.SetOwner(owner);
+        SetOwnerIfDifferent(security, owner);
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
         security.SetAccessRule(new FileSystemAccessRule(
             owner,
@@ -101,7 +101,7 @@ internal static class OwnerOnlyFileSystem
     {
         FileSecurity security = FileSystemAclExtensions.GetAccessControl(new FileInfo(path));
         SecurityIdentifier owner = GetCurrentUserSid();
-        security.SetOwner(owner);
+        SetOwnerIfDifferent(security, owner);
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
         security.SetAccessRule(new FileSystemAccessRule(owner, FileSystemRights.FullControl, AccessControlType.Allow));
         FileSystemAclExtensions.SetAccessControl(new FileInfo(path), security);
@@ -112,5 +112,14 @@ internal static class OwnerOnlyFileSystem
     {
         return WindowsIdentity.GetCurrent().User
             ?? throw new InvalidOperationException("Could not resolve the current Windows user SID.");
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void SetOwnerIfDifferent(FileSystemSecurity security, SecurityIdentifier owner)
+    {
+        if (!owner.Equals(security.GetOwner(typeof(SecurityIdentifier))))
+        {
+            security.SetOwner(owner);
+        }
     }
 }

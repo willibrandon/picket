@@ -178,6 +178,47 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies native redaction replaces protected hashes when cached raw evidence is unavailable.
+    /// </summary>
+    [TestMethod]
+    public void RedactStrictMissingEvidenceDoesNotKeepOriginalHashes()
+    {
+        string originalHash = CreateSha256("secret");
+        Finding finding = new(
+            "rule",
+            "description",
+            1,
+            1,
+            1,
+            6,
+            string.Empty,
+            string.Empty,
+            "secret.txt",
+            string.Empty,
+            string.Empty,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            [],
+            "secret.txt:rule:1",
+            secretSha256: originalHash,
+            matchSha256: originalHash);
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100, requirePartialMask: true);
+
+        string redactedHash = CreateSha256("REDACTED");
+        Assert.AreEqual("REDACTED", redacted.Secret);
+        Assert.AreEqual("REDACTED", redacted.Match);
+        Assert.AreEqual("REDACTED", redacted.Line);
+        Assert.AreEqual(redactedHash, redacted.SecretSha256);
+        Assert.AreEqual(redactedHash, redacted.MatchSha256);
+        Assert.AreNotEqual(originalHash, redacted.SecretSha256);
+        Assert.AreNotEqual(originalHash, redacted.MatchSha256);
+    }
+
+    /// <summary>
     /// Verifies that decoded findings do not keep the recoverable encoded source line after redaction.
     /// </summary>
     [TestMethod]

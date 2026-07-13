@@ -8,6 +8,11 @@ namespace Picket;
 
 internal static partial class Program
 {
+    static List<Finding> AnnotateFindingsForNativeCache(IReadOnlyList<Finding> findings)
+    {
+        return OfflineSecretValidator.AnnotateAll(findings);
+    }
+
     static int CompleteFindingsRun(
         IReadOnlyList<Finding> findings,
         CompiledRuleSet rules,

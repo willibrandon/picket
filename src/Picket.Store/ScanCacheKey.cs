@@ -41,6 +41,7 @@ public sealed class ScanCacheKey(
     /// <param name="ignoreGitleaksAllow">A value indicating whether inline <c>gitleaks:allow</c> comments are ignored.</param>
     /// <param name="addressMode">The cache address mode used for blob entries.</param>
     /// <param name="storageMode">The cache storage mode used for finding evidence.</param>
+    /// <param name="validationModelVersion">The optional offline validation model version.</param>
     /// <returns>The created cache key.</returns>
     public static ScanCacheKey Create(
         string ruleSetFingerprint,
@@ -48,9 +49,18 @@ public sealed class ScanCacheKey(
         long? maxTargetBytes,
         bool ignoreGitleaksAllow = false,
         ScanCacheAddressMode addressMode = ScanCacheAddressMode.Path,
-        ScanCacheStorageMode storageMode = ScanCacheStorageMode.SecretHashOnly)
+        ScanCacheStorageMode storageMode = ScanCacheStorageMode.SecretHashOnly,
+        string validationModelVersion = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ruleSetFingerprint);
+        ArgumentNullException.ThrowIfNull(validationModelVersion);
+        if (validationModelVersion.Length != 0
+            && (string.IsNullOrWhiteSpace(validationModelVersion)
+                || validationModelVersion.AsSpan().IndexOfAny('\0', '\r', '\n') >= 0))
+        {
+            throw new ArgumentException("Validation model version must be a single non-empty line.", nameof(validationModelVersion));
+        }
+
         ArgumentOutOfRangeException.ThrowIfNegative(maxDecodeDepth);
         if (maxTargetBytes.HasValue)
         {
@@ -65,7 +75,8 @@ public sealed class ScanCacheKey(
             maxTargetBytes,
             ignoreGitleaksAllow,
             normalizedAddressMode,
-            normalizedStorageMode);
+            normalizedStorageMode,
+            validationModelVersion);
         return new ScanCacheKey(BlobHasher.ComputeSha256Hex(material), normalizedAddressMode, normalizedStorageMode);
     }
 
@@ -75,13 +86,20 @@ public sealed class ScanCacheKey(
         long? maxTargetBytes,
         bool ignoreGitleaksAllow,
         ScanCacheAddressMode addressMode,
-        ScanCacheStorageMode storageMode)
+        ScanCacheStorageMode storageMode,
+        string validationModelVersion)
     {
         var builder = new StringBuilder();
-        builder.Append("picket.scan-cache-key.v3\nmatching-behavior:");
+        builder.Append("picket.scan-cache-key.v4\nmatching-behavior:");
         builder.Append(SecretScanner.MatchingBehaviorVersion);
         builder.Append("\nrandomness-model:");
         builder.Append(SecretRandomnessScorer.ModelVersion);
+        if (validationModelVersion.Length != 0)
+        {
+            builder.Append("\noffline-validation:");
+            builder.Append(validationModelVersion);
+        }
+
         builder.Append("\nrules:");
         builder.Append(ruleSetFingerprint);
         builder.Append("\ndecode:");

@@ -63,7 +63,7 @@ public sealed class PicketScanCacheTests
         string ruleSetFingerprint = new('a', 64);
         ScanCacheKey key = ScanCacheKey.Create(ruleSetFingerprint, maxDecodeDepth: 5, maxTargetBytes: null);
         string material = string.Concat(
-            "picket.scan-cache-key.v3\nmatching-behavior:",
+            "picket.scan-cache-key.v4\nmatching-behavior:",
             SecretScanner.MatchingBehaviorVersion,
             "\nrandomness-model:",
             SecretRandomnessScorer.ModelVersion,
@@ -72,6 +72,42 @@ public sealed class PicketScanCacheTests
             "\ndecode:5\ntarget:none\nignore-gitleaks-allow:false\nstorage-mode:SecretHashOnly");
 
         Assert.AreEqual(BlobHasher.ComputeSha256Hex(material), key.Fingerprint);
+    }
+
+    /// <summary>
+    /// Verifies offline validation model versions participate in scan-cache identities.
+    /// </summary>
+    [TestMethod]
+    public void ScanCacheKeyIncludesValidationModelVersion()
+    {
+        string ruleSetFingerprint = new('a', 64);
+        ScanCacheKey first = ScanCacheKey.Create(
+            ruleSetFingerprint,
+            maxDecodeDepth: 5,
+            maxTargetBytes: null,
+            validationModelVersion: "validation-v1");
+        ScanCacheKey second = ScanCacheKey.Create(
+            ruleSetFingerprint,
+            maxDecodeDepth: 5,
+            maxTargetBytes: null,
+            validationModelVersion: "validation-v2");
+
+        Assert.AreNotEqual(first.Fingerprint, second.Fingerprint);
+    }
+
+    /// <summary>
+    /// Verifies scan-cache validation model versions cannot inject material delimiters.
+    /// </summary>
+    [TestMethod]
+    public void ScanCacheKeyRejectsMultilineValidationModelVersion()
+    {
+        string ruleSetFingerprint = new('a', 64);
+
+        Assert.ThrowsExactly<ArgumentException>(() => ScanCacheKey.Create(
+            ruleSetFingerprint,
+            maxDecodeDepth: 5,
+            maxTargetBytes: null,
+            validationModelVersion: "validation-v1\nrules:substitute"));
     }
 
     /// <summary>

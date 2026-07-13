@@ -7,6 +7,8 @@ namespace Picket.Report;
 /// </summary>
 public static class GitleaksFindingRedactor
 {
+    private const string RedactedValue = "REDACTED";
+
     /// <summary>
     /// Redacts secrets in each finding using the supplied percentage.
     /// </summary>
@@ -69,6 +71,11 @@ public static class GitleaksFindingRedactor
 
         if (finding.Secret.Length == 0)
         {
+            if (requirePartialMask)
+            {
+                return RedactMissingEvidence(finding);
+            }
+
             return finding.Randomness is null ? finding : WithoutRandomness(finding);
         }
 
@@ -141,6 +148,38 @@ public static class GitleaksFindingRedactor
             randomness: null);
     }
 
+    private static Finding RedactMissingEvidence(Finding finding)
+    {
+        string redactedSha256 = PicketFindingMetadata.CreateSha256(RedactedValue);
+        return new Finding(
+            finding.RuleID,
+            finding.Description,
+            finding.StartLine,
+            finding.EndLine,
+            finding.StartColumn,
+            finding.EndColumn,
+            RedactedValue,
+            RedactedValue,
+            finding.File,
+            finding.SymlinkFile,
+            finding.Commit,
+            finding.Entropy,
+            finding.Author,
+            finding.Email,
+            finding.Date,
+            finding.Message,
+            finding.Tags,
+            finding.Fingerprint,
+            RedactedValue,
+            finding.Link,
+            redactedSha256,
+            redactedSha256,
+            finding.ValidationState,
+            finding.BlobSha256,
+            finding.DecodePath,
+            randomness: null);
+    }
+
     private static string RedactLine(Finding finding, string redactedSecret)
     {
         if (finding.DecodePath.Count != 0)
@@ -166,7 +205,7 @@ public static class GitleaksFindingRedactor
     {
         if (redactionPercent >= 100)
         {
-            return "REDACTED";
+            return RedactedValue;
         }
 
         double visibleLengthValue = Math.Round((double)secret.Length * (100 - redactionPercent) / 100.0, MidpointRounding.ToEven);

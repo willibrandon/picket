@@ -72,7 +72,7 @@ Current utilities:
 | `Promote-CompatibilityOracle.cs` | Normalize reviewed oracle captures into committed fixtures. |
 | `Capture-GitHubSecretScanningOracle.cs` | Capture sanitized hosted GitHub secret-scanning alert metadata. |
 | `Compare-GitHubSecretScanningOracle.cs` | Compare hosted alert metadata to a Picket JSONL report. |
-| `Measure-ScannerPerformance.cs` | Measure direct scanner processes from a reproducible scenario manifest and compare canonical finding sets. |
+| `Measure-ScannerPerformance.cs` | Measure direct scanner processes from a reproducible scenario manifest, compare canonical finding sets, and capture bounded diagnostic counters. |
 | `Generate-PackageManagerManifests.cs` | Generate Homebrew, Scoop, and WinGet manifests from release checksums. |
 
 Do not store secrets in utility arguments, logs, or committed fixtures. Oracle

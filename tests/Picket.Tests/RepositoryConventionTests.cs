@@ -1744,6 +1744,7 @@ public sealed partial class RepositoryConventionTests
         string scriptsReadme = ReadRepositoryFile("scripts/README.md");
         string scenarioReadme = ReadRepositoryFile("benchmarks/scenarios/README.md");
         string scenario = ReadRepositoryFile("benchmarks/scenarios/gitleaks-compatible-tracked.json");
+        string nativeCacheScenario = ReadRepositoryFile("benchmarks/scenarios/native-cache-tracked.json");
 
         Assert.Contains("scripts/Measure-ScannerPerformance.cs", design);
         Assert.Contains("benchmarks/scenarios/", design);
@@ -1757,6 +1758,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket.performance-scenario.v1", scenario);
         Assert.Contains("\"ParityGroup\": \"strict-gitleaks\"", scenario);
         Assert.Contains("\"RedactionPercent\": 100", scenario);
+        Assert.Contains("\"{session}/cache/native-default\"", nativeCacheScenario);
+        Assert.Contains("\"DiagnosticsFormat\": \"picket-cpu-json\"", nativeCacheScenario);
+        Assert.Contains("\"ParityExcludedProperties\"", nativeCacheScenario);
     }
 
     /// <summary>
@@ -1774,8 +1778,8 @@ public sealed partial class RepositoryConventionTests
         using TempDirectory temp = TempDirectory.Create();
         string scenarioPath = Path.Combine(temp.Path, "scenario.json");
         string outputPath = Path.Combine(temp.Path, "result.json");
-        JsonObject firstTool = CreatePerformanceHarnessTestTool("Picket A");
-        JsonObject secondTool = CreatePerformanceHarnessTestTool("Picket B");
+        JsonObject firstTool = CreatePerformanceHarnessTestTool("Picket without cache", useCache: false);
+        JsonObject secondTool = CreatePerformanceHarnessTestTool("Picket with cache", useCache: true);
         var scenario = new JsonObject
         {
             ["Schema"] = "picket.performance-scenario.v1",
@@ -1819,6 +1823,10 @@ public sealed partial class RepositoryConventionTests
         JsonElement[] runs = [.. tools[0].GetProperty("Runs").EnumerateArray()];
         Assert.HasCount(2, runs);
         Assert.AreEqual(1, tools[0].GetProperty("Summary").GetProperty("Warm").GetProperty("FindingCount").GetInt32());
+        JsonElement cachedWarm = tools[1].GetProperty("Summary").GetProperty("Warm");
+        Assert.IsGreaterThan(0, cachedWarm.GetProperty("CacheHitsMedian").GetInt64());
+        Assert.AreEqual(0, cachedWarm.GetProperty("CacheMissesMedian").GetInt64());
+        Assert.AreEqual(0, cachedWarm.GetProperty("CacheWritesMedian").GetInt64());
         Assert.IsFalse(result.TryGetProperty("WorkDirectory", out _));
         Assert.AreEqual(JsonValueKind.Null, result.GetProperty("Corpus").GetProperty("GeneratedPath").ValueKind);
     }
@@ -2114,8 +2122,31 @@ public sealed partial class RepositoryConventionTests
         }
     }
 
-    private static JsonObject CreatePerformanceHarnessTestTool(string name)
+    private static JsonObject CreatePerformanceHarnessTestTool(string name, bool useCache)
     {
+        var arguments = new JsonArray(
+            "scan",
+            "tests/fixtures/oracle-inputs/basic-dir-json",
+            "--config",
+            "tests/fixtures/oracle-inputs/basic-dir-json/.gitleaks.toml",
+            "--profile",
+            "picket");
+        if (useCache)
+        {
+            arguments.Add("--cache-dir");
+            arguments.Add("{session}/cache/test");
+            arguments.Add("--cache-mode");
+            arguments.Add("secret-hash-only");
+        }
+
+        arguments.Add("--report-format");
+        arguments.Add("jsonl");
+        arguments.Add("--report-path");
+        arguments.Add("{report}");
+        arguments.Add("--redact=100");
+        arguments.Add("--diagnostics=cpu");
+        arguments.Add("--diagnostics-dir");
+        arguments.Add("{report}.diagnostics");
         return new JsonObject
         {
             ["Name"] = name,
@@ -2123,18 +2154,12 @@ public sealed partial class RepositoryConventionTests
             ["Repository"] = "{repositoryRoot}",
             ["WorkingDirectory"] = "{corpus}",
             ["VersionArguments"] = new JsonArray("version"),
-            ["Arguments"] = new JsonArray(
-                "dir",
-                "tests/fixtures/oracle-inputs/basic-dir-json",
-                "--config",
-                "tests/fixtures/oracle-inputs/basic-dir-json/.gitleaks.toml",
-                "--report-format",
-                "json",
-                "--report-path",
-                "{report}",
-                "--redact=100"),
+            ["Arguments"] = arguments,
             ["AllowedExitCodes"] = new JsonArray(0, 1),
-            ["ReportFormat"] = "gitleaks-json",
+            ["ReportFormat"] = "jsonl",
+            ["DiagnosticsFile"] = "{report}.diagnostics/cpu.json",
+            ["DiagnosticsFormat"] = "picket-cpu-json",
+            ["ParityExcludedProperties"] = new JsonArray("line", "match", "matchSha256", "secret"),
             ["ParityGroup"] = "test-parity",
         };
     }

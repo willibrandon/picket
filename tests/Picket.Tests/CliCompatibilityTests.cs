@@ -1627,6 +1627,85 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies secret-hash-only cache hits preserve offline validation metadata.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanCachePreservesOfflineValidationState()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        string apiKey = CreateGoogleApiKeyFixture();
+        File.WriteAllText(Path.Combine(root.Path, "settings.txt"), $"api_key = \"{apiKey}\"");
+
+        CliResult first = await RunCliAsync(
+            "scan",
+            root.Path,
+            "--cache-dir",
+            cachePath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+        CliResult second = await RunCliAsync(
+            "scan",
+            root.Path,
+            "--cache-dir",
+            cachePath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, first.ExitCode);
+        Assert.AreEqual(1, second.ExitCode);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", first.Stdout);
+        Assert.Contains("\"validationState\":\"structurally-valid\"", second.Stdout);
+        Assert.Contains("\"secret\":\"\"", second.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies redacted cache hits do not expose protected hashes of original evidence.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRedactsSecretHashOnlyCacheHitHashes()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteFindingWordConfig(root.Path);
+        string cachePath = Path.Combine(root.Path, ".picket", "cache");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "prefix finding suffix");
+
+        CliResult first = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--cache-dir",
+            cachePath,
+            "-f",
+            "jsonl",
+            "--redact=100").ConfigureAwait(false);
+        CliResult second = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "--cache-dir",
+            cachePath,
+            "-f",
+            "jsonl",
+            "--redact=100").ConfigureAwait(false);
+
+        Assert.AreEqual(1, first.ExitCode);
+        Assert.AreEqual(1, second.ExitCode);
+        string originalHash = ComputeSha256("finding").ToLowerInvariant();
+        string redactedHash = ComputeSha256("REDACTED").ToLowerInvariant();
+        Assert.DoesNotContain(originalHash, second.Stdout);
+        Assert.Contains($"\"secretSha256\":\"{redactedHash}\"", second.Stdout);
+        Assert.Contains($"\"matchSha256\":\"{redactedHash}\"", second.Stdout);
+        using JsonDocument firstDocument = JsonDocument.Parse(first.Stdout);
+        using JsonDocument secondDocument = JsonDocument.Parse(second.Stdout);
+        Assert.AreEqual(
+            firstDocument.RootElement.GetProperty("fingerprint").GetString(),
+            secondDocument.RootElement.GetProperty("fingerprint").GetString());
+    }
+
+    /// <summary>
     /// Verifies that native scan cache entries are invalidated by inline allow behavior.
     /// </summary>
     [TestMethod]
