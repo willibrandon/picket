@@ -228,6 +228,8 @@ Findings from artifacts and logs use native report fields because Gitleaks-compa
 
 The Azure DevOps Marketplace extension packages the task metadata, icon, documentation, license, privacy statement, and agent compatibility matrix. The task major version stays stable as `PicketScan@1` while compatible task inputs evolve additively.
 
+The package follows Microsoft's current [extension manifest](https://learn.microsoft.com/azure/devops/extend/develop/manifest) and [custom task layout](https://learn.microsoft.com/azure/devops/extend/develop/add-build-task): `images/extension-icon.png` is the Marketplace icon, and the 32-by-32 `tasks/PicketScanV1/icon.png` is the task icon. `PRIVACY.md`, `COMPATIBILITY.md`, and `CHANGELOG.md` are packaged with the extension. The manifest links to the public documentation, license, privacy policy, source repository, and issue tracker. Task-settable variables are restricted to the six declared outputs.
+
 The extension can either bundle signed Picket CLI binaries or acquire deterministic release artifacts by version and checksum. Both approaches must use the same scanner behavior, report contracts, and security controls as local CLI execution.
 
 ## Test And Release Gates

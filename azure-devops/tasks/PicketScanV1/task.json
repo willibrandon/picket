@@ -10,7 +10,7 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 1
+    "Patch": 2
   },
   "minimumAgentVersion": "3.220.0",
   "instanceNameFormat": "Picket scan $(target)",
@@ -462,6 +462,18 @@
   "execution": {
     "Node20_1": {
       "target": "index.js"
+    }
+  },
+  "restrictions": {
+    "settableVariables": {
+      "allowed": [
+        "exitCode",
+        "findings",
+        "sarifPath",
+        "jsonlPath",
+        "htmlPath",
+        "annotations"
+      ]
     }
   }
 }

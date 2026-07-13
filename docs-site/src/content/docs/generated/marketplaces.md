@@ -55,6 +55,8 @@ The Azure DevOps Marketplace extension packages the `PicketScan@1` task and the 
 
 The extension scaffold lives under `azure-devops/`: `azure-devops/vss-extension.json` declares the marketplace contribution and `azure-devops/tasks/PicketScanV1/task.json` declares the task inputs, outputs, and Node handler. Release automation packages the VSIX, applies the stable release version, writes a SHA-256 sidecar, and attests the artifact before the GitHub Release is created or updated. Publishing remains an explicit release-phase step after the package and smoke tests are reviewed.
 
+The manifest declares the Marketplace icon and links to documentation, license, privacy, source, and support. The task folder contains the required 32-by-32 task icon. Packaged `PRIVACY.md`, `COMPATIBILITY.md`, and `CHANGELOG.md` files keep policy, agent requirements, and release history available with the VSIX.
+
 Package contents:
 
 - VSIX manifest,

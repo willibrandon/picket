@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "picket",
   "name": "Picket",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "willibrandon",
   "targets": [
     {
@@ -13,6 +13,18 @@
   "categories": [
     "Azure Pipelines"
   ],
+  "tags": [
+    "DevSecOps",
+    "secret scanning",
+    "security"
+  ],
+  "icons": {
+    "default": "images/extension-icon.png"
+  },
+  "branding": {
+    "color": "#0c0e10",
+    "theme": "dark"
+  },
   "content": {
     "details": {
       "path": "README.md"
@@ -21,6 +33,27 @@
       "path": "LICENSE"
     }
   },
+  "links": {
+    "getstarted": {
+      "uri": "https://willibrandon.github.io/picket/generated/azure-devops/"
+    },
+    "learn": {
+      "uri": "https://willibrandon.github.io/picket/"
+    },
+    "license": {
+      "uri": "https://github.com/willibrandon/picket/blob/main/LICENSE"
+    },
+    "privacypolicy": {
+      "uri": "https://github.com/willibrandon/picket/blob/main/azure-devops/PRIVACY.md"
+    },
+    "support": {
+      "uri": "https://github.com/willibrandon/picket/issues"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "uri": "https://github.com/willibrandon/picket"
+  },
   "files": [
     {
       "path": "README.md",
@@ -28,6 +61,22 @@
     },
     {
       "path": "LICENSE",
+      "addressable": true
+    },
+    {
+      "path": "CHANGELOG.md",
+      "addressable": true
+    },
+    {
+      "path": "COMPATIBILITY.md",
+      "addressable": true
+    },
+    {
+      "path": "PRIVACY.md",
+      "addressable": true
+    },
+    {
+      "path": "images/extension-icon.png",
       "addressable": true
     },
     {

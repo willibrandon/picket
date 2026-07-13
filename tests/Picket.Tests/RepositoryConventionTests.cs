@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -699,6 +700,9 @@ public sealed partial class RepositoryConventionTests
         string handler = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.js");
         string handlerTests = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.test.js");
         string readme = ReadRepositoryFile("azure-devops/README.md");
+        string changelog = ReadRepositoryFile("azure-devops/CHANGELOG.md");
+        string compatibility = ReadRepositoryFile("azure-devops/COMPATIBILITY.md");
+        string privacy = ReadRepositoryFile("azure-devops/PRIVACY.md");
         string azureDevOps = ReadRepositoryFile("docs/AZURE_DEVOPS.md");
         string workflow = ReadRepositoryFile(".github/workflows/ci.yml");
         string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
@@ -706,14 +710,25 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
-        Assert.AreEqual("0.1.1", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("0.1.2", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("images/extension-icon.png", extensionRoot.GetProperty("icons").GetProperty("default").GetString());
+        Assert.AreEqual("https://github.com/willibrandon/picket", extensionRoot.GetProperty("repository").GetProperty("uri").GetString());
+        Assert.AreEqual("https://github.com/willibrandon/picket/blob/main/azure-devops/PRIVACY.md", extensionRoot.GetProperty("links").GetProperty("privacypolicy").GetProperty("uri").GetString());
         Assert.AreEqual("tasks/PicketScanV1", extensionRoot.GetProperty("contributions")[0].GetProperty("properties").GetProperty("name").GetString());
+        HashSet<string> extensionFiles = ReadJsonPropertySet(extensionRoot.GetProperty("files"), "path");
+        Assert.Contains("README.md", extensionFiles);
+        Assert.Contains("LICENSE", extensionFiles);
+        Assert.Contains("CHANGELOG.md", extensionFiles);
+        Assert.Contains("COMPATIBILITY.md", extensionFiles);
+        Assert.Contains("PRIVACY.md", extensionFiles);
+        Assert.Contains("images/extension-icon.png", extensionFiles);
+        Assert.Contains("tasks/PicketScanV1", extensionFiles);
 
         JsonElement taskRoot = task.RootElement;
         Assert.AreEqual("PicketScan", taskRoot.GetProperty("name").GetString());
         Assert.AreEqual("Picket scan", taskRoot.GetProperty("friendlyName").GetString());
         Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Major").GetInt32());
-        Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
+        Assert.AreEqual(2, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
         Assert.AreEqual("index.js", taskRoot.GetProperty("execution").GetProperty("Node20_1").GetProperty("target").GetString());
 
         HashSet<string> inputNames = ReadJsonNameSet(taskRoot.GetProperty("inputs"));
@@ -739,6 +754,20 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("jsonlPath", outputNames);
         Assert.Contains("htmlPath", outputNames);
         Assert.Contains("annotations", outputNames);
+        HashSet<string> settableVariables = [.. taskRoot
+            .GetProperty("restrictions")
+            .GetProperty("settableVariables")
+            .GetProperty("allowed")
+            .EnumerateArray()
+            .Select(value => value.GetString() ?? string.Empty)];
+        Assert.IsTrue(outputNames.SetEquals(settableVariables));
+
+        (int extensionIconWidth, int extensionIconHeight) = ReadPngDimensions("azure-devops/images/extension-icon.png");
+        Assert.AreEqual(128, extensionIconWidth);
+        Assert.AreEqual(128, extensionIconHeight);
+        (int taskIconWidth, int taskIconHeight) = ReadPngDimensions("azure-devops/tasks/PicketScanV1/icon.png");
+        Assert.AreEqual(32, taskIconWidth);
+        Assert.AreEqual(32, taskIconHeight);
 
         Assert.Contains("spawnSync(inputs.picketPath", handler);
         Assert.Contains("\"scan\"", handler);
@@ -771,6 +800,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Scanner execution errors still fail the task.", readme);
         Assert.DoesNotContain("This folder", readme);
         Assert.DoesNotContain("Before publishing", readme);
+        Assert.Contains("does not collect telemetry", privacy);
+        Assert.Contains("secret-hash-only", privacy);
+        Assert.Contains("agent `3.220.0` or newer", compatibility);
+        Assert.Contains("`linux-musl-arm64`", compatibility);
+        Assert.Contains("## 0.1.2", changelog);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("Scanner execution errors always fail the task", azureDevOps);
@@ -2445,16 +2479,37 @@ public sealed partial class RepositoryConventionTests
 
     private static HashSet<string> ReadJsonNameSet(JsonElement array)
     {
-        var names = new HashSet<string>(StringComparer.Ordinal);
+        return ReadJsonPropertySet(array, "name");
+    }
+
+    private static HashSet<string> ReadJsonPropertySet(JsonElement array, string propertyName)
+    {
+        var values = new HashSet<string>(StringComparer.Ordinal);
         foreach (JsonElement item in array.EnumerateArray())
         {
-            if (item.TryGetProperty("name", out JsonElement name))
+            if (item.TryGetProperty(propertyName, out JsonElement value))
             {
-                names.Add(name.GetString() ?? string.Empty);
+                values.Add(value.GetString() ?? string.Empty);
             }
         }
 
-        return names;
+        return values;
+    }
+
+    private static (int Width, int Height) ReadPngDimensions(string relativePath)
+    {
+        byte[] bytes = File.ReadAllBytes(ResolveRepositoryPath(relativePath));
+        ReadOnlySpan<byte> pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+        if (bytes.Length < 24
+            || !bytes.AsSpan(0, pngSignature.Length).SequenceEqual(pngSignature)
+            || !bytes.AsSpan(12, 4).SequenceEqual("IHDR"u8))
+        {
+            throw new InvalidDataException($"Repository asset '{relativePath}' is not a valid PNG with an IHDR chunk.");
+        }
+
+        return (
+            BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(16, sizeof(int))),
+            BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(20, sizeof(int))));
     }
 
     private static XElement ReadPublishProfile(string name)
