@@ -119,6 +119,39 @@ history behavior, ignores, and report filtering have actually been aligned.
 Capability-separated measurements remain valid, but they are not presented as
 an equivalent winner/loser comparison.
 
+### Reviewed Baseline: 2026-07-12
+
+The first reviewed strict-compatibility baseline used Picket commit
+`0b8d4ee45b0caa06db089e7a1bcee1b4dc29f6a4`, Scout packages `0.4.4`, and
+Gitleaks commit `4c232b5014f7618360bd992b4c489cb055881c6b`. The checked-in
+`gitleaks-compatible-tracked` scenario staged 455 tracked files from `src/` and
+`tests/` totaling 4.26 MiB. Its corpus manifest SHA-256 was
+`d241be5cbf2ad33ab0aa2246d317eb30623142cb3a5253470fef8bb27d39b785`.
+
+Both scanners produced 30 findings with canonical finding-set SHA-256
+`f698ed7bfd496569085b1655ecc297596d56c34820797597b86540724f4a197e`.
+The parity gate passed.
+
+| Tool | Pre-warmup elapsed | Warm elapsed median | Warm CPU median | Warm peak working set median |
+|---|---:|---:|---:|---:|
+| Picket | 594.43 ms | 592.24 ms | 3,375.00 ms | 88.34 MiB |
+| Gitleaks | 1,762.73 ms | 1,704.48 ms | 7,828.12 ms | 88.87 MiB |
+
+On this scenario and host, Picket's warm elapsed median was 2.88 times faster.
+This is not a claim about other repositories, rules, source modes, or machines.
+The run used Windows `10.0.26200`, NTFS, an AMD64 Family 26 Model 68 processor
+with 32 effective processors, .NET `10.0.9`, and SDK `10.0.301`. Host-level
+filesystem caches were not reset, so the pre-warmup values are not cold OS-cache
+measurements.
+
+The companion `native-cache-tracked` run used the same Picket commit and
+preserved the same 55 canonical findings with and without its
+secret-hash-only cache. The uncached warm median was 8,052.54 ms with 104.55 MiB
+peak working set. The cache-hit warm median was 150.51 ms with 32.75 MiB peak
+working set and reported 442 hits, zero misses, and zero writes. These values
+establish a regression baseline for Picket's own incremental mode; they are not
+a competitor comparison.
+
 Steady-state scan scenarios compile deferred regexes during global setup. The
 fresh-rule-set scenarios create a new compiled rule set for every operation and
 therefore include candidate regex compilation on first use. Compilation
