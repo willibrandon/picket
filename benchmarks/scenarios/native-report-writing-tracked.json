@@ -1,0 +1,103 @@
+{
+  "Schema": "picket.performance-scenario.v1",
+  "Name": "native-report-writing-tracked",
+  "Description": "Picket-native scan with one JSON Lines report versus the same scan with JSON Lines, SARIF, HTML, and TOON report fan-out.",
+  "Comparability": "Same Picket binary, corpus, native rules, offline validation, redaction, cache state, archive behavior, and primary JSON Lines finding set. Only additional report writers differ.",
+  "ColdIterations": 1,
+  "WarmupIterations": 1,
+  "WarmIterations": 5,
+  "ProcessTimeoutSeconds": 300,
+  "Conditions": {
+    "SourceMode": "filesystem",
+    "History": false,
+    "Verification": "offline",
+    "Cache": false,
+    "ControlReportFormats": [
+      "jsonl"
+    ],
+    "FanOutReportFormats": [
+      "jsonl",
+      "sarif",
+      "html",
+      "toon"
+    ],
+    "RedactionPercent": 100
+  },
+  "Corpus": {
+    "Kind": "git-tracked-copy",
+    "Repository": "{repositoryRoot}",
+    "PathPrefixes": [
+      "src/",
+      "tests/"
+    ]
+  },
+  "Tools": [
+    {
+      "Name": "Picket native JSON Lines",
+      "ExecutableEnvironmentVariable": "PICKET_BIN",
+      "Executable": "picket",
+      "Repository": "{repositoryRoot}",
+      "RequireRepositoryCommitInVersion": true,
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "version"
+      ],
+      "Arguments": [
+        "scan",
+        ".",
+        "--profile",
+        "picket",
+        "--report-format",
+        "jsonl",
+        "--report-path",
+        "{report}",
+        "--redact=100"
+      ],
+      "AllowedExitCodes": [
+        0,
+        1
+      ],
+      "ReportFileExtension": ".jsonl",
+      "ReportFormat": "jsonl",
+      "ParityGroup": "native-report-writing"
+    },
+    {
+      "Name": "Picket native report fan-out",
+      "ExecutableEnvironmentVariable": "PICKET_BIN",
+      "Executable": "picket",
+      "Repository": "{repositoryRoot}",
+      "RequireRepositoryCommitInVersion": true,
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "version"
+      ],
+      "Arguments": [
+        "scan",
+        ".",
+        "--profile",
+        "picket",
+        "--report-path",
+        "{report}",
+        "--report-path",
+        "{report}.sarif",
+        "--report-path",
+        "{report}.html",
+        "--report-path",
+        "{report}.toon",
+        "--redact=100"
+      ],
+      "AllowedExitCodes": [
+        0,
+        1
+      ],
+      "ReportFileExtension": ".jsonl",
+      "ReportFormat": "jsonl",
+      "AdditionalReportPaths": [
+        "{report}.sarif",
+        "{report}.html",
+        "{report}.toon"
+      ],
+      "ParityGroup": "native-report-writing"
+    }
+  ]
+}

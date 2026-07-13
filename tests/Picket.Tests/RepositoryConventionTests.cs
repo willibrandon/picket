@@ -989,6 +989,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--skip-duplicate", workflow);
         Assert.Contains("*.snupkg", workflow);
         Assert.Contains("Generate-PackageManagerManifests.cs", workflow);
+        Assert.Contains("Generate-ReleaseArtifactManifest.cs", workflow);
+        Assert.Contains("dist/release-artifacts.json", workflow);
+        Assert.Contains("package-size metadata", workflow);
         Assert.Contains("package-manager-manifests.zip", workflow);
         Assert.Contains("-p:Version=$version", workflow);
         Assert.Contains("-p:PackageVersion=$version", workflow);
@@ -997,13 +1000,16 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("SHA-256 checksums", documentation);
         Assert.Contains("GitHub artifact attestations", documentation);
         Assert.Contains("Homebrew, Scoop, and WinGet manifests", documentation);
+        Assert.Contains("`release-artifacts.json`", documentation);
+        Assert.Contains("exact byte counts", documentation);
+        Assert.Contains("attested separately", documentation);
         Assert.Contains("picket-<tag>-azure-devops.vsix", documentation);
         Assert.Contains("Publishing to the Azure DevOps Marketplace remains an explicit release step", documentation);
         Assert.Contains("Windows MSI Installers", documentation);
         Assert.Contains("picket-<tag>-win-x64.msi", documentation);
         Assert.Contains("picket-<tag>-win-arm64.msi", documentation);
         Assert.Contains("Prerelease tags skip MSI artifacts", documentation);
-        Assert.Contains("publishes those `.nupkg` and `.snupkg` files to NuGet.org", documentation);
+        Assert.Contains("publishes `.nupkg` and `.snupkg` files to NuGet.org", documentation);
         Assert.Contains("release tag is the source of truth for package versions", documentation);
         Assert.Contains("RID-specific Native AOT NuGet tool packages", documentation);
     }
@@ -1808,7 +1814,7 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(12, scripts);
+        Assert.HasCount(13, scripts);
 
         foreach (string scriptPath in scripts)
         {
@@ -1829,6 +1835,7 @@ public sealed partial class RepositoryConventionTests
         string scenario = ReadRepositoryFile("benchmarks/scenarios/gitleaks-compatible-tracked.json");
         string competitorScenario = ReadRepositoryFile("benchmarks/scenarios/native-filesystem-competitors.json");
         string nativeCacheScenario = ReadRepositoryFile("benchmarks/scenarios/native-cache-tracked.json");
+        string reportWritingScenario = ReadRepositoryFile("benchmarks/scenarios/native-report-writing-tracked.json");
 
         Assert.Contains("scripts/Measure-ScannerPerformance.cs", design);
         Assert.Contains("benchmarks/scenarios/", design);
@@ -1849,6 +1856,16 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("\"ExecutableEnvironmentVariable\": \"PICKET_TRUFFLEHOG_BIN\"", competitorScenario);
         Assert.Contains("\"ExecutableEnvironmentVariable\": \"PICKET_KINGFISHER_BIN\"", competitorScenario);
         Assert.DoesNotContain("\"ParityGroup\"", competitorScenario);
+        Assert.Contains("\"ReportFileExtension\": \".jsonl\"", reportWritingScenario);
+        Assert.Contains("\"ParityGroup\": \"native-report-writing\"", reportWritingScenario);
+        Assert.Contains("\"{report}.sarif\"", reportWritingScenario);
+        Assert.Contains("\"{report}.html\"", reportWritingScenario);
+        Assert.Contains("\"{report}.toon\"", reportWritingScenario);
+        Assert.Contains("exact blobs from an immutable Git commit", design);
+        Assert.Contains("executable byte count", design);
+        Assert.Contains("does not identify the staged repository commit", design);
+        Assert.Contains("stable manifest hash", design);
+        Assert.Contains("release-artifacts.json", design);
     }
 
     /// <summary>
@@ -1864,6 +1881,24 @@ public sealed partial class RepositoryConventionTests
         string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
         string picketPath = CliExecutablePath.Resolve(root, configuration);
         using TempDirectory temp = TempDirectory.Create();
+        string corpusRepository = Path.Combine(temp.Path, "corpus-repository");
+        Directory.CreateDirectory(corpusRepository);
+        File.Copy(
+            Path.Combine(root, "tests", "fixtures", "oracle-inputs", "basic-dir-json", ".gitleaks.toml"),
+            Path.Combine(corpusRepository, ".gitleaks.toml"));
+        File.Copy(
+            Path.Combine(root, "tests", "fixtures", "oracle-inputs", "basic-dir-json", "README.md"),
+            Path.Combine(corpusRepository, "README.md"));
+        string corpusSourcePath = Path.Combine(corpusRepository, "source.txt");
+        File.WriteAllText(corpusSourcePath, "const value = \"oracle-secret-12345\"\n");
+        RunGitCommand(corpusRepository, "init");
+        RunGitCommand(corpusRepository, "config", "core.autocrlf", "false");
+        RunGitCommand(corpusRepository, "config", "user.name", "Picket Test");
+        RunGitCommand(corpusRepository, "config", "user.email", "picket@example.com");
+        RunGitCommand(corpusRepository, "add", ".");
+        RunGitCommand(corpusRepository, "commit", "-m", "seed immutable corpus");
+        File.WriteAllText(corpusSourcePath, "const value = \"working-tree-content\"\n");
+
         string scenarioPath = Path.Combine(temp.Path, "scenario.json");
         string outputPath = Path.Combine(temp.Path, "result.json");
         JsonObject firstTool = CreatePerformanceHarnessTestTool("Picket without cache", useCache: false, reportFromStandardOutput: false);
@@ -1878,8 +1913,8 @@ public sealed partial class RepositoryConventionTests
             ["Corpus"] = new JsonObject
             {
                 ["Kind"] = "git-tracked-copy",
-                ["Repository"] = "{repositoryRoot}",
-                ["PathPrefixes"] = new JsonArray("tests/fixtures/oracle-inputs/basic-dir-json/"),
+                ["Repository"] = corpusRepository,
+                ["PathPrefixes"] = new JsonArray(),
             },
             ["Tools"] = new JsonArray(firstTool, secondTool),
         };
@@ -1908,15 +1943,34 @@ public sealed partial class RepositoryConventionTests
         Assert.AreEqual(3, result.GetProperty("Corpus").GetProperty("FileCount").GetInt32());
         JsonElement[] tools = [.. result.GetProperty("Tools").EnumerateArray()];
         Assert.HasCount(2, tools);
+        Assert.IsGreaterThan(0, tools[0].GetProperty("ExecutableBytes").GetInt64());
         JsonElement[] runs = [.. tools[0].GetProperty("Runs").EnumerateArray()];
         Assert.HasCount(2, runs);
         Assert.AreEqual(1, tools[0].GetProperty("Summary").GetProperty("Warm").GetProperty("FindingCount").GetInt32());
+        Assert.AreEqual(0, tools[0].GetProperty("Summary").GetProperty("Warm").GetProperty("AdditionalReportCountMedian").GetInt64());
         JsonElement cachedWarm = tools[1].GetProperty("Summary").GetProperty("Warm");
         Assert.IsGreaterThan(0, cachedWarm.GetProperty("CacheHitsMedian").GetInt64());
         Assert.AreEqual(0, cachedWarm.GetProperty("CacheMissesMedian").GetInt64());
         Assert.AreEqual(0, cachedWarm.GetProperty("CacheWritesMedian").GetInt64());
         Assert.IsFalse(result.TryGetProperty("WorkDirectory", out _));
         Assert.AreEqual(JsonValueKind.Null, result.GetProperty("Corpus").GetProperty("GeneratedPath").ValueKind);
+
+        firstTool["VersionArguments"] = new JsonArray("--help");
+        File.WriteAllText(scenarioPath, scenario.ToJsonString());
+        using Process staleBinaryProcess = CreateFileBasedAppProcess(ScriptPath, noBuild: true);
+        staleBinaryProcess.StartInfo.Environment["PICKET_PERFORMANCE_TEST_BIN"] = picketPath;
+        staleBinaryProcess.StartInfo.ArgumentList.Add("-ScenarioPath");
+        staleBinaryProcess.StartInfo.ArgumentList.Add(scenarioPath);
+        staleBinaryProcess.StartInfo.ArgumentList.Add("-OutputPath");
+        staleBinaryProcess.StartInfo.ArgumentList.Add(outputPath);
+
+        Assert.IsTrue(staleBinaryProcess.Start(), "Could not restart scanner performance harness.");
+        (string staleStdout, string staleStderr) = await WaitForExitAndReadOutputAsync(
+            staleBinaryProcess,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(1, staleBinaryProcess.ExitCode, staleStdout);
+        Assert.Contains("version does not identify repository commit", staleStderr);
     }
 
     /// <summary>
@@ -1953,6 +2007,75 @@ public sealed partial class RepositoryConventionTests
         (string tamperedStdout, string tamperedStderr) = await WaitForExitAndReadOutputAsync(tamperedProcess, TestContext.CancellationToken).ConfigureAwait(false);
         Assert.AreEqual(1, tamperedProcess.ExitCode, tamperedStdout);
         Assert.Contains("Checksum verification failed", tamperedStderr);
+    }
+
+    /// <summary>
+    /// Verifies the release artifact manifest records deterministic payload sizes and excludes mutable checksum files.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    [Timeout(300000, CooperativeCancellation = true)]
+    public async Task ReleaseArtifactManifestRecordsDeterministicPayloadSizes()
+    {
+        const string ScriptPath = "scripts/Generate-ReleaseArtifactManifest.cs";
+        using TempDirectory temp = TempDirectory.Create();
+        string firstAssetPath = Path.Combine(temp.Path, "Picket.1.2.3.nupkg");
+        string secondAssetPath = Path.Combine(temp.Path, "picket-v1.2.3-win-x64.zip");
+        string outputPath = Path.Combine(temp.Path, "release-artifacts.json");
+        File.WriteAllBytes(firstAssetPath, [1, 2]);
+        File.WriteAllBytes(secondAssetPath, [3, 4, 5, 6, 7]);
+        File.WriteAllText(string.Concat(secondAssetPath, ".sha256"), "excluded");
+        File.WriteAllText(Path.Combine(temp.Path, "checksums.txt"), "excluded");
+
+        await BuildFileBasedAppAsync(ScriptPath).ConfigureAwait(false);
+        using (Process process = CreateFileBasedAppProcess(ScriptPath, noBuild: true))
+        {
+            process.StartInfo.ArgumentList.Add("-Directory");
+            process.StartInfo.ArgumentList.Add(temp.Path);
+            process.StartInfo.ArgumentList.Add("-ReleaseTag");
+            process.StartInfo.ArgumentList.Add("v1.2.3");
+            process.StartInfo.ArgumentList.Add("-OutputPath");
+            process.StartInfo.ArgumentList.Add(outputPath);
+
+            Assert.IsTrue(process.Start(), "Could not start release artifact manifest generator.");
+            (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(process, TestContext.CancellationToken).ConfigureAwait(false);
+            Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+            Assert.Contains("assets: 2", stdout);
+            Assert.Contains("bytes: 7", stdout);
+        }
+
+        string firstManifest = File.ReadAllText(outputPath);
+        using (JsonDocument document = JsonDocument.Parse(firstManifest))
+        {
+            JsonElement root = document.RootElement;
+            Assert.AreEqual("picket.release-artifacts.v1", root.GetProperty("Schema").GetString());
+            Assert.AreEqual("v1.2.3", root.GetProperty("ReleaseTag").GetString());
+            Assert.AreEqual(2, root.GetProperty("AssetCount").GetInt32());
+            Assert.AreEqual(7, root.GetProperty("TotalBytes").GetInt64());
+            JsonElement[] assets = [.. root.GetProperty("Assets").EnumerateArray()];
+            Assert.HasCount(2, assets);
+            Assert.AreEqual("Picket.1.2.3.nupkg", assets[0].GetProperty("Name").GetString());
+            Assert.AreEqual(2, assets[0].GetProperty("Bytes").GetInt64());
+            Assert.AreEqual("picket-v1.2.3-win-x64.zip", assets[1].GetProperty("Name").GetString());
+            Assert.AreEqual(5, assets[1].GetProperty("Bytes").GetInt64());
+        }
+
+        using Process repeatedProcess = CreateFileBasedAppProcess(ScriptPath, noBuild: true);
+        repeatedProcess.StartInfo.ArgumentList.Add("-Directory");
+        repeatedProcess.StartInfo.ArgumentList.Add(temp.Path);
+        repeatedProcess.StartInfo.ArgumentList.Add("-ReleaseTag");
+        repeatedProcess.StartInfo.ArgumentList.Add("v1.2.3");
+        repeatedProcess.StartInfo.ArgumentList.Add("-OutputPath");
+        repeatedProcess.StartInfo.ArgumentList.Add(outputPath);
+
+        Assert.IsTrue(repeatedProcess.Start(), "Could not restart release artifact manifest generator.");
+        (string repeatedStdout, string repeatedStderr) = await WaitForExitAndReadOutputAsync(
+            repeatedProcess,
+            TestContext.CancellationToken).ConfigureAwait(false);
+        Assert.AreEqual(0, repeatedProcess.ExitCode, string.Concat(repeatedStdout, repeatedStderr));
+        Assert.AreEqual(firstManifest, File.ReadAllText(outputPath));
+        Assert.DoesNotContain("checksums.txt", firstManifest);
+        Assert.DoesNotContain(".sha256", firstManifest);
     }
 
     /// <summary>
@@ -2250,9 +2373,9 @@ public sealed partial class RepositoryConventionTests
     {
         var arguments = new JsonArray(
             "scan",
-            "tests/fixtures/oracle-inputs/basic-dir-json",
+            ".",
             "--config",
-            "tests/fixtures/oracle-inputs/basic-dir-json/.gitleaks.toml",
+            ".gitleaks.toml",
             "--profile",
             "picket");
         if (useCache)
@@ -2280,6 +2403,7 @@ public sealed partial class RepositoryConventionTests
             ["Name"] = name,
             ["ExecutableEnvironmentVariable"] = "PICKET_PERFORMANCE_TEST_BIN",
             ["Repository"] = "{repositoryRoot}",
+            ["RequireRepositoryCommitInVersion"] = true,
             ["WorkingDirectory"] = "{corpus}",
             ["VersionArguments"] = new JsonArray("version"),
             ["Arguments"] = arguments,
@@ -2342,6 +2466,48 @@ public sealed partial class RepositoryConventionTests
                 UseShellExecute = false,
             },
         };
+    }
+
+    private static void RunGitCommand(
+        string workingDirectory,
+        string firstArgument,
+        string? secondArgument = null,
+        string? thirdArgument = null,
+        string? fourthArgument = null)
+    {
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo("git")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                WorkingDirectory = workingDirectory,
+            },
+        };
+        process.StartInfo.ArgumentList.Add(firstArgument);
+        if (secondArgument is not null)
+        {
+            process.StartInfo.ArgumentList.Add(secondArgument);
+        }
+
+        if (thirdArgument is not null)
+        {
+            process.StartInfo.ArgumentList.Add(thirdArgument);
+        }
+
+        if (fourthArgument is not null)
+        {
+            process.StartInfo.ArgumentList.Add(fourthArgument);
+        }
+
+        Assert.IsTrue(process.Start(), "Could not start git.");
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
+        string stdout = stdoutTask.GetAwaiter().GetResult();
+        string stderr = stderrTask.GetAwaiter().GetResult();
+        Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
     }
 
     private static void WriteFakeGitHubCli(string toolsPath)

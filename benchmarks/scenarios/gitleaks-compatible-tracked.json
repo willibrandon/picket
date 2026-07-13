@@ -29,6 +29,7 @@
       "ExecutableEnvironmentVariable": "PICKET_BIN",
       "Executable": "picket",
       "Repository": "{repositoryRoot}",
+      "RequireRepositoryCommitInVersion": true,
       "WorkingDirectory": "{corpus}",
       "VersionArguments": [
         "version"

@@ -104,6 +104,17 @@ archive handling, ignores, and report schema. Finding counts and timings
 describe those complete tool-native capabilities; they do not establish an
 equivalent winner.
 
+Run the native report fan-out scenario with the same `PICKET_BIN` value:
+
+```powershell
+dotnet run --file ./scripts/Measure-ScannerPerformance.cs --no-build -- -ScenarioPath ./benchmarks/scenarios/native-report-writing-tracked.json -FailOnParityDifference
+```
+
+The control writes JSON Lines. The fan-out variant writes the same primary
+JSON Lines finding set plus SARIF, HTML, and TOON. The harness requires the
+primary finding sets to match, verifies every additional file exists, and
+records their aggregate byte count and content manifest hash.
+
 On Unix-like systems, set `PICKET_BIN` and `PICKET_GITLEAKS_BIN` to the
 corresponding executable paths before running the same `dotnet build` and
 `dotnet run` commands. A scenario falls back to executable names on `PATH` when
@@ -112,7 +123,7 @@ its environment variable is not set.
 The result schema is `picket.performance-result.v1`. Each capture records:
 
 - scenario, corpus manifest, Picket commit, tool repository commit, executable
-  SHA-256, and version output,
+  byte count, SHA-256, and version output,
 - OS, architecture, processor, effective processor count, GC-visible memory,
   filesystem, runner type, .NET runtime, and SDK,
 - wall time, child-process CPU time, peak child-process working set, exit code,
@@ -121,6 +132,12 @@ The result schema is `picket.performance-result.v1`. Each capture records:
   create a false difference,
 - optional bounded diagnostic artifact metadata and non-secret scan-input,
   finding, cache-hit, cache-miss, and cache-write counters.
+
+Picket scenarios set `RequireRepositoryCommitInVersion`. A measurement fails
+before its first timed process when the Native AOT binary version does not
+identify the selected repository commit. Corpus staging reads exact blobs from
+the recorded Git `HEAD`; dirty tracked working-tree bytes cannot enter a result
+that claims to represent that commit.
 
 The default schedule records one pre-warmup run, discards one warmup round, then
 records five warmed rounds. Tool order rotates between rounds to reduce fixed
@@ -173,9 +190,10 @@ with 32 effective processors, .NET `10.0.9`, and SDK `10.0.301`. Host-level
 filesystem caches were not reset, so the pre-warmup values are not cold OS-cache
 measurements.
 
-The companion `native-cache-tracked` run used the same Picket commit and
-preserved the same 55 canonical findings with and without its
-secret-hash-only cache. The uncached warm median was 8,052.54 ms with 104.55 MiB
+The `native-cache-tracked` run used Picket commit
+`efa74bf9aca0de74dc150e961f2ac86a2e59d42e` and preserved the same 55
+canonical findings with and without its secret-hash-only cache. The uncached
+warm median was 8,052.54 ms with 104.55 MiB
 peak working set. The cache-hit warm median was 150.51 ms with 32.75 MiB peak
 working set and reported 442 hits, zero misses, and zero writes. These values
 establish a regression baseline for Picket's own incremental mode; they are not
@@ -210,6 +228,43 @@ The run used Windows `10.0.26200`, NTFS, an AMD64 Family 26 Model 68 processor
 with 32 effective processors, 47.13 GiB of GC-visible memory, .NET `10.0.9`, and
 SDK `10.0.301`. Host-level filesystem caches were not reset, so the pre-warmup
 values are not cold OS-cache measurements.
+
+### Reviewed Report-Writing Baseline: 2026-07-12
+
+The first end-to-end report fan-out baseline used Picket commit
+`dc7383e6dace5e6e5595558a08dfe4c9c1c84621`, Scout packages `0.4.4`, and the
+`release-speed` Windows x64 Native AOT executable. The executable was
+13,666,816 bytes and identified the same commit in `picket version`. The
+scenario staged 455 committed files from `src/` and `tests/` totaling 4,473,072
+bytes. Its corpus manifest SHA-256 was
+`00d9a1849f40342e86063bfdbc43f368cd8d88016c20813b36ce9976906dc792`.
+
+Both variants produced 55 primary JSON Lines findings with canonical
+finding-set SHA-256
+`3ed86436141af5b83478ad97d2777c3883aa8dadbff8b4efa2b9a4d9a264813a`.
+The fan-out variant also produced three deterministic reports totaling 678,075
+bytes. Their content manifest SHA-256 was
+`fbc8bdc3d0c00ecf966c8c2013645a1fd615a206b97e2c1416541697a52a2ad1`
+in every retained round.
+
+| Report set | Pre-warmup elapsed | Warm elapsed median | Warm elapsed p95 | Warm CPU median | Warm peak working set median |
+|---|---:|---:|---:|---:|---:|
+| JSON Lines | 8,377.18 ms | 8,051.07 ms | 8,186.68 ms | 26,250.00 ms | 101.67 MiB |
+| JSON Lines, SARIF, HTML, and TOON | 8,163.54 ms | 8,181.89 ms | 8,254.22 ms | 26,265.63 ms | 104.28 MiB |
+
+The observed warm-median difference was 130.82 ms, or 1.62% of the JSON Lines
+control. This is an end-to-end repository result, not an isolated writer
+microbenchmark; use `ReportWriterBenchmarks` for allocation and writer-only
+throughput. Host-level filesystem caches were not reset. The host otherwise
+matched the reviewed Windows conditions above: Windows `10.0.26200`, NTFS, 32
+effective processors, .NET `10.0.9`, and SDK `10.0.301`.
+
+Release automation writes `release-artifacts.json` after assembling all final
+payloads. The deterministic manifest records each archive, installer, NuGet
+bundle, Marketplace package, and package-manager bundle with its exact byte
+count and SHA-256. Mutable checksum sidecars are excluded. The manifest is
+included in `checksums.txt`, attested, and published with the release so package
+size regressions can be compared without downloading and unpacking every asset.
 
 Steady-state scan scenarios compile deferred regexes during global setup. The
 fresh-rule-set scenarios create a new compiled rule set for every operation and

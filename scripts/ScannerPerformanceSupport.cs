@@ -28,6 +28,11 @@ internal static class ScannerPerformanceSupport
     private const int MaxDiagnosticsBytes = 1_000_000;
 
     /// <summary>
+    /// Directory separators rejected in report file extensions.
+    /// </summary>
+    private static readonly char[] s_pathSeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
+    /// <summary>
     /// Top-level raw evidence properties that a parity scenario may explicitly omit.
     /// </summary>
     private static readonly HashSet<string> s_supportedParityExcludedProperties = new(StringComparer.Ordinal)
@@ -80,7 +85,9 @@ internal static class ScannerPerformanceSupport
             foreach (JsonNode? toolNode in tools)
             {
                 JsonObject tool = RequireObject(toolNode, "tool");
-                tool["Version"] = await ReadVersionAsync(tool, repositoryRoot, timeout).ConfigureAwait(false);
+                string version = await ReadVersionAsync(tool, repositoryRoot, timeout).ConfigureAwait(false);
+                tool["Version"] = version;
+                VerifyVersionCommit(tool, version);
             }
 
             await RunRoundsAsync(tools, "cold", coldIterations, record: true, sessionDirectory, repositoryRoot, corpusPath, timeout).ConfigureAwait(false);
@@ -241,6 +248,16 @@ internal static class ScannerPerformanceSupport
                 throw new InvalidDataException($"Performance tool '{name}' uses unsupported report source '{reportSource}'.");
             }
 
+            string reportFileExtension = GetString(tool, "ReportFileExtension", ".report");
+            if (reportFileExtension.Length is < 2 or > 32
+                || !reportFileExtension.StartsWith('.')
+                || reportFileExtension.IndexOfAny(s_pathSeparators) >= 0
+                || reportFileExtension.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not '.' and not '-' and not '_'))
+            {
+                throw new InvalidDataException(
+                    $"Performance tool '{name}' uses invalid report file extension '{reportFileExtension}'.");
+            }
+
             if (reportSource.Equals("stdout", StringComparison.Ordinal)
                 && GetString(tool, "ReportFormat", "none").Equals("none", StringComparison.Ordinal))
             {
@@ -289,39 +306,52 @@ internal static class ScannerPerformanceSupport
             string.Empty,
             string.Empty);
         string sourceRepository = Path.GetFullPath(sourceRepositoryValue, scenarioDirectory);
-        if (!Directory.Exists(Path.Combine(sourceRepository, ".git")))
+        string sourceRoot = Path.GetFullPath(sourceRepository);
+        string gitMetadataPath = Path.Combine(sourceRoot, ".git");
+        if (!Directory.Exists(gitMetadataPath) && !File.Exists(gitMetadataPath))
         {
-            throw new DirectoryNotFoundException($"Corpus repository '{sourceRepository}' is not a Git working tree.");
+            throw new DirectoryNotFoundException($"Corpus repository '{sourceRoot}' is not a Git working tree.");
         }
 
         string[] prefixes = ReadStringArray(corpus, "PathPrefixes");
+        string sourceCommit = TryReadGitValue(sourceRoot, "rev-parse", "HEAD");
+        if (sourceCommit.Length == 0)
+        {
+            throw new InvalidDataException($"Corpus repository '{sourceRoot}' does not have a readable HEAD commit.");
+        }
+
         var gitArguments = new List<string>
         {
             "-C",
             sourceRepository,
-            "ls-files",
+            "ls-tree",
+            "-r",
             "-z",
+            "--full-tree",
+            sourceCommit,
             "--",
         };
         gitArguments.AddRange(prefixes);
         (int exitCode, string stdout, string stderr) = ScriptSupport.RunProcess("git", gitArguments, repositoryRoot);
         if (exitCode != 0)
         {
-            throw new InvalidOperationException($"Could not enumerate tracked performance corpus files: {stderr.Trim()}");
+            throw new InvalidOperationException($"Could not enumerate committed performance corpus files: {stderr.Trim()}");
         }
 
         string destination = Path.Combine(sessionDirectory, "corpus");
         Directory.CreateDirectory(destination);
-        string sourceRoot = Path.GetFullPath(sourceRepository);
         string destinationRoot = Path.GetFullPath(destination);
         using IncrementalHash aggregateHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         int fileCount = 0;
         long totalBytes = 0;
 
-        foreach (string relativePath in stdout.Split('\0', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal))
+        IEnumerable<(string ObjectId, string RelativePath)> treeEntries = stdout
+            .Split('\0', StringSplitOptions.RemoveEmptyEntries)
+            .Select(ParseGitTreeEntry)
+            .OrderBy(entry => entry.RelativePath, StringComparer.Ordinal);
+        foreach ((string objectId, string relativePath) in treeEntries)
         {
             string normalizedPath = relativePath.Replace('\\', '/');
-            string sourcePath = ResolveContainedPath(sourceRoot, normalizedPath, "tracked corpus source");
             string destinationPath = ResolveContainedPath(destinationRoot, normalizedPath, "tracked corpus destination");
             string? parent = Path.GetDirectoryName(destinationPath);
             if (parent is not null)
@@ -329,16 +359,21 @@ internal static class ScannerPerformanceSupport
                 Directory.CreateDirectory(parent);
             }
 
-            File.Copy(sourcePath, destinationPath, overwrite: false);
-            var info = new FileInfo(sourcePath);
+            CopyGitBlob(sourceRoot, objectId, destinationPath);
+            var info = new FileInfo(destinationPath);
             byte[] pathBytes = Encoding.UTF8.GetBytes(normalizedPath);
             aggregateHash.AppendData(pathBytes);
             aggregateHash.AppendData([0]);
-            using FileStream stream = File.OpenRead(sourcePath);
+            using FileStream stream = File.OpenRead(destinationPath);
             byte[] fileHash = SHA256.HashData(stream);
             aggregateHash.AppendData(fileHash);
             fileCount++;
             totalBytes += info.Length;
+        }
+
+        if (fileCount == 0)
+        {
+            throw new InvalidDataException($"Performance corpus at commit '{sourceCommit}' did not contain selected files.");
         }
 
         return new JsonObject
@@ -346,12 +381,87 @@ internal static class ScannerPerformanceSupport
             ["Kind"] = kind,
             ["Path"] = destinationRoot,
             ["SourceRepository"] = sourceRoot,
-            ["SourceCommit"] = TryReadGitValue(sourceRoot, "rev-parse", "HEAD"),
+            ["SourceCommit"] = sourceCommit,
             ["PathPrefixes"] = ToJsonArray(prefixes),
             ["FileCount"] = fileCount,
             ["TotalBytes"] = totalBytes,
             ["ManifestSha256"] = Convert.ToHexString(aggregateHash.GetHashAndReset()).ToLowerInvariant(),
         };
+    }
+
+    /// <summary>
+    /// Parses one null-delimited <c>git ls-tree</c> blob entry.
+    /// </summary>
+    /// <param name="treeEntry">The tree entry text.</param>
+    /// <returns>The object identifier and repository-relative path.</returns>
+    private static (string ObjectId, string RelativePath) ParseGitTreeEntry(string treeEntry)
+    {
+        int pathSeparator = treeEntry.IndexOf('\t');
+        if (pathSeparator <= 0 || pathSeparator == treeEntry.Length - 1)
+        {
+            throw new InvalidDataException("Git returned a malformed performance corpus tree entry.");
+        }
+
+        string[] metadata = treeEntry[..pathSeparator].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (metadata.Length != 3
+            || metadata[1] != "blob"
+            || metadata[0] is not "100644" and not "100755"
+            || metadata[2].Length is not 40 and not 64
+            || metadata[2].Any(character => !char.IsAsciiHexDigit(character)))
+        {
+            throw new InvalidDataException($"Performance corpus contains unsupported Git tree entry '{treeEntry[..pathSeparator]}'.");
+        }
+
+        return (metadata[2], treeEntry[(pathSeparator + 1)..]);
+    }
+
+    /// <summary>
+    /// Streams one committed Git blob to the generated corpus without text decoding.
+    /// </summary>
+    /// <param name="repositoryPath">The Git repository path.</param>
+    /// <param name="objectId">The committed blob object identifier.</param>
+    /// <param name="destinationPath">The generated destination path.</param>
+    private static void CopyGitBlob(string repositoryPath, string objectId, string destinationPath)
+    {
+        var startInfo = new ProcessStartInfo("git")
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+        startInfo.ArgumentList.Add("-C");
+        startInfo.ArgumentList.Add(repositoryPath);
+        startInfo.ArgumentList.Add("cat-file");
+        startInfo.ArgumentList.Add("blob");
+        startInfo.ArgumentList.Add(objectId);
+
+        using var process = new Process
+        {
+            StartInfo = startInfo,
+        };
+        if (!process.Start())
+        {
+            throw new InvalidOperationException($"Could not read committed Git blob '{objectId}'.");
+        }
+
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+        using (var destination = new FileStream(destinationPath, new FileStreamOptions
+        {
+            Access = FileAccess.Write,
+            Mode = FileMode.CreateNew,
+            Options = FileOptions.SequentialScan,
+            Share = FileShare.None,
+        }))
+        {
+            process.StandardOutput.BaseStream.CopyTo(destination);
+        }
+
+        process.WaitForExit();
+        string stderr = stderrTask.GetAwaiter().GetResult();
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Could not read committed Git blob '{objectId}': {stderr.Trim()}");
+        }
     }
 
     /// <summary>
@@ -423,15 +533,19 @@ internal static class ScannerPerformanceSupport
             {
                 ["Name"] = name,
                 ["Executable"] = executable,
+                ["ExecutableBytes"] = new FileInfo(executable).Length,
                 ["ExecutableSha256"] = ScriptSupport.GetFileSha256(executable),
                 ["Repository"] = toolRepository,
                 ["RepositoryCommit"] = toolRepository.Length == 0 ? string.Empty : TryReadGitValue(toolRepository, "rev-parse", "HEAD"),
+                ["RequireRepositoryCommitInVersion"] = source["RequireRepositoryCommitInVersion"]?.DeepClone() ?? false,
                 ["WorkingDirectory"] = workingDirectory,
                 ["Arguments"] = source["Arguments"]?.DeepClone(),
                 ["VersionArguments"] = source["VersionArguments"]?.DeepClone() ?? new JsonArray("--version"),
                 ["AllowedExitCodes"] = source["AllowedExitCodes"]?.DeepClone() ?? new JsonArray(0),
                 ["ReportFormat"] = GetString(source, "ReportFormat", "none"),
+                ["ReportFileExtension"] = GetString(source, "ReportFileExtension", ".report"),
                 ["ReportSource"] = GetString(source, "ReportSource", "file"),
+                ["AdditionalReportPaths"] = source["AdditionalReportPaths"]?.DeepClone() ?? new JsonArray(),
                 ["ParityGroup"] = ScriptSupport.GetString(source, "ParityGroup"),
                 ["ParityExcludedProperties"] = source["ParityExcludedProperties"]?.DeepClone() ?? new JsonArray(),
                 ["StandardInputPath"] = ScriptSupport.GetString(source, "StandardInputPath"),
@@ -443,6 +557,33 @@ internal static class ScannerPerformanceSupport
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Verifies a tool version identifies the repository commit when the scenario requires it.
+    /// </summary>
+    /// <param name="tool">The resolved tool.</param>
+    /// <param name="version">The bounded version output.</param>
+    private static void VerifyVersionCommit(JsonObject tool, string version)
+    {
+        if (tool["RequireRepositoryCommitInVersion"]?.GetValue<bool>() != true)
+        {
+            return;
+        }
+
+        string name = ScriptSupport.GetString(tool, "Name");
+        string repositoryCommit = ScriptSupport.GetString(tool, "RepositoryCommit");
+        if (repositoryCommit.Length == 0)
+        {
+            throw new InvalidDataException(
+                $"Performance tool '{name}' requires a repository commit in its version but does not define a Git repository.");
+        }
+
+        if (!version.Contains(repositoryCommit, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                $"Performance tool '{name}' version does not identify repository commit '{repositoryCommit}'. Rebuild the measured executable from that commit.");
+        }
     }
 
     /// <summary>
@@ -511,7 +652,9 @@ internal static class ScannerPerformanceSupport
         string name = ScriptSupport.GetString(tool, "Name");
         string reportDirectory = Path.Combine(sessionDirectory, "reports");
         Directory.CreateDirectory(reportDirectory);
-        string reportPath = Path.Combine(reportDirectory, $"{SanitizeFileName(name)}-{phase}-{iteration}.report");
+        string reportPath = Path.Combine(
+            reportDirectory,
+            $"{SanitizeFileName(name)}-{phase}-{iteration}{ScriptSupport.GetString(tool, "ReportFileExtension")}");
         string workingDirectory = ScriptSupport.GetString(tool, "WorkingDirectory");
         string[] arguments = ReadStringArray(tool, "Arguments")
             .Select(value => ReplacePathPlaceholders(
@@ -532,6 +675,26 @@ internal static class ScannerPerformanceSupport
         if (standardInputPath.Length != 0)
         {
             standardInputPath = Path.GetFullPath(standardInputPath, workingDirectory);
+        }
+
+        string[] additionalReportIdentities = ReadStringArray(tool, "AdditionalReportPaths");
+        string[] additionalReportPaths = additionalReportIdentities
+            .Select(value => ReplacePathPlaceholders(
+                value,
+                repositoryRoot,
+                workingDirectory,
+                sessionDirectory,
+                corpusPath,
+                reportPath))
+            .Select(value => Path.GetFullPath(value, workingDirectory))
+            .ToArray();
+        StringComparer pathComparer = OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+        if (additionalReportPaths.Distinct(pathComparer).Count() != additionalReportPaths.Length
+            || additionalReportPaths.Contains(Path.GetFullPath(reportPath), pathComparer))
+        {
+            throw new InvalidDataException($"Performance tool '{name}' defines duplicate report paths.");
         }
 
         JsonObject processResult = await RunProcessAsync(
@@ -560,6 +723,10 @@ internal static class ScannerPerformanceSupport
         processResult["ReportSha256"] = report["Sha256"]?.DeepClone();
         processResult["FindingCount"] = report["FindingCount"]?.DeepClone();
         processResult["NormalizedFindingSetSha256"] = report["NormalizedFindingSetSha256"]?.DeepClone();
+        JsonObject additionalReports = AnalyzeAdditionalReports(additionalReportIdentities, additionalReportPaths);
+        processResult["AdditionalReportCount"] = additionalReports["Count"]?.DeepClone();
+        processResult["AdditionalReportBytes"] = additionalReports["Bytes"]?.DeepClone();
+        processResult["AdditionalReportManifestSha256"] = additionalReports["ManifestSha256"]?.DeepClone();
         string diagnosticsPath = ReplacePathPlaceholders(
             ScriptSupport.GetString(tool, "DiagnosticsFile"),
             repositoryRoot,
@@ -778,6 +945,47 @@ internal static class ScannerPerformanceSupport
             "gitleaks-json" => AnalyzeJsonArrayReport(reportPath, parityExcludedProperties),
             "jsonl" => AnalyzeJsonLinesReport(reportPath, parityExcludedProperties),
             _ => throw new InvalidDataException($"Unsupported performance report format '{format}'."),
+        };
+    }
+
+    /// <summary>
+    /// Verifies additional reports and records their aggregate size and content manifest hash.
+    /// </summary>
+    /// <param name="reportIdentities">The stable configured identities of the additional reports.</param>
+    /// <param name="reportPaths">The resolved additional report paths.</param>
+    /// <returns>The additional report metrics.</returns>
+    private static JsonObject AnalyzeAdditionalReports(string[] reportIdentities, string[] reportPaths)
+    {
+        if (reportIdentities.Length != reportPaths.Length)
+        {
+            throw new InvalidDataException("Additional report identities and paths must have equal lengths.");
+        }
+
+        var manifest = new StringBuilder();
+        long totalBytes = 0;
+        for (int index = 0; index < reportPaths.Length; index++)
+        {
+            string reportPath = reportPaths[index];
+            if (!File.Exists(reportPath))
+            {
+                throw new FileNotFoundException($"Scanner did not write expected additional report '{reportPath}'.", reportPath);
+            }
+
+            var info = new FileInfo(reportPath);
+            totalBytes = checked(totalBytes + info.Length);
+            manifest.Append(reportIdentities[index]);
+            manifest.Append('\0');
+            manifest.Append(info.Length.ToString(CultureInfo.InvariantCulture));
+            manifest.Append('\0');
+            manifest.Append(ScriptSupport.GetFileSha256(reportPath));
+            manifest.Append('\n');
+        }
+
+        return new JsonObject
+        {
+            ["Count"] = (long)reportPaths.Length,
+            ["Bytes"] = totalBytes,
+            ["ManifestSha256"] = HashText(manifest.ToString()),
         };
     }
 
@@ -1080,6 +1288,9 @@ internal static class ScannerPerformanceSupport
         AppendOptionalCounterSummary(summary, runs, "CacheHits");
         AppendOptionalCounterSummary(summary, runs, "CacheMisses");
         AppendOptionalCounterSummary(summary, runs, "CacheWrites");
+        AppendOptionalCounterSummary(summary, runs, "ReportBytes");
+        AppendOptionalCounterSummary(summary, runs, "AdditionalReportCount");
+        AppendOptionalCounterSummary(summary, runs, "AdditionalReportBytes");
         return summary;
     }
 

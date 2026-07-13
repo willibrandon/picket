@@ -25,6 +25,12 @@ The tools retain their own built-in rules, offline filtering, decoders, archive
 handling, ignores, and report schemas. The scenario is therefore
 capability-separated and intentionally has no parity group or universal winner.
 
+`native-report-writing-tracked.json` compares one native JSON Lines report with
+the same scan writing JSON Lines, SARIF, HTML, and TOON. Both variants use the
+same Native AOT binary and primary JSON Lines parity group. The fan-out variant
+declares every additional path so the harness verifies each file and records
+its aggregate byte count and stable content manifest hash.
+
 The manifest records the capability conditions, corpus selection, process
 arguments, accepted exit codes, report parser, and optional parity group. Paths
 use `{repositoryRoot}`, `{scenarioDirectory}`, `{session}`, `{corpus}`, and
@@ -41,6 +47,16 @@ arguments. Use `"ReportSource": "stdout"` for scanners such as TruffleHog that
 emit machine-readable findings only to standard output. The harness streams
 those bytes directly to the ephemeral report file instead of retaining decoded
 finding text.
+
+`ReportFileExtension` defaults to `.report`. Set it to a real extension when a
+scanner infers its writer from the report path. `AdditionalReportPaths` lists
+other files that the invocation must produce. Their contents are not retained;
+the result records only count, aggregate size, and a manifest hash.
+
+Each resolved tool records the direct executable byte count and SHA-256. Set
+`RequireRepositoryCommitInVersion` for binaries whose version output embeds
+their source revision. The harness then rejects a stale executable instead of
+attributing its measurements to the scenario repository commit.
 
 `ParityExcludedProperties` may contain only `line`, `match`, `matchSha256`, and
 `secret`. Use it when comparing a secret-hash-only cache hit with an uncached
