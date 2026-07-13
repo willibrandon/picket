@@ -689,6 +689,72 @@ public sealed class ContainerRegistrySourceClientTests
     }
 
     /// <summary>
+    /// Verifies a malformed child manifest does not prevent valid sibling manifests from being scanned.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateImageFilesContinuesAfterMalformedChildManifest()
+    {
+        byte[] malformedManifest = "{"u8.ToArray();
+        byte[] config = Encoding.UTF8.GetBytes("{\"architecture\":\"amd64\",\"os\":\"linux\"}");
+        byte[] layer = CreateTarBytes("app/settings.txt", "token-12345");
+        byte[] validManifest = CreateImageManifest(config, layer, OciLayerMediaType);
+        byte[] index = CreateImageIndex(
+        [
+            CreateManifestDescriptor(malformedManifest, OciImageManifestMediaType),
+            CreateManifestDescriptor(validManifest, OciImageManifestMediaType),
+        ]);
+        string malformedDigest = CreateDigest(malformedManifest);
+        string validDigest = CreateDigest(validManifest);
+        string configDigest = CreateDigest(config);
+        string layerDigest = CreateDigest(layer);
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string path = Uri.UnescapeDataString(request.RequestUri!.AbsolutePath);
+            if (path.EndsWith("/manifests/latest", StringComparison.Ordinal))
+            {
+                return ManifestResponse(index, OciImageIndexMediaType);
+            }
+
+            if (path.EndsWith(string.Concat("/manifests/", malformedDigest), StringComparison.Ordinal))
+            {
+                return ManifestResponse(malformedManifest, OciImageManifestMediaType);
+            }
+
+            if (path.EndsWith(string.Concat("/manifests/", validDigest), StringComparison.Ordinal))
+            {
+                return ManifestResponse(validManifest, OciImageManifestMediaType);
+            }
+
+            if (path.EndsWith(string.Concat("/blobs/", configDigest), StringComparison.Ordinal))
+            {
+                return BlobResponse(config);
+            }
+
+            return path.EndsWith(string.Concat("/blobs/", layerDigest), StringComparison.Ordinal)
+                ? BlobResponse(layer)
+                : new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new ContainerRegistrySourceClient(httpClient);
+        var options = new ContainerRegistrySourceOptions(
+            ContainerRegistryImageReference.Parse("registry.example/team/app:latest"),
+            warningSink: warnings.Add);
+
+        List<SourceFile> files = await client.EnumerateImageFilesAsync(
+            options,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.ContainsSingle(
+            static file => file.DisplayPath.EndsWith("!app/settings.txt", StringComparison.Ordinal)
+                && Encoding.UTF8.GetString(file.ReadAllBytes()).Equals("token-12345", StringComparison.Ordinal),
+            files);
+        Assert.Contains(
+            static warning => warning.Contains("skipped manifest", StringComparison.Ordinal)
+                && warning.Contains("invalid or unavailable", StringComparison.Ordinal),
+            warnings);
+    }
+
+    /// <summary>
     /// Verifies recursive image indexes stop at the manifest nesting limit.
     /// </summary>
     [TestMethod]

@@ -963,6 +963,42 @@ public sealed class CliBitbucketScanTests
     }
 
     /// <summary>
+    /// Verifies Bitbucket Data Center Basic authentication requires a username environment variable.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanRejectsBitbucketDataCenterBasicAuthenticationWithoutUsername()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN"] = "data-center-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--bitbucket-data-center-api-endpoint",
+            "https://bitbucket.example/rest/api/1.0/",
+            "--bitbucket-data-center-project",
+            "CORE",
+            "--bitbucket-data-center-token-env",
+            "PICKET_BITBUCKET_DATA_CENTER_TEST_TOKEN",
+            "--bitbucket-data-center-token-kind",
+            "basic",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("requires --bitbucket-data-center-username-env", result.Stderr);
+        Assert.DoesNotContain("data-center-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that Cloud and Data Center selectors cannot create two native source providers in one scan.
     /// </summary>
     [TestMethod]

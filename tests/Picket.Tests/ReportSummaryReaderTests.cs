@@ -233,6 +233,47 @@ public sealed class ReportSummaryReaderTests
     }
 
     /// <summary>
+    /// Verifies out-of-range randomness scores fail with a format error.
+    /// </summary>
+    [TestMethod]
+    public void ReadRejectsOutOfRangeRandomnessScoreAsMalformedReport()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            {"schema":"picket.report.v1","findings":[{"ruleId":"rule","file":"secret.txt","startLine":1,"randomness":{"score":2}}]}
+            """);
+
+        InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(() => ReportSummaryReader.Read(reportPath));
+
+        Assert.Contains("format of the file", exception.Message);
+    }
+
+    /// <summary>
+    /// Verifies summary reads ignore type-confused optional randomness metadata.
+    /// </summary>
+    [TestMethod]
+    public void ReadIgnoresNonObjectRandomnessMetadata()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string reportPath = WriteReport(
+            root.Path,
+            "report.json",
+            """
+            {"schema":"picket.report.v1","findings":[{"ruleId":"rule","file":"secret.txt","startLine":1,"randomness":"invalid"}]}
+            """);
+
+        ReportSummary summary = ReportSummaryReader.Read(reportPath);
+
+        Assert.HasCount(1, summary.Findings);
+        Assert.IsNull(summary.Findings[0].RandomnessScore);
+        Assert.IsEmpty(summary.Findings[0].RandomnessClassification);
+        Assert.IsEmpty(summary.Findings[0].RandomnessModel);
+    }
+
+    /// <summary>
     /// Verifies type-confused string fields do not reject otherwise readable summaries.
     /// </summary>
     [TestMethod]

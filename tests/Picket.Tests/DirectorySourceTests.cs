@@ -706,6 +706,31 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies zstandard expansion is bounded by the per-target byte limit.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateHonorsZstandardTargetByteLimit()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            byte[] content = Encoding.UTF8.GetBytes(string.Concat("token-12345\n", new string('!', 8192)));
+            File.WriteAllBytes(Path.Combine(root, "secrets.zst"), CreateZstandardBytes(content));
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                maxTargetBytes: content.Length - 1,
+                maxArchiveDepth: 1));
+
+            Assert.IsEmpty(files);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies zstandard expansion is bounded by the archive compression-ratio limit.
     /// </summary>
     [TestMethod]

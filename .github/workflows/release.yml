@@ -155,7 +155,7 @@ jobs:
         if: startsWith(matrix.rid, 'linux-musl-')
         run: |
           sudo apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true update
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true install -y musl-tools
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true install -y musl-tools zstd
 
       - name: Build Linux musl zstandard runtime
         if: startsWith(matrix.rid, 'linux-musl-')
@@ -180,6 +180,31 @@ jobs:
           $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}"
           dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
           dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
+
+      - name: Smoke test Linux musl zstandard scan
+        if: startsWith(matrix.rid, 'linux-musl-')
+        shell: pwsh
+        run: |
+          $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}"
+          $fixtureDirectory = Join-Path $env:RUNNER_TEMP "picket-zstd-smoke-${{ matrix.rid }}"
+          $sourcePath = Join-Path $fixtureDirectory 'secret.txt'
+          $archivePath = "$sourcePath.zst"
+          New-Item -ItemType Directory -Force -Path $fixtureDirectory | Out-Null
+          Set-Content -LiteralPath $sourcePath -NoNewline -Encoding utf8NoBOM -Value ('aws_access_key_id = ' + 'AKIA' + 'ABCDEFGHIJKLMNOP')
+          & zstd -q -f $sourcePath -o $archivePath
+          if ($LASTEXITCODE -ne 0) {
+            throw "zstd fixture creation failed with exit code $LASTEXITCODE."
+          }
+
+          $scanOutput = & (Join-Path $publishOutput 'picket') scan $archivePath --report-format jsonl --redact=100 2>&1
+          $scanExitCode = $LASTEXITCODE
+          if ($scanExitCode -ne 1) {
+            throw "musl zstandard scan returned exit code $scanExitCode."
+          }
+
+          if (($scanOutput -join "`n") -notmatch '"ruleId":"aws-access-token"') {
+            throw 'musl zstandard scan did not report the expected finding.'
+          }
 
       - name: Package binary archive
         id: package

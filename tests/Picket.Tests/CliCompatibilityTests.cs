@@ -2663,6 +2663,29 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies strict mode preserves Gitleaks' force-cut boundary while native mode scans across it.
+    /// </summary>
+    [TestMethod]
+    public async Task FragmentBoundaryBehaviorSeparatesCompatibilityAndNativeModes()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string largePath = Path.Combine(root.Path, "large.txt");
+        File.WriteAllText(
+            largePath,
+            string.Concat(new string('a', 124_995), "token-12345"));
+
+        CliResult compatible = await RunCliAsync("dir", largePath, "-c", configPath, "-f", "json").ConfigureAwait(false);
+        CliResult native = await RunCliAsync("scan", largePath, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, compatible.ExitCode);
+        Assert.AreEqual("[]\n", compatible.Stdout.ReplaceLineEndings("\n"));
+        Assert.AreEqual(1, native.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", native.Stdout);
+        Assert.Contains("\"startColumn\":124996", native.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that secret-hash-only cache entries do not bypass baseline suppression.
     /// </summary>
     [TestMethod]

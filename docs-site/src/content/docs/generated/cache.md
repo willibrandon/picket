@@ -94,7 +94,7 @@ Checkpointing is available only when `picket scan` uses a native source option s
 picket scan --github-repository willibrandon/picket --github-token-env PICKET_GITHUB_SOURCE_TOKEN --checkpoint .picket/github.checkpoint --report-format jsonl --report-path picket-results/github.jsonl --redact=100
 ```
 
-Run the same command again after cancellation, timeout, or another operational failure. Picket re-enumerates the source, verifies the complete ordered path-and-content manifest, restores findings for the consecutive completed files, and continues at the first unfinished file. A changed source snapshot, rule set, scanner version, decode limit, target-size limit, or `--ignore-gitleaks-allow` setting rejects the checkpoint instead of silently mixing results.
+Run the same command again after cancellation, timeout, or another operational failure. Picket re-enumerates the source, verifies the complete ordered path-and-content manifest, restores findings for the consecutive completed files, and continues at the first unfinished file. Native source findings use the same deterministic path order with or without checkpointing. A changed source snapshot, rule set, scanner version, decode limit, target-size limit, or `--ignore-gitleaks-allow` setting rejects the checkpoint instead of silently mixing results.
 
 Use `--checkpoint-reset` only when discarding the prior scan is intentional:
 

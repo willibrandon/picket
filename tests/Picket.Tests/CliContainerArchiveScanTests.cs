@@ -125,6 +125,7 @@ public sealed class CliContainerArchiveScanTests
             checkpointPath,
             "-f",
             "jsonl",
+            "--redact=100",
             "-r",
             temp.Path).ConfigureAwait(false);
 
@@ -145,12 +146,63 @@ public sealed class CliContainerArchiveScanTests
             checkpointPath,
             "-f",
             "jsonl",
+            "--redact=100",
             "-r",
             reportPath).ConfigureAwait(false);
 
         Assert.AreEqual(1, resumed.ExitCode);
         Assert.Contains("resuming checkpoint:", resumed.Stderr);
-        Assert.Contains("\"secret\":\"token-12345\"", File.ReadAllText(reportPath));
+        string report = File.ReadAllText(reportPath);
+        Assert.Contains("\"ruleId\":\"token\"", report);
+        Assert.Contains("\"secret\":\"REDACTED\"", report);
+        Assert.DoesNotContain("token-12345", report);
+        Assert.IsFalse(File.Exists(checkpointPath));
+    }
+
+    /// <summary>
+    /// Verifies checkpointing does not change deterministic remote-source report order.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanCheckpointPreservesRemoteSourceFindingOrder()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string configPath = WriteTokenConfig(temp.Path);
+        string archivePath = WriteDockerArchiveWithFiles(
+            temp.Path,
+            ("z-last.txt", "token-00002"),
+            ("a-first.txt", "token-00001"));
+        string checkpointPath = Path.Combine(temp.Path, "scan.checkpoint");
+        string regularReportPath = Path.Combine(temp.Path, "regular.jsonl");
+        string checkpointReportPath = Path.Combine(temp.Path, "checkpoint.jsonl");
+
+        CliResult regular = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            archivePath,
+            "-c",
+            configPath,
+            "-f",
+            "jsonl",
+            "-r",
+            regularReportPath).ConfigureAwait(false);
+        CliResult checkpointed = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            archivePath,
+            "-c",
+            configPath,
+            "--checkpoint",
+            checkpointPath,
+            "-f",
+            "jsonl",
+            "-r",
+            checkpointReportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, regular.ExitCode);
+        Assert.AreEqual(1, checkpointed.ExitCode);
+        Assert.AreEqual(File.ReadAllText(regularReportPath), File.ReadAllText(checkpointReportPath));
         Assert.IsFalse(File.Exists(checkpointPath));
     }
 
@@ -415,6 +467,26 @@ public sealed class CliContainerArchiveScanTests
     {
         string archivePath = Path.Combine(root, "image.tar");
         byte[] layerBytes = TarTestData.CreateTarBytes(("app/settings.txt", Encoding.UTF8.GetBytes(content)));
+        File.WriteAllBytes(
+            archivePath,
+            TarTestData.CreateTarBytes(
+                ("manifest.json", Encoding.UTF8.GetBytes("""[{"Layers":["layer/layer.tar"]}]""")),
+                ("layer/layer.tar", layerBytes)));
+        return archivePath;
+    }
+
+    private static string WriteDockerArchiveWithFiles(
+        string root,
+        params (string Path, string Content)[] files)
+    {
+        string archivePath = Path.Combine(root, "image.tar");
+        (string Path, byte[] Content)[] entries = new (string Path, byte[] Content)[files.Length];
+        for (int i = 0; i < files.Length; i++)
+        {
+            entries[i] = (string.Concat("app/", files[i].Path), Encoding.UTF8.GetBytes(files[i].Content));
+        }
+
+        byte[] layerBytes = TarTestData.CreateTarBytes(entries);
         File.WriteAllBytes(
             archivePath,
             TarTestData.CreateTarBytes(

@@ -95,6 +95,43 @@ public sealed class PicketCsvReportWriterTests
     }
 
     /// <summary>
+    /// Verifies formula neutralization applies to persisted randomness metadata.
+    /// </summary>
+    [TestMethod]
+    public void WriteNeutralizesRandomnessFormulaPrefixes()
+    {
+        SecretRandomnessFeatures features = SecretRandomnessFeatures.Create(
+            0,
+            8,
+            "@alphabet",
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5);
+        SecretRandomnessAssessment assessment = SecretRandomnessAssessment.Create(
+            "=model",
+            0.5,
+            "+classification",
+            features,
+            ["-signal"]);
+        Finding finding = CreateFinding(randomness: assessment);
+
+        string csv = PicketCsvReportWriter.Write([finding]);
+
+        Assert.Contains("\"'=model\"", csv);
+        Assert.Contains("\"'+classification\"", csv);
+        Assert.Contains("\"'@alphabet\"", csv);
+        Assert.Contains("\"'-signal\"", csv);
+    }
+
+    /// <summary>
     /// Verifies CSV can resolve native rule metadata when rules are supplied.
     /// </summary>
     [TestMethod]
@@ -120,7 +157,8 @@ public sealed class PicketCsvReportWriterTests
         string match = "line containing secret",
         string secret = "secret",
         string line = "line containing secret",
-        string author = "John Doe")
+        string author = "John Doe",
+        SecretRandomnessAssessment? randomness = null)
     {
         return new Finding(
             "rule",
@@ -144,6 +182,7 @@ public sealed class PicketCsvReportWriterTests
             line,
             "https://github.com/example/repo/blob/commit/stdin#L1",
             blobSha256: BlobSha256,
-            decodePath: ["base64"]);
+            decodePath: ["base64"],
+            randomness: randomness);
     }
 }

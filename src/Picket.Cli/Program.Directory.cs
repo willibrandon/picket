@@ -542,7 +542,7 @@ internal static partial class Program
             try
             {
                 picketIgnore = PicketIgnore.Empty;
-                files = sourceFileProvider(
+                files = RemoteScanManifest.OrderFiles(sourceFileProvider(
                     root,
                     rules,
                     maxTargetBytes,
@@ -551,7 +551,7 @@ internal static partial class Program
                     maxArchiveBytes,
                     maxArchiveCompressionRatio,
                     timeoutTimestamp,
-                    cancellationToken);
+                    cancellationToken));
             }
             catch (Exception ex) when (ex is ArgumentException or HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
             {

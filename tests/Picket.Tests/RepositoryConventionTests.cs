@@ -491,6 +491,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("THIRD-PARTY-NOTICES.txt", cliProject);
         Assert.Contains("Build-ZstandardMusl.cs", ciWorkflow);
         Assert.Contains("Build-ZstandardMusl.cs", releaseWorkflow);
+        Assert.Contains("Smoke test Linux musl zstandard scan", ciWorkflow);
+        Assert.Contains("Smoke test Linux musl zstandard scan", releaseWorkflow);
+        Assert.Contains("musl-tools zstd", ciWorkflow);
+        Assert.Contains("musl-tools zstd", releaseWorkflow);
+        Assert.Contains("aws-access-token", ciWorkflow);
+        Assert.Contains("aws-access-token", releaseWorkflow);
         Assert.Contains("Acquire::Retries=5", ciWorkflow);
         Assert.Contains("Acquire::Retries=5", releaseWorkflow);
         Assert.Contains("Acquire::ForceIPv4=true", ciWorkflow);

@@ -12,14 +12,21 @@ internal static class RemoteScanManifest
     internal static List<CheckpointSourceFile> CreateFiles(IReadOnlyList<SourceFile> files)
     {
         var checkpointFiles = new List<CheckpointSourceFile>(files.Count);
-        for (int i = 0; i < files.Count; i++)
+        List<SourceFile> orderedFiles = OrderFiles(files);
+        for (int i = 0; i < orderedFiles.Count; i++)
         {
-            SourceFile file = files[i];
+            SourceFile file = orderedFiles[i];
             checkpointFiles.Add(new CheckpointSourceFile(file, file.ReadAllBytes()));
         }
 
-        checkpointFiles.Sort(CompareFiles);
         return checkpointFiles;
+    }
+
+    internal static List<SourceFile> OrderFiles(IReadOnlyList<SourceFile> files)
+    {
+        var orderedFiles = new List<SourceFile>(files);
+        orderedFiles.Sort(CompareFiles);
+        return orderedFiles;
     }
 
     internal static string CreateFingerprint(IReadOnlyList<CheckpointSourceFile> files)
@@ -40,18 +47,15 @@ internal static class RemoteScanManifest
         return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
 
-    private static int CompareFiles(CheckpointSourceFile left, CheckpointSourceFile right)
+    private static int CompareFiles(SourceFile left, SourceFile right)
     {
-        int pathComparison = StringComparer.Ordinal.Compare(left.SourceFile.DisplayPath, right.SourceFile.DisplayPath);
+        int pathComparison = StringComparer.Ordinal.Compare(left.DisplayPath, right.DisplayPath);
         if (pathComparison != 0)
         {
             return pathComparison;
         }
 
-        int symlinkComparison = StringComparer.Ordinal.Compare(left.SourceFile.SymlinkDisplayPath, right.SourceFile.SymlinkDisplayPath);
-        return symlinkComparison != 0
-            ? symlinkComparison
-            : StringComparer.Ordinal.Compare(left.BlobSha256, right.BlobSha256);
+        return StringComparer.Ordinal.Compare(left.SymlinkDisplayPath, right.SymlinkDisplayPath);
     }
 
     private static void AppendText(IncrementalHash hash, string value)

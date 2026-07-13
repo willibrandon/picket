@@ -186,25 +186,33 @@ public sealed class ContainerRegistrySourceClient(HttpClient httpClient)
                 continue;
             }
 
-            (byte[] Content, string MediaType)? manifest = await DownloadManifestAsync(
-                session,
-                digest,
-                digest,
-                size,
-                cancellationToken).ConfigureAwait(false);
-            if (!manifest.HasValue)
+            try
             {
-                continue;
-            }
+                (byte[] Content, string MediaType)? manifest = await DownloadManifestAsync(
+                    session,
+                    digest,
+                    digest,
+                    size,
+                    cancellationToken).ConfigureAwait(false);
+                if (!manifest.HasValue)
+                {
+                    continue;
+                }
 
-            await ProcessManifestAsync(
-                session,
-                manifest.Value.Content,
-                manifest.Value.MediaType,
-                digest,
-                platform,
-                manifestDepth + 1,
-                cancellationToken).ConfigureAwait(false);
+                await ProcessManifestAsync(
+                    session,
+                    manifest.Value.Content,
+                    manifest.Value.MediaType,
+                    digest,
+                    platform,
+                    manifestDepth + 1,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException)
+            {
+                session.Options.WarningSink?.Invoke(
+                    $"container registry skipped manifest {ShortDigest(digest)} because its response was invalid or unavailable");
+            }
         }
 
         if (session.Options.Platform.Length != 0 && selectedCount == 0)
