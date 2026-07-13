@@ -25,6 +25,11 @@ catch (Exception ex)
 internal static class PicketGitHubActionApp
 {
     /// <summary>
+    /// Built-in rule packs that callers may add to a native scan.
+    /// </summary>
+    private static readonly string[] s_supportedRulePacks = ["picket-experimental", "picket-strict"];
+
+    /// <summary>
     /// UTF-8 without a byte order mark.
     /// </summary>
     private static readonly UTF8Encoding s_utf8NoBom = new(false);
@@ -40,6 +45,7 @@ internal static class PicketGitHubActionApp
         string scanPath = ResolveWorkspacePath(GetActionInput("PICKET_PATH", "."));
         string configPath = GetActionInput("PICKET_CONFIG_PATH");
         string baselinePath = GetActionInput("PICKET_BASELINE_PATH");
+        List<string> rulePacks = ParseRulePacks(GetActionInput("PICKET_RULE_PACKS"));
         string cacheEnabled = GetActionInput("PICKET_CACHE_ENABLED", "true");
         string cacheMode = GetActionInput("PICKET_CACHE_MODE", "secret-hash-only").Trim().ToLowerInvariant();
         string cachePath = GetActionInput("PICKET_CACHE_PATH", ".picket/cache");
@@ -92,6 +98,11 @@ internal static class PicketGitHubActionApp
 
         AddOptionalPathOption(arguments, "-c", configPath);
         AddOptionalPathOption(arguments, "-b", baselinePath);
+        foreach (string rulePack in rulePacks)
+        {
+            AddOptionalValueOption(arguments, "--rule-pack", rulePack);
+        }
+
         if (cacheEnabled.Equals("true", StringComparison.OrdinalIgnoreCase))
         {
             string resolvedCachePath = ResolveWorkspacePath(cachePath);
@@ -266,6 +277,34 @@ internal static class PicketGitHubActionApp
 
         arguments.Add(option);
         arguments.Add(value);
+    }
+
+    /// <summary>
+    /// Parses and validates the comma-separated built-in rule-pack input.
+    /// </summary>
+    /// <param name="value">The input value.</param>
+    /// <returns>The distinct normalized rule-pack identifiers.</returns>
+    private static List<string> ParseRulePacks(string value)
+    {
+        List<string> rulePacks = [];
+        foreach (string candidate in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string rulePack = candidate.ToLowerInvariant();
+            if (!s_supportedRulePacks.Contains(rulePack, StringComparer.Ordinal))
+            {
+                WriteError(
+                    "Invalid rule-packs",
+                    $"Unsupported built-in rule pack '{candidate}'. Use picket-strict or picket-experimental.");
+                Environment.Exit(1);
+            }
+
+            if (!rulePacks.Contains(rulePack, StringComparer.Ordinal))
+            {
+                rulePacks.Add(rulePack);
+            }
+        }
+
+        return rulePacks;
     }
 
     /// <summary>

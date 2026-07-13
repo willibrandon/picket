@@ -5,6 +5,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const supportedFormats = new Set(["json", "jsonl", "sarif", "html", "csv", "junit", "gitlab", "toon"]);
+const supportedRulePacks = new Set(["picket-experimental", "picket-strict"]);
 const reportExtensions = new Map([
   ["json", "json"],
   ["jsonl", "jsonl"],
@@ -84,6 +85,13 @@ function readInputs() {
   }
 
   const failOn = getChoice("failOn", "findings", ["findings", "errors", "never"]);
+  const rulePacks = [...new Set(parseList(getInput("rulePacks", "")).map(rulePack => rulePack.toLowerCase()))];
+  for (const rulePack of rulePacks) {
+    if (!supportedRulePacks.has(rulePack)) {
+      throw new Error(`Unsupported built-in rule pack '${rulePack}'. Use picket-strict or picket-experimental.`);
+    }
+  }
+
   const results = getInput("results", "");
   const onlyVerified = getBoolean("onlyVerified", false);
   if (results.length !== 0 && onlyVerified) {
@@ -110,6 +118,7 @@ function readInputs() {
     picketPath: getInput("picketPath", "picket"),
     config: getOptionalFileInput("config", target),
     profile: getChoice("profile", "picket", ["picket", "gitleaks"]),
+    rulePacks,
     reportFormats,
     reportDirectory: path.resolve(getInput("reportDirectory", defaultReportDirectory())),
     failOn,
@@ -174,6 +183,10 @@ function createPicketArguments(inputs, reportPaths) {
 
   addValue(args, "--config", inputs.config);
   addValue(args, "--baseline-path", inputs.baselinePath);
+  for (const rulePack of inputs.rulePacks) {
+    addValue(args, "--rule-pack", rulePack);
+  }
+
   for (const reportPath of reportPaths.values()) {
     addValue(args, "--report-path", reportPath);
   }

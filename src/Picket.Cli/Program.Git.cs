@@ -31,6 +31,7 @@ internal static partial class Program
         string? logOptions = null;
         string? platform = null;
         List<string> enabledRuleIds = [];
+        List<string> additionalRulePacks = [];
         string gitleaksIgnorePath = ".";
         string root = ".";
         int exitCode = 1;
@@ -92,6 +93,22 @@ internal static partial class Program
             if (IsEnableRuleFlag(arg))
             {
                 if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsRulePackFlag(arg))
+            {
+                if (!nativeMode)
+                {
+                    Console.Error.WriteLine("--rule-pack requires --profile picket");
+                    return UnknownFlagExitCode;
+                }
+
+                if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -326,7 +343,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: nativeMode, out CompiledRuleSet? rules))
+        if (!TryLoadRules(configPath, root, enabledRuleIds, additionalRulePacks, nativeConfig: nativeMode, out CompiledRuleSet? rules))
         {
             return CompleteRun(1, diagnosticsSession);
         }

@@ -11,7 +11,7 @@ This page is generated from `azure-devops/tasks/PicketScanV1/task.json`.
 
 Task name: `PicketScan`
 
-Version: `1.0.2`
+Version: `1.0.3`
 
 ## Inputs
 
@@ -77,6 +77,22 @@ Version: `1.0.2`
       <div>
         <dt>Default</dt>
         <dd><code>picket</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>rulePacks</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional comma-separated built-in rule packs: picket-strict and picket-experimental.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
       </div>
     </dl>
   </article>

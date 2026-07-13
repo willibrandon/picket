@@ -62,6 +62,22 @@ This page is generated from `action.yml`.
   </article>
   <article class="reference-card">
     <div class="reference-card-heading">
+      <code>rule-packs</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional comma-separated built-in rule packs. Values are picket-strict and picket-experimental.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
       <code>cache</code><span>Input</span>
     </div>
     <p class="reference-card-description">Restore and save the native Picket scan cache.</p>

@@ -43,9 +43,20 @@ using Picket.Rules;
 
 RuleSet nativeRules = PicketConfigLoader.LoadDefaultRuleSet();
 RuleSet compatibleRules = GitleaksConfigLoader.LoadDefaultRuleSet();
+RuleSet strictRules = PicketConfigLoader.LoadBuiltInRulePack(PicketRulePackNames.Strict);
 ```
 
-The default-loading methods do not read environment variables or target-local files. Use `LoadRuleSet(configPath, source)` when the host intentionally wants the corresponding CLI configuration-precedence behavior.
+The built-in loading methods do not read environment variables or target-local files. Stable identifiers are available from `PicketRulePackNames` for `gitleaks`, `picket-default`, `picket-strict`, and `picket-experimental`.
+
+Use `LoadRuleSet(configPath, source)` when the host intentionally wants native CLI configuration precedence. Pass opt-in packs after the source to layer them over the resolved configuration:
+
+```csharp
+RuleSet resolvedRules = PicketConfigLoader.LoadRuleSet(
+    configPath,
+    source,
+    PicketRulePackNames.Strict,
+    PicketRulePackNames.Experimental);
+```
 
 ## Scan a Buffer
 

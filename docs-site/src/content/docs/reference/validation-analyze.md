@@ -135,6 +135,9 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 | Severity | Confidence | Rules | Providers |
 |---|---|---:|---|
 | `critical` | `high` | 11 | AWS, Azure, Database, GCP, GitHub, Sourcegraph |
+| `critical` | `low` | 1 | HTTP |
+| `critical` | `medium` | 3 | Azure, Database, HTTP |
+| `high` | `low` | 1 | HTTP |
 
 ## Analyze Risk Mapping
 

@@ -478,6 +478,8 @@ public sealed class PicketTuiTests
         scan.SetLocalPath("src");
         scan.SetReportPath(reportPath);
         scan.SetVerify(true);
+        scan.SetStrictRulePack(true);
+        scan.SetExperimentalRulePack(true);
         scan.SetOnlyVerified(true);
         scan.SetNoIgnore(true);
         scan.SetRedactionPercent("100");
@@ -494,6 +496,9 @@ public sealed class PicketTuiTests
         Assert.Contains("scan", arguments);
         Assert.Contains("src", arguments);
         Assert.Contains("--verify", arguments);
+        Assert.HasCount(2, arguments.Where(static argument => argument == "--rule-pack").ToArray());
+        Assert.Contains("picket-strict", arguments);
+        Assert.Contains("picket-experimental", arguments);
         Assert.Contains("--only-verified", arguments);
         Assert.Contains("--no-ignore", arguments);
         Assert.Contains("--redact=100", arguments);
@@ -2201,7 +2206,7 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that the scan workspace output section renders report and verification options.
+    /// Verifies that the scan workspace output section renders report options.
     /// </summary>
     [TestMethod]
     [Timeout(10000, CooperativeCancellation = true)]
@@ -2232,7 +2237,6 @@ public sealed class PicketTuiTests
         Assert.Contains("Output", screenText);
         Assert.Contains("Format", screenText);
         Assert.Contains("Redact", screenText);
-        Assert.Contains("Verify", screenText);
         Assert.Contains("Report", screenText);
         Assert.Contains("Profile", screenText);
         Assert.Contains("Config", screenText);

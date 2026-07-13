@@ -14,6 +14,7 @@ steps:
   inputs:
     target: '$(Build.SourcesDirectory)'
     profile: 'picket'
+    rulePacks: 'picket-strict'
     reportFormats: 'sarif,jsonl,html'
     failOn: 'findings'
     redact: '100'

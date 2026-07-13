@@ -336,7 +336,13 @@ internal static class PicketTuiApp
             BuildFieldGap(v),
             BuildBooleanField(v, "Verify", scan.Verify, scan.SetVerify),
             BuildSectionGap(v),
-            BuildStatusText(v, "Live verification only runs when Verify is On.", PicketTuiPalette.MutedForeground)
+            BuildStatusText(v, "Live verification only runs when Verify is On.", PicketTuiPalette.MutedForeground),
+            BuildSectionGap(v),
+            BuildSectionTitle(v, "Rule packs"),
+            BuildBlankLine(v),
+            BuildBooleanField(v, "Strict", scan.StrictRulePack, scan.SetStrictRulePack),
+            BuildFieldGap(v),
+            BuildBooleanField(v, "Experimental", scan.ExperimentalRulePack, scan.SetExperimentalRulePack)
         ]);
     }
 
@@ -445,9 +451,7 @@ internal static class PicketTuiApp
         return ctx.VStack(v => [
             BuildChoiceField(v, "Format", PicketTuiScanWorkspace.ReportFormats, scan.ReportFormatIndex, scan.SetReportFormatByIndex),
             BuildFieldGap(v),
-            BuildTextField(v, "Redact", scan.RedactionPercent, scan.SetRedactionPercent),
-            BuildFieldGap(v),
-            BuildBooleanField(v, "Verify", scan.Verify, scan.SetVerify)
+            BuildTextField(v, "Redact", scan.RedactionPercent, scan.SetRedactionPercent)
         ]);
     }
 

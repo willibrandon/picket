@@ -505,6 +505,46 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that compatibility commands require the native profile before adding native rule packs.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanRejectsRulePackWithoutNativeProfile()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync("dir", root.Path, "--rule-pack", PicketRulePackNames.Strict).ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.Contains("--rule-pack requires a native command or --profile picket", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scans add strict rules only when the pack is explicitly selected.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanAddsStrictRulePackExplicitly()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        File.WriteAllText(Path.Combine(root.Path, "settings.txt"), "Server=db;User Id=app;Password=correct-horse-battery;");
+
+        CliResult defaultResult = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "jsonl").ConfigureAwait(false);
+        CliResult strictResult = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "scan",
+            "-f",
+            "jsonl",
+            "--rule-pack",
+            PicketRulePackNames.Strict).ConfigureAwait(false);
+
+        Assert.DoesNotContain("\"ruleId\":\"picket-strict-connection-string-password\"", defaultResult.Stdout);
+        Assert.AreEqual(1, strictResult.ExitCode);
+        Assert.Contains("\"ruleId\":\"picket-strict-connection-string-password\"", strictResult.Stdout);
+        Assert.Contains("\"rulePack\":\"picket-strict\"", strictResult.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that unsupported scan profiles are rejected before scanning.
     /// </summary>
     [TestMethod]
@@ -4727,6 +4767,53 @@ public sealed class CliCompatibilityTests
         Assert.Contains("provider = \"Azure\"", printed.Stdout);
         Assert.Contains("examples = [", printed.Stdout);
         Assert.Contains("negativeExamples = [", printed.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that rules check layers repeated built-in rule-pack selections.
+    /// </summary>
+    [TestMethod]
+    public async Task RulesCheckLayersRepeatedBuiltInRulePacks()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "rules",
+            "check",
+            "--rule-pack",
+            PicketRulePackNames.Strict,
+            "--rule-pack",
+            PicketRulePackNames.Experimental).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode, result.Stderr);
+        Assert.Contains("rules ok: 232 rules", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that cache maintenance accepts the rule-pack selector used by native scans.
+    /// </summary>
+    [TestMethod]
+    public async Task CacheStatsAcceptsBuiltInRulePack()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string cachePath = Path.Combine(root.Path, "cache");
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "cache",
+            "stats",
+            "--cache-dir",
+            cachePath,
+            "--rule-pack",
+            PicketRulePackNames.Experimental).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode, result.Stderr);
+        Assert.Contains("entries: 0", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
     }
 
     /// <summary>

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Add validated opt-in built-in rule-pack selection.
+
 ## 0.1.2
 
 - Add Marketplace and task icons.

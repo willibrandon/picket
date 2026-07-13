@@ -12,6 +12,7 @@ Generated from XML documentation for `Picket.Rules`.
 
 - [AllowlistCondition](#allowlistcondition) - Describes how checks inside a secret allowlist are combined.
 - [AllowlistRegexTarget](#allowlistregextarget) - Describes the finding field tested by allowlist regexes.
+- [PicketRulePackNames](#picketrulepacknames) - Provides stable identifiers for the built-in Picket rule packs.
 - [RuleSet](#ruleset) - Immutable collection of secret detection rules.
 - [SecretAllowlist](#secretallowlist) - Describes Gitleaks-compatible allowlist checks for suppressing findings.
 - [SecretRequiredRule](#secretrequiredrule) - Describes a Gitleaks-compatible supporting rule required by a primary rule.
@@ -39,6 +40,19 @@ Describes the finding field tested by allowlist regexes.
 - `Line` - Tests the full source line containing the finding.
 - `Match` - Tests the full regex match.
 - `Secret` - Tests the captured secret value.
+
+## PicketRulePackNames
+
+`Picket.Rules.PicketRulePackNames`
+
+Provides stable identifiers for the built-in Picket rule packs.
+
+### Fields
+
+- `Default` - Identifies Picket's high-confidence native default rule pack.
+- `Experimental` - Identifies Picket's opt-in rule pack for detectors that are still being tuned.
+- `Gitleaks` - Identifies the pinned Gitleaks-compatible rule pack.
+- `Strict` - Identifies Picket's opt-in rule pack for broader, more aggressive detection.
 
 ## RuleSet
 

@@ -235,6 +235,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("annotation-limit", action);
         Assert.Contains("cache-mode", action);
         Assert.Contains("cache-path", action);
+        Assert.Contains("rule-packs", action);
         Assert.Contains("redact", action);
         Assert.Contains("timeout", action);
         Assert.Contains("max-archive-depth", action);
@@ -268,6 +269,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--cache-dir", helper);
         Assert.Contains("--cache-mode", helper);
         Assert.Contains("PICKET_CACHE_MODE", helper);
+        Assert.Contains("PICKET_RULE_PACKS", helper);
+        Assert.Contains("--rule-pack", helper);
         Assert.Contains("PICKET_SUMMARY", helper);
         Assert.Contains("summary must be true or false", helper);
         Assert.Contains("PICKET_RESULTS", helper);
@@ -753,7 +756,7 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
-        Assert.AreEqual("0.1.2", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("0.1.3", extensionRoot.GetProperty("version").GetString());
         Assert.AreEqual("images/extension-icon.png", extensionRoot.GetProperty("icons").GetProperty("default").GetString());
         Assert.AreEqual("https://github.com/willibrandon/picket", extensionRoot.GetProperty("repository").GetProperty("uri").GetString());
         Assert.AreEqual("https://github.com/willibrandon/picket/blob/main/azure-devops/PRIVACY.md", extensionRoot.GetProperty("links").GetProperty("privacypolicy").GetProperty("uri").GetString());
@@ -771,13 +774,14 @@ public sealed partial class RepositoryConventionTests
         Assert.AreEqual("PicketScan", taskRoot.GetProperty("name").GetString());
         Assert.AreEqual("Picket scan", taskRoot.GetProperty("friendlyName").GetString());
         Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Major").GetInt32());
-        Assert.AreEqual(2, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
+        Assert.AreEqual(3, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
         Assert.AreEqual("index.js", taskRoot.GetProperty("execution").GetProperty("Node20_1").GetProperty("target").GetString());
 
         HashSet<string> inputNames = ReadJsonNameSet(taskRoot.GetProperty("inputs"));
         Assert.Contains("target", inputNames);
         Assert.Contains("picketPath", inputNames);
         Assert.Contains("profile", inputNames);
+        Assert.Contains("rulePacks", inputNames);
         Assert.Contains("reportFormats", inputNames);
         Assert.Contains("reportDirectory", inputNames);
         Assert.Contains("failOn", inputNames);
@@ -822,6 +826,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("isScannerError(exitCode, findings)", handler);
         Assert.Contains("Picket scan failed before producing findings.", handler);
         Assert.Contains("--azure-devops-token-env", handler);
+        Assert.Contains("--rule-pack", handler);
         Assert.Contains("##vso[task.setvariable", handler);
         Assert.Contains("##vso[task.logissue", handler);
         Assert.Contains("##vso[artifact.upload", handler);
@@ -847,7 +852,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secret-hash-only", privacy);
         Assert.Contains("agent `3.220.0` or newer", compatibility);
         Assert.Contains("`linux-musl-arm64`", compatibility);
-        Assert.Contains("## 0.1.2", changelog);
+        Assert.Contains("## 0.1.3", changelog);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("Scanner execution errors always fail the task", azureDevOps);
@@ -1688,7 +1693,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Rule Catalog", ruleCatalog);
         Assert.Contains("Gitleaks-compatible default", ruleCatalog);
         Assert.Contains("Picket-native additions", ruleCatalog);
+        Assert.Contains("`picket-default` | 11", ruleCatalog);
+        Assert.Contains("`picket-strict` | 3", ruleCatalog);
+        Assert.Contains("`picket-experimental` | 2", ruleCatalog);
         Assert.Contains("picket-aws-access-key-pair", ruleCatalog);
+        Assert.Contains("picket-strict-basic-authorization", ruleCatalog);
+        Assert.Contains("picket-experimental-bearer-token", ruleCatalog);
         Assert.Contains("picket-github-fine-grained-personal-access-token", ruleCatalog);
         Assert.Contains("offline:aws-access-key-pair", ruleCatalog);
         Assert.Contains("live:github-rest-user-v1", ruleCatalog);
@@ -1721,7 +1731,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket.Compat API", compatApi);
         Assert.Contains("GitleaksConfigLoader", compatApi);
         Assert.Contains("PicketConfigLoader", compatApi);
+        Assert.Contains("LoadBuiltInRulePack", compatApi);
         Assert.Contains("Picket.Rules API", rulesApi);
+        Assert.Contains("PicketRulePackNames", rulesApi);
         Assert.Contains("SecretRule", rulesApi);
         Assert.Contains("Picket.Engine API", engineApi);
         Assert.Contains("SecretScanner", engineApi);
@@ -2063,7 +2075,7 @@ public sealed partial class RepositoryConventionTests
     {
         const string ScriptPath = "scripts/Validate-MarketplaceRelease.cs";
         using TempDirectory temp = TempDirectory.Create();
-        string vsixPath = Path.Combine(temp.Path, "picket-v0.1.2-azure-devops.vsix");
+        string vsixPath = Path.Combine(temp.Path, "picket-v0.1.3-azure-devops.vsix");
         string checksumPath = string.Concat(vsixPath, ".sha256");
         CreateMarketplaceTestVsix(vsixPath);
         string hash = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(vsixPath)));
@@ -2076,8 +2088,8 @@ public sealed partial class RepositoryConventionTests
             Assert.IsTrue(validProcess.Start(), "Could not start Marketplace release validator.");
             (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(validProcess, TestContext.CancellationToken).ConfigureAwait(false);
             Assert.AreEqual(0, validProcess.ExitCode, string.Concat(stdout, stderr));
-            Assert.Contains("extension: willibrandon.picket 0.1.2", stdout);
-            Assert.Contains("task: PicketScan@1.0.2", stdout);
+            Assert.Contains("extension: willibrandon.picket 0.1.3", stdout);
+            Assert.Contains("task: PicketScan@1.0.3", stdout);
         }
 
         File.WriteAllText(checksumPath, $"{new string('0', 64)}  {Path.GetFileName(vsixPath)}\n");
@@ -2710,7 +2722,7 @@ public sealed partial class RepositoryConventionTests
     private static void AddMarketplaceValidatorArguments(Process process, string vsixPath, string checksumPath)
     {
         process.StartInfo.ArgumentList.Add("-ReleaseTag");
-        process.StartInfo.ArgumentList.Add("v0.1.2");
+        process.StartInfo.ArgumentList.Add("v0.1.3");
         process.StartInfo.ArgumentList.Add("-VsixPath");
         process.StartInfo.ArgumentList.Add(vsixPath);
         process.StartInfo.ArgumentList.Add("-ChecksumPath");
@@ -2733,7 +2745,7 @@ public sealed partial class RepositoryConventionTests
             <?xml version="1.0" encoding="utf-8"?>
             <PackageManifest xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
               <Metadata>
-                <Identity Id="picket" Version="0.1.2" Publisher="willibrandon" />
+                <Identity Id="picket" Version="0.1.3" Publisher="willibrandon" />
               </Metadata>
             </PackageManifest>
             """);

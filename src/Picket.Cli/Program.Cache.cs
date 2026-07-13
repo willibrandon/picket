@@ -51,6 +51,7 @@ internal static partial class Program
             allowPruneOptions: false,
             out string? cacheDir,
             out string? configPath,
+            out List<string> additionalRulePacks,
             out string source,
             out int maxDecodeDepth,
             out long? maxTargetBytes,
@@ -68,7 +69,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, additionalRulePacks, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }
@@ -94,6 +95,7 @@ internal static partial class Program
             allowPruneOptions: true,
             out string? cacheDir,
             out string? configPath,
+            out List<string> additionalRulePacks,
             out string source,
             out int maxDecodeDepth,
             out long? maxTargetBytes,
@@ -117,7 +119,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, additionalRulePacks, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }
@@ -150,6 +152,7 @@ internal static partial class Program
             "--output",
             out string? cacheDir,
             out string? configPath,
+            out List<string> additionalRulePacks,
             out string source,
             out int maxDecodeDepth,
             out long? maxTargetBytes,
@@ -172,7 +175,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, additionalRulePacks, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }
@@ -203,6 +206,7 @@ internal static partial class Program
             "--input",
             out string? cacheDir,
             out string? configPath,
+            out List<string> additionalRulePacks,
             out string source,
             out int maxDecodeDepth,
             out long? maxTargetBytes,
@@ -225,7 +229,7 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
-        if (!TryOpenNativeScanCache(cacheDir, configPath, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
+        if (!TryOpenNativeScanCache(cacheDir, configPath, additionalRulePacks, source, maxDecodeDepth, maxTargetBytes, ignoreGitleaksAllow, cacheStorageMode, out PicketScanCache? scanCache))
         {
             return 1;
         }

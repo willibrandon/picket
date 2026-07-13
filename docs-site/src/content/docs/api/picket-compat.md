@@ -91,5 +91,6 @@ Loads Picket-native rule configuration while preserving the Gitleaks-compatible 
 
 ### Methods
 
+- `LoadBuiltInRulePack(string rulePack)` - Loads one built-in rule pack without reading environment variables or target-local configuration files.
 - `LoadDefaultRuleSet()` - Loads the embedded Picket-native default rule set without reading environment variables or target-local configuration files.
-- `LoadRuleSet(string configPath, string source)` - Loads rules using Picket-native config precedence.
+- `LoadRuleSet(string configPath, string source, string[] additionalBuiltInRulePacks)` - Loads rules using Picket-native config precedence.

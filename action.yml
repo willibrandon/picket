@@ -15,6 +15,10 @@ inputs:
     description: Optional Gitleaks-compatible baseline path.
     required: false
     default: ""
+  rule-packs:
+    description: Optional comma-separated built-in rule packs. Values are picket-strict and picket-experimental.
+    required: false
+    default: ""
   cache:
     description: Restore and save the native Picket scan cache.
     required: false
@@ -148,6 +152,7 @@ runs:
         PICKET_PATH: ${{ inputs.path }}
         PICKET_CONFIG_PATH: ${{ inputs.config-path }}
         PICKET_BASELINE_PATH: ${{ inputs.baseline-path }}
+        PICKET_RULE_PACKS: ${{ inputs.rule-packs }}
         PICKET_CACHE_ENABLED: ${{ inputs.cache }}
         PICKET_CACHE_MODE: ${{ inputs.cache-mode }}
         PICKET_CACHE_PATH: ${{ inputs.cache-path }}

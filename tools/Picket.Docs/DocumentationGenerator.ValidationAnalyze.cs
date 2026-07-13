@@ -1,5 +1,4 @@
 using Picket.Analyze;
-using Picket.Compat;
 using Picket.Engine;
 using Picket.Rules;
 using Picket.Verify;
@@ -51,16 +50,7 @@ internal sealed partial class DocumentationGenerator
 
     private static List<SecretRule> GetNativeRules()
     {
-        RuleSet gitleaksRules = GitleaksConfigLoader.LoadDefaultRuleSet();
-        RuleSet picketRules = PicketConfigLoader.LoadDefaultRuleSet();
-        var gitleaksRuleIds = new HashSet<string>(
-            gitleaksRules.Rules.Select(static rule => rule.Id),
-            StringComparer.Ordinal);
-
-        return [.. picketRules.Rules
-            .Where(rule => IsNativePicketRule(rule, gitleaksRuleIds))
-            .OrderBy(static rule => rule.Provider, StringComparer.Ordinal)
-            .ThenBy(static rule => rule.Id, StringComparer.Ordinal)];
+        return GetBuiltInNativeRules();
     }
 
     private static void AppendValidationStates(StringBuilder builder)

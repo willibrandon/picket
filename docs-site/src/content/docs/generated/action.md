@@ -43,6 +43,7 @@ jobs:
 | `path` | `.` | Repository-relative or absolute path to scan. |
 | `config-path` | empty | Optional Gitleaks-compatible configuration path. |
 | `baseline-path` | empty | Optional Gitleaks-compatible baseline report path. |
+| `rule-packs` | empty | Optional comma-separated built-in rule packs: `picket-strict` and `picket-experimental`. |
 | `cache` | `true` | Restore and save the native Picket scan cache. |
 | `cache-mode` | `secret-hash-only` | Cache storage mode. Use `secret-hash-only` for public CI safety or `raw` for exact cached report replay in trusted private jobs. |
 | `cache-path` | `.picket/cache` | Cache directory used by Picket and `actions/cache`. |

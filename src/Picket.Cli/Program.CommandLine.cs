@@ -258,6 +258,42 @@ internal static partial class Program
         return true;
     }
 
+    static bool TryReadRulePackFlag(string[] args, ref int index, List<string> additionalRulePacks)
+    {
+        if (!TryReadStringFlag(args, ref index, "--rule-pack", out string? value))
+        {
+            return false;
+        }
+
+        foreach (string rulePack in value.Split(','))
+        {
+            string normalizedRulePack = rulePack.Trim().ToLowerInvariant();
+            if (normalizedRulePack.Length == 0)
+            {
+                continue;
+            }
+
+            if (normalizedRulePack is not PicketRulePackNames.Strict and not PicketRulePackNames.Experimental)
+            {
+                Console.Error.WriteLine($"unsupported additional rule pack: {normalizedRulePack}");
+                return false;
+            }
+
+            if (!additionalRulePacks.Contains(normalizedRulePack, StringComparer.Ordinal))
+            {
+                additionalRulePacks.Add(normalizedRulePack);
+            }
+        }
+
+        if (additionalRulePacks.Count != 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--rule-pack requires picket-strict or picket-experimental");
+        return false;
+    }
+
     static bool TryReadValidationResultsFlag(string[] args, ref int index, HashSet<string> validationResults)
     {
         if (!TryReadStringFlag(args, ref index, "--results", out string? value))
@@ -296,6 +332,7 @@ internal static partial class Program
         bool allowPruneOptions,
         out string? cacheDir,
         out string? configPath,
+        out List<string> additionalRulePacks,
         out string source,
         out int maxDecodeDepth,
         out long? maxTargetBytes,
@@ -306,6 +343,7 @@ internal static partial class Program
     {
         cacheDir = null;
         configPath = null;
+        additionalRulePacks = [];
         source = ".";
         maxDecodeDepth = 5;
         maxTargetBytes = null;
@@ -330,6 +368,16 @@ internal static partial class Program
             if (IsConfigFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsRulePackFlag(arg))
+            {
+                if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
                     return false;
                 }
@@ -434,6 +482,7 @@ internal static partial class Program
         string archiveFlag,
         out string? cacheDir,
         out string? configPath,
+        out List<string> additionalRulePacks,
         out string source,
         out int maxDecodeDepth,
         out long? maxTargetBytes,
@@ -443,6 +492,7 @@ internal static partial class Program
     {
         cacheDir = null;
         configPath = null;
+        additionalRulePacks = [];
         source = ".";
         maxDecodeDepth = 5;
         maxTargetBytes = null;
@@ -466,6 +516,16 @@ internal static partial class Program
             if (IsConfigFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--config", out configPath))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (IsRulePackFlag(arg))
+            {
+                if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
                     return false;
                 }
@@ -676,6 +736,12 @@ internal static partial class Program
     {
         return arg.Equals("--enable-rule", StringComparison.Ordinal)
             || arg.StartsWith("--enable-rule=", StringComparison.Ordinal);
+    }
+
+    static bool IsRulePackFlag(string arg)
+    {
+        return arg.Equals("--rule-pack", StringComparison.Ordinal)
+            || arg.StartsWith("--rule-pack=", StringComparison.Ordinal);
     }
 
     static bool IsLogLevelFlag(string arg)
@@ -1148,13 +1214,14 @@ internal static partial class Program
         string? configPath,
         string source,
         IReadOnlyList<string> enabledRuleIds,
+        List<string> additionalRulePacks,
         bool nativeConfig,
         [NotNullWhen(true)] out CompiledRuleSet? rules)
     {
         try
         {
             RuleSet ruleSet = nativeConfig
-                ? PicketConfigLoader.LoadRuleSet(configPath, source)
+                ? PicketConfigLoader.LoadRuleSet(configPath, source, [.. additionalRulePacks])
                 : GitleaksConfigLoader.LoadRuleSet(configPath, source);
             ruleSet = FilterEnabledRules(ruleSet, enabledRuleIds);
             rules = CompiledRuleSet.Compile(ruleSet);
@@ -1171,6 +1238,7 @@ internal static partial class Program
     static bool TryOpenNativeScanCache(
         string cacheDir,
         string? configPath,
+        List<string> additionalRulePacks,
         string source,
         int maxDecodeDepth,
         long? maxTargetBytes,
@@ -1179,7 +1247,7 @@ internal static partial class Program
         [NotNullWhen(true)] out PicketScanCache? scanCache)
     {
         scanCache = null;
-        if (!TryLoadRules(configPath, source, [], nativeConfig: true, out CompiledRuleSet? rules))
+        if (!TryLoadRules(configPath, source, [], additionalRulePacks, nativeConfig: true, out CompiledRuleSet? rules))
         {
             return false;
         }

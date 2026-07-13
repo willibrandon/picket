@@ -10,7 +10,7 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 2
+    "Patch": 3
   },
   "minimumAgentVersion": "3.220.0",
   "instanceNameFormat": "Picket scan $(target)",
@@ -50,6 +50,14 @@
         "gitleaks": "gitleaks"
       },
       "helpMarkDown": "Scan profile. Use gitleaks only when strict compatibility behavior is desired."
+    },
+    {
+      "name": "rulePacks",
+      "type": "string",
+      "label": "Rule packs",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional comma-separated built-in rule packs: picket-strict and picket-experimental."
     },
     {
       "name": "reportFormats",

@@ -62,6 +62,7 @@ internal static partial class Program
 
         string? configPath = null;
         string source = ".";
+        List<string> additionalRulePacks = [];
         bool printConfig = false;
         bool sourceSet = false;
         for (int i = 0; i < args.Length; i++)
@@ -86,6 +87,22 @@ internal static partial class Program
             if (IsProfileFlag(arg))
             {
                 if (!TryReadProfileFlag(args, ref i, out _))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsRulePackFlag(arg))
+            {
+                if (!nativeMode)
+                {
+                    Console.Error.WriteLine("--rule-pack requires --profile picket");
+                    return UnknownFlagExitCode;
+                }
+
+                if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -122,7 +139,7 @@ internal static partial class Program
         try
         {
             RuleSet ruleSet = nativeMode
-                ? PicketConfigLoader.LoadRuleSet(configPath, source)
+                ? PicketConfigLoader.LoadRuleSet(configPath, source, [.. additionalRulePacks])
                 : GitleaksConfigLoader.LoadRuleSet(configPath, source);
             ValidateRulesWithScout(ruleSet);
             if (printConfig)
@@ -155,6 +172,7 @@ internal static partial class Program
         string? reportFormat = null;
         string? reportPath = null;
         var reportPaths = new List<string>();
+        List<string> additionalRulePacks = [];
         string source = ".";
         int maxDecodeDepth = 5;
         long? maxTargetBytes = null;
@@ -200,6 +218,22 @@ internal static partial class Program
             if (IsProfileFlag(arg))
             {
                 if (!TryReadProfileFlag(args, ref i, out _))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsRulePackFlag(arg))
+            {
+                if (!nativeMode)
+                {
+                    Console.Error.WriteLine("--rule-pack requires --profile picket");
+                    return UnknownFlagExitCode;
+                }
+
+                if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -331,7 +365,7 @@ internal static partial class Program
         try
         {
             RuleSet ruleSet = nativeMode
-                ? PicketConfigLoader.LoadRuleSet(configPath, source)
+                ? PicketConfigLoader.LoadRuleSet(configPath, source, [.. additionalRulePacks])
                 : GitleaksConfigLoader.LoadRuleSet(configPath, source);
             ValidateRulesWithScout(ruleSet);
             RuleSet selectedRuleSet = FilterEnabledRules(ruleSet, [ruleId]);

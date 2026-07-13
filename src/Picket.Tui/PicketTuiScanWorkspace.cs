@@ -720,6 +720,16 @@ internal sealed class PicketTuiScanWorkspace
     internal string Profile { get; private set; } = "picket";
 
     /// <summary>
+    /// Gets a value indicating whether the strict built-in rule pack is enabled.
+    /// </summary>
+    internal bool StrictRulePack { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the experimental built-in rule pack is enabled.
+    /// </summary>
+    internal bool ExperimentalRulePack { get; private set; }
+
+    /// <summary>
     /// Gets the optional config path.
     /// </summary>
     internal string ConfigPath { get; private set; } = string.Empty;
@@ -1896,6 +1906,26 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetProfile(string value) => Profile = value;
 
     /// <summary>
+    /// Sets whether the strict built-in rule pack is enabled.
+    /// </summary>
+    /// <param name="value">The strict rule-pack state.</param>
+    internal void SetStrictRulePack(bool value)
+    {
+        StrictRulePack = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets whether the experimental built-in rule pack is enabled.
+    /// </summary>
+    /// <param name="value">The experimental rule-pack state.</param>
+    internal void SetExperimentalRulePack(bool value)
+    {
+        ExperimentalRulePack = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
     /// Sets the config path.
     /// </summary>
     /// <param name="value">The config path.</param>
@@ -2035,6 +2065,8 @@ internal sealed class PicketTuiScanWorkspace
 
         AddTargetArguments(arguments);
         AddOptionalValue(arguments, "--profile", Profile);
+        AddOptionalValue(arguments, "--rule-pack", StrictRulePack ? "picket-strict" : string.Empty);
+        AddOptionalValue(arguments, "--rule-pack", ExperimentalRulePack ? "picket-experimental" : string.Empty);
         AddOptionalValue(arguments, "--config", ConfigPath);
         AddOptionalValue(arguments, "--ignore-path", IgnorePath);
         AddFlag(arguments, "--no-ignore", NoIgnore);

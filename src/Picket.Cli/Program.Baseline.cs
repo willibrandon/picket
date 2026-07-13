@@ -32,6 +32,7 @@ internal static partial class Program
         string? diagnosticsDir = null;
         string? reportPath = null;
         List<string> enabledRuleIds = [];
+        List<string> additionalRulePacks = [];
         string gitleaksIgnorePath = ".";
         var nativeIgnorePaths = new List<string>();
         bool followSymlinks = false;
@@ -85,6 +86,16 @@ internal static partial class Program
             if (IsEnableRuleFlag(arg))
             {
                 if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsRulePackFlag(arg))
+            {
+                if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -314,7 +325,7 @@ internal static partial class Program
         }
 
         long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-        if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: true, out CompiledRuleSet? rules))
+        if (!TryLoadRules(configPath, root, enabledRuleIds, additionalRulePacks, nativeConfig: true, out CompiledRuleSet? rules))
         {
             return CompleteRun(1, diagnosticsSession);
         }

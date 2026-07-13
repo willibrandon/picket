@@ -1,3 +1,4 @@
+using Picket.Rules;
 using System.CommandLine;
 using System.CommandLine.Completions;
 using System.CommandLine.Help;
@@ -330,6 +331,7 @@ internal static partial class Program
         AddOptionalArgument(checkCommand, "picket rules check", "source");
         checkCommand.Options.Add(CreateValueOption("picket rules check", "--config", "path", "-c"));
         checkCommand.Options.Add(CreateChoiceValueOption("picket rules check", "--profile", "profile", "picket"));
+        checkCommand.Options.Add(CreateChoiceValueOption("picket rules check", "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
         checkCommand.Options.Add(CreateFlagOption("picket rules check", "--print-config"));
 
         Command testCommand = CreateForwardingCommand(
@@ -344,6 +346,7 @@ internal static partial class Program
         testCommand.Options.Add(CreateChoiceValueOption("picket rules test", "--report-format", "json|jsonl|csv|junit|html|gitlab|sarif|toon", ["json", "jsonl", "csv", "junit", "html", "gitlab", "sarif", "toon"], "-f"));
         testCommand.Options.Add(CreateValueOption("picket rules test", "--report-path", "path", "-r"));
         testCommand.Options.Add(CreateChoiceValueOption("picket rules test", "--profile", "profile", "picket"));
+        testCommand.Options.Add(CreateChoiceValueOption("picket rules test", "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
         testCommand.Options.Add(CreateValueOption("picket rules test", "--source", "path"));
         testCommand.Options.Add(CreateValueOption("picket rules test", "--path", "path"));
         testCommand.Options.Add(CreateFlagOption("picket rules test", "--print-config"));
@@ -527,6 +530,7 @@ internal static partial class Program
         command.Options.Add(CreateChoiceValueOption(commandName, "--report-format", formatValues, SplitChoices(formatValues), "-f"));
         command.Options.Add(CreateValueOption(commandName, "--report-path", "path", "-r"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--profile", "profile", "picket"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
         command.Options.Add(CreateValueOption(commandName, "--source", "path"));
     }
 
@@ -749,6 +753,7 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--ignore-path", "path"));
         command.Options.Add(CreateFlagOption(commandName, "--no-ignore"));
         command.Options.Add(CreateValueOption(commandName, "--enable-rule", "id"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
         AddScanLimitOptions(command, commandName, includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, commandName);
         command.Options.Add(CreateRedactOption(commandName));
@@ -758,6 +763,7 @@ internal static partial class Program
     {
         command.Options.Add(CreateValueOption(commandName, "--cache-dir", "path"));
         command.Options.Add(CreateValueOption(commandName, "--config", "path", "-c"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
         command.Options.Add(CreateChoiceValueOption(commandName, "--cache-mode", "mode", "raw", "secret-hash-only"));
         command.Options.Add(CreateValueOption(commandName, "--max-decode-depth", "n"));
         command.Options.Add(CreateValueOption(commandName, "--max-target-megabytes", "n"));
@@ -773,6 +779,7 @@ internal static partial class Program
     {
         AddCompatibilityReportOptions(command, commandName);
         command.Options.Add(CreateChoiceValueOption(commandName, "--profile", "profile", "picket"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
         command.Options.Add(CreateFlagOption(commandName, "--no-color"));
         command.Options.Add(CreateFlagOption(commandName, "--no-banner"));
         command.Options.Add(CreateValueOption(commandName, "--report-template", "path"));

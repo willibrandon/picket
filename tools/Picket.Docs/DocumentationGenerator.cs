@@ -1391,7 +1391,8 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     private static bool IsCliRepeatableOption(string command, string option)
     {
         string longOption = ReadCliLongOption(option);
-        return command.Equals("picket revoke github", StringComparison.Ordinal)
+        return longOption.Equals("--rule-pack", StringComparison.Ordinal)
+            || command.Equals("picket revoke github", StringComparison.Ordinal)
             && longOption.Equals("--credential-env", StringComparison.Ordinal);
     }
 

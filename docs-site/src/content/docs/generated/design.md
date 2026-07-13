@@ -582,6 +582,10 @@ Picket ships separate rule packs:
 - `picket-experimental`: new detectors under active tuning,
 - organization-local packs.
 
+The native default profile loads `gitleaks` plus `picket-default`. `--rule-pack picket-strict` adds semicolon-delimited connection-string passwords, HTTP Basic authorization values, and Azure SAS signatures. `--rule-pack picket-experimental` adds opaque bearer-token and session-cookie detectors. The option is repeatable when both packs are required. Neither opt-in pack affects a scan unless it is selected.
+
+Native commands, `picket rules check`, `picket rules test`, `picket baseline create`, and native cache maintenance accept `--rule-pack`. Gitleaks-compatible `git`, `dir`, and `stdin` commands accept it only with `--profile picket`; otherwise they fail before scanning. The TUI exposes the same two selections in its Validation settings. The GitHub Action `rule-packs` input and Azure Pipelines `rulePacks` input accept the same opt-in packs. Selected packs layer over the resolved native config and participate in the compiled-rule fingerprint and scan-cache key.
+
 Native `picket-*` rule packs do not inherit Gitleaks compatibility global allowlists. Compatibility rules keep those allowlists, but native hosted-scanner parity rules must not be suppressed by broad Gitleaks stopwords intended for a different contract.
 
 Each rule can carry severity, confidence, examples, negative examples, tags, validation metadata, revocation metadata, documentation URL, deprecation state, and owning provider.

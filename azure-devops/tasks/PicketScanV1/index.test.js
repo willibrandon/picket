@@ -48,6 +48,7 @@ test("createPicketArguments forwards Azure Artifacts package selectors", () => {
   const inputs = {
     target: ".",
     profile: "picket",
+    rulePacks: ["picket-strict", "picket-experimental"],
     redact: 100,
     cache: false,
     onlyVerified: false,
@@ -65,6 +66,9 @@ test("createPicketArguments forwards Azure Artifacts package selectors", () => {
   const args = task.createPicketArguments(inputs, new Map());
 
   assert.ok(args.includes("--azure-devops-include-packages"));
+  assert.deepEqual(
+    args.filter((value, index) => value === "--rule-pack" || args[index - 1] === "--rule-pack"),
+    ["--rule-pack", "picket-strict", "--rule-pack", "picket-experimental"]);
   assert.deepEqual(args.slice(args.indexOf("--azure-devops-feed"), args.indexOf("--azure-devops-feed") + 2), ["--azure-devops-feed", "release"]);
   assert.deepEqual(args.slice(args.indexOf("--azure-devops-package"), args.indexOf("--azure-devops-package") + 2), ["--azure-devops-package", "Picket.Sample"]);
   assert.deepEqual(args.slice(args.indexOf("--azure-devops-package-version"), args.indexOf("--azure-devops-package-version") + 2), ["--azure-devops-package-version", "1.2.3"]);
@@ -101,6 +105,24 @@ test("readInputs requires a package name for an exact package version", () => {
     assert.throws(
       () => task.readInputs(),
       /azureDevOpsPackageVersion requires azureDevOpsPackage\./);
+  });
+});
+
+test("readInputs normalizes and deduplicates built-in rule packs", () => {
+  withEnvironment({
+    INPUT_rulePacks: "PICKET-STRICT,picket-experimental,picket-strict"
+  }, () => {
+    assert.deepEqual(task.readInputs().rulePacks, ["picket-strict", "picket-experimental"]);
+  });
+});
+
+test("readInputs rejects unknown built-in rule packs", () => {
+  withEnvironment({
+    INPUT_rulePacks: "unknown"
+  }, () => {
+    assert.throws(
+      () => task.readInputs(),
+      /Unsupported built-in rule pack 'unknown'\. Use picket-strict or picket-experimental\./);
   });
 });
 

@@ -162,6 +162,7 @@ jobs:
         with:
           path: .
           cache: "false"
+          rule-packs: picket-strict
           report-directory: ${{ runner.temp }}/picket-scan
           fail-on: never
           summary: "true"

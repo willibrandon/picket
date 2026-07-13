@@ -45,6 +45,7 @@ internal static partial class Program
         var reportPaths = new List<string>();
         var validationResults = new HashSet<string>(StringComparer.Ordinal);
         List<string> enabledRuleIds = [];
+        List<string> additionalRulePacks = [];
         string gitleaksIgnorePath = ".";
         var nativeIgnorePaths = new List<string>();
         int exitCode = 1;
@@ -148,6 +149,22 @@ internal static partial class Program
             if (IsEnableRuleFlag(arg))
             {
                 if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsRulePackFlag(arg))
+            {
+                if (!nativeMode)
+                {
+                    Console.Error.WriteLine("--rule-pack requires a native command or --profile picket");
+                    return UnknownFlagExitCode;
+                }
+
+                if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -451,7 +468,7 @@ internal static partial class Program
         }
 
         long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-        if (!TryLoadRules(configPath, root, enabledRuleIds, nativeConfig: nativeMode, out CompiledRuleSet? rules))
+        if (!TryLoadRules(configPath, root, enabledRuleIds, additionalRulePacks, nativeConfig: nativeMode, out CompiledRuleSet? rules))
         {
             return CompleteRun(1, diagnosticsSession);
         }

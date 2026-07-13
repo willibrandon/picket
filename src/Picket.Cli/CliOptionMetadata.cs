@@ -213,6 +213,7 @@ internal static class CliOptionMetadata
             "--report-path" => "Write a report to this path.",
             "--report-template" => "Render template reports with this template file.",
             "--results" => "Keep findings with the selected validation result states.",
+            "--rule-pack" => "Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.",
             "--s3-access-key-id-env" => "Read the S3 access key ID from this environment variable.",
             "--s3-bucket" => "Scan objects from this S3 bucket.",
             "--s3-endpoint" => "Use this S3 or S3-compatible endpoint for native object-store enumeration.",

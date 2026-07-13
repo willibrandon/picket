@@ -231,6 +231,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--source</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
@@ -1162,6 +1168,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--source</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
@@ -1377,6 +1389,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--source</code></td>
@@ -1678,6 +1696,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Enable an additional rule by ID.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-target-megabytes</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
@@ -1803,6 +1827,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
               <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
@@ -1896,6 +1926,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
@@ -2005,6 +2041,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Load a config file.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
               <td data-label="Value"><code>mode</code></td>
               <td data-label="Required">Optional</td>
@@ -2104,6 +2146,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--cache-mode</code></td>
@@ -2249,6 +2297,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--no-color</code></td>
@@ -2480,6 +2534,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--no-color</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
@@ -2674,6 +2734,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--no-color</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
@@ -2823,6 +2889,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--print-config</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
@@ -2919,6 +2991,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--source</code></td>
