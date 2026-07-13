@@ -1,0 +1,105 @@
+{
+  "Schema": "picket.performance-scenario.v1",
+  "Name": "native-filesystem-competitors",
+  "Description": "Capability-separated native filesystem scans over tracked Picket source and test files.",
+  "Comparability": "Same immutable filesystem corpus, no Git history, no live verification, no update checks, no persistent scan cache, and JSON Lines output. Built-in rules, offline filtering, decoding, archive traversal, ignore semantics, and report schemas remain tool-specific, so this scenario does not make a finding-parity or universal speed claim.",
+  "ColdIterations": 1,
+  "WarmupIterations": 1,
+  "WarmIterations": 5,
+  "ProcessTimeoutSeconds": 900,
+  "Conditions": {
+    "SourceMode": "filesystem",
+    "History": false,
+    "LiveVerification": false,
+    "UpdateChecks": false,
+    "PersistentCache": false,
+    "ReportFormat": "tool-native-jsonl",
+    "Rules": "tool-default",
+    "OfflineFiltering": "tool-default",
+    "Decoding": "tool-default",
+    "ArchiveTraversal": "tool-default",
+    "IgnoreSemantics": "tool-default"
+  },
+  "Corpus": {
+    "Kind": "git-tracked-copy",
+    "Repository": "{repositoryRoot}",
+    "PathPrefixes": [
+      "src/",
+      "tests/"
+    ]
+  },
+  "Tools": [
+    {
+      "Name": "Picket native",
+      "ExecutableEnvironmentVariable": "PICKET_BIN",
+      "Executable": "picket",
+      "Repository": "{repositoryRoot}",
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "version"
+      ],
+      "Arguments": [
+        "scan",
+        ".",
+        "--profile",
+        "picket",
+        "--report-format",
+        "jsonl",
+        "--report-path",
+        "{report}"
+      ],
+      "AllowedExitCodes": [
+        0,
+        1
+      ],
+      "ReportFormat": "jsonl"
+    },
+    {
+      "Name": "TruffleHog filesystem",
+      "ExecutableEnvironmentVariable": "PICKET_TRUFFLEHOG_BIN",
+      "Executable": "trufflehog",
+      "Repository": "{repositoryRoot}/../trufflehog",
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "--version"
+      ],
+      "Arguments": [
+        "filesystem",
+        ".",
+        "--no-verification",
+        "--no-update",
+        "--json"
+      ],
+      "AllowedExitCodes": [
+        0
+      ],
+      "ReportFormat": "jsonl",
+      "ReportSource": "stdout"
+    },
+    {
+      "Name": "Kingfisher filesystem",
+      "ExecutableEnvironmentVariable": "PICKET_KINGFISHER_BIN",
+      "Executable": "kingfisher",
+      "Repository": "{repositoryRoot}/../kingfisher",
+      "WorkingDirectory": "{corpus}",
+      "VersionArguments": [
+        "--version"
+      ],
+      "Arguments": [
+        "scan",
+        ".",
+        "--no-validate",
+        "--no-update-check",
+        "--format",
+        "jsonl",
+        "--output",
+        "{report}"
+      ],
+      "AllowedExitCodes": [
+        0,
+        200
+      ],
+      "ReportFormat": "jsonl"
+    }
+  ]
+}

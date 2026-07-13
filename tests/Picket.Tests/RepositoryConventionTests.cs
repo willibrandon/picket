@@ -1744,6 +1744,7 @@ public sealed partial class RepositoryConventionTests
         string scriptsReadme = ReadRepositoryFile("scripts/README.md");
         string scenarioReadme = ReadRepositoryFile("benchmarks/scenarios/README.md");
         string scenario = ReadRepositoryFile("benchmarks/scenarios/gitleaks-compatible-tracked.json");
+        string competitorScenario = ReadRepositoryFile("benchmarks/scenarios/native-filesystem-competitors.json");
         string nativeCacheScenario = ReadRepositoryFile("benchmarks/scenarios/native-cache-tracked.json");
 
         Assert.Contains("scripts/Measure-ScannerPerformance.cs", design);
@@ -1761,6 +1762,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("\"{session}/cache/native-default\"", nativeCacheScenario);
         Assert.Contains("\"DiagnosticsFormat\": \"picket-cpu-json\"", nativeCacheScenario);
         Assert.Contains("\"ParityExcludedProperties\"", nativeCacheScenario);
+        Assert.Contains("\"ReportSource\": \"stdout\"", competitorScenario);
+        Assert.Contains("\"ExecutableEnvironmentVariable\": \"PICKET_TRUFFLEHOG_BIN\"", competitorScenario);
+        Assert.Contains("\"ExecutableEnvironmentVariable\": \"PICKET_KINGFISHER_BIN\"", competitorScenario);
+        Assert.DoesNotContain("\"ParityGroup\"", competitorScenario);
     }
 
     /// <summary>
@@ -1778,8 +1783,8 @@ public sealed partial class RepositoryConventionTests
         using TempDirectory temp = TempDirectory.Create();
         string scenarioPath = Path.Combine(temp.Path, "scenario.json");
         string outputPath = Path.Combine(temp.Path, "result.json");
-        JsonObject firstTool = CreatePerformanceHarnessTestTool("Picket without cache", useCache: false);
-        JsonObject secondTool = CreatePerformanceHarnessTestTool("Picket with cache", useCache: true);
+        JsonObject firstTool = CreatePerformanceHarnessTestTool("Picket without cache", useCache: false, reportFromStandardOutput: false);
+        JsonObject secondTool = CreatePerformanceHarnessTestTool("Picket with cache", useCache: true, reportFromStandardOutput: true);
         var scenario = new JsonObject
         {
             ["Schema"] = "picket.performance-scenario.v1",
@@ -2122,7 +2127,7 @@ public sealed partial class RepositoryConventionTests
         }
     }
 
-    private static JsonObject CreatePerformanceHarnessTestTool(string name, bool useCache)
+    private static JsonObject CreatePerformanceHarnessTestTool(string name, bool useCache, bool reportFromStandardOutput)
     {
         var arguments = new JsonArray(
             "scan",
@@ -2141,8 +2146,12 @@ public sealed partial class RepositoryConventionTests
 
         arguments.Add("--report-format");
         arguments.Add("jsonl");
-        arguments.Add("--report-path");
-        arguments.Add("{report}");
+        if (!reportFromStandardOutput)
+        {
+            arguments.Add("--report-path");
+            arguments.Add("{report}");
+        }
+
         arguments.Add("--redact=100");
         arguments.Add("--diagnostics=cpu");
         arguments.Add("--diagnostics-dir");
@@ -2157,6 +2166,7 @@ public sealed partial class RepositoryConventionTests
             ["Arguments"] = arguments,
             ["AllowedExitCodes"] = new JsonArray(0, 1),
             ["ReportFormat"] = "jsonl",
+            ["ReportSource"] = reportFromStandardOutput ? "stdout" : "file",
             ["DiagnosticsFile"] = "{report}.diagnostics/cpu.json",
             ["DiagnosticsFormat"] = "picket-cpu-json",
             ["ParityExcludedProperties"] = new JsonArray("line", "match", "matchSha256", "secret"),

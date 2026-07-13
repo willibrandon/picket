@@ -87,6 +87,23 @@ Run the cache scenario with the same `PICKET_BIN` value:
 dotnet run --file ./scripts/Measure-ScannerPerformance.cs --no-build -- -ScenarioPath ./benchmarks/scenarios/native-cache-tracked.json -FailOnParityDifference
 ```
 
+Run the capability-separated native filesystem scenario after setting direct
+paths for Picket, TruffleHog, and Kingfisher:
+
+```powershell
+$env:PICKET_TRUFFLEHOG_BIN = (Resolve-Path ../trufflehog/trufflehog.exe).Path
+$env:PICKET_KINGFISHER_BIN = (Resolve-Path ../kingfisher/target/release/kingfisher.exe).Path
+dotnet run --file ./scripts/Measure-ScannerPerformance.cs --no-build -- -ScenarioPath ./benchmarks/scenarios/native-filesystem-competitors.json
+```
+
+This scenario does not use `-FailOnParityDifference`. It holds the corpus,
+filesystem source mode, live-verification state, persistent-cache state, and
+JSON Lines output category constant, and disables competitor update checks, but
+each scanner retains its own built-in rules, offline filtering, decoders,
+archive handling, ignores, and report schema. Finding counts and timings
+describe those complete tool-native capabilities; they do not establish an
+equivalent winner.
+
 On Unix-like systems, set `PICKET_BIN` and `PICKET_GITLEAKS_BIN` to the
 corresponding executable paths before running the same `dotnet build` and
 `dotnet run` commands. A scenario falls back to executable names on `PATH` when
@@ -119,6 +136,10 @@ scanner time. It stores only hashes and byte counts for scanner stdout, stderr,
 and canonical findings. Generated reports can contain secrets and are deleted by
 default. `-KeepWork` is an explicit debugging option and must be used only for a
 trusted artifact location.
+
+Tools that emit reports on standard output use the scenario's `ReportSource`
+value. The harness streams stdout directly into the ephemeral report file and
+does not retain decoded report text in the result.
 
 Only tools in the same `ParityGroup` are required to produce the same canonical
 finding set. Native comparisons with TruffleHog, Kingfisher, or another scanner
@@ -159,6 +180,36 @@ peak working set. The cache-hit warm median was 150.51 ms with 32.75 MiB peak
 working set and reported 442 hits, zero misses, and zero writes. These values
 establish a regression baseline for Picket's own incremental mode; they are not
 a competitor comparison.
+
+### Reviewed Capability Baseline: 2026-07-12
+
+The first reviewed capability-separated baseline used Picket commit
+`a81363ec0d0994b9ab00df3ddfd8a5af1599d855` with Scout packages `0.4.4`,
+TruffleHog commit `f2cd191b97098913a07522227d2b5e40e57252f4`
+(`v3.95.8-1-gf2cd191b9`), and Kingfisher commit
+`78904df5ea7354a7dc3700e3c41a124524d23083` (`1.105.0`). The checked-in
+`native-filesystem-competitors` scenario staged 455 tracked files from `src/`
+and `tests/` totaling 4,464,165 bytes. Its corpus manifest SHA-256 was
+`d4db6f3f916ee638591ade8413ec90d63abac8842c81b9ad3a5d2d6ca11e8b11`.
+
+| Tool | Findings | Pre-warmup elapsed | Warm elapsed median | Warm elapsed p95 | Warm CPU median | Warm peak working set median |
+|---|---:|---:|---:|---:|---:|---:|
+| Picket native | 55 | 8,419.04 ms | 7,920.62 ms | 8,488.61 ms | 25,921.88 ms | 107.52 MiB |
+| TruffleHog filesystem | 30 | 1,362.75 ms | 1,350.40 ms | 1,421.73 ms | 437.50 ms | 116.63 MiB |
+| Kingfisher filesystem | 21 | 258.13 ms | 246.87 ms | 260.31 ms | 453.12 ms | 152.72 MiB |
+
+The finding sets are not equivalent. Picket exercised its native rules,
+offline filtering, decoding, archive traversal, and ignore behavior;
+TruffleHog and Kingfisher exercised their own defaults with network
+verification and update checks disabled. The scenario therefore has no parity
+group and these timings do not identify a universal winner. They establish a
+repeatable full-capability baseline for later profiling after implementation is
+feature complete.
+
+The run used Windows `10.0.26200`, NTFS, an AMD64 Family 26 Model 68 processor
+with 32 effective processors, 47.13 GiB of GC-visible memory, .NET `10.0.9`, and
+SDK `10.0.301`. Host-level filesystem caches were not reset, so the pre-warmup
+values are not cold OS-cache measurements.
 
 Steady-state scan scenarios compile deferred regexes during global setup. The
 fresh-rule-set scenarios create a new compiled rule set for every operation and

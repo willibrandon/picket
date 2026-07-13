@@ -235,6 +235,18 @@ internal static class ScannerPerformanceSupport
                 throw new InvalidDataException($"Performance tool '{name}' uses unsupported diagnostics format '{diagnosticsFormat}'.");
             }
 
+            string reportSource = GetString(tool, "ReportSource", "file");
+            if (reportSource is not "file" and not "stdout")
+            {
+                throw new InvalidDataException($"Performance tool '{name}' uses unsupported report source '{reportSource}'.");
+            }
+
+            if (reportSource.Equals("stdout", StringComparison.Ordinal)
+                && GetString(tool, "ReportFormat", "none").Equals("none", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException($"Performance tool '{name}' cannot use stdout as a report source without a report format.");
+            }
+
             string[] parityExcludedProperties = ReadStringArray(tool, "ParityExcludedProperties");
             if (parityExcludedProperties.Distinct(StringComparer.Ordinal).Count() != parityExcludedProperties.Length
                 || parityExcludedProperties.Any(property => !s_supportedParityExcludedProperties.Contains(property)))
@@ -419,6 +431,7 @@ internal static class ScannerPerformanceSupport
                 ["VersionArguments"] = source["VersionArguments"]?.DeepClone() ?? new JsonArray("--version"),
                 ["AllowedExitCodes"] = source["AllowedExitCodes"]?.DeepClone() ?? new JsonArray(0),
                 ["ReportFormat"] = GetString(source, "ReportFormat", "none"),
+                ["ReportSource"] = GetString(source, "ReportSource", "file"),
                 ["ParityGroup"] = ScriptSupport.GetString(source, "ParityGroup"),
                 ["ParityExcludedProperties"] = source["ParityExcludedProperties"]?.DeepClone() ?? new JsonArray(),
                 ["StandardInputPath"] = ScriptSupport.GetString(source, "StandardInputPath"),
@@ -526,6 +539,9 @@ internal static class ScannerPerformanceSupport
             arguments,
             workingDirectory,
             standardInputPath,
+            ScriptSupport.GetString(tool, "ReportSource").Equals("stdout", StringComparison.Ordinal)
+                ? reportPath
+                : string.Empty,
             timeout).ConfigureAwait(false);
         int exitCode = processResult["ExitCode"]?.GetValue<int>() ?? -1;
         int[] allowedExitCodes = ReadIntArray(tool, "AllowedExitCodes");
@@ -577,6 +593,7 @@ internal static class ScannerPerformanceSupport
             arguments,
             repositoryRoot,
             string.Empty,
+            string.Empty,
             timeout,
             includeOutput: true).ConfigureAwait(false);
         int exitCode = result["ExitCode"]?.GetValue<int>() ?? -1;
@@ -595,6 +612,7 @@ internal static class ScannerPerformanceSupport
     /// <param name="arguments">The process arguments.</param>
     /// <param name="workingDirectory">The process working directory.</param>
     /// <param name="standardInputPath">The optional standard-input path.</param>
+    /// <param name="standardOutputPath">The optional file that receives standard output without text decoding.</param>
     /// <param name="timeout">The process timeout.</param>
     /// <param name="includeOutput">Whether bounded text output should be returned.</param>
     /// <returns>The process metrics.</returns>
@@ -603,6 +621,7 @@ internal static class ScannerPerformanceSupport
         string[] arguments,
         string workingDirectory,
         string standardInputPath,
+        string standardOutputPath,
         TimeSpan timeout,
         bool includeOutput = false)
     {
@@ -629,7 +648,22 @@ internal static class ScannerPerformanceSupport
             throw new InvalidOperationException($"Could not start '{filePath}'.");
         }
 
-        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+        using FileStream? standardOutputFile = standardOutputPath.Length == 0
+            ? null
+            : new FileStream(standardOutputPath, new FileStreamOptions
+            {
+                Access = FileAccess.Write,
+                BufferSize = 81_920,
+                Mode = FileMode.Create,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+                Share = FileShare.Read,
+            });
+        Task<string>? stdoutTask = standardOutputFile is null
+            ? process.StandardOutput.ReadToEndAsync()
+            : null;
+        Task stdoutCopyTask = standardOutputFile is null
+            ? Task.CompletedTask
+            : process.StandardOutput.BaseStream.CopyToAsync(standardOutputFile);
         Task<string> stderrTask = process.StandardError.ReadToEndAsync();
         if (standardInputPath.Length != 0)
         {
@@ -659,17 +693,30 @@ internal static class ScannerPerformanceSupport
             throw new TimeoutException($"Process '{filePath}' exceeded the {timeout.TotalSeconds:0}-second performance timeout.");
         }
 
-        string stdout = await stdoutTask.ConfigureAwait(false);
+        string stdout = stdoutTask is null ? string.Empty : await stdoutTask.ConfigureAwait(false);
+        await stdoutCopyTask.ConfigureAwait(false);
+        long redirectedStdoutBytes = -1;
+        if (standardOutputFile is not null)
+        {
+            await standardOutputFile.FlushAsync().ConfigureAwait(false);
+            redirectedStdoutBytes = standardOutputFile.Length;
+            standardOutputFile.Dispose();
+        }
+
         string stderr = await stderrTask.ConfigureAwait(false);
         stopwatch.Stop();
+        long stdoutBytes = redirectedStdoutBytes >= 0 ? redirectedStdoutBytes : Encoding.UTF8.GetByteCount(stdout);
+        string stdoutSha256 = standardOutputFile is null
+            ? HashText(stdout)
+            : ScriptSupport.GetFileSha256(standardOutputPath);
         var result = new JsonObject
         {
             ["ExitCode"] = process.ExitCode,
             ["ElapsedMilliseconds"] = stopwatch.Elapsed.TotalMilliseconds,
             ["ProcessorMilliseconds"] = processorTime.TotalMilliseconds,
             ["PeakWorkingSetBytes"] = peakWorkingSetBytes,
-            ["StdoutBytes"] = Encoding.UTF8.GetByteCount(stdout),
-            ["StdoutSha256"] = HashText(stdout),
+            ["StdoutBytes"] = stdoutBytes,
+            ["StdoutSha256"] = stdoutSha256,
             ["StderrBytes"] = Encoding.UTF8.GetByteCount(stderr),
             ["StderrSha256"] = HashText(stderr),
         };
