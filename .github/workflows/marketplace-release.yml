@@ -1,0 +1,227 @@
+name: Promote marketplaces
+run-name: Promote ${{ inputs.release_tag }} to ${{ inputs.target }}${{ inputs.dry_run && ' (dry run)' || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Stable release tag to promote.
+        required: true
+        type: string
+      target:
+        description: Marketplace surface to promote.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - github-action
+          - azure-devops
+      dry_run:
+        description: Validate and report changes without publishing or moving tags.
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: marketplace-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate-release:
+    name: Validate release
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      major-tag: ${{ steps.release.outputs.major-tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Validate release tag input
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
+            throw "Marketplace promotion requires a stable canonical vMAJOR.MINOR.PATCH tag; received '$env:RELEASE_TAG'."
+          }
+
+      - name: Check out release tag
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.release_tag }}
+
+      - name: Verify successful release workflow
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $version = $env:RELEASE_TAG.Substring(1)
+          $majorTag = "v$($version.Split('.')[0])"
+          $commit = (git rev-parse HEAD).Trim()
+          $tagCommit = (git rev-parse "$env:RELEASE_TAG^{commit}").Trim()
+          if ($commit -ne $tagCommit) {
+            throw "Checked-out commit '$commit' does not match tag commit '$tagCommit'."
+          }
+
+          $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease | ConvertFrom-Json
+          if ($release.tagName -ne $env:RELEASE_TAG -or $release.isDraft -or $release.isPrerelease) {
+            throw "Release '$env:RELEASE_TAG' must exist and be neither draft nor prerelease."
+          }
+
+          $runs = @(gh run list --repo $env:GITHUB_REPOSITORY --workflow release.yml --commit $commit --limit 20 --json status,conclusion,url | ConvertFrom-Json)
+          $successfulRun = $runs | Where-Object { $_.status -eq 'completed' -and $_.conclusion -eq 'success' } | Select-Object -First 1
+          if ($null -eq $successfulRun) {
+            throw "No successful Release workflow was found for commit '$commit'."
+          }
+
+          "commit=$commit" >> $env:GITHUB_OUTPUT
+          "major-tag=$majorTag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "Validated release workflow: $($successfulRun.url)" >> $env:GITHUB_STEP_SUMMARY
+
+  promote-github-action:
+    name: Promote GitHub Action
+    if: inputs.target == 'all' || inputs.target == 'github-action'
+    needs: validate-release
+    runs-on: ubuntu-latest
+    environment:
+      name: marketplaces
+    permissions:
+      contents: write
+    steps:
+      - name: Move mutable action major tag
+        shell: pwsh
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          GH_TOKEN: ${{ github.token }}
+          MAJOR_TAG: ${{ needs.validate-release.outputs.major-tag }}
+          RELEASE_COMMIT: ${{ needs.validate-release.outputs.commit }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $referencePath = "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$env:MAJOR_TAG"
+          $existingReference = gh api $referencePath --jq '.object.sha' 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            $existingReference = '<not created>'
+          }
+
+          "### GitHub Action promotion" >> $env:GITHUB_STEP_SUMMARY
+          "- Release: ``$env:RELEASE_TAG``" >> $env:GITHUB_STEP_SUMMARY
+          "- Mutable tag: ``$env:MAJOR_TAG``" >> $env:GITHUB_STEP_SUMMARY
+          "- Current object: ``$existingReference``" >> $env:GITHUB_STEP_SUMMARY
+          "- Target commit: ``$env:RELEASE_COMMIT``" >> $env:GITHUB_STEP_SUMMARY
+
+          if ($env:DRY_RUN -eq 'true') {
+            "- Result: dry run; tag not changed" >> $env:GITHUB_STEP_SUMMARY
+            return
+          }
+
+          if ($existingReference -eq '<not created>') {
+            gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$env:MAJOR_TAG" -f sha=$env:RELEASE_COMMIT >$null
+          }
+          else {
+            gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$env:MAJOR_TAG" -f sha=$env:RELEASE_COMMIT -F force=true >$null
+          }
+
+          "- Result: tag now targets ``$env:RELEASE_COMMIT``" >> $env:GITHUB_STEP_SUMMARY
+
+  promote-azure-devops:
+    name: Promote Azure DevOps extension
+    if: inputs.target == 'all' || inputs.target == 'azure-devops'
+    needs: validate-release
+    runs-on: ubuntu-latest
+    environment:
+      name: marketplaces
+    permissions:
+      attestations: read
+      contents: read
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5.4.0
+        with:
+          dotnet-version: 10.0.301
+
+      - name: Set up Node
+        uses: actions/setup-node@v6.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: azure-devops/package-lock.json
+
+      - name: Install Azure DevOps publishing dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: azure-devops
+
+      - name: Download release VSIX
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $assetName = "picket-$env:RELEASE_TAG-azure-devops.vsix"
+          $outputDirectory = Join-Path $env:RUNNER_TEMP 'picket-marketplace-release'
+          New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --pattern $assetName --pattern "$assetName.sha256" --dir $outputDirectory
+          "PICKET_VSIX_PATH=$(Join-Path $outputDirectory $assetName)" >> $env:GITHUB_ENV
+          "PICKET_VSIX_CHECKSUM_PATH=$(Join-Path $outputDirectory "$assetName.sha256")" >> $env:GITHUB_ENV
+
+      - name: Build Marketplace release verifier
+        run: dotnet build ./scripts/Validate-MarketplaceRelease.cs --nologo --verbosity quiet
+
+      - name: Verify VSIX checksum and metadata
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: dotnet run --file ./scripts/Validate-MarketplaceRelease.cs --no-build -- -ReleaseTag $env:RELEASE_TAG -VsixPath $env:PICKET_VSIX_PATH -ChecksumPath $env:PICKET_VSIX_CHECKSUM_PATH
+
+      - name: Verify VSIX artifact attestation
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh attestation verify $env:PICKET_VSIX_PATH --repo $env:GITHUB_REPOSITORY
+
+      - name: Publish Azure DevOps extension
+        shell: pwsh
+        env:
+          AZURE_DEVOPS_MARKETPLACE_PAT: ${{ secrets.AZURE_DEVOPS_MARKETPLACE_PAT }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          "### Azure DevOps Marketplace promotion" >> $env:GITHUB_STEP_SUMMARY
+          "- Release: ``$env:RELEASE_TAG``" >> $env:GITHUB_STEP_SUMMARY
+          "- VSIX: ``$(Split-Path -Leaf $env:PICKET_VSIX_PATH)``" >> $env:GITHUB_STEP_SUMMARY
+
+          if ($env:DRY_RUN -eq 'true') {
+            "- Result: dry run; extension not published" >> $env:GITHUB_STEP_SUMMARY
+            return
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:AZURE_DEVOPS_MARKETPLACE_PAT)) {
+            throw 'AZURE_DEVOPS_MARKETPLACE_PAT is required for Azure DevOps Marketplace publication.'
+          }
+
+          Push-Location azure-devops
+          try {
+            npm exec -- tfx extension publish --vsix $env:PICKET_VSIX_PATH --share-with willibrandon --token $env:AZURE_DEVOPS_MARKETPLACE_PAT --no-prompt --no-color
+            if ($LASTEXITCODE -ne 0) {
+              throw "Azure DevOps Marketplace publication failed with exit code $LASTEXITCODE."
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+          "- Result: Marketplace validation and publication completed" >> $env:GITHUB_STEP_SUMMARY

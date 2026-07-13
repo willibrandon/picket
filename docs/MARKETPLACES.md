@@ -89,6 +89,18 @@ Marketplace packaging happens while the scanner release artifacts are built and 
 9. Update the GitHub Action immutable and major tags after release validation.
 10. Publish the Azure DevOps extension from the attested VSIX when marketplace release approval is given.
 
+## Promotion Workflow
+
+`.github/workflows/marketplace-release.yml` is the only automated Marketplace mutation path. It is manual-only and accepts a stable `vMAJOR.MINOR.PATCH` release tag, a target (`all`, `github-action`, or `azure-devops`), and `dry_run`. Dry-run defaults to `true`.
+
+Every promotion verifies that the tag has a non-draft, non-prerelease GitHub Release and that the tag commit completed the Release workflow successfully. GitHub Action promotion reports or moves the mutable `vMAJOR` ref to the immutable release commit through the Git refs API. It never changes the patch tag.
+
+Azure DevOps promotion downloads `picket-<tag>-azure-devops.vsix` and its checksum from the GitHub Release. `scripts/Validate-MarketplaceRelease.cs` verifies the sidecar hash, canonical stable version, bounded archive structure, required assets, `willibrandon.picket` identity, `PicketScan@1` metadata, and icon dimensions. The workflow then verifies the GitHub artifact attestation before invoking the pinned `tfx-cli`. It does not use scope, validation, certificate, or wait bypasses.
+
+Real promotion jobs use the `marketplaces` GitHub environment. The repository environment requires approval from `willibrandon`, permits self-review for the single-maintainer project, and accepts deployments only from `main`. Azure publication uses `AZURE_DEVOPS_MARKETPLACE_PAT` and shares the currently private extension with the `willibrandon` test organization. Public launch requires a reviewed manifest change that adds the Azure DevOps Marketplace `Public` gallery flag before the stable release is built and attested; the promotion workflow never changes package visibility after attestation.
+
+Run a dry run first. Review the workflow summary, release workflow URL, current and proposed GitHub Action tag targets, VSIX identity, checksum, and attestation result. Queue the same inputs with `dry_run: false` only after those values are approved.
+
 ## Rollback
 
 Rollback must be documented before marketplace publication:
@@ -99,6 +111,8 @@ Rollback must be documented before marketplace publication:
 - publish a patched Azure DevOps task version when removal is not possible,
 - update release notes with the affected versions and replacement version,
 - keep scanner report schemas and baseline formats backward compatible unless the release is explicitly marked breaking.
+
+To roll back the GitHub Action major tag, dispatch the promotion workflow with the last known-good stable release, target `github-action`, and `dry_run: true`. After reviewing the proposed target, repeat with `dry_run: false`. Immutable patch tags remain unchanged. Azure DevOps Marketplace versions cannot be overwritten or downgraded by this workflow; publish a higher patched extension version and deprecate the affected version through the Marketplace portal when available.
 
 Rollback instructions must be tested with a dry run before the first marketplace release.
 

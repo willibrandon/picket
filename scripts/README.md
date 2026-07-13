@@ -74,6 +74,7 @@ Current utilities:
 | `Compare-GitHubSecretScanningOracle.cs` | Compare hosted alert metadata to a Picket JSONL report. |
 | `Measure-ScannerPerformance.cs` | Measure direct scanner processes from a reproducible scenario manifest, compare canonical finding sets, and capture bounded diagnostic counters. |
 | `Generate-PackageManagerManifests.cs` | Generate Homebrew, Scoop, and WinGet manifests from release checksums. |
+| `Validate-MarketplaceRelease.cs` | Verify a stable release VSIX, checksum sidecar, package structure, identity, task metadata, and icon dimensions before Marketplace promotion. |
 
 Do not store secrets in utility arguments, logs, or committed fixtures. Oracle
 capture output remains under ignored `artifacts/` paths until it has been

@@ -1,5 +1,8 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -810,6 +813,52 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Scanner execution errors always fail the task", azureDevOps);
         Assert.Contains("Optional `config` and `baselinePath` inputs are forwarded only when they name files", azureDevOps);
         Assert.Contains("azure-devops/vss-extension.json", marketplaces);
+    }
+
+    /// <summary>
+    /// Verifies Marketplace promotion is manual, dry-run-first, provenance-checked, and free of validation bypasses.
+    /// </summary>
+    [TestMethod]
+    public void MarketplacePromotionWorkflowIsManualAndFailClosed()
+    {
+        string workflow = ReadRepositoryFile(".github/workflows/marketplace-release.yml");
+        string design = ReadRepositoryFile("docs/DESIGN.md");
+        string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
+        string release = ReadRepositoryFile("docs/RELEASE.md");
+        string scriptsReadme = ReadRepositoryFile("scripts/README.md");
+        string validator = ReadRepositoryFile("scripts/Validate-MarketplaceRelease.cs");
+
+        Assert.Contains("workflow_dispatch:", workflow);
+        Assert.DoesNotContain("pull_request:", workflow);
+        Assert.DoesNotContain("push:", workflow);
+        Assert.Contains("dry_run:", workflow);
+        Assert.Contains("default: true", workflow);
+        Assert.Contains("group: marketplace-release", workflow);
+        Assert.Contains("name: marketplaces", workflow);
+        Assert.Contains("gh run list --repo $env:GITHUB_REPOSITORY --workflow release.yml --commit $commit", workflow);
+        Assert.Contains("gh attestation verify", workflow);
+        Assert.Contains("scripts/Validate-MarketplaceRelease.cs", workflow);
+        Assert.Contains("tfx extension publish", workflow);
+        Assert.Contains("--share-with willibrandon", workflow);
+        Assert.Contains("AZURE_DEVOPS_MARKETPLACE_PAT", workflow);
+        Assert.Contains("--no-prompt --no-color", workflow);
+        Assert.DoesNotContain("--bypass-scope-check", workflow);
+        Assert.DoesNotContain("--bypass-validation", workflow);
+        Assert.DoesNotContain("--skip-cert-validation", workflow);
+        Assert.DoesNotContain("--no-wait-validation", workflow);
+        Assert.Contains("git/refs/tags/$env:MAJOR_TAG", workflow);
+        Assert.Contains("force=true", workflow);
+        Assert.Contains("marketplace-release.yml", design);
+        Assert.Contains("dry_run: true", marketplaces);
+        Assert.Contains("requires approval from `willibrandon`", marketplaces);
+        Assert.Contains("deployments only from `main`", marketplaces);
+        Assert.Contains("cannot be overwritten or downgraded", marketplaces);
+        Assert.Contains("marketplace-release.yml", release);
+        Assert.Contains("Validate-MarketplaceRelease.cs", scriptsReadme);
+        Assert.Contains("MaxUncompressedBytes", validator);
+        Assert.Contains("ValidateChecksum", validator);
+        Assert.Contains("ValidateExtensionManifest", validator);
+        Assert.Contains("ValidateTaskMetadata", validator);
     }
 
     /// <summary>
@@ -1759,7 +1808,7 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(11, scripts);
+        Assert.HasCount(12, scripts);
 
         foreach (string scriptPath in scripts)
         {
@@ -1868,6 +1917,42 @@ public sealed partial class RepositoryConventionTests
         Assert.AreEqual(0, cachedWarm.GetProperty("CacheWritesMedian").GetInt64());
         Assert.IsFalse(result.TryGetProperty("WorkDirectory", out _));
         Assert.AreEqual(JsonValueKind.Null, result.GetProperty("Corpus").GetProperty("GeneratedPath").ValueKind);
+    }
+
+    /// <summary>
+    /// Verifies the Marketplace release validator accepts a complete package and rejects checksum tampering.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    [Timeout(300000, CooperativeCancellation = true)]
+    public async Task MarketplaceReleaseValidatorRejectsTamperedChecksum()
+    {
+        const string ScriptPath = "scripts/Validate-MarketplaceRelease.cs";
+        using TempDirectory temp = TempDirectory.Create();
+        string vsixPath = Path.Combine(temp.Path, "picket-v0.1.2-azure-devops.vsix");
+        string checksumPath = string.Concat(vsixPath, ".sha256");
+        CreateMarketplaceTestVsix(vsixPath);
+        string hash = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(vsixPath)));
+        File.WriteAllText(checksumPath, $"{hash}  {Path.GetFileName(vsixPath)}\n");
+
+        await BuildFileBasedAppAsync(ScriptPath).ConfigureAwait(false);
+        using (Process validProcess = CreateFileBasedAppProcess(ScriptPath, noBuild: true))
+        {
+            AddMarketplaceValidatorArguments(validProcess, vsixPath, checksumPath);
+            Assert.IsTrue(validProcess.Start(), "Could not start Marketplace release validator.");
+            (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(validProcess, TestContext.CancellationToken).ConfigureAwait(false);
+            Assert.AreEqual(0, validProcess.ExitCode, string.Concat(stdout, stderr));
+            Assert.Contains("extension: willibrandon.picket 0.1.2", stdout);
+            Assert.Contains("task: PicketScan@1.0.2", stdout);
+        }
+
+        File.WriteAllText(checksumPath, $"{new string('0', 64)}  {Path.GetFileName(vsixPath)}\n");
+        using Process tamperedProcess = CreateFileBasedAppProcess(ScriptPath, noBuild: true);
+        AddMarketplaceValidatorArguments(tamperedProcess, vsixPath, checksumPath);
+        Assert.IsTrue(tamperedProcess.Start(), "Could not restart Marketplace release validator.");
+        (string tamperedStdout, string tamperedStderr) = await WaitForExitAndReadOutputAsync(tamperedProcess, TestContext.CancellationToken).ConfigureAwait(false);
+        Assert.AreEqual(1, tamperedProcess.ExitCode, tamperedStdout);
+        Assert.Contains("Checksum verification failed", tamperedStderr);
     }
 
     /// <summary>
@@ -2375,6 +2460,57 @@ public sealed partial class RepositoryConventionTests
 
     [GeneratedRegex("pages: write", RegexOptions.CultureInvariant)]
     private static partial Regex PagesWritePattern();
+
+    private static void AddMarketplaceValidatorArguments(Process process, string vsixPath, string checksumPath)
+    {
+        process.StartInfo.ArgumentList.Add("-ReleaseTag");
+        process.StartInfo.ArgumentList.Add("v0.1.2");
+        process.StartInfo.ArgumentList.Add("-VsixPath");
+        process.StartInfo.ArgumentList.Add(vsixPath);
+        process.StartInfo.ArgumentList.Add("-ChecksumPath");
+        process.StartInfo.ArgumentList.Add(checksumPath);
+    }
+
+    private static void CreateMarketplaceTestVsix(string path)
+    {
+        using FileStream file = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        using var archive = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: false);
+        AddRepositoryFileToArchive(archive, "CHANGELOG.md", "azure-devops/CHANGELOG.md");
+        AddRepositoryFileToArchive(archive, "COMPATIBILITY.md", "azure-devops/COMPATIBILITY.md");
+        AddRepositoryFileToArchive(archive, "LICENSE", "azure-devops/LICENSE");
+        AddRepositoryFileToArchive(archive, "PRIVACY.md", "azure-devops/PRIVACY.md");
+        AddRepositoryFileToArchive(archive, "README.md", "azure-devops/README.md");
+        AddTextToArchive(
+            archive,
+            "extension.vsixmanifest",
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <PackageManifest xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
+              <Metadata>
+                <Identity Id="picket" Version="0.1.2" Publisher="willibrandon" />
+              </Metadata>
+            </PackageManifest>
+            """);
+        AddRepositoryFileToArchive(archive, "images/extension-icon.png", "azure-devops/images/extension-icon.png");
+        AddRepositoryFileToArchive(archive, "tasks/PicketScanV1/icon.png", "azure-devops/tasks/PicketScanV1/icon.png");
+        AddRepositoryFileToArchive(archive, "tasks/PicketScanV1/index.js", "azure-devops/tasks/PicketScanV1/index.js");
+        AddRepositoryFileToArchive(archive, "tasks/PicketScanV1/task.json", "azure-devops/tasks/PicketScanV1/task.json");
+    }
+
+    private static void AddRepositoryFileToArchive(ZipArchive archive, string entryName, string relativePath)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(entryName, CompressionLevel.NoCompression);
+        using Stream output = entry.Open();
+        using FileStream input = File.OpenRead(ResolveRepositoryPath(relativePath));
+        input.CopyTo(output);
+    }
+
+    private static void AddTextToArchive(ZipArchive archive, string entryName, string content)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(entryName, CompressionLevel.NoCompression);
+        using Stream output = entry.Open();
+        output.Write(Encoding.UTF8.GetBytes(content));
+    }
 
     private static string FindRepositoryRoot()
     {

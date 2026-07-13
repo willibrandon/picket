@@ -155,6 +155,8 @@ Release automation also packages stable-tag VSIX artifacts with the release vers
 
 The VSIX receives a `.sha256` sidecar and a GitHub artifact attestation before the GitHub Release is created or updated. Prerelease tags skip VSIX artifacts because Azure DevOps extension manifest versions do not support SemVer prerelease labels. Publishing to the Azure DevOps Marketplace remains an explicit release step using `AZURE_DEVOPS_MARKETPLACE_PAT`; the release workflow validates and archives the package without publishing it.
 
+After the Release workflow succeeds, `.github/workflows/marketplace-release.yml` can promote the immutable release to the GitHub Action major tag, the Azure DevOps Marketplace, or both. It is manual-only and defaults to a dry run. Azure promotion revalidates the VSIX checksum, identity, required package contents, and artifact attestation before `tfx extension publish`. Real promotion uses the `marketplaces` environment. See `docs/MARKETPLACES.md` for approval, visibility, and rollback behavior.
+
 ## Documentation Validation
 
 The docs workflow builds the static site, verifies generated docs are current, and checks local documentation links and fragments under the GitHub Pages `/picket/` base path. External links are left to source review so the offline docs build stays deterministic.
