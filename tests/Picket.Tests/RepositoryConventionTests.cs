@@ -495,8 +495,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Smoke test Linux musl zstandard scan", releaseWorkflow);
         Assert.Contains("musl-tools zstd", ciWorkflow);
         Assert.Contains("musl-tools zstd", releaseWorkflow);
-        Assert.Contains("alpine@sha256:", ciWorkflow);
-        Assert.Contains("alpine@sha256:", releaseWorkflow);
+        Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps@sha256:", ciWorkflow);
+        Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps@sha256:", releaseWorkflow);
         Assert.Contains("--read-only --network none --user 65534:65534", ciWorkflow);
         Assert.Contains("--read-only --network none --user 65534:65534", releaseWorkflow);
         Assert.Contains("aws-access-token", ciWorkflow);
