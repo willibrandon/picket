@@ -133,6 +133,8 @@ jobs:
             throw 'musl zstandard scan did not report the expected finding.'
           }
 
+          $global:LASTEXITCODE = 0
+
       - name: Pack public packages
         shell: pwsh
         run: |

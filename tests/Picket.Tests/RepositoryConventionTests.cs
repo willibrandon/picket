@@ -507,6 +507,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("--read-only --network none --user 65534:65534", releaseWorkflow);
         Assert.Contains("aws-access-token", ciWorkflow);
         Assert.Contains("aws-access-token", releaseWorkflow);
+        Assert.Contains("$global:LASTEXITCODE = 0", ciWorkflow);
+        Assert.Contains("$global:LASTEXITCODE = 0", releaseWorkflow);
         Assert.Contains("Acquire::Retries=5", ciWorkflow);
         Assert.Contains("Acquire::Retries=5", releaseWorkflow);
         Assert.Contains("Acquire::ForceIPv4=true", ciWorkflow);

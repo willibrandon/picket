@@ -218,6 +218,8 @@ jobs:
             throw 'musl zstandard scan did not report the expected finding.'
           }
 
+          $global:LASTEXITCODE = 0
+
       - name: Package binary archive
         id: package
         shell: pwsh
