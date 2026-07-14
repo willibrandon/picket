@@ -62,9 +62,9 @@ This page is generated from publish profiles, packable project files, central pa
 |---|---|
 | `BenchmarkDotNet` | `0.15.8` |
 | `Hex1b` | `0.165.0` |
-| `Scout.IO.Globbing` | `0.4.4` |
-| `Scout.IO.Ignore` | `0.4.4` |
-| `Scout.Text.Regex` | `0.4.4` |
+| `Scout.IO.Globbing` | `0.4.5` |
+| `Scout.IO.Ignore` | `0.4.5` |
+| `Scout.Text.Regex` | `0.4.5` |
 | `System.CommandLine` | `2.0.9` |
 | `System.IO.FileSystem.AccessControl` | `5.0.0` |
 | `ZstdNet` | `1.5.7` |
