@@ -344,19 +344,24 @@ public sealed class SecretScannerTests
     [TestMethod]
     public void ScanFindsNativeDatabaseConnectionUrl()
     {
+        const long MaximumAllocatedBytes = 16L * 1024 * 1024;
         string connectionUrl = CreateDatabaseConnectionUrl();
         byte[] input = Encoding.UTF8.GetBytes($"DATABASE_URL=\"{connectionUrl}\"");
         RuleSet nativeRule = SelectRules(PicketConfigLoader.LoadRuleSet(null, "__picket-test__"), "picket-database-connection-url");
+        CompiledRuleSet compiledRules = CompiledRuleSet.Compile(nativeRule);
 
+        long before = GC.GetAllocatedBytesForCurrentThread();
         IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
             input,
             "settings.env",
-            CompiledRuleSet.Compile(nativeRule),
+            compiledRules,
             maxDecodeDepth: 0));
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.HasCount(1, findings);
         Assert.AreEqual("picket-database-connection-url", findings[0].RuleID);
         Assert.AreEqual(connectionUrl, findings[0].Secret);
+        Assert.IsLessThan(MaximumAllocatedBytes, allocated);
     }
 
     /// <summary>

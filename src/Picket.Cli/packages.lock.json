@@ -37,7 +37,7 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.1.0, )",
-          "Scout.Text.Regex": "[0.4.4, )"
+          "Scout.Text.Regex": "[0.4.5, )"
         }
       },
       "picket.report": {
@@ -59,7 +59,7 @@
       "picket.sources": {
         "type": "Project",
         "dependencies": {
-          "Scout.IO.Ignore": "[0.4.4, )",
+          "Scout.IO.Ignore": "[0.4.5, )",
           "ZstdNet": "[1.5.7, )"
         }
       },
@@ -79,15 +79,15 @@
       },
       "Scout.IO.Ignore": {
         "type": "CentralTransitive",
-        "requested": "[0.4.4, )",
-        "resolved": "0.4.4",
-        "contentHash": "mF9+/ogdAR1T1+0rrcxeTGY7QZeaYuO8QAOP0UWgVSN4J7MpRx+5/91GCaz9XxA2bq3M6aKGHZEIIQMl0e6FNQ=="
+        "requested": "[0.4.5, )",
+        "resolved": "0.4.5",
+        "contentHash": "4u/8tbsx7IY7m8RuwtdCyCbxSBjfEWMBox1nkDvhjwepGyN4iqFH/NZUdsWuqIyT8aBs7fHHrCXPHmxkjBlmpQ=="
       },
       "Scout.Text.Regex": {
         "type": "CentralTransitive",
-        "requested": "[0.4.4, )",
-        "resolved": "0.4.4",
-        "contentHash": "2lIfg2OpVuHkSnuva44rHd4f4Ny7au/lxKSAHRh9GqsSMd/DSlx46CBdwKt0SZVVQJjC04QowwcpMU2WXaMFFA=="
+        "requested": "[0.4.5, )",
+        "resolved": "0.4.5",
+        "contentHash": "BrinFrvTcsJIzdnq/27fP4NnkCr4BQa9UZ2gOh5U0WbXumjE/pD6ldnLRZ4NngFt+NFjbJor3qGD1kGuv8cO9Q=="
       },
       "System.IO.FileSystem.AccessControl": {
         "type": "CentralTransitive",
