@@ -58,7 +58,7 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.1.0, )",
-          "Scout.Text.Regex": "[0.4.5, )"
+          "Scout.Text.Regex": "[0.4.7, )"
         }
       },
       "picket.report": {
@@ -96,9 +96,9 @@
       },
       "Scout.Text.Regex": {
         "type": "CentralTransitive",
-        "requested": "[0.4.5, )",
-        "resolved": "0.4.5",
-        "contentHash": "BrinFrvTcsJIzdnq/27fP4NnkCr4BQa9UZ2gOh5U0WbXumjE/pD6ldnLRZ4NngFt+NFjbJor3qGD1kGuv8cO9Q=="
+        "requested": "[0.4.7, )",
+        "resolved": "0.4.7",
+        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
       },
       "System.IO.FileSystem.AccessControl": {
         "type": "CentralTransitive",

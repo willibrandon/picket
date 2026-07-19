@@ -100,6 +100,18 @@ public sealed class GitleaksRegexDialectTests
     }
 
     /// <summary>
+    /// Verifies braced hexadecimal escapes remain part of the Go regex dialect.
+    /// </summary>
+    [TestMethod]
+    public void ScanPreservesBracedHexadecimalEscapes()
+    {
+        IReadOnlyList<Finding> findings = Scan(@"\x{41}+", "A");
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("A", findings[0].Secret);
+    }
+
+    /// <summary>
     /// Verifies case-insensitive matching retains Unicode simple case folding.
     /// </summary>
     [TestMethod]
@@ -153,6 +165,48 @@ public sealed class GitleaksRegexDialectTests
 
         Assert.HasCount(1, findings);
         Assert.AreEqual("token", findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies brace sequences that are not Go counted repetitions remain literal.
+    /// </summary>
+    [TestMethod]
+    [DataRow(@"a{word}", "a{word}")]
+    [DataRow(@"a{01}", "a{01}")]
+    [DataRow(@"a{1,01}", "a{1,01}")]
+    [DataRow(@"\{2}", "{2}")]
+    [DataRow(@"[{]+", "{{")]
+    public void ScanPreservesLiteralBraces(string pattern, string input)
+    {
+        IReadOnlyList<Finding> findings = Scan(pattern, input);
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual(input, findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies valid Go counted repetitions retain their quantifier semantics.
+    /// </summary>
+    [TestMethod]
+    public void ScanPreservesCountedRepetitions()
+    {
+        IReadOnlyList<Finding> findings = Scan("a{2,3}", "aaa");
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("aaa", findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies the Gitleaks curl allowlist expression preserves GitHub Actions template braces.
+    /// </summary>
+    [TestMethod]
+    public void ScanPreservesGitleaksTemplateBraces()
+    {
+        const string input = "${{user}}:${{password}}";
+        IReadOnlyList<Finding> findings = Scan(@"['""]?\$?{{[^}]+}}['""]?:['""]?\$?{{[^}]+}}['""]?", input);
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual(input, findings[0].Secret);
     }
 
     /// <summary>

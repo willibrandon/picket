@@ -10,9 +10,9 @@
       },
       "Scout.Text.Regex": {
         "type": "Direct",
-        "requested": "[0.4.5, )",
-        "resolved": "0.4.5",
-        "contentHash": "BrinFrvTcsJIzdnq/27fP4NnkCr4BQa9UZ2gOh5U0WbXumjE/pD6ldnLRZ4NngFt+NFjbJor3qGD1kGuv8cO9Q=="
+        "requested": "[0.4.7, )",
+        "resolved": "0.4.7",
+        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
       },
       "picket.rules": {
         "type": "Project"
@@ -27,9 +27,9 @@
       },
       "Scout.Text.Regex": {
         "type": "Direct",
-        "requested": "[0.4.5, )",
-        "resolved": "0.4.5",
-        "contentHash": "BrinFrvTcsJIzdnq/27fP4NnkCr4BQa9UZ2gOh5U0WbXumjE/pD6ldnLRZ4NngFt+NFjbJor3qGD1kGuv8cO9Q=="
+        "requested": "[0.4.7, )",
+        "resolved": "0.4.7",
+        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
       },
       "picket.rules": {
         "type": "Project"

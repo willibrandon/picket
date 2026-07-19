@@ -5,7 +5,7 @@ namespace Picket.Engine;
 
 internal static class GitleaksRegexCompiler
 {
-    internal const string DialectVersion = "gitleaks-go-regexp-v1";
+    internal const string DialectVersion = "gitleaks-go-regexp-v2";
 
     private const string AsciiDigitClass = "[0-9]";
     private const string AsciiDigitClassContent = "0-9";
@@ -22,11 +22,16 @@ internal static class GitleaksRegexCompiler
     private const string AsciiWordClass = "[0-9A-Z_a-z]";
     private const string AsciiWordClassContent = "0-9A-Z_a-z";
 
+    private static readonly ByteRegexOptions s_options = new()
+    {
+        EngineMode = ByteRegexEngineMode.General,
+    };
+
     internal static ByteRegex Compile(string pattern)
     {
         ArgumentNullException.ThrowIfNull(pattern);
 
-        return ByteRegex.Compile(TranslatePattern(pattern));
+        return ByteRegex.Compile(TranslatePattern(pattern), s_options);
     }
 
     private static string TranslatePattern(string pattern)
@@ -50,7 +55,22 @@ internal static class GitleaksRegexCompiler
                     continue;
                 }
 
+                if (IsBracedEscape(pattern, index))
+                {
+                    index += 2;
+                    continue;
+                }
+
                 index++;
+                continue;
+            }
+
+            if (!inClass && value == '{' && !IsCountedRepetition(pattern, index))
+            {
+                builder ??= new StringBuilder(pattern.Length + 32);
+                builder.Append(pattern, copyStart, index - copyStart);
+                builder.Append(@"\{");
+                copyStart = index + 1;
                 continue;
             }
 
@@ -83,6 +103,70 @@ internal static class GitleaksRegexCompiler
         builder.Append(pattern, copyStart, pattern.Length - copyStart);
         return builder.ToString();
     }
+
+    private static bool IsCountedRepetition(string pattern, int start)
+    {
+        int index = start + 1;
+        if (!TrySkipRepeatCount(pattern, ref index) || index >= pattern.Length)
+        {
+            return false;
+        }
+
+        if (pattern[index] == '}')
+        {
+            return true;
+        }
+
+        if (pattern[index] != ',')
+        {
+            return false;
+        }
+
+        index++;
+        if (index >= pattern.Length)
+        {
+            return false;
+        }
+
+        if (pattern[index] == '}')
+        {
+            return true;
+        }
+
+        return TrySkipRepeatCount(pattern, ref index) &&
+            index < pattern.Length &&
+            pattern[index] == '}';
+    }
+
+    private static bool TrySkipRepeatCount(string pattern, ref int index)
+    {
+        if (index >= pattern.Length || !IsAsciiDigit(pattern[index]))
+        {
+            return false;
+        }
+
+        if (pattern[index] == '0' &&
+            index + 1 < pattern.Length &&
+            IsAsciiDigit(pattern[index + 1]))
+        {
+            return false;
+        }
+
+        do
+        {
+            index++;
+        }
+        while (index < pattern.Length && IsAsciiDigit(pattern[index]));
+
+        return true;
+    }
+
+    private static bool IsAsciiDigit(char value) => value is >= '0' and <= '9';
+
+    private static bool IsBracedEscape(string pattern, int escapeStart) =>
+        escapeStart + 2 < pattern.Length &&
+        pattern[escapeStart + 1] is 'p' or 'P' or 'x' &&
+        pattern[escapeStart + 2] == '{';
 
     private static string? GetReplacement(char escaped, bool inClass)
     {

@@ -10,9 +10,9 @@
       },
       "Scout.IO.Ignore": {
         "type": "Direct",
-        "requested": "[0.4.5, )",
-        "resolved": "0.4.5",
-        "contentHash": "4u/8tbsx7IY7m8RuwtdCyCbxSBjfEWMBox1nkDvhjwepGyN4iqFH/NZUdsWuqIyT8aBs7fHHrCXPHmxkjBlmpQ=="
+        "requested": "[0.4.7, )",
+        "resolved": "0.4.7",
+        "contentHash": "hOIHmmNO/2bMSnbjAaDH5Na//9nYqjlFFFyHxwh4RfV6TlohwyhrIsLg6ti3JFp8+whPPh1yjVUHijhqOG9H/Q=="
       },
       "ZstdNet": {
         "type": "Direct",
@@ -30,9 +30,9 @@
       },
       "Scout.IO.Ignore": {
         "type": "Direct",
-        "requested": "[0.4.5, )",
-        "resolved": "0.4.5",
-        "contentHash": "4u/8tbsx7IY7m8RuwtdCyCbxSBjfEWMBox1nkDvhjwepGyN4iqFH/NZUdsWuqIyT8aBs7fHHrCXPHmxkjBlmpQ=="
+        "requested": "[0.4.7, )",
+        "resolved": "0.4.7",
+        "contentHash": "hOIHmmNO/2bMSnbjAaDH5Na//9nYqjlFFFyHxwh4RfV6TlohwyhrIsLg6ti3JFp8+whPPh1yjVUHijhqOG9H/Q=="
       },
       "ZstdNet": {
         "type": "Direct",
