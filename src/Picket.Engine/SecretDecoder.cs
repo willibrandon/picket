@@ -1,6 +1,8 @@
 using System.Buffers;
 using System.Buffers.Text;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Picket.Engine;
@@ -21,13 +23,12 @@ internal static class SecretDecoder
         }
 
         var output = new List<byte>(input.Bytes.Length);
-        var starts = new List<int>(input.Bytes.Length);
-        var ends = new List<int>(input.Bytes.Length);
+        var sourceMap = new List<DecodedSourceMapSegment>(matches.Count * 2 + 1);
         var segments = new List<DecodedSegment>(matches.Count);
         int position = 0;
         foreach (EncodingMatch match in matches)
         {
-            CopyOriginal(input, position, match.Start, output, starts, ends);
+            CopyOriginal(input, position, match.Start, output, sourceMap);
 
             DecodedEncoding inheritedEncodings = DecodedEncoding.None;
             int inheritedDepth = 0;
@@ -46,14 +47,18 @@ internal static class SecretDecoder
             }
 
             int decodedStart = output.Count;
-            int originalStart = input.OriginalStarts[match.Start];
-            int originalEnd = input.OriginalEnds[match.End - 1];
-            output.AddRange(match.Decoded);
-            for (int i = 0; i < match.Decoded.Length; i++)
+            if (!input.TryMapRange(match.Start, match.End, out int originalStart, out int originalEnd))
             {
-                starts.Add(originalStart);
-                ends.Add(originalEnd);
+                throw new InvalidOperationException("Decoded input source mapping is incomplete.");
             }
+
+            output.AddRange(match.Decoded);
+            DecodedInput.AppendSegment(sourceMap, new DecodedSourceMapSegment(
+                decodedStart,
+                output.Count,
+                originalStart,
+                originalEnd,
+                isLinear: false));
 
             segments.Add(new DecodedSegment(
                 decodedStart,
@@ -66,8 +71,8 @@ internal static class SecretDecoder
             position = match.End;
         }
 
-        CopyOriginal(input, position, input.Bytes.Length, output, starts, ends);
-        return new DecodedInput([.. output], [.. starts], [.. ends], segments);
+        CopyOriginal(input, position, input.Bytes.Length, output, sourceMap);
+        return new DecodedInput([.. output], sourceMap, segments);
     }
 
     private static List<string> CreateDecodePath(IReadOnlyList<string> inheritedDecodePath, DecodedEncoding encoding)
@@ -221,17 +226,11 @@ internal static class SecretDecoder
         var decoded = new List<byte>();
         while (end + 2 < input.Length && input[end] == (byte)'%' && TryReadHexByte(input[end + 1], input[end + 2], out byte value))
         {
-            if (!IsPrintableAscii(value))
-            {
-                match = default;
-                return false;
-            }
-
             decoded.Add(value);
             end += 3;
         }
 
-        if (decoded.Count == 0)
+        if (decoded.Count == 0 || !IsPrintableUtf8(CollectionsMarshal.AsSpan(decoded)))
         {
             match = default;
             return false;
@@ -259,12 +258,17 @@ internal static class SecretDecoder
         byte[] decoded = new byte[length / 2];
         for (int i = 0; i < decoded.Length; i++)
         {
-            if (!TryReadHexByte(input[start + i * 2], input[start + i * 2 + 1], out decoded[i])
-                || !IsPrintableAscii(decoded[i]))
+            if (!TryReadHexByte(input[start + i * 2], input[start + i * 2 + 1], out decoded[i]))
             {
                 match = default;
                 return false;
             }
+        }
+
+        if (!IsPrintableUtf8(decoded))
+        {
+            match = default;
+            return false;
         }
 
         match = new EncodingMatch(start, end, decoded, DecodedEncoding.Hex);
@@ -298,7 +302,7 @@ internal static class SecretDecoder
         }
 
         byte[] encoded = input[start..end].ToArray();
-        if (!TryDecodeBase64Bytes(encoded, out byte[]? decoded) || !IsPrintableAscii(decoded))
+        if (!TryDecodeBase64Bytes(encoded, out byte[]? decoded) || !IsPrintableUtf8(decoded))
         {
             match = default;
             return false;
@@ -360,15 +364,16 @@ internal static class SecretDecoder
         int start,
         int end,
         List<byte> output,
-        List<int> starts,
-        List<int> ends)
+        List<DecodedSourceMapSegment> sourceMap)
     {
-        for (int i = start; i < end; i++)
+        if (start == end)
         {
-            output.Add(input.Bytes[i]);
-            starts.Add(input.OriginalStarts[i]);
-            ends.Add(input.OriginalEnds[i]);
+            return;
         }
+
+        int outputStart = output.Count;
+        output.AddRange(input.Bytes.AsSpan(start, end - start));
+        input.AppendSourceMap(start, end, outputStart, sourceMap);
     }
 
     private static bool TryReadHexByte(byte high, byte low, out byte value)
@@ -421,22 +426,22 @@ internal static class SecretDecoder
             or (byte)'_';
     }
 
-    private static bool IsPrintableAscii(ReadOnlySpan<byte> value)
+    private static bool IsPrintableUtf8(ReadOnlySpan<byte> value)
     {
-        foreach (byte b in value)
+        while (!value.IsEmpty)
         {
-            if (!IsPrintableAscii(b))
+            OperationStatus status = Rune.DecodeFromUtf8(value, out Rune rune, out int consumed);
+            if (status != OperationStatus.Done
+                || rune.Value == 0
+                || Rune.GetUnicodeCategory(rune) == UnicodeCategory.Control)
             {
                 return false;
             }
+
+            value = value[consumed..];
         }
 
         return true;
-    }
-
-    private static bool IsPrintableAscii(byte value)
-    {
-        return value is > 0x08 and < 0x7f;
     }
 
     private static bool TryReadUnicodeCodePoint(ReadOnlySpan<byte> input, int start, out int end, out int codePoint)
@@ -517,6 +522,12 @@ internal static class SecretDecoder
     private static bool TryAppendUtf8CodePoint(int codePoint, List<byte> decoded)
     {
         if (codePoint is < 0 or > 0x10ffff or >= 0xd800 and <= 0xdfff)
+        {
+            return false;
+        }
+
+        var rune = new Rune(codePoint);
+        if (rune.Value == 0 || Rune.GetUnicodeCategory(rune) == UnicodeCategory.Control)
         {
             return false;
         }

@@ -81,6 +81,7 @@ internal static class CliOptionMetadata
             "--azure-devops-package-version" => "Scan one exact Azure Artifacts NuGet package version; requires --azure-devops-package.",
             "--azure-devops-max-package-megabytes" => "Set the positive Azure Artifacts package download cap in decimal megabytes; requires package scanning.",
             "--baseline-path" => "Load a baseline report and suppress matching findings.",
+            "--baseline-mode" => "Compare baseline findings exactly or treat LF and CRLF evidence as equivalent. Requires a native command or --profile picket.",
             "--bitbucket-api-endpoint" => "Use this Bitbucket Cloud API endpoint for native source enumeration.",
             "--bitbucket-data-center-api-endpoint" => "Use this Bitbucket Data Center REST API endpoint, including its rest/api/1.0 path.",
             "--bitbucket-data-center-project" => "Scan repositories readable in this Bitbucket Data Center project.",

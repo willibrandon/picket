@@ -26,7 +26,9 @@ internal sealed class GitleaksRuleDefinition(
     IReadOnlyList<string>? examples = null,
     IReadOnlyList<string>? negativeExamples = null,
     double randomnessThreshold = 0,
-    bool randomnessThresholdSet = false)
+    bool randomnessThresholdSet = false,
+    string detector = "",
+    bool detectorSet = false)
 {
     internal string Id { get; } = id ?? string.Empty;
 
@@ -74,6 +76,10 @@ internal sealed class GitleaksRuleDefinition(
 
     internal bool RandomnessThresholdSet { get; } = randomnessThresholdSet;
 
+    internal string Detector { get; } = detector ?? string.Empty;
+
+    internal bool DetectorSet { get; } = detectorSet;
+
     internal static GitleaksRuleDefinition FromRule(SecretRule rule)
     {
         return new GitleaksRuleDefinition(
@@ -99,7 +105,9 @@ internal sealed class GitleaksRuleDefinition(
             rule.Examples,
             rule.NegativeExamples,
             rule.RandomnessThreshold,
-            randomnessThresholdSet: true);
+            randomnessThresholdSet: true,
+            detector: rule.Detector,
+            detectorSet: true);
     }
 
     internal GitleaksRuleDefinition MergeWithBase(SecretRule baseRule)
@@ -127,7 +135,9 @@ internal sealed class GitleaksRuleDefinition(
             Examples.Count != 0 ? Examples : baseRule.Examples,
             NegativeExamples.Count != 0 ? NegativeExamples : baseRule.NegativeExamples,
             RandomnessThresholdSet ? RandomnessThreshold : baseRule.RandomnessThreshold,
-            randomnessThresholdSet: true);
+            randomnessThresholdSet: true,
+            detector: DetectorSet ? Detector : baseRule.Detector,
+            detectorSet: true);
     }
 
     internal SecretRule ToRule(string sourceName)
@@ -149,6 +159,11 @@ internal sealed class GitleaksRuleDefinition(
             {
                 throw new InvalidDataException($"{sourceName}: {Id}: invalid regex secret group {SecretGroup}, max regex secret group {captureGroupCount}");
             }
+        }
+
+        if (Detector.Length != 0 && !PicketBuiltInDetectorNames.IsKnown(Detector))
+        {
+            throw new InvalidDataException($"{sourceName}: {Id}: unknown built-in detector '{Detector}'");
         }
 
         return SecretRule.Create(
@@ -173,7 +188,8 @@ internal sealed class GitleaksRuleDefinition(
             deprecated: Deprecated,
             examples: Examples,
             negativeExamples: NegativeExamples,
-            randomnessThreshold: RandomnessThreshold);
+            randomnessThreshold: RandomnessThreshold,
+            detector: Detector);
     }
 
     internal static string CreateMissingIdMessage(string description, string pattern, string pathPattern)
@@ -295,6 +311,8 @@ internal sealed class GitleaksRuleDefinition(
             Examples,
             NegativeExamples,
             RandomnessThreshold,
-            RandomnessThresholdSet);
+            RandomnessThresholdSet,
+            Detector,
+            DetectorSet);
     }
 }

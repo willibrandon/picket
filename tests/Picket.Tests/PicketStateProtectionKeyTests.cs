@@ -108,7 +108,7 @@ public sealed class PicketStateProtectionKeyTests
         using TempDirectory temp = TempDirectory.Create();
         string targetPath = Path.Combine(temp.Path, "target.key");
         string keyPath = Path.Combine(temp.Path, "state.key");
-        byte[] target = Enumerable.Repeat((byte)0x5a, 32).ToArray();
+        byte[] target = [.. Enumerable.Repeat((byte)0x5a, 32)];
         File.WriteAllBytes(targetPath, target);
         File.CreateSymbolicLink(keyPath, targetPath);
 

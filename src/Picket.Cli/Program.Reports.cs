@@ -9,7 +9,10 @@ namespace Picket;
 
 internal static partial class Program
 {
-    static bool TryLoadBaseline(string? baselinePath, [NotNullWhen(true)] out GitleaksBaseline? baseline)
+    static bool TryLoadBaseline(
+        string? baselinePath,
+        GitleaksBaselineComparisonMode comparisonMode,
+        [NotNullWhen(true)] out GitleaksBaseline? baseline)
     {
         if (string.IsNullOrWhiteSpace(baselinePath))
         {
@@ -19,7 +22,7 @@ internal static partial class Program
 
         try
         {
-            baseline = GitleaksBaseline.Load(baselinePath);
+            baseline = GitleaksBaseline.Load(baselinePath, comparisonMode);
             return true;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)

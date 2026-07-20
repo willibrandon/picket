@@ -79,6 +79,77 @@ public sealed class GitleaksBaselineTests
     }
 
     /// <summary>
+    /// Verifies that exact comparison keeps a finding whose evidence differs by line endings.
+    /// </summary>
+    [TestMethod]
+    public void ExactComparisonKeepsFindingWithDifferentLineEndings()
+    {
+        Finding finding = CreateFinding(match: "token=secret\nnext", secret: "secret\nnext");
+        Finding baselineFinding = CreateFinding(match: "token=secret\r\nnext", secret: "secret\r\nnext");
+        var baseline = new GitleaksBaseline([baselineFinding]);
+
+        IReadOnlyList<Finding> filtered = baseline.Filter([finding]);
+
+        Assert.HasCount(1, filtered);
+    }
+
+    /// <summary>
+    /// Verifies that portable comparison suppresses a finding whose evidence differs only by line endings.
+    /// </summary>
+    [TestMethod]
+    public void PortableComparisonSuppressesFindingWithDifferentLineEndings()
+    {
+        Finding finding = CreateFinding(match: "token=secret\nnext", secret: "secret\nnext", entropy: 3.1);
+        Finding baselineFinding = CreateFinding(match: "token=secret\r\nnext", secret: "secret\r\nnext", entropy: 3.2);
+        var baseline = new GitleaksBaseline(
+            [baselineFinding],
+            GitleaksBaselineComparisonMode.PortableLineEndings);
+
+        IReadOnlyList<Finding> filtered = baseline.Filter([finding]);
+
+        Assert.IsEmpty(filtered);
+    }
+
+    /// <summary>
+    /// Verifies that portable comparison does not suppress evidence with non-newline changes.
+    /// </summary>
+    [TestMethod]
+    public void PortableComparisonKeepsFindingWithDifferentEvidence()
+    {
+        Finding finding = CreateFinding(match: "token=new\nnext", secret: "new\nnext");
+        Finding baselineFinding = CreateFinding(match: "token=old\r\nnext", secret: "old\r\nnext");
+        var baseline = new GitleaksBaseline(
+            [baselineFinding],
+            GitleaksBaselineComparisonMode.PortableLineEndings);
+
+        IReadOnlyList<Finding> filtered = baseline.Filter([finding]);
+
+        Assert.HasCount(1, filtered);
+    }
+
+    /// <summary>
+    /// Verifies that portable comparison handles hash-only findings produced from LF evidence.
+    /// </summary>
+    [TestMethod]
+    public void PortableComparisonSuppressesHashOnlyFindingAcrossLineEndings()
+    {
+        Finding baselineFinding = CreateFinding(match: "token=secret\r\nnext", secret: "secret\r\nnext", entropy: 3.2);
+        Finding finding = CreateFinding(
+            match: string.Empty,
+            secret: string.Empty,
+            secretSha256: CreateSha256("secret\nnext"),
+            matchSha256: CreateSha256("token=secret\nnext"),
+            entropy: 3.1);
+        var baseline = new GitleaksBaseline(
+            [baselineFinding],
+            GitleaksBaselineComparisonMode.PortableLineEndings);
+
+        IReadOnlyList<Finding> filtered = baseline.Filter([finding]);
+
+        Assert.IsEmpty(filtered);
+    }
+
+    /// <summary>
     /// Verifies that a Gitleaks-shaped JSON report can be loaded as a baseline.
     /// </summary>
     [TestMethod]

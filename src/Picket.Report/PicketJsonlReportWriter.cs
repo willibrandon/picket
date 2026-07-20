@@ -59,6 +59,7 @@ public static class PicketJsonlReportWriter
         WriteNumber(builder, "endLine", finding.EndLine, comma: true);
         WriteNumber(builder, "startColumn", finding.StartColumn, comma: true);
         WriteNumber(builder, "endColumn", finding.EndColumn, comma: true);
+        WriteString(builder, "positionKind", PicketFindingMetadata.CreatePositionKind(finding), comma: true);
         WriteString(builder, "match", finding.Match, comma: true);
         WriteString(builder, "secret", finding.Secret, comma: true);
         WriteString(builder, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);

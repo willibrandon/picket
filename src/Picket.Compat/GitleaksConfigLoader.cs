@@ -157,6 +157,8 @@ public static class GitleaksConfigLoader
         double entropy = 0;
         double randomnessThreshold = 0;
         bool randomnessThresholdSet = false;
+        string detector = string.Empty;
+        bool detectorSet = false;
         bool skipReport = false;
         IReadOnlyList<string> keywords = [];
         IReadOnlyList<string> tags = [];
@@ -215,6 +217,8 @@ public static class GitleaksConfigLoader
                     entropy = 0;
                     randomnessThreshold = 0;
                     randomnessThresholdSet = false;
+                    detector = string.Empty;
+                    detectorSet = false;
                     skipReport = false;
                     keywords = [];
                     tags = [];
@@ -439,6 +443,10 @@ public static class GitleaksConfigLoader
                 case "randomnessThreshold":
                     randomnessThreshold = ParseProbability(value, sourceName, key);
                     randomnessThresholdSet = true;
+                    break;
+                case "detector":
+                    detector = ParseString(value, sourceName, key);
+                    detectorSet = true;
                     break;
                 case "keywords":
                     keywords = ParseStringArray(value, sourceName, key);
@@ -667,7 +675,9 @@ public static class GitleaksConfigLoader
                 examples,
                 negativeExamples,
                 randomnessThreshold,
-                randomnessThresholdSet));
+                randomnessThresholdSet,
+                detector,
+                detectorSet));
             ruleAllowlists = [];
             ruleRequiredRules = [];
             hasRule = false;

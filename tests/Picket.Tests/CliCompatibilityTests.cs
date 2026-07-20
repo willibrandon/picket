@@ -590,8 +590,8 @@ public sealed class CliCompatibilityTests
         CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, null, "scan", "-f", "csv").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
-        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,RandomnessModel,RandomnessScore,RandomnessClassification,RandomnessSampleOffset,RandomnessSampleLength,RandomnessAlphabet,RandomnessLengthScore,RandomnessNormalizedEntropy,RandomnessExpectedDistinctRatio,RandomnessTransitionDiversity,RandomnessLongestRunRatio,RandomnessSequentialPairRatio,RandomnessRepeatedPatternRatio,RandomnessCommonBigramRatio,RandomnessCharacterClassBalance,RandomnessEncodedTextSignal,RandomnessPlaceholderSignal,RandomnessSignals,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,RulePack,Provider,DocumentationUrl,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", result.Stdout);
-        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,11,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,,token-12345,,", result.Stdout);
+        Assert.Contains("Schema,RuleID,Description,File,SymlinkFile,StartLine,EndLine,StartColumn,EndColumn,PositionKind,Secret,SecretSha256,Match,MatchSha256,BlobSha256,DecodePath,Line,Commit,Entropy,RandomnessModel,RandomnessScore,RandomnessClassification,RandomnessSampleOffset,RandomnessSampleLength,RandomnessAlphabet,RandomnessLengthScore,RandomnessNormalizedEntropy,RandomnessExpectedDistinctRatio,RandomnessTransitionDiversity,RandomnessLongestRunRatio,RandomnessSequentialPairRatio,RandomnessRepeatedPatternRatio,RandomnessCommonBigramRatio,RandomnessCharacterClassBalance,RandomnessEncodedTextSignal,RandomnessPlaceholderSignal,RandomnessSignals,Author,Email,Date,Message,Fingerprint,ValidationState,Severity,Confidence,RulePack,Provider,DocumentationUrl,ProvenanceType,BaselineStatus,IgnoreReason,Tags,Link\n", result.Stdout);
+        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,unicodeCodePointsExclusive,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,,token-12345,,", result.Stdout);
         Assert.Contains(",unknown,critical,high,,,,filesystem,new,,", result.Stdout);
         Assert.DoesNotContain("RuleID,Commit,File,SymlinkFile", result.Stdout);
     }
@@ -2259,8 +2259,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("schema: picket.report.v1", result.Stdout);
         Assert.Contains("summary:\n  findings: 1\n  rules: 1", result.Stdout);
-        Assert.Contains("findings[1]{schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,match,secret,secretSha256,matchSha256,blobSha256,decodePath,line,commit,entropy,randomnessModel,randomnessScore,randomnessClassification,randomnessSampleOffset,randomnessSampleLength,randomnessAlphabet,randomnessLengthScore,randomnessNormalizedEntropy,randomnessExpectedDistinctRatio,randomnessTransitionDiversity,randomnessLongestRunRatio,randomnessSequentialPairRatio,randomnessRepeatedPatternRatio,randomnessCommonBigramRatio,randomnessCharacterClassBalance,randomnessEncodedTextSignal,randomnessPlaceholderSignal,randomnessSignals,author,email,date,message,fingerprint,validationState,severity,confidence,rulePack,provider,provenanceType,baselineStatus,ignoreReason,link}:", result.Stdout);
-        Assert.Contains("  picket.finding.v1,token,\"\",secret.txt,\"\",1,1,1,11,token-12345,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,\"\",token-12345,\"\",", result.Stdout);
+        Assert.Contains("findings[1]{schema,ruleId,description,file,symlinkFile,startLine,endLine,startColumn,endColumn,positionKind,match,secret,secretSha256,matchSha256,blobSha256,decodePath,line,commit,entropy,randomnessModel,randomnessScore,randomnessClassification,randomnessSampleOffset,randomnessSampleLength,randomnessAlphabet,randomnessLengthScore,randomnessNormalizedEntropy,randomnessExpectedDistinctRatio,randomnessTransitionDiversity,randomnessLongestRunRatio,randomnessSequentialPairRatio,randomnessRepeatedPatternRatio,randomnessCommonBigramRatio,randomnessCharacterClassBalance,randomnessEncodedTextSignal,randomnessPlaceholderSignal,randomnessSignals,author,email,date,message,fingerprint,validationState,severity,confidence,rulePack,provider,provenanceType,baselineStatus,ignoreReason,link}:", result.Stdout);
+        Assert.Contains("  picket.finding.v1,token,\"\",secret.txt,\"\",1,1,1,12,unicodeCodePointsExclusive,token-12345,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,\"\",token-12345,\"\",", result.Stdout);
         Assert.Contains(",unknown,critical,high,\"\",\"\",filesystem,new,\"\",\"\"", result.Stdout);
         Assert.DoesNotContain("\r\n", result.Stdout);
     }
@@ -2298,7 +2298,7 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,11,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,,token-12345,,", File.ReadAllText(reportPath));
+        Assert.Contains("picket.finding.v1,token,,secret.txt,,1,1,1,12,unicodeCodePointsExclusive,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,token-12345,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,7cfd2b702f674578ad5c302ea365a6fb7ec9bbea316a89a776759f71f5b232ad,,token-12345,,", File.ReadAllText(reportPath));
     }
 
     /// <summary>
@@ -4788,7 +4788,7 @@ public sealed class CliCompatibilityTests
             PicketRulePackNames.Experimental).ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode, result.Stderr);
-        Assert.Contains("rules ok: 232 rules", result.Stdout);
+        Assert.Contains("rules ok: 244 rules", result.Stdout);
         Assert.IsEmpty(result.Stderr);
     }
 

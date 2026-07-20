@@ -34,6 +34,7 @@ internal static partial class Program
         }
 
         string? baselinePath = null;
+        GitleaksBaselineComparisonMode baselineComparisonMode = GitleaksBaselineComparisonMode.Exact;
         string? cacheDir = null;
         string? checkpointPath = null;
         string? configPath = null;
@@ -69,6 +70,22 @@ internal static partial class Program
             if (IsBaselinePathFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsBaselineModeFlag(arg))
+            {
+                if (!nativeMode)
+                {
+                    Console.Error.WriteLine("--baseline-mode requires --profile picket");
+                    return UnknownFlagExitCode;
+                }
+
+                if (!TryReadBaselineComparisonMode(args, ref i, out baselineComparisonMode))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -477,7 +494,7 @@ internal static partial class Program
         {
             string reportInputRoot = Path.GetDirectoryName(Path.GetFullPath(root)) ?? ".";
             GitleaksIgnore reportInputIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, reportInputRoot);
-            if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? reportInputBaseline))
+            if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? reportInputBaseline))
             {
                 return CompleteRun(1, diagnosticsSession);
             }
@@ -578,7 +595,7 @@ internal static partial class Program
         }
 
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
-        if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
+        if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? baseline))
         {
             return CompleteRun(1, diagnosticsSession);
         }
@@ -809,7 +826,11 @@ internal static partial class Program
                         isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
                         cancellationToken: cancellationToken)
                     {
+                        EnableNativeDetectors = nativeMode,
                         EnableRandomnessScoring = nativeMode,
+                        PositionKind = nativeMode
+                            ? FindingPositionKind.UnicodeCodePointsExclusive
+                            : FindingPositionKind.GitleaksUtf8BytesInclusive,
                     });
                     if (IsScanStopped(timeoutTimestamp, cancellationToken))
                     {

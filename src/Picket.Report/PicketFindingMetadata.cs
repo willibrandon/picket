@@ -103,6 +103,15 @@ internal static class PicketFindingMetadata
         return finding.ValidationState.Length == 0 ? ValidationState : finding.ValidationState;
     }
 
+    internal static string CreatePositionKind(Finding finding)
+    {
+        return finding.PositionKind switch
+        {
+            FindingPositionKind.UnicodeCodePointsExclusive => "unicodeCodePointsExclusive",
+            _ => "gitleaksUtf8BytesInclusive",
+        };
+    }
+
     internal static string CreateSha256(string value)
     {
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));

@@ -55,6 +55,25 @@ public sealed class GitHubCredentialRevokerTests
     }
 
     /// <summary>
+    /// Verifies that stateless GitHub App installation tokens reach the credential revocation API.
+    /// </summary>
+    [TestMethod]
+    public async Task RevokeAsyncAcceptsStatelessGitHubAppInstallationToken()
+    {
+        string credential = CreateStatelessGitHubAppInstallationToken();
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.Accepted));
+        using GitHubCredentialRevoker revoker = CreateRevoker(handler);
+
+        CredentialRevocationResult result = await revoker.RevokeAsync(
+            [credential],
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(CredentialRevocationState.Accepted, result.State);
+        Assert.AreEqual(1, handler.RequestCount);
+        Assert.DoesNotContain(credential, result.Reason);
+    }
+
+    /// <summary>
     /// Verifies that unrelated values are blocked before an HTTP request is created.
     /// </summary>
     [TestMethod]
@@ -80,7 +99,7 @@ public sealed class GitHubCredentialRevokerTests
     public async Task RevokeAsyncBlocksMoreThanOneThousandCredentialsWithoutRequest()
     {
         string credential = CreateCredential("ghp_", 36);
-        string[] credentials = Enumerable.Repeat(credential, 1_001).ToArray();
+        string[] credentials = [.. Enumerable.Repeat(credential, 1_001)];
         var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.Accepted));
         using GitHubCredentialRevoker revoker = CreateRevoker(handler);
 
@@ -227,5 +246,16 @@ public sealed class GitHubCredentialRevokerTests
     private static string CreateCredential(string prefix, int suffixLength)
     {
         return string.Concat(prefix, new string('a', suffixLength));
+    }
+
+    private static string CreateStatelessGitHubAppInstallationToken()
+    {
+        return string.Concat(
+            "ghs_123456_",
+            new string('a', 32),
+            ".",
+            new string('b', 256),
+            ".",
+            new string('c', 128));
     }
 }

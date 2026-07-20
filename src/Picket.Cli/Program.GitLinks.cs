@@ -45,7 +45,11 @@ internal static partial class Program
                 maxTargetBytes,
                 isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
             {
+                EnableNativeDetectors = nativeMode,
                 EnableRandomnessScoring = nativeMode,
+                PositionKind = nativeMode
+                    ? FindingPositionKind.UnicodeCodePointsExclusive
+                    : FindingPositionKind.GitleaksUtf8BytesInclusive,
             });
             if (IsTimedOut(timeoutTimestamp))
             {
@@ -93,7 +97,8 @@ internal static partial class Program
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath,
-            finding.Randomness);
+            finding.Randomness,
+            finding.PositionKind);
     }
 
     static void CreateGitLinkContext(string root, bool disableLinks, string? platform, out string scmPlatform, out string remoteUrl)

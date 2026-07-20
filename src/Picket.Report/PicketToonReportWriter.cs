@@ -21,6 +21,7 @@ public static class PicketToonReportWriter
         "endLine",
         "startColumn",
         "endColumn",
+        "positionKind",
         "match",
         "secret",
         "secretSha256",
@@ -75,6 +76,7 @@ public static class PicketToonReportWriter
         true, // endLine
         true, // startColumn
         true, // endColumn
+        false, // positionKind
         false, // match
         false, // secret
         false, // secretSha256
@@ -127,6 +129,7 @@ public static class PicketToonReportWriter
         "secretGroup",
         "entropy",
         "randomnessThreshold",
+        "detector",
         "severity",
         "confidence",
         "rulePack",
@@ -144,6 +147,7 @@ public static class PicketToonReportWriter
         true,
         true,
         true,
+        false,
         false,
         false,
         false,
@@ -209,6 +213,7 @@ public static class PicketToonReportWriter
                 finding.EndLine.ToString(CultureInfo.InvariantCulture),
                 finding.StartColumn.ToString(CultureInfo.InvariantCulture),
                 finding.EndColumn.ToString(CultureInfo.InvariantCulture),
+                PicketFindingMetadata.CreatePositionKind(finding),
                 finding.Match,
                 finding.Secret,
                 PicketFindingMetadata.CreateSecretSha256(finding),
@@ -302,6 +307,7 @@ public static class PicketToonReportWriter
                 rule.SecretGroup.ToString(CultureInfo.InvariantCulture),
                 FormatNumber(rule.Entropy),
                 PicketFindingMetadata.FormatProbability(rule.RandomnessThreshold),
+                rule.Detector,
                 PicketFindingMetadata.CreateSeverity(rule),
                 PicketFindingMetadata.CreateConfidence(rule),
                 PicketFindingMetadata.CreateRulePack(rule),

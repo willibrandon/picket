@@ -199,7 +199,11 @@ internal static partial class Program
             isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
             cancellationToken: cancellationToken)
         {
+            EnableNativeDetectors = nativeMode,
             EnableRandomnessScoring = nativeMode,
+            PositionKind = nativeMode
+                ? FindingPositionKind.UnicodeCodePointsExclusive
+                : FindingPositionKind.GitleaksUtf8BytesInclusive,
         });
         if (IsScanStopped(timeoutTimestamp, cancellationToken))
         {

@@ -583,11 +583,17 @@ public sealed class PicketScanCacheTests
             string.Empty,
             "token-[0-9]+",
             randomnessThreshold: 0.8));
+        string detector = CreateRuleSetFingerprint(SecretRule.Create(
+            "token",
+            string.Empty,
+            "token-[0-9]+",
+            detector: PicketBuiltInDetectorNames.CodexCredentials));
 
         Assert.AreNotEqual(baseline, validation);
         Assert.AreNotEqual(baseline, revocation);
         Assert.AreNotEqual(baseline, deprecated);
         Assert.AreNotEqual(baseline, randomnessThreshold);
+        Assert.AreNotEqual(baseline, detector);
     }
 
     /// <summary>
@@ -1037,7 +1043,8 @@ public sealed class PicketScanCacheTests
             $"{file}:token:1",
             "token-12345",
             decodePath: ["base64"],
-            randomness: includeRandomness ? SecretRandomnessScorer.Assess("token-12345") : null);
+            randomness: includeRandomness ? SecretRandomnessScorer.Assess("token-12345") : null,
+            positionKind: FindingPositionKind.UnicodeCodePointsExclusive);
     }
 
     private static string CreateLegacyEntry(string blobHash, string keyFingerprint)

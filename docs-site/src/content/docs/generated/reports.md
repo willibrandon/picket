@@ -46,6 +46,7 @@ Native reports can include:
 - rule ID and description,
 - file and symlink path,
 - line and column range,
+- position coordinate kind,
 - match and secret text according to redaction settings,
 - secret, match, and source blob SHA-256 hashes,
 - source line,
@@ -65,9 +66,15 @@ Native reports can include:
 
 Source-line evidence is bounded for pathological filesystem lines that exceed the scanner's fragment limit. In that case, location fields still identify the complete source position, and native scans check `gitleaks:allow` against the complete logical line without materializing that unbounded line in memory.
 
+Native findings use `positionKind` to make their coordinates unambiguous. `UnicodeCodePointsExclusive` means one-based Unicode code-point columns with an exclusive end position. `GitleaksUtf8BytesInclusive` means one-based UTF-8 byte columns with an inclusive end position and is used for findings produced under the compatibility contract.
+
+SARIF 2.1.0 permits only `unicodeCodePoints` and `utf16CodeUnits` for `run.columnKind`; it has no UTF-8 byte-column value. Native SARIF writes native coordinates with `columnKind: unicodeCodePoints`. For compatibility-origin findings it preserves line ranges and the Picket `positionKind` property but omits columns rather than mislabeling byte offsets. Reports containing both coordinate systems use separate runs. Strict Gitleaks-compatible SARIF output remains governed by the pinned Gitleaks oracle.
+
 Native CSV reports prefix finding-controlled cells that begin with `=`, `+`, `-`, `@`, tab, or carriage return with a single quote so spreadsheet tools do not interpret them as formulas. Gitleaks-compatible CSV keeps the pinned Gitleaks byte contract and does not apply this native-only neutralization.
 
 Native fingerprints are versioned as `picket:v1:<sha256>`. The hash input includes the normalized logical path, rule ID, secret or match hash, and decode path. It intentionally excludes line, column, commit, author, and message metadata so native triage IDs remain stable when a finding moves inside the same file or appears across multiple commits. Gitleaks-compatible reports keep Gitleaks fingerprints.
+
+Baseline comparison is exact by default. Native commands can select `--baseline-mode portable` to treat LF, CRLF, and CR evidence as equivalent while requiring all other baseline fields and source coordinates to match. Strict compatibility always uses exact comparison.
 
 `picket analyze` writes incident-response reports as JSON, JSON Lines, or text. Analysis records include provider, credential type, stable fingerprint, secret hash, validation state, risk, identity, scopes, reachable resources, risk summary, recommended actions, revocation availability, revocation command templates, revocation guidance, and non-secret evidence. Offline analysis recognizes AWS access keys, Azure Storage connection strings, database connection URLs, GCP API keys, GCP service account keys, GitHub token families, GitLab token families, and Sourcegraph access tokens. `picket analyze --live` can enrich analysis with provider metadata from guarded live validation; offline analysis keeps identity, scopes, and resources as explicit offline placeholders.
 

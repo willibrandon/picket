@@ -28,7 +28,7 @@ File-backed config loads, including `[extend] path`, are capped at 10 MiB per fi
 
 In strict compatibility mode, `[extend] path` follows the pinned Gitleaks/Viper local-file behavior: absolute paths are accepted, and relative paths resolve from the process current working directory. Picket keeps that behavior for compatibility, with the byte cap, extend-depth cap, and cycle detection described above. Treat configs with local `extend.path` values as trusted scanner configuration rather than as scan-root-confined input.
 
-The embedded native default combines `gitleaks` with the high-confidence `picket-default` pack. Current native defaults include AWS access key ID plus secret access key pairs, Azure Storage connection strings with `AccountKey` values, credentialed database connection URLs, Google API keys, GCP service account key JSON documents, Sourcegraph `sgp_` access tokens, and GitHub App, OAuth, refresh, fine-grained personal access, and classic personal access tokens. Provider-specific fields receive offline structural validation where a deterministic validator exists.
+The embedded native default combines `gitleaks` with the high-confidence `picket-default` pack. Current native defaults include Anthropic OAuth and Claude Code session credentials; OpenAI API and Codex OAuth credentials; Groq and xAI keys; AWS key pairs; Azure Storage connection strings; credentialed database URLs; Google API keys and GCP service-account keys; Sourcegraph tokens; GitHub token families; Docker registry auth; private JWKs; Kubernetes Secrets; MCP server environment credentials; and npm tokens and basic credentials. Provider-specific fields receive offline structural validation where a deterministic validator exists.
 
 The database URL rule requires a known database scheme, a username, and an embedded password; passwordless URLs are skipped. Native GitHub token rules replace inherited Gitleaks GitHub token rules so native scans emit Picket-owned IDs and metadata without duplicate findings. The native Sourcegraph rule replaces the inherited broad Sourcegraph rule so native scans do not report arbitrary 40-hex commit IDs as access tokens.
 
@@ -49,6 +49,7 @@ Supported rule fields:
 - `secretGroup`: capture group containing the secret. `0` means automatic first non-empty capture behavior.
 - `entropy`: minimum Shannon entropy. `0` disables entropy filtering.
 - `randomnessThreshold`: minimum native `p(random)` score from `0.0` through `1.0`. `0` disables score filtering. See [Randomness Scoring](randomness.md).
+- `detector`: stable built-in structured detector name. The regex and keywords remain the candidate prefilter; the detector parses the selected input and returns exact evidence spans.
 - `keywords`: case-insensitive prefilter terms.
 - `tags`: classification labels.
 - `skipReport`: run supporting detection without reporting normal findings.
@@ -83,20 +84,46 @@ negativeExamples = ["token-value"]
 
 Randomness thresholds are native-only. A positive threshold suppresses a finding when its score is lower than the configured value; strict compatibility scans ignore the field. Keep the default of zero until reviewed positive and negative examples establish a safe threshold for that specific rule.
 
+Built-in structured detector identifiers are:
+
+- `codex-credentials`
+- `docker-registry-credentials`
+- `gcp-service-account-key`
+- `jwk-private-key`
+- `kubernetes-secret`
+- `mcp-server-credentials`
+- `npm-credentials`
+
+Structured detectors are native-only. JSON, YAML, and npmrc parse products are bounded and shared for one input so multiple rules do not repeatedly parse the same content. Unknown detector names fail config validation.
+
 Supported validation template identifiers are:
 
+- `offline:anthropic-oauth-token`
 - `offline:aws-access-key-id`
 - `offline:aws-access-key-pair`
 - `offline:azure-storage-connection-string`
+- `offline:claude-code-session-url`
+- `offline:codex-access-token`
+- `offline:codex-refresh-token`
 - `offline:database-connection-url`
+- `offline:docker-registry-auth`
 - `offline:gcp-api-key`
 - `offline:gcp-service-account-key-json`
+- `offline:github-app-token`
 - `offline:github-classic-token`
 - `offline:github-fine-grained-pat`
+- `offline:groq-api-key`
+- `offline:jwk-private-key`
 - `offline:jwt`
 - `offline:jwt-base64`
+- `offline:kubernetes-secret`
+- `offline:mcp-server-credential`
+- `offline:npm-auth-token`
+- `offline:npm-basic-auth`
+- `offline:openai-api-key`
 - `offline:private-key-envelope`
 - `offline:sourcegraph-access-token`
+- `offline:xai-api-key`
 - `live:github-rest-user-v1`
 
 Supported revocation template identifiers are:
@@ -156,6 +183,7 @@ Every required rule ID must exist, and a rule must not require itself.
 - required-rule references.
 - required positive and negative examples for Picket-native rules.
 - keyword prefilters for Picket-native content rules.
+- known built-in detector names and detector-compatible native rules.
 - obvious Picket-native regex performance hazards such as unbounded `.*` or `.+` spans outside character classes.
 - positive and negative examples without printing example contents in diagnostics.
 - validation and revocation template identifiers supported by the current verifier/analyzer.
@@ -164,4 +192,4 @@ Every required rule ID must exist, and a rule must not require itself.
 
 ## Scout Regex
 
-Picket compiles rule and allowlist patterns to Scout `ByteRegex`. Unsupported patterns fail at config load with the rule ID and pattern context. Picket must not silently fall back to a different regex engine in Native AOT builds.
+Picket compiles rule and allowlist patterns to Scout `ByteRegex`. Unsupported patterns fail at config load with the rule ID and pattern context. Structured detector rules still use `ByteRegex` and keywords as their candidate prefilter; only the selected native rule then runs its bounded structured detector. Picket must not silently fall back to a different regex engine in Native AOT builds.

@@ -363,7 +363,9 @@ internal static partial class Program
                 cancellationToken: cancellationToken)
             {
                 BlobSha256 = blobSha256,
+                EnableNativeDetectors = true,
                 EnableRandomnessScoring = true,
+                PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
                 SourceStartColumn = sourceStartColumn,
                 SourceStartLine = sourceStartLine,
             });
@@ -399,7 +401,11 @@ internal static partial class Program
             cancellationToken: cancellationToken)
         {
             BlobSha256 = blobSha256,
+            EnableNativeDetectors = nativeMode,
             EnableRandomnessScoring = nativeMode,
+            PositionKind = nativeMode
+                ? FindingPositionKind.UnicodeCodePointsExclusive
+                : FindingPositionKind.GitleaksUtf8BytesInclusive,
             SourceStartColumn = sourceStartColumn,
             SourceStartLine = sourceStartLine,
         });

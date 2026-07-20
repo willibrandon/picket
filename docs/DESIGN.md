@@ -464,6 +464,7 @@ Picket implements the Gitleaks TOML schema:
 - Strict compatibility keeps Gitleaks/Viper local `[extend] path` behavior: absolute paths are accepted and relative paths resolve from the process current working directory. This is a trusted config boundary, not scan-root confinement.
 - `extend.url`: parsed and ignored in strict compatibility mode because local Gitleaks has an unimplemented URL extender. Native mode may warn.
 - `[[rules]]`: `id`, `description`, `regex`, `path`, `secretGroup`, `entropy`, `keywords`, `tags`, `skipReport`, allowlists, and required/composite rules.
+- Native rule metadata: `randomnessThreshold`, `detector`, `severity`, `confidence`, `rulePack`, `provider`, `documentationUrl`, `validation`, `revocation`, `deprecated`, `examples`, and `negativeExamples`.
 - Allowlists: global and per-rule, plural and deprecated singular forms, `condition`, `commits`, `paths`, `regexTarget`, `regexes`, `stopwords`, and `targetRules`.
 - Validation: Picket emits the same config errors Gitleaks emits for empty allowlists, mixed singular/plural allowlists, duplicate IDs, missing regex/path, invalid capture groups, and invalid extend combinations.
 
@@ -496,6 +497,7 @@ Compatibility matching reproduces Gitleaks' observable algorithm:
 - keyword prefilter decides candidate rules,
 - rules with no keywords still run,
 - each candidate rule executes independently,
+- each regex search produces one capture result that is reused for the match and secret spans instead of repeating the same regex execution,
 - all matches for each rule are considered,
 - captures are extracted per rule,
 - `secretGroup = 0` uses the first non-empty capture group when Gitleaks does,
@@ -504,7 +506,9 @@ Compatibility matching reproduces Gitleaks' observable algorithm:
 - allowlists run in the same order and against the same targets,
 - skipped rules and `skipReport` follow Gitleaks.
 
-Picket-native modes can add richer confidence scoring and cross-rule correlation, but compatibility mode does not.
+Strict compatibility positions use one-based UTF-8 byte columns with inclusive end positions, matching Gitleaks. Native positions use one-based Unicode code-point columns with exclusive end positions. Every native finding records its `positionKind`; required-rule `withinColumns` constraints apply only when both findings begin on the same source line.
+
+Picket-native modes can add richer confidence scoring, structured detectors, and cross-rule correlation, but compatibility mode does not. A native structured rule still requires a bounded regex and keyword prefilter. After that prefilter selects the rule, its named detector uses a shared per-input JSON, YAML, or npmrc index and returns exact evidence spans without reparsing the input for every structured rule.
 
 ### 7.6 Fingerprints, Ignores, Baselines
 
@@ -525,7 +529,7 @@ Compatibility fingerprints:
 
 Inline suppression honors `gitleaks:allow` unless `--ignore-gitleaks-allow` is set.
 
-Baselines compare the same fields as Gitleaks. Fingerprint is deliberately not the baseline key.
+Baselines compare the same fields as Gitleaks. Fingerprint is deliberately not the baseline key. Exact comparison is the default everywhere and is the only behavior available in strict compatibility mode. Native commands accept `--baseline-mode portable`; that mode treats LF, CRLF, and CR evidence as equivalent while keeping every non-line-ending field and source coordinate exact. It also supports hash-only findings without persisting raw evidence.
 
 Native mode adds `.picketignore`, glob ignores, content-hash ignores, stale-ignore auditing, and stable fingerprints. After successful local native scans and baseline creation, stale `sha256:` entries that did not match any scanned file produce stderr warnings with the ignore-file location when known. These features never silently affect strict Gitleaks compatibility.
 
@@ -539,7 +543,7 @@ Compatibility report writers are byte-oriented golden-output components, not gen
 - SARIF: exact Gitleaks-compatible mode for consumers that depend on `tool.driver.name`, semantic version, fingerprints, and snippets.
 - Template: Go `text/template` compatibility with the same supported safe Sprig function map as Gitleaks. Template behavior is tested with real templates.
 
-Native reporters add JSONL, richer SARIF, TOON, HTML, GitLab code-quality, and simultaneous multi-output support.
+Native reporters add JSONL, richer SARIF, TOON, HTML, GitLab code-quality, and simultaneous multi-output support. Native JSON, JSONL, CSV, TOON, and SARIF metadata preserve `positionKind`. Native SARIF uses the specification-defined `unicodeCodePoints` column kind for native coordinates. Compatibility-origin findings carry UTF-8 byte columns, which SARIF 2.1.0 cannot declare; native SARIF therefore preserves their line ranges and `positionKind` metadata but omits their columns. A report containing both coordinate systems emits separate SARIF runs. The strict Gitleaks-compatible SARIF writer remains byte-for-byte governed by the pinned oracle.
 
 ### 7.8 Decoding, Archives, Binary Files
 
@@ -554,7 +558,7 @@ Compatibility mode follows Gitleaks for:
 - git binary blob handling,
 - decimal megabyte size caps.
 
-Native decoding treats percent, Unicode, hex, base64, and deterministic C# string-literal concatenations as bounded candidate transforms with original-offset remapping. Hex and base64 candidates are probed once per maximal token; failed long tokens are skipped as a unit so attacker-controlled encoded-looking text cannot force quadratic decoder retries. C# concatenation transforms are native-only, limited to `.cs` inputs, require literal-only `string.Concat(...)` calls or binary `+` literal chains, and report `csharp-string-concat` in the decode path.
+Native decoding treats percent, Unicode, hex, base64, and deterministic C# string-literal concatenations as bounded candidate transforms with original-offset remapping. Composable source-map segments preserve the original evidence span through recursive transforms without allocating a per-byte map. Decoded candidates must be valid printable UTF-8; printable non-ASCII text is accepted, while control-bearing or malformed text is rejected. Hex and base64 candidates are probed once per maximal token; failed long tokens are skipped as a unit so attacker-controlled encoded-looking text cannot force quadratic decoder retries. C# concatenation transforms are native-only, limited to `.cs` inputs, require literal-only `string.Concat(...)` calls or binary `+` literal chains, and report `csharp-string-concat` in the decode path.
 
 For local files, compatibility large-file chunking is the pinned Gitleaks 100,000-byte primary buffer with up to 25,000 bytes of blank-line read-ahead and no overlap. Native scans add the bounded line-aligned overlap described in section 6.7. Both modes check cancellation between bounded reads and match loops, preserve absolute source positions, and avoid the managed single-array size limit.
 
@@ -569,7 +573,7 @@ Native mode adds stricter archive-safety controls: decompressed byte caps, entry
 Picket ships separate rule packs:
 
 - `gitleaks`: exact compatibility rules,
-- `picket-default`: high-confidence modern coverage, initially including AWS access key ID plus secret access key pairs, Azure Storage connection strings with `AccountKey` values, credentialed database connection URLs, Google API keys, GCP service account key JSON, and GitHub App, OAuth, refresh, fine-grained personal access, and classic personal access tokens,
+- `picket-default`: high-confidence modern coverage for Anthropic and Claude Code credentials, OpenAI API and Codex credentials, Groq and xAI keys, AWS key pairs, Azure Storage connection strings, database URLs, Google API keys and service-account keys, Sourcegraph tokens, GitHub token families, Docker registry auth, private JWKs, Kubernetes Secrets, MCP server environment credentials, and npm credentials,
 - `picket-strict`: broader coverage with more aggressive heuristics,
 - `picket-experimental`: new detectors under active tuning,
 - organization-local packs.
@@ -580,7 +584,7 @@ Native commands, `picket rules check`, `picket rules test`, `picket baseline cre
 
 Native `picket-*` rule packs do not inherit Gitleaks compatibility global allowlists. Compatibility rules keep those allowlists, but native hosted-scanner parity rules must not be suppressed by broad Gitleaks stopwords intended for a different contract.
 
-Each rule can carry severity, confidence, examples, negative examples, tags, validation metadata, revocation metadata, documentation URL, deprecation state, and owning provider.
+Each rule can carry severity, confidence, examples, negative examples, tags, validation metadata, revocation metadata, documentation URL, deprecation state, owning provider, an explicit randomness threshold, and a built-in structured detector name. Structured detectors are native-only and currently cover Codex JSON, Docker auth JSON, GCP service-account JSON, private JWK JSON, MCP server JSON, Kubernetes Secret YAML, and npmrc credentials.
 
 ### 8.2 Rule QA
 

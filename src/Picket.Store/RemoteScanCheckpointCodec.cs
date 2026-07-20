@@ -7,8 +7,10 @@ namespace Picket.Store;
 
 internal static class RemoteScanCheckpointCodec
 {
-    private const int FindingFieldCount = 25;
+    private const int FindingFieldCount = 44;
     private const int MetadataLineCount = 6;
+    private const int PositionKindIndex = 44;
+    private const int RandomnessStartIndex = 26;
     private const string BlobHeader = "blob";
     private const string FindingCountHeader = "findingCount";
     private const string OrdinalHeader = "ordinal";
@@ -105,7 +107,7 @@ internal static class RemoteScanCheckpointCodec
             entry = new RemoteScanCheckpointEntry(ordinal, displayPath, symlinkDisplayPath, blobSha256, string.Empty, findings);
             return true;
         }
-        catch (FormatException)
+        catch (Exception exception) when (exception is ArgumentException or FormatException)
         {
             entry = null;
             return false;
@@ -140,6 +142,8 @@ internal static class RemoteScanCheckpointCodec
         AppendField(builder, TextFieldCodec.Encode(finding.ValidationState));
         AppendField(builder, TextFieldCodec.Encode(finding.BlobSha256));
         AppendField(builder, TextFieldCodec.EncodeTags(finding.DecodePath));
+        AppendRandomness(builder, finding.Randomness);
+        AppendField(builder, finding.PositionKind.ToString());
         builder.Append('\n');
     }
 
@@ -153,7 +157,10 @@ internal static class RemoteScanCheckpointCodec
             || !int.TryParse(fields[4], CultureInfo.InvariantCulture, out int endLine)
             || !int.TryParse(fields[5], CultureInfo.InvariantCulture, out int startColumn)
             || !int.TryParse(fields[6], CultureInfo.InvariantCulture, out int endColumn)
-            || !double.TryParse(fields[12], CultureInfo.InvariantCulture, out double entropy))
+            || !double.TryParse(fields[12], CultureInfo.InvariantCulture, out double entropy)
+            || !TryParseRandomness(fields.AsSpan(RandomnessStartIndex, PositionKindIndex - RandomnessStartIndex), out SecretRandomnessAssessment? randomness)
+            || !Enum.TryParse(fields[PositionKindIndex], ignoreCase: false, out FindingPositionKind positionKind)
+            || !Enum.IsDefined(positionKind))
         {
             return false;
         }
@@ -183,7 +190,107 @@ internal static class RemoteScanCheckpointCodec
             TextFieldCodec.Decode(fields[22]),
             TextFieldCodec.Decode(fields[23]),
             TextFieldCodec.Decode(fields[24]),
-            TextFieldCodec.DecodeTags(fields[25]));
+            TextFieldCodec.DecodeTags(fields[25]),
+            randomness,
+            positionKind: positionKind);
+        return true;
+    }
+
+    private static void AppendRandomness(StringBuilder builder, SecretRandomnessAssessment? assessment)
+    {
+        if (assessment is null)
+        {
+            for (int i = RandomnessStartIndex; i < PositionKindIndex; i++)
+            {
+                AppendField(builder, string.Empty);
+            }
+
+            return;
+        }
+
+        SecretRandomnessFeatures features = assessment.Features;
+        AppendField(builder, TextFieldCodec.Encode(assessment.Model));
+        AppendField(builder, assessment.Score.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, TextFieldCodec.Encode(assessment.Classification));
+        AppendField(builder, features.SampleOffset.ToString(CultureInfo.InvariantCulture));
+        AppendField(builder, features.SampleLength.ToString(CultureInfo.InvariantCulture));
+        AppendField(builder, TextFieldCodec.Encode(features.Alphabet));
+        AppendField(builder, features.LengthScore.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.NormalizedEntropy.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.ExpectedDistinctRatio.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.TransitionDiversity.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.LongestRunRatio.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.SequentialPairRatio.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.RepeatedPatternRatio.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.CommonBigramRatio.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.CharacterClassBalance.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.EncodedTextSignal.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, features.PlaceholderSignal.ToString("G17", CultureInfo.InvariantCulture));
+        AppendField(builder, TextFieldCodec.EncodeTags(assessment.Signals));
+    }
+
+    private static bool TryParseRandomness(
+        ReadOnlySpan<string> fields,
+        out SecretRandomnessAssessment? assessment)
+    {
+        assessment = null;
+        if (fields.Length != PositionKindIndex - RandomnessStartIndex)
+        {
+            return false;
+        }
+
+        if (fields[0].Length == 0)
+        {
+            for (int i = 1; i < fields.Length; i++)
+            {
+                if (fields[i].Length != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (!double.TryParse(fields[1], CultureInfo.InvariantCulture, out double score)
+            || !int.TryParse(fields[3], CultureInfo.InvariantCulture, out int sampleOffset)
+            || !int.TryParse(fields[4], CultureInfo.InvariantCulture, out int sampleLength)
+            || !double.TryParse(fields[6], CultureInfo.InvariantCulture, out double lengthScore)
+            || !double.TryParse(fields[7], CultureInfo.InvariantCulture, out double normalizedEntropy)
+            || !double.TryParse(fields[8], CultureInfo.InvariantCulture, out double expectedDistinctRatio)
+            || !double.TryParse(fields[9], CultureInfo.InvariantCulture, out double transitionDiversity)
+            || !double.TryParse(fields[10], CultureInfo.InvariantCulture, out double longestRunRatio)
+            || !double.TryParse(fields[11], CultureInfo.InvariantCulture, out double sequentialPairRatio)
+            || !double.TryParse(fields[12], CultureInfo.InvariantCulture, out double repeatedPatternRatio)
+            || !double.TryParse(fields[13], CultureInfo.InvariantCulture, out double commonBigramRatio)
+            || !double.TryParse(fields[14], CultureInfo.InvariantCulture, out double characterClassBalance)
+            || !double.TryParse(fields[15], CultureInfo.InvariantCulture, out double encodedTextSignal)
+            || !double.TryParse(fields[16], CultureInfo.InvariantCulture, out double placeholderSignal))
+        {
+            return false;
+        }
+
+        SecretRandomnessFeatures features = SecretRandomnessFeatures.Create(
+            sampleOffset,
+            sampleLength,
+            TextFieldCodec.Decode(fields[5]),
+            lengthScore,
+            normalizedEntropy,
+            expectedDistinctRatio,
+            transitionDiversity,
+            longestRunRatio,
+            sequentialPairRatio,
+            repeatedPatternRatio,
+            commonBigramRatio,
+            characterClassBalance,
+            encodedTextSignal,
+            placeholderSignal);
+        assessment = SecretRandomnessAssessment.Create(
+            TextFieldCodec.Decode(fields[0]),
+            score,
+            TextFieldCodec.Decode(fields[2]),
+            features,
+            TextFieldCodec.DecodeTags(fields[17]));
         return true;
     }
 

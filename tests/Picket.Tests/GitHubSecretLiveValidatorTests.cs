@@ -206,6 +206,7 @@ public sealed class GitHubSecretLiveValidatorTests
         GitHubSecretLiveValidator validator = CreateValidator(new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
         (string RuleId, string Secret)[] cases = [
             ("picket-github-app-token", CreateGitHubClassicToken("ghu_")),
+            ("picket-github-app-token", CreateGitHubStatelessInstallationToken()),
             ("picket-github-fine-grained-personal-access-token", CreateGitHubFineGrainedPat()),
             ("picket-github-oauth-token", CreateGitHubClassicToken("gho_")),
             ("picket-github-personal-access-token", CreateGitHubPat()),
@@ -367,5 +368,16 @@ public sealed class GitHubSecretLiveValidatorTests
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
             "0123456789");
+    }
+
+    private static string CreateGitHubStatelessInstallationToken()
+    {
+        return string.Concat(
+            "ghs_123456_",
+            new string('a', 32),
+            ".",
+            new string('b', 256),
+            ".",
+            new string('c', 128));
     }
 }

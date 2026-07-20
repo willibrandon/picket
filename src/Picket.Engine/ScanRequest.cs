@@ -115,6 +115,16 @@ public sealed class ScanRequest(
     public bool EnableRandomnessScoring { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether rules may execute built-in native structured detectors.
+    /// </summary>
+    public bool EnableNativeDetectors { get; init; }
+
+    /// <summary>
+    /// Gets the coordinate system used by findings produced by this request.
+    /// </summary>
+    public FindingPositionKind PositionKind { get; init; }
+
+    /// <summary>
     /// Gets the one-based source line represented by the first input byte.
     /// </summary>
     public int SourceStartLine
@@ -181,14 +191,14 @@ public sealed class ScanRequest(
 
         if (value.Length != SHA256.HashSizeInBytes * 2)
         {
-            throw new ArgumentException("The value must be empty or a 64-character SHA-256 hexadecimal hash.", nameof(BlobSha256));
+            throw new ArgumentException("The value must be empty or a 64-character SHA-256 hexadecimal hash.", nameof(value));
         }
 
         for (int i = 0; i < value.Length; i++)
         {
             if (!char.IsAsciiHexDigit(value[i]))
             {
-                throw new ArgumentException("The value must be empty or a 64-character SHA-256 hexadecimal hash.", nameof(BlobSha256));
+                throw new ArgumentException("The value must be empty or a 64-character SHA-256 hexadecimal hash.", nameof(value));
             }
         }
 

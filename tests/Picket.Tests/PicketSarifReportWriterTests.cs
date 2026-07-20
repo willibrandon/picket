@@ -70,6 +70,7 @@ public sealed class PicketSarifReportWriterTests
 
         Assert.Contains("\"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\"", sarif);
         Assert.Contains("\"version\": \"2.1.0\"", sarif);
+        Assert.Contains("\"columnKind\": \"unicodeCodePoints\"", sarif);
         Assert.Contains("\"id\": \"test-rule\"", sarif);
         Assert.Contains("\"level\": \"error\"", sarif);
         Assert.Contains("\"precision\": \"medium\"", sarif);
@@ -131,7 +132,49 @@ public sealed class PicketSarifReportWriterTests
         Assert.DoesNotContain("Infinity", sarif);
     }
 
-    private static Finding CreateFinding(string symlinkFile = "", string fingerprint = "fingerprint", double entropy = 2.5)
+    /// <summary>
+    /// Verifies mixed coordinate systems use separate valid SARIF runs without mislabeling byte columns.
+    /// </summary>
+    [TestMethod]
+    public void WriteSeparatesMixedCoordinateSystems()
+    {
+        Finding nativeFinding = CreateFinding(
+            fingerprint: "native",
+            positionKind: FindingPositionKind.UnicodeCodePointsExclusive);
+        Finding compatibilityFinding = CreateFinding(
+            fingerprint: "compatibility",
+            positionKind: FindingPositionKind.GitleaksUtf8BytesInclusive);
+
+        string sarif = PicketSarifReportWriter.Write([nativeFinding, compatibilityFinding], []);
+        using JsonDocument document = JsonDocument.Parse(sarif);
+        JsonElement runs = document.RootElement.GetProperty("runs");
+
+        Assert.AreEqual(2, runs.GetArrayLength());
+        Assert.AreEqual("unicodeCodePoints", runs[0].GetProperty("columnKind").GetString());
+        Assert.AreEqual("unicodeCodePoints", runs[1].GetProperty("columnKind").GetString());
+        JsonElement nativeRegion = runs[0].GetProperty("results")[0]
+            .GetProperty("locations")[0]
+            .GetProperty("physicalLocation")
+            .GetProperty("region");
+        JsonElement compatibilityRegion = runs[1].GetProperty("results")[0]
+            .GetProperty("locations")[0]
+            .GetProperty("physicalLocation")
+            .GetProperty("region");
+        Assert.AreEqual(1, nativeRegion.GetProperty("startColumn").GetInt32());
+        Assert.AreEqual(2, nativeRegion.GetProperty("endColumn").GetInt32());
+        Assert.IsFalse(compatibilityRegion.TryGetProperty("startColumn", out _));
+        Assert.IsFalse(compatibilityRegion.TryGetProperty("endColumn", out _));
+        Assert.AreEqual(
+            "gitleaksUtf8BytesInclusive",
+            runs[1].GetProperty("results")[0].GetProperty("properties").GetProperty("positionKind").GetString());
+        Assert.DoesNotContain("utf8CodeUnits", sarif);
+    }
+
+    private static Finding CreateFinding(
+        string symlinkFile = "",
+        string fingerprint = "fingerprint",
+        double entropy = 2.5,
+        FindingPositionKind positionKind = FindingPositionKind.UnicodeCodePointsExclusive)
     {
         return new Finding(
             "test-rule",
@@ -155,6 +198,7 @@ public sealed class PicketSarifReportWriterTests
             "line containing secret",
             "https://github.com/example/repo/blob/commit/auth.py#L1",
             blobSha256: BlobSha256,
-            decodePath: ["base64"]);
+            decodePath: ["base64"],
+            positionKind: positionKind);
     }
 }

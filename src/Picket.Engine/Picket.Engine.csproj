@@ -15,5 +15,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Picket.Rules\Picket.Rules.csproj" />
     <PackageReference Include="Scout.Text.Regex" />
+    <PackageReference Include="SharpYaml" />
   </ItemGroup>
 </Project>

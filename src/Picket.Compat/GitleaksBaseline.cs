@@ -9,11 +9,16 @@ namespace Picket.Compat;
 /// Represents a Gitleaks-compatible baseline report used to suppress existing findings.
 /// </summary>
 /// <param name="findings">Findings loaded from an existing Gitleaks JSON report.</param>
-public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
+/// <param name="comparisonMode">The comparison behavior.</param>
+public sealed class GitleaksBaseline(
+    IReadOnlyList<Finding> findings,
+    GitleaksBaselineComparisonMode comparisonMode = GitleaksBaselineComparisonMode.Exact)
 {
     private const string LowerHex = "0123456789abcdef";
 
     private readonly IReadOnlyList<Finding> _findings = findings ?? throw new ArgumentNullException(nameof(findings));
+
+    private readonly GitleaksBaselineComparisonMode _comparisonMode = ValidateComparisonMode(comparisonMode);
 
     /// <summary>
     /// Gets an empty baseline.
@@ -32,12 +37,24 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
     /// <returns>The loaded baseline.</returns>
     public static GitleaksBaseline Load(string path)
     {
+        return Load(path, GitleaksBaselineComparisonMode.Exact);
+    }
+
+    /// <summary>
+    /// Loads a Gitleaks JSON report from disk as a baseline.
+    /// </summary>
+    /// <param name="path">The report path.</param>
+    /// <param name="comparisonMode">The comparison behavior.</param>
+    /// <returns>The loaded baseline.</returns>
+    public static GitleaksBaseline Load(string path, GitleaksBaselineComparisonMode comparisonMode)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ValidateComparisonMode(comparisonMode);
 
         try
         {
             using FileStream stream = File.OpenRead(path);
-            return new GitleaksBaseline(ReadFindings(stream, path));
+            return new GitleaksBaseline(ReadFindings(stream, path), comparisonMode);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -86,7 +103,7 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
 
         foreach (Finding baselineFinding in _findings)
         {
-            if (Matches(finding, baselineFinding, redactionPercent))
+            if (Matches(finding, baselineFinding, redactionPercent, _comparisonMode))
             {
                 return false;
             }
@@ -199,22 +216,29 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
         return values;
     }
 
-    private static bool Matches(Finding finding, Finding baselineFinding, int redactionPercent)
+    private static bool Matches(
+        Finding finding,
+        Finding baselineFinding,
+        int redactionPercent,
+        GitleaksBaselineComparisonMode comparisonMode)
     {
+        bool portableEvidenceMatches = comparisonMode == GitleaksBaselineComparisonMode.PortableLineEndings
+            && HasMatchingPortableEvidence(finding, baselineFinding);
+
         return finding.RuleID == baselineFinding.RuleID
             && finding.Description == baselineFinding.Description
             && finding.StartLine == baselineFinding.StartLine
             && finding.EndLine == baselineFinding.EndLine
             && finding.StartColumn == baselineFinding.StartColumn
             && finding.EndColumn == baselineFinding.EndColumn
-            && (redactionPercent > 0 || HasMatchingEvidence(finding, baselineFinding))
+            && (redactionPercent > 0 || HasMatchingEvidence(finding, baselineFinding) || portableEvidenceMatches)
             && finding.File == baselineFinding.File
             && finding.Commit == baselineFinding.Commit
             && finding.Author == baselineFinding.Author
             && finding.Email == baselineFinding.Email
             && finding.Date == baselineFinding.Date
             && finding.Message == baselineFinding.Message
-            && finding.Entropy == baselineFinding.Entropy;
+            && (finding.Entropy == baselineFinding.Entropy || portableEvidenceMatches);
     }
 
     private static bool HasMatchingEvidence(Finding finding, Finding baselineFinding)
@@ -230,6 +254,42 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
             && finding.SecretSha256.Length != 0
             && finding.MatchSha256 == CreateSha256(baselineFinding.Match)
             && finding.SecretSha256 == CreateSha256(baselineFinding.Secret);
+    }
+
+    private static bool HasMatchingPortableEvidence(Finding finding, Finding baselineFinding)
+    {
+        if (finding.Match.Length != 0 || finding.Secret.Length != 0)
+        {
+            return NormalizeLineEndings(finding.Match) == NormalizeLineEndings(baselineFinding.Match)
+                && NormalizeLineEndings(finding.Secret) == NormalizeLineEndings(baselineFinding.Secret);
+        }
+
+        if (finding.MatchSha256.Length == 0 || finding.SecretSha256.Length == 0)
+        {
+            return false;
+        }
+
+        return HasMatchingPortableHash(finding.MatchSha256, baselineFinding.Match)
+            && HasMatchingPortableHash(finding.SecretSha256, baselineFinding.Secret);
+    }
+
+    private static bool HasMatchingPortableHash(string hash, string baselineValue)
+    {
+        string normalized = NormalizeLineEndings(baselineValue);
+        if (hash == CreateSha256(normalized))
+        {
+            return true;
+        }
+
+        return normalized.Contains('\n')
+            && hash == CreateSha256(normalized.Replace("\n", "\r\n", StringComparison.Ordinal));
+    }
+
+    private static string NormalizeLineEndings(string value)
+    {
+        return value.Contains('\r')
+            ? value.ReplaceLineEndings("\n")
+            : value;
     }
 
     private static string CreateSha256(string value)
@@ -250,5 +310,16 @@ public sealed class GitleaksBaseline(IReadOnlyList<Finding> findings)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(redactionPercent);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(redactionPercent, 100);
+    }
+
+    private static GitleaksBaselineComparisonMode ValidateComparisonMode(GitleaksBaselineComparisonMode comparisonMode)
+    {
+        if (comparisonMode is not GitleaksBaselineComparisonMode.Exact
+            and not GitleaksBaselineComparisonMode.PortableLineEndings)
+        {
+            throw new ArgumentOutOfRangeException(nameof(comparisonMode));
+        }
+
+        return comparisonMode;
     }
 }

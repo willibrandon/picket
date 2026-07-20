@@ -83,6 +83,7 @@ public static class PicketJsonReportWriter
         WriteNumber(builder, "secretGroup", rule.SecretGroup, comma: true);
         WriteNumber(builder, "entropy", rule.Entropy, comma: true);
         WriteProbability(builder, "randomnessThreshold", rule.RandomnessThreshold, comma: true);
+        WriteString(builder, "detector", rule.Detector, comma: true);
         WriteString(builder, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
         WriteString(builder, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
         WriteString(builder, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);
@@ -127,6 +128,7 @@ public static class PicketJsonReportWriter
         WriteNumber(builder, "endLine", finding.EndLine, comma: true);
         WriteNumber(builder, "startColumn", finding.StartColumn, comma: true);
         WriteNumber(builder, "endColumn", finding.EndColumn, comma: true);
+        WriteString(builder, "positionKind", PicketFindingMetadata.CreatePositionKind(finding), comma: true);
         WriteString(builder, "match", finding.Match, comma: true);
         WriteString(builder, "secret", finding.Secret, comma: true);
         WriteString(builder, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);

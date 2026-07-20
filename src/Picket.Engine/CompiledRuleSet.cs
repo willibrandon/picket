@@ -198,7 +198,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
         ArgumentNullException.ThrowIfNull(rules);
 
         var builder = new StringBuilder();
-        AppendValue(builder, "picket.ruleset.v2");
+        AppendValue(builder, "picket.ruleset.v3");
         AppendValue(builder, GitleaksRegexCompiler.DialectVersion);
         AppendValue(builder, rules.RegexesPrevalidated ? "prevalidated" : "compile");
         AppendAllowlists(builder, rules.Allowlists);
@@ -211,6 +211,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
             AppendValue(builder, rule.SecretGroup.ToString(CultureInfo.InvariantCulture));
             AppendValue(builder, rule.Entropy.ToString("G17", CultureInfo.InvariantCulture));
             AppendValue(builder, rule.RandomnessThreshold.ToString("G17", CultureInfo.InvariantCulture));
+            AppendValue(builder, rule.Detector);
             AppendValue(builder, rule.PathPattern);
             AppendValues(builder, rule.Keywords);
             AppendValues(builder, rule.Tags);

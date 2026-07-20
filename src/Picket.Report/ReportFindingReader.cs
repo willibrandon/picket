@@ -152,8 +152,20 @@ public static class ReportFindingReader
             GetString(element, "validationState"),
             GetString(element, "blobSha256"),
             GetStringArray(element, "decodePath"),
-            GetRandomness(element));
+            GetRandomness(element),
+            GetPositionKind(element));
         return true;
+    }
+
+    private static FindingPositionKind GetPositionKind(JsonElement element)
+    {
+        string value = GetString(element, "positionKind");
+        return value switch
+        {
+            "" or "gitleaksUtf8BytesInclusive" => FindingPositionKind.GitleaksUtf8BytesInclusive,
+            "unicodeCodePointsExclusive" => FindingPositionKind.UnicodeCodePointsExclusive,
+            _ => throw new InvalidDataException($"unsupported finding position kind '{value}'"),
+        };
     }
 
     private static SecretRandomnessAssessment? GetRandomness(JsonElement element)

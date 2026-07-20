@@ -2,6 +2,7 @@ using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -79,6 +80,29 @@ public sealed class SecretScannerTests
         Assert.AreEqual(18, findings[0].EndColumn);
         Assert.AreEqual(9, findings[1].StartColumn);
         Assert.AreEqual(19, findings[1].EndColumn);
+    }
+
+    /// <summary>
+    /// Verifies native positions use Unicode code points and exclusive end columns without changing compatibility positions.
+    /// </summary>
+    [TestMethod]
+    public void ScanSeparatesNativeAndCompatibilityCoordinateSystems()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("éé token-12345");
+        CompiledRuleSet rules = CompileTokenRule();
+
+        Finding compatibilityFinding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules)));
+        Finding nativeFinding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules)
+        {
+            PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
+        }));
+
+        Assert.AreEqual(6, compatibilityFinding.StartColumn);
+        Assert.AreEqual(16, compatibilityFinding.EndColumn);
+        Assert.AreEqual(FindingPositionKind.GitleaksUtf8BytesInclusive, compatibilityFinding.PositionKind);
+        Assert.AreEqual(4, nativeFinding.StartColumn);
+        Assert.AreEqual(15, nativeFinding.EndColumn);
+        Assert.AreEqual(FindingPositionKind.UnicodeCodePointsExclusive, nativeFinding.PositionKind);
     }
 
     /// <summary>
@@ -768,6 +792,56 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies required-rule column proximity is only evaluated on the same source line.
+    /// </summary>
+    [TestMethod]
+    public void ScanSuppressesRequiredRuleColumnMatchOnAnotherLine()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("username=alice\npassword=secret");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "primary-rule",
+                "Primary Rule",
+                "password=([^\\s]+)",
+                requiredRules: [new SecretRequiredRule("username-rule", withinColumns: 1)]),
+            SecretRule.Create(
+                "username-rule",
+                "Username Rule",
+                "username=([^\\s]+)",
+                skipReport: true),
+        ]);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "config.txt", sourceRules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies required-rule column proximity accepts nearby findings on the same source line.
+    /// </summary>
+    [TestMethod]
+    public void ScanAcceptsRequiredRuleColumnMatchOnSameLine()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("username=alice password=secret");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "primary-rule",
+                "Primary Rule",
+                "password=([^\\s]+)",
+                requiredRules: [new SecretRequiredRule("username-rule", withinColumns: 20)]),
+            SecretRule.Create(
+                "username-rule",
+                "Username Rule",
+                "username=([^\\s]+)",
+                skipReport: true),
+        ]);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "config.txt", sourceRules));
+
+        Assert.HasCount(1, findings);
+    }
+
+    /// <summary>
     /// Verifies that rule path patterns can match Windows separators against normalized paths.
     /// </summary>
     [TestMethod]
@@ -1168,6 +1242,75 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies decoders accept printable non-ASCII UTF-8 text.
+    /// </summary>
+    [TestMethod]
+    public void ScanDecodesPrintableUtf8Secret()
+    {
+        const string Secret = "token-éclair-12345";
+        string encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(Secret));
+        SecretRule rule = SecretRule.Create("unicode-token", "Unicode token", Secret, keywords: ["token-"]);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            Encoding.UTF8.GetBytes(string.Concat("encoded=", encoded)),
+            "secret.txt",
+            new RuleSet([rule]),
+            maxDecodeDepth: 1));
+
+        Finding finding = Assert.ContainsSingle(findings);
+        Assert.AreEqual(Secret, finding.Secret);
+        Assert.Contains("base64", finding.DecodePath);
+    }
+
+    /// <summary>
+    /// Verifies decoders reject otherwise valid UTF-8 text containing control characters.
+    /// </summary>
+    [TestMethod]
+    public void ScanRejectsDecodedUtf8ControlCharacters()
+    {
+        const string Secret = "token-\n12345";
+        string encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(Secret));
+        SecretRule rule = SecretRule.Create("control-token", "Control token", Secret, keywords: ["token-"]);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            Encoding.UTF8.GetBytes(string.Concat("encoded=", encoded)),
+            "secret.txt",
+            new RuleSet([rule]),
+            maxDecodeDepth: 1));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies recursive decode segments map a Unicode secret to the complete original encoded span.
+    /// </summary>
+    [TestMethod]
+    public void ScanMapsRecursiveUnicodeDecodeToOriginalSpan()
+    {
+        const string Secret = "token-éclair-12345";
+        string base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(Secret));
+        string encoded = PercentEncode(Encoding.ASCII.GetBytes(base64));
+        string inputText = string.Concat("encoded=", encoded);
+        SecretRule rule = SecretRule.Create("unicode-token", "Unicode token", Secret, keywords: ["token-"]);
+
+        Finding finding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(
+            Encoding.UTF8.GetBytes(inputText),
+            "secret.txt",
+            new RuleSet([rule]),
+            maxDecodeDepth: 2)
+        {
+            PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
+        }));
+
+        Assert.AreEqual(9, finding.StartColumn);
+        Assert.AreEqual(inputText.Length + 1, finding.EndColumn);
+        Assert.AreEqual(inputText, finding.Line);
+        Assert.HasCount(2, finding.DecodePath);
+        Assert.AreEqual("percent", finding.DecodePath[0]);
+        Assert.AreEqual("base64", finding.DecodePath[1]);
+    }
+
+    /// <summary>
     /// Verifies that dense finding position mapping stays responsive on large files.
     /// </summary>
     [TestMethod]
@@ -1245,6 +1388,18 @@ public sealed class SecretScannerTests
                 "Token",
                 "token-[0-9]+"),
         ]));
+    }
+
+    private static string PercentEncode(ReadOnlySpan<byte> value)
+    {
+        var builder = new StringBuilder(value.Length * 3);
+        foreach (byte item in value)
+        {
+            builder.Append('%');
+            builder.Append(item.ToString("X2", CultureInfo.InvariantCulture));
+        }
+
+        return builder.ToString();
     }
 
     private static CompiledRuleSet CompileAwsCredentialPairRule()

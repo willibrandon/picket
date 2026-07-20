@@ -183,7 +183,11 @@ public sealed class ReportSummaryReaderTests
     public void ReadSummarizesSarifReport()
     {
         using TempDirectory root = TempDirectory.Create();
-        Finding finding = CreateFinding("sarif-rule", "auth.py", "auth.py:sarif-rule:1");
+        Finding finding = CreateFinding(
+            "sarif-rule",
+            "auth.py",
+            "auth.py:sarif-rule:1",
+            FindingPositionKind.UnicodeCodePointsExclusive);
         SecretRule rule = SecretRule.Create("sarif-rule", "desc", "secret");
         string reportPath = WriteReport(root.Path, "report.sarif", PicketSarifReportWriter.Write([finding], [rule]));
 
@@ -325,7 +329,11 @@ public sealed class ReportSummaryReaderTests
         return reportPath;
     }
 
-    private static Finding CreateFinding(string ruleId, string file, string fingerprint)
+    private static Finding CreateFinding(
+        string ruleId,
+        string file,
+        string fingerprint,
+        FindingPositionKind positionKind = FindingPositionKind.GitleaksUtf8BytesInclusive)
     {
         return new Finding(
             ruleId,
@@ -347,7 +355,8 @@ public sealed class ReportSummaryReaderTests
             ["tag"],
             fingerprint,
             "line containing secret",
-            randomness: SecretRandomnessScorer.Assess("secret-value"));
+            randomness: SecretRandomnessScorer.Assess("secret-value"),
+            positionKind: positionKind);
     }
 
     private static void AssertRandomness(ReportFindingSummary finding)

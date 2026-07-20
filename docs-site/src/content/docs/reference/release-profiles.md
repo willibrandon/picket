@@ -50,7 +50,7 @@ This page is generated from publish profiles, packable project files, central pa
 |---|---|---|---|---|
 | `Picket` | `net10.0` | Gitleaks-compatible secrets scanner for .NET with Picket-native validation, reports, source enumeration, and Native AOT release binaries. | System.CommandLine | Picket.Analyze, Picket.Compat, Picket.Engine, Picket.Report, Picket.Rules, Picket.Security, Picket.Sources, Picket.Store, Picket.Verify |
 | `Picket.Compat` | `net9.0;net10.0` | AOT-safe Gitleaks-compatible configuration, baseline, and ignore-file support for Picket. | - | Picket.Engine, Picket.Rules |
-| `Picket.Engine` | `net9.0;net10.0` | AOT-safe secret scanning engine for Picket using Scout.Text.Regex for byte-oriented matching. | Scout.Text.Regex | Picket.Rules |
+| `Picket.Engine` | `net9.0;net10.0` | AOT-safe secret scanning engine for Picket using Scout.Text.Regex for byte-oriented matching. | Scout.Text.Regex, SharpYaml | Picket.Rules |
 | `Picket.Report` | `net9.0;net10.0` | AOT-safe report writers for Picket and Gitleaks-compatible secret scan results. | - | Picket.Engine, Picket.Rules |
 | `Picket.Rules` | `net9.0;net10.0` | AOT-safe rule and allowlist models for Picket secret scanning. | - | - |
 | `Picket.Security` | `net9.0;net10.0` | AOT-safe egress and endpoint safety primitives for Picket live verification and source connectors. | System.IO.FileSystem.AccessControl | - |
@@ -65,6 +65,7 @@ This page is generated from publish profiles, packable project files, central pa
 | `Scout.IO.Globbing` | `0.4.7` |
 | `Scout.IO.Ignore` | `0.4.7` |
 | `Scout.Text.Regex` | `0.4.7` |
+| `SharpYaml` | `3.13.0` |
 | `System.CommandLine` | `2.0.9` |
 | `System.IO.FileSystem.AccessControl` | `5.0.0` |
 | `ZstdNet` | `1.5.7` |

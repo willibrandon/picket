@@ -29,7 +29,7 @@ public sealed class RemoteScanCheckpointKey(string scanFingerprint, string sourc
     private string CreateFingerprintMaterial()
     {
         var builder = new StringBuilder();
-        builder.Append("picket.remote-scan-checkpoint-key.v1\nscan:");
+        builder.Append("picket.remote-scan-checkpoint-key.v2\nscan:");
         builder.Append(ScanFingerprint);
         builder.Append("\nmanifest:");
         builder.Append(SourceManifestFingerprint);

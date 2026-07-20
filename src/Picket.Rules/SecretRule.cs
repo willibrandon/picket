@@ -25,6 +25,7 @@ namespace Picket.Rules;
 /// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
 /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
 /// <param name="randomnessThreshold">The minimum native randomness score required for a finding. Zero disables score filtering.</param>
+/// <param name="detector">The optional built-in structured detector name.</param>
 public sealed class SecretRule(
     string id,
     string description,
@@ -47,7 +48,8 @@ public sealed class SecretRule(
     bool deprecated = false,
     IReadOnlyList<string>? examples = null,
     IReadOnlyList<string>? negativeExamples = null,
-    double randomnessThreshold = 0)
+    double randomnessThreshold = 0,
+    string detector = "")
 {
     /// <summary>
     /// Gets the stable rule identifier.
@@ -160,6 +162,11 @@ public sealed class SecretRule(
     public double RandomnessThreshold { get; } = RequireProbability(randomnessThreshold);
 
     /// <summary>
+    /// Gets the optional built-in structured detector name.
+    /// </summary>
+    public string Detector { get; } = RequireDetector(detector);
+
+    /// <summary>
     /// Creates a rule and normalizes optional collection arguments.
     /// </summary>
     /// <param name="id">The stable rule identifier.</param>
@@ -184,6 +191,7 @@ public sealed class SecretRule(
     /// <param name="examples">Positive examples that must produce findings for this rule during rule QA.</param>
     /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
     /// <param name="randomnessThreshold">The minimum native randomness score required for a finding. Zero disables score filtering.</param>
+    /// <param name="detector">The optional built-in structured detector name.</param>
     /// <returns>The created rule.</returns>
     public static SecretRule Create(
         string id,
@@ -207,7 +215,8 @@ public sealed class SecretRule(
         bool deprecated = false,
         IReadOnlyList<string>? examples = null,
         IReadOnlyList<string>? negativeExamples = null,
-        double randomnessThreshold = 0)
+        double randomnessThreshold = 0,
+        string detector = "")
     {
         return new SecretRule(
             id,
@@ -231,7 +240,8 @@ public sealed class SecretRule(
             deprecated,
             examples ?? [],
             negativeExamples ?? [],
-            randomnessThreshold);
+            randomnessThreshold,
+            detector);
     }
 
     private static string RequireText(string value)
@@ -272,6 +282,17 @@ public sealed class SecretRule(
     {
         RequireNonNegativeFinite(value);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 1);
+        return value;
+    }
+
+    private static string RequireDetector(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        if (value.Length != 0 && !PicketBuiltInDetectorNames.IsKnown(value))
+        {
+            throw new ArgumentException($"Unknown built-in detector '{value}'.", nameof(value));
+        }
+
         return value;
     }
 }

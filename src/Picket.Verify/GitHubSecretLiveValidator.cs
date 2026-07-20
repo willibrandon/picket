@@ -44,12 +44,12 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
         string secret = finding.Secret.Length == 0 ? finding.Match : finding.Secret;
         return finding.RuleID switch
         {
-            "github-app-token" => IsClassicGitHubToken(secret, "ghu_") || IsClassicGitHubToken(secret, "ghs_"),
+            "github-app-token" => GitHubCredentialSyntax.IsAppToken(secret),
             "github-fine-grained-pat" => IsFineGrainedGitHubToken(secret),
             "github-oauth" => IsClassicGitHubToken(secret, "gho_"),
             "github-pat" => IsClassicGitHubToken(secret, "ghp_"),
             "github-refresh-token" => IsClassicGitHubToken(secret, "ghr_"),
-            "picket-github-app-token" => IsClassicGitHubToken(secret, "ghu_") || IsClassicGitHubToken(secret, "ghs_"),
+            "picket-github-app-token" => GitHubCredentialSyntax.IsAppToken(secret),
             "picket-github-fine-grained-personal-access-token" => IsFineGrainedGitHubToken(secret),
             "picket-github-oauth-token" => IsClassicGitHubToken(secret, "gho_"),
             "picket-github-personal-access-token" => IsClassicGitHubToken(secret, "ghp_"),

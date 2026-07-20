@@ -12,6 +12,7 @@ Generated from XML documentation for `Picket.Rules`.
 
 - [AllowlistCondition](#allowlistcondition) - Describes how checks inside a secret allowlist are combined.
 - [AllowlistRegexTarget](#allowlistregextarget) - Describes the finding field tested by allowlist regexes.
+- [PicketBuiltInDetectorNames](#picketbuiltindetectornames) - Defines the stable names of Picket's built-in structured detectors.
 - [PicketRulePackNames](#picketrulepacknames) - Provides stable identifiers for the built-in Picket rule packs.
 - [RuleSet](#ruleset) - Immutable collection of secret detection rules.
 - [SecretAllowlist](#secretallowlist) - Describes Gitleaks-compatible allowlist checks for suppressing findings.
@@ -40,6 +41,26 @@ Describes the finding field tested by allowlist regexes.
 - `Line` - Tests the full source line containing the finding.
 - `Match` - Tests the full regex match.
 - `Secret` - Tests the captured secret value.
+
+## PicketBuiltInDetectorNames
+
+`Picket.Rules.PicketBuiltInDetectorNames`
+
+Defines the stable names of Picket's built-in structured detectors.
+
+### Methods
+
+- `IsKnown(string name)` - Returns whether a name identifies a built-in detector.
+
+### Fields
+
+- `CodexCredentials` - Gets the detector for Codex credential JSON documents.
+- `DockerRegistryCredentials` - Gets the detector for Docker registry credential JSON documents.
+- `GcpServiceAccountKey` - Gets the detector for GCP service-account key JSON documents.
+- `JwkPrivateKey` - Gets the detector for private JSON Web Keys.
+- `KubernetesSecret` - Gets the detector for Kubernetes Secret YAML documents.
+- `McpServerCredentials` - Gets the detector for credentials in Model Context Protocol server configurations.
+- `NpmCredentials` - Gets the detector for npm configuration credentials.
 
 ## PicketRulePackNames
 
@@ -188,7 +209,8 @@ SecretRule(
     bool deprecated,
     IReadOnlyList<string> examples,
     IReadOnlyList<string> negativeExamples,
-    double randomnessThreshold
+    double randomnessThreshold,
+    string detector
 )
 ```
 
@@ -222,7 +244,8 @@ Create(
     bool deprecated,
     IReadOnlyList<string> examples,
     IReadOnlyList<string> negativeExamples,
-    double randomnessThreshold
+    double randomnessThreshold,
+    string detector
 )
 ```
 
@@ -235,6 +258,7 @@ Creates a rule and normalizes optional collection arguments.
 - `Confidence` - Gets the native confidence value for reports and triage.
 - `Deprecated` - Gets a value indicating whether the rule is deprecated.
 - `Description` - Gets the user-facing rule description.
+- `Detector` - Gets the optional built-in structured detector name.
 - `DocumentationUrl` - Gets the rule documentation or remediation URL.
 - `Entropy` - Gets the minimum Shannon entropy required for the secret. Zero disables entropy filtering.
 - `Examples` - Gets positive examples that must produce findings for this rule during rule QA.

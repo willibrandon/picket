@@ -22,9 +22,12 @@ internal sealed class CachedFinding(
     string validationState,
     IReadOnlyList<string> decodePath,
     SecretRandomnessAssessment? randomness,
+    FindingPositionKind positionKind,
     bool protectRandomness)
 {
-    private const int CurrentFieldCount = 33;
+    private const int CurrentFieldCount = 34;
+    private const int PositionKindIndex = 33;
+    private const int RandomnessStartIndex = 15;
 
     internal static CachedFinding FromFinding(
         Finding finding,
@@ -53,6 +56,7 @@ internal sealed class CachedFinding(
                 finding.ValidationState,
                 finding.DecodePath,
                 finding.Randomness,
+                finding.PositionKind,
                 protectRandomness: true);
         }
 
@@ -73,6 +77,7 @@ internal sealed class CachedFinding(
             finding.ValidationState,
             finding.DecodePath,
             finding.Randomness,
+            finding.PositionKind,
             protectRandomness: false);
     }
 
@@ -108,7 +113,9 @@ internal sealed class CachedFinding(
                 return false;
             }
 
-            if (!TryParseRandomness(fields, storageMode, fieldProtectionKey, out SecretRandomnessAssessment? randomness))
+            if (!TryParseRandomness(fields, storageMode, fieldProtectionKey, out SecretRandomnessAssessment? randomness)
+                || !Enum.TryParse(fields[PositionKindIndex], ignoreCase: false, out FindingPositionKind positionKind)
+                || !Enum.IsDefined(positionKind))
             {
                 return false;
             }
@@ -130,6 +137,7 @@ internal sealed class CachedFinding(
                 TextFieldCodec.Decode(fields[13]),
                 TextFieldCodec.DecodeTags(fields[14]),
                 randomness,
+                positionKind,
                 storageMode == ScanCacheStorageMode.SecretHashOnly);
             return true;
         }
@@ -167,6 +175,8 @@ internal sealed class CachedFinding(
             AppendRandomness(builder, randomness);
         }
 
+        Append(builder, positionKind.ToString());
+
         builder.Append('\n');
     }
 
@@ -198,14 +208,15 @@ internal sealed class CachedFinding(
             validationState,
             blobSha256,
             decodePath,
-            randomness);
+            randomness,
+            positionKind);
     }
 
     private static void AppendRandomness(StringBuilder builder, SecretRandomnessAssessment? assessment)
     {
         if (assessment is null)
         {
-            for (int i = 15; i < CurrentFieldCount; i++)
+            for (int i = RandomnessStartIndex; i < PositionKindIndex; i++)
             {
                 Append(builder, string.Empty);
             }
@@ -249,7 +260,7 @@ internal sealed class CachedFinding(
         AppendRandomness(payloadBuilder, assessment);
         string payload = payloadBuilder.ToString(1, payloadBuilder.Length - 1);
         Append(builder, TextFieldCodec.Encode(ProtectedCacheField.Protect(fieldProtectionKey, payload)));
-        for (int i = 16; i < CurrentFieldCount; i++)
+        for (int i = RandomnessStartIndex + 1; i < PositionKindIndex; i++)
         {
             Append(builder, string.Empty);
         }
@@ -264,7 +275,7 @@ internal sealed class CachedFinding(
         assessment = null;
         if (fields[15].Length == 0)
         {
-            for (int i = 16; i < CurrentFieldCount; i++)
+            for (int i = RandomnessStartIndex + 1; i < PositionKindIndex; i++)
             {
                 if (fields[i].Length != 0)
                 {
@@ -277,7 +288,7 @@ internal sealed class CachedFinding(
 
         if (storageMode == ScanCacheStorageMode.SecretHashOnly)
         {
-            for (int i = 16; i < CurrentFieldCount; i++)
+            for (int i = RandomnessStartIndex + 1; i < PositionKindIndex; i++)
             {
                 if (fields[i].Length != 0)
                 {
@@ -297,7 +308,7 @@ internal sealed class CachedFinding(
             return TryParseRandomnessFields(protectedFields, out assessment);
         }
 
-        return TryParseRandomnessFields(fields[15..], out assessment);
+        return TryParseRandomnessFields(fields[RandomnessStartIndex..PositionKindIndex], out assessment);
     }
 
     private static bool TryParseRandomnessFields(
@@ -305,7 +316,7 @@ internal sealed class CachedFinding(
         out SecretRandomnessAssessment? assessment)
     {
         assessment = null;
-        if (fields.Length != CurrentFieldCount - 15
+        if (fields.Length != PositionKindIndex - RandomnessStartIndex
             || !double.TryParse(fields[1], CultureInfo.InvariantCulture, out double score)
             || !int.TryParse(fields[3], CultureInfo.InvariantCulture, out int sampleOffset)
             || !int.TryParse(fields[4], CultureInfo.InvariantCulture, out int sampleLength)

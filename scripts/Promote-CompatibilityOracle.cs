@@ -223,7 +223,7 @@ internal static partial class PromoteCompatibilityOracleApp
         out JsonArray promotedComparisons)
     {
         var promotedFiles = new JsonArray();
-        promotedComparisons = new JsonArray();
+        promotedComparisons = [];
         foreach (JsonNode? captureComparison in ScriptSupport.GetArray(comparison, "Comparisons"))
         {
             string format = ScriptSupport.GetString(captureComparison, "Format");

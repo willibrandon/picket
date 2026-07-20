@@ -114,7 +114,8 @@ public static class GitleaksFindingRedactor
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath,
-            randomness: null);
+            randomness: null,
+            positionKind: finding.PositionKind);
     }
 
     private static Finding WithoutRandomness(Finding finding)
@@ -145,7 +146,8 @@ public static class GitleaksFindingRedactor
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath,
-            randomness: null);
+            randomness: null,
+            positionKind: finding.PositionKind);
     }
 
     private static Finding RedactMissingEvidence(Finding finding)
@@ -177,7 +179,8 @@ public static class GitleaksFindingRedactor
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath,
-            randomness: null);
+            randomness: null,
+            positionKind: finding.PositionKind);
     }
 
     private static string RedactLine(Finding finding, string redactedSecret)

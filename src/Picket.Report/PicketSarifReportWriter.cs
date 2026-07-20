@@ -37,12 +37,57 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 1, "version", "2.1.0", comma: true);
         WritePropertyName(builder, 1, "runs");
         builder.Append(" [\n");
-        WriteRun(builder, rules, findings, scanComplete);
+        WriteRuns(builder, rules, findings, scanComplete);
         builder.Append('\n');
         Indent(builder, 1);
         builder.Append("]\n");
         builder.Append("}\n");
         return builder.ToString();
+    }
+
+    private static void WriteRuns(
+        StringBuilder builder,
+        IReadOnlyList<SecretRule> rules,
+        IReadOnlyList<Finding> findings,
+        bool scanComplete)
+    {
+        bool hasCompatibilityPositions = false;
+        bool hasNativePositions = false;
+        for (int i = 0; i < findings.Count; i++)
+        {
+            hasNativePositions |= findings[i].PositionKind == FindingPositionKind.UnicodeCodePointsExclusive;
+            hasCompatibilityPositions |= findings[i].PositionKind == FindingPositionKind.GitleaksUtf8BytesInclusive;
+        }
+
+        if (!hasCompatibilityPositions || !hasNativePositions)
+        {
+            WriteRun(builder, rules, findings, scanComplete);
+            return;
+        }
+
+        FindingPositionKind firstKind = findings[0].PositionKind;
+        WriteRun(builder, rules, FilterFindings(findings, firstKind), scanComplete);
+        builder.Append(",\n");
+        FindingPositionKind secondKind = firstKind == FindingPositionKind.UnicodeCodePointsExclusive
+            ? FindingPositionKind.GitleaksUtf8BytesInclusive
+            : FindingPositionKind.UnicodeCodePointsExclusive;
+        WriteRun(builder, rules, FilterFindings(findings, secondKind), scanComplete);
+    }
+
+    private static List<Finding> FilterFindings(
+        IReadOnlyList<Finding> findings,
+        FindingPositionKind positionKind)
+    {
+        var filtered = new List<Finding>();
+        for (int i = 0; i < findings.Count; i++)
+        {
+            if (findings[i].PositionKind == positionKind)
+            {
+                filtered.Add(findings[i]);
+            }
+        }
+
+        return filtered;
     }
 
     private static void WriteRun(
@@ -55,6 +100,7 @@ public static class PicketSarifReportWriter
         builder.Append("{\n");
         WriteTool(builder, rules);
         builder.Append(",\n");
+        WriteStringProperty(builder, 3, "columnKind", "unicodeCodePoints", comma: true);
         WriteInvocations(builder, scanComplete);
         builder.Append(",\n");
         WriteResults(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules));
@@ -165,6 +211,7 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 8, "provider", PicketFindingMetadata.CreateProvider(rule), comma: true);
         WriteStringProperty(builder, 8, "documentationUrl", PicketFindingMetadata.CreateDocumentationUrl(rule), comma: true);
         WriteProbabilityProperty(builder, 8, "randomnessThreshold", rule.RandomnessThreshold, comma: true);
+        WriteStringProperty(builder, 8, "detector", rule.Detector, comma: true);
         WritePropertyName(builder, 8, "tags");
         builder.Append(" [");
         WriteRuleTags(builder, rule.Tags);
@@ -266,9 +313,17 @@ public static class PicketSarifReportWriter
         WritePropertyName(builder, 8, "region");
         builder.Append(" {\n");
         WriteIntProperty(builder, 9, "startLine", finding.StartLine, comma: true);
-        WriteIntProperty(builder, 9, "startColumn", finding.StartColumn, comma: true);
+        if (finding.PositionKind == FindingPositionKind.UnicodeCodePointsExclusive)
+        {
+            WriteIntProperty(builder, 9, "startColumn", finding.StartColumn, comma: true);
+        }
+
         WriteIntProperty(builder, 9, "endLine", finding.EndLine, comma: true);
-        WriteIntProperty(builder, 9, "endColumn", finding.EndColumn, comma: true);
+        if (finding.PositionKind == FindingPositionKind.UnicodeCodePointsExclusive)
+        {
+            WriteIntProperty(builder, 9, "endColumn", finding.EndColumn, comma: true);
+        }
+
         WriteMessageObject(builder, 9, "snippet", finding.Line, comma: false);
         Indent(builder, 8);
         builder.Append("}\n");
@@ -306,6 +361,7 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 6, "matchSha256", PicketFindingMetadata.CreateMatchSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "blobSha256", PicketFindingMetadata.CreateBlobSha256(finding), comma: true);
         WriteStringProperty(builder, 6, "validationState", PicketFindingMetadata.CreateValidationState(finding), comma: true);
+        WriteStringProperty(builder, 6, "positionKind", PicketFindingMetadata.CreatePositionKind(finding), comma: true);
         WriteStringProperty(builder, 6, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
         WriteStringProperty(builder, 6, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
         WriteStringProperty(builder, 6, "rulePack", PicketFindingMetadata.CreateRulePack(rule), comma: true);

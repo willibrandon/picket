@@ -1693,7 +1693,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Rule Catalog", ruleCatalog);
         Assert.Contains("Gitleaks-compatible default", ruleCatalog);
         Assert.Contains("Picket-native additions", ruleCatalog);
-        Assert.Contains("`picket-default` | 11", ruleCatalog);
+        Assert.Contains("`picket-default` | 25", ruleCatalog);
         Assert.Contains("`picket-strict` | 3", ruleCatalog);
         Assert.Contains("`picket-experimental` | 2", ruleCatalog);
         Assert.Contains("picket-aws-access-key-pair", ruleCatalog);

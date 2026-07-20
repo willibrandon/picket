@@ -16,18 +16,18 @@ Positive and negative example values are intentionally summarized as counts rath
 | Catalog | Rules | Notes |
 |---|---:|---|
 | Gitleaks-compatible default | 222 | Embedded strict-compatibility rules used by Gitleaks-compatible commands. |
-| Picket-native additions | 16 | All built-in native rules, including opt-in packs. |
-| `picket-default` | 11 | High-confidence rules enabled by the native default profile. |
+| Picket-native additions | 30 | All built-in native rules, including opt-in packs. |
+| `picket-default` | 25 | High-confidence rules enabled by the native default profile. |
 | `picket-strict` | 3 | Broader opt-in rules with medium-confidence heuristics. |
 | `picket-experimental` | 2 | Opt-in detectors under active tuning. |
 
 **Native providers**
 
-AWS, Azure, Database, GCP, GitHub, HTTP, Sourcegraph
+AWS, Anthropic, Azure, Database, Docker, GCP, GitHub, Groq, HTTP, JWK, Kubernetes, MCP, OpenAI, Sourcegraph, npm, xAI
 
 **Native validation templates**
 
-live:github-rest-user-v1, offline:aws-access-key-pair, offline:azure-storage-connection-string, offline:database-connection-url, offline:gcp-api-key, offline:gcp-service-account-key-json, offline:github-classic-token, offline:github-fine-grained-pat, offline:sourcegraph-access-token
+live:github-rest-user-v1, offline:anthropic-oauth-token, offline:aws-access-key-pair, offline:azure-storage-connection-string, offline:claude-code-session-url, offline:codex-access-token, offline:codex-refresh-token, offline:database-connection-url, offline:docker-registry-auth, offline:gcp-api-key, offline:gcp-service-account-key-json, offline:github-app-token, offline:github-classic-token, offline:github-fine-grained-pat, offline:groq-api-key, offline:jwk-private-key, offline:kubernetes-secret, offline:mcp-server-credential, offline:npm-auth-token, offline:npm-basic-auth, offline:openai-api-key, offline:sourcegraph-access-token, offline:xai-api-key
 
 **Native revocation templates**
 
@@ -52,6 +52,36 @@ Enabled by the native default profile.
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>picket-anthropic-oauth-access-token</code><span>Anthropic</span>
+    </div>
+    <p class="reference-summary-description">Detected an Anthropic OAuth access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:anthropic-oauth-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: access-token, anthropic, claude, oauth, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-anthropic-oauth-refresh-token</code><span>Anthropic</span>
+    </div>
+    <p class="reference-summary-description">Detected an Anthropic OAuth refresh token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:anthropic-oauth-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: anthropic, claude, oauth, picket, refresh-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-claude-code-session-url</code><span>Anthropic</span>
+    </div>
+    <p class="reference-summary-description">Detected a Claude Code Remote Control session URL.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:claude-code-session-url</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: anthropic, claude-code, picket, remote-control, session</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>picket-azure-storage-connection-string</code><span>Azure</span>
     </div>
     <p class="reference-summary-description">Detected an Azure Storage connection string with an account key.</p>
@@ -69,6 +99,16 @@ Enabled by the native default profile.
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:database-connection-url</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: connection-string, connection-url, database, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-docker-registry-auth</code><span>Docker</span>
+    </div>
+    <p class="reference-summary-description">Detected Docker registry credentials in an auth configuration.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:docker-registry-auth</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: basic-auth, docker, picket, registry, structured</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -95,8 +135,8 @@ Enabled by the native default profile.
       <code>picket-github-app-token</code><span>GitHub</span>
     </div>
     <p class="reference-summary-description">Detected a GitHub App user or server token.</p>
-    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
-    <p class="reference-summary-detail"><strong>Validation</strong>: live:github-rest-user-v1, offline:github-classic-token</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 2/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: live:github-rest-user-v1, offline:github-app-token</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: revocation:github-credentials-api</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: github, github-app, picket, token</p>
   </article>
@@ -142,6 +182,76 @@ Enabled by the native default profile.
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>picket-groq-api-key</code><span>Groq</span>
+    </div>
+    <p class="reference-summary-description">Detected a Groq API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:groq-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, groq, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-jwk-private-key</code><span>JWK</span>
+    </div>
+    <p class="reference-summary-description">Detected private key material in a JSON Web Key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:jwk-private-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: jwk, picket, private-key, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-kubernetes-secret</code><span>Kubernetes</span>
+    </div>
+    <p class="reference-summary-description">Detected a value in a Kubernetes Secret resource.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:kubernetes-secret</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: kubernetes, picket, secret, structured, yaml</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-mcp-server-credential</code><span>MCP</span>
+    </div>
+    <p class="reference-summary-description">Detected a credential in a Model Context Protocol server configuration.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/2</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:mcp-server-credential</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: credential, json, mcp, picket, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-openai-api-key</code><span>OpenAI</span>
+    </div>
+    <p class="reference-summary-description">Detected an OpenAI API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:openai-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, chatgpt, openai, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-openai-codex-access-token</code><span>OpenAI</span>
+    </div>
+    <p class="reference-summary-description">Detected a Codex OAuth access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:codex-access-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: access-token, codex, oauth, openai, picket, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-openai-codex-refresh-token</code><span>OpenAI</span>
+    </div>
+    <p class="reference-summary-description">Detected a Codex OAuth refresh token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:codex-refresh-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: codex, oauth, openai, picket, refresh-token, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>picket-sourcegraph-access-token</code><span>Sourcegraph</span>
     </div>
     <p class="reference-summary-description">Detected a Sourcegraph access token.</p>
@@ -149,6 +259,36 @@ Enabled by the native default profile.
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:sourcegraph-access-token</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: access-token, picket, sourcegraph</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-npm-auth-token</code><span>npm</span>
+    </div>
+    <p class="reference-summary-description">Detected an npm authentication token in npm configuration.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:npm-auth-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: auth-token, npm, picket, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-npm-basic-auth</code><span>npm</span>
+    </div>
+    <p class="reference-summary-description">Detected npm basic authentication credentials in npm configuration.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 2/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:npm-basic-auth</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: basic-auth, npm, picket, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-xai-api-key</code><span>xAI</span>
+    </div>
+    <p class="reference-summary-description">Detected an xAI API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:xai-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, grok, picket, xai</p>
   </article>
 </div>
 

@@ -61,6 +61,11 @@ public static class GitleaksConfigWriter
                 AppendProbability(builder, "randomnessThreshold", rule.RandomnessThreshold);
             }
 
+            if (rule.Detector.Length != 0)
+            {
+                AppendString(builder, "detector", rule.Detector);
+            }
+
             AppendStringArray(builder, "keywords", rule.Keywords);
             AppendStringArray(builder, "tags", rule.Tags);
             if (!rule.Severity.Equals("critical", StringComparison.Ordinal))

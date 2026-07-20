@@ -526,6 +526,8 @@ internal static partial class Program
 
     private static void AddNativeReportOptions(Command command, string commandName, string formatValues)
     {
+        command.Options.Add(CreateValueOption(commandName, "--baseline-path", "path", "-b"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--baseline-mode", "exact|portable", "exact", "portable"));
         command.Options.Add(CreateValueOption(commandName, "--config", "path", "-c"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--report-format", formatValues, SplitChoices(formatValues), "-f"));
         command.Options.Add(CreateValueOption(commandName, "--report-path", "path", "-r"));
@@ -779,6 +781,7 @@ internal static partial class Program
     {
         AddCompatibilityReportOptions(command, commandName);
         command.Options.Add(CreateChoiceValueOption(commandName, "--profile", "profile", "picket"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--baseline-mode", "exact|portable", "exact", "portable"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
         command.Options.Add(CreateFlagOption(commandName, "--no-color"));
         command.Options.Add(CreateFlagOption(commandName, "--no-banner"));

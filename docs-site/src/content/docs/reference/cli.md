@@ -207,6 +207,18 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
+              <td data-label="Option"><code>-b, --baseline-path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a baseline report and suppress matching findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--baseline-mode</code></td>
+              <td data-label="Value"><code>exact | portable</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Compare baseline findings exactly or treat LF and CRLF evidence as equivalent. Requires a native command or --profile picket.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
@@ -1144,6 +1156,18 @@ Use the grouped index to jump to the workflow you need.
           </thead>
           <tbody>
             <tr>
+              <td data-label="Option"><code>-b, --baseline-path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a baseline report and suppress matching findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--baseline-mode</code></td>
+              <td data-label="Value"><code>exact | portable</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Compare baseline findings exactly or treat LF and CRLF evidence as equivalent. Requires a native command or --profile picket.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
@@ -1366,6 +1390,18 @@ Use the grouped index to jump to the workflow you need.
             <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
           </thead>
           <tbody>
+            <tr>
+              <td data-label="Option"><code>-b, --baseline-path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a baseline report and suppress matching findings.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--baseline-mode</code></td>
+              <td data-label="Value"><code>exact | portable</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Compare baseline findings exactly or treat LF and CRLF evidence as equivalent. Requires a native command or --profile picket.</td>
+            </tr>
             <tr>
               <td data-label="Option"><code>-c, --config</code></td>
               <td data-label="Value"><code>path</code></td>
@@ -2299,6 +2335,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--baseline-mode</code></td>
+              <td data-label="Value"><code>exact | portable</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Compare baseline findings exactly or treat LF and CRLF evidence as equivalent. Requires a native command or --profile picket.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--rule-pack</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional, repeatable</td>
@@ -2534,6 +2576,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use the named rule/profile mode.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--baseline-mode</code></td>
+              <td data-label="Value"><code>exact | portable</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Compare baseline findings exactly or treat LF and CRLF evidence as equivalent. Requires a native command or --profile picket.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--rule-pack</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional, repeatable</td>
@@ -2732,6 +2780,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Use the named rule/profile mode.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--baseline-mode</code></td>
+              <td data-label="Value"><code>exact | portable</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Compare baseline findings exactly or treat LF and CRLF evidence as equivalent. Requires a native command or --profile picket.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--rule-pack</code></td>

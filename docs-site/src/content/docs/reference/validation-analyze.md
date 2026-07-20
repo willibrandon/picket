@@ -34,6 +34,13 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:anthropic-oauth-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Anthropic</span><span>2 rules</span></p>
+    <p class="reference-summary-detail">picket-anthropic-oauth-access-token, picket-anthropic-oauth-refresh-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:aws-access-key-pair</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>AWS</span><span>1 rule</span></p>
@@ -48,10 +55,38 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:claude-code-session-url</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Anthropic</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-claude-code-session-url</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:codex-access-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-openai-codex-access-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:codex-refresh-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-openai-codex-refresh-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:database-connection-url</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>Database</span><span>1 rule</span></p>
     <p class="reference-summary-detail">picket-database-connection-url</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:docker-registry-auth</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Docker</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-docker-registry-auth</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -69,10 +104,17 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:github-app-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>GitHub</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-github-app-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:github-classic-token</code><span>Offline structural validation</span>
     </div>
-    <p class="reference-summary-meta"><span>GitHub</span><span>4 rules</span></p>
-    <p class="reference-summary-detail">picket-github-app-token, picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token</p>
+    <p class="reference-summary-meta"><span>GitHub</span><span>3 rules</span></p>
+    <p class="reference-summary-detail">picket-github-oauth-token, picket-github-personal-access-token, picket-github-refresh-token</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -83,10 +125,66 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:groq-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Groq</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-groq-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:jwk-private-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>JWK</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-jwk-private-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:kubernetes-secret</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Kubernetes</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-kubernetes-secret</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:mcp-server-credential</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>MCP</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-mcp-server-credential</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:npm-auth-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>npm</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-npm-auth-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:npm-basic-auth</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>npm</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-npm-basic-auth</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:openai-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-openai-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:sourcegraph-access-token</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>Sourcegraph</span><span>1 rule</span></p>
     <p class="reference-summary-detail">picket-sourcegraph-access-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:xai-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>xAI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-xai-api-key</p>
   </article>
 </div>
 
@@ -134,7 +232,7 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 
 | Severity | Confidence | Rules | Providers |
 |---|---|---:|---|
-| `critical` | `high` | 11 | AWS, Azure, Database, GCP, GitHub, Sourcegraph |
+| `critical` | `high` | 25 | AWS, Anthropic, Azure, Database, Docker, GCP, GitHub, Groq, JWK, Kubernetes, MCP, OpenAI, Sourcegraph, npm, xAI |
 | `critical` | `low` | 1 | HTTP |
 | `critical` | `medium` | 3 | Azure, Database, HTTP |
 | `high` | `low` | 1 | HTTP |

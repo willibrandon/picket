@@ -173,6 +173,42 @@ promoted files still contain drive-root paths or any redaction-map secret.
 Picket compatibility tests should compare normalized reports, fingerprints,
 config diagnostics, exit codes, and stderr text against this pinned version.
 
+## Gitleaks Issue Review
+
+The native rule and matching backlog was reviewed against open Gitleaks issues
+on 2026-07-19. These responses affect `picket-default` or native matching only;
+the pinned strict compatibility rules and behavior remain unchanged.
+
+| Issue | Native Picket response |
+|---|---|
+| [#2158](https://github.com/gitleaks/gitleaks/issues/2158) | Anthropic OAuth access and refresh token rules with offline shape validation. |
+| [#2104](https://github.com/gitleaks/gitleaks/issues/2104) | Anthropic OAuth coverage plus a structured MCP detector scoped to `mcpServers.<server>.env`; environment references and ordinary settings are rejected. |
+| [#2094](https://github.com/gitleaks/gitleaks/issues/2094) | Claude Code remote-session URL rule with host, path, and identifier validation. |
+| [#2180](https://github.com/gitleaks/gitleaks/issues/2180) | Groq and xAI API key rules with offline shape validation. |
+| [#2192](https://github.com/gitleaks/gitleaks/issues/2192) | GitHub App tokens support both classic and stateless installation formats in detection, validation, live verification, and explicit revocation. |
+| [#1942](https://github.com/gitleaks/gitleaks/issues/1942) | Google API keys accept URL query delimiters such as `&` without consuming the delimiter. |
+| [#1933](https://github.com/gitleaks/gitleaks/issues/1933) | A bounded YAML detector identifies `kind: Secret` regardless of mapping order and scopes values to that resource. |
+| [#2093](https://github.com/gitleaks/gitleaks/issues/2093) | The Square rule uses a reviewed native randomness threshold to suppress encoded structured text. |
+| [#1762](https://github.com/gitleaks/gitleaks/issues/1762) | The native generic API-key rule includes the reported Vue attribute false-positive regression. |
+| [#1772](https://github.com/gitleaks/gitleaks/issues/1772) | The native generic API-key rule accepts long assignment spacing. |
+| [#1773](https://github.com/gitleaks/gitleaks/issues/1773) | The native generic API-key rule recognizes the additional credential-name forms from the issue corpus. |
+| [#1785](https://github.com/gitleaks/gitleaks/issues/1785) | The native generic API-key rule covers Python annotations, `SecretStr`, continuations, and parenthesized assignments. |
+| [#1818](https://github.com/gitleaks/gitleaks/issues/1818) | Structured GCP service-account detection reports the private key once and has an overlapping-rule regression test. |
+| [#2121](https://github.com/gitleaks/gitleaks/issues/2121), [#2160](https://github.com/gitleaks/gitleaks/issues/2160) | One Scout `FindCaptures` result supplies each regex match and its capture spans; Picket does not run a second regex search to extract the secret. |
+
+Primary format and provider references reviewed for this work:
+
+- Anthropic Claude Code authentication: `https://code.claude.com/docs/en/authentication`
+- OpenAI API authentication: `https://platform.openai.com/docs/api-reference/authentication`
+- OpenAI Codex authentication: `https://developers.openai.com/codex/auth`
+- Model Context Protocol local-server configuration: `https://modelcontextprotocol.io/docs/develop/connect-local-servers`
+- Model Context Protocol debugging and `env` configuration: `https://modelcontextprotocol.io/docs/tools/debugging`
+- Docker login configuration: `https://docs.docker.com/reference/cli/docker/login/`
+- JSON Web Key specification: `https://www.rfc-editor.org/rfc/rfc7517`
+- Kubernetes Secrets: `https://kubernetes.io/docs/concepts/configuration/secret/`
+- npmrc configuration: `https://docs.npmjs.com/cli/v11/configuring-npm/npmrc`
+- SARIF 2.1.0 `columnKind`: `https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#def_columnKind`
+
 ## Provider Revocation References
 
 Native analysis and direct revocation behavior are based on provider

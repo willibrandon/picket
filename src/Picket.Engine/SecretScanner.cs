@@ -12,7 +12,7 @@ public sealed class SecretScanner
     /// <summary>
     /// Gets the stable version of matching behavior that participates in cache and checkpoint identities.
     /// </summary>
-    public const string MatchingBehaviorVersion = "picket.matching.v3";
+    public const string MatchingBehaviorVersion = "picket.matching.v4";
 
     private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
 
@@ -33,7 +33,11 @@ public sealed class SecretScanner
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
         byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
         var blobIdentity = new SourceBlobIdentity(request.Input, request.BlobSha256);
-        SourceLineIndex originalLineIndex = SourceLineIndex.Create(originalInput, request.SourceStartLine, request.SourceStartColumn);
+        SourceLineIndex originalLineIndex = SourceLineIndex.Create(
+            originalInput,
+            request.SourceStartLine,
+            request.SourceStartColumn,
+            request.PositionKind);
         var findings = new List<Finding>();
 
         ScanPass(
@@ -51,6 +55,7 @@ public sealed class SecretScanner
             request.SymlinkFile,
             blobIdentity,
             findings,
+            request.EnableNativeDetectors,
             request.EnableRandomnessScoring,
             isCancellationRequested);
 
@@ -88,6 +93,7 @@ public sealed class SecretScanner
                 request.SymlinkFile,
                 blobIdentity,
                 findings,
+                request.EnableNativeDetectors,
                 request.EnableRandomnessScoring,
                 isCancellationRequested);
             if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes)
@@ -225,6 +231,7 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         List<Finding> findings,
+        bool enableNativeDetectors,
         bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
@@ -236,6 +243,10 @@ public sealed class SecretScanner
         {
             input = regexInput.Bytes;
         }
+
+        NativeDetectorScanContext? detectorContext = enableNativeDetectors
+            ? new NativeDetectorScanContext()
+            : null;
 
         foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
         {
@@ -262,6 +273,7 @@ public sealed class SecretScanner
                 symlinkFile,
                 blobIdentity,
                 compiledRule,
+                detectorContext,
                 includeSkipReport: false,
                 enableRandomnessScoring,
                 isCancellationRequested);
@@ -285,6 +297,7 @@ public sealed class SecretScanner
                     symlinkFile,
                     blobIdentity,
                     compiledRule,
+                    detectorContext,
                     enableRandomnessScoring,
                     isCancellationRequested);
             }
@@ -314,6 +327,7 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         CompiledRule compiledRule,
+        NativeDetectorScanContext? detectorContext,
         bool includeSkipReport,
         bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
@@ -354,7 +368,13 @@ public sealed class SecretScanner
                 string.Empty,
                 commit))
             {
-                findings.Add(CreatePathFinding(fileName, symlinkFile, compiledRule.Rule, commit, blobIdentity.Sha256));
+                findings.Add(CreatePathFinding(
+                    fileName,
+                    symlinkFile,
+                    compiledRule.Rule,
+                    commit,
+                    blobIdentity.Sha256,
+                    originalLineIndex.PositionKind));
             }
 
             return findings;
@@ -362,6 +382,37 @@ public sealed class SecretScanner
 
         if (IsTooLargeForContentScan(regexSourceInput.Length, maxTargetBytes))
         {
+            return findings;
+        }
+
+        if (detectorContext is not null && compiledRule.Rule.Detector.Length != 0)
+        {
+            if (compiledRule.Prefilter.IsCandidate(input))
+            {
+                ByteRegex regex = compiledRule.Regex ?? throw new InvalidOperationException("Structured detector prefilter regex was not compiled.");
+                if (regex.FindCaptures(input, 0) is not null)
+                {
+                    ScanNativeDetectorRule(
+                        regexSourceInput,
+                        originalInput,
+                        originalLineIndex,
+                        decodedInput,
+                        fileName,
+                        fileNameBytes,
+                        windowsFileNameBytes,
+                        globalAllowlists,
+                        ignoreGitleaksAllow,
+                        commit,
+                        symlinkFile,
+                        blobIdentity,
+                        compiledRule,
+                        detectorContext,
+                        findings,
+                        enableRandomnessScoring,
+                        isCancellationRequested);
+                }
+            }
+
             return findings;
         }
 
@@ -495,6 +546,7 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         CompiledRule primaryRule,
+        NativeDetectorScanContext? detectorContext,
         bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
     {
@@ -533,6 +585,7 @@ public sealed class SecretScanner
                         symlinkFile,
                         blobIdentity,
                         compiledRequiredRule,
+                        detectorContext,
                         includeSkipReport: true,
                         enableRandomnessScoring,
                         isCancellationRequested));
@@ -622,8 +675,13 @@ public sealed class SecretScanner
             return false;
         }
 
-        return requiredRule.WithinColumns is not int withinColumns
-            || Math.Abs(primaryFinding.StartColumn - requiredFinding.StartColumn) <= withinColumns;
+        if (requiredRule.WithinColumns is not int withinColumns)
+        {
+            return true;
+        }
+
+        return primaryFinding.StartLine == requiredFinding.StartLine
+            && Math.Abs(primaryFinding.StartColumn - requiredFinding.StartColumn) <= withinColumns;
     }
 
     private static void ScanAwsCredentialPairRule(
@@ -730,7 +788,8 @@ public sealed class SecretScanner
                 lineText,
                 blobSha256: blobIdentity.Sha256,
                 decodePath: decodePath,
-                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring)));
+                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring),
+                positionKind: originalLineIndex.PositionKind));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -840,7 +899,8 @@ public sealed class SecretScanner
                 lineText,
                 blobSha256: blobIdentity.Sha256,
                 decodePath: decodePath,
-                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring)));
+                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring),
+                positionKind: originalLineIndex.PositionKind));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
         }
@@ -948,9 +1008,114 @@ public sealed class SecretScanner
                 lineText,
                 blobSha256: blobIdentity.Sha256,
                 decodePath: decodePath,
-                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring)));
+                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring),
+                positionKind: originalLineIndex.PositionKind));
 
             offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
+        }
+    }
+
+    private static void ScanNativeDetectorRule(
+        ReadOnlySpan<byte> input,
+        ReadOnlySpan<byte> originalInput,
+        SourceLineIndex originalLineIndex,
+        DecodedInput? decodedInput,
+        string fileName,
+        ReadOnlySpan<byte> fileNameBytes,
+        ReadOnlySpan<byte> windowsFileNameBytes,
+        List<CompiledAllowlist> globalAllowlists,
+        bool ignoreGitleaksAllow,
+        string commit,
+        string symlinkFile,
+        SourceBlobIdentity blobIdentity,
+        CompiledRule compiledRule,
+        NativeDetectorScanContext detectorContext,
+        List<Finding> findings,
+        bool enableRandomnessScoring,
+        Func<bool>? isCancellationRequested)
+    {
+        SecretRule rule = compiledRule.Rule;
+        IReadOnlyList<NativeDetectorMatch> matches = detectorContext.GetMatches(rule, input, isCancellationRequested);
+        for (int i = 0; i < matches.Count; i++)
+        {
+            if (IsCancellationRequested(isCancellationRequested))
+            {
+                return;
+            }
+
+            NativeDetectorMatch match = matches[i];
+            if (!IsValidDetectorMatch(match, input.Length)
+                || !TryMapMatch(
+                    regexInput: null,
+                    decodedInput,
+                    match.MatchStart,
+                    match.MatchEnd,
+                    out int reportStart,
+                    out int reportEnd,
+                    out IReadOnlyList<string> decodeTags,
+                    out IReadOnlyList<string> decodePath))
+            {
+                continue;
+            }
+
+            byte[] entropyBytes = Encoding.UTF8.GetBytes(match.SecretText);
+            double entropy = GitleaksShannonEntropy.Calculate(entropyBytes);
+            if (rule.Entropy > 0 && entropy <= rule.Entropy)
+            {
+                continue;
+            }
+
+            ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
+            SourcePosition start = originalLineIndex.FromOffset(reportStart);
+            SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
+            ReadOnlySpan<byte> matchBytes = input[match.MatchStart..match.MatchEnd];
+            ReadOnlySpan<byte> secretBytes = input[match.SecretStart..match.SecretEnd];
+            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
+            ReadOnlySpan<byte> allowlistLineBytes = ExtractLine(input, match.MatchStart);
+            if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
+            {
+                continue;
+            }
+
+            if (IsAllowed(
+                globalAllowlists,
+                compiledRule.Allowlists,
+                fileNameBytes,
+                windowsFileNameBytes,
+                matchBytes,
+                secretBytes,
+                allowlistLineBytes,
+                match.SecretText,
+                commit))
+            {
+                continue;
+            }
+
+            IReadOnlyList<string> detectorTags = CreateDetectorTags(match.Tags, match.DecodePath);
+            findings.Add(new Finding(
+                rule.Id,
+                rule.Description,
+                start.Line,
+                end.Line,
+                start.Column,
+                end.Column,
+                match.MatchText,
+                match.SecretText,
+                fileName,
+                symlinkFile,
+                commit,
+                ToGitleaksEntropy(entropy),
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                CombineTags(rule.Tags, CombineTags(decodeTags, detectorTags)),
+                CreateFingerprint(commit, fileName, rule.Id, start.Line),
+                DecodeReportText(lineBytes),
+                blobSha256: blobIdentity.Sha256,
+                decodePath: CombineDecodePaths(decodePath, match.DecodePath),
+                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring),
+                positionKind: originalLineIndex.PositionKind));
         }
     }
 
@@ -1067,7 +1232,8 @@ public sealed class SecretScanner
                 lineText,
                 blobSha256: blobIdentity.Sha256,
                 decodePath: decodePath,
-                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring)));
+                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring),
+                positionKind: originalLineIndex.PositionKind));
 
             offset = AdvanceAfterMatch(match, input.Length);
         }
@@ -1099,10 +1265,7 @@ public sealed class SecretScanner
         out IReadOnlyList<string> decodeTags,
         out IReadOnlyList<string> decodePath)
     {
-        if (regexInput is not null)
-        {
-            regexInput.MapRange(matchStart, matchEnd, out matchStart, out matchEnd);
-        }
+        regexInput?.MapRange(matchStart, matchEnd, out matchStart, out matchEnd);
 
         if (decodedInput is null)
         {
@@ -1212,6 +1375,55 @@ public sealed class SecretScanner
         tags.AddRange(ruleTags);
         tags.AddRange(decodeTags);
         return tags;
+    }
+
+    private static IReadOnlyList<string> CombineDecodePaths(
+        IReadOnlyList<string> scanDecodePath,
+        IReadOnlyList<string> detectorDecodePath)
+    {
+        if (scanDecodePath.Count == 0)
+        {
+            return detectorDecodePath;
+        }
+
+        if (detectorDecodePath.Count == 0)
+        {
+            return scanDecodePath;
+        }
+
+        var decodePath = new List<string>(scanDecodePath.Count + detectorDecodePath.Count);
+        decodePath.AddRange(scanDecodePath);
+        decodePath.AddRange(detectorDecodePath);
+        return decodePath;
+    }
+
+    private static IReadOnlyList<string> CreateDetectorTags(
+        IReadOnlyList<string> tags,
+        IReadOnlyList<string> detectorDecodePath)
+    {
+        if (detectorDecodePath.Count == 0)
+        {
+            return tags;
+        }
+
+        var combinedTags = new List<string>(tags.Count + detectorDecodePath.Count);
+        combinedTags.AddRange(tags);
+        for (int i = 0; i < detectorDecodePath.Count; i++)
+        {
+            combinedTags.Add($"decoded:{detectorDecodePath[i]}");
+        }
+
+        return combinedTags;
+    }
+
+    private static bool IsValidDetectorMatch(NativeDetectorMatch match, int inputLength)
+    {
+        return (uint)match.MatchStart <= (uint)match.MatchEnd
+            && match.MatchEnd <= inputLength
+            && match.MatchStart < match.MatchEnd
+            && match.SecretStart >= match.MatchStart
+            && match.SecretEnd <= match.MatchEnd
+            && match.SecretStart < match.SecretEnd;
     }
 
     private static bool IsAllowed(
@@ -1364,7 +1576,13 @@ public sealed class SecretScanner
         return maxTargetBytes.HasValue && inputLength > maxTargetBytes.Value;
     }
 
-    private static Finding CreatePathFinding(string fileName, string symlinkFile, SecretRule rule, string commit, string blobSha256)
+    private static Finding CreatePathFinding(
+        string fileName,
+        string symlinkFile,
+        SecretRule rule,
+        string commit,
+        string blobSha256,
+        FindingPositionKind positionKind)
     {
         return new Finding(
             rule.Id,
@@ -1385,7 +1603,8 @@ public sealed class SecretScanner
             string.Empty,
             rule.Tags,
             CreateFingerprint(commit, fileName, rule.Id, 0),
-            blobSha256: blobSha256);
+            blobSha256: blobSha256,
+            positionKind: positionKind);
     }
 
     private static string CreateFingerprint(string commit, string fileName, string ruleId, int startLine)

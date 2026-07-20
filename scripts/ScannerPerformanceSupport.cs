@@ -656,15 +656,16 @@ internal static class ScannerPerformanceSupport
             reportDirectory,
             $"{SanitizeFileName(name)}-{phase}-{iteration}{ScriptSupport.GetString(tool, "ReportFileExtension")}");
         string workingDirectory = ScriptSupport.GetString(tool, "WorkingDirectory");
-        string[] arguments = ReadStringArray(tool, "Arguments")
-            .Select(value => ReplacePathPlaceholders(
+        string[] arguments =
+        [
+            .. ReadStringArray(tool, "Arguments").Select(value => ReplacePathPlaceholders(
                 value,
                 repositoryRoot,
                 workingDirectory,
                 sessionDirectory,
                 corpusPath,
-                reportPath))
-            .ToArray();
+                reportPath)),
+        ];
         string standardInputPath = ReplacePathPlaceholders(
             ScriptSupport.GetString(tool, "StandardInputPath"),
             repositoryRoot,
@@ -678,16 +679,17 @@ internal static class ScannerPerformanceSupport
         }
 
         string[] additionalReportIdentities = ReadStringArray(tool, "AdditionalReportPaths");
-        string[] additionalReportPaths = additionalReportIdentities
-            .Select(value => ReplacePathPlaceholders(
+        string[] additionalReportPaths =
+        [
+            .. additionalReportIdentities.Select(value => ReplacePathPlaceholders(
                 value,
                 repositoryRoot,
                 workingDirectory,
                 sessionDirectory,
                 corpusPath,
                 reportPath))
-            .Select(value => Path.GetFullPath(value, workingDirectory))
-            .ToArray();
+                .Select(value => Path.GetFullPath(value, workingDirectory)),
+        ];
         StringComparer pathComparer = OperatingSystem.IsWindows()
             ? StringComparer.OrdinalIgnoreCase
             : StringComparer.Ordinal;

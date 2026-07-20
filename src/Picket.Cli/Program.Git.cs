@@ -22,6 +22,7 @@ internal static partial class Program
         }
 
         string? baselinePath = null;
+        GitleaksBaselineComparisonMode baselineComparisonMode = GitleaksBaselineComparisonMode.Exact;
         string? configPath = null;
         string? diagnostics = null;
         string? diagnosticsDir = null;
@@ -53,6 +54,22 @@ internal static partial class Program
             if (IsBaselinePathFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsBaselineModeFlag(arg))
+            {
+                if (!nativeMode)
+                {
+                    Console.Error.WriteLine("--baseline-mode requires --profile picket");
+                    return UnknownFlagExitCode;
+                }
+
+                if (!TryReadBaselineComparisonMode(args, ref i, out baselineComparisonMode))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -348,7 +365,7 @@ internal static partial class Program
             return CompleteRun(1, diagnosticsSession);
         }
 
-        if (!TryLoadBaseline(baselinePath, out GitleaksBaseline? baseline))
+        if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? baseline))
         {
             return CompleteRun(1, diagnosticsSession);
         }

@@ -12,7 +12,8 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.1.0, )",
-          "Scout.Text.Regex": "[0.4.7, )"
+          "Scout.Text.Regex": "[0.4.7, )",
+          "SharpYaml": "[3.13.0, )"
         }
       },
       "picket.rules": {
@@ -29,6 +30,12 @@
         "requested": "[0.4.7, )",
         "resolved": "0.4.7",
         "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
+      },
+      "SharpYaml": {
+        "type": "CentralTransitive",
+        "requested": "[3.13.0, )",
+        "resolved": "3.13.0",
+        "contentHash": "x8AbS4ZNzM7Wh+IXboKcLPXiVJVPlqiSNK7/VxaAXOXjavcuhxlk0rAOCbIERIZtoh5w16Qb+OnINrGezpnpwg=="
       },
       "System.IO.FileSystem.AccessControl": {
         "type": "CentralTransitive",
@@ -48,7 +55,8 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.1.0, )",
-          "Scout.Text.Regex": "[0.4.7, )"
+          "Scout.Text.Regex": "[0.4.7, )",
+          "SharpYaml": "[3.13.0, )"
         }
       },
       "picket.rules": {
@@ -62,6 +70,12 @@
         "requested": "[0.4.7, )",
         "resolved": "0.4.7",
         "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
+      },
+      "SharpYaml": {
+        "type": "CentralTransitive",
+        "requested": "[3.13.0, )",
+        "resolved": "3.13.0",
+        "contentHash": "x8AbS4ZNzM7Wh+IXboKcLPXiVJVPlqiSNK7/VxaAXOXjavcuhxlk0rAOCbIERIZtoh5w16Qb+OnINrGezpnpwg=="
       }
     }
   }

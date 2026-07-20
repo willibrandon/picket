@@ -12,6 +12,20 @@ Generated from XML documentation for `Picket.Engine`.
 
 - [CompiledRuleSet](#compiledruleset) - Represents a rule set with precompiled Scout regexes and keyword prefilters.
 - [Finding](#finding) - Represents a detected secret finding using the Gitleaks-compatible field model.
+- [FindingPositionKind](#findingpositionkind) - Identifies the coordinate system used by a finding's source positions.
+- [NativeDetectorMatch](#nativedetectormatch) - Describes a structured detector match in the current scan-pass input.
+- [NativeDetectorScanContext](#nativedetectorscancontext) - Caches structured parsing products for one scanner pass.
+- [NativeJsonCredentialDetector](#nativejsoncredentialdetector) - Produces credential spans from a shared streaming JSON index.
+- [NativeJsonIndex](#nativejsonindex) - Indexes JSON string properties in one bounded streaming parse.
+- [NativeJsonStringProperty](#nativejsonstringproperty) - Represents an indexed JSON string property and its source span.
+- [NativeKubernetesSecretDetector](#nativekubernetessecretdetector) - Produces credential spans from Kubernetes Secret YAML resources.
+- [NativeNpmCredentialDetector](#nativenpmcredentialdetector) - Produces credential spans from parsed npm configuration assignments.
+- [NativeNpmrcIndex](#nativenpmrcindex) - Parses bounded npm configuration assignments without interpolation.
+- [NativeNpmrcProperty](#nativenpmrcproperty) - Represents one bounded npm configuration assignment.
+- [NativeYamlContainerFrame](#nativeyamlcontainerframe) - Tracks one YAML mapping or sequence while consuming parser events.
+- [NativeYamlIndex](#nativeyamlindex) - Indexes YAML mappings through the low-level event API without alias expansion.
+- [NativeYamlMapping](#nativeyamlmapping) - Represents one YAML mapping in the event index.
+- [NativeYamlScalarValue](#nativeyamlscalarvalue) - Represents one scalar mapping value and its UTF-8 source span.
 - [ScanRequest](#scanrequest) - Describes a byte-buffer scan request.
 - [SecretRandomnessAssessment](#secretrandomnessassessment) - Represents a deterministic estimate that secret material resembles a uniformly generated token.
 - [SecretRandomnessFeatures](#secretrandomnessfeatures) - Describes the non-secret statistical features used by the Picket randomness model.
@@ -21,6 +35,7 @@ Generated from XML documentation for `Picket.Engine`.
 - [ShannonEntropy](#shannonentropy) - Computes Shannon entropy over byte data.
 - [SourcePosition](#sourceposition) - Represents a Gitleaks-compatible source line and column.
 - [StableFindingFingerprint](#stablefindingfingerprint) - Creates stable Picket-native finding fingerprints.
+- [Utf8OffsetTracker](#utf8offsettracker) - Converts monotonically increasing UTF-16 indices to UTF-8 byte offsets without a per-character map.
 
 ## CompiledRuleSet
 
@@ -80,7 +95,8 @@ Finding(
     string validationState,
     string blobSha256,
     IReadOnlyList<string> decodePath,
-    SecretRandomnessAssessment randomness
+    SecretRandomnessAssessment randomness,
+    FindingPositionKind positionKind
 )
 ```
 
@@ -106,6 +122,7 @@ Represents a detected secret finding using the Gitleaks-compatible field model.
 - `Match` - Gets the full matched text.
 - `MatchSha256` - Gets the original match SHA-256 hash for native reports, or an empty string.
 - `Message` - Gets the git commit message, or an empty string.
+- `PositionKind` - Gets the coordinate system used by the finding's source positions.
 - `Randomness` - Gets the native randomness assessment, or when scoring was not enabled.
 - `RuleID` - Gets the rule identifier.
 - `Secret` - Gets the secret text.
@@ -115,6 +132,135 @@ Represents a detected secret finding using the Gitleaks-compatible field model.
 - `SymlinkFile` - Gets the symlink path, or an empty string.
 - `Tags` - Gets the rule tags.
 - `ValidationState` - Gets the offline validation state for native reports, or an empty string.
+
+## FindingPositionKind
+
+`Picket.Engine.FindingPositionKind`
+
+Identifies the coordinate system used by a finding's source positions.
+
+### Fields
+
+- `GitleaksUtf8BytesInclusive` - Uses Gitleaks-compatible UTF-8 byte columns and inclusive end positions.
+- `UnicodeCodePointsExclusive` - Uses Unicode code-point columns and exclusive end positions.
+
+## NativeDetectorMatch
+
+`Picket.Engine.NativeDetectorMatch`
+
+Describes a structured detector match in the current scan-pass input.
+
+### Constructors
+
+#### `NativeDetectorMatch(...)`
+
+```csharp
+NativeDetectorMatch(
+    int,
+    int,
+    int,
+    int,
+    string,
+    string,
+    IReadOnlyList<string>,
+    IReadOnlyList<string>
+)
+```
+
+Describes a structured detector match in the current scan-pass input.
+
+
+## NativeDetectorScanContext
+
+`Picket.Engine.NativeDetectorScanContext`
+
+Caches structured parsing products for one scanner pass.
+
+## NativeJsonCredentialDetector
+
+`Picket.Engine.NativeJsonCredentialDetector`
+
+Produces credential spans from a shared streaming JSON index.
+
+## NativeJsonIndex
+
+`Picket.Engine.NativeJsonIndex`
+
+Indexes JSON string properties in one bounded streaming parse.
+
+## NativeJsonStringProperty
+
+`Picket.Engine.NativeJsonStringProperty`
+
+Represents an indexed JSON string property and its source span.
+
+### Constructors
+
+- `NativeJsonStringProperty(string, string, int, int, int, string[], bool)` - Represents an indexed JSON string property and its source span.
+
+## NativeKubernetesSecretDetector
+
+`Picket.Engine.NativeKubernetesSecretDetector`
+
+Produces credential spans from Kubernetes Secret YAML resources.
+
+## NativeNpmCredentialDetector
+
+`Picket.Engine.NativeNpmCredentialDetector`
+
+Produces credential spans from parsed npm configuration assignments.
+
+## NativeNpmrcIndex
+
+`Picket.Engine.NativeNpmrcIndex`
+
+Parses bounded npm configuration assignments without interpolation.
+
+## NativeNpmrcProperty
+
+`Picket.Engine.NativeNpmrcProperty`
+
+Represents one bounded npm configuration assignment.
+
+### Constructors
+
+- `NativeNpmrcProperty(string, string, string, int, int)` - Represents one bounded npm configuration assignment.
+
+## NativeYamlContainerFrame
+
+`Picket.Engine.NativeYamlContainerFrame`
+
+Tracks one YAML mapping or sequence while consuming parser events.
+
+### Constructors
+
+- `NativeYamlContainerFrame(bool, int, int, string)` - Tracks one YAML mapping or sequence while consuming parser events.
+
+## NativeYamlIndex
+
+`Picket.Engine.NativeYamlIndex`
+
+Indexes YAML mappings through the low-level event API without alias expansion.
+
+## NativeYamlMapping
+
+`Picket.Engine.NativeYamlMapping`
+
+Represents one YAML mapping in the event index.
+
+### Constructors
+
+- `NativeYamlMapping(int, int, string)` - Represents one YAML mapping in the event index.
+
+## NativeYamlScalarValue
+
+`Picket.Engine.NativeYamlScalarValue`
+
+Represents one scalar mapping value and its UTF-8 source span.
+
+### Constructors
+
+- `NativeYamlScalarValue(string, string, int, int, bool)` - Represents one scalar mapping value and its UTF-8 source span.
 
 ## ScanRequest
 
@@ -171,6 +317,7 @@ Initializes a new scan request and compiles the supplied source rules.
 - `CancellationToken` - Gets the cancellation token that stops scanning when cancellation is requested.
 - `Commit` - Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string.
 - `EnableCSharpStringConcatenation` - Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
+- `EnableNativeDetectors` - Gets a value indicating whether rules may execute built-in native structured detectors.
 - `EnableRandomnessScoring` - Gets a value indicating whether native scans calculate and apply deterministic randomness scores.
 - `FileName` - Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
 - `IgnoreGitleaksAllow` - Gets a value indicating whether inline gitleaks:allow suppression comments are ignored.
@@ -178,6 +325,7 @@ Initializes a new scan request and compiles the supplied source rules.
 - `IsCancellationRequested` - Gets an optional predicate that stops scanning when it returns .
 - `MaxDecodeDepth` - Gets the maximum recursive decode depth.
 - `MaxTargetBytes` - Gets the maximum content size to scan with content rules, or for no cap.
+- `PositionKind` - Gets the coordinate system used by findings produced by this request.
 - `RuleSet` - Gets the compiled rules used for detection.
 - `SourceStartColumn` - Gets the one-based source column represented by the first input byte.
 - `SourceStartLine` - Gets the one-based source line represented by the first input byte.
@@ -348,3 +496,13 @@ Creates stable Picket-native finding fingerprints.
 ### Methods
 
 - `Create(Finding finding)` - Creates a versioned stable fingerprint for a finding.
+
+## Utf8OffsetTracker
+
+`Picket.Engine.Utf8OffsetTracker`
+
+Converts monotonically increasing UTF-16 indices to UTF-8 byte offsets without a per-character map.
+
+### Constructors
+
+- `Utf8OffsetTracker(string)` - Converts monotonically increasing UTF-16 indices to UTF-8 byte offsets without a per-character map.

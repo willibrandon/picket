@@ -112,6 +112,7 @@ public static class SecretRandomnessFindingProcessor
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath,
-            assessment);
+            assessment,
+            finding.PositionKind);
     }
 }

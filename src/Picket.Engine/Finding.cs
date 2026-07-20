@@ -29,6 +29,7 @@ namespace Picket.Engine;
 /// <param name="blobSha256">The source blob SHA-256 hash for native reports, or an empty string.</param>
 /// <param name="decodePath">The decode operations that exposed the finding, or <see langword="null" />.</param>
 /// <param name="randomness">The native randomness assessment, or <see langword="null" />.</param>
+/// <param name="positionKind">The coordinate system used by the finding's source positions.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -55,7 +56,8 @@ public sealed class Finding(
     string validationState = "",
     string blobSha256 = "",
     IReadOnlyList<string>? decodePath = null,
-    SecretRandomnessAssessment? randomness = null)
+    SecretRandomnessAssessment? randomness = null,
+    FindingPositionKind positionKind = FindingPositionKind.GitleaksUtf8BytesInclusive)
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -191,6 +193,11 @@ public sealed class Finding(
     /// </summary>
     public SecretRandomnessAssessment? Randomness { get; } = randomness;
 
+    /// <summary>
+    /// Gets the coordinate system used by the finding's source positions.
+    /// </summary>
+    public FindingPositionKind PositionKind { get; } = positionKind;
+
     internal Finding WithBlobSha256(string blobSha256)
     {
         return new Finding(
@@ -219,6 +226,7 @@ public sealed class Finding(
             ValidationState,
             blobSha256,
             DecodePath,
-            Randomness);
+            Randomness,
+            PositionKind);
     }
 }

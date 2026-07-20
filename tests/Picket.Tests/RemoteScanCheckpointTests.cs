@@ -321,7 +321,9 @@ public sealed class RemoteScanCheckpointTests
             new string('d', 64),
             "structurally-valid",
             new string('e', 64),
-            ["base64"]);
+            ["base64"],
+            SecretRandomnessScorer.Assess(secret),
+            FindingPositionKind.UnicodeCodePointsExclusive);
     }
 
     private static void AssertFindingsEqual(Finding expected, Finding actual)
@@ -351,6 +353,15 @@ public sealed class RemoteScanCheckpointTests
         Assert.AreEqual(expected.ValidationState, actual.ValidationState);
         Assert.AreEqual(expected.BlobSha256, actual.BlobSha256);
         CollectionAssert.AreEqual(expected.DecodePath.ToArray(), actual.DecodePath.ToArray());
+        Assert.AreEqual(expected.PositionKind, actual.PositionKind);
+        Assert.IsNotNull(expected.Randomness);
+        Assert.IsNotNull(actual.Randomness);
+        Assert.AreEqual(expected.Randomness.Model, actual.Randomness.Model);
+        Assert.AreEqual(expected.Randomness.Score, actual.Randomness.Score);
+        Assert.AreEqual(expected.Randomness.Classification, actual.Randomness.Classification);
+        Assert.AreEqual(expected.Randomness.Features.SampleOffset, actual.Randomness.Features.SampleOffset);
+        Assert.AreEqual(expected.Randomness.Features.SampleLength, actual.Randomness.Features.SampleLength);
+        CollectionAssert.AreEqual(expected.Randomness.Signals.ToArray(), actual.Randomness.Signals.ToArray());
     }
 
     private static void AssertHasNoGroupOrOtherBits(UnixFileMode mode)

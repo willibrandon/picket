@@ -850,7 +850,7 @@ internal sealed class PicketTuiState
     {
         if (SearchText.Length == 0)
         {
-            return new List<PicketTuiFindingRow>(_rows);
+            return [.. _rows];
         }
 
         var rows = new List<PicketTuiFindingRow>();

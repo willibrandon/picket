@@ -111,7 +111,7 @@ public sealed class ContainerRegistrySourceClientTests
             options,
             TestContext.CancellationToken).ConfigureAwait(false);
 
-        string[] paths = files.Select(static file => file.DisplayPath).ToArray();
+        string[] paths = [.. files.Select(static file => file.DisplayPath)];
         Assert.HasCount(6, files);
         Assert.Contains(static path => path.EndsWith("/index.json", StringComparison.Ordinal), paths);
         Assert.HasCount(2, paths.Where(static path => path.EndsWith("/manifest.json", StringComparison.Ordinal)));
@@ -761,7 +761,7 @@ public sealed class ContainerRegistrySourceClientTests
     public async Task EnumerateImageFilesStopsAtManifestNestingLimit()
     {
         byte[][] indexes = new byte[6][];
-        indexes[^1] = CreateImageIndex(Array.Empty<string>());
+        indexes[^1] = CreateImageIndex([]);
         for (int i = indexes.Length - 2; i >= 0; i--)
         {
             indexes[i] = CreateImageIndex([CreateManifestDescriptor(indexes[i + 1], OciImageIndexMediaType)]);
@@ -803,9 +803,12 @@ public sealed class ContainerRegistrySourceClientTests
     [TestMethod]
     public async Task EnumerateImageFilesStopsAtIndexManifestCountLimit()
     {
-        string[] descriptors = Enumerable.Repeat(
-            "{}",
-            ContainerRegistrySourceOptions.MaxIndexManifestCount + 1).ToArray();
+        string[] descriptors =
+        [
+            .. Enumerable.Repeat(
+                "{}",
+                ContainerRegistrySourceOptions.MaxIndexManifestCount + 1),
+        ];
         byte[] index = CreateImageIndex(descriptors);
         var warnings = new List<string>();
         var handler = new FakeHttpMessageHandler(_ => ManifestResponse(index, OciImageIndexMediaType));

@@ -648,6 +648,39 @@ internal static partial class Program
             || arg.StartsWith("--baseline-path=", StringComparison.Ordinal);
     }
 
+    static bool IsBaselineModeFlag(string arg)
+    {
+        return arg.Equals("--baseline-mode", StringComparison.Ordinal)
+            || arg.StartsWith("--baseline-mode=", StringComparison.Ordinal);
+    }
+
+    static bool TryReadBaselineComparisonMode(
+        string[] args,
+        ref int index,
+        out GitleaksBaselineComparisonMode comparisonMode)
+    {
+        if (!TryReadStringFlag(args, ref index, "--baseline-mode", out string? value))
+        {
+            comparisonMode = GitleaksBaselineComparisonMode.Exact;
+            return false;
+        }
+
+        comparisonMode = value switch
+        {
+            "exact" => GitleaksBaselineComparisonMode.Exact,
+            "portable" => GitleaksBaselineComparisonMode.PortableLineEndings,
+            _ => (GitleaksBaselineComparisonMode)(-1),
+        };
+        if (comparisonMode >= GitleaksBaselineComparisonMode.Exact
+            && comparisonMode <= GitleaksBaselineComparisonMode.PortableLineEndings)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("baseline mode must be 'exact' or 'portable'");
+        return false;
+    }
+
     static bool IsConfigFlag(string arg)
     {
         return arg is "-c" or "--config"

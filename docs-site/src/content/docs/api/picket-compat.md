@@ -11,6 +11,7 @@ Generated from XML documentation for `Picket.Compat`.
 ## Types
 
 - [GitleaksBaseline](#gitleaksbaseline) - Represents a Gitleaks-compatible baseline report used to suppress existing findings.
+- [GitleaksBaselineComparisonMode](#gitleaksbaselinecomparisonmode) - Specifies how findings are compared with a Gitleaks baseline.
 - [GitleaksConfigLoader](#gitleaksconfigloader) - Loads Gitleaks-compatible rule configuration.
 - [GitleaksConfigWriter](#gitleaksconfigwriter) - Writes resolved Gitleaks-compatible rule sets as deterministic TOML.
 - [GitleaksIgnore](#gitleaksignore) - Represents Gitleaks-compatible fingerprint ignore entries.
@@ -24,18 +25,30 @@ Represents a Gitleaks-compatible baseline report used to suppress existing findi
 
 ### Constructors
 
-- `GitleaksBaseline(IReadOnlyList<Finding> findings)` - Represents a Gitleaks-compatible baseline report used to suppress existing findings.
+- `GitleaksBaseline(IReadOnlyList<Finding> findings, GitleaksBaselineComparisonMode comparisonMode)` - Represents a Gitleaks-compatible baseline report used to suppress existing findings.
 
 ### Methods
 
 - `Filter(IReadOnlyList<Finding> findings, int redactionPercent)` - Returns findings not already present in this baseline.
 - `IsNew(Finding finding, int redactionPercent)` - Returns a value indicating whether a finding is new relative to this baseline.
 - `Load(string path)` - Loads a Gitleaks JSON report from disk as a baseline.
+- `Load(string path, GitleaksBaselineComparisonMode comparisonMode)` - Loads a Gitleaks JSON report from disk as a baseline.
 
 ### Properties
 
 - `Count` - Gets the number of findings in the baseline.
 - `Empty` - Gets an empty baseline.
+
+## GitleaksBaselineComparisonMode
+
+`Picket.Compat.GitleaksBaselineComparisonMode`
+
+Specifies how findings are compared with a Gitleaks baseline.
+
+### Fields
+
+- `Exact` - Uses the exact field comparison implemented by Gitleaks.
+- `PortableLineEndings` - Treats LF and CRLF evidence as equivalent while preserving all other identity fields.
 
 ## GitleaksConfigLoader
 
