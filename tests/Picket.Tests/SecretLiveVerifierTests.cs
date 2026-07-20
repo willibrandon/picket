@@ -189,6 +189,40 @@ public sealed class SecretLiveVerifierTests
     }
 
     /// <summary>
+    /// Verifies that a persistent cache entry cannot bypass the active endpoint policy.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncBlocksUnsafeEndpointBeforeReadingPersistentCache()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Inactive));
+        Finding finding = CreateFinding();
+        SecretValidationCacheKey cacheKey = SecretValidationCacheKey.FromFinding(
+            validator.Provider,
+            validator.Version,
+            finding,
+            validator.Endpoint);
+        cache.Write(
+            cacheKey,
+            new SecretValidationResult(SecretValidationState.Active, "cached active result"),
+            DateTimeOffset.UtcNow.AddMinutes(5));
+        var verifier = new SecretLiveVerifier([validator], cache);
+
+        SecretValidationResult result = await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.Contains("NonPublicAddress", result.Reason);
+        Assert.Contains("endpointPolicy=blocked:NonPublicAddress", result.Evidence);
+        Assert.DoesNotContain("cacheHit=persistent", result.Evidence);
+        Assert.AreEqual(0, validator.VerifyCount);
+    }
+
+    /// <summary>
     /// Verifies that non-cacheable live errors are not written to the persistent cache.
     /// </summary>
     [TestMethod]

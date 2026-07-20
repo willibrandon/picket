@@ -19,6 +19,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliCompatibilityTests
 {
+    private static readonly Uri s_validationCacheEndpoint = new("https://127.0.0.1:1/user");
+
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
     /// </summary>
@@ -768,7 +770,7 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(
             Path.Combine(root.Path, "secret.txt"),
             string.Concat(token, Environment.NewLine, "custom-12345"));
-        WriteActiveGitHubValidationCache(cachePath, configPath, token);
+        WriteActiveGitHubValidationCache(cachePath, configPath, token, s_validationCacheEndpoint);
 
         CliResult result = await RunCliAsync(
             "scan",
@@ -778,12 +780,15 @@ public sealed class CliCompatibilityTests
             "--cache-dir",
             cachePath,
             "--verify",
+            "--github-api-endpoint",
+            s_validationCacheEndpoint.AbsoluteUri,
+            "--allow-non-public-endpoints",
             "-f",
             "jsonl",
             "--only-verified").ConfigureAwait(false);
         string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
-        Assert.AreEqual(1, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode, result.Stderr);
         Assert.HasCount(1, lines);
         Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
         Assert.Contains("\"validationState\":\"active\"", lines[0]);
@@ -1037,7 +1042,7 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(
             Path.Combine(root.Path, "secret.txt"),
             string.Concat(token, Environment.NewLine, "custom-12345"));
-        WriteActiveGitHubValidationCache(cachePath, configPath, token);
+        WriteActiveGitHubValidationCache(cachePath, configPath, token, s_validationCacheEndpoint);
 
         CliResult result = await RunCliAsync(
             "verify",
@@ -1047,12 +1052,15 @@ public sealed class CliCompatibilityTests
             "--cache-dir",
             cachePath,
             "--live",
+            "--github-api-endpoint",
+            s_validationCacheEndpoint.AbsoluteUri,
+            "--allow-non-public-endpoints",
             "-f",
             "jsonl",
             "--only-verified").ConfigureAwait(false);
         string[] lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
-        Assert.AreEqual(1, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode, result.Stderr);
         Assert.HasCount(1, lines);
         Assert.Contains("\"ruleId\":\"github-pat\"", lines[0]);
         Assert.Contains("\"validationState\":\"active\"", lines[0]);
@@ -5524,11 +5532,12 @@ public sealed class CliCompatibilityTests
         return configPath;
     }
 
-    private static void WriteActiveGitHubValidationCache(string cachePath, string configPath, string token)
+    private static void WriteActiveGitHubValidationCache(string cachePath, string configPath, string token, Uri endpoint)
     {
         RuleSet ruleSet = GitleaksConfigLoader.LoadFile(configPath);
         CompiledRuleSet rules = CompiledRuleSet.Compile(ruleSet);
         GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
+        options.UserEndpoint = endpoint;
         SecretValidationCache cache = SecretValidationCache.Open(
             Path.Combine(cachePath, "validation"),
             string.Concat(
