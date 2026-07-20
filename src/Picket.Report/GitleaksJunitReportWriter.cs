@@ -87,6 +87,11 @@ public static class GitleaksJunitReportWriter
         WriteJsonString(builder, "File", finding.File, comma: true);
         WriteJsonString(builder, "SymlinkFile", finding.SymlinkFile, comma: true);
         WriteJsonString(builder, "Commit", finding.Commit, comma: true);
+        if (finding.Link.Length != 0)
+        {
+            WriteJsonString(builder, "Link", finding.Link, comma: true);
+        }
+
         WriteJsonNumber(builder, "Entropy", finding.Entropy, comma: true);
         WriteJsonString(builder, "Author", finding.Author, comma: true);
         WriteJsonString(builder, "Email", finding.Email, comma: true);
@@ -315,7 +320,7 @@ public static class GitleaksJunitReportWriter
     {
         if (IsInvalidXmlCharacter(rune.Value))
         {
-            builder.Append("&#xFFFD;");
+            builder.Append('\uFFFD');
             return;
         }
 
@@ -326,6 +331,7 @@ public static class GitleaksJunitReportWriter
     {
         return value < 0x20
             || value is > 0xD7FF and < 0xE000
+            || value is 0xFFFE or 0xFFFF
             || value > 0x10FFFF;
     }
 }

@@ -77,6 +77,24 @@ public sealed class NativeStructuredDetectorTests
     }
 
     /// <summary>
+    /// Verifies that generic OAuth refresh values are not attributed to Codex.
+    /// </summary>
+    [TestMethod]
+    [DataRow("insert_your_refresh_token_here_now_1234567890")]
+    [DataRow("another-provider-refresh-token-value-1234567890")]
+    [DataRow("rt_placeholder_refresh_token_value_1234567890")]
+    public void CodexDetectorRejectsGenericRefreshToken(string token)
+    {
+        string input = $"refresh_token = \"{token}\"";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule("picket-openai-codex-refresh-token", "refresh_token", PicketBuiltInDetectorNames.CodexCredentials));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that malformed JSON does not produce a structured Codex finding.
     /// </summary>
     [TestMethod]

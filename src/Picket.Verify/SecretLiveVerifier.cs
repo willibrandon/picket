@@ -22,8 +22,9 @@ public sealed class SecretLiveVerifier(
     private readonly Lock _gate = new();
     private readonly Dictionary<string, SecretLiveRequestPacer> _providerRequestPacers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SemaphoreSlim> _providerRequestLimiters = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, SecretValidationResult> _requestCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (SecretValidationResult Result, DateTimeOffset ExpiresAt)> _requestCache = new(StringComparer.Ordinal);
     private readonly ISecretLiveValidator[] _validators = ValidateValidators(validators);
+    private bool _cacheWriteWarningEmitted;
 
     /// <summary>
     /// Verifies a finding with the first provider validator that supports it.
@@ -56,9 +57,9 @@ public sealed class SecretLiveVerifier(
                     providerContacted: false);
             }
 
-            DateTimeOffset now = DateTimeOffset.UtcNow;
+            DateTimeOffset now = _options.TimeProvider.GetUtcNow();
             SecretValidationCacheKey cacheKey = SecretValidationCacheKey.FromFinding(validator.Provider, validator.Version, finding, validator.Endpoint);
-            if (TryReadRequestCache(cacheKey.Fingerprint, out SecretValidationResult? requestCachedResult))
+            if (TryReadRequestCache(cacheKey.Fingerprint, now, out SecretValidationResult? requestCachedResult))
             {
                 return AddAuditEvidence(
                     requestCachedResult,
@@ -78,7 +79,7 @@ public sealed class SecretLiveVerifier(
                         endpointResult,
                         providerContacted: false,
                         cacheHit: "persistent");
-                    WriteRequestCache(cacheKey.Fingerprint, auditedCachedResult);
+                    WriteRequestCacheWhenConfigured(cacheKey.Fingerprint, auditedCachedResult, now);
                     return auditedCachedResult;
                 }
             }
@@ -89,12 +90,13 @@ public sealed class SecretLiveVerifier(
                 validator,
                 endpointResult,
                 providerContacted: true);
-            if (auditedResult.IsPersistentCacheable)
+            if (_options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
             {
-                WriteRequestCache(cacheKey.Fingerprint, auditedResult);
-                if (_cache is not null && _options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
+                DateTimeOffset expiresAt = now + duration;
+                WriteRequestCache(cacheKey.Fingerprint, auditedResult, expiresAt);
+                if (_cache is not null && auditedResult.IsPersistentCacheable)
                 {
-                    _cache.Write(cacheKey, auditedResult, now + duration);
+                    TryWritePersistentCache(cacheKey, auditedResult, expiresAt);
                 }
             }
 
@@ -209,19 +211,75 @@ public sealed class SecretLiveVerifier(
         }
     }
 
-    private bool TryReadRequestCache(string fingerprint, [NotNullWhen(true)] out SecretValidationResult? result)
+    private bool TryReadRequestCache(
+        string fingerprint,
+        DateTimeOffset now,
+        [NotNullWhen(true)] out SecretValidationResult? result)
     {
         lock (_gate)
         {
-            return _requestCache.TryGetValue(fingerprint, out result);
+            if (_requestCache.TryGetValue(fingerprint, out (SecretValidationResult Result, DateTimeOffset ExpiresAt) entry))
+            {
+                if (entry.ExpiresAt > now)
+                {
+                    result = entry.Result;
+                    return true;
+                }
+
+                _requestCache.Remove(fingerprint);
+            }
+
+            result = null;
+            return false;
         }
     }
 
-    private void WriteRequestCache(string fingerprint, SecretValidationResult result)
+    private void WriteRequestCache(string fingerprint, SecretValidationResult result, DateTimeOffset expiresAt)
     {
         lock (_gate)
         {
-            _requestCache[fingerprint] = result;
+            _requestCache[fingerprint] = (result, expiresAt);
+        }
+    }
+
+    private void WriteRequestCacheWhenConfigured(
+        string fingerprint,
+        SecretValidationResult result,
+        DateTimeOffset now)
+    {
+        if (_options.TryGetCacheDuration(result.State, out TimeSpan duration))
+        {
+            WriteRequestCache(fingerprint, result, now + duration);
+        }
+    }
+
+    private void TryWritePersistentCache(
+        SecretValidationCacheKey cacheKey,
+        SecretValidationResult result,
+        DateTimeOffset expiresAt)
+    {
+        try
+        {
+            _cache!.Write(cacheKey, result, expiresAt);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            EmitCacheWriteWarning();
+        }
+    }
+
+    private void EmitCacheWriteWarning()
+    {
+        bool emitWarning;
+        lock (_gate)
+        {
+            emitWarning = !_cacheWriteWarningEmitted;
+            _cacheWriteWarningEmitted = true;
+        }
+
+        if (emitWarning)
+        {
+            _options.WarningSink?.Invoke("validation cache write failed; continuing without persistent caching");
         }
     }
 

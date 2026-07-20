@@ -92,6 +92,21 @@ jobs:
           dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
           dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
 
+          $symbolArtifacts = @(
+            Get-ChildItem -LiteralPath $publishOutput -Recurse -Force |
+              Where-Object { $_.Name -match '\.(pdb|dbg|dwarf)$' -or $_.Name.EndsWith('.dSYM', [StringComparison]::OrdinalIgnoreCase) }
+          )
+          if ($symbolArtifacts.Count -ne 0) {
+            throw "release-speed publish produced public debug symbols: $($symbolArtifacts.FullName -join ', ')"
+          }
+
+      - name: Test Native AOT compatibility oracles
+        shell: pwsh
+        run: |
+          $executableName = if ($IsWindows) { 'picket.exe' } else { 'picket' }
+          $env:PICKET_TEST_CLI_PATH = Join-Path $env:RUNNER_TEMP "picket-native-${{ matrix.rid }}/$executableName"
+          dotnet test --project tests/Picket.Tests/Picket.Tests.csproj --configuration Release --no-build --filter "FullyQualifiedName~Picket.Tests.CompatibilityOracleFixtureTests"
+
       - name: Publish Linux musl Native AOT binaries
         if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
         shell: pwsh
@@ -131,6 +146,34 @@ jobs:
 
           if ($scanText -notmatch '"ruleId":"aws-access-token"') {
             throw 'musl zstandard scan did not report the expected finding.'
+          }
+
+          $global:LASTEXITCODE = 0
+
+      - name: Test Linux musl compatibility oracle
+        if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
+        shell: pwsh
+        run: |
+          $muslRid = if ('${{ matrix.rid }}' -eq 'linux-x64') { 'linux-musl-x64' } else { 'linux-musl-arm64' }
+          $publishOutput = Join-Path $env:RUNNER_TEMP "picket-native-$muslRid"
+          $inputRoot = Join-Path $PWD 'tests/fixtures/oracle-inputs/basic-dir-json'
+          $expectedPath = Join-Path $PWD 'tests/fixtures/oracles/basic-dir-json/gitleaks.json'
+          $outputDirectory = Join-Path $env:RUNNER_TEMP "picket-musl-oracle-$muslRid"
+          $reportPath = Join-Path $outputDirectory 'report.json'
+          $runtimeImage = 'mcr.microsoft.com/dotnet/runtime-deps@sha256:297e573be253dafcba4eee8ab29e8e05ab3c5f13f966b3537af2256864de5668'
+          New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+          & chmod 0777 $outputDirectory
+
+          $scanOutput = & docker run --rm --read-only --network none --user 65534:65534 --workdir /fixtures --volume "${publishOutput}:/picket:ro" --volume "${inputRoot}:/fixtures:ro" --volume "${outputDirectory}:/output" $runtimeImage /picket/picket dir . -c .gitleaks.toml -f json -r /output/report.json --no-banner --no-color --redact=100 2>&1
+          $scanExitCode = $LASTEXITCODE
+          if ($scanExitCode -ne 1) {
+            throw "musl compatibility oracle returned exit code ${scanExitCode}: $($scanOutput -join "`n")"
+          }
+
+          $expected = [Convert]::ToBase64String([IO.File]::ReadAllBytes($expectedPath))
+          $actual = [Convert]::ToBase64String([IO.File]::ReadAllBytes($reportPath))
+          if ($actual -ne $expected) {
+            throw 'musl compatibility oracle report differs from the promoted Gitleaks report.'
           }
 
           $global:LASTEXITCODE = 0

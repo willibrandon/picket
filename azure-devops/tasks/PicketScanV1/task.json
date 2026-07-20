@@ -10,7 +10,7 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 3
+    "Patch": 4
   },
   "minimumAgentVersion": "3.220.0",
   "instanceNameFormat": "Picket scan $(target)",

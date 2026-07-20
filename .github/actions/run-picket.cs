@@ -1,6 +1,7 @@
 #!/usr/bin/env -S dotnet --
 #:property TargetFramework=net10.0
 #:property PackAsTool=false
+#:include PicketActionFailurePolicy.cs
 
 using System.Diagnostics;
 using System.Globalization;
@@ -136,7 +137,7 @@ internal static class PicketGitHubActionApp
             ? WriteFindingAnnotations(jsonlPath, annotationLimit)
             : 0;
 
-        (bool shouldFail, int failureCode) = EvaluateFailure(failOn, scannerExitCode, findingCount);
+        (bool shouldFail, int failureCode) = PicketActionFailurePolicy.Evaluate(failOn, scannerExitCode, findingCount);
         AddActionOutput("exit-code", scannerExitCode.ToString(CultureInfo.InvariantCulture));
         AddActionOutput("findings", findingCount.ToString(CultureInfo.InvariantCulture));
         AddActionOutput("sarif-path", sarifPath);
@@ -416,24 +417,6 @@ internal static class PicketGitHubActionApp
     private static void WriteWarning(string title, string message)
     {
         Console.Out.WriteLine($"::warning title={ConvertToGitHubCommandProperty(title)}::{ConvertToGitHubCommandMessage(message)}");
-    }
-
-    /// <summary>
-    /// Evaluates whether the action should fail after scanning.
-    /// </summary>
-    /// <param name="failOn">The fail mode.</param>
-    /// <param name="scannerExitCode">The scanner exit code.</param>
-    /// <param name="findingCount">The finding count.</param>
-    /// <returns>The failure decision and failure code.</returns>
-    private static (bool ShouldFail, int FailureCode) EvaluateFailure(string failOn, int scannerExitCode, int findingCount)
-    {
-        return failOn switch
-        {
-            "findings" when findingCount > 0 => (true, scannerExitCode != 0 ? scannerExitCode : 1),
-            "findings" when scannerExitCode != 0 => (true, scannerExitCode),
-            "errors" when scannerExitCode != 0 && findingCount == 0 => (true, scannerExitCode),
-            _ => (false, 0),
-        };
     }
 
     /// <summary>

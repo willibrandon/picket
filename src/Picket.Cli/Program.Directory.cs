@@ -30,7 +30,7 @@ internal static partial class Program
 
         if (!TryResolveNativeProfile(args, nativeReportFormats, out bool nativeMode))
         {
-            return UnknownFlagExitCode;
+            return GetOperationalExitCode(nativeReportFormats);
         }
 
         string? baselinePath = null;
@@ -55,9 +55,9 @@ internal static partial class Program
         bool resetCheckpoint = false;
         bool respectNativeIgnoreFiles = nativeMode;
         ScanCacheStorageMode cacheStorageMode = ScanCacheStorageMode.SecretHashOnly;
-        int maxArchiveEntries = nativeMode ? DefaultNativeMaxArchiveEntries : 0;
-        long? maxArchiveBytes = nativeMode ? DefaultNativeMaxArchiveBytes : null;
-        int maxArchiveCompressionRatio = nativeMode ? DefaultNativeMaxArchiveCompressionRatio : 0;
+        int maxArchiveEntries = DefaultNativeMaxArchiveEntries;
+        long? maxArchiveBytes = DefaultNativeMaxArchiveBytes;
+        int maxArchiveCompressionRatio = DefaultNativeMaxArchiveCompressionRatio;
         int maxArchiveDepth = nativeMode ? DefaultNativeMaxArchiveDepth : 0;
         int maxDecodeDepth = 5;
         long? maxTargetBytes = null;
@@ -71,7 +71,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -82,12 +82,12 @@ internal static partial class Program
                 if (!nativeMode)
                 {
                     Console.Error.WriteLine("--baseline-mode requires --profile picket");
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 if (!TryReadBaselineComparisonMode(args, ref i, out baselineComparisonMode))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -97,7 +97,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--config", out configPath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -107,7 +107,7 @@ internal static partial class Program
             {
                 if (!TryReadProfileFlag(args, ref i, out _))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -117,7 +117,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--cache-dir", out cacheDir))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -127,7 +127,7 @@ internal static partial class Program
             {
                 if (!TryReadScanCacheStorageMode(args, ref i, out cacheStorageMode))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -137,7 +137,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--checkpoint", out checkpointPath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -147,7 +147,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--checkpoint-reset", out resetCheckpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -157,7 +157,7 @@ internal static partial class Program
             {
                 if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -167,7 +167,7 @@ internal static partial class Program
             {
                 if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -178,12 +178,12 @@ internal static partial class Program
                 if (!nativeMode)
                 {
                     Console.Error.WriteLine("--rule-pack requires a native command or --profile picket");
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -193,7 +193,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -203,7 +203,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-template", out reportTemplatePath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -213,7 +213,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-path", out string? value))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 reportPath = value;
@@ -229,7 +229,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--ignore-path", out string? value))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 nativeIgnorePaths.Add(value);
@@ -240,7 +240,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--no-ignore", out bool disableIgnore))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 respectNativeIgnoreFiles = !disableIgnore;
@@ -251,7 +251,7 @@ internal static partial class Program
             {
                 if (!TryReadValidationResultsFlag(args, ref i, validationResults))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -261,7 +261,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--only-verified", out bool onlyVerified))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 if (onlyVerified)
@@ -278,7 +278,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitleaks-ignore-path", out string? value))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 gitleaksIgnorePath = value;
@@ -289,7 +289,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -299,7 +299,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--follow-symlinks", out followSymlinks))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -309,7 +309,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -319,7 +319,7 @@ internal static partial class Program
             {
                 if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -329,7 +329,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -339,7 +339,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-depth", out maxArchiveDepth))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -349,7 +349,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-entries", out maxArchiveEntries))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -359,7 +359,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--max-archive-megabytes", out maxArchiveBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -369,7 +369,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-ratio", out maxArchiveCompressionRatio))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -379,7 +379,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -389,7 +389,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--diagnostics", out diagnostics))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -399,7 +399,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--diagnostics-dir", out diagnosticsDir))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -407,7 +407,7 @@ internal static partial class Program
 
             if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
             {
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             if (handledCommonFlag)
@@ -424,27 +424,27 @@ internal static partial class Program
             if (root is not null)
             {
                 Console.Error.WriteLine($"unexpected argument: {arg}");
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             root = arg;
         }
 
-        if (root is null)
+        if (string.IsNullOrEmpty(root))
         {
-            if (defaultRoot is null)
-            {
-                Console.Error.WriteLine("dir requires a path");
-                return UnknownFlagExitCode;
-            }
+            root = defaultRoot ?? ".";
+        }
 
-            root = defaultRoot;
+        if (nativeMode && exitCode == NativeOperationalExitCode)
+        {
+            Console.Error.WriteLine("--exit-code 2 is reserved for incomplete or failed native scans");
+            return NativeOperationalExitCode;
         }
 
         if (resetCheckpoint && string.IsNullOrWhiteSpace(checkpointPath))
         {
             Console.Error.WriteLine("--checkpoint-reset requires --checkpoint");
-            return UnknownFlagExitCode;
+            return GetOperationalExitCode(nativeMode);
         }
 
         if (!string.IsNullOrWhiteSpace(checkpointPath))
@@ -452,13 +452,13 @@ internal static partial class Program
             if (checkpointPath.Equals("-", StringComparison.Ordinal))
             {
                 Console.Error.WriteLine("--checkpoint requires a file path");
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             if (sourceFileProvider is null)
             {
                 Console.Error.WriteLine("--checkpoint requires a native source option such as --github-repository, --s3-bucket, or --registry-image");
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             bool collidesWithReport;
@@ -469,25 +469,25 @@ internal static partial class Program
             catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
             {
                 Console.Error.WriteLine($"invalid checkpoint path: {exception.Message}");
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             if (collidesWithReport)
             {
                 Console.Error.WriteLine("checkpoint path must be different from every report path");
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
         }
 
         if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, diagnosticsCommand, Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
         {
-            return UnknownFlagExitCode;
+            return GetOperationalExitCode(nativeMode);
         }
 
         long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
         if (!TryLoadRules(configPath, root, enabledRuleIds, additionalRulePacks, nativeConfig: nativeMode, out CompiledRuleSet? rules))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         if (allowReportInput && File.Exists(root) && ReportFindingReader.TryRead(root, out List<Finding>? reportInputFindings))
@@ -496,7 +496,7 @@ internal static partial class Program
             GitleaksIgnore reportInputIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, reportInputRoot);
             if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? reportInputBaseline))
             {
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
 
             diagnosticsSession?.RecordScanInput();
@@ -524,7 +524,7 @@ internal static partial class Program
         if (allowReportInput && File.Exists(root) && TryGetSummaryOnlyReportFormat(root, out string? summaryOnlyReportFormat))
         {
             Console.Error.WriteLine($"report input format '{summaryOnlyReportFormat}' does not preserve raw secret material; use picket view for summary-only reports");
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         PicketScanCache? scanCache = null;
@@ -538,7 +538,7 @@ internal static partial class Program
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {
                 Console.Error.WriteLine($"failed to open cache: {ex.Message}");
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
         }
 
@@ -548,13 +548,14 @@ internal static partial class Program
         {
             if (!TryLoadPicketIgnore(root, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? loadedPicketIgnore))
             {
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
 
             picketIgnore = loadedPicketIgnore;
+            long? enumerationMaxTargetBytes = GetEnumerationMaxTargetBytes(maxTargetBytes, nativeMode);
             files = DirectorySource.Enumerate(new DirectoryScanOptions(
                 root,
-                maxTargetBytes: maxTargetBytes,
+                maxTargetBytes: enumerationMaxTargetBytes,
                 followSymbolicLinks: followSymlinks,
                 maxArchiveDepth: maxArchiveDepth,
                 maxArchiveEntries: maxArchiveEntries,
@@ -568,8 +569,9 @@ internal static partial class Program
                 ignoreHidden: respectNativeIgnoreFiles,
                 readParentIgnoreFiles: respectNativeIgnoreFiles,
                 ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
-                warningSink: nativeMode ? Console.Error.WriteLine : null,
-                isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken)));
+                warningSink: Console.Error.WriteLine,
+                isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
+                identifyArchivesByContent: nativeMode));
         }
         else
         {
@@ -590,14 +592,14 @@ internal static partial class Program
             catch (Exception ex) when (ex is ArgumentException or HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
             {
                 Console.Error.WriteLine(ex.Message);
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
         }
 
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? baseline))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         List<CheckpointSourceFile>? checkpointFiles = null;
@@ -622,7 +624,7 @@ internal static partial class Program
             catch (Exception exception) when (exception is ArgumentException or IOException or InvalidDataException or UnauthorizedAccessException)
             {
                 Console.Error.WriteLine($"failed to open checkpoint: {exception.Message}");
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
         }
 
@@ -673,7 +675,7 @@ internal static partial class Program
             catch (InvalidDataException exception)
             {
                 Console.Error.WriteLine($"failed to restore checkpoint: {exception.Message}");
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
         }
 
@@ -823,6 +825,7 @@ internal static partial class Program
                         maxTargetBytes: maxTargetBytes,
                         symlinkFile: file.SymlinkDisplayPath,
                         enableCSharpStringConcatenation: nativeMode,
+                        useGitleaksMaxTargetSemantics: !nativeMode,
                         isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
                         cancellationToken: cancellationToken)
                     {
@@ -888,6 +891,24 @@ internal static partial class Program
             scanCheckpoint is null
                 ? null
                 : () => CompleteRemoteScanCheckpoint(scanCheckpoint));
+    }
+
+    private static long? GetEnumerationMaxTargetBytes(long? maxTargetBytes, bool nativeMode)
+    {
+        if (nativeMode || !maxTargetBytes.HasValue)
+        {
+            return maxTargetBytes;
+        }
+
+        if (maxTargetBytes.Value == 0)
+        {
+            return null;
+        }
+
+        const long GitleaksMegabyteRemainder = 999_999;
+        return maxTargetBytes.Value > long.MaxValue - GitleaksMegabyteRemainder
+            ? long.MaxValue
+            : maxTargetBytes.Value + GitleaksMegabyteRemainder;
     }
 
     private static bool IsScanStopped(long timeoutTimestamp, CancellationToken cancellationToken)

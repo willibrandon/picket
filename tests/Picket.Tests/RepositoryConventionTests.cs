@@ -259,6 +259,7 @@ public sealed partial class RepositoryConventionTests
     public void GitHubActionHelperDefinesStableOutputs()
     {
         string helper = ReadRepositoryFile(".github/actions/run-picket.cs");
+        string failurePolicy = ReadRepositoryFile(".github/actions/PicketActionFailurePolicy.cs");
         string readme = ReadRepositoryFile(".github/actions/README.md");
 
         Assert.Contains("GITHUB_OUTPUT", helper);
@@ -297,12 +298,16 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("should-fail", helper);
         Assert.Contains("failure-code", helper);
         Assert.Contains("annotations", helper);
+        Assert.Contains("#:include PicketActionFailurePolicy.cs", helper);
+        Assert.Contains("scannerExitCode == 2", failurePolicy);
+        Assert.Contains("findingCount == 0", failurePolicy);
         Assert.Contains("dotnet build", readme);
         Assert.Contains("dotnet run --file", readme);
         Assert.Contains("--no-build", readme);
         Assert.Contains("Directory.Build.props", readme);
         Assert.Contains("GITHUB_OUTPUT", readme);
         Assert.Contains("GITHUB_STEP_SUMMARY", readme);
+        Assert.Contains("PicketActionFailurePolicy.cs", readme);
         Assert.Contains("must not print raw", readme);
     }
 
@@ -377,11 +382,11 @@ public sealed partial class RepositoryConventionTests
         AssertCommonNativeAotProfile(tuiDiagnostics);
         AssertProfileProperty(speed, "OptimizationPreference", "Speed");
         AssertProfileStripSymbolsExceptMacOs(speed);
-        AssertProfileDisablesMacOsNativeDebugSymbols(speed);
+        AssertProfileDisablesPublicDebugSymbols(speed);
         AssertProfileProperty(speed, "DebuggerSupport", "false");
         AssertProfileProperty(minSize, "OptimizationPreference", "Size");
         AssertProfileStripSymbolsExceptMacOs(minSize);
-        AssertProfileDisablesMacOsNativeDebugSymbols(minSize);
+        AssertProfileDisablesPublicDebugSymbols(minSize);
         AssertProfileProperty(minSize, "DebuggerSupport", "false");
         AssertProfileProperty(minSize, "EventSourceSupport", "false");
         AssertProfileProperty(minSize, "MetricsSupport", "false");
@@ -395,11 +400,11 @@ public sealed partial class RepositoryConventionTests
         AssertProfileProperty(diagnostics, "StackTraceSupport", "true");
         AssertProfileProperty(tuiSpeed, "OptimizationPreference", "Speed");
         AssertProfileStripSymbolsExceptMacOs(tuiSpeed);
-        AssertProfileDisablesMacOsNativeDebugSymbols(tuiSpeed);
+        AssertProfileDisablesPublicDebugSymbols(tuiSpeed);
         AssertProfileProperty(tuiSpeed, "DebuggerSupport", "false");
         AssertProfileProperty(tuiMinSize, "OptimizationPreference", "Size");
         AssertProfileStripSymbolsExceptMacOs(tuiMinSize);
-        AssertProfileDisablesMacOsNativeDebugSymbols(tuiMinSize);
+        AssertProfileDisablesPublicDebugSymbols(tuiMinSize);
         AssertProfileProperty(tuiMinSize, "DebuggerSupport", "false");
         AssertProfileProperty(tuiMinSize, "EventSourceSupport", "false");
         AssertProfileProperty(tuiMinSize, "MetricsSupport", "false");
@@ -461,12 +466,13 @@ public sealed partial class RepositoryConventionTests
     public void ContainerImagePackagingMatchesReleaseContract()
     {
         string dockerfile = ReadRepositoryFile("Dockerfile");
+        string payloadDockerfile = ReadRepositoryFile("packaging/container/Dockerfile");
         string dockerIgnore = ReadRepositoryFile(".dockerignore");
         string releaseWorkflow = ReadRepositoryFile(".github/workflows/release.yml");
         string releaseDocumentation = ReadRepositoryFile("docs/RELEASE.md");
 
-        Assert.Contains("mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble", dockerfile);
-        Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps:${DOTNET_VERSION}-noble", dockerfile);
+        Assert.Contains("mcr.microsoft.com/dotnet/sdk@sha256:", dockerfile);
+        Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps@sha256:", dockerfile);
         Assert.Contains("PublishProfile=release-speed", dockerfile);
         Assert.Contains("dotnet publish src/Picket.Cli/Picket.Cli.csproj", dockerfile);
         Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", dockerfile);
@@ -475,12 +481,20 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("USER $APP_UID", dockerfile);
         Assert.Contains("ENTRYPOINT [\"/usr/local/bin/picket\"]", dockerfile);
         Assert.Contains("picket-tui", dockerfile);
+        Assert.Contains("mcr.microsoft.com/dotnet/runtime-deps@sha256:", payloadDockerfile);
+        Assert.Contains("COPY libzstd.so /usr/local/bin/libzstd.so", payloadDockerfile);
+        Assert.Contains("COPY THIRD-PARTY-NOTICES.txt /licenses/Picket/THIRD-PARTY-NOTICES.txt", payloadDockerfile);
         Assert.Contains("docs-site/dist", dockerIgnore);
         Assert.Contains("picket-results", dockerIgnore);
         Assert.Contains("publish-container:", releaseWorkflow);
         Assert.Contains("packages: write", releaseWorkflow);
         Assert.Contains("docker login ghcr.io", releaseWorkflow);
-        Assert.Contains("linux/amd64,linux/arm64", releaseWorkflow);
+        Assert.Contains("platform: linux/amd64", releaseWorkflow);
+        Assert.Contains("platform: linux/arm64", releaseWorkflow);
+        Assert.Contains("ubuntu-24.04-arm", releaseWorkflow);
+        Assert.Contains("packaging/container/Dockerfile", releaseWorkflow);
+        Assert.Contains("docker buildx imagetools create", releaseWorkflow);
+        Assert.DoesNotContain("setup-qemu", releaseWorkflow);
         Assert.Contains("--sbom=true", releaseWorkflow);
         Assert.Contains("--provenance=true", releaseWorkflow);
         Assert.Contains("publish-container", releaseWorkflow);
@@ -494,6 +508,7 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("picket:dev git . --report-format json --redact=100 --exit-code 0", releaseDocumentation);
         Assert.Contains("trusts `/work` for mounted repository scans", releaseDocumentation);
         Assert.Contains("non-root default user", releaseDocumentation);
+        Assert.Contains("without emulation", releaseDocumentation);
     }
 
     /// <summary>
@@ -504,6 +519,7 @@ public sealed partial class RepositoryConventionTests
     {
         string ciWorkflow = ReadRepositoryFile(".github/workflows/ci.yml");
         string cliProject = ReadRepositoryFile("src/Picket.Cli/Picket.Cli.csproj");
+        string directoryBuildTargets = ReadRepositoryFile("Directory.Build.targets");
         string dockerfile = ReadRepositoryFile("Dockerfile");
         string notices = ReadRepositoryFile("THIRD-PARTY-NOTICES.txt");
         string releaseWorkflow = ReadRepositoryFile(".github/workflows/release.yml");
@@ -512,7 +528,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("ZstdNet\" IncludeAssets=\"native\"", sourcesProject);
         Assert.Contains("CopyMuslZstandardRuntime", cliProject);
         Assert.Contains("PICKET_ZSTANDARD_MUSL_LIBRARY", cliProject);
-        Assert.Contains("THIRD-PARTY-NOTICES.txt", cliProject);
+        Assert.Contains("THIRD-PARTY-NOTICES.txt", directoryBuildTargets);
         Assert.Contains("Build-ZstandardMusl.cs", ciWorkflow);
         Assert.Contains("Build-ZstandardMusl.cs", releaseWorkflow);
         Assert.Contains("Publish-LinuxMusl.cs", ciWorkflow);
@@ -542,6 +558,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("ZstdNet", notices);
         Assert.Contains("Zstandard", notices);
         Assert.Contains("Meta Platforms", notices);
+        Assert.Contains("Gitleaks default configuration", notices);
+        Assert.Contains("Hex1b", notices);
+        Assert.Contains("SharpYaml", notices);
+        Assert.Contains("System.CommandLine", notices);
+        Assert.Contains("System.IO.FileSystem.AccessControl", notices);
+        Assert.Contains("Scout.Text.Regex", notices);
     }
 
     /// <summary>
@@ -559,6 +581,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Publish Native AOT binaries", workflow);
         Assert.Contains("dotnet publish src/Picket.Cli/Picket.Cli.csproj", workflow);
         Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        Assert.Contains("release-speed publish produced public debug symbols", workflow);
         Assert.Contains("PublishProfile=release-speed", workflow);
         Assert.Contains("${{ matrix.rid }}", workflow);
         Assert.Contains("rid: linux-x64", workflow);
@@ -756,7 +779,12 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
-        Assert.AreEqual("0.1.3", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("0.1.4", extensionRoot.GetProperty("version").GetString());
+        HashSet<string> galleryFlags = [.. extensionRoot
+            .GetProperty("galleryFlags")
+            .EnumerateArray()
+            .Select(value => value.GetString() ?? string.Empty)];
+        Assert.Contains("Public", galleryFlags);
         Assert.AreEqual("images/extension-icon.png", extensionRoot.GetProperty("icons").GetProperty("default").GetString());
         Assert.AreEqual("https://github.com/willibrandon/picket", extensionRoot.GetProperty("repository").GetProperty("uri").GetString());
         Assert.AreEqual("https://github.com/willibrandon/picket/blob/main/azure-devops/PRIVACY.md", extensionRoot.GetProperty("links").GetProperty("privacypolicy").GetProperty("uri").GetString());
@@ -774,7 +802,7 @@ public sealed partial class RepositoryConventionTests
         Assert.AreEqual("PicketScan", taskRoot.GetProperty("name").GetString());
         Assert.AreEqual("Picket scan", taskRoot.GetProperty("friendlyName").GetString());
         Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Major").GetInt32());
-        Assert.AreEqual(3, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
+        Assert.AreEqual(4, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
         Assert.AreEqual("index.js", taskRoot.GetProperty("execution").GetProperty("Node20_1").GetProperty("target").GetString());
 
         HashSet<string> inputNames = ReadJsonNameSet(taskRoot.GetProperty("inputs"));
@@ -834,6 +862,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("module.exports", handler);
         Assert.Contains("emitAnnotations", handlerTests);
         Assert.Contains("escapeProperty", handlerTests);
+        Assert.Contains("scanner errors fail even when a partial report contains findings", handlerTests);
+        Assert.Contains("finding exits remain subject to the configured failure policy", handlerTests);
         Assert.Contains("node --test azure-devops/tasks/PicketScanV1/index.test.js", workflow);
         Assert.DoesNotContain("finding.secret", handler);
         Assert.DoesNotContain("finding.match", handler);
@@ -852,10 +882,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secret-hash-only", privacy);
         Assert.Contains("agent `3.220.0` or newer", compatibility);
         Assert.Contains("`linux-musl-arm64`", compatibility);
-        Assert.Contains("## 0.1.3", changelog);
+        Assert.Contains("## 0.1.4", changelog);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
-        Assert.Contains("Scanner execution errors always fail the task", azureDevOps);
+        Assert.Contains("Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task", azureDevOps);
         Assert.Contains("Optional `config` and `baselinePath` inputs are forwarded only when they name files", azureDevOps);
         Assert.Contains("azure-devops/vss-extension.json", marketplaces);
     }
@@ -989,6 +1019,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("release-binaries-${{ matrix.rid }}", workflow);
         Assert.Contains("release-nuget-${{ matrix.rid }}", workflow);
         Assert.Contains("dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", workflow);
+        Assert.Contains("release-speed publish produced public debug symbols", workflow);
         Assert.Contains("dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid", workflow);
         Assert.Contains("dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r $rid", workflow);
         Assert.Contains("Smoke test GitHub Action", workflow);
@@ -1057,6 +1088,13 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("-p:PackageVersion=$version", workflow);
         Assert.Contains("pattern: release-nuget*", workflow);
         Assert.Contains("$pointerPackages", workflow);
+        Assert.Contains("publish-container-architectures:", workflow);
+        Assert.Contains("publish-container-latest:", workflow);
+        Assert.Contains("docker buildx imagetools create", workflow);
+        Assert.Contains("- publish-release", workflow);
+        Assert.Contains("- publish-container", workflow);
+        Assert.Contains("- publish-nuget", workflow);
+        Assert.DoesNotContain("setup-qemu", workflow);
         Assert.Contains("SHA-256 checksums", documentation);
         Assert.Contains("GitHub artifact attestations", documentation);
         Assert.Contains("Homebrew, Scoop, and WinGet manifests", documentation);
@@ -1069,9 +1107,13 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket-<tag>-win-x64.msi", documentation);
         Assert.Contains("picket-<tag>-win-arm64.msi", documentation);
         Assert.Contains("Prerelease tags skip MSI artifacts", documentation);
-        Assert.Contains("publishes `.nupkg` and `.snupkg` files to NuGet.org", documentation);
+        Assert.Contains("publish `.nupkg` and `.snupkg` files to NuGet.org", documentation);
         Assert.Contains("release tag is the source of truth for package versions", documentation);
         Assert.Contains("RID-specific Native AOT NuGet tool packages", documentation);
+        Assert.Contains("Only after that immutable release exists", documentation);
+        Assert.Contains("currently unsigned", documentation);
+        Assert.Contains("currently unnotarized", documentation);
+        Assert.Contains("post-publish target runs after the Native AOT symbol-copy target to remove residual compiler and reference symbol sidecars", documentation);
     }
 
     /// <summary>
@@ -1094,6 +1136,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("InstallerType: zip", script);
         Assert.Contains("NestedInstallerType: portable", script);
         Assert.Contains("ManifestVersion: {{WingetManifestVersion}}", script);
+        Assert.Contains("libexec.install Dir[\\\"*\\\"]", script);
+        Assert.Contains("bin.write_exec_script libexec/\\\"picket\\\"", script);
+        Assert.Contains("bin.write_exec_script libexec/\\\"picket-tui\\\"", script);
         Assert.Contains("win-x64", script);
         Assert.Contains("win-arm64", script);
         Assert.Contains("osx-x64", script);
@@ -1120,7 +1165,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Name=\"Picket\"", installer);
         Assert.Contains("Source=\"$(var.PayloadDir)\\picket.exe\"", installer);
         Assert.Contains("Source=\"$(var.PayloadDir)\\picket-tui.exe\"", installer);
+        Assert.Contains("Source=\"$(var.PayloadDir)\\libzstd.dll\"", installer);
         Assert.Contains("Source=\"$(var.PayloadDir)\\LICENSE\"", installer);
+        Assert.Contains("Source=\"$(var.PayloadDir)\\THIRD-PARTY-NOTICES.txt\"", installer);
         Assert.Contains("Name=\"PATH\"", installer);
         Assert.Contains("Value=\"[INSTALLFOLDER]\"", installer);
         Assert.Contains("System=\"yes\"", installer);
@@ -1132,9 +1179,13 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("created=false", workflow);
         Assert.Contains("created=true", workflow);
         Assert.Contains("picket-$env:RELEASE_TAG-$rid.msi", workflow);
+        Assert.Contains("picket-msi-zstd-$rid.zst", workflow);
+        Assert.Contains("msiexec.exe /i", workflow);
+        Assert.Contains("msiexec.exe /x", workflow);
         Assert.Contains("picket-<tag>-win-x64.msi", release);
         Assert.Contains("picket-<tag>-win-arm64.msi", release);
         Assert.Contains("does not rebuild scanner code", release);
+        Assert.Contains("exercises a zstandard scan", release);
     }
 
     /// <summary>
@@ -1144,8 +1195,9 @@ public sealed partial class RepositoryConventionTests
     public void DirectoryBuildPropsDefinesPackageMetadata()
     {
         XElement props = ReadProjectFile("Directory.Build.props");
+        string targets = ReadRepositoryFile("Directory.Build.targets");
 
-        AssertProjectProperty(props, "VersionPrefix", "0.1.0");
+        AssertProjectProperty(props, "VersionPrefix", "0.1.4");
         AssertProjectProperty(props, "Authors", "willibrandon");
         AssertProjectProperty(props, "PackageLicenseExpression", "MIT");
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
@@ -1159,6 +1211,16 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(props, "SymbolPackageFormat", "snupkg");
         AssertProjectPropertyContains(props, "PackageTags", "native-aot");
         AssertProjectPropertyContains(props, "PackageTags", "secrets");
+        Assert.Contains("LICENSE", targets);
+        Assert.Contains("README.md", targets);
+        Assert.Contains("THIRD-PARTY-NOTICES.txt", targets);
+        Assert.Contains("assets\\icon.png", targets);
+        Assert.Contains("RemoveDisabledPublishSymbols", targets);
+        Assert.Contains("AfterTargets=\"Publish;_CopyAotSymbols\"", targets);
+        Assert.Contains("$(PublishDir)**/*.pdb", targets);
+        Assert.Contains("$(PublishDir)**/*.dbg", targets);
+        Assert.Contains("$(PublishDir)**/*.dwarf", targets);
+        Assert.Contains("$(PublishDir)**/*.dSYM", targets);
     }
 
     /// <summary>
@@ -2089,7 +2151,7 @@ public sealed partial class RepositoryConventionTests
             (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(validProcess, TestContext.CancellationToken).ConfigureAwait(false);
             Assert.AreEqual(0, validProcess.ExitCode, string.Concat(stdout, stderr));
             Assert.Contains("extension: willibrandon.picket 0.1.3", stdout);
-            Assert.Contains("task: PicketScan@1.0.3", stdout);
+            Assert.Contains("task: PicketScan@1.0.4", stdout);
         }
 
         File.WriteAllText(checksumPath, $"{new string('0', 64)}  {Path.GetFileName(vsixPath)}\n");
@@ -2973,11 +3035,12 @@ public sealed partial class RepositoryConventionTests
         AssertProfileProperty(profile, "StripSymbols", NonMacOsStripSymbolsCondition, "true");
     }
 
-    private static void AssertProfileDisablesMacOsNativeDebugSymbols(XElement profile)
+    private static void AssertProfileDisablesPublicDebugSymbols(XElement profile)
     {
-        AssertProfileProperty(profile, "DebugSymbols", MacOsStripSymbolsCondition, "false");
-        AssertProfileProperty(profile, "DebugType", MacOsStripSymbolsCondition, "none");
-        AssertProfileProperty(profile, "NativeDebugSymbols", MacOsStripSymbolsCondition, "false");
+        AssertProfileProperty(profile, "DebugSymbols", "false");
+        AssertProfileProperty(profile, "DebugType", "none");
+        AssertProfileProperty(profile, "NativeDebugSymbols", "false");
+        AssertProfileProperty(profile, "CopyOutputSymbolsToPublishDirectory", "false");
     }
 
     private static void AssertEmbeddablePackage(string relativePath, string packageId)
@@ -3005,6 +3068,7 @@ public sealed partial class RepositoryConventionTests
         AssertProjectProperty(project, "ToolCommandName", commandName);
         AssertProjectProperty(project, "PackageId", packageId);
         AssertProjectProperty(project, "PublishAot", "true");
+        AssertProjectProperty(project, "IncludeSymbols", "false");
         AssertProjectProperty(project, "ToolPackageRuntimeIdentifiers", "win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64");
         AssertProjectProperty(project, "RuntimeIdentifiers", "$(ToolPackageRuntimeIdentifiers)");
         AssertProjectPropertyIsNotEmpty(project, "Description");

@@ -278,11 +278,20 @@ public static class OfflineSecretValidator
 
     private static SecretValidationResult ValidateCodexRefreshToken(string secret)
     {
-        if (secret.Length < 32
+        if (secret.Length < 40
+            || !secret.StartsWith("rt_", StringComparison.Ordinal)
             || ContainsAsciiControlOrWhitespace(secret)
-            || !secret.Contains('_') && secret.Length < 48)
+            || IsTestCredential(secret))
         {
             return Invalid("invalid Codex refresh token shape");
+        }
+
+        for (int i = 3; i < secret.Length; i++)
+        {
+            if (!IsAsciiAlphaNumeric(secret[i]) && secret[i] is not ('_' or '-'))
+            {
+                return Invalid("invalid Codex refresh token alphabet");
+            }
         }
 
         return StructurallyValid("valid Codex refresh token shape");

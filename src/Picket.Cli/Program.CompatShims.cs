@@ -24,7 +24,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 source = sourceValue.Length == 0 ? "." : sourceValue;
@@ -35,7 +35,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--no-git", out noGit))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 continue;
@@ -45,7 +45,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--pipe", out pipe))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 continue;
@@ -55,7 +55,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--follow-symlinks", out followSymlinks))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 continue;
@@ -65,7 +65,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--log-opts", out logOptions))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 continue;
@@ -75,13 +75,29 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--platform", out platform))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 continue;
             }
 
-            forwardedArgs.Add(arg);
+            if (TryForwardCompatibilityRootFlag(args, ref i, forwardedArgs, out bool handledRootFlag))
+            {
+                if (handledRootFlag)
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                return 1;
+            }
+
+            if (arg.StartsWith('-'))
+            {
+                Console.Error.WriteLine($"unknown flag: {arg}");
+                return UnknownFlagExitCode;
+            }
         }
 
         if (noGit)
@@ -125,6 +141,7 @@ internal static partial class Program
         }
 
         var forwardedArgs = new List<string>();
+        string? logOptions = null;
         string source = ".";
         bool staged = false;
         for (int i = 0; i < args.Length; i++)
@@ -134,7 +151,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 source = sourceValue.Length == 0 ? "." : sourceValue;
@@ -145,7 +162,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--staged", out staged))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 continue;
@@ -153,15 +170,31 @@ internal static partial class Program
 
             if (IsLogOptionsFlag(arg))
             {
-                if (!TryReadStringFlag(args, ref i, "--log-opts", out _))
+                if (!TryReadStringFlag(args, ref i, "--log-opts", out logOptions))
                 {
-                    return UnknownFlagExitCode;
+                    return 1;
                 }
 
                 continue;
             }
 
-            forwardedArgs.Add(arg);
+            if (TryForwardCompatibilityRootFlag(args, ref i, forwardedArgs, out bool handledRootFlag))
+            {
+                if (handledRootFlag)
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                return 1;
+            }
+
+            if (arg.StartsWith('-'))
+            {
+                Console.Error.WriteLine($"unknown flag: {arg}");
+                return UnknownFlagExitCode;
+            }
         }
 
         forwardedArgs.Add("--pre-commit");
@@ -170,7 +203,64 @@ internal static partial class Program
             forwardedArgs.Add("--staged");
         }
 
+        if (!string.IsNullOrEmpty(logOptions))
+        {
+            forwardedArgs.Add("--log-opts");
+            forwardedArgs.Add(logOptions);
+        }
+
         forwardedArgs.Add(source);
         return RunGit([.. forwardedArgs]);
+    }
+
+    private static bool TryForwardCompatibilityRootFlag(
+        string[] args,
+        ref int index,
+        List<string> forwardedArgs,
+        out bool handled)
+    {
+        string arg = args[index];
+        bool hasValue = IsBaselinePathFlag(arg)
+            || IsConfigFlag(arg)
+            || IsEnableRuleFlag(arg)
+            || IsGitleaksIgnorePathFlag(arg)
+            || IsLogLevelFlag(arg)
+            || IsMaxArchiveDepthFlag(arg)
+            || IsMaxDecodeDepthFlag(arg)
+            || IsMaxTargetMegabytesFlag(arg)
+            || IsReportFormatFlag(arg)
+            || IsReportTemplateFlag(arg)
+            || IsTimeoutFlag(arg)
+            || IsDiagnosticsFlag(arg)
+            || IsDiagnosticsDirFlag(arg)
+            || arg is "-r" or "--report-path"
+            || arg.StartsWith("--report-path=", StringComparison.Ordinal)
+            || arg.Equals("--exit-code", StringComparison.Ordinal)
+            || arg.StartsWith("--exit-code=", StringComparison.Ordinal);
+        bool isFlag = IsIgnoreGitleaksAllowFlag(arg)
+            || IsNoBannerFlag(arg)
+            || IsNoColorFlag(arg)
+            || IsRedactFlag(arg)
+            || IsVerboseFlag(arg);
+        handled = hasValue || isFlag;
+        if (!handled)
+        {
+            return true;
+        }
+
+        forwardedArgs.Add(arg);
+        if (!hasValue || arg.Contains('='))
+        {
+            return true;
+        }
+
+        if (index + 1 >= args.Length)
+        {
+            Console.Error.WriteLine($"{arg} requires a value");
+            return false;
+        }
+
+        forwardedArgs.Add(args[++index]);
+        return true;
     }
 }

@@ -302,6 +302,53 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that compatibility enumeration scans archive-magic content whose path is not an archive name.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateCompatibilityUsesArchivePathIdentification()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "payload.bin"), CreateZipBytes(("secret.txt", "token-12345"u8.ToArray())));
+            File.WriteAllText(Path.Combine(root, "plain.zip"), "token-23456");
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(root));
+            string[] displayPaths = [.. files.Select(file => file.DisplayPath)];
+
+            Assert.Contains("payload.bin", displayPaths);
+            Assert.DoesNotContain("plain.zip", displayPaths);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that native enumeration can identify archive containers from their content.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateNativeUsesArchiveContentIdentification()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "payload.bin"), CreateZipBytes(("secret.txt", "token-12345"u8.ToArray())));
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                identifyArchivesByContent: true));
+
+            Assert.IsEmpty(files);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that zip archive entries are yielded as virtual source files when archive traversal is enabled.
     /// </summary>
     [TestMethod]

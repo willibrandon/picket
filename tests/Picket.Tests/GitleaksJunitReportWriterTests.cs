@@ -48,6 +48,19 @@ public sealed class GitleaksJunitReportWriterTests
     }
 
     /// <summary>
+    /// Verifies the optional link field uses the Gitleaks JSON field position.
+    /// </summary>
+    [TestMethod]
+    public void WriteIncludesLinkBetweenCommitAndEntropy()
+    {
+        Finding finding = CreateFinding(link: "https://github.com/example/repo/blob/commit/auth.py#L1");
+
+        string xml = GitleaksJunitReportWriter.Write([finding]);
+
+        Assert.Contains("&#34;Commit&#34;: &#34;0000000000000000&#34;,&#xA;&#x9;&#34;Link&#34;: &#34;https://github.com/example/repo/blob/commit/auth.py#L1&#34;,&#xA;&#x9;&#34;Entropy&#34;: 3.6818807,", xml);
+    }
+
+    /// <summary>
     /// Verifies XML escaping for attributes and failure character data.
     /// </summary>
     [TestMethod]
@@ -80,7 +93,24 @@ public sealed class GitleaksJunitReportWriterTests
 
         Assert.DoesNotContain("\u0001", xml);
         Assert.DoesNotContain("\u0002", xml);
-        Assert.Contains("&#xFFFD;", xml);
+        Assert.Contains("\uFFFD", xml);
+        Assert.DoesNotContain("&#xFFFD;", xml);
+    }
+
+    /// <summary>
+    /// Verifies Gitleaks-shaped JUnit replaces the invalid XML BMP noncharacters.
+    /// </summary>
+    [TestMethod]
+    public void WriteReplacesInvalidXmlBmpNoncharacters()
+    {
+        Finding finding = CreateFinding(description: "rule\uFFFEdescription", file: "auth\uFFFF.py");
+
+        string xml = GitleaksJunitReportWriter.Write([finding]);
+
+        Assert.DoesNotContain("\uFFFE", xml);
+        Assert.DoesNotContain("\uFFFF", xml);
+        Assert.Contains("rule\uFFFDdescription", xml);
+        Assert.Contains("auth\uFFFD.py", xml);
     }
 
     /// <summary>
@@ -104,7 +134,8 @@ public sealed class GitleaksJunitReportWriterTests
         string description = "Test Rule",
         string file = "auth.py",
         string match = "line containing secret",
-        double entropy = 3.681880802803402)
+        double entropy = 3.681880802803402,
+        string link = "")
     {
         return new Finding(
             "test-rule",
@@ -124,6 +155,7 @@ public sealed class GitleaksJunitReportWriterTests
             "10-19-2003",
             "opps",
             [],
-            "fingerprint");
+            "fingerprint",
+            link: link);
     }
 }

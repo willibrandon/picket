@@ -7,7 +7,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliS3ScanTests
 {
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
@@ -107,7 +107,7 @@ public sealed class CliS3ScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("blocked S3 endpoint: endpoint resolves to a non-public address", result.Stderr);
         Assert.DoesNotContain("s3-secret-access-key", result.Stderr);
@@ -145,7 +145,7 @@ public sealed class CliS3ScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("s3-secret-access-key", result.Stderr);
@@ -182,7 +182,7 @@ public sealed class CliS3ScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("S3 secret access key environment variable is not set: PICKET_S3_SOURCE_TEST_SECRET_ACCESS_KEY", result.Stderr);
     }

@@ -8,7 +8,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliGitLabScanTests
 {
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
@@ -85,7 +85,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("blocked GitLab endpoint: endpoint resolves to a non-public address", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -397,7 +397,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -433,7 +433,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source options accept either a ref or a merge request ID, not both.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -467,7 +467,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source scan accepts either --gitlab-project or --gitlab-group, not both", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -501,7 +501,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--gitlab-merge-request requires --gitlab-project", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -536,7 +536,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--gitlab-pipeline-id requires --gitlab-project", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -570,7 +570,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--gitlab-pipeline-id requires --gitlab-include-job-logs or --gitlab-include-job-artifacts", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -605,7 +605,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source options cannot combine merge request scans with snippet enumeration.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -640,7 +640,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source options cannot combine merge request scans with job artifact enumeration.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -675,7 +675,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source options cannot combine merge request scans with job log enumeration.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -710,7 +710,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GitLab source options cannot combine merge request scans with package file enumeration.", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
@@ -747,7 +747,7 @@ public sealed class CliGitLabScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("scan accepts only one native source provider at a time", result.Stderr);
         Assert.DoesNotContain("gitlab-source-secret", result.Stderr);

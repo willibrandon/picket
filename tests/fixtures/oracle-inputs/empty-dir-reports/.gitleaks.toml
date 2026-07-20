@@ -1,0 +1,9 @@
+title = "picket empty directory oracle"
+
+[[rules]]
+id = "empty-token"
+description = "Synthetic token used for empty-report oracle compatibility tests."
+regex = '''empty-secret-[0-9]{5}'''
+keywords = [
+    "empty-secret-",
+]

@@ -341,8 +341,9 @@ internal static class GeneratePackageManagerManifestsApp
         formula.AppendLine("  end");
         formula.AppendLine();
         formula.AppendLine("  def install");
-        formula.AppendLine("    bin.install \"picket\"");
-        formula.AppendLine("    bin.install \"picket-tui\"");
+        formula.AppendLine("    libexec.install Dir[\"*\"]");
+        formula.AppendLine("    bin.write_exec_script libexec/\"picket\"");
+        formula.AppendLine("    bin.write_exec_script libexec/\"picket-tui\"");
         formula.AppendLine("  end");
         formula.AppendLine();
         formula.AppendLine("  test do");

@@ -300,7 +300,7 @@ internal static partial class Program
         builder.Append("repo_root=$(git rev-parse --show-toplevel)\n");
         builder.Append("exec ");
         builder.Append(QuoteShell(options.CommandPath));
-        builder.Append(" protect --source \"$repo_root\"");
+        builder.Append(" protect --staged --source \"$repo_root\"");
         AppendHookScanOptions(builder, options);
         builder.Append('\n');
         return builder.ToString();

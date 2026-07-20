@@ -470,9 +470,14 @@ public sealed class PicketScanCacheTests
         byte[] content = Encoding.UTF8.GetBytes("token-12345");
 
         cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        string entryPath = GetSingleEntryPath(root.Path);
+        byte[] entryBeforeContention = File.ReadAllBytes(entryPath);
         using FileStream _ = new(GetSingleLockPath(root.Path), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
 
         cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+
+        Assert.IsTrue(File.Exists(entryPath));
+        CollectionAssert.AreEqual(entryBeforeContention, File.ReadAllBytes(entryPath));
     }
 
     /// <summary>
@@ -764,6 +769,28 @@ public sealed class PicketScanCacheTests
         Assert.HasCount(1, archive.Entries);
         Assert.Contains(firstCache.Key.Fingerprint, archive.Entries[0].FullName);
         Assert.DoesNotContain(secondCache.Key.Fingerprint, archive.Entries[0].FullName);
+    }
+
+    /// <summary>
+    /// Verifies cache export clamps pre-ZIP file timestamps instead of aborting the export.
+    /// </summary>
+    [TestMethod]
+    public void ExportClampsTimestampsBeforeZipEpoch()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        byte[] content = Encoding.UTF8.GetBytes("token-12345");
+        PicketScanCache cache = CreateCache(root.Path);
+        string archivePath = Path.Combine(root.Path, "cache.zip");
+
+        cache.Write(content, "secret.txt", [CreateFinding("secret.txt")]);
+        File.SetLastWriteTimeUtc(GetSingleEntryPath(root.Path), DateTime.UnixEpoch);
+
+        int exported = cache.Export(archivePath);
+
+        Assert.AreEqual(1, exported);
+        using var archive = ZipFile.OpenRead(archivePath);
+        ZipArchiveEntry entry = Assert.ContainsSingle(archive.Entries);
+        Assert.AreEqual(new DateTime(1980, 1, 1, 0, 0, 0), entry.LastWriteTime.DateTime);
     }
 
     /// <summary>

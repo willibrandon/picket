@@ -4,6 +4,7 @@ namespace Picket;
 
 internal static partial class Program
 {
+    private const int NativeOperationalExitCode = 2;
     private const int UnknownFlagExitCode = 126;
     private const int BinaryProbeLength = 8192;
     private const int DefaultNativeMaxArchiveDepth = Sources.ArchiveScanDefaults.DefaultMaxDepth;
@@ -15,6 +16,11 @@ internal static partial class Program
     private const string IncompleteScanMessage = "scan incomplete: one or more inputs could not be scanned";
     private const string ManagedHookMarker = "# managed by picket hooks install";
     private const string TimeoutErrorMessage = "context deadline exceeded";
+
+    private static int GetOperationalExitCode(bool nativeMode)
+    {
+        return nativeMode ? NativeOperationalExitCode : 1;
+    }
 
     private static async Task<int> Main(string[] args)
     {

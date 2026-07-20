@@ -12,7 +12,7 @@ public sealed class SecretScanner
     /// <summary>
     /// Gets the stable version of matching behavior that participates in cache and checkpoint identities.
     /// </summary>
-    public const string MatchingBehaviorVersion = "picket.matching.v4";
+    public const string MatchingBehaviorVersion = "picket.matching.v5";
 
     private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
 
@@ -24,6 +24,7 @@ public sealed class SecretScanner
         ArgumentNullException.ThrowIfNull(request);
 
         ReadOnlySpan<byte> originalInput = request.Input.Span;
+        long? maxTargetBytes = GetEffectiveMaxTargetBytes(request);
         Func<bool>? isCancellationRequested = CreateCancellationPredicate(request);
         if (IsCancellationRequested(isCancellationRequested))
         {
@@ -51,7 +52,7 @@ public sealed class SecretScanner
             request.RuleSet,
             request.IgnoreGitleaksAllow,
             request.Commit,
-            request.MaxTargetBytes,
+            maxTargetBytes,
             request.SymlinkFile,
             blobIdentity,
             findings,
@@ -60,7 +61,7 @@ public sealed class SecretScanner
             isCancellationRequested);
 
         if (request.MaxDecodeDepth == 0
-            || IsTooLargeForContentScan(originalInput.Length, request.MaxTargetBytes)
+            || IsTooLargeForContentScan(originalInput.Length, maxTargetBytes)
             || IsCancellationRequested(isCancellationRequested))
         {
             return CompleteScan(request, findings);
@@ -89,14 +90,14 @@ public sealed class SecretScanner
                 request.RuleSet,
                 request.IgnoreGitleaksAllow,
                 request.Commit,
-                request.MaxTargetBytes,
+                maxTargetBytes,
                 request.SymlinkFile,
                 blobIdentity,
                 findings,
                 request.EnableNativeDetectors,
                 request.EnableRandomnessScoring,
                 isCancellationRequested);
-            if (IsTooLargeForContentScan(decoded.Bytes.Length, request.MaxTargetBytes)
+            if (IsTooLargeForContentScan(decoded.Bytes.Length, maxTargetBytes)
                 || IsCancellationRequested(isCancellationRequested))
             {
                 break;
@@ -444,34 +445,6 @@ public sealed class SecretScanner
             return findings;
         }
 
-        if (compiledRule.UsesGenericApiKeyMatcher)
-        {
-            if (compiledRule.Prefilter.IsCandidate(input))
-            {
-                ScanGenericApiKeyRule(
-                    input,
-                    regexSourceInput,
-                    regexInput,
-                    originalInput,
-                    originalLineIndex,
-                    decodedInput,
-                    fileName,
-                    fileNameBytes,
-                    windowsFileNameBytes,
-                    globalAllowlists,
-                    ignoreGitleaksAllow,
-                    commit,
-                    symlinkFile,
-                    blobIdentity,
-                    compiledRule,
-                    findings,
-                    enableRandomnessScoring,
-                    isCancellationRequested);
-            }
-
-            return findings;
-        }
-
         if (compiledRule.UsesGcpServiceAccountKeyMatcher)
         {
             if (compiledRule.Prefilter.IsCandidate(input))
@@ -740,119 +713,8 @@ public sealed class SecretScanner
             SourcePosition start = originalLineIndex.FromOffset(reportStart);
             SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
-            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
-            ReadOnlySpan<byte> allowlistLineBytes = ExtractLine(input, matchStart);
-            if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
-            {
-                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
-                continue;
-            }
-
-            string matchText = DecodeReportText(matchBytes);
-            string secretText = DecodeReportText(secretBytes);
-            string lineText = DecodeReportText(lineBytes);
-            if (IsAllowed(
-                globalAllowlists,
-                compiledRule.Allowlists,
-                fileNameBytes,
-                windowsFileNameBytes,
-                matchBytes,
-                secretBytes,
-                allowlistLineBytes,
-                secretText,
-                commit))
-            {
-                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
-                continue;
-            }
-
-            findings.Add(new Finding(
-                rule.Id,
-                rule.Description,
-                start.Line,
-                end.Line,
-                start.Column,
-                end.Column,
-                matchText,
-                secretText,
-                fileName,
-                symlinkFile,
-                commit,
-                ToGitleaksEntropy(entropy),
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                CombineTags(rule.Tags, decodeTags),
-                CreateFingerprint(commit, fileName, rule.Id, start.Line),
-                lineText,
-                blobSha256: blobIdentity.Sha256,
-                decodePath: decodePath,
-                randomness: CreateRandomnessAssessment(entropyBytes, enableRandomnessScoring),
-                positionKind: originalLineIndex.PositionKind));
-
-            offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
-        }
-    }
-
-    private static void ScanGenericApiKeyRule(
-        ReadOnlySpan<byte> input,
-        ReadOnlySpan<byte> regexSourceInput,
-        GitleaksRegexInput? regexInput,
-        ReadOnlySpan<byte> originalInput,
-        SourceLineIndex originalLineIndex,
-        DecodedInput? decodedInput,
-        string fileName,
-        ReadOnlySpan<byte> fileNameBytes,
-        ReadOnlySpan<byte> windowsFileNameBytes,
-        List<CompiledAllowlist> globalAllowlists,
-        bool ignoreGitleaksAllow,
-        string commit,
-        string symlinkFile,
-        SourceBlobIdentity blobIdentity,
-        CompiledRule compiledRule,
-        List<Finding> findings,
-        bool enableRandomnessScoring,
-        Func<bool>? isCancellationRequested)
-    {
-        SecretRule rule = compiledRule.Rule;
-        int offset = 0;
-        while (GenericApiKeyMatcher.TryFind(input, offset, isCancellationRequested, out int matchStart, out int matchEnd, out int secretStart, out int secretEnd))
-        {
-            if (IsCancellationRequested(isCancellationRequested))
-            {
-                return;
-            }
-
-            if (!TryMapMatch(
-                regexInput,
-                decodedInput,
-                matchStart,
-                matchEnd,
-                out int reportStart,
-                out int reportEnd,
-                out IReadOnlyList<string> decodeTags,
-                out IReadOnlyList<string> decodePath))
-            {
-                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
-                continue;
-            }
-
-            ReadOnlySpan<byte> secretBytes = input[secretStart..secretEnd];
-            ReadOnlySpan<byte> entropyBytes = GetEntropyBytes(input, regexSourceInput, regexInput, secretStart, secretEnd);
-            double entropy = GitleaksShannonEntropy.Calculate(entropyBytes);
-            if (rule.Entropy > 0 && entropy <= rule.Entropy)
-            {
-                offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
-                continue;
-            }
-
-            ReadOnlySpan<byte> reportInput = decodedInput is null && regexInput is null ? input : originalInput;
-            SourcePosition start = originalLineIndex.FromOffset(reportStart);
-            SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
-            ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
-            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
-            ReadOnlySpan<byte> allowlistLineBytes = ExtractLine(input, matchStart);
+            ReadOnlySpan<byte> lineBytes = ExtractLineSpan(reportInput, reportStart, reportEnd);
+            ReadOnlySpan<byte> allowlistLineBytes = ExtractLineSpan(input, matchStart, matchEnd);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
             {
                 offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
@@ -961,8 +823,8 @@ public sealed class SecretScanner
             ReadOnlySpan<byte> reportInput = decodedInput is null && regexInput is null ? input : originalInput;
             SourcePosition start = originalLineIndex.FromOffset(reportStart);
             SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
-            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
-            ReadOnlySpan<byte> allowlistLineBytes = ExtractLine(input, matchStart);
+            ReadOnlySpan<byte> lineBytes = ExtractLineSpan(reportInput, reportStart, reportEnd);
+            ReadOnlySpan<byte> allowlistLineBytes = ExtractLineSpan(input, matchStart, matchEnd);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
             {
                 offset = AdvanceAfterMatch(matchStart, matchEnd, input.Length);
@@ -1070,8 +932,8 @@ public sealed class SecretScanner
             SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[match.MatchStart..match.MatchEnd];
             ReadOnlySpan<byte> secretBytes = input[match.SecretStart..match.SecretEnd];
-            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
-            ReadOnlySpan<byte> allowlistLineBytes = ExtractLine(input, match.MatchStart);
+            ReadOnlySpan<byte> lineBytes = ExtractLineSpan(reportInput, reportStart, reportEnd);
+            ReadOnlySpan<byte> allowlistLineBytes = ExtractLineSpan(input, match.MatchStart, match.MatchEnd);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
             {
                 continue;
@@ -1156,11 +1018,14 @@ public sealed class SecretScanner
             }
 
             ByteRegexMatch match = captures.Match;
+            ReadOnlySpan<byte> rawMatchBytes = match.Value(input);
+            ReadOnlySpan<byte> matchBytes = TrimLineFeeds(rawMatchBytes, out int trimmedMatchStart);
+            int effectiveMatchEnd = match.Start + matchBytes.Length;
             if (!TryMapMatch(
                 regexInput,
                 decodedInput,
                 match.Start,
-                match.End,
+                effectiveMatchEnd,
                 out int reportStart,
                 out int reportEnd,
                 out IReadOnlyList<string> decodeTags,
@@ -1170,9 +1035,15 @@ public sealed class SecretScanner
                 continue;
             }
 
-            ByteRegexMatch secret = ResolveSecret(captures, rule.SecretGroup);
-            ReadOnlySpan<byte> secretBytes = secret.Value(input);
-            ReadOnlySpan<byte> entropyBytes = GetEntropyBytes(input, regexSourceInput, regexInput, secret.Start, secret.End);
+            ByteRegexCaptures? normalizedCaptures = regex.FindCaptures(matchBytes, 0);
+            ReadOnlySpan<byte> secretBytes = ResolveSecret(
+                normalizedCaptures,
+                matchBytes,
+                match.Start + trimmedMatchStart,
+                rule.SecretGroup,
+                out int secretStart,
+                out int secretEnd);
+            ReadOnlySpan<byte> entropyBytes = GetEntropyBytes(input, regexSourceInput, regexInput, secretStart, secretEnd);
             double entropy = GitleaksShannonEntropy.Calculate(entropyBytes);
             if (rule.Entropy > 0 && entropy <= rule.Entropy)
             {
@@ -1183,9 +1054,8 @@ public sealed class SecretScanner
             ReadOnlySpan<byte> reportInput = decodedInput is null && regexInput is null ? input : originalInput;
             SourcePosition start = originalLineIndex.FromOffset(reportStart);
             SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
-            ReadOnlySpan<byte> matchBytes = match.Value(input);
-            ReadOnlySpan<byte> lineBytes = ExtractLine(reportInput, reportStart);
-            ReadOnlySpan<byte> allowlistLineBytes = ExtractLine(input, match.Start);
+            ReadOnlySpan<byte> lineBytes = ExtractLineSpan(reportInput, reportStart, reportEnd);
+            ReadOnlySpan<byte> allowlistLineBytes = ExtractLineSpan(input, match.Start, effectiveMatchEnd);
             if (!ignoreGitleaksAllow && ContainsGitleaksAllow(lineBytes))
             {
                 offset = AdvanceAfterMatch(match, input.Length);
@@ -1614,12 +1484,34 @@ public sealed class SecretScanner
             : $"{commit}:{fileName}:{ruleId}:{startLine}";
     }
 
-    private static ByteRegexMatch ResolveSecret(ByteRegexCaptures captures, int secretGroup)
+    private static ReadOnlySpan<byte> ResolveSecret(
+        ByteRegexCaptures? captures,
+        ReadOnlySpan<byte> matchBytes,
+        int matchBaseOffset,
+        int secretGroup,
+        out int secretStart,
+        out int secretEnd)
     {
+        if (captures is null || captures.GroupCount < 2)
+        {
+            secretStart = matchBaseOffset;
+            secretEnd = matchBaseOffset + matchBytes.Length;
+            return matchBytes;
+        }
+
         if (secretGroup > 0)
         {
             ByteRegexMatch? group = captures.GetGroup(secretGroup);
-            return group ?? captures.Match;
+            if (group is null)
+            {
+                secretStart = matchBaseOffset;
+                secretEnd = matchBaseOffset;
+                return [];
+            }
+
+            secretStart = matchBaseOffset + group.Value.Start;
+            secretEnd = matchBaseOffset + group.Value.End;
+            return group.Value.Value(matchBytes);
         }
 
         for (int groupIndex = 1; groupIndex < captures.GroupCount; groupIndex++)
@@ -1627,11 +1519,15 @@ public sealed class SecretScanner
             ByteRegexMatch? group = captures.GetGroup(groupIndex);
             if (group is { Length: > 0 })
             {
-                return group.Value;
+                secretStart = matchBaseOffset + group.Value.Start;
+                secretEnd = matchBaseOffset + group.Value.End;
+                return group.Value.Value(matchBytes);
             }
         }
 
-        return captures.Match;
+        secretStart = matchBaseOffset;
+        secretEnd = matchBaseOffset + matchBytes.Length;
+        return matchBytes;
     }
 
     private static int AdvanceAfterMatch(ByteRegexMatch match, int inputLength)
@@ -1654,21 +1550,58 @@ public sealed class SecretScanner
         return Encoding.UTF8.GetString(bytes);
     }
 
-    private static ReadOnlySpan<byte> ExtractLine(ReadOnlySpan<byte> input, int offset)
+    private static ReadOnlySpan<byte> TrimLineFeeds(ReadOnlySpan<byte> input, out int trimmedStart)
     {
-        int start = offset;
-        while (start > 0 && input[start - 1] is not ((byte)'\n' or (byte)'\r'))
+        int start = 0;
+        while (start < input.Length && input[start] == (byte)'\n')
+        {
+            start++;
+        }
+
+        int end = input.Length;
+        while (end > start && input[end - 1] == (byte)'\n')
+        {
+            end--;
+        }
+
+        trimmedStart = start;
+        return input[start..end];
+    }
+
+    private static ReadOnlySpan<byte> ExtractLineSpan(ReadOnlySpan<byte> input, int startOffset, int endOffset)
+    {
+        int start = startOffset;
+        while (start > 0 && input[start - 1] != (byte)'\n')
         {
             start--;
         }
 
-        int end = offset;
-        while (end < input.Length && input[end] is not ((byte)'\n' or (byte)'\r'))
+        int end = Math.Max(startOffset, endOffset);
+        while (end < input.Length && input[end] != (byte)'\n')
         {
             end++;
         }
 
         return input[start..end];
+    }
+
+    private static long? GetEffectiveMaxTargetBytes(ScanRequest request)
+    {
+        long? maxTargetBytes = request.MaxTargetBytes;
+        if (!request.UseGitleaksMaxTargetSemantics || !maxTargetBytes.HasValue)
+        {
+            return maxTargetBytes;
+        }
+
+        if (maxTargetBytes.Value == 0)
+        {
+            return null;
+        }
+
+        const long GitleaksMegabyteWindow = 999_999;
+        return maxTargetBytes.Value > long.MaxValue - GitleaksMegabyteWindow
+            ? long.MaxValue
+            : maxTargetBytes.Value + GitleaksMegabyteWindow;
     }
 
     private static byte[] CreateWindowsFileNameBytes(string fileName)

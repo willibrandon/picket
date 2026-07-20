@@ -8,7 +8,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliSourceEndpointGuardTests
 {
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
     private const string TokenEnvironmentVariable = "PICKET_SOURCE_ENDPOINT_GUARD_TOKEN";
     private const string TokenValue = "source-endpoint-guard-secret";
 
@@ -161,7 +161,7 @@ public sealed class CliSourceEndpointGuardTests
 
         CliResult result = await RunCliWithEnvironmentAsync(root.Path, environment, [.. arguments]).ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains(expectedMessage, result.Stderr);
         foreach (string? secret in environment.Values)
         {

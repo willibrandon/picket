@@ -1,0 +1,206 @@
+{
+  "Schema": "picket.oracle.v1",
+  "Name": "git-multicommit",
+  "Mode": "git",
+  "Formats": [
+    "json",
+    "csv",
+    "junit",
+    "sarif"
+  ],
+  "Upstream": {
+    "Tool": "gitleaks",
+    "Version": "version is set by build process",
+    "CloneVersion": "v8.30.0-23-g4c232b5",
+    "Commit": "4c232b5014f7618360bd992b4c489cb055881c6b",
+    "Remote": "https://github.com/gitleaks/gitleaks.git"
+  },
+  "Redaction": {
+    "MapRequired": true,
+    "EntryCount": 2
+  },
+  "Files": [
+    {
+      "Kind": "gitleaks-report",
+      "Format": "json",
+      "Path": "gitleaks.json",
+      "Sha256": "c485cda48f1772662491291e536a7d8de0095bcc0c982db473ac25e60aaaa9aa"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "json",
+      "Path": "picket.json",
+      "Sha256": "c485cda48f1772662491291e536a7d8de0095bcc0c982db473ac25e60aaaa9aa"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "json",
+      "Path": "gitleaks.json.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "json",
+      "Path": "picket.json.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "json",
+      "Path": "gitleaks.json.stderr.txt",
+      "Sha256": "8cb6b91b2c17c3a47dbda29b521df9c779c850d276e33ef697321c18b79af0c3"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "json",
+      "Path": "picket.json.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "csv",
+      "Path": "gitleaks.csv",
+      "Sha256": "912db9b46209c0b95084841030e04959c16e2a565169566dfb16556f9ebfd6d2"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "csv",
+      "Path": "picket.csv",
+      "Sha256": "912db9b46209c0b95084841030e04959c16e2a565169566dfb16556f9ebfd6d2"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "csv",
+      "Path": "gitleaks.csv.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "csv",
+      "Path": "picket.csv.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "csv",
+      "Path": "gitleaks.csv.stderr.txt",
+      "Sha256": "8cb6b91b2c17c3a47dbda29b521df9c779c850d276e33ef697321c18b79af0c3"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "csv",
+      "Path": "picket.csv.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "junit",
+      "Path": "gitleaks.junit",
+      "Sha256": "d4d23c2f9d0860d7ed8704e491042ea94373b11e5c3c582f0ca2289622f32a9a"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "junit",
+      "Path": "picket.junit",
+      "Sha256": "d4d23c2f9d0860d7ed8704e491042ea94373b11e5c3c582f0ca2289622f32a9a"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "junit",
+      "Path": "gitleaks.junit.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "junit",
+      "Path": "picket.junit.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "junit",
+      "Path": "gitleaks.junit.stderr.txt",
+      "Sha256": "8cb6b91b2c17c3a47dbda29b521df9c779c850d276e33ef697321c18b79af0c3"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "junit",
+      "Path": "picket.junit.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif",
+      "Sha256": "94d96d053e0dce04f171e0b4a978192cd420b410f000018a2ef71a1ccda3c7fc"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "sarif",
+      "Path": "picket.sarif",
+      "Sha256": "94d96d053e0dce04f171e0b4a978192cd420b410f000018a2ef71a1ccda3c7fc"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "sarif",
+      "Path": "picket.sarif.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif.stderr.txt",
+      "Sha256": "8cb6b91b2c17c3a47dbda29b521df9c779c850d276e33ef697321c18b79af0c3"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "sarif",
+      "Path": "picket.sarif.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "Comparisons": [
+    {
+      "Format": "json",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    },
+    {
+      "Format": "csv",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    },
+    {
+      "Format": "junit",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    },
+    {
+      "Format": "sarif",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 1,
+      "PicketExitCode": 1
+    }
+  ]
+}

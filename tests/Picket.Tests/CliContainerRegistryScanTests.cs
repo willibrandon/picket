@@ -8,6 +8,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliContainerRegistryScanTests
 {
+    private const int NativeOperationalExitCode = 2;
     private const string TokenEnvironmentVariable = "PICKET_REGISTRY_TEST_TOKEN";
 
     /// <summary>
@@ -114,9 +115,9 @@ public sealed class CliContainerRegistryScanTests
             "--registry-token-env",
             "PICKET=REGISTRY").ConfigureAwait(false);
 
-        Assert.AreEqual(126, empty.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, empty.ExitCode);
         Assert.Contains("environment variable names must not be empty", empty.Stderr);
-        Assert.AreEqual(126, invalid.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, invalid.ExitCode);
         Assert.Contains("environment variable name is invalid", invalid.Stderr);
     }
 
@@ -155,9 +156,9 @@ public sealed class CliContainerRegistryScanTests
             "--registry-username-env",
             "PICKET_REGISTRY_TEST_USERNAME").ConfigureAwait(false);
 
-        Assert.AreEqual(126, mixed.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, mixed.ExitCode);
         Assert.Contains("either --registry-token-env or both --registry-username-env and --registry-password-env", mixed.Stderr);
-        Assert.AreEqual(126, incomplete.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, incomplete.ExitCode);
         Assert.Contains("either --registry-token-env or both --registry-username-env and --registry-password-env", incomplete.Stderr);
     }
 

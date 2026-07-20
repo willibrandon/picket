@@ -82,10 +82,8 @@ internal sealed class PicketTuiProcessFileLauncher : IPicketTuiFileLauncher
             return codeStartInfo;
         }
 
-        return new ProcessStartInfo(path)
-        {
-            UseShellExecute = true,
-        };
+        throw new InvalidOperationException(
+            "No editor was found. Set PICKET_EDITOR, VISUAL, or EDITOR to an editor command.");
     }
 
     private static string? GetConfiguredEditor()

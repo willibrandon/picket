@@ -196,6 +196,7 @@ internal static partial class Program
             maxTargetBytes: maxTargetBytes,
             symlinkFile: file.SymlinkDisplayPath,
             enableCSharpStringConcatenation: nativeMode,
+            useGitleaksMaxTargetSemantics: !nativeMode,
             isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
             cancellationToken: cancellationToken)
         {

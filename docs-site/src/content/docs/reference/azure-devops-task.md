@@ -11,7 +11,7 @@ This page is generated from `azure-devops/tasks/PicketScanV1/task.json`.
 
 Task name: `PicketScan`
 
-Version: `1.0.3`
+Version: `1.0.4`
 
 ## Inputs
 

@@ -231,6 +231,17 @@ public sealed class GitHubSecretLiveValidatorTests
     }
 
     /// <summary>
+    /// Verifies that endpoint overrides cannot include URI user information.
+    /// </summary>
+    [TestMethod]
+    public void UserEndpointRejectsUserInfo()
+    {
+        GitHubSecretLiveValidatorOptions options = GitHubSecretLiveValidatorOptions.CreateDefault();
+
+        Assert.ThrowsExactly<ArgumentException>(() => options.UserEndpoint = new Uri("https://user:password@api.github.test/user"));
+    }
+
+    /// <summary>
     /// Verifies that proxy endpoints cannot carry credential-like URI components.
     /// </summary>
     [TestMethod]

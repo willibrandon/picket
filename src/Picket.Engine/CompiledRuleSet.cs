@@ -114,19 +114,17 @@ public sealed class CompiledRuleSet(RuleSet rules)
         foreach (SecretRule rule in rules.Rules)
         {
             bool usesAwsCredentialPairMatcher = AwsCredentialPairMatcher.CanHandle(rule);
-            bool usesGenericApiKeyMatcher = GenericApiKeyMatcher.CanHandle(rule);
             bool usesGcpServiceAccountKeyMatcher = GcpServiceAccountKeyMatcher.CanHandle(rule);
             bool deferRegexCompilation = rules.RegexesPrevalidated;
             string regexContext = $"{rule.Id}: invalid regex";
             string pathRegexContext = $"{rule.Id}: invalid path";
             compiledRules.Add(new CompiledRule(
                 rule,
-                usesAwsCredentialPairMatcher || usesGenericApiKeyMatcher || usesGcpServiceAccountKeyMatcher || deferRegexCompilation ? null : CompileOptionalRegex(rule.Pattern, regexContext),
+                usesAwsCredentialPairMatcher || usesGcpServiceAccountKeyMatcher || deferRegexCompilation ? null : CompileOptionalRegex(rule.Pattern, regexContext),
                 deferRegexCompilation ? null : CompileOptionalRegex(rule.PathPattern, pathRegexContext),
                 CompiledAllowlist.Compile(rule.Allowlists, deferRegexCompilation, $"{rule.Id}: [[rules.allowlists]]"),
                 KeywordPrefilter.Create(rule.Keywords),
                 usesAwsCredentialPairMatcher,
-                usesGenericApiKeyMatcher,
                 usesGcpServiceAccountKeyMatcher,
                 appliesGlobalAllowlists: !IsPicketNativeRulePack(rule.RulePack),
                 deferRegexCompilation,

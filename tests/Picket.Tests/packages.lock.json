@@ -152,29 +152,29 @@
       "picket.analyze": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )"
         }
       },
       "picket.compat": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Rules": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Rules": "[0.1.4, )"
         }
       },
       "picket.docs": {
         "type": "Project",
         "dependencies": {
-          "Picket.Analyze": "[0.1.0, )",
-          "Picket.Compat": "[0.1.0, )",
-          "Picket.Report": "[0.1.0, )",
-          "Picket.Verify": "[0.1.0, )"
+          "Picket.Analyze": "[0.1.4, )",
+          "Picket.Compat": "[0.1.4, )",
+          "Picket.Report": "[0.1.4, )",
+          "Picket.Verify": "[0.1.4, )"
         }
       },
       "picket.engine": {
         "type": "Project",
         "dependencies": {
-          "Picket.Rules": "[0.1.0, )",
+          "Picket.Rules": "[0.1.4, )",
           "Scout.Text.Regex": "[0.4.7, )",
           "SharpYaml": "[3.13.0, )"
         }
@@ -182,8 +182,8 @@
       "picket.report": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Rules": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Rules": "[0.1.4, )"
         }
       },
       "picket.rules": {
@@ -198,6 +198,7 @@
       "picket.sources": {
         "type": "Project",
         "dependencies": {
+          "Scout.IO.Globbing": "[0.4.7, )",
           "Scout.IO.Ignore": "[0.4.7, )",
           "ZstdNet": "[1.5.7, )"
         }
@@ -205,22 +206,22 @@
       "picket.store": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Security": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Security": "[0.1.4, )"
         }
       },
       "picket.tui": {
         "type": "Project",
         "dependencies": {
           "Hex1b": "[0.165.0, )",
-          "Picket.Report": "[0.1.0, )"
+          "Picket.Report": "[0.1.4, )"
         }
       },
       "picket.verify": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Security": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Security": "[0.1.4, )"
         }
       },
       "Hex1b": {
@@ -232,6 +233,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "QRCoder": "1.7.0"
         }
+      },
+      "Scout.IO.Globbing": {
+        "type": "CentralTransitive",
+        "requested": "[0.4.7, )",
+        "resolved": "0.4.7",
+        "contentHash": "/kUPHDw4vg6RAEyr7hBMpbOblHnbKGr/2Sx04vWff3zc0RiqHsN+hDPXcbIvI+OdRz/AXtLkDpYop5wWiky3Bw=="
       },
       "Scout.IO.Ignore": {
         "type": "CentralTransitive",

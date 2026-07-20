@@ -1,4 +1,5 @@
 using Picket.Engine;
+using System.Text;
 
 namespace Picket.Report;
 
@@ -75,8 +76,6 @@ public static class GitleaksFindingRedactor
             {
                 return RedactMissingEvidence(finding);
             }
-
-            return finding.Randomness is null ? finding : WithoutRandomness(finding);
         }
 
         string secret = MaskSecret(finding.Secret, redactionPercent, requirePartialMask);
@@ -111,38 +110,6 @@ public static class GitleaksFindingRedactor
             finding.Link,
             secretSha256,
             matchSha256,
-            finding.ValidationState,
-            finding.BlobSha256,
-            finding.DecodePath,
-            randomness: null,
-            positionKind: finding.PositionKind);
-    }
-
-    private static Finding WithoutRandomness(Finding finding)
-    {
-        return new Finding(
-            finding.RuleID,
-            finding.Description,
-            finding.StartLine,
-            finding.EndLine,
-            finding.StartColumn,
-            finding.EndColumn,
-            finding.Match,
-            finding.Secret,
-            finding.File,
-            finding.SymlinkFile,
-            finding.Commit,
-            finding.Entropy,
-            finding.Author,
-            finding.Email,
-            finding.Date,
-            finding.Message,
-            finding.Tags,
-            finding.Fingerprint,
-            finding.Line,
-            finding.Link,
-            finding.SecretSha256,
-            finding.MatchSha256,
             finding.ValidationState,
             finding.BlobSha256,
             finding.DecodePath,
@@ -185,6 +152,11 @@ public static class GitleaksFindingRedactor
 
     private static string RedactLine(Finding finding, string redactedSecret)
     {
+        if (finding.Secret.Length == 0)
+        {
+            return InterleaveReplacement(finding.Line, redactedSecret);
+        }
+
         if (finding.DecodePath.Count != 0)
         {
             return redactedSecret;
@@ -198,6 +170,11 @@ public static class GitleaksFindingRedactor
 
     private static string RedactMatch(Finding finding, string redactedSecret, bool requirePartialMask)
     {
+        if (finding.Secret.Length == 0)
+        {
+            return InterleaveReplacement(finding.Match, redactedSecret);
+        }
+
         string redactedMatch = finding.Match.Replace(finding.Secret, redactedSecret, StringComparison.Ordinal);
         return requirePartialMask && redactedMatch.Equals(finding.Match, StringComparison.Ordinal)
             ? redactedSecret
@@ -211,6 +188,14 @@ public static class GitleaksFindingRedactor
             return RedactedValue;
         }
 
+        if (!requirePartialMask)
+        {
+            byte[] secretBytes = Encoding.UTF8.GetBytes(secret);
+            double visibleByteLengthValue = Math.Round((double)secretBytes.Length * (100 - redactionPercent) / 100.0, MidpointRounding.ToEven);
+            int visibleByteLength = (int)Math.Clamp(visibleByteLengthValue, 0, secretBytes.Length);
+            return string.Concat(Encoding.UTF8.GetString(secretBytes.AsSpan(0, visibleByteLength)), "...");
+        }
+
         double visibleLengthValue = Math.Round((double)secret.Length * (100 - redactionPercent) / 100.0, MidpointRounding.ToEven);
         int visibleLength = (int)Math.Clamp(visibleLengthValue, 0, secret.Length);
         if (requirePartialMask && redactionPercent > 0 && visibleLength >= secret.Length)
@@ -219,6 +204,19 @@ public static class GitleaksFindingRedactor
         }
 
         return string.Concat(secret.AsSpan(0, visibleLength), "...");
+    }
+
+    private static string InterleaveReplacement(string value, string replacement)
+    {
+        var builder = new StringBuilder(value.Length + ((value.Length + 1) * replacement.Length));
+        builder.Append(replacement);
+        foreach (Rune rune in value.EnumerateRunes())
+        {
+            builder.Append(rune.ToString());
+            builder.Append(replacement);
+        }
+
+        return builder.ToString();
     }
 
     private static void ValidateRedactionPercent(int redactionPercent)

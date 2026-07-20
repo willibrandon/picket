@@ -37,7 +37,7 @@ When no hook name is provided, `picket hooks install` installs `pre-commit`.
 | `--command <path>` | Command written into the hook script. Defaults to `picket`. |
 | `-c, --config <path>` | Gitleaks-compatible config path to pass to hook scans. |
 | `-b, --baseline-path <path>` | Gitleaks-compatible baseline path to pass to hook scans. |
-| `--max-target-megabytes <n>` | Maximum file size in MiB for content rules. |
+| `--max-target-megabytes <n>` | Maximum file size in decimal megabytes for content rules. |
 | `--redact[=n]` | Redaction percentage from `0` through `100`. Installed hooks default to `100`. |
 
 Generated hooks are POSIX shell scripts under `.git/hooks` for normal repositories or `hooks` for bare repositories. They include a managed marker so Picket can update its own hooks safely.

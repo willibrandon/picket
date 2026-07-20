@@ -157,6 +157,7 @@ public static class EndpointGuard
             172 when bytes[1] is >= 16 and <= 31 => true,
             192 when bytes[1] == 0 && bytes[2] == 0 => true,
             192 when bytes[1] == 0 && bytes[2] == 2 => true,
+            192 when bytes[1] == 88 && bytes[2] == 99 => true,
             192 when bytes[1] == 168 => true,
             198 when bytes[1] is 18 or 19 => true,
             198 when bytes[1] == 51 && bytes[2] == 100 => true,
@@ -225,12 +226,26 @@ public static class EndpointGuard
             return false;
         }
 
+        bool wellKnownPrefix = true;
         for (int i = 4; i < 12; i++)
         {
             if (bytes[i] != 0)
             {
-                return false;
+                wellKnownPrefix = false;
+                break;
             }
+        }
+
+        bool localUsePrefix = bytes[4] == 0
+            && bytes[5] == 1;
+        for (int i = 6; localUsePrefix && i < 12; i++)
+        {
+            localUsePrefix = bytes[i] == 0;
+        }
+
+        if (!wellKnownPrefix && !localUsePrefix)
+        {
+            return false;
         }
 
         return IsNonPublicIPv4(bytes.AsSpan(12, 4));

@@ -29,7 +29,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 source = sourceValue.Length == 0 ? "." : sourceValue;
@@ -38,9 +38,15 @@ internal static partial class Program
 
             if (IsOfflineVerificationFlag(arg))
             {
-                if (!TryReadBooleanFlag(arg, "--offline", out bool offline) || !offline)
+                if (!TryReadBooleanFlag(arg, "--offline", out bool offline))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
+                }
+
+                if (!offline)
+                {
+                    Console.Error.WriteLine("--offline=false is invalid; omit --offline or use --live");
+                    return NativeOperationalExitCode;
                 }
 
                 continue;
@@ -50,7 +56,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--live", out bool live))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (live)
@@ -65,7 +71,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--github-api-endpoint", out githubApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 providerOptionSpecified = true;
@@ -76,7 +82,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--github-api-proxy", out githubApiProxyEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 providerOptionSpecified = true;
@@ -87,7 +93,7 @@ internal static partial class Program
             {
                 if (!TryReadLiveTlsModeFlag(args, ref i, out GitHubSecretLiveValidatorTlsMode value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubApiTlsMode = value;
@@ -99,7 +105,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-rate-limit-ms", out TimeSpan value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 minimumRequestInterval = value;
@@ -111,7 +117,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-provider-rate-limit-ms", out TimeSpan value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 minimumRequestIntervalPerProvider = value;
@@ -123,7 +129,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 providerOptionSpecified = true;
@@ -136,7 +142,7 @@ internal static partial class Program
         if (providerOptionSpecified && !liveVerification)
         {
             Console.Error.WriteLine("live provider options require --live");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (source is not null)
@@ -187,7 +193,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 source = sourceValue.Length == 0 ? "." : sourceValue;
@@ -196,9 +202,15 @@ internal static partial class Program
 
             if (IsOfflineVerificationFlag(arg))
             {
-                if (!TryReadBooleanFlag(arg, "--offline", out bool offline) || !offline)
+                if (!TryReadBooleanFlag(arg, "--offline", out bool offline))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
+                }
+
+                if (!offline)
+                {
+                    Console.Error.WriteLine("--offline=false is invalid; omit --offline or use --live");
+                    return NativeOperationalExitCode;
                 }
 
                 continue;
@@ -208,7 +220,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--live", out bool live))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (live)
@@ -223,7 +235,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--github-api-endpoint", out githubApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 providerOptionSpecified = true;
@@ -234,7 +246,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--github-api-proxy", out githubApiProxyEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 providerOptionSpecified = true;
@@ -245,7 +257,7 @@ internal static partial class Program
             {
                 if (!TryReadLiveTlsModeFlag(args, ref i, out GitHubSecretLiveValidatorTlsMode value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubApiTlsMode = value;
@@ -257,7 +269,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-rate-limit-ms", out TimeSpan value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 minimumRequestInterval = value;
@@ -269,7 +281,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-provider-rate-limit-ms", out TimeSpan value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 minimumRequestIntervalPerProvider = value;
@@ -281,7 +293,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 providerOptionSpecified = true;
@@ -294,7 +306,7 @@ internal static partial class Program
         if (providerOptionSpecified && !liveVerification)
         {
             Console.Error.WriteLine("live provider options require --live");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (source is not null)

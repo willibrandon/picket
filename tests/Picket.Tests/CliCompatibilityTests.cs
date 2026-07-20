@@ -34,7 +34,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--exit-code", "7").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--exit-code", "7", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(7, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -84,7 +84,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "json").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "json", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
@@ -119,6 +119,8 @@ public sealed class CliCompatibilityTests
             "0",
             "-f",
             "json",
+            "-r",
+            "-",
             "--diagnostics",
             "cpu",
             "--diagnostics-dir",
@@ -150,7 +152,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "csv").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "csv", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("RuleID,Commit,File,SymlinkFile,Secret,Match,StartLine,EndLine,StartColumn,EndColumn,Author,Message,Date,Email,Fingerprint,Tags\n", result.Stdout);
@@ -185,7 +187,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "junit").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "junit", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", result.Stdout);
@@ -204,7 +206,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "sarif").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "sarif", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\"", result.Stdout);
@@ -514,7 +516,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("dir", root.Path, "--rule-pack", PicketRulePackNames.Strict).ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--rule-pack requires a native command or --profile picket", result.Stderr);
     }
@@ -555,7 +557,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("dir", root.Path, "--profile", "strict").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("unsupported profile: strict", result.Stderr);
     }
@@ -829,7 +831,7 @@ public sealed class CliCompatibilityTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(1, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.Contains("blocked GitHub API proxy endpoint", result.Stderr);
         Assert.Contains("endpoint URI must use HTTPS", result.Stderr);
     }
@@ -844,7 +846,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("scan", root.Path, "--github-api-endpoint", "https://api.github.com/user").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.Contains("live provider options require --verify", result.Stderr);
     }
 
@@ -858,7 +860,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("scan", root.Path, "--github-api-proxy", "http://127.0.0.1:8080").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.Contains("live provider options require --verify", result.Stderr);
     }
 
@@ -872,7 +874,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("scan", root.Path, "--live-provider-rate-limit-ms", "100").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.Contains("live provider options require --verify", result.Stderr);
     }
 
@@ -886,7 +888,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("scan", root.Path, "--live-tls-mode", "tls12-plus").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.Contains("live provider options require --verify", result.Stderr);
     }
 
@@ -900,7 +902,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("scan", root.Path, "--verify", "--live-tls-mode", "legacy").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.Contains("unsupported live TLS mode: legacy", result.Stderr);
     }
 
@@ -975,7 +977,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("verify", reportPath, "-f", "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(1, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("report input format 'sarif' does not preserve raw secret material; use picket view for summary-only reports", result.Stderr);
     }
@@ -1300,7 +1302,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("analyze", reportPath, "-f", "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(1, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("report input format 'sarif' does not preserve raw secret material; use picket view for summary-only reports", result.Stderr);
     }
@@ -1461,6 +1463,29 @@ public sealed class CliCompatibilityTests
         Assert.Contains("not a supported GitHub token type", result.Stderr);
         Assert.DoesNotContain(Credential, result.Stdout);
         Assert.DoesNotContain(Credential, result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that revocation rejects a non-public proxy before contacting GitHub.
+    /// </summary>
+    [TestMethod]
+    public async Task GitHubRevocationBlocksNonPublicProxyBeforeRequest()
+    {
+        string credential = CreateGitHubPatFixture();
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { ["PICKET_TEST_REVOCATION_CREDENTIAL"] = credential },
+            "revoke",
+            "github",
+            "--credential-env",
+            "PICKET_TEST_REVOCATION_CREDENTIAL",
+            "--confirm-revocation",
+            "--github-api-proxy",
+            "https://10.0.0.5/").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("blocked GitHub revocation proxy endpoint", result.Stderr);
+        Assert.DoesNotContain(credential, result.Stdout);
+        Assert.DoesNotContain(credential, result.Stderr);
     }
 
     /// <summary>
@@ -2438,9 +2463,53 @@ public sealed class CliCompatibilityTests
             "-r",
             sarifReportPath).ConfigureAwait(false);
 
-        Assert.AreEqual(1, result.ExitCode);
+        Assert.AreEqual(2, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("report format cannot be specified when multiple report paths are specified", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native report failures use the operational exit code after preserving earlier reports.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanReportFailureAfterFindingsUsesOperationalExitCode()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string jsonlReportPath = Path.Combine(root.Path, "report.jsonl");
+        string unsupportedReportPath = Path.Combine(root.Path, "report.unsupported");
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "-r",
+            jsonlReportPath,
+            "-r",
+            unsupportedReportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", File.ReadAllText(jsonlReportPath));
+        Assert.Contains($"report written: {jsonlReportPath}", result.Stderr);
+        Assert.Contains($"unknown report format for report path: {unsupportedReportPath}", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native callers cannot assign the reserved operational exit code to findings.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRejectsReservedFindingsExitCode()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "--exit-code", "2").ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ExitCode);
+        Assert.Contains("--exit-code 2 is reserved for incomplete or failed native scans", result.Stderr);
     }
 
     /// <summary>
@@ -2617,7 +2686,7 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
         File.WriteAllText(Path.Combine(root.Path, "git-ignored.txt"), "token-23456");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"File\": \"ignored.txt\"", result.Stdout);
@@ -2821,7 +2890,7 @@ public sealed class CliCompatibilityTests
             largePath,
             string.Concat(new string('a', 124_995), "token-12345"));
 
-        CliResult compatible = await RunCliAsync("dir", largePath, "-c", configPath, "-f", "json").ConfigureAwait(false);
+        CliResult compatible = await RunCliAsync("dir", largePath, "-c", configPath, "-f", "json", "-r", "-").ConfigureAwait(false);
         CliResult native = await RunCliAsync("scan", largePath, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
 
         Assert.AreEqual(0, compatible.ExitCode);
@@ -3219,7 +3288,7 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that --report-template implies template output.
+    /// Verifies that template output can be written to standard output explicitly.
     /// </summary>
     [TestMethod]
     public async Task DirectoryScanWritesTemplateReport()
@@ -3232,7 +3301,17 @@ public sealed class CliCompatibilityTests
             "{{ range . -}}{{ .RuleID }}|{{ .File }}|{{ quote .Secret }}|{{ .Line }}\n{{ end -}}");
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "prefix token-12345 suffix");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--report-template", templatePath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync(
+            "dir",
+            root.Path,
+            "-c",
+            configPath,
+            "--report-template",
+            templatePath,
+            "-f",
+            "template",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.AreEqual("token|secret.txt|\"token-12345\"|prefix token-12345 suffix\n", result.Stdout);
@@ -3251,7 +3330,17 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(templatePath, "findings={{ len . }}\n");
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--report-template", templatePath, "-r", reportPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync(
+            "dir",
+            root.Path,
+            "-c",
+            configPath,
+            "--report-template",
+            templatePath,
+            "-f",
+            "template",
+            "-r",
+            reportPath).ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
@@ -3429,7 +3518,9 @@ public sealed class CliCompatibilityTests
             "--no-color",
             "--no-banner",
             "--timeout=30",
-            "--max-target-megabytes=0").ConfigureAwait(false);
+            "--max-target-megabytes=0",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -3448,7 +3539,7 @@ public sealed class CliCompatibilityTests
         secretBytes.CopyTo(binaryBytes, 1);
         File.WriteAllBytes(Path.Combine(root.Path, "secret.bin"), binaryBytes);
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
@@ -3467,7 +3558,7 @@ public sealed class CliCompatibilityTests
         Encoding.UTF8.GetBytes(" token-12345", content.AsSpan(100_001));
         File.WriteAllBytes(Path.Combine(root.Path, "large.txt"), content);
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -3486,7 +3577,7 @@ public sealed class CliCompatibilityTests
         string content = string.Concat(new string('a', 124_995), "token-12345", new string('z', 32));
         File.WriteAllText(sourcePath, content);
 
-        CliResult compatible = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult compatible = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
         CliResult native = await RunCliAsync(
             "scan",
             root.Path,
@@ -3560,8 +3651,8 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(targetPath, "token-12345");
         File.CreateSymbolicLink(linkPath, targetPath);
 
-        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
-        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--follow-symlinks").ConfigureAwait(false);
+        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--follow-symlinks", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, disabled.ExitCode);
         Assert.DoesNotContain("\"SymlinkFile\": \"link.txt\"", disabled.Stdout);
@@ -3580,8 +3671,8 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "encoded=dG9rZW4tMTIzNDU=");
 
-        CliResult decoded = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
-        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-decode-depth=0").ConfigureAwait(false);
+        CliResult decoded = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
+        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-decode-depth=0", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, decoded.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", decoded.Stdout);
@@ -3602,7 +3693,7 @@ public sealed class CliCompatibilityTests
             Path.Combine(root.Path, "secret.txt"),
             "encoded=\\u0074\\u006f\\u006b\\u0065\\u006e\\u002d\\u0031\\u0032\\u0033\\u0034\\u0035");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -3619,8 +3710,8 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         WriteZipFile(Path.Combine(root.Path, "secrets.zip"), ("nested/secret.txt", "token-12345"));
 
-        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
-        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, disabled.ExitCode);
         Assert.AreEqual("[]\n", disabled.Stdout);
@@ -3642,7 +3733,7 @@ public sealed class CliCompatibilityTests
             ("ignored.txt", "token-11111"),
             ("kept.txt", "token-22222"));
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.DoesNotContain("\"Secret\": \"token-11111\"", result.Stdout);
@@ -3663,8 +3754,8 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "commit", "-m", "add archive").ConfigureAwait(false);
         string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
 
-        CliResult disabled = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
-        CliResult enabled = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult disabled = await RunCliAsync("git", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
+        CliResult enabled = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, disabled.ExitCode);
         Assert.AreEqual("[]\n", disabled.Stdout);
@@ -3692,7 +3783,7 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "add", "secrets.zip").ConfigureAwait(false);
         await RunGitCommandAsync(root.Path, "commit", "-m", "add archive").ConfigureAwait(false);
 
-        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-archive-depth=1", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.DoesNotContain("\"Secret\": \"token-11111\"", result.Stdout);
@@ -3718,7 +3809,9 @@ public sealed class CliCompatibilityTests
             "--diagnostics",
             "cpu,mem,trace",
             "--diagnostics-dir",
-            diagnosticsDir).ConfigureAwait(false);
+            diagnosticsDir,
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -3760,6 +3853,8 @@ public sealed class CliCompatibilityTests
         process.StartInfo.ArgumentList.Add("-c");
         process.StartInfo.ArgumentList.Add(configPath);
         process.StartInfo.ArgumentList.Add("--diagnostics=http");
+        process.StartInfo.ArgumentList.Add("-r");
+        process.StartInfo.ArgumentList.Add("-");
 
         process.Start();
         string firstErrorLine = await process.StandardError.ReadLineAsync(TestContext.CancellationToken).ConfigureAwait(false) ?? string.Empty;
@@ -3843,7 +3938,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics=http", "--diagnostics-dir", root.Path).ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("the diagnostics directory should not be set in http mode", result.Stderr);
     }
@@ -3860,7 +3955,7 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--diagnostics=http,cpu").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("other diagnostics modes should not be enabled when http mode is enabled", result.Stderr);
     }
@@ -3875,7 +3970,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345 // gitleaks:allow");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
@@ -3891,7 +3986,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345 // gitleaks:allow");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--ignore-gitleaks-allow").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--ignore-gitleaks-allow", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -3915,7 +4010,7 @@ public sealed class CliCompatibilityTests
             """);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
@@ -3930,7 +4025,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "picket_key = abc123def456ghi7890");
 
-        CliResult result = await RunCliAsync("dir", root.Path).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"generic-api-key\"", result.Stdout);
@@ -3947,7 +4042,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTwoRuleConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "alpha-12345\nbeta-12345\n");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--enable-rule", "alpha-token").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--enable-rule", "alpha-token", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"alpha-token\"", result.Stdout);
@@ -3965,7 +4060,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTwoRuleConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "alpha-12345\nbeta-12345\n");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--enable-rule=alpha-token,beta-token").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "--enable-rule=alpha-token,beta-token", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"alpha-token\"", result.Stdout);
@@ -3998,7 +4093,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTwoRuleConfig(root.Path);
 
-        CliResult result = await RunCliWithInputAsync("alpha-12345\nbeta-12345\n", "stdin", "-c", configPath, "--enable-rule", "beta-token").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputAsync("alpha-12345\nbeta-12345\n", "stdin", "-c", configPath, "--enable-rule", "beta-token", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.DoesNotContain("\"RuleID\": \"alpha-token\"", result.Stdout);
@@ -4053,7 +4148,9 @@ public sealed class CliCompatibilityTests
             root.Path,
             "native-only-secret",
             environment,
-            "stdin").ConfigureAwait(false);
+            "stdin",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
@@ -4068,7 +4165,7 @@ public sealed class CliCompatibilityTests
     {
         CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "--profile", "strict").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("unsupported profile: strict", result.Stderr);
     }
@@ -4082,7 +4179,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         WriteTokenConfig(root.Path, ".gitleaks.toml");
 
-        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, "token-12345", "stdin").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, "token-12345", "stdin", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
@@ -4099,7 +4196,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, ".gitleaksignore"), ":token:1\n");
 
-        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, "token-12345", "stdin", "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliWithInputFromDirectoryAsync(root.Path, "token-12345", "stdin", "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
@@ -4114,7 +4211,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
 
-        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--timeout=30").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--timeout=30", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -4129,7 +4226,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
 
-        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--max-archive-depth=1").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputAsync("token-12345", "stdin", "-c", configPath, "--max-archive-depth=1", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
@@ -4145,10 +4242,10 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         string input = new string('x', 2_000_001) + "token-12345";
 
-        CliResult result = await RunCliWithInputAsync(input, "stdin", "-c", configPath, "--max-target-megabytes=1").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputAsync(input, "stdin", "-c", configPath, "--max-target-megabytes=1", "-r", "-").ConfigureAwait(false);
 
-        Assert.AreEqual(0, result.ExitCode);
-        Assert.AreEqual("[]\n", result.Stdout);
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", result.Stdout);
     }
 
     /// <summary>
@@ -4176,7 +4273,7 @@ public sealed class CliCompatibilityTests
             """);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "username=\"alice\"\npassword=\"secret\"");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"primary-rule\"", result.Stdout);
@@ -4202,7 +4299,7 @@ public sealed class CliCompatibilityTests
             """);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "base-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", childConfigPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("dir", root.Path, "-c", childConfigPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"base-token\"", result.Stdout);
@@ -4223,7 +4320,7 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
         string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
 
-        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"token\"", result.Stdout);
@@ -4292,7 +4389,9 @@ public sealed class CliCompatibilityTests
             null,
             environment,
             "git",
-            root.Path).ConfigureAwait(false);
+            root.Path,
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
@@ -4307,7 +4406,7 @@ public sealed class CliCompatibilityTests
     {
         CliResult result = await RunCliAsync("git", "--profile", "strict").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("unsupported profile: strict", result.Stderr);
     }
@@ -4325,7 +4424,7 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
         await RunGitCommandAsync(root.Path, "commit", "-m", "add oversized path secret").ConfigureAwait(false);
 
-        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-target-megabytes=1").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--max-target-megabytes=1", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"RuleID\": \"path-secret\"", result.Stdout);
@@ -4348,8 +4447,8 @@ public sealed class CliCompatibilityTests
         string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
         string expectedLink = $"https://github.com/gitleaks/test/blob/{commit}/secret.txt#L1";
 
-        CliResult json = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
-        CliResult csv = await RunCliAsync("git", root.Path, "-c", configPath, "--platform", "github", "-f", "csv").ConfigureAwait(false);
+        CliResult json = await RunCliAsync("git", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
+        CliResult csv = await RunCliAsync("git", root.Path, "-c", configPath, "--platform", "github", "-f", "csv", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, json.ExitCode);
         Assert.Contains($"\"Link\": \"{expectedLink}\"", json.Stdout);
@@ -4371,7 +4470,7 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
         await RunGitCommandAsync(root.Path, "commit", "-m", "add secrets").ConfigureAwait(false);
 
-        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--enable-rule", "beta-token").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--enable-rule", "beta-token", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.DoesNotContain("\"RuleID\": \"alpha-token\"", result.Stdout);
@@ -4393,7 +4492,7 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
         File.WriteAllText(Path.Combine(root.Path, ".gitleaksignore"), "secret.txt:token:1\n");
 
-        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual("[]\n", result.Stdout);
@@ -4411,7 +4510,7 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
         await RunGitCommandAsync(root.Path, "add", "secret.txt").ConfigureAwait(false);
 
-        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--staged").ConfigureAwait(false);
+        CliResult result = await RunCliAsync("git", root.Path, "-c", configPath, "--staged", "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Commit\": \"\"", result.Stdout);
@@ -4433,7 +4532,7 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "commit", "-m", "add secret").ConfigureAwait(false);
         string commit = (await RunGitCommandAsync(root.Path, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
 
-        CliResult result = await RunCliAsync("detect", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("detect", "--source", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains($"\"Commit\": \"{commit}\"", result.Stdout);
@@ -4450,7 +4549,7 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
 
-        CliResult result = await RunCliAsync("detect", "--no-git", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("detect", "--no-git", "--source", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Commit\": \"\"", result.Stdout);
@@ -4466,7 +4565,7 @@ public sealed class CliCompatibilityTests
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
 
-        CliResult result = await RunCliWithInputAsync("token-12345", "detect", "--pipe", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliWithInputAsync("token-12345", "detect", "--pipe", "--source", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"File\": \"\"", result.Stdout);
@@ -4487,7 +4586,7 @@ public sealed class CliCompatibilityTests
         await RunGitCommandAsync(root.Path, "commit", "-m", "seed").ConfigureAwait(false);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345\n");
 
-        CliResult result = await RunCliAsync("protect", "--source", root.Path, "-c", configPath).ConfigureAwait(false);
+        CliResult result = await RunCliAsync("protect", "--source", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Commit\": \"\"", result.Stdout);
@@ -4522,7 +4621,7 @@ public sealed class CliCompatibilityTests
         Assert.IsEmpty(result.Stderr);
         Assert.Contains("#!/bin/sh\n", hook);
         Assert.Contains("# managed by picket hooks install", hook);
-        Assert.Contains("'picket-dev' protect --source \"$repo_root\"", hook);
+        Assert.Contains("'picket-dev' protect --staged --source \"$repo_root\"", hook);
         Assert.Contains("--config", hook);
         Assert.Contains(configPath, hook);
         Assert.Contains("'--redact=100'", hook);
@@ -4551,7 +4650,7 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.IsEmpty(result.Stderr);
-        Assert.Contains(string.Concat("exec ", QuotedCommandPath, " protect --source \"$repo_root\""), hook);
+        Assert.Contains(string.Concat("exec ", QuotedCommandPath, " protect --staged --source \"$repo_root\""), hook);
         Assert.DoesNotContain(string.Concat("exec ", CommandPath, " protect"), hook);
     }
 
@@ -4636,7 +4735,7 @@ public sealed class CliCompatibilityTests
         CliResult rejected = await RunCliAsync("git", root.Path, "-c", configPath, "--platform", "auto").ConfigureAwait(false);
 
         Assert.AreEqual(1, accepted.ExitCode);
-        Assert.AreEqual(126, rejected.ExitCode);
+        Assert.AreEqual(1, rejected.ExitCode);
         Assert.Contains("invalid scm platform value: auto", rejected.Stderr);
     }
 

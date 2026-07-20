@@ -8,7 +8,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliGcsScanTests
 {
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
@@ -89,7 +89,7 @@ public sealed class CliGcsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("blocked GCS endpoint: endpoint resolves to a non-public address", result.Stderr);
         Assert.DoesNotContain("gcs-source-token", result.Stderr);
@@ -122,7 +122,7 @@ public sealed class CliGcsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("gcs-source-token", result.Stderr);
@@ -154,7 +154,7 @@ public sealed class CliGcsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("GCS token environment variable is not set: PICKET_GCS_SOURCE_TEST_TOKEN", result.Stderr);
     }

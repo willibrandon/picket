@@ -1035,10 +1035,46 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Keep structurally-valid offline findings and active live-verification findings.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--exit-code</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Exit with this code when findings are present.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-i, --gitleaks-ignore-path</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a Gitleaks ignore file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--ignore-gitleaks-allow</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Do not honor gitleaks:allow comments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--follow-symlinks</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Follow symlinks while scanning directories.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--report-template</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Render template reports with this template file.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--max-target-megabytes</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Skip files larger than this size.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-decode-depth</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit recursive decoding passes.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--max-archive-depth</code></td>
@@ -2498,7 +2534,7 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket dir &lt;path&gt; [options]</code></pre>
+      <pre class="cli-usage-code"><code>picket dir [&lt;path&gt;] [options]</code></pre>
     </div>
   </div>
   <div class="cli-reference-tables">
@@ -2512,7 +2548,7 @@ Use the grouped index to jump to the workflow you need.
           <tbody>
             <tr>
               <td data-label="Argument"><code>path</code></td>
-              <td data-label="Required">Required</td>
+              <td data-label="Required">Optional</td>
               <td data-label="Description">Directory path to scan.</td>
             </tr>
           </tbody>

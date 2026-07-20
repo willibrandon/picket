@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -33,7 +34,7 @@ public static class GitSource
         }
 
         Task<string> stderrTask = process.StandardError.ReadToEndAsync();
-        List<GitPatchFragment> fragments = Parse(process.StandardOutput, options);
+        List<GitPatchFragment> fragments = ParsePatch(process.StandardOutput.BaseStream, options);
         bool cancelled = IsCancellationRequested(options);
         if (cancelled)
         {
@@ -59,7 +60,6 @@ public static class GitSource
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 StandardErrorEncoding = Encoding.UTF8,
-                StandardOutputEncoding = Encoding.UTF8,
                 UseShellExecute = false,
             },
         };
@@ -184,8 +184,15 @@ public static class GitSource
         }
     }
 
-    private static List<GitPatchFragment> Parse(TextReader reader, GitScanOptions options)
+    /// <summary>
+    /// Parses raw git patch output into scan fragments.
+    /// </summary>
+    /// <param name="stream">The raw git patch stream.</param>
+    /// <param name="options">The active git scan options.</param>
+    /// <returns>The parsed added-line fragments.</returns>
+    internal static List<GitPatchFragment> ParsePatch(Stream stream, GitScanOptions options)
     {
+        using var reader = new GitPatchLineReader(stream, () => IsCancellationRequested(options));
         var fragments = new List<GitPatchFragment>();
         string commit = string.Empty;
         string author = string.Empty;
@@ -196,23 +203,25 @@ public static class GitSource
         string? filePath = null;
         int hunkStartLine = 0;
         var messageLines = new List<string>();
-        var addedLines = new List<string>();
+        var addedBytes = new ArrayBufferWriter<byte>();
+        bool hasAddedLines = false;
         bool readingMessage = false;
         bool diffBinaryProcessed = false;
         bool diffDeleted = false;
 
-        string? line;
-        while ((line = reader.ReadLine()) is not null)
+        byte[]? rawLine;
+        while ((rawLine = reader.ReadLine()) is not null)
         {
             if (IsCancellationRequested(options))
             {
                 break;
             }
 
-            if (line.StartsWith("commit ", StringComparison.Ordinal))
+            ReadOnlySpan<byte> line = TrimLineEnding(rawLine);
+            if (line.StartsWith("commit "u8))
             {
                 FlushFragment();
-                commit = line["commit ".Length..].Trim();
+                commit = DecodeText(line["commit ".Length..]).Trim();
                 author = string.Empty;
                 email = string.Empty;
                 date = string.Empty;
@@ -227,25 +236,25 @@ public static class GitSource
                 continue;
             }
 
-            if (line.StartsWith("Author: ", StringComparison.Ordinal))
+            if (line.StartsWith("Author: "u8))
             {
-                (author, email) = ParseAuthor(line["Author: ".Length..]);
+                (author, email) = ParseAuthor(DecodeText(line["Author: ".Length..]));
                 continue;
             }
 
-            if (line.StartsWith("Date: ", StringComparison.Ordinal))
+            if (line.StartsWith("Date: "u8))
             {
-                date = FormatGitDate(line["Date: ".Length..].Trim());
+                date = FormatGitDate(DecodeText(line["Date: ".Length..]).Trim());
                 readingMessage = true;
                 continue;
             }
 
-            if (line.StartsWith("diff --git ", StringComparison.Ordinal))
+            if (line.StartsWith("diff --git "u8))
             {
                 FlushFragment();
                 message = CreateMessage(messageLines);
                 readingMessage = false;
-                diffFilePath = ParseDiffNewFilePath(line);
+                diffFilePath = ParseDiffNewFilePath(DecodeText(line));
                 filePath = null;
                 hunkStartLine = 0;
                 diffBinaryProcessed = false;
@@ -253,7 +262,7 @@ public static class GitSource
                 continue;
             }
 
-            if (line.StartsWith("deleted file mode ", StringComparison.Ordinal))
+            if (line.StartsWith("deleted file mode "u8))
             {
                 diffDeleted = true;
                 continue;
@@ -261,22 +270,22 @@ public static class GitSource
 
             if (readingMessage)
             {
-                if (line.Length == 0)
+                if (line.IsEmpty)
                 {
                     continue;
                 }
 
-                if (line.StartsWith("    ", StringComparison.Ordinal))
+                if (line.StartsWith("    "u8))
                 {
-                    messageLines.Add(line[4..]);
+                    messageLines.Add(DecodeText(line[4..]));
                     continue;
                 }
             }
 
-            if (hunkStartLine == 0 && line.StartsWith("+++ ", StringComparison.Ordinal))
+            if (hunkStartLine == 0 && line.StartsWith("+++ "u8))
             {
                 FlushFragment();
-                filePath = ParseNewFilePath(line);
+                filePath = ParseNewFilePath(DecodeText(line));
                 diffFilePath = filePath ?? diffFilePath;
                 hunkStartLine = 0;
                 continue;
@@ -293,16 +302,19 @@ public static class GitSource
                 continue;
             }
 
-            if (line.StartsWith("@@ ", StringComparison.Ordinal))
+            if (line.StartsWith("@@ "u8))
             {
                 FlushFragment();
-                hunkStartLine = ParseNewStartLine(line);
+                hunkStartLine = ParseNewStartLineBytes(line);
                 continue;
             }
 
-            if (hunkStartLine != 0 && filePath is not null && line.StartsWith('+'))
+            if (hunkStartLine != 0 && filePath is not null && line.Length != 0 && line[0] == (byte)'+')
             {
-                addedLines.Add(line[1..]);
+                ReadOnlySpan<byte> addedLine = rawLine.AsSpan(1);
+                addedLine.CopyTo(addedBytes.GetSpan(addedLine.Length));
+                addedBytes.Advance(addedLine.Length);
+                hasAddedLines = true;
             }
         }
 
@@ -311,15 +323,15 @@ public static class GitSource
 
         void FlushFragment()
         {
-            if (filePath is null || hunkStartLine == 0 || addedLines.Count == 0)
+            if (filePath is null || hunkStartLine == 0 || !hasAddedLines)
             {
-                addedLines.Clear();
+                addedBytes.Clear();
+                hasAddedLines = false;
                 return;
             }
 
-            string text = string.Join("\n", addedLines);
             fragments.Add(new GitPatchFragment(
-                Encoding.UTF8.GetBytes(text),
+                addedBytes.WrittenSpan.ToArray(),
                 filePath,
                 hunkStartLine,
                 commit,
@@ -327,7 +339,8 @@ public static class GitSource
                 email,
                 date,
                 message));
-            addedLines.Clear();
+            addedBytes.Clear();
+            hasAddedLines = false;
         }
     }
 
@@ -347,6 +360,11 @@ public static class GitSource
         }
 
         if (IsCancellationRequested(options))
+        {
+            return;
+        }
+
+        if (!options.IdentifyArchivesByContent && !ArchiveReader.IsArchivePath(filePath))
         {
             return;
         }
@@ -518,7 +536,7 @@ public static class GitSource
 
     private static string? ParseNewFilePath(string line)
     {
-        string path = line["+++ ".Length..].Trim();
+        string path = ParseGitPath(line.AsSpan("+++ ".Length));
         if (path.Equals("/dev/null", StringComparison.Ordinal))
         {
             return null;
@@ -529,25 +547,46 @@ public static class GitSource
 
     private static string? ParseDiffNewFilePath(string line)
     {
-        string text = line["diff --git ".Length..];
+        ReadOnlySpan<char> text = line.AsSpan("diff --git ".Length);
+        if (!text.IsEmpty && text[0] == '"')
+        {
+            if (!TryParseQuotedGitPath(text, out _, out int firstPathLength))
+            {
+                return null;
+            }
+
+            text = text[firstPathLength..].TrimStart();
+            if (!TryParseQuotedGitPath(text, out string? quotedPath, out _))
+            {
+                return null;
+            }
+
+            return quotedPath.StartsWith("b/", StringComparison.Ordinal) ? quotedPath[2..] : quotedPath;
+        }
+
         int newPathIndex = text.IndexOf(" b/", StringComparison.Ordinal);
         if (newPathIndex < 0)
         {
             return null;
         }
 
-        return text[(newPathIndex + 3)..].Trim();
+        return text[(newPathIndex + 3)..].Trim().ToString();
     }
 
-    private static bool IsBinaryDiffLine(string line)
+    private static bool IsBinaryDiffLine(ReadOnlySpan<byte> line)
     {
-        return line.StartsWith("Binary files ", StringComparison.Ordinal)
-            || line.Equals("GIT binary patch", StringComparison.Ordinal);
+        return line.StartsWith("Binary files "u8)
+            || line.SequenceEqual("GIT binary patch"u8);
     }
 
     private static int ParseNewStartLine(string line)
     {
-        int plusIndex = line.IndexOf('+');
+        return ParseNewStartLineBytes(Encoding.UTF8.GetBytes(line));
+    }
+
+    private static int ParseNewStartLineBytes(ReadOnlySpan<byte> line)
+    {
+        int plusIndex = line.IndexOf((byte)'+');
         if (plusIndex < 0)
         {
             return 0;
@@ -555,13 +594,102 @@ public static class GitSource
 
         int start = plusIndex + 1;
         int end = start;
-        while (end < line.Length && char.IsDigit(line[end]))
+        while (end < line.Length && line[end] is >= (byte)'0' and <= (byte)'9')
         {
             end++;
         }
 
-        return end != start && int.TryParse(line.AsSpan(start, end - start), CultureInfo.InvariantCulture, out int startLine)
+        return end != start && int.TryParse(Encoding.ASCII.GetString(line[start..end]), CultureInfo.InvariantCulture, out int startLine)
             ? startLine
             : 0;
+    }
+
+    private static ReadOnlySpan<byte> TrimLineEnding(ReadOnlySpan<byte> line)
+    {
+        if (!line.IsEmpty && line[^1] == (byte)'\n')
+        {
+            line = line[..^1];
+        }
+
+        return !line.IsEmpty && line[^1] == (byte)'\r' ? line[..^1] : line;
+    }
+
+    private static string DecodeText(ReadOnlySpan<byte> value)
+    {
+        return Encoding.UTF8.GetString(value);
+    }
+
+    private static string ParseGitPath(ReadOnlySpan<char> value)
+    {
+        value = value.Trim();
+        return !value.IsEmpty && value[0] == '"' && TryParseQuotedGitPath(value, out string? path, out _)
+            ? path
+            : value.ToString();
+    }
+
+    private static bool TryParseQuotedGitPath(ReadOnlySpan<char> value, out string path, out int consumed)
+    {
+        path = string.Empty;
+        consumed = 0;
+        if (value.Length < 2 || value[0] != '"')
+        {
+            return false;
+        }
+
+        var bytes = new ArrayBufferWriter<byte>(value.Length);
+        for (int i = 1; i < value.Length; i++)
+        {
+            char current = value[i];
+            if (current == '"')
+            {
+                path = Encoding.UTF8.GetString(bytes.WrittenSpan);
+                consumed = i + 1;
+                return true;
+            }
+
+            if (current == '\\' && i + 1 < value.Length)
+            {
+                char escaped = value[++i];
+                if (escaped is >= '0' and <= '7')
+                {
+                    int octal = escaped - '0';
+                    int digits = 1;
+                    while (digits < 3 && i + 1 < value.Length && value[i + 1] is >= '0' and <= '7')
+                    {
+                        octal = (octal * 8) + value[++i] - '0';
+                        digits++;
+                    }
+
+                    AppendByte(bytes, (byte)octal);
+                    continue;
+                }
+
+                AppendByte(bytes, escaped switch
+                {
+                    'a' => 0x07,
+                    'b' => 0x08,
+                    't' => (byte)'\t',
+                    'n' => (byte)'\n',
+                    'v' => 0x0B,
+                    'f' => 0x0C,
+                    'r' => (byte)'\r',
+                    _ => (byte)escaped,
+                });
+                continue;
+            }
+
+            int charCount = i + 1 < value.Length && char.IsSurrogatePair(current, value[i + 1]) ? 2 : 1;
+            int byteCount = Encoding.UTF8.GetBytes(value.Slice(i, charCount), bytes.GetSpan(4));
+            bytes.Advance(byteCount);
+            i += charCount - 1;
+        }
+
+        return false;
+    }
+
+    private static void AppendByte(ArrayBufferWriter<byte> bytes, byte value)
+    {
+        bytes.GetSpan(1)[0] = value;
+        bytes.Advance(1);
     }
 }

@@ -8,6 +8,8 @@ namespace Picket.Tui;
 /// </summary>
 internal sealed class PicketTuiProcessScanExecutor : IPicketTuiScanExecutor
 {
+    private static readonly string[] s_defaultWindowsCommandExtensions = [string.Empty, ".exe", ".cmd", ".bat", ".com"];
+    private static readonly string[] s_emptyCommandExtensions = [string.Empty];
     private static readonly string[] s_emptyPrefixArguments = [];
     private readonly string _executablePath;
     private readonly string[] _prefixArguments;
@@ -36,8 +38,7 @@ internal sealed class PicketTuiProcessScanExecutor : IPicketTuiScanExecutor
     /// <returns>The process-backed scan executor.</returns>
     internal static PicketTuiProcessScanExecutor CreateDefault()
     {
-        string executablePath = ResolvePicketPath(out string[] prefixArguments);
-        return new PicketTuiProcessScanExecutor(executablePath, prefixArguments);
+        return new PicketTuiProcessScanExecutor(ResolvePicketPath(), s_emptyPrefixArguments);
     }
 
     /// <inheritdoc />
@@ -50,6 +51,11 @@ internal sealed class PicketTuiProcessScanExecutor : IPicketTuiScanExecutor
         ArgumentNullException.ThrowIfNull(arguments);
         ArgumentException.ThrowIfNullOrWhiteSpace(reportPath);
         ArgumentNullException.ThrowIfNull(output);
+        if (!Path.IsPathFullyQualified(_executablePath) || !File.Exists(_executablePath))
+        {
+            throw new FileNotFoundException(
+                "Picket scanner was not found. Install picket, place it beside picket-tui, or set PICKET_SCANNER to its full path.");
+        }
 
         DateTimeOffset startedAt = DateTimeOffset.UtcNow;
         using var process = new Process();
@@ -129,41 +135,103 @@ internal sealed class PicketTuiProcessScanExecutor : IPicketTuiScanExecutor
         }
     }
 
-    private static string ResolvePicketPath(out string[] prefixArguments)
+    /// <summary>
+    /// Resolves the scanner from an explicit setting, the TUI installation directory, or absolute PATH entries.
+    /// </summary>
+    /// <returns>The absolute scanner path or the expected side-by-side path when no scanner is installed.</returns>
+    internal static string ResolvePicketPath()
     {
-        prefixArguments = s_emptyPrefixArguments;
         string executableName = OperatingSystem.IsWindows() ? "picket.exe" : "picket";
+        string? configuredPath = Environment.GetEnvironmentVariable("PICKET_SCANNER");
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            if (Path.IsPathFullyQualified(configuredPath) && File.Exists(configuredPath))
+            {
+                return Path.GetFullPath(configuredPath);
+            }
+
+            if (TryFindCommandOnPath(configuredPath, out string resolvedConfiguredPath))
+            {
+                return resolvedConfiguredPath;
+            }
+        }
+
         string besideTui = Path.Combine(AppContext.BaseDirectory, executableName);
         if (File.Exists(besideTui))
         {
             return besideTui;
         }
 
-        string? developmentProject = FindDevelopmentPicketProject(Directory.GetCurrentDirectory())
-            ?? FindDevelopmentPicketProject(AppContext.BaseDirectory);
-        if (developmentProject is not null)
+        if (TryFindCommandOnPath(executableName, out string resolvedPath))
         {
-            prefixArguments = ["run", "--project", developmentProject, "--"];
-            return "dotnet";
+            return resolvedPath;
         }
 
-        return executableName;
+        return besideTui;
     }
 
-    private static string? FindDevelopmentPicketProject(string startDirectory)
+    private static bool TryFindCommandOnPath(string command, out string resolvedPath)
     {
-        var directory = new DirectoryInfo(startDirectory);
-        while (directory is not null)
+        if (Path.IsPathFullyQualified(command))
         {
-            string projectPath = Path.Combine(directory.FullName, "src", "Picket.Cli", "Picket.Cli.csproj");
-            if (File.Exists(projectPath))
+            if (File.Exists(command))
             {
-                return projectPath;
+                resolvedPath = Path.GetFullPath(command);
+                return true;
             }
 
-            directory = directory.Parent;
+            resolvedPath = string.Empty;
+            return false;
         }
 
-        return null;
+        if (command.Contains(Path.DirectorySeparatorChar)
+            || command.Contains(Path.AltDirectorySeparatorChar))
+        {
+            resolvedPath = string.Empty;
+            return false;
+        }
+
+        string? pathEnvironment = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(pathEnvironment))
+        {
+            resolvedPath = string.Empty;
+            return false;
+        }
+
+        string[] extensions = OperatingSystem.IsWindows()
+            ? GetWindowsCommandExtensions()
+            : s_emptyCommandExtensions;
+        string[] directories = pathEnvironment.Split(
+            Path.PathSeparator,
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        for (int i = 0; i < directories.Length; i++)
+        {
+            string directory = directories[i].Trim('"');
+            if (!Path.IsPathFullyQualified(directory))
+            {
+                continue;
+            }
+
+            for (int j = 0; j < extensions.Length; j++)
+            {
+                string candidate = Path.Combine(directory, string.Concat(command, extensions[j]));
+                if (File.Exists(candidate))
+                {
+                    resolvedPath = Path.GetFullPath(candidate);
+                    return true;
+                }
+            }
+        }
+
+        resolvedPath = string.Empty;
+        return false;
+    }
+
+    private static string[] GetWindowsCommandExtensions()
+    {
+        string? pathExtensions = Environment.GetEnvironmentVariable("PATHEXT");
+        return string.IsNullOrWhiteSpace(pathExtensions)
+            ? s_defaultWindowsCommandExtensions
+            : pathExtensions.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 }

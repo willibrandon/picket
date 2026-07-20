@@ -165,16 +165,32 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
-    /// Verifies that empty secrets are not expanded throughout the match text.
+    /// Verifies compatibility redaction preserves Gitleaks' empty-secret replacement behavior.
     /// </summary>
     [TestMethod]
-    public void RedactEmptySecretKeepsFinding()
+    public void RedactEmptySecretInterleavesReplacement()
     {
-        Finding finding = CreateFinding("file detected: secret.pem", string.Empty);
+        Finding finding = CreateFinding("ab", string.Empty);
 
         Finding redacted = GitleaksFindingRedactor.Redact(finding, 100);
 
-        Assert.AreSame(finding, redacted);
+        Assert.AreEqual("REDACTED", redacted.Secret);
+        Assert.AreEqual("REDACTEDaREDACTEDbREDACTED", redacted.Match);
+        Assert.AreEqual("REDACTEDaREDACTEDbREDACTED", redacted.Line);
+    }
+
+    /// <summary>
+    /// Verifies compatibility partial redaction uses UTF-8 byte counts.
+    /// </summary>
+    [TestMethod]
+    public void RedactPartialUnicodeSecretUsesUtf8ByteLength()
+    {
+        Finding finding = CreateFinding("value=\u00E9ab", "\u00E9ab");
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 50);
+
+        Assert.AreEqual("\u00E9...", redacted.Secret);
+        Assert.AreEqual("value=\u00E9...", redacted.Match);
     }
 
     /// <summary>

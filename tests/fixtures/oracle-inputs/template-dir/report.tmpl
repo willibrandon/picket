@@ -1,0 +1,2 @@
+{{ range . }}{{ .RuleID }}|{{ .File }}|{{ .StartLine }}|{{ quote .Secret }}|{{ .Entropy }}
+{{ end }}count={{ len . }}

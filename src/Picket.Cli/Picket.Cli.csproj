@@ -13,7 +13,7 @@
     <RootNamespace>Picket</RootNamespace>
     <AssemblyName>picket</AssemblyName>
     <PublishAot>true</PublishAot>
-    <IncludeSymbols Condition="'$(RuntimeIdentifier)' == ''">false</IncludeSymbols>
+    <IncludeSymbols>false</IncludeSymbols>
     <IsAotCompatible>true</IsAotCompatible>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
@@ -37,7 +37,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" CopyToPublishDirectory="PreserveNewest" Link="THIRD-PARTY-NOTICES.txt" />
     <PackageReference Include="System.CommandLine" IsAotCompatible="true" />
   </ItemGroup>
 

@@ -187,6 +187,22 @@ jobs:
             dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version=$version -p:PackageVersion=$version -r ${{ matrix.rid }} --no-restore -o $publishOutput
           }
 
+          $symbolArtifacts = @(
+            Get-ChildItem -LiteralPath $publishOutput -Recurse -Force |
+              Where-Object { $_.Name -match '\.(pdb|dbg|dwarf)$' -or $_.Name.EndsWith('.dSYM', [StringComparison]::OrdinalIgnoreCase) }
+          )
+          if ($symbolArtifacts.Count -ne 0) {
+            throw "release-speed publish produced public debug symbols: $($symbolArtifacts.FullName -join ', ')"
+          }
+
+      - name: Test Native AOT compatibility oracles
+        if: ${{ !startsWith(matrix.rid, 'linux-musl-') }}
+        shell: pwsh
+        run: |
+          $executableName = if ($IsWindows) { 'picket.exe' } else { 'picket' }
+          $env:PICKET_TEST_CLI_PATH = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}/$executableName"
+          dotnet test --project tests/Picket.Tests/Picket.Tests.csproj --configuration Release --no-restore --filter "FullyQualifiedName~Picket.Tests.CompatibilityOracleFixtureTests"
+
       - name: Smoke test Linux musl zstandard scan
         if: startsWith(matrix.rid, 'linux-musl-')
         shell: pwsh
@@ -216,6 +232,33 @@ jobs:
 
           if ($scanText -notmatch '"ruleId":"aws-access-token"') {
             throw 'musl zstandard scan did not report the expected finding.'
+          }
+
+          $global:LASTEXITCODE = 0
+
+      - name: Test Linux musl compatibility oracle
+        if: startsWith(matrix.rid, 'linux-musl-')
+        shell: pwsh
+        run: |
+          $publishOutput = Join-Path $env:RUNNER_TEMP "picket-publish-${{ matrix.rid }}"
+          $inputRoot = Join-Path $PWD 'tests/fixtures/oracle-inputs/basic-dir-json'
+          $expectedPath = Join-Path $PWD 'tests/fixtures/oracles/basic-dir-json/gitleaks.json'
+          $outputDirectory = Join-Path $env:RUNNER_TEMP "picket-musl-oracle-${{ matrix.rid }}"
+          $reportPath = Join-Path $outputDirectory 'report.json'
+          $runtimeImage = 'mcr.microsoft.com/dotnet/runtime-deps@sha256:297e573be253dafcba4eee8ab29e8e05ab3c5f13f966b3537af2256864de5668'
+          New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+          & chmod 0777 $outputDirectory
+
+          $scanOutput = & docker run --rm --read-only --network none --user 65534:65534 --workdir /fixtures --volume "${publishOutput}:/picket:ro" --volume "${inputRoot}:/fixtures:ro" --volume "${outputDirectory}:/output" $runtimeImage /picket/picket dir . -c .gitleaks.toml -f json -r /output/report.json --no-banner --no-color --redact=100 2>&1
+          $scanExitCode = $LASTEXITCODE
+          if ($scanExitCode -ne 1) {
+            throw "musl compatibility oracle returned exit code ${scanExitCode}: $($scanOutput -join "`n")"
+          }
+
+          $expected = [Convert]::ToBase64String([IO.File]::ReadAllBytes($expectedPath))
+          $actual = [Convert]::ToBase64String([IO.File]::ReadAllBytes($reportPath))
+          if ($actual -ne $expected) {
+            throw 'musl compatibility oracle report differs from the promoted Gitleaks report.'
           }
 
           $global:LASTEXITCODE = 0
@@ -395,6 +438,7 @@ jobs:
     needs:
       - build-binaries
       - build-packages
+      - publish-release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -542,7 +586,7 @@ jobs:
             New-Item -ItemType Directory -Force -Path $payload | Out-Null
             Expand-Archive -LiteralPath $archive.FullName -DestinationPath $payload -Force
 
-            foreach ($fileName in @('picket.exe', 'picket-tui.exe', 'LICENSE')) {
+            foreach ($fileName in @('picket.exe', 'picket-tui.exe', 'libzstd.dll', 'LICENSE', 'THIRD-PARTY-NOTICES.txt')) {
               $path = Join-Path $payload $fileName
               if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
                 throw "$archiveName does not contain $fileName."
@@ -555,6 +599,37 @@ jobs:
             & $wix build packaging/msi/Picket.wxs -arch $architecture -d "Version=$version" -d "PayloadDir=$payload" -out $msiPath -pdbtype none
             if ($LASTEXITCODE -ne 0) {
               throw "WiX failed to build $msiName."
+            }
+
+            $installRoot = Join-Path $env:RUNNER_TEMP "picket-msi-install-$rid"
+            & msiexec.exe /i $msiPath /qn /norestart "INSTALLFOLDER=$installRoot"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Installing $msiName failed with exit code $LASTEXITCODE."
+            }
+
+            try {
+              foreach ($fileName in @('picket.exe', 'picket-tui.exe', 'libzstd.dll', 'LICENSE', 'THIRD-PARTY-NOTICES.txt')) {
+                if (!(Test-Path -LiteralPath (Join-Path $installRoot $fileName) -PathType Leaf)) {
+                  throw "$msiName did not install $fileName."
+                }
+              }
+
+              $zstandardFixture = Join-Path $env:RUNNER_TEMP "picket-msi-zstd-$rid.zst"
+              [IO.File]::WriteAllBytes($zstandardFixture, [Convert]::FromBase64String('KLUv/SQoQQEAYXdzX2FjY2Vzc19rZXlfaWQgPSBBS0lBQUJDREVGR0hJSktMTU5PUJrlerI='))
+              $scanOutput = & (Join-Path $installRoot 'picket.exe') scan $zstandardFixture --report-format jsonl --redact=100 2>&1
+              $scanExitCode = $LASTEXITCODE
+              $scanText = $scanOutput -join "`n"
+              if ($scanExitCode -ne 1 -or $scanText -notmatch '"ruleId":"aws-access-token"') {
+                throw "$msiName zstandard smoke scan failed with exit code ${scanExitCode}: $scanText"
+              }
+
+              $global:LASTEXITCODE = 0
+            }
+            finally {
+              & msiexec.exe /x $msiPath /qn /norestart
+              if ($LASTEXITCODE -ne 0) {
+                throw "Uninstalling $msiName failed with exit code $LASTEXITCODE."
+              }
             }
 
             $hash = (Get-FileHash -LiteralPath $msiPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -671,10 +746,100 @@ jobs:
             ${{ runner.temp }}/picket-release-assets/*.vsix.sha256
           if-no-files-found: error
 
-  publish-container:
-    name: Publish container image
-    needs: validate
-    runs-on: ubuntu-latest
+  validate-container-images:
+    name: Validate container image (${{ matrix.rid }})
+    needs: build-binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            platform: linux/arm64
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Download native Linux archive
+        uses: actions/download-artifact@v5
+        with:
+          name: release-binaries-${{ matrix.rid }}
+          path: dist
+
+      - name: Build and smoke test image
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid container version."
+          }
+
+          $archive = Get-ChildItem -LiteralPath dist -Filter "picket-$env:RELEASE_TAG-${{ matrix.rid }}.tar.gz" -File | Select-Object -First 1
+          if ($null -eq $archive) {
+            throw 'Native Linux release archive was not downloaded.'
+          }
+
+          $context = Join-Path $env:RUNNER_TEMP 'picket-container-context'
+          New-Item -ItemType Directory -Force -Path $context | Out-Null
+          tar -C $context -xzf $archive.FullName
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Native Linux release archive extraction failed.'
+          }
+
+          foreach ($fileName in @('picket', 'picket-tui', 'libzstd.so', 'LICENSE', 'THIRD-PARTY-NOTICES.txt')) {
+            if (!(Test-Path -LiteralPath (Join-Path $context $fileName) -PathType Leaf)) {
+              throw "Container payload does not contain $fileName."
+            }
+          }
+
+          $image = 'picket-release-validation:${{ matrix.rid }}'
+          $revision = (git rev-parse HEAD).Trim()
+          docker buildx build --file packaging/container/Dockerfile --platform '${{ matrix.platform }}' --build-arg "VERSION=$version" --label "org.opencontainers.image.revision=$revision" --tag $image --load $context
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Container image build failed.'
+          }
+
+          docker run --rm --network none $image version
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Container scanner smoke test failed.'
+          }
+
+          docker run --rm --network none --entrypoint /bin/sh $image -c 'test -x /usr/local/bin/picket-tui && test -f /usr/local/bin/libzstd.so && test -f /licenses/Picket/THIRD-PARTY-NOTICES.txt'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Container payload smoke test failed.'
+          }
+
+  publish-container-architectures:
+    name: Publish container architecture (${{ matrix.rid }})
+    needs:
+      - build-binaries
+      - publish-release
+      - validate-container-images
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            platform: linux/amd64
+            suffix: amd64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            platform: linux/arm64
+            suffix: arm64
     permissions:
       contents: read
       packages: write
@@ -684,13 +849,19 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
+      - name: Download native Linux archive
+        uses: actions/download-artifact@v5
+        with:
+          name: release-binaries-${{ matrix.rid }}
+          path: dist
+
       - name: Log in to GHCR
         shell: bash
         env:
           GHCR_TOKEN: ${{ github.token }}
         run: echo "$GHCR_TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
 
-      - name: Build and publish image
+      - name: Publish architecture image
         shell: pwsh
         run: |
           $version = $env:RELEASE_TAG
@@ -699,48 +870,59 @@ jobs:
           }
 
           if (!($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')) {
-            throw "Release tag '$env:RELEASE_TAG' does not contain a valid image version."
+            throw "Release tag '$env:RELEASE_TAG' does not contain a valid container version."
+          }
+
+          $archive = Get-ChildItem -LiteralPath dist -Filter "picket-$env:RELEASE_TAG-${{ matrix.rid }}.tar.gz" -File | Select-Object -First 1
+          if ($null -eq $archive) {
+            throw 'Native Linux release archive was not downloaded.'
+          }
+
+          $context = Join-Path $env:RUNNER_TEMP 'picket-container-context'
+          New-Item -ItemType Directory -Force -Path $context | Out-Null
+          tar -C $context -xzf $archive.FullName
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Native Linux release archive extraction failed.'
+          }
+
+          $repository = $env:GITHUB_REPOSITORY.ToLowerInvariant()
+          $image = "ghcr.io/$repository`:$version-${{ matrix.suffix }}"
+          $revision = (git rev-parse HEAD).Trim()
+          docker buildx build --file packaging/container/Dockerfile --platform '${{ matrix.platform }}' --build-arg "VERSION=$version" --label "org.opencontainers.image.revision=$revision" --label "org.opencontainers.image.created=$((Get-Date).ToUniversalTime().ToString('o'))" --tag $image --sbom=true --provenance=true --push $context
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Container architecture publish failed.'
+          }
+
+  publish-container:
+    name: Publish container manifest
+    needs: publish-container-architectures
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+      - name: Publish version manifests
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
           }
 
           $repository = $env:GITHUB_REPOSITORY.ToLowerInvariant()
           $image = "ghcr.io/$repository"
-          $tags = @(
-            "$image`:$env:RELEASE_TAG",
-            "$image`:$version"
-          )
-
-          if (!$version.Contains('-', [StringComparison]::Ordinal)) {
-            $tags += "$image`:latest"
+          docker buildx imagetools create --tag "$image`:$env:RELEASE_TAG" --tag "$image`:$version" "$image`:$version-amd64" "$image`:$version-arm64"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Container manifest publish failed.'
           }
 
-          $tagArguments = @()
-          foreach ($tag in $tags) {
-            $tagArguments += "--tag"
-            $tagArguments += $tag
-          }
-
-          $builderName = "picket-release-$env:GITHUB_RUN_ID"
-          docker buildx create --use --name $builderName
-          $revision = (git rev-parse HEAD).Trim()
-
-          $arguments = @(
-            "build",
-            "--file",
-            "Dockerfile",
-            "--platform",
-            "linux/amd64,linux/arm64",
-            "--build-arg",
-            "VERSION=$version",
-            "--label",
-            "org.opencontainers.image.revision=$revision",
-            "--label",
-            "org.opencontainers.image.created=$((Get-Date).ToUniversalTime().ToString('o'))",
-            "--sbom=true",
-            "--provenance=true",
-            "--push"
-          ) + $tagArguments + @(".")
-
-          docker buildx @arguments
+          docker buildx imagetools inspect "$image`:$version"
 
   publish-release:
     name: Publish GitHub Release
@@ -749,8 +931,7 @@ jobs:
       - build-packages
       - build-azure-devops-extension
       - build-msi
-      - publish-nuget
-      - publish-container
+      - validate-container-images
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -859,3 +1040,37 @@ jobs:
           else {
             gh release create $env:RELEASE_TAG @assetPaths --repo $env:GITHUB_REPOSITORY --verify-tag --title "Picket $env:RELEASE_TAG" --notes "Release artifacts include SHA-256 checksums, package-size metadata, and GitHub artifact attestations."
           }
+
+  publish-container-latest:
+    name: Publish latest container tag
+    if: ${{ !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') }}
+    needs:
+      - publish-container
+      - publish-nuget
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+      - name: Advance latest tag
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          $repository = $env:GITHUB_REPOSITORY.ToLowerInvariant()
+          $image = "ghcr.io/$repository"
+          docker buildx imagetools create --tag "$image`:latest" "$image`:$version"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Latest container tag publish failed.'
+          }
+
+          docker buildx imagetools inspect "$image`:latest"

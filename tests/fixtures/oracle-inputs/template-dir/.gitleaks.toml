@@ -1,0 +1,9 @@
+title = "picket template directory oracle"
+
+[[rules]]
+id = "template-token"
+description = "Synthetic token used for template oracle compatibility tests."
+regex = '''template-secret-[0-9]{5}'''
+keywords = [
+    "template-secret-",
+]

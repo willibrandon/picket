@@ -88,7 +88,7 @@ public sealed class CliAzureDevOpsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("test-pat-secret", result.Stderr);
@@ -406,7 +406,7 @@ public sealed class CliAzureDevOpsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("Azure Artifacts package limits require package scanning to be enabled", result.Stderr);
         Assert.DoesNotContain("test-pat-secret", result.Stdout);
         Assert.DoesNotContain("test-pat-secret", result.Stderr);
@@ -442,7 +442,7 @@ public sealed class CliAzureDevOpsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("either --azure-devops-branch or --azure-devops-pull-request", result.Stderr);
         Assert.DoesNotContain("test-pat-secret", result.Stdout);
         Assert.DoesNotContain("test-pat-secret", result.Stderr);
@@ -523,7 +523,7 @@ public sealed class CliAzureDevOpsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("--azure-devops-build-id", result.Stderr);
         Assert.DoesNotContain("test-pat-secret", result.Stdout);
         Assert.DoesNotContain("test-pat-secret", result.Stderr);
@@ -555,13 +555,13 @@ public sealed class CliAzureDevOpsScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("blocked Azure DevOps endpoint", result.Stderr);
         Assert.DoesNotContain("test-pat-secret", result.Stdout);
         Assert.DoesNotContain("test-pat-secret", result.Stderr);
     }
 
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     private async Task<CliResult> RunCliWithEnvironmentAsync(
         string workingDirectory,

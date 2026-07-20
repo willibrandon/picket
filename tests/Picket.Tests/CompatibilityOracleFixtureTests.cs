@@ -273,6 +273,126 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
+    /// <summary>
+    /// Verifies custom template output still matches the promoted Gitleaks oracle.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task TemplateReportMatchesPromotedGitleaksOracle()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "template-dir");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "template-dir");
+        string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", "template");
+        string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", "template");
+        using TempDirectory output = TempDirectory.Create();
+        string reportPath = Path.Combine(output.Path, "report.txt");
+
+        CliResult result = await RunCliFromDirectoryAsync(
+            inputRoot,
+            "dir",
+            ".",
+            "-c",
+            ".gitleaks.toml",
+            "-f",
+            "template",
+            "-r",
+            reportPath,
+            "--report-template",
+            "report.tmpl",
+            "--no-banner",
+            "--no-color",
+            "--redact=100").ConfigureAwait(false);
+
+        Assert.AreEqual(expectedReport, promotedPicketReport);
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.IsEmpty(result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+        Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+    }
+
+    /// <summary>
+    /// Verifies every built-in compatibility writer preserves Gitleaks' empty-report bytes.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task EmptyReportsMatchPromotedGitleaksOracles()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "empty-dir-reports");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "empty-dir-reports");
+
+        foreach (string format in s_compatibilityReportFormats)
+        {
+            string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", format);
+            string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", format);
+            using TempDirectory output = TempDirectory.Create();
+            string reportPath = Path.Combine(output.Path, $"report.{format}");
+
+            CliResult result = await RunCliFromDirectoryAsync(
+                inputRoot,
+                "dir",
+                ".",
+                "-c",
+                ".gitleaks.toml",
+                "-f",
+                format,
+                "-r",
+                reportPath,
+                "--no-banner",
+                "--no-color").ConfigureAwait(false);
+
+            Assert.AreEqual(expectedReport, promotedPicketReport);
+            Assert.AreEqual(0, result.ExitCode);
+            Assert.IsEmpty(result.Stdout);
+            Assert.IsEmpty(result.Stderr);
+            Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+        }
+    }
+
+    /// <summary>
+    /// Verifies multi-commit additions and a renamed path match promoted Gitleaks reports.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task MultiCommitGitReportsMatchPromotedGitleaksOracles()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string inputRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracle-inputs", "git-multicommit-json");
+        string oracleRoot = Path.Combine(repositoryRoot, "tests", "fixtures", "oracles", "git-multicommit");
+        using TempDirectory gitRepository = TempDirectory.Create();
+
+        await CreateMultiCommitGitOracleRepositoryAsync(inputRoot, gitRepository.Path).ConfigureAwait(false);
+
+        foreach (string format in s_compatibilityReportFormats)
+        {
+            string expectedReport = ReadOracleReport(oracleRoot, "gitleaks", format);
+            string promotedPicketReport = ReadOracleReport(oracleRoot, "picket", format);
+            using TempDirectory output = TempDirectory.Create();
+            string reportPath = Path.Combine(output.Path, $"report.{format}");
+
+            CliResult result = await RunCliFromDirectoryAsync(
+                gitRepository.Path,
+                "git",
+                gitRepository.Path,
+                "-c",
+                Path.Combine(inputRoot, ".gitleaks.toml"),
+                "-f",
+                format,
+                "-r",
+                reportPath,
+                "--no-banner",
+                "--no-color",
+                "--redact=100").ConfigureAwait(false);
+
+            Assert.AreEqual(expectedReport, promotedPicketReport);
+            Assert.AreEqual(1, result.ExitCode);
+            Assert.IsEmpty(result.Stdout);
+            Assert.IsEmpty(result.Stderr);
+            Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
+        }
+    }
+
     private static async Task<CliResult> RunCliFromDirectoryAsync(string workingDirectory, params string[] arguments)
     {
         return await RunCliWithInputFromDirectoryAsync(workingDirectory, standardInput: null, arguments).ConfigureAwait(false);
@@ -371,6 +491,49 @@ public sealed class CompatibilityOracleFixtureTests
         string commit = (await RunGitCommandAsync(repositoryPath, null, "rev-parse", "HEAD").ConfigureAwait(false)).Trim();
 
         Assert.AreEqual("a0f75bb7be6981e97ea40bfd4402a58f0e356401", commit);
+    }
+
+    private static async Task CreateMultiCommitGitOracleRepositoryAsync(string inputRoot, string repositoryPath)
+    {
+        await RunGitCommandAsync(repositoryPath, null, "init", "--object-format=sha1").ConfigureAwait(false);
+        await RunGitCommandAsync(repositoryPath, null, "config", "core.autocrlf", "false").ConfigureAwait(false);
+        await RunGitCommandAsync(repositoryPath, null, "config", "commit.gpgsign", "false").ConfigureAwait(false);
+        await RunGitCommandAsync(repositoryPath, null, "config", "diff.renames", "true").ConfigureAwait(false);
+        await RunGitCommandAsync(repositoryPath, null, "config", "i18n.commitEncoding", "utf-8").ConfigureAwait(false);
+
+        string firstText = NormalizeLineEndings(File.ReadAllText(Path.Combine(inputRoot, "first.txt")));
+        File.WriteAllText(Path.Combine(repositoryPath, "first.txt"), firstText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        await RunGitCommandAsync(repositoryPath, null, "add", "first.txt").ConfigureAwait(false);
+        Dictionary<string, string?> environment = CreateGitOracleEnvironment("1704067200 +0000");
+        await RunGitCommandAsync(repositoryPath, environment, "commit", "--no-gpg-sign", "--no-verify", "-m", "add historical oracle secret").ConfigureAwait(false);
+
+        await RunGitCommandAsync(repositoryPath, null, "mv", "first.txt", "renamed.txt").ConfigureAwait(false);
+        environment = CreateGitOracleEnvironment("1704153600 +0000");
+        await RunGitCommandAsync(repositoryPath, environment, "commit", "--no-gpg-sign", "--no-verify", "-m", "rename oracle source").ConfigureAwait(false);
+
+        string secondText = NormalizeLineEndings(File.ReadAllText(Path.Combine(inputRoot, "second.txt")));
+        File.WriteAllText(Path.Combine(repositoryPath, "renamed.txt"), secondText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        await RunGitCommandAsync(repositoryPath, null, "add", "renamed.txt").ConfigureAwait(false);
+        environment = CreateGitOracleEnvironment("1704240000 +0000");
+        await RunGitCommandAsync(repositoryPath, environment, "commit", "--no-gpg-sign", "--no-verify", "-m", "replace historical oracle secret").ConfigureAwait(false);
+
+        string commits = await RunGitCommandAsync(repositoryPath, null, "log", "--format=%H", "--reverse").ConfigureAwait(false);
+        Assert.AreEqual(
+            "9c2acf9cd35f6c914889821d4a0854085d66fc88\n101a379c6917407fa993bf84bdf36f522e9d8259\n887b7111ed094fa3aa9de0edb2d2553057e58edb",
+            NormalizeLineEndings(commits).TrimEnd());
+    }
+
+    private static Dictionary<string, string?> CreateGitOracleEnvironment(string date)
+    {
+        return new Dictionary<string, string?>
+        {
+            ["GIT_AUTHOR_NAME"] = "Picket Oracle",
+            ["GIT_AUTHOR_EMAIL"] = "picket@example.com",
+            ["GIT_AUTHOR_DATE"] = date,
+            ["GIT_COMMITTER_NAME"] = "Picket Oracle",
+            ["GIT_COMMITTER_EMAIL"] = "picket@example.com",
+            ["GIT_COMMITTER_DATE"] = date,
+        };
     }
 
     private static async Task<string> RunGitCommandAsync(

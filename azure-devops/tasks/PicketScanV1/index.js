@@ -333,19 +333,15 @@ function writeSummary(inputs, exitCode, findings, annotations, reportPaths) {
 }
 
 function shouldFail(failOn, exitCode, findings) {
-  if (failOn === "never") {
-    return false;
-  }
-
   if (failOn === "findings") {
-    return exitCode !== 0 || findings > 0;
+    return findings > 0;
   }
 
-  return exitCode !== 0 && findings === 0;
+  return false;
 }
 
 function isScannerError(exitCode, findings) {
-  return exitCode !== 0 && findings === 0;
+  return exitCode === 2 || (exitCode !== 0 && findings === 0);
 }
 
 function setOutput(name, value) {
@@ -508,5 +504,7 @@ module.exports = {
   emitAnnotations,
   escapeMessage,
   escapeProperty,
+  isScannerError,
+  shouldFail,
   readInputs
 };

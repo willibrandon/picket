@@ -245,7 +245,7 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
-    /// Verifies that the Gitleaks generic API key rule uses a deterministic matcher instead of a pathological regex path.
+    /// Verifies that the Gitleaks generic API key rule runs through the Scout regex engine.
     /// </summary>
     [TestMethod]
     [Timeout(5000, CooperativeCancellation = true)]
@@ -262,24 +262,33 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
-    /// Verifies that deterministic custom matchers observe scan cancellation during large no-match candidate scans.
+    /// Verifies that the generic API key rule accepts the canonical API assignment spelling.
     /// </summary>
     [TestMethod]
     [Timeout(5000, CooperativeCancellation = true)]
-    public void ScanStopsGenericApiKeyMatcherWhenCancellationIsRequested()
+    public void ScanHandlesCanonicalGenericApiAssignment()
     {
-        byte[] input = Encoding.UTF8.GetBytes(string.Concat("api = a", new string('+', 200_000), "!"));
+        byte[] input = Encoding.UTF8.GetBytes("API = \"Zq7Rw9Xt2Kp5\"");
         CompiledRuleSet rules = CompileGenericApiKeyRule();
-        int checks = 0;
 
-        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
-            input,
-            "stdin",
-            rules,
-            isCancellationRequested: () => ++checks > 3));
+        Finding finding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(input, "stdin", rules)));
 
-        Assert.IsEmpty(findings);
-        Assert.IsGreaterThan(3, checks);
+        Assert.AreEqual("Zq7Rw9Xt2Kp5", finding.Secret);
+    }
+
+    /// <summary>
+    /// Verifies that the generic API key rule accepts mixed-case base64 values.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanHandlesMixedCaseBase64GenericApiKey()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"");
+        CompiledRuleSet rules = CompileGenericApiKeyRule();
+
+        Finding finding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(input, "stdin", rules)));
+
+        Assert.AreEqual("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", finding.Secret);
     }
 
     /// <summary>
@@ -950,6 +959,53 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that inline suppression on the final line of a multiline match is honored.
+    /// </summary>
+    [TestMethod]
+    public void ScanSuppressesMultilineMatchFromFinalLine()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("BEGIN\ntoken-1234\nEND # gitleaks:allow");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "multiline-token",
+                "Multiline token",
+                "(?s)BEGIN\\n(token-[0-9]+)\\nEND",
+                secretGroup: 1,
+                keywords: ["BEGIN"]),
+        ]));
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that line-target allowlists inspect every line touched by a match.
+    /// </summary>
+    [TestMethod]
+    public void ScanAppliesLineAllowlistAcrossMultilineMatch()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("BEGIN\ntoken-1234\nEND # fixture");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "multiline-token",
+                "Multiline token",
+                "(?s)BEGIN\\n(token-[0-9]+)\\nEND",
+                secretGroup: 1,
+                keywords: ["BEGIN"],
+                allowlists: [
+                    SecretAllowlist.Create(
+                        regexTarget: AllowlistRegexTarget.Line,
+                        regexPatterns: ["# fixture"]),
+                ]),
+        ]));
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that per-rule regex allowlists suppress matching findings.
     /// </summary>
     [TestMethod]
@@ -1402,6 +1458,102 @@ public sealed class SecretScannerTests
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Verifies that compatibility matching removes a consumed trailing line feed before capture and position calculation.
+    /// </summary>
+    [TestMethod]
+    public void ScanTrimsConsumedTrailingLineFeed()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("PASSWORD=hunter2abcdef\n");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "password",
+                "Password",
+                "(?i)password=([a-z0-9]{10,})\\n?",
+                secretGroup: 1,
+                keywords: ["password"]),
+        ]));
+
+        Finding finding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules)));
+
+        Assert.AreEqual("PASSWORD=hunter2abcdef", finding.Match);
+        Assert.AreEqual("hunter2abcdef", finding.Secret);
+        Assert.AreEqual(22, finding.EndColumn);
+        Assert.AreEqual(1, finding.EndLine);
+    }
+
+    /// <summary>
+    /// Verifies that an explicitly selected nonparticipating capture remains empty.
+    /// </summary>
+    [TestMethod]
+    public void ScanKeepsNonparticipatingSecretGroupEmpty()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=ABCDEFGHIJKLMNOPQRST");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "optional-group",
+                "Optional group",
+                "(?:token=([a-z0-9]{10,})|key=[A-Z]{20})",
+                secretGroup: 1,
+                keywords: ["key"]),
+        ]));
+
+        Finding finding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules)));
+
+        Assert.AreEqual(string.Empty, finding.Secret);
+        Assert.AreEqual("key=ABCDEFGHIJKLMNOPQRST", finding.Match);
+    }
+
+    /// <summary>
+    /// Verifies that non-ASCII keywords use Unicode-aware case folding.
+    /// </summary>
+    [TestMethod]
+    public void ScanMatchesUnicodeKeywordIgnoringCase()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("CAFÉ=token-12345");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "unicode-keyword",
+                "Unicode keyword",
+                "(?i)café=(token-[0-9]+)",
+                secretGroup: 1,
+                keywords: ["café"]),
+        ]));
+
+        Finding finding = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(input, "secret.txt", rules)));
+
+        Assert.AreEqual("token-12345", finding.Secret);
+    }
+
+    /// <summary>
+    /// Verifies that compatibility target-size checks use Gitleaks' integer megabyte window.
+    /// </summary>
+    [TestMethod]
+    public void ScanUsesGitleaksMaxTargetMegabyteWindow()
+    {
+        byte[] input = GC.AllocateUninitializedArray<byte>(1_400_000);
+        input.AsSpan().Fill((byte)'x');
+        "token-12345"u8.CopyTo(input.AsSpan(input.Length - 11));
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> nativeFindings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "secret.txt",
+            rules,
+            maxDecodeDepth: 0,
+            maxTargetBytes: 1_000_000));
+        IReadOnlyList<Finding> compatibilityFindings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "secret.txt",
+            rules,
+            maxDecodeDepth: 0,
+            maxTargetBytes: 1_000_000,
+            useGitleaksMaxTargetSemantics: true));
+
+        Assert.IsEmpty(nativeFindings);
+        Assert.HasCount(1, compatibilityFindings);
+    }
+
     private static CompiledRuleSet CompileAwsCredentialPairRule()
     {
         return CompiledRuleSet.Compile(new RuleSet([
@@ -1423,7 +1575,7 @@ public sealed class SecretScannerTests
             description = "Generic API Key"
             regex = '''(?i)[\w.-]{0,50}?(?:access|auth|(?-i:[Aa]pi|API)|credential|creds|key|passw(?:or)?d|secret|token)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([\w.=-]{10,150}|[a-z0-9][a-z0-9+/]{11,}={0,3})(?:[\x60'"\s;]|\\[nr]|$)'''
             entropy = 3.5
-            keywords = ["key"]
+            keywords = ["key", "api"]
             """,
             "memory");
         return CompiledRuleSet.Compile(sourceRules);

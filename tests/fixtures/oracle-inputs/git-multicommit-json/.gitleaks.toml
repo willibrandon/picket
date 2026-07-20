@@ -1,0 +1,9 @@
+title = "picket multi-commit git oracle"
+
+[[rules]]
+id = "history-token"
+description = "Synthetic token used for multi-commit git oracle compatibility tests."
+regex = '''history-secret-[0-9]{5}'''
+keywords = [
+    "history-secret-",
+]

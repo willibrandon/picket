@@ -43,6 +43,7 @@ internal static partial class Program
                 fragment.Commit,
                 maxDecodeDepth,
                 maxTargetBytes,
+                useGitleaksMaxTargetSemantics: !nativeMode,
                 isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
             {
                 EnableNativeDetectors = nativeMode,

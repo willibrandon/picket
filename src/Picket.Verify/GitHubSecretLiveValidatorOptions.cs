@@ -47,9 +47,11 @@ public sealed class GitHubSecretLiveValidatorOptions
                 throw new ArgumentException("Endpoint URI must be absolute.", nameof(value));
             }
 
-            if (!string.IsNullOrEmpty(value.Query) || !string.IsNullOrEmpty(value.Fragment))
+            if (!string.IsNullOrEmpty(value.UserInfo)
+                || !string.IsNullOrEmpty(value.Query)
+                || !string.IsNullOrEmpty(value.Fragment))
             {
-                throw new ArgumentException("Endpoint URI must not include a query string or fragment.", nameof(value));
+                throw new ArgumentException("Endpoint URI must not include user information, a query string, or a fragment.", nameof(value));
             }
 
             _userEndpoint = value;

@@ -126,6 +126,21 @@ test("readInputs rejects unknown built-in rule packs", () => {
   });
 });
 
+test("scanner errors fail even when a partial report contains findings", () => {
+  assert.equal(task.isScannerError(2, 7), true);
+  assert.equal(task.shouldFail("never", 2, 7), false);
+});
+
+test("finding exits remain subject to the configured failure policy", () => {
+  assert.equal(task.isScannerError(1, 7), false);
+  assert.equal(task.shouldFail("findings", 1, 7), true);
+  assert.equal(task.shouldFail("never", 1, 7), false);
+});
+
+test("nonzero exits without findings are scanner errors", () => {
+  assert.equal(task.isScannerError(1, 0), true);
+});
+
 function captureConsoleLogs(callback) {
   const originalLog = console.log;
   const logs = [];

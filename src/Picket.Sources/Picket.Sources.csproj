@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Scout.IO.Globbing" />
     <PackageReference Include="Scout.IO.Ignore" />
     <PackageReference Include="ZstdNet" IncludeAssets="native" />
   </ItemGroup>

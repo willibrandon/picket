@@ -7,7 +7,12 @@ namespace Picket;
 
 internal static partial class Program
 {
-    static async Task<int> RunStdinAsync(string[] args, string configSource = ".")
+    static Task<int> RunStdinAsync(string[] args, string configSource = ".")
+    {
+        return Task.FromResult(RunStdin(args, configSource));
+    }
+
+    private static int RunStdin(string[] args, string configSource)
     {
         if (ContainsHelp(args))
         {
@@ -17,7 +22,7 @@ internal static partial class Program
 
         if (!TryResolveNativeProfile(args, defaultNativeProfile: false, out bool nativeMode))
         {
-            return UnknownFlagExitCode;
+            return 1;
         }
 
         string? baselinePath = null;
@@ -44,7 +49,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -55,12 +60,12 @@ internal static partial class Program
                 if (!nativeMode)
                 {
                     Console.Error.WriteLine("--baseline-mode requires --profile picket");
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 if (!TryReadBaselineComparisonMode(args, ref i, out baselineComparisonMode))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -70,7 +75,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--config", out configPath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -80,7 +85,7 @@ internal static partial class Program
             {
                 if (!TryReadProfileFlag(args, ref i, out _))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -90,7 +95,7 @@ internal static partial class Program
             {
                 if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -100,7 +105,7 @@ internal static partial class Program
             {
                 if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -111,12 +116,12 @@ internal static partial class Program
                 if (!nativeMode)
                 {
                     Console.Error.WriteLine("--rule-pack requires --profile picket");
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -126,7 +131,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -136,7 +141,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-template", out reportTemplatePath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -146,7 +151,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-path", out reportPath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -156,7 +161,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitleaks-ignore-path", out string? value))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 gitleaksIgnorePath = value;
@@ -167,7 +172,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -177,7 +182,7 @@ internal static partial class Program
             {
                 if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -187,7 +192,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -197,7 +202,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-depth", out _))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -207,7 +212,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -217,7 +222,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -227,7 +232,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--diagnostics", out diagnostics))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -237,7 +242,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--diagnostics-dir", out diagnosticsDir))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -245,7 +250,7 @@ internal static partial class Program
 
             if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
             {
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             if (handledCommonFlag)
@@ -257,23 +262,26 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
+        if (nativeMode && exitCode == NativeOperationalExitCode)
+        {
+            Console.Error.WriteLine("--exit-code 2 is reserved for incomplete or failed native scans");
+            return NativeOperationalExitCode;
+        }
+
         if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "stdin", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
         {
-            return UnknownFlagExitCode;
+            return GetOperationalExitCode(nativeMode);
         }
 
         long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-        using var stream = new MemoryStream();
-        await Console.OpenStandardInput().CopyToAsync(stream).ConfigureAwait(false);
-        byte[] input = stream.ToArray();
         if (!TryLoadRules(configPath, configSource, enabledRuleIds, additionalRulePacks, nativeConfig: nativeMode, out CompiledRuleSet? rules))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? baseline))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, configSource);
@@ -282,37 +290,33 @@ internal static partial class Program
             Console.Error.WriteLine(TimeoutErrorMessage);
             if (!TryWriteReport([], rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
             {
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
 
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         diagnosticsSession?.RecordScanInput();
-        IReadOnlyList<Finding> scannedFindings = SecretScanner.Scan(new ScanRequest(
+        using Stream input = Console.OpenStandardInput();
+        List<Finding> scannedFindings = ScanStandardInputFragments(
             input,
-            string.Empty,
             rules,
             ignoreGitleaksAllow,
-            maxDecodeDepth: maxDecodeDepth,
-            maxTargetBytes: maxTargetBytes,
-            isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
-        {
-            EnableNativeDetectors = nativeMode,
-            EnableRandomnessScoring = nativeMode,
-            PositionKind = nativeMode
-                ? FindingPositionKind.UnicodeCodePointsExclusive
-                : FindingPositionKind.GitleaksUtf8BytesInclusive,
-        });
-        if (IsTimedOut(timeoutTimestamp))
+            maxDecodeDepth,
+            maxTargetBytes,
+            nativeMode,
+            timeoutTimestamp,
+            out bool stopped,
+            CancellationToken.None);
+        if (stopped || IsTimedOut(timeoutTimestamp))
         {
             Console.Error.WriteLine(TimeoutErrorMessage);
             if (!TryWriteReport([], rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
             {
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
 
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         IReadOnlyList<Finding> findings = baseline.Filter(gitleaksIgnore.Filter(scannedFindings), redactionPercent);
@@ -330,7 +334,7 @@ internal static partial class Program
         diagnosticsSession?.RecordFindingCount(findings.Count);
         if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         return CompleteRun(findings.Count == 0 ? 0 : exitCode, diagnosticsSession);

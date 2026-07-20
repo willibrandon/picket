@@ -10,8 +10,8 @@ internal static partial class Program
     private static async Task<int> RunGitHubRevocationAsync(
         string[] credentialEnvironmentVariables,
         bool confirmRevocation,
-        Uri? endpoint,
-        Uri? proxyEndpoint,
+        string? endpointValue,
+        string? proxyEndpointValue,
         int timeoutSeconds,
         bool allowNonPublicEndpoints,
         CancellationToken cancellationToken)
@@ -27,6 +27,13 @@ internal static partial class Program
             return UnknownFlagExitCode;
         }
 
+        if (!TryParseOptionalAbsoluteUri(endpointValue, "--github-api-endpoint", out Uri? endpoint) ||
+            !TryParseOptionalAbsoluteUri(proxyEndpointValue, "--github-api-proxy", out Uri? proxyEndpoint))
+        {
+            Array.Clear(credentials);
+            return NativeOperationalExitCode;
+        }
+
         try
         {
             GitHubCredentialRevokerOptions options = GitHubCredentialRevokerOptions.CreateDefault();
@@ -35,6 +42,16 @@ internal static partial class Program
                 AllowNonPublicAddresses = allowNonPublicEndpoints,
             };
             options.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            if (proxyEndpoint is not null)
+            {
+                EndpointGuardResult proxyGuardResult = EndpointGuard.Evaluate(proxyEndpoint, options.EndpointGuardOptions);
+                if (!proxyGuardResult.IsAllowed)
+                {
+                    Console.Error.WriteLine($"blocked GitHub revocation proxy endpoint: {proxyGuardResult.Message}");
+                    return 1;
+                }
+            }
+
             try
             {
                 if (endpoint is not null)
@@ -58,6 +75,23 @@ internal static partial class Program
         {
             Array.Clear(credentials);
         }
+    }
+
+    private static bool TryParseOptionalAbsoluteUri(string? value, string optionName, out Uri? uri)
+    {
+        uri = null;
+        if (value is null)
+        {
+            return true;
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out uri))
+        {
+            Console.Error.WriteLine($"{optionName} requires an absolute URI");
+            return false;
+        }
+
+        return true;
     }
 
     private static bool TryReadRevocationCredentials(

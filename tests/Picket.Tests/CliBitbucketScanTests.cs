@@ -9,7 +9,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliBitbucketScanTests
 {
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
@@ -88,7 +88,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("blocked Bitbucket endpoint: endpoint resolves to a non-public address", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -400,7 +400,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket source scan accepts either --bitbucket-ref or --bitbucket-pull-request, not both", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -435,7 +435,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket source options cannot combine pull request scans with download artifact enumeration.", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -469,7 +469,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--bitbucket-pipeline-id requires --bitbucket-include-pipeline-logs", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -502,7 +502,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--bitbucket-include-pipeline-logs requires --bitbucket-pipeline-id", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -536,7 +536,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket source scan requires exactly one of --bitbucket-repository or --bitbucket-workspace", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -570,7 +570,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket project source scan requires --bitbucket-workspace", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -603,7 +603,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket snippet source scan requires --bitbucket-workspace", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -638,7 +638,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket project source scan cannot be combined with workspace snippet enumeration", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -672,7 +672,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket pull request source scan requires --bitbucket-repository", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -748,7 +748,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -780,7 +780,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket token environment variable is not set: PICKET_BITBUCKET_SOURCE_TEST_TOKEN", result.Stderr);
     }
@@ -811,7 +811,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket repository URLs must not include user info, query, or fragment data.", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -843,7 +843,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Bitbucket repository must be a workspace/repository path or repository URL.", result.Stderr);
         Assert.DoesNotContain("bitbucket-source-secret", result.Stderr);
@@ -924,7 +924,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("blocked Bitbucket Data Center endpoint: endpoint resolves to a non-public address", result.Stderr);
         Assert.DoesNotContain("data-center-source-secret", result.Stderr);
@@ -956,7 +956,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("requires --bitbucket-data-center-api-endpoint", result.Stderr);
         Assert.DoesNotContain("data-center-source-secret", result.Stderr);
@@ -992,7 +992,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("requires --bitbucket-data-center-username-env", result.Stderr);
         Assert.DoesNotContain("data-center-source-secret", result.Stderr);
@@ -1028,7 +1028,7 @@ public sealed class CliBitbucketScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("scan accepts only one native source provider at a time", result.Stderr);
     }

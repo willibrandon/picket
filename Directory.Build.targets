@@ -1,6 +1,17 @@
 <Project>
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="/" Link="LICENSE" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Link="README.md" />
+    <None Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" CopyToPublishDirectory="PreserveNewest" Link="THIRD-PARTY-NOTICES.txt" />
     <None Include="$(MSBuildThisFileDirectory)assets\icon.png" Pack="true" PackagePath="/" Link="icon.png" />
   </ItemGroup>
+
+  <Target Name="RemoveDisabledPublishSymbols" AfterTargets="Publish;_CopyAotSymbols" Condition="'$(PublishAot)' == 'true' and '$(DebugSymbols)' == 'false'">
+    <ItemGroup>
+      <_PicketDisabledPublishSymbolFile Include="$(PublishDir)**/*.pdb;$(PublishDir)**/*.dbg;$(PublishDir)**/*.dwarf" />
+      <_PicketDisabledPublishSymbolDirectory Include="$(PublishDir)**/*.dSYM" />
+    </ItemGroup>
+    <Delete Files="@(_PicketDisabledPublishSymbolFile)" />
+    <RemoveDir Directories="@(_PicketDisabledPublishSymbolDirectory)" />
+  </Target>
 </Project>

@@ -45,7 +45,19 @@ public sealed class GitleaksIgnoreTests
         ]);
 
         Assert.IsTrue(ignore.IsIgnored(CreateFinding("C:/repo/secret.txt", "rule", 12)));
-        Assert.IsTrue(ignore.IsIgnored(CreateFinding(@"C:\repo\history.txt", "rule", 13, "abcdef0")));
+        Assert.IsTrue(ignore.IsIgnored(CreateFinding("C:/repo/history.txt", "rule", 13, "abcdef0")));
+    }
+
+    /// <summary>
+    /// Verifies finding paths containing literal backslashes are not normalized during lookup.
+    /// </summary>
+    [TestMethod]
+    public void IsIgnoredKeepsFindingPathVerbatim()
+    {
+        GitleaksIgnore ignore = GitleaksIgnore.FromLines([@"a\b.txt:rule:12"]);
+
+        Assert.IsFalse(ignore.IsIgnored(CreateFinding(@"a\b.txt", "rule", 12)));
+        Assert.IsTrue(ignore.IsIgnored(CreateFinding("a/b.txt", "rule", 12)));
     }
 
     /// <summary>

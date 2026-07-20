@@ -116,7 +116,7 @@ public sealed class GitleaksIgnore(IEnumerable<string> fingerprints)
             return true;
         }
 
-        return finding.Commit.Length != 0 && _fingerprints.Contains(NormalizeFingerprint(finding.Fingerprint));
+        return finding.Commit.Length != 0 && _fingerprints.Contains(finding.Fingerprint);
     }
 
     private static void AddLine(HashSet<string> fingerprints, string line)
@@ -161,7 +161,7 @@ public sealed class GitleaksIgnore(IEnumerable<string> fingerprints)
 
     private static string CreateGlobalFingerprint(Finding finding)
     {
-        return $"{NormalizePath(finding.File)}:{finding.RuleID}:{finding.StartLine}";
+        return $"{finding.File}:{finding.RuleID}:{finding.StartLine}";
     }
 
     private static string NormalizePath(string path)

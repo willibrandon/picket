@@ -20,6 +20,7 @@ namespace Picket.Sources;
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="maxArchiveCompressionRatio">The maximum archive expansion ratio, or 0 for no cap.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
+/// <param name="identifyArchivesByContent">A value indicating whether archive containers are identified from content instead of Gitleaks-compatible path names.</param>
 public sealed class DirectoryScanOptions(
     string root,
     long? maxTargetBytes = null,
@@ -37,7 +38,8 @@ public sealed class DirectoryScanOptions(
     long? maxArchiveBytes = ArchiveScanDefaults.DefaultMaxBytes,
     Action<string>? warningSink = null,
     int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    bool identifyArchivesByContent = false)
 {
     private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
 
@@ -75,6 +77,11 @@ public sealed class DirectoryScanOptions(
     /// Gets the maximum archive expansion ratio, or 0 for no cap.
     /// </summary>
     public int MaxArchiveCompressionRatio { get; } = RequireMaxArchiveCompressionRatio(maxArchiveCompressionRatio);
+
+    /// <summary>
+    /// Gets a value indicating whether archive containers are identified from content instead of Gitleaks-compatible path names.
+    /// </summary>
+    public bool IdentifyArchivesByContent { get; } = identifyArchivesByContent;
 
     /// <summary>
     /// Gets a value indicating whether per-directory <c>.picketignore</c> files are read.

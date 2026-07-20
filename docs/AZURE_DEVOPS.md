@@ -44,7 +44,7 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `rulePacks` | empty | Optional comma-separated built-in rule packs: `picket-strict` and `picket-experimental`. |
 | `reportFormats` | `sarif,jsonl,html` | Comma-separated report formats published by the task. |
 | `reportDirectory` | `$(Build.ArtifactStagingDirectory)/picket` | Directory where task reports are written. |
-| `failOn` | `findings` | Failure policy: `findings`, `errors`, or `never`. Scanner execution errors always fail the task; `never` only suppresses finding-based failure. |
+| `failOn` | `findings` | Failure policy: `findings`, `errors`, or `never`. Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task, including when a partial report contains findings. |
 | `baselinePath` | empty | Optional baseline report used to suppress known findings. |
 | `results` | empty | Optional comma-separated validation states to keep before reports and failure enforcement. |
 | `onlyVerified` | `false` | Keep only offline structurally valid findings and live active findings. |

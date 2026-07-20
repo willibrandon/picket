@@ -2,8 +2,11 @@
   "manifestVersion": 1,
   "id": "picket",
   "name": "Picket",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "willibrandon",
+  "galleryFlags": [
+    "Public"
+  ],
   "targets": [
     {
       "id": "Microsoft.VisualStudio.Services"

@@ -20,6 +20,7 @@ public sealed class SecretLiveVerifierOptions
     private int _maxConcurrentProviderRequests = DefaultMaxConcurrentProviderRequests;
     private int _maxConcurrentRequestsPerProvider = DefaultMaxConcurrentRequestsPerProvider;
     private TimeProvider _timeProvider = TimeProvider.System;
+    private Action<string>? _warningSink;
 
     /// <summary>
     /// Creates default live verifier options.
@@ -155,6 +156,15 @@ public sealed class SecretLiveVerifierOptions
     {
         get => _timeProvider;
         set => _timeProvider = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    /// <summary>
+    /// Gets or sets the callback that receives non-fatal verification warnings.
+    /// </summary>
+    public Action<string>? WarningSink
+    {
+        get => _warningSink;
+        set => _warningSink = value;
     }
 
     internal bool TryGetCacheDuration(SecretValidationState state, out TimeSpan duration)

@@ -9,6 +9,8 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliContainerArchiveScanTests
 {
+    private const int NativeOperationalExitCode = 2;
+
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
     /// </summary>
@@ -100,7 +102,7 @@ public sealed class CliContainerArchiveScanTests
             "--github-repository",
             "willibrandon/picket").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("scan accepts only one native source provider at a time", result.Stderr);
     }
 
@@ -129,7 +131,7 @@ public sealed class CliContainerArchiveScanTests
             "-r",
             temp.Path).ConfigureAwait(false);
 
-        Assert.AreEqual(1, failed.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, failed.ExitCode);
         Assert.Contains("failed to write report", failed.Stderr);
         Assert.Contains("checkpoints temporarily store encrypted finding match, secret, and line text", failed.Stderr);
         Assert.IsTrue(File.Exists(checkpointPath));
@@ -229,7 +231,7 @@ public sealed class CliContainerArchiveScanTests
             "jsonl",
             "-r",
             temp.Path).ConfigureAwait(false);
-        Assert.AreEqual(1, failed.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, failed.ExitCode);
         WriteDockerArchive(temp.Path, "token-67890");
 
         CliResult changed = await RunCliFromDirectoryAsync(
@@ -244,7 +246,7 @@ public sealed class CliContainerArchiveScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(1, changed.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, changed.ExitCode);
         Assert.Contains("checkpoint does not match the current scan or source snapshot", changed.Stderr.ToLowerInvariant());
         Assert.IsTrue(File.Exists(checkpointPath));
     }
@@ -272,7 +274,7 @@ public sealed class CliContainerArchiveScanTests
             "jsonl",
             "-r",
             temp.Path).ConfigureAwait(false);
-        Assert.AreEqual(1, failed.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, failed.ExitCode);
 
         CliResult changedDecodeDepth = await RunCliFromDirectoryAsync(
             temp.Path,
@@ -306,9 +308,9 @@ public sealed class CliContainerArchiveScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(1, changedDecodeDepth.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, changedDecodeDepth.ExitCode);
         Assert.Contains("checkpoint does not match the current scan or source snapshot", changedDecodeDepth.Stderr.ToLowerInvariant());
-        Assert.AreEqual(1, changedRules.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, changedRules.ExitCode);
         Assert.Contains("checkpoint does not match the current scan or source snapshot", changedRules.Stderr.ToLowerInvariant());
         Assert.IsTrue(File.Exists(checkpointPath));
     }
@@ -336,7 +338,7 @@ public sealed class CliContainerArchiveScanTests
             "jsonl",
             "-r",
             temp.Path).ConfigureAwait(false);
-        Assert.AreEqual(1, failed.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, failed.ExitCode);
         WriteDockerArchive(temp.Path, "token-67890");
 
         CliResult reset = await RunCliFromDirectoryAsync(
@@ -378,7 +380,7 @@ public sealed class CliContainerArchiveScanTests
             "-r",
             checkpointPath).ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("checkpoint path must be different from every report path", result.Stderr);
     }
 
@@ -398,7 +400,7 @@ public sealed class CliContainerArchiveScanTests
             "--checkpoint",
             checkpointPath).ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("--checkpoint requires a native source option", result.Stderr);
         Assert.IsFalse(File.Exists(checkpointPath));
     }
@@ -419,7 +421,7 @@ public sealed class CliContainerArchiveScanTests
             archivePath,
             "--checkpoint-reset").ConfigureAwait(false);
 
-        Assert.AreEqual(126, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("--checkpoint-reset requires --checkpoint", result.Stderr);
     }
 

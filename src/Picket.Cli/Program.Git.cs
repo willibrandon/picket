@@ -18,7 +18,7 @@ internal static partial class Program
 
         if (!TryResolveNativeProfile(args, defaultNativeProfile: false, out bool nativeMode))
         {
-            return UnknownFlagExitCode;
+            return 1;
         }
 
         string? baselinePath = null;
@@ -37,9 +37,9 @@ internal static partial class Program
         string root = ".";
         int exitCode = 1;
         bool ignoreGitleaksAllow = false;
-        int maxArchiveEntries = nativeMode ? DefaultNativeMaxArchiveEntries : 0;
-        long? maxArchiveBytes = nativeMode ? DefaultNativeMaxArchiveBytes : null;
-        int maxArchiveCompressionRatio = nativeMode ? DefaultNativeMaxArchiveCompressionRatio : 0;
+        int maxArchiveEntries = DefaultNativeMaxArchiveEntries;
+        long? maxArchiveBytes = DefaultNativeMaxArchiveBytes;
+        int maxArchiveCompressionRatio = DefaultNativeMaxArchiveCompressionRatio;
         int maxArchiveDepth = nativeMode ? DefaultNativeMaxArchiveDepth : 0;
         int maxDecodeDepth = 5;
         bool preCommit = false;
@@ -55,7 +55,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--baseline-path", out baselinePath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -66,12 +66,12 @@ internal static partial class Program
                 if (!nativeMode)
                 {
                     Console.Error.WriteLine("--baseline-mode requires --profile picket");
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 if (!TryReadBaselineComparisonMode(args, ref i, out baselineComparisonMode))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -81,7 +81,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--config", out configPath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -91,7 +91,7 @@ internal static partial class Program
             {
                 if (!TryReadProfileFlag(args, ref i, out _))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -101,7 +101,7 @@ internal static partial class Program
             {
                 if (!TryReadIntFlag(args, ref i, "--exit-code", out exitCode))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -111,7 +111,7 @@ internal static partial class Program
             {
                 if (!TryReadRuleIdFlag(args, ref i, enabledRuleIds))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -122,12 +122,12 @@ internal static partial class Program
                 if (!nativeMode)
                 {
                     Console.Error.WriteLine("--rule-pack requires --profile picket");
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 if (!TryReadRulePackFlag(args, ref i, additionalRulePacks))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -137,7 +137,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-format", out reportFormat))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -147,7 +147,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-template", out reportTemplatePath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -157,7 +157,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--report-path", out reportPath))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -167,7 +167,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitleaks-ignore-path", out string? value))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 gitleaksIgnorePath = value;
@@ -178,7 +178,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--ignore-gitleaks-allow", out ignoreGitleaksAllow))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -188,7 +188,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--log-opts", out logOptions))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -198,7 +198,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--platform", out platform))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -208,7 +208,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--pre-commit", out preCommit))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -218,7 +218,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--staged", out staged))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -228,7 +228,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, out maxTargetBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -238,7 +238,7 @@ internal static partial class Program
             {
                 if (!TryReadRedactionPercent(args, ref i, out redactionPercent))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -248,7 +248,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-decode-depth", out maxDecodeDepth))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -258,7 +258,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-depth", out maxArchiveDepth))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -268,7 +268,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-entries", out maxArchiveEntries))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -278,7 +278,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--max-archive-megabytes", out maxArchiveBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -288,7 +288,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--max-archive-ratio", out maxArchiveCompressionRatio))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -298,7 +298,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeIntFlag(args, ref i, "--timeout", out timeoutSeconds))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -308,7 +308,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--diagnostics", out diagnostics))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -318,7 +318,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--diagnostics-dir", out diagnosticsDir))
                 {
-                    return UnknownFlagExitCode;
+                    return GetOperationalExitCode(nativeMode);
                 }
 
                 continue;
@@ -326,7 +326,7 @@ internal static partial class Program
 
             if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
             {
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             if (handledCommonFlag)
@@ -343,31 +343,37 @@ internal static partial class Program
             if (rootProvided)
             {
                 Console.Error.WriteLine($"unexpected argument: {arg}");
-                return UnknownFlagExitCode;
+                return GetOperationalExitCode(nativeMode);
             }
 
             root = arg.Length == 0 ? "." : arg;
             rootProvided = true;
         }
 
+        if (nativeMode && exitCode == NativeOperationalExitCode)
+        {
+            Console.Error.WriteLine("--exit-code 2 is reserved for incomplete or failed native scans");
+            return NativeOperationalExitCode;
+        }
+
         if (!staged && !preCommit && !TryValidatePlatform(platform))
         {
-            return UnknownFlagExitCode;
+            return GetOperationalExitCode(nativeMode);
         }
 
         if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "git", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
         {
-            return UnknownFlagExitCode;
+            return GetOperationalExitCode(nativeMode);
         }
 
         if (!TryLoadRules(configPath, root, enabledRuleIds, additionalRulePacks, nativeConfig: nativeMode, out CompiledRuleSet? rules))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? baseline))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
@@ -385,13 +391,14 @@ internal static partial class Program
                 maxArchiveCompressionRatio: maxArchiveCompressionRatio,
                 maxTargetBytes: maxTargetBytes,
                 isPathAllowed: rules.IsGlobalPathAllowed,
-                warningSink: nativeMode ? Console.Error.WriteLine : null,
-                isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+                warningSink: Console.Error.WriteLine,
+                isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
+                identifyArchivesByContent: nativeMode));
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
         {
             Console.Error.WriteLine(ex.Message);
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
@@ -414,13 +421,13 @@ internal static partial class Program
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
         if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         if (timedOut)
         {
             Console.Error.WriteLine(TimeoutErrorMessage);
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         return CompleteRun(filteredFindings.Count == 0 ? 0 : exitCode, diagnosticsSession);

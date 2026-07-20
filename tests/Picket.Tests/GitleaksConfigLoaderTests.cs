@@ -1,4 +1,5 @@
 using Picket.Compat;
+using Picket.Engine;
 using Picket.Rules;
 using System.Text;
 
@@ -390,6 +391,20 @@ public sealed class GitleaksConfigLoaderTests
             Environment.SetEnvironmentVariable("GITLEAKS_CONFIG_TOML", previousConfigToml);
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    /// <summary>
+    /// Verifies every embedded Gitleaks rule and allowlist regex compiles through the runtime Scout dialect.
+    /// </summary>
+    [TestMethod]
+    public void EmbeddedGitleaksDefaultRuleSetCompilesEveryRegex()
+    {
+        RuleSet sourceRules = GitleaksConfigLoader.LoadDefaultRuleSet();
+        var rulesToCompile = new RuleSet(sourceRules.Rules, sourceRules.Allowlists);
+
+        CompiledRuleSet compiledRules = CompiledRuleSet.Compile(rulesToCompile);
+
+        Assert.HasCount(222, compiledRules.Rules);
     }
 
     /// <summary>
@@ -867,9 +882,14 @@ public sealed class GitleaksConfigLoaderTests
                 [[rules]]
                 id = "shared-token"
                 description = "child shared"
+                skipReport = true
                 randomnessThreshold = 0
                 keywords = ["child-key"]
                 tags = ["child-tag"]
+
+                [[rules.required]]
+                id = "base-token"
+                withinLines = 5
 
                 [[rules.allowlists]]
                 stopwords = ["child-example"]
@@ -893,6 +913,8 @@ public sealed class GitleaksConfigLoaderTests
             Assert.AreEqual(1, sharedRule.SecretGroup);
             Assert.AreEqual(2.1, sharedRule.Entropy);
             Assert.AreEqual(0, sharedRule.RandomnessThreshold);
+            Assert.IsFalse(sharedRule.SkipReport);
+            Assert.IsEmpty(sharedRule.RequiredRules);
             Assert.Contains("base-key", sharedRule.Keywords);
             Assert.Contains("child-key", sharedRule.Keywords);
             Assert.Contains("base-tag", sharedRule.Tags);

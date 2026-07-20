@@ -57,7 +57,7 @@
       "picket.engine": {
         "type": "Project",
         "dependencies": {
-          "Picket.Rules": "[0.1.0, )",
+          "Picket.Rules": "[0.1.4, )",
           "Scout.Text.Regex": "[0.4.7, )",
           "SharpYaml": "[3.13.0, )"
         }
@@ -65,8 +65,8 @@
       "picket.report": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Rules": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Rules": "[0.1.4, )"
         }
       },
       "picket.rules": {
@@ -82,7 +82,7 @@
         "type": "Project",
         "dependencies": {
           "Hex1b": "[0.165.0, )",
-          "Picket.Report": "[0.1.0, )"
+          "Picket.Report": "[0.1.4, )"
         }
       },
       "Hex1b": {

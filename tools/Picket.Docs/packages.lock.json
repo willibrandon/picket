@@ -5,20 +5,20 @@
       "picket.analyze": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )"
         }
       },
       "picket.compat": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Rules": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Rules": "[0.1.4, )"
         }
       },
       "picket.engine": {
         "type": "Project",
         "dependencies": {
-          "Picket.Rules": "[0.1.0, )",
+          "Picket.Rules": "[0.1.4, )",
           "Scout.Text.Regex": "[0.4.7, )",
           "SharpYaml": "[3.13.0, )"
         }
@@ -26,8 +26,8 @@
       "picket.report": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Rules": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Rules": "[0.1.4, )"
         }
       },
       "picket.rules": {
@@ -42,8 +42,8 @@
       "picket.verify": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.0, )",
-          "Picket.Security": "[0.1.0, )"
+          "Picket.Engine": "[0.1.4, )",
+          "Picket.Security": "[0.1.4, )"
         }
       },
       "Scout.Text.Regex": {

@@ -46,7 +46,7 @@ internal static partial class Program
         {
             if (!TryCreateLiveVerifier(liveVerification, cacheDir, rules.Fingerprint, out SecretLiveVerifier? liveVerifier))
             {
-                return CompleteRun(1, diagnosticsSession);
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
             }
 
             using (liveVerifier)
@@ -58,7 +58,7 @@ internal static partial class Program
                     out List<Finding>? liveFindings,
                     out Dictionary<string, CredentialAnalysisMetadata>? liveAnalysisMetadata))
                 {
-                    return CompleteRun(1, diagnosticsSession);
+                    return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
                 }
 
                 filteredFindings = liveFindings;
@@ -90,7 +90,7 @@ internal static partial class Program
             : nativeResultWriter(filteredFindings, reportPath, reportPaths, reportFormat, reportTemplatePath, analysisMetadata);
         if (!wroteResults)
         {
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         if (hadScanError)
@@ -100,7 +100,7 @@ internal static partial class Program
                 Console.Error.WriteLine(IncompleteScanMessage);
             }
 
-            return CompleteRun(1, diagnosticsSession);
+            return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
         successfulRunCallback?.Invoke();

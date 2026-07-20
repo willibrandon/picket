@@ -168,6 +168,30 @@ public sealed class GitleaksRegexDialectTests
     }
 
     /// <summary>
+    /// Verifies a leading closing bracket remains a literal character-class member.
+    /// </summary>
+    [TestMethod]
+    [DataRow(@"[]\d]", "5", true)]
+    [DataRow(@"[]\d]", "]", true)]
+    [DataRow(@"[]\d]", "x", false)]
+    [DataRow(@"[^]\s]", "x", true)]
+    [DataRow(@"[^]\s]", "]", false)]
+    [DataRow(@"[^]\s]", " ", false)]
+    public void ScanPreservesLeadingClosingBracketInCharacterClass(string pattern, string input, bool expectedMatch)
+    {
+        IReadOnlyList<Finding> findings = Scan(pattern, input);
+
+        if (expectedMatch)
+        {
+            Assert.HasCount(1, findings);
+        }
+        else
+        {
+            Assert.IsEmpty(findings);
+        }
+    }
+
+    /// <summary>
     /// Verifies brace sequences that are not Go counted repetitions remain literal.
     /// </summary>
     [TestMethod]

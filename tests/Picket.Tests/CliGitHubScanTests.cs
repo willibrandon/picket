@@ -85,7 +85,7 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
@@ -455,7 +455,7 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("cannot combine --github-pull-request with --github-include-issues", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
@@ -488,7 +488,7 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("GitHub issue source options require --github-repository, --github-organization, or --github-user", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
@@ -523,7 +523,7 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("cannot combine --github-pull-request with --github-include-releases", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
@@ -558,7 +558,7 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("cannot combine --github-pull-request with --github-include-actions-artifacts", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
@@ -594,7 +594,7 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("either --github-ref or --github-pull-request", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
@@ -628,7 +628,7 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("blocked GitHub endpoint", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
@@ -662,13 +662,13 @@ public sealed class CliGitHubScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("Choose one GitHub scan target: --github-repository owner/name, --github-organization login, --github-user login, --github-gist id, --github-gists, or --github-user-gists login", result.Stderr);
         Assert.DoesNotContain("github-source-secret", result.Stdout);
         Assert.DoesNotContain("github-source-secret", result.Stderr);
     }
 
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     private async Task<CliResult> RunCliWithEnvironmentAsync(
         string workingDirectory,

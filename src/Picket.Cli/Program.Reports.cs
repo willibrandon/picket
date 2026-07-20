@@ -4,6 +4,7 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace Picket;
 
@@ -27,9 +28,9 @@ internal static partial class Program
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            Console.Error.WriteLine(ex.Message);
-            baseline = null;
-            return false;
+            Console.Error.WriteLine($"could not load baseline: {ex.Message}");
+            baseline = GitleaksBaseline.Empty;
+            return true;
         }
     }
 
@@ -210,6 +211,11 @@ internal static partial class Program
             return false;
         }
 
+        if (!nativeReportFormats && string.IsNullOrWhiteSpace(reportPath))
+        {
+            return true;
+        }
+
         string report;
         try
         {
@@ -240,8 +246,22 @@ internal static partial class Program
     {
         if (string.IsNullOrWhiteSpace(reportPath) || reportPath.Equals("-", StringComparison.Ordinal))
         {
-            Console.Out.Write(report);
-            return true;
+            try
+            {
+                using var writer = new StreamWriter(
+                    Console.OpenStandardOutput(),
+                    new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                    bufferSize: 4096,
+                    leaveOpen: true);
+                writer.Write(report);
+                writer.Flush();
+                return true;
+            }
+            catch (IOException ex)
+            {
+                Console.Error.WriteLine($"failed to write report: {ex.Message}");
+                return false;
+            }
         }
 
         try
@@ -303,6 +323,13 @@ internal static partial class Program
         bool nativeReportFormats,
         [NotNullWhen(true)] out string? resolvedReportFormat)
     {
+        if (!string.IsNullOrWhiteSpace(reportTemplatePath) && string.IsNullOrWhiteSpace(reportFormat))
+        {
+            Console.Error.WriteLine("report format must be 'template' if --report-template is specified");
+            resolvedReportFormat = null;
+            return false;
+        }
+
         if (!string.IsNullOrWhiteSpace(reportFormat))
         {
             if (!TryNormalizeReportFormat(reportFormat, nativeReportFormats, out resolvedReportFormat))
@@ -318,12 +345,6 @@ internal static partial class Program
                 return false;
             }
 
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(reportTemplatePath))
-        {
-            resolvedReportFormat = "template";
             return true;
         }
 

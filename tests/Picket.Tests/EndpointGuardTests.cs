@@ -70,6 +70,7 @@ public sealed class EndpointGuardTests
             IPAddress.Parse("192.168.1.1"),
             IPAddress.Parse("169.254.169.254"),
             IPAddress.Parse("100.64.0.1"),
+            IPAddress.Parse("192.88.99.1"),
             IPAddress.Parse("198.18.0.1"),
             IPAddress.Parse("::1"),
             IPAddress.Parse("fe00::1"),
@@ -83,6 +84,7 @@ public sealed class EndpointGuardTests
             IPAddress.Parse("::ffff:169.254.169.254"),
             IPAddress.Parse("64:ff9b::7f00:1"),
             IPAddress.Parse("64:ff9b::0a00:1"),
+            IPAddress.Parse("64:ff9b:1::0a00:1"),
             IPAddress.Parse("2002:0a00:0001::"),
             IPAddress.Parse("2001:0000:0000:0000:0000:0000:f5ff:fffe"),
         ];

@@ -283,6 +283,7 @@ ScanRequest(
     long? maxTargetBytes,
     string symlinkFile,
     bool enableCSharpStringConcatenation,
+    bool useGitleaksMaxTargetSemantics,
     Func<bool> isCancellationRequested,
     CancellationToken cancellationToken
 )
@@ -303,6 +304,7 @@ ScanRequest(
     long? maxTargetBytes,
     string symlinkFile,
     bool enableCSharpStringConcatenation,
+    bool useGitleaksMaxTargetSemantics,
     Func<bool> isCancellationRequested,
     CancellationToken cancellationToken
 )
@@ -330,6 +332,7 @@ Initializes a new scan request and compiles the supplied source rules.
 - `SourceStartColumn` - Gets the one-based source column represented by the first input byte.
 - `SourceStartLine` - Gets the one-based source line represented by the first input byte.
 - `SymlinkFile` - Gets the symlink path used in reports, or an empty string.
+- `UseGitleaksMaxTargetSemantics` - Gets a value indicating whether the target-size limit uses Gitleaks' integer decimal-megabyte comparison.
 
 ## SecretRandomnessAssessment
 

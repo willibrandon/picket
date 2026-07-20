@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 
-ARG DOTNET_VERSION=10.0
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk@sha256:ed034a8bf0b24ded0cbbac07e17825d8e9ebfe21e308191d0f7421eaf5ad4664
+ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/runtime-deps@sha256:894098eafc82e5fa02ba9f2b71d426dc78252876b9e914caae77ed95cfce185a
 
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble AS build
+FROM ${DOTNET_SDK_IMAGE} AS build
 ARG TARGETARCH
 ARG RID
 ARG VERSION=0.1.0
@@ -24,7 +25,7 @@ RUN if [ -z "$RID" ]; then \
     && dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version="$VERSION" -p:PackageVersion="$VERSION" -r "$RID" --no-restore -o /out \
     && dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:Version="$VERSION" -p:PackageVersion="$VERSION" -r "$RID" --no-restore -o /out
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:${DOTNET_VERSION}-noble AS runtime
+FROM ${DOTNET_RUNTIME_IMAGE} AS runtime
 ARG VERSION=0.1.0
 
 LABEL org.opencontainers.image.title="Picket"

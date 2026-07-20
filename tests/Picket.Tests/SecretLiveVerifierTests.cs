@@ -231,29 +231,22 @@ public sealed class SecretLiveVerifierTests
     }
 
     /// <summary>
-    /// Verifies that transient verifier errors are not cached for duplicate findings during the same scan.
+    /// Verifies that transient verifier errors are request-cached but not persisted.
     /// </summary>
     [TestMethod]
-    public async Task VerifyAsyncNonCacheableDuplicateSecretRecontactsProvider()
+    public async Task VerifyAsyncRequestCachesTransientErrors()
     {
         SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
         options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
-        SecretValidationResult[] results =
-        [
-            new SecretValidationResult(
-                SecretValidationState.Error,
-                "provider temporarily failed",
-                evidence: ["errorKind=transient"],
-                isPersistentCacheable: false),
-            new SecretValidationResult(SecretValidationState.Active, "provider accepted token"),
-        ];
-        int resultIndex = 0;
         var validator = new FakeSecretLiveValidator(
             "fake",
             "v1",
             new Uri("https://127.0.0.1/user"),
-            new SecretValidationResult(SecretValidationState.Error),
-            verifyAsync: (_, _) => ValueTask.FromResult(results[resultIndex++]));
+            new SecretValidationResult(
+                SecretValidationState.Error,
+                "provider temporarily failed",
+                evidence: ["errorKind=transient"],
+                isPersistentCacheable: false));
         var verifier = new SecretLiveVerifier([validator], options: options);
         Finding finding = CreateFinding();
 
@@ -262,10 +255,75 @@ public sealed class SecretLiveVerifierTests
 
         Assert.AreEqual(SecretValidationState.Error, first.State);
         Assert.Contains("errorKind=transient", first.Evidence);
-        Assert.AreEqual(SecretValidationState.Active, second.State);
+        Assert.AreEqual(SecretValidationState.Error, second.State);
+        Assert.Contains("providerContacted=false", second.Evidence);
+        Assert.Contains("cacheHit=request", second.Evidence);
+        Assert.AreEqual(1, validator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that a zero error-cache duration recontacts the provider for duplicate findings.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncDoesNotRequestCacheTransientErrorsWhenDisabled()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.ErrorResultCacheDuration = TimeSpan.Zero;
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(
+                SecretValidationState.Error,
+                "provider temporarily failed",
+                isPersistentCacheable: false));
+        var verifier = new SecretLiveVerifier([validator], options: options);
+        Finding finding = CreateFinding();
+
+        await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult second = await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
+
         Assert.Contains("providerContacted=true", second.Evidence);
         Assert.DoesNotContain("cacheHit=request", second.Evidence);
         Assert.AreEqual(2, validator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that persistent-cache contention does not abort live verification.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncContinuesWhenPersistentCacheWriteFails()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        var warnings = new List<string>();
+        options.WarningSink = warnings.Add;
+        Finding finding = CreateFinding();
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active, "provider accepted token"));
+        SecretValidationCacheKey cacheKey = SecretValidationCacheKey.FromFinding(
+            validator.Provider,
+            validator.Version,
+            finding,
+            validator.Endpoint);
+        string lockPath = Path.Combine(temp.Path, "locks", string.Concat(cacheKey.Fingerprint, ".lock"));
+        using FileStream heldLock = File.Open(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        var verifier = new SecretLiveVerifier([validator], cache, options);
+
+        SecretValidationResult result = await verifier.VerifyAsync(finding, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Active, result.State);
+        Assert.Contains("providerContacted=true", result.Evidence);
+        Assert.HasCount(1, warnings);
+        Assert.AreEqual("validation cache write failed; continuing without persistent caching", warnings[0]);
+        Assert.DoesNotContain(finding.Secret, warnings[0]);
     }
 
     /// <summary>

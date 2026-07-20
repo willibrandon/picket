@@ -228,6 +228,29 @@ public sealed class SecretValidationCacheTests
     }
 
     /// <summary>
+    /// Verifies that validation-cache maintenance removes unreadable authenticated entries.
+    /// </summary>
+    [TestMethod]
+    public void PruneExpiredDeletesCorruptEntries()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretValidationCacheKey key = SecretValidationCacheKey.FromFinding(
+            "github",
+            "v1",
+            CreateFinding(),
+            new Uri("https://api.github.com/user"));
+        cache.Write(key, new SecretValidationResult(SecretValidationState.Active), DateTimeOffset.UtcNow.AddMinutes(5));
+        string entryPath = GetSingleEntryPath(temp.Path);
+        File.WriteAllText(entryPath, "corrupt", new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        int pruned = cache.PruneExpired(DateTimeOffset.UtcNow);
+
+        Assert.AreEqual(1, pruned);
+        Assert.IsFalse(File.Exists(entryPath));
+    }
+
+    /// <summary>
     /// Verifies that callers cannot accidentally use raw secret material as the key secret hash.
     /// </summary>
     [TestMethod]

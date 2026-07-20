@@ -57,6 +57,17 @@ public sealed class GitleaksTemplateReportWriterTests
     }
 
     /// <summary>
+    /// Verifies entropy uses Go's shortest float32 template representation.
+    /// </summary>
+    [TestMethod]
+    public void WriteRendersEntropyAsShortestFloat32()
+    {
+        string report = GitleaksTemplateReportWriter.Write([CreateFinding()], "{{ range . }}{{ .Entropy }}{{ end }}");
+
+        Assert.AreEqual("3.6818807", report);
+    }
+
+    /// <summary>
     /// Verifies that dangerous Sprig functions disabled by Gitleaks are rejected.
     /// </summary>
     [TestMethod]
@@ -82,7 +93,7 @@ public sealed class GitleaksTemplateReportWriterTests
             "auth.py",
             string.Empty,
             "0000000000000000",
-            0,
+            3.681880802803402,
             "John Doe",
             "johndoe@example.com",
             "10-19-2003",

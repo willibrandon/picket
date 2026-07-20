@@ -132,6 +132,7 @@ runs:
 
     - name: Restore Picket
       shell: pwsh
+      working-directory: ${{ github.action_path }}
       run: dotnet restore "$env:GITHUB_ACTION_PATH/Picket.slnx" --locked-mode
 
     - name: Restore scan cache
@@ -148,6 +149,7 @@ runs:
     - name: Run Picket
       id: run
       shell: pwsh
+      working-directory: ${{ github.action_path }}
       env:
         PICKET_PATH: ${{ inputs.path }}
         PICKET_CONFIG_PATH: ${{ inputs.config-path }}

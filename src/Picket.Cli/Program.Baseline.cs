@@ -416,7 +416,7 @@ internal static partial class Program
         }
 
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
-        if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, "json", reportTemplatePath: null))
+        if (!TryWriteReport(filteredFindings, rules.Rules, reportPath ?? "-", "json", reportTemplatePath: null))
         {
             return CompleteRun(1, diagnosticsSession);
         }

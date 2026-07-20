@@ -11,11 +11,17 @@ internal static class ArchiveReader
     private const int ArchiveKindTar = 2;
     private const int ArchiveKindZip = 3;
     private const int ArchiveKindZstandard = 4;
+    private const int ArchiveKindUnsupported = 5;
     private const int TarMagicOffset = 257;
     private const int TarMagicLength = 5;
 
-    internal static bool IsArchiveFile(string path)
+    internal static bool IsArchiveFile(string path, bool identifyByContent)
     {
+        if (!identifyByContent)
+        {
+            return IdentifyArchiveKindFromPath(path) != ArchiveKindNone;
+        }
+
         try
         {
             using FileStream stream = File.OpenRead(path);
@@ -32,6 +38,11 @@ internal static class ArchiveReader
     internal static bool IsArchiveContent(ReadOnlySpan<byte> content)
     {
         return IdentifyArchiveKind(content) != ArchiveKindNone;
+    }
+
+    internal static bool IsArchivePath(string path)
+    {
+        return IdentifyArchiveKindFromPath(path) != ArchiveKindNone;
     }
 
     internal static bool TryReadFileEntries(
@@ -507,6 +518,43 @@ internal static class ArchiveReader
         }
 
         return IsTarHeader(header) ? ArchiveKindTar : ArchiveKindNone;
+    }
+
+    private static int IdentifyArchiveKindFromPath(string path)
+    {
+        string fileName = Path.GetFileName(path).ToLowerInvariant();
+        if (fileName.Contains(".gz", StringComparison.Ordinal))
+        {
+            return ArchiveKindGzip;
+        }
+
+        if (fileName.Contains(".zst", StringComparison.Ordinal))
+        {
+            return ArchiveKindZstandard;
+        }
+
+        if (fileName.Contains(".zip", StringComparison.Ordinal))
+        {
+            return ArchiveKindZip;
+        }
+
+        if (fileName.Contains(".tar", StringComparison.Ordinal))
+        {
+            return ArchiveKindTar;
+        }
+
+        return fileName.Contains(".7z", StringComparison.Ordinal)
+            || fileName.Contains(".br", StringComparison.Ordinal)
+            || fileName.Contains(".bz2", StringComparison.Ordinal)
+            || fileName.Contains(".lz4", StringComparison.Ordinal)
+            || fileName.EndsWith(".lz", StringComparison.Ordinal)
+            || fileName.Contains(".mz", StringComparison.Ordinal)
+            || fileName.Contains(".rar", StringComparison.Ordinal)
+            || fileName.Contains(".sz", StringComparison.Ordinal)
+            || fileName.Contains(".xz", StringComparison.Ordinal)
+            || fileName.Contains(".zz", StringComparison.Ordinal)
+                ? ArchiveKindUnsupported
+                : ArchiveKindNone;
     }
 
     private static bool IsCompressedArchiveKind(int archiveKind)

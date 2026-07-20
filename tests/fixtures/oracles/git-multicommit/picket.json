@@ -1,0 +1,42 @@
+[
+ {
+  "RuleID": "history-token",
+  "Description": "Synthetic token used for multi-commit git oracle compatibility tests.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 17,
+  "EndColumn": 36,
+  "Match": "REDACTED",
+  "Secret": "REDACTED",
+  "File": "renamed.txt",
+  "SymlinkFile": "",
+  "Commit": "887b7111ed094fa3aa9de0edb2d2553057e58edb",
+  "Entropy": 3.241446,
+  "Author": "Picket Oracle",
+  "Email": "picket@example.com",
+  "Date": "2024-01-03T00:00:00Z",
+  "Message": "replace historical oracle secret",
+  "Tags": [],
+  "Fingerprint": "887b7111ed094fa3aa9de0edb2d2553057e58edb:renamed.txt:history-token:1"
+ },
+ {
+  "RuleID": "history-token",
+  "Description": "Synthetic token used for multi-commit git oracle compatibility tests.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 16,
+  "EndColumn": 35,
+  "Match": "REDACTED",
+  "Secret": "REDACTED",
+  "File": "first.txt",
+  "SymlinkFile": "",
+  "Commit": "9c2acf9cd35f6c914889821d4a0854085d66fc88",
+  "Entropy": 3.241446,
+  "Author": "Picket Oracle",
+  "Email": "picket@example.com",
+  "Date": "2024-01-01T00:00:00Z",
+  "Message": "add historical oracle secret",
+  "Tags": [],
+  "Fingerprint": "9c2acf9cd35f6c914889821d4a0854085d66fc88:first.txt:history-token:1"
+ }
+]

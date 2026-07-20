@@ -197,6 +197,42 @@ public sealed class GitleaksBaselineTests
     }
 
     /// <summary>
+    /// Verifies baseline field names are matched case-insensitively like Go JSON fields.
+    /// </summary>
+    [TestMethod]
+    public void LoadMatchesJsonFieldsCaseInsensitively()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string path = Path.Combine(root.Path, "baseline.json");
+        File.WriteAllText(
+            path,
+            """
+            [{"ruleid":"rule","description":"description","startline":1,"endline":1,"startcolumn":2,"endcolumn":13,"match":"token=secret","secret":"secret","file":"secrets.txt","commit":"commit","entropy":3.25,"author":"author","email":"author@example.com","date":"2026-07-05T00:00:00Z","message":"message"}]
+            """);
+
+        GitleaksBaseline baseline = GitleaksBaseline.Load(path);
+
+        Assert.AreEqual(1, baseline.Count);
+        Assert.IsFalse(baseline.IsNew(CreateFinding()));
+    }
+
+    /// <summary>
+    /// Verifies a JSON null baseline is treated as an empty finding list.
+    /// </summary>
+    [TestMethod]
+    public void LoadTreatsNullJsonAsEmptyBaseline()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string path = Path.Combine(root.Path, "baseline.json");
+        File.WriteAllText(path, "null");
+
+        GitleaksBaseline baseline = GitleaksBaseline.Load(path);
+
+        Assert.AreEqual(0, baseline.Count);
+        Assert.IsTrue(baseline.IsNew(CreateFinding()));
+    }
+
+    /// <summary>
     /// Verifies that non-JSON baseline files are rejected.
     /// </summary>
     [TestMethod]

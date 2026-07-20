@@ -549,7 +549,7 @@ public static class GitleaksTemplateReportWriter
         {
             null => string.Empty,
             bool flag => flag ? "true" : "false",
-            double number => number.ToString("G17", CultureInfo.InvariantCulture),
+            double number => ReportNumberFormatter.FormatGitleaksFloat(number),
             int integer => integer.ToString(CultureInfo.InvariantCulture),
             IReadOnlyList<string> values => string.Concat("[", string.Join(' ', values), "]"),
             DateTimeOffset dateTime => dateTime.ToString("O", CultureInfo.InvariantCulture),

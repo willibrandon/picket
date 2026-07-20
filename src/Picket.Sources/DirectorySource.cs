@@ -135,7 +135,7 @@ public sealed class DirectorySource
             return;
         }
 
-        if (ArchiveReader.IsArchiveFile(fullPath))
+        if (ArchiveReader.IsArchiveFile(fullPath, options.IdentifyArchivesByContent))
         {
             if (options.MaxArchiveDepth > 0)
             {

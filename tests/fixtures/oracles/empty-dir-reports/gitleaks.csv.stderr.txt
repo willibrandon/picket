@@ -1,0 +1,2 @@
+<time> INF scanned ~328 bytes (328 bytes) in <duration>
+<time> INF no leaks found

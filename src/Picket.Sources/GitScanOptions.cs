@@ -15,6 +15,7 @@ namespace Picket.Sources;
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="maxArchiveCompressionRatio">The maximum archive expansion ratio, or 0 for no cap.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
+/// <param name="identifyArchivesByContent">A value indicating whether binary archives are identified from content instead of Gitleaks-compatible path names.</param>
 public sealed class GitScanOptions(
     string root,
     string? logOptions = null,
@@ -27,7 +28,8 @@ public sealed class GitScanOptions(
     long? maxArchiveBytes = ArchiveScanDefaults.DefaultMaxBytes,
     Action<string>? warningSink = null,
     int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
-    Func<bool>? isCancellationRequested = null)
+    Func<bool>? isCancellationRequested = null,
+    bool identifyArchivesByContent = false)
 {
     /// <summary>
     /// Gets the full git repository path.
@@ -73,6 +75,11 @@ public sealed class GitScanOptions(
     /// Gets the maximum archive entry size to yield, or <see langword="null" /> for no cap.
     /// </summary>
     public long? MaxTargetBytes { get; } = RequireMaxTargetBytes(maxTargetBytes);
+
+    /// <summary>
+    /// Gets a value indicating whether binary archives are identified from content instead of Gitleaks-compatible path names.
+    /// </summary>
+    public bool IdentifyArchivesByContent { get; } = identifyArchivesByContent;
 
     internal Func<string, bool>? IsPathAllowed { get; } = isPathAllowed;
 

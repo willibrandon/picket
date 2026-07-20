@@ -1,0 +1,93 @@
+{
+ "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+ "version": "2.1.0",
+ "runs": [
+  {
+   "tool": {
+    "driver": {
+     "name": "gitleaks",
+     "semanticVersion": "v8.0.0",
+     "informationUri": "https://github.com/gitleaks/gitleaks",
+     "rules": [
+      {
+       "id": "history-token",
+       "shortDescription": {
+        "text": "Synthetic token used for multi-commit git oracle compatibility tests."
+       }
+      }
+     ]
+    }
+   },
+   "results": [
+    {
+     "message": {
+      "text": "history-token has detected secret for file renamed.txt at commit 887b7111ed094fa3aa9de0edb2d2553057e58edb."
+     },
+     "ruleId": "history-token",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "renamed.txt"
+        },
+        "region": {
+         "startLine": 1,
+         "startColumn": 17,
+         "endLine": 1,
+         "endColumn": 36,
+         "snippet": {
+          "text": "REDACTED"
+         }
+        }
+       }
+      }
+     ],
+     "partialFingerprints": {
+      "commitSha": "887b7111ed094fa3aa9de0edb2d2553057e58edb",
+      "email": "picket@example.com",
+      "author": "Picket Oracle",
+      "date": "2024-01-03T00:00:00Z",
+      "commitMessage": "replace historical oracle secret"
+     },
+     "properties": {
+      "tags": []
+     }
+    },
+    {
+     "message": {
+      "text": "history-token has detected secret for file first.txt at commit 9c2acf9cd35f6c914889821d4a0854085d66fc88."
+     },
+     "ruleId": "history-token",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "first.txt"
+        },
+        "region": {
+         "startLine": 1,
+         "startColumn": 16,
+         "endLine": 1,
+         "endColumn": 35,
+         "snippet": {
+          "text": "REDACTED"
+         }
+        }
+       }
+      }
+     ],
+     "partialFingerprints": {
+      "commitSha": "9c2acf9cd35f6c914889821d4a0854085d66fc88",
+      "email": "picket@example.com",
+      "author": "Picket Oracle",
+      "date": "2024-01-01T00:00:00Z",
+      "commitMessage": "add historical oracle secret"
+     },
+     "properties": {
+      "tags": []
+     }
+    }
+   ]
+  }
+ ]
+}

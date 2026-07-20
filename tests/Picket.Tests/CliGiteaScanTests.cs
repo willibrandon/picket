@@ -8,7 +8,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliGiteaScanTests
 {
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
@@ -87,7 +87,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("blocked Gitea endpoint: endpoint resolves to a non-public address", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -460,7 +460,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea source scan accepts either --gitea-ref or --gitea-pull-request, not both", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -494,7 +494,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea source scan requires exactly one of --gitea-repository, --gitea-organization, --gitea-user, or --gitea-generic-package-owner", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -526,7 +526,7 @@ public sealed class CliGiteaScanTests
             "-c",
             configPath).ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.Contains("Gitea generic package scans use either only --gitea-generic-package-owner or all four --gitea-generic-package-* coordinates", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
     }
@@ -559,7 +559,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea pull request source scan requires --gitea-repository", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -594,7 +594,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-issues", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -629,7 +629,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-releases", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -664,7 +664,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea source scan cannot combine --gitea-pull-request with --gitea-include-actions-artifacts", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -698,7 +698,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("--gitea-actions-run-id requires --gitea-include-actions-artifacts", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -731,7 +731,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);
@@ -763,7 +763,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea token environment variable is not set: PICKET_GITEA_SOURCE_TEST_TOKEN", result.Stderr);
     }
@@ -794,7 +794,7 @@ public sealed class CliGiteaScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Gitea repository URLs must not include user info, query, or fragment data.", result.Stderr);
         Assert.DoesNotContain("gitea-source-secret", result.Stderr);

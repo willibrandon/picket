@@ -465,6 +465,78 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that opening a finding never shell-executes its path when no editor is available.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    public void FileLauncherRequiresAnEditorInsteadOfShellExecutingPath()
+    {
+        lock (s_editorEnvironmentLock)
+        {
+            string? previousPicketEditor = Environment.GetEnvironmentVariable("PICKET_EDITOR");
+            string? previousVisual = Environment.GetEnvironmentVariable("VISUAL");
+            string? previousEditor = Environment.GetEnvironmentVariable("EDITOR");
+            string? previousPath = Environment.GetEnvironmentVariable("PATH");
+            try
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", null);
+                Environment.SetEnvironmentVariable("VISUAL", null);
+                Environment.SetEnvironmentVariable("EDITOR", null);
+                Environment.SetEnvironmentVariable("PATH", string.Empty);
+
+                InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
+                    () => PicketTuiProcessFileLauncher.CreateStartInfo("untrusted.exe", 1, 1));
+
+                Assert.Contains("Set PICKET_EDITOR", exception.Message);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PICKET_EDITOR", previousPicketEditor);
+                Environment.SetEnvironmentVariable("VISUAL", previousVisual);
+                Environment.SetEnvironmentVariable("EDITOR", previousEditor);
+                Environment.SetEnvironmentVariable("PATH", previousPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that scanner resolution never discovers a development project from the working directory.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    public void ScanExecutorDoesNotResolveWorkingDirectoryProject()
+    {
+        lock (s_editorEnvironmentLock)
+        {
+            using TempDirectory temp = TempDirectory.Create();
+            string projectDirectory = Path.Combine(temp.Path, "src", "Picket.Cli");
+            Directory.CreateDirectory(projectDirectory);
+            File.WriteAllText(Path.Combine(projectDirectory, "Picket.Cli.csproj"), "<Project />");
+            string previousDirectory = Directory.GetCurrentDirectory();
+            string? previousPath = Environment.GetEnvironmentVariable("PATH");
+            string? previousScanner = Environment.GetEnvironmentVariable("PICKET_SCANNER");
+            try
+            {
+                Directory.SetCurrentDirectory(temp.Path);
+                Environment.SetEnvironmentVariable("PATH", string.Empty);
+                Environment.SetEnvironmentVariable("PICKET_SCANNER", null);
+
+                string resolvedPath = PicketTuiProcessScanExecutor.ResolvePicketPath();
+
+                Assert.IsTrue(Path.IsPathFullyQualified(resolvedPath));
+                Assert.DoesNotContain("Picket.Cli.csproj", resolvedPath);
+                Assert.DoesNotContain(temp.Path, resolvedPath);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PICKET_SCANNER", previousScanner);
+                Environment.SetEnvironmentVariable("PATH", previousPath);
+                Directory.SetCurrentDirectory(previousDirectory);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace builds command-equivalent native scan arguments.
     /// </summary>
     [TestMethod]

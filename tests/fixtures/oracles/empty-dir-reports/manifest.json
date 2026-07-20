@@ -1,0 +1,206 @@
+{
+  "Schema": "picket.oracle.v1",
+  "Name": "empty-dir-reports",
+  "Mode": "dir",
+  "Formats": [
+    "json",
+    "csv",
+    "junit",
+    "sarif"
+  ],
+  "Upstream": {
+    "Tool": "gitleaks",
+    "Version": "version is set by build process",
+    "CloneVersion": "v8.30.0-23-g4c232b5",
+    "Commit": "4c232b5014f7618360bd992b4c489cb055881c6b",
+    "Remote": "https://github.com/gitleaks/gitleaks.git"
+  },
+  "Redaction": {
+    "MapRequired": false,
+    "EntryCount": 0
+  },
+  "Files": [
+    {
+      "Kind": "gitleaks-report",
+      "Format": "json",
+      "Path": "gitleaks.json",
+      "Sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "json",
+      "Path": "picket.json",
+      "Sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "json",
+      "Path": "gitleaks.json.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "json",
+      "Path": "picket.json.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "json",
+      "Path": "gitleaks.json.stderr.txt",
+      "Sha256": "df148eea91ad64cae519f3f303d69b1637972537dd50652c7021cdadf4e30764"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "json",
+      "Path": "picket.json.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "csv",
+      "Path": "gitleaks.csv",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "csv",
+      "Path": "picket.csv",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "csv",
+      "Path": "gitleaks.csv.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "csv",
+      "Path": "picket.csv.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "csv",
+      "Path": "gitleaks.csv.stderr.txt",
+      "Sha256": "df148eea91ad64cae519f3f303d69b1637972537dd50652c7021cdadf4e30764"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "csv",
+      "Path": "picket.csv.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "junit",
+      "Path": "gitleaks.junit",
+      "Sha256": "05219f7bf8d7624e2c21f8e17fe1bbda6d83c915b2716aaaeb0bd6c1d92ac5b3"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "junit",
+      "Path": "picket.junit",
+      "Sha256": "05219f7bf8d7624e2c21f8e17fe1bbda6d83c915b2716aaaeb0bd6c1d92ac5b3"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "junit",
+      "Path": "gitleaks.junit.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "junit",
+      "Path": "picket.junit.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "junit",
+      "Path": "gitleaks.junit.stderr.txt",
+      "Sha256": "df148eea91ad64cae519f3f303d69b1637972537dd50652c7021cdadf4e30764"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "junit",
+      "Path": "picket.junit.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-report",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif",
+      "Sha256": "1a0f7068af72fe1459ff2947d9ad2e7d39b85b3033565dd8bbb928742f8510ba"
+    },
+    {
+      "Kind": "picket-report",
+      "Format": "sarif",
+      "Path": "picket.sarif",
+      "Sha256": "1a0f7068af72fe1459ff2947d9ad2e7d39b85b3033565dd8bbb928742f8510ba"
+    },
+    {
+      "Kind": "gitleaks-stdout",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "picket-stdout",
+      "Format": "sarif",
+      "Path": "picket.sarif.stdout.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "Kind": "gitleaks-stderr",
+      "Format": "sarif",
+      "Path": "gitleaks.sarif.stderr.txt",
+      "Sha256": "df148eea91ad64cae519f3f303d69b1637972537dd50652c7021cdadf4e30764"
+    },
+    {
+      "Kind": "picket-stderr",
+      "Format": "sarif",
+      "Path": "picket.sarif.stderr.txt",
+      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "Comparisons": [
+    {
+      "Format": "json",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 0,
+      "PicketExitCode": 0
+    },
+    {
+      "Format": "csv",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 0,
+      "PicketExitCode": 0
+    },
+    {
+      "Format": "junit",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 0,
+      "PicketExitCode": 0
+    },
+    {
+      "Format": "sarif",
+      "ExitCodeEqual": true,
+      "ReportBytesEqual": true,
+      "StdoutBytesEqual": true,
+      "StderrBytesEqual": false,
+      "GitleaksExitCode": 0,
+      "PicketExitCode": 0
+    }
+  ]
+}

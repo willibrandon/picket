@@ -39,6 +39,7 @@ internal static class GitleaksRegexCompiler
         StringBuilder? builder = null;
         int copyStart = 0;
         bool inClass = false;
+        int classElementCount = 0;
         for (int index = 0; index < pattern.Length; index++)
         {
             char value = pattern[index];
@@ -52,16 +53,31 @@ internal static class GitleaksRegexCompiler
                     builder.Append(replacement);
                     index++;
                     copyStart = index + 1;
+                    if (inClass)
+                    {
+                        classElementCount++;
+                    }
+
                     continue;
                 }
 
                 if (IsBracedEscape(pattern, index))
                 {
                     index += 2;
+                    if (inClass)
+                    {
+                        classElementCount++;
+                    }
+
                     continue;
                 }
 
                 index++;
+                if (inClass)
+                {
+                    classElementCount++;
+                }
+
                 continue;
             }
 
@@ -77,6 +93,16 @@ internal static class GitleaksRegexCompiler
             if (!inClass)
             {
                 inClass = value == '[';
+                if (inClass)
+                {
+                    classElementCount = 0;
+                }
+
+                continue;
+            }
+
+            if (value == '^' && classElementCount == 0)
+            {
                 continue;
             }
 
@@ -86,13 +112,18 @@ internal static class GitleaksRegexCompiler
                 TryFindPosixClassEnd(pattern, index + 2, out int posixClassEnd))
             {
                 index = posixClassEnd;
+                classElementCount++;
                 continue;
             }
 
-            if (value == ']')
+            if (value == ']' && classElementCount != 0)
             {
                 inClass = false;
+                continue;
             }
+
+
+            classElementCount++;
         }
 
         if (builder is null)

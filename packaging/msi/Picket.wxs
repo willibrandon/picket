@@ -30,8 +30,14 @@
       <Component Id="PicketTuiExe" Guid="291EA882-6502-4BBA-82F3-DAD8CA7516D5">
         <File Id="PicketTuiExeFile" Source="$(var.PayloadDir)\picket-tui.exe" KeyPath="yes" />
       </Component>
+      <Component Id="PicketZstandard" Guid="A835DD3F-BC1B-4483-B3FC-D96468DAB324">
+        <File Id="PicketZstandardFile" Source="$(var.PayloadDir)\libzstd.dll" KeyPath="yes" />
+      </Component>
       <Component Id="PicketLicense" Guid="B565EF1F-6FDC-497E-8FE5-10F026CE0B35">
         <File Id="PicketLicenseFile" Source="$(var.PayloadDir)\LICENSE" KeyPath="yes" />
+      </Component>
+      <Component Id="PicketThirdPartyNotices" Guid="55997055-F458-4875-A915-90CA28F805A1">
+        <File Id="PicketThirdPartyNoticesFile" Source="$(var.PayloadDir)\THIRD-PARTY-NOTICES.txt" KeyPath="yes" />
       </Component>
       <Component Id="PicketPath" Guid="9489474C-D30C-4FD5-8C66-251102B5342E">
         <Environment
@@ -55,7 +61,9 @@
     <Feature Id="PicketFeature" Title="Picket" Level="1">
       <ComponentRef Id="PicketExe" />
       <ComponentRef Id="PicketTuiExe" />
+      <ComponentRef Id="PicketZstandard" />
       <ComponentRef Id="PicketLicense" />
+      <ComponentRef Id="PicketThirdPartyNotices" />
       <ComponentRef Id="PicketPath" />
     </Feature>
   </Package>

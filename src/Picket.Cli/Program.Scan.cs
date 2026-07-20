@@ -162,7 +162,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--source", out string? sourceValue))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 source = sourceValue.Length == 0 ? "." : sourceValue;
@@ -173,7 +173,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--verify", out bool verify))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (verify)
@@ -188,7 +188,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--docker-archive", out string? archivePath))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 dockerArchivePath = archivePath;
@@ -200,7 +200,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--oci-archive", out string? archivePath))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 ociArchivePath = archivePath;
@@ -212,7 +212,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--registry-image", out string? image))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryImage = image;
@@ -224,7 +224,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--registry-endpoint", out registryEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryOptionSpecified = true;
@@ -235,7 +235,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--registry-auth-endpoint", out registryAuthenticationEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryOptionSpecified = true;
@@ -246,7 +246,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--registry-token-env", out registryTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryOptionSpecified = true;
@@ -257,7 +257,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--registry-username-env", out registryUsernameEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryOptionSpecified = true;
@@ -268,7 +268,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--registry-password-env", out registryPasswordEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryOptionSpecified = true;
@@ -279,7 +279,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--registry-platform", out string? platform))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryPlatform = platform;
@@ -291,7 +291,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--registry-max-image-megabytes", out registryMaxImageBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 registryOptionSpecified = true;
@@ -302,7 +302,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-repository", out string? repository))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceRepository = repository;
@@ -314,7 +314,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-organization", out string? organization))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceOrganization = organization;
@@ -326,7 +326,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-user", out string? userName))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceUser = userName;
@@ -338,7 +338,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-repository-type", out string? repositoryType))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceRepositoryType = repositoryType;
@@ -350,7 +350,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-gist", out string? gistId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceGistId = gistId;
@@ -362,7 +362,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--github-gists", out githubSourceIncludeAuthenticatedGists))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (githubSourceIncludeAuthenticatedGists)
@@ -377,7 +377,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-user-gists", out string? userName))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceUserGists = userName;
@@ -389,7 +389,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-token-env", out githubSourceTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceOptionSpecified = true;
@@ -400,7 +400,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--github-ref", out string? gitRef))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceRef = gitRef;
@@ -412,7 +412,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveGitHubPullRequestFlag(args, ref i, out githubSourcePullRequestNumber))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceOptionSpecified = true;
@@ -423,7 +423,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--github-include-issues", out githubSourceIncludeIssues))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (githubSourceIncludeIssues)
@@ -438,7 +438,7 @@ internal static partial class Program
             {
                 if (!TryReadGitHubIssueStateFlag(args, ref i, out githubSourceIssueState))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceIncludeIssues = true;
@@ -450,7 +450,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--github-include-releases", out githubSourceIncludeReleases))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (githubSourceIncludeReleases)
@@ -465,7 +465,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--github-include-actions-artifacts", out githubSourceIncludeActionsArtifacts))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (githubSourceIncludeActionsArtifacts)
@@ -480,7 +480,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--github-source-api-endpoint", out githubSourceApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubSourceOptionSpecified = true;
@@ -491,7 +491,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-repository", out string? repository))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketRepository = repository;
@@ -503,7 +503,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-workspace", out string? workspace))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketWorkspace = workspace;
@@ -515,7 +515,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-project", out string? projectKey))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketProject = projectKey;
@@ -527,7 +527,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-ref", out string? gitRef))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketRef = gitRef;
@@ -539,7 +539,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveBitbucketPullRequestFlag(args, ref i, out bitbucketPullRequestId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketOptionSpecified = true;
@@ -550,7 +550,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--bitbucket-include-downloads", out bitbucketIncludeDownloads))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (bitbucketIncludeDownloads)
@@ -565,7 +565,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-pipeline-id", out string? pipelineId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketPipelineId = pipelineId;
@@ -577,7 +577,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--bitbucket-include-pipeline-logs", out bitbucketIncludePipelineLogs))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (bitbucketIncludePipelineLogs)
@@ -592,7 +592,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--bitbucket-include-snippets", out bitbucketIncludeSnippets))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (bitbucketIncludeSnippets)
@@ -607,7 +607,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-token-env", out bitbucketTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketOptionSpecified = true;
@@ -618,7 +618,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-username-env", out bitbucketUsernameEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketOptionSpecified = true;
@@ -629,7 +629,7 @@ internal static partial class Program
             {
                 if (!TryReadBitbucketCredentialKindFlag(args, ref i, out bitbucketCredentialKind))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketOptionSpecified = true;
@@ -640,7 +640,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--bitbucket-api-endpoint", out bitbucketApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketOptionSpecified = true;
@@ -651,7 +651,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--bitbucket-data-center-api-endpoint", out bitbucketDataCenterApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterOptionSpecified = true;
@@ -662,7 +662,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-project", out string? projectKey))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterProject = projectKey;
@@ -674,7 +674,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-repository", out string? repositorySlug))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterRepository = repositorySlug;
@@ -686,7 +686,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-ref", out string? gitRef))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterRef = gitRef;
@@ -698,7 +698,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveBitbucketDataCenterPullRequestFlag(args, ref i, out bitbucketDataCenterPullRequestId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterOptionSpecified = true;
@@ -709,7 +709,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-token-env", out bitbucketDataCenterTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterOptionSpecified = true;
@@ -720,7 +720,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--bitbucket-data-center-username-env", out bitbucketDataCenterUsernameEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterOptionSpecified = true;
@@ -731,7 +731,7 @@ internal static partial class Program
             {
                 if (!TryReadBitbucketDataCenterCredentialKindFlag(args, ref i, out bitbucketDataCenterCredentialKind))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 bitbucketDataCenterOptionSpecified = true;
@@ -742,7 +742,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitlab-project", out string? project))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gitLabProject = project;
@@ -754,7 +754,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-repository", out string? repository))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaRepository = repository;
@@ -766,7 +766,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-organization", out string? organization))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaOrganization = organization;
@@ -778,7 +778,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-user", out string? userName))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaUser = userName;
@@ -790,7 +790,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-ref", out string? gitRef))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaRef = gitRef;
@@ -802,7 +802,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveGiteaPullRequestFlag(args, ref i, out giteaPullRequestId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaOptionSpecified = true;
@@ -813,7 +813,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitea-include-issues", out giteaIncludeIssues))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (giteaIncludeIssues)
@@ -828,7 +828,7 @@ internal static partial class Program
             {
                 if (!TryReadGiteaIssueStateFlag(args, ref i, out giteaIssueState))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaIncludeIssues = true;
@@ -840,7 +840,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitea-include-releases", out giteaIncludeReleases))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (giteaIncludeReleases)
@@ -855,7 +855,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitea-include-actions-artifacts", out giteaIncludeActionsArtifacts))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (giteaIncludeActionsArtifacts)
@@ -870,7 +870,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveGiteaActionsRunIdFlag(args, ref i, out giteaActionsRunId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaOptionSpecified = true;
@@ -881,7 +881,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-token-env", out giteaTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaOptionSpecified = true;
@@ -892,7 +892,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-owner", out string? owner))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaGenericPackageOwner = owner;
@@ -904,7 +904,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-name", out string? packageName))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaGenericPackageName = packageName;
@@ -916,7 +916,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-version", out string? packageVersion))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaGenericPackageVersion = packageVersion;
@@ -928,7 +928,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitea-generic-package-file", out string? fileName))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaGenericPackageFile = fileName;
@@ -940,7 +940,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--gitea-api-endpoint", out giteaApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 giteaOptionSpecified = true;
@@ -951,7 +951,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitlab-group", out string? group))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gitLabGroup = group;
@@ -963,7 +963,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitlab-ref", out string? gitRef))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gitLabRef = gitRef;
@@ -975,7 +975,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveGitLabMergeRequestFlag(args, ref i, out gitLabMergeRequestIid))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gitLabOptionSpecified = true;
@@ -986,7 +986,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveGitLabPipelineFlag(args, ref i, out gitLabPipelineId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gitLabOptionSpecified = true;
@@ -997,7 +997,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitlab-include-snippets", out gitLabIncludeSnippets))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (gitLabIncludeSnippets)
@@ -1012,7 +1012,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitlab-include-job-artifacts", out gitLabIncludeJobArtifacts))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (gitLabIncludeJobArtifacts)
@@ -1027,7 +1027,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitlab-include-job-logs", out gitLabIncludeJobLogs))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (gitLabIncludeJobLogs)
@@ -1042,7 +1042,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitlab-include-packages", out gitLabIncludePackages))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (gitLabIncludePackages)
@@ -1057,7 +1057,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--gitlab-include-subgroups", out gitLabIncludeSubgroups))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (gitLabIncludeSubgroups)
@@ -1072,7 +1072,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gitlab-token-env", out gitLabTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gitLabOptionSpecified = true;
@@ -1083,7 +1083,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--gitlab-api-endpoint", out gitLabApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gitLabOptionSpecified = true;
@@ -1094,7 +1094,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--azure-blob-endpoint", out azureBlobEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureBlobOptionSpecified = true;
@@ -1105,7 +1105,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-blob-container", out string? container))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureBlobContainer = container;
@@ -1117,7 +1117,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-blob-prefix", out string? prefix))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureBlobPrefix = prefix;
@@ -1129,7 +1129,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-blob-token-env", out azureBlobTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureBlobOptionSpecified = true;
@@ -1140,7 +1140,7 @@ internal static partial class Program
             {
                 if (!TryReadAzureBlobCredentialKindFlag(args, ref i, out azureBlobCredentialKind))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureBlobOptionSpecified = true;
@@ -1151,7 +1151,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-organization", out azureDevOpsOrganization))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1162,7 +1162,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gcs-bucket", out string? bucket))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gcsBucket = bucket;
@@ -1174,7 +1174,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--gcs-endpoint", out gcsEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gcsOptionSpecified = true;
@@ -1185,7 +1185,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gcs-prefix", out string? prefix))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gcsPrefix = prefix;
@@ -1197,7 +1197,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gcs-token-env", out gcsTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gcsOptionSpecified = true;
@@ -1208,7 +1208,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--gcs-user-project", out string? userProject))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 gcsUserProject = userProject;
@@ -1220,7 +1220,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-bucket", out string? bucket))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 s3Bucket = bucket;
@@ -1232,7 +1232,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-region", out string? region))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 s3Region = region;
@@ -1244,7 +1244,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--s3-endpoint", out s3Endpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 s3OptionSpecified = true;
@@ -1255,7 +1255,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-prefix", out string? prefix))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 s3Prefix = prefix;
@@ -1267,7 +1267,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-access-key-id-env", out s3AccessKeyIdEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 s3OptionSpecified = true;
@@ -1278,7 +1278,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-secret-access-key-env", out s3SecretAccessKeyEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 s3OptionSpecified = true;
@@ -1289,7 +1289,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-session-token-env", out s3SessionTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 s3OptionSpecified = true;
@@ -1300,7 +1300,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--azure-devops-endpoint", out azureDevOpsEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1311,7 +1311,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-token-env", out azureDevOpsTokenEnvironmentVariable))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1322,7 +1322,7 @@ internal static partial class Program
             {
                 if (!TryReadAzureDevOpsCredentialKindFlag(args, ref i, out azureDevOpsCredentialKind))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1333,7 +1333,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-project", out string? project))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsProject = project;
@@ -1345,7 +1345,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-repository", out string? repository))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsRepository = repository;
@@ -1357,7 +1357,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-feed", out string? feed))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsFeed = feed;
@@ -1369,7 +1369,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-package", out string? package))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsPackage = package;
@@ -1381,7 +1381,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-package-version", out string? packageVersion))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsPackageVersion = packageVersion;
@@ -1393,7 +1393,7 @@ internal static partial class Program
             {
                 if (!TryReadStringFlag(args, ref i, "--azure-devops-branch", out string? branch))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsBranch = branch;
@@ -1405,7 +1405,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveAzureDevOpsPullRequestFlag(args, ref i, out azureDevOpsPullRequestId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1416,7 +1416,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--azure-devops-include-wikis", out azureDevOpsIncludeWikis))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (azureDevOpsIncludeWikis)
@@ -1431,7 +1431,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveAzureDevOpsBuildIdFlag(args, ref i, out azureDevOpsBuildId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1442,7 +1442,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--azure-devops-include-artifacts", out azureDevOpsIncludeArtifacts))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (azureDevOpsIncludeArtifacts)
@@ -1457,7 +1457,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--azure-devops-include-logs", out azureDevOpsIncludeLogs))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (azureDevOpsIncludeLogs)
@@ -1472,7 +1472,7 @@ internal static partial class Program
             {
                 if (!TryReadPositiveAzureDevOpsReleaseIdFlag(args, ref i, out azureDevOpsReleaseId))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1483,7 +1483,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--azure-devops-include-release-artifacts", out azureDevOpsIncludeReleaseArtifacts))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (azureDevOpsIncludeReleaseArtifacts)
@@ -1498,7 +1498,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--azure-devops-include-packages", out azureDevOpsIncludePackages))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 if (azureDevOpsIncludePackages)
@@ -1513,7 +1513,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-artifact-megabytes", out azureDevOpsMaxArtifactBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1524,7 +1524,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-log-megabytes", out azureDevOpsMaxLogBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1535,7 +1535,7 @@ internal static partial class Program
             {
                 if (!TryReadMegabytesFlag(args, ref i, "--azure-devops-max-package-megabytes", out azureDevOpsMaxPackageBytes))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 azureDevOpsOptionSpecified = true;
@@ -1546,7 +1546,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-source-endpoints", out allowNonPublicSourceEndpoints))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 sourceEndpointPolicySpecified = true;
@@ -1557,7 +1557,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--allow-insecure-source-endpoints", out allowInsecureSourceEndpoints))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 sourceEndpointPolicySpecified = true;
@@ -1568,7 +1568,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--github-api-endpoint", out githubApiEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubApiEndpointSpecified = true;
@@ -1579,7 +1579,7 @@ internal static partial class Program
             {
                 if (!TryReadUriFlag(args, ref i, "--github-api-proxy", out githubApiProxyEndpoint))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 liveProviderOptionSpecified = true;
@@ -1590,7 +1590,7 @@ internal static partial class Program
             {
                 if (!TryReadLiveTlsModeFlag(args, ref i, out GitHubSecretLiveValidatorTlsMode value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 githubApiTlsMode = value;
@@ -1602,7 +1602,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-rate-limit-ms", out TimeSpan value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 minimumRequestInterval = value;
@@ -1614,7 +1614,7 @@ internal static partial class Program
             {
                 if (!TryReadNonNegativeMillisecondsFlag(args, ref i, "--live-provider-rate-limit-ms", out TimeSpan value))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 minimumRequestIntervalPerProvider = value;
@@ -1626,7 +1626,7 @@ internal static partial class Program
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
                 {
-                    return UnknownFlagExitCode;
+                    return NativeOperationalExitCode;
                 }
 
                 liveProviderOptionSpecified = true;
@@ -1639,13 +1639,13 @@ internal static partial class Program
         if ((liveProviderOptionSpecified || (githubApiEndpointSpecified && !githubSourceOptionSpecified)) && !liveVerification)
         {
             Console.Error.WriteLine("live provider options require --verify");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketDataCenterOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !registryOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (source is not null)
@@ -1679,13 +1679,13 @@ internal static partial class Program
         if (sourceProviderCount > 1)
         {
             Console.Error.WriteLine("scan accepts only one native source provider at a time");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (remoteSourceOptionSpecified && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (remoteSourceOptionSpecified && allowInsecureSourceEndpoints)
@@ -1699,13 +1699,13 @@ internal static partial class Program
                 || HasZeroMegabytesFlag(args, "--azure-devops-max-package-megabytes")))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (registryOptionSpecified && HasZeroMegabytesFlag(args, "--registry-max-image-megabytes"))
         {
             Console.Error.WriteLine("Remote download byte caps must be greater than zero.");
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (azureBlobOptionSpecified
@@ -1719,7 +1719,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (bitbucketOptionSpecified
@@ -1741,7 +1741,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (bitbucketDataCenterOptionSpecified
@@ -1758,7 +1758,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (gcsOptionSpecified
@@ -1772,7 +1772,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (s3OptionSpecified
@@ -1788,7 +1788,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (azureDevOpsOptionSpecified
@@ -1818,7 +1818,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (githubSourceOptionSpecified
@@ -1842,7 +1842,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (giteaOptionSpecified
@@ -1867,7 +1867,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (gitLabOptionSpecified
@@ -1888,7 +1888,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (containerArchiveOptionSpecified
@@ -1897,7 +1897,7 @@ internal static partial class Program
                 ociArchivePath,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         if (registryOptionSpecified
@@ -1914,7 +1914,7 @@ internal static partial class Program
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))
         {
-            return UnknownFlagExitCode;
+            return NativeOperationalExitCode;
         }
 
         return RunDirectory(

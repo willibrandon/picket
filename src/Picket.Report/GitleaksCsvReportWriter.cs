@@ -132,8 +132,7 @@ public static class GitleaksCsvReportWriter
             return false;
         }
 
-        char first = value[0];
-        if (first is ' ' or '\t')
+        if (value.Equals("\\.", StringComparison.Ordinal) || char.IsWhiteSpace(value, 0))
         {
             return true;
         }

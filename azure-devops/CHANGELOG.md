@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- Align the scanner, task, extension, and package release versions for the first public release.
+- Add Azure Artifacts package scanning and fail-closed scanner error handling.
+
 ## 0.1.3
 
 - Add validated opt-in built-in rule-pack selection.

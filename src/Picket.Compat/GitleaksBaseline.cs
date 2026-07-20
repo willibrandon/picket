@@ -117,6 +117,11 @@ public sealed class GitleaksBaseline(
         try
         {
             using JsonDocument document = JsonDocument.Parse(stream);
+            if (document.RootElement.ValueKind == JsonValueKind.Null)
+            {
+                return [];
+            }
+
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 throw new InvalidDataException();
@@ -167,7 +172,7 @@ public sealed class GitleaksBaseline(
 
     private static string GetString(JsonElement element, string name)
     {
-        if (!element.TryGetProperty(name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        if (!TryGetProperty(element, name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return string.Empty;
         }
@@ -177,7 +182,7 @@ public sealed class GitleaksBaseline(
 
     private static int GetInt32(JsonElement element, string name)
     {
-        if (!element.TryGetProperty(name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        if (!TryGetProperty(element, name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return 0;
         }
@@ -187,7 +192,7 @@ public sealed class GitleaksBaseline(
 
     private static double GetGitleaksEntropy(JsonElement element, string name)
     {
-        if (!element.TryGetProperty(name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        if (!TryGetProperty(element, name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return 0;
         }
@@ -197,7 +202,7 @@ public sealed class GitleaksBaseline(
 
     private static List<string> GetStringArray(JsonElement element, string name)
     {
-        if (!element.TryGetProperty(name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        if (!TryGetProperty(element, name, out JsonElement property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return [];
         }
@@ -214,6 +219,26 @@ public sealed class GitleaksBaseline(
         }
 
         return values;
+    }
+
+    private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
+    {
+        if (element.TryGetProperty(name, out value))
+        {
+            return true;
+        }
+
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     private static bool Matches(

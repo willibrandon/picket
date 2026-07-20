@@ -11,6 +11,8 @@ namespace Picket.Verify;
 /// </summary>
 public sealed class SecretValidationCache
 {
+    private const int FileOperationRetryCount = 20;
+    private const int FileOperationRetryDelayMilliseconds = 10;
     private const int Sha256HexLength = 64;
     private const string AuthenticationKeyFileName = "validation-cache-auth.key";
     private const string CacheFingerprintHeader = "cacheFingerprint";
@@ -131,18 +133,28 @@ public sealed class SecretValidationCache
     }
 
     /// <summary>
-    /// Deletes expired cache entries.
+    /// Deletes expired or unreadable cache entries.
     /// </summary>
     /// <param name="now">The current time used for expiration checks.</param>
     /// <returns>The number of deleted entries.</returns>
     public int PruneExpired(DateTimeOffset now)
     {
         int deleted = 0;
-        foreach (string entryPath in EnumerateEntryFiles())
+        string[] entryPaths;
+        try
+        {
+            entryPaths = [.. EnumerateEntryFiles()];
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return 0;
+        }
+
+        foreach (string entryPath in entryPaths)
         {
             try
             {
-                if (IsExpiredEntry(entryPath, now) && TryDelete(entryPath))
+                if (ShouldPruneEntry(entryPath, now) && TryDelete(entryPath))
                 {
                     deleted++;
                 }
@@ -166,9 +178,23 @@ public sealed class SecretValidationCache
 
     private static FileStream OpenLock(string lockPath)
     {
-        FileStream stream = OpenOwnerOnlyFile(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-        SetOwnerOnlyFile(lockPath);
-        return stream;
+        IOException? lastException = null;
+        for (int attempt = 0; attempt < FileOperationRetryCount; attempt++)
+        {
+            try
+            {
+                FileStream stream = OpenOwnerOnlyFile(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                SetOwnerOnlyFile(lockPath);
+                return stream;
+            }
+            catch (IOException exception)
+            {
+                lastException = exception;
+                Thread.Sleep(FileOperationRetryDelayMilliseconds);
+            }
+        }
+
+        throw new IOException("Timed out while acquiring the validation cache lock.", lastException);
     }
 
     private string CreateAuthenticatedEntry(SecretValidationCacheKey key, SecretValidationResult result, DateTimeOffset expiresAtUtc)
@@ -369,13 +395,17 @@ public sealed class SecretValidationCache
             && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) > now;
     }
 
-    private bool IsExpiredEntry(string entryPath, DateTimeOffset now)
+    private bool ShouldPruneEntry(string entryPath, DateTimeOffset now)
     {
-        return TryReadAuthenticatedEntryLines(entryPath, out string[]? lines)
-            && TryReadHeaders(lines, out Dictionary<string, string>? headers)
-            && headers.TryGetValue(ExpiresUnixTimeSecondsHeader, out string? expiresValue)
-            && long.TryParse(expiresValue, CultureInfo.InvariantCulture, out long expiresUnixTimeSeconds)
-            && DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) <= now;
+        if (!TryReadAuthenticatedEntryLines(entryPath, out string[]? lines)
+            || !TryReadHeaders(lines, out Dictionary<string, string>? headers)
+            || !headers.TryGetValue(ExpiresUnixTimeSecondsHeader, out string? expiresValue)
+            || !long.TryParse(expiresValue, CultureInfo.InvariantCulture, out long expiresUnixTimeSeconds))
+        {
+            return true;
+        }
+
+        return DateTimeOffset.FromUnixTimeSeconds(expiresUnixTimeSeconds) <= now;
     }
 
     private string CreateEntryPath(SecretValidationCacheKey key)

@@ -1080,20 +1080,6 @@ internal static partial class Program
         string arg = args[index];
         if (arg.Equals("--redact", StringComparison.Ordinal))
         {
-            if (index + 1 < args.Length && int.TryParse(args[index + 1], out int parsedRedactionPercent))
-            {
-                if (!IsValidRedactionPercent(parsedRedactionPercent))
-                {
-                    Console.Error.WriteLine("--redact requires an integer value from 0 through 100");
-                    redactionPercent = 0;
-                    return false;
-                }
-
-                redactionPercent = parsedRedactionPercent;
-                index++;
-                return true;
-            }
-
             redactionPercent = 100;
             return true;
         }

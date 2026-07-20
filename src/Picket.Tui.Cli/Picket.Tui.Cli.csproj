@@ -13,7 +13,7 @@
     <RootNamespace>Picket.Tui.Cli</RootNamespace>
     <AssemblyName>picket-tui</AssemblyName>
     <PublishAot>true</PublishAot>
-    <IncludeSymbols Condition="'$(RuntimeIdentifier)' == ''">false</IncludeSymbols>
+    <IncludeSymbols>false</IncludeSymbols>
     <IsAotCompatible>true</IsAotCompatible>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>

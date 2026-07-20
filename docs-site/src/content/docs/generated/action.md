@@ -78,11 +78,11 @@ jobs:
 
 ## Failure Modes
 
-`fail-on: findings` fails the job when Picket reports at least one finding, or when the scanner exits unsuccessfully before producing findings.
+`fail-on: findings` fails the job when Picket reports at least one finding.
 
-`fail-on: errors` fails the job only when the scanner exits unsuccessfully without findings. Use this when code scanning alerts should be advisory and the workflow should fail only on scanner/runtime errors.
+`fail-on: errors` keeps findings advisory and fails only for scanner or runtime errors.
 
-`fail-on: never` never fails the job after a completed scanner invocation. Invalid action inputs still fail before scanning.
+`fail-on: never` suppresses finding-based failure. Invalid inputs, scanner startup failures, and incomplete scans still fail the action. Native scanner exit code `2` identifies an incomplete or failed scan even when a partial report contains findings.
 
 The action writes SARIF and JSONL before the final failure-enforcement step. This allows `upload-sarif: true` to publish code scanning results even when `fail-on: findings` is selected.
 

@@ -290,9 +290,28 @@ internal static class NativeJsonCredentialDetector
             return false;
         }
 
-        return refreshToken
-            ? value.Contains('_') || value.Length >= 48
-            : value.StartsWith("eyJ", StringComparison.Ordinal) && value.Count(static character => character == '.') == 2;
+        if (!refreshToken)
+        {
+            return value.StartsWith("eyJ", StringComparison.Ordinal)
+                && value.Count(static character => character == '.') == 2;
+        }
+
+        if (!value.StartsWith("rt_", StringComparison.Ordinal) || value.Length < 40)
+        {
+            return false;
+        }
+
+        for (int i = 3; i < value.Length; i++)
+        {
+            if (!char.IsAsciiLetterOrDigit(value[i]) && value[i] is not ('_' or '-'))
+            {
+                return false;
+            }
+        }
+
+        return !value.Contains("placeholder", StringComparison.OrdinalIgnoreCase)
+            && !value.Contains("your_refresh_token", StringComparison.OrdinalIgnoreCase)
+            && !value.Contains("insert_", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ContainsMatch(List<NativeDetectorMatch> matches, int start, int end)

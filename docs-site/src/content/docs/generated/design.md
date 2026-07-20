@@ -181,10 +181,10 @@ Picket ships multiple publish profiles because "fastest" and "smallest" are not 
 
 | Profile | Purpose | Defaults |
 |---|---|---|
-| `release-speed` | Primary CLI artifact. Fast startup and fastest scan throughput while remaining small. | `PublishAot=true`, `SelfContained=true`, RID-specific publish, `OptimizationPreference=Speed`, symbols stripped into sidecar files except current macOS RIDs, macOS native debug symbols disabled in public speed builds while runtime packs carry transient Swift module-cache debug paths, invariant globalization if conformance tests pass. |
-| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | `OptimizationPreference=Size`, diagnostics disabled, stack trace support disabled, resource-key exception messages enabled, invariant globalization, symbols stripped except current macOS RIDs, macOS native debug symbols disabled, no optional network/XML/HTTP3 features unless needed. |
+| `release-speed` | Primary CLI artifact. Fast startup and fastest scan throughput while remaining small. | `PublishAot=true`, `SelfContained=true`, RID-specific publish, `OptimizationPreference=Speed`, no public debug-symbol output, invariant globalization if conformance tests pass. Current macOS RIDs disable native debug symbols and leave linker stripping off to avoid transient Swift module-cache warnings. |
+| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | `OptimizationPreference=Size`, no public debug-symbol output, diagnostics and stack traces disabled, resource-key exception messages enabled, invariant globalization, and no optional network/XML/HTTP3 features unless needed. Current macOS RIDs use the same linker workaround as `release-speed`. |
 | `release-diagnostics` | Support artifact for bug reports and performance investigations. | Same code as `release-speed`, but keeps diagnostics, metrics/EventSource support, stack traces, and richer symbols where the runtime supports them. |
-| `framework-dev` | Developer/test artifact. | Framework-dependent build with normal JIT, tiered compilation, Dynamic PGO defaults, and full diagnostics for inner-loop debugging. Not the shipped CLI. |
+| `framework-dev` | Developer/test build mode. | A normal framework-dependent `dotnet build` or `dotnet run` with JIT, tiered compilation, Dynamic PGO defaults, and full diagnostics. It is not a publish profile or shipped CLI artifact. |
 
 The default public binary is `release-speed`. `release-minsize` is never allowed to change command behavior, reports, rule results, validation behavior, or error classification; it may only reduce diagnostic richness.
 
@@ -197,7 +197,7 @@ The CLI project uses Native AOT as the primary deployment model:
 - explicit `RuntimeIdentifier` per supported platform
 - public release RIDs cover Windows x64/Arm64, Linux glibc x64/Arm64, Linux musl x64/Arm64, and macOS x64/Arm64
 - `PublishSingleFile=true` only where it adds useful SDK analysis or packaging behavior; Native AOT already produces a native executable
-- `StripSymbols=true` with debug symbols published as separate artifacts, except current macOS RIDs temporarily use `StripSymbols=false`, `DebugType=none`, `DebugSymbols=false`, and `NativeDebugSymbols=false` for speed/minsize builds while the runtime pack carries transient Swift module-cache debug paths
+- `DebugSymbols=false`, `DebugType=none`, `NativeDebugSymbols=false`, and `CopyOutputSymbolsToPublishDirectory=false` for `release-speed` and `release-minsize`; a post-publish target runs after Native AOT symbol copying to remove residual compiler and reference symbol sidecars, and linker stripping is enabled where supported, while current macOS RIDs temporarily use `StripSymbols=false` to avoid transient Swift module-cache warnings
 - no runtime JIT dependency, no dynamic code generation, no dynamic plugin loading
 - no reflection-only serializer paths
 - no dependency that emits unresolved trim, single-file, or AOT warnings

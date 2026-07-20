@@ -170,6 +170,21 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that Codex refresh-token validation requires the provider-specific shape.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsGenericCodexRefreshToken()
+    {
+        Finding finding = CreateFinding(
+            "picket-openai-codex-refresh-token",
+            "another-provider-refresh-token-value-1234567890");
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+    }
+
+    /// <summary>
     /// Verifies that known provider tokens that fail structural checks are marked invalid.
     /// </summary>
     [TestMethod]

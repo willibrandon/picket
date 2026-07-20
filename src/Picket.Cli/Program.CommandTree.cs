@@ -19,8 +19,10 @@ internal static partial class Program
         string[] normalizedArgs = NormalizeCommandLineArgs(args);
         if (!CanParseRootCommand(normalizedArgs))
         {
-            Console.Error.WriteLine($"unknown command: {args[0]}");
-            return Task.FromResult(UnknownFlagExitCode);
+            int commandIndex = FindCommandTokenIndex(normalizedArgs);
+            string command = commandIndex < 0 ? normalizedArgs[0] : normalizedArgs[commandIndex];
+            Console.Error.WriteLine($"unknown command: {command}");
+            return Task.FromResult(1);
         }
 
         RootCommand rootCommand = CreateRootCommand(args);
@@ -79,7 +81,12 @@ internal static partial class Program
         AddContainerRegistrySourceOptions(command, "picket scan");
         AddContainerArchiveSourceOptions(command, "picket scan");
         AddResultFilterOptions(command, "picket scan");
-        AddScanLimitOptions(command, "picket scan", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
+        command.Options.Add(CreateValueOption("picket scan", "--exit-code", "n"));
+        command.Options.Add(CreateValueOption("picket scan", "--gitleaks-ignore-path", "path", "-i"));
+        command.Options.Add(CreateFlagOption("picket scan", "--ignore-gitleaks-allow"));
+        command.Options.Add(CreateFlagOption("picket scan", "--follow-symlinks"));
+        command.Options.Add(CreateValueOption("picket scan", "--report-template", "path"));
+        AddScanLimitOptions(command, "picket scan", includeMaxDecodeDepth: true, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, "picket scan");
         command.Options.Add(CreateRedactOption("picket scan"));
         return command;
@@ -144,12 +151,12 @@ internal static partial class Program
             Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--confirm-revocation"),
             Required = true,
         };
-        var endpointOption = new Option<Uri?>("--github-api-endpoint")
+        var endpointOption = new Option<string?>("--github-api-endpoint")
         {
             Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--github-api-endpoint"),
             HelpName = "uri",
         };
-        var proxyOption = new Option<Uri?>("--github-api-proxy")
+        var proxyOption = new Option<string?>("--github-api-proxy")
         {
             Description = CliOptionMetadata.GetOptionDescription("picket revoke github", "--github-api-proxy"),
             HelpName = "uri",
@@ -290,7 +297,7 @@ internal static partial class Program
             static forwardedArgs => Task.FromResult(RunDirectory(forwardedArgs)));
         command.Aliases.Add("file");
         command.Aliases.Add("directory");
-        AddRequiredArgument(command, "picket dir", "path");
+        AddOptionalArgument(command, "picket dir", "path");
         AddCompatibilityOptions(command, "picket dir");
         command.Options.Add(CreateFlagOption("picket dir", "--follow-symlinks"));
         AddScanLimitOptions(command, "picket dir", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
@@ -309,7 +316,6 @@ internal static partial class Program
             static forwardedArgs => RunStdinAsync(forwardedArgs));
         AddCompatibilityOptions(command, "picket stdin");
         AddScanLimitOptions(command, "picket stdin", includeMaxDecodeDepth: true, includeArchiveSizeLimits: false);
-        command.Options.Add(CreateValueOption("picket stdin", "--max-archive-depth", "n"));
         AddDiagnosticsOptions(command, "picket stdin");
         command.Options.Add(CreateRedactOption("picket stdin"));
         return command;
@@ -444,16 +450,24 @@ internal static partial class Program
             1,
             static forwardedArgs => RunDetectAsync(forwardedArgs));
         command.Hidden = !IsHelpForCommand(args, "detect");
-        command.Options.Add(CreateValueOption("picket detect", "--source", "path"));
+        command.Options.Add(CreateValueOption("picket detect", "--source", "path", "-s"));
         command.Options.Add(CreateFlagOption("picket detect", "--no-git"));
         command.Options.Add(CreateFlagOption("picket detect", "--pipe"));
         AddCompatibilityReportOptions(command, "picket detect");
         command.Options.Add(CreateValueOption("picket detect", "--log-opts", "value"));
         command.Options.Add(CreateChoiceValueOption("picket detect", "--platform", "value", "unknown", "none", "github", "gitlab", "azuredevops", "gitea", "bitbucket"));
         command.Options.Add(CreateFlagOption("picket detect", "--follow-symlinks"));
+        command.Options.Add(CreateFlagOption("picket detect", "--no-color"));
+        command.Options.Add(CreateFlagOption("picket detect", "--no-banner"));
+        command.Options.Add(CreateValueOption("picket detect", "--report-template", "path"));
+        command.Options.Add(CreateValueOption("picket detect", "--enable-rule", "id"));
+        command.Options.Add(CreateValueOption("picket detect", "--exit-code", "n"));
+        command.Options.Add(CreateFlagOption("picket detect", "--ignore-gitleaks-allow"));
         command.Options.Add(CreateValueOption("picket detect", "--max-target-megabytes", "n"));
+        command.Options.Add(CreateValueOption("picket detect", "--max-decode-depth", "n"));
         command.Options.Add(CreateValueOption("picket detect", "--max-archive-depth", "n"));
         command.Options.Add(CreateValueOption("picket detect", "--timeout", "n"));
+        AddDiagnosticsOptions(command, "picket detect");
         command.Options.Add(CreateRedactOption("picket detect"));
         return command;
     }
@@ -467,12 +481,21 @@ internal static partial class Program
             1,
             static forwardedArgs => Task.FromResult(RunProtect(forwardedArgs)));
         command.Hidden = !IsHelpForCommand(args, "protect");
-        command.Options.Add(CreateValueOption("picket protect", "--source", "path"));
+        command.Options.Add(CreateValueOption("picket protect", "--source", "path", "-s"));
         command.Options.Add(CreateFlagOption("picket protect", "--staged"));
         AddCompatibilityReportOptions(command, "picket protect");
+        command.Options.Add(CreateValueOption("picket protect", "--log-opts", "value"));
+        command.Options.Add(CreateFlagOption("picket protect", "--no-color"));
+        command.Options.Add(CreateFlagOption("picket protect", "--no-banner"));
+        command.Options.Add(CreateValueOption("picket protect", "--report-template", "path"));
+        command.Options.Add(CreateValueOption("picket protect", "--enable-rule", "id"));
+        command.Options.Add(CreateValueOption("picket protect", "--exit-code", "n"));
+        command.Options.Add(CreateFlagOption("picket protect", "--ignore-gitleaks-allow"));
         command.Options.Add(CreateValueOption("picket protect", "--max-target-megabytes", "n"));
+        command.Options.Add(CreateValueOption("picket protect", "--max-decode-depth", "n"));
         command.Options.Add(CreateValueOption("picket protect", "--max-archive-depth", "n"));
         command.Options.Add(CreateValueOption("picket protect", "--timeout", "n"));
+        AddDiagnosticsOptions(command, "picket protect");
         command.Options.Add(CreateRedactOption("picket protect"));
         return command;
     }

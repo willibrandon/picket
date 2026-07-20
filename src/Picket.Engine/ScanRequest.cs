@@ -15,6 +15,7 @@ namespace Picket.Engine;
 /// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
 /// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
 /// <param name="enableCSharpStringConcatenation">A value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.</param>
+/// <param name="useGitleaksMaxTargetSemantics">A value indicating whether the target-size limit uses Gitleaks' integer decimal-megabyte comparison.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops scanning when it returns <see langword="true" />.</param>
 /// <param name="cancellationToken">A cancellation token that stops scanning when cancellation is requested.</param>
 public sealed class ScanRequest(
@@ -27,6 +28,7 @@ public sealed class ScanRequest(
     long? maxTargetBytes = null,
     string symlinkFile = "",
     bool enableCSharpStringConcatenation = false,
+    bool useGitleaksMaxTargetSemantics = false,
     Func<bool>? isCancellationRequested = null,
     CancellationToken cancellationToken = default)
 {
@@ -46,6 +48,7 @@ public sealed class ScanRequest(
     /// <param name="maxTargetBytes">The maximum content size to scan with content rules, or <see langword="null" /> for no cap.</param>
     /// <param name="symlinkFile">The symlink path used in reports, or an empty string.</param>
     /// <param name="enableCSharpStringConcatenation">A value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.</param>
+    /// <param name="useGitleaksMaxTargetSemantics">A value indicating whether the target-size limit uses Gitleaks' integer decimal-megabyte comparison.</param>
     /// <param name="isCancellationRequested">An optional predicate that stops scanning when it returns <see langword="true" />.</param>
     /// <param name="cancellationToken">A cancellation token that stops scanning when cancellation is requested.</param>
     public ScanRequest(
@@ -58,9 +61,10 @@ public sealed class ScanRequest(
         long? maxTargetBytes = null,
         string symlinkFile = "",
         bool enableCSharpStringConcatenation = false,
+        bool useGitleaksMaxTargetSemantics = false,
         Func<bool>? isCancellationRequested = null,
         CancellationToken cancellationToken = default)
-        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes, symlinkFile, enableCSharpStringConcatenation, isCancellationRequested, cancellationToken)
+        : this(input, fileName, CompiledRuleSet.Compile(ruleSet), ignoreGitleaksAllow, commit, maxDecodeDepth, maxTargetBytes, symlinkFile, enableCSharpStringConcatenation, useGitleaksMaxTargetSemantics, isCancellationRequested, cancellationToken)
     {
     }
 
@@ -108,6 +112,11 @@ public sealed class ScanRequest(
     /// Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
     /// </summary>
     public bool EnableCSharpStringConcatenation { get; } = enableCSharpStringConcatenation;
+
+    /// <summary>
+    /// Gets a value indicating whether the target-size limit uses Gitleaks' integer decimal-megabyte comparison.
+    /// </summary>
+    public bool UseGitleaksMaxTargetSemantics { get; } = useGitleaksMaxTargetSemantics;
 
     /// <summary>
     /// Gets a value indicating whether native scans calculate and apply deterministic randomness scores.

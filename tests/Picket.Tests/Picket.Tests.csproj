@@ -10,7 +10,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\.github\actions\PicketActionFailurePolicy.cs" Link="GitHubAction\PicketActionFailurePolicy.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Picket.Analyze\Picket.Analyze.csproj" />
+    <ProjectReference Include="..\..\src\Picket.Cli\Picket.Cli.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\Picket.Compat\Picket.Compat.csproj" />
     <ProjectReference Include="..\..\src\Picket.Engine\Picket.Engine.csproj" />
     <ProjectReference Include="..\..\src\Picket.Report\Picket.Report.csproj" />

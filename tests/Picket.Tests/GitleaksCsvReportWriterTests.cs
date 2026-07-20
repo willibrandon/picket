@@ -49,6 +49,19 @@ public sealed class GitleaksCsvReportWriterTests
     }
 
     /// <summary>
+    /// Verifies Go CSV compatibility for its PostgreSQL guard and Unicode-leading whitespace.
+    /// </summary>
+    [TestMethod]
+    public void WriteQuotesBackslashDotAndUnicodeLeadingWhitespace()
+    {
+        Finding finding = CreateFinding(secret: "\\.", match: "\u00A0line containing secret");
+
+        string csv = GitleaksCsvReportWriter.Write([finding]);
+
+        Assert.Contains(",\"\\.\",\"\u00A0line containing secret\",", csv);
+    }
+
+    /// <summary>
     /// Verifies that Gitleaks only writes the Link column when the first finding has a link.
     /// </summary>
     [TestMethod]

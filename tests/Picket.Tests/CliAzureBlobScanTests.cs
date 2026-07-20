@@ -8,7 +8,7 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class CliAzureBlobScanTests
 {
-    private const int UnknownFlagExitCode = 126;
+    private const int NativeOperationalExitCode = 2;
 
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
@@ -88,7 +88,7 @@ public sealed class CliAzureBlobScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("blocked Azure Blob endpoint: endpoint resolves to a non-public address", result.Stderr);
         Assert.DoesNotContain("azure-blob-source-secret", result.Stderr);
@@ -165,7 +165,7 @@ public sealed class CliAzureBlobScanTests
             "-f",
             "jsonl").ConfigureAwait(false);
 
-        Assert.AreEqual(UnknownFlagExitCode, result.ExitCode);
+        Assert.AreEqual(NativeOperationalExitCode, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
         Assert.Contains("Remote download byte caps must be greater than zero.", result.Stderr);
         Assert.DoesNotContain("azure-blob-source-secret", result.Stderr);

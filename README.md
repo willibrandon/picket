@@ -24,6 +24,7 @@ Picket publishes these embeddable packages:
 
 - `Picket.Rules`
 - `Picket.Engine`
+- `Picket.Compat`
 - `Picket.Report`
 - `Picket.Security`
 

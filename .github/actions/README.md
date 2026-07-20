@@ -11,10 +11,12 @@ dotnet run --file "$env:GITHUB_ACTION_PATH/.github/actions/run-picket.cs" --no-b
 The build-first pattern avoids file-based app cache contention on runners and
 matches the repository script guidance in `scripts/README.md`.
 
-Keep the top-level launcher thin. Put behavior in documented methods on the app
-class so XML documentation and repository convention tests can cover helper
-members. The local `Directory.Build.props` isolates action-helper settings from
-package metadata and project settings used by shipped Picket projects.
+Keep the top-level launcher thin. Put reusable behavior in documented helper
+types such as `PicketActionFailurePolicy.cs` and include them with `#:include`.
+The test project compiles pure helpers directly so action policy is exercised by
+the same tests as the scanner. The local `Directory.Build.props` isolates
+action-helper settings from package metadata and project settings used by
+shipped Picket projects.
 
 The helper writes GitHub outputs through `GITHUB_OUTPUT`, optional job summary
 content through `GITHUB_STEP_SUMMARY`, and safe workflow annotations from the

@@ -25,13 +25,17 @@ dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj -p:PublishProfile=releas
 
 | Profile | Purpose | Key settings |
 | --- | --- | --- |
-| `release-speed` | Default public CLI and TUI companion artifacts. | Native AOT, self-contained, single-file publish, speed optimization, stripped symbols except current macOS RIDs, macOS native debug symbols disabled, diagnostics reduced. |
-| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | Native AOT, size optimization, stripped symbols except current macOS RIDs, macOS native debug symbols disabled, stack traces off, EventSource and metrics off, resource-key exception messages. |
+| `release-speed` | Default public CLI and TUI companion artifacts. | Native AOT, self-contained, single-file publish, speed optimization, no public debug-symbol output, diagnostics reduced. |
+| `release-minsize` | Smallest supported artifact for package managers, containers, and constrained runners. | Native AOT, size optimization, no public debug-symbol output, stack traces off, EventSource and metrics off, resource-key exception messages. |
 | `release-diagnostics` | Support artifact for bug reports and performance investigations. | Native AOT, speed optimization, symbols kept, debugger support, EventSource, metrics, stack traces, and HTTP activity propagation enabled. |
 
 All profiles keep unsafe BinaryFormatter serialization, UTF-7, metadata update support, XML resolver networking by default, and HTTP/3 disabled. These switches are explicit so size and diagnostics tradeoffs are visible in review.
 
-For `osx-arm64` and `osx-x64`, `release-speed` and `release-minsize` set `StripSymbols=false`, `DebugSymbols=false`, `DebugType=none`, and `NativeDebugSymbols=false` until the .NET runtime pack includes the Apple Native AOT Swift module debug-info fix tracked by dotnet/runtime#123687 and dotnet/runtime#124336. This avoids generating native debug records that reference transient clang module-cache `.pcm` paths in public macOS artifacts. Use `release-diagnostics` when macOS native debug information is needed.
+`release-speed` and `release-minsize` set `DebugSymbols=false`, `DebugType=none`, `NativeDebugSymbols=false`, and `CopyOutputSymbolsToPublishDirectory=false` for every RID. A post-publish target runs after the Native AOT symbol-copy target to remove residual compiler and reference symbol sidecars, and CI rejects the artifact if `.pdb`, `.dbg`, `.dwarf`, or `.dSYM` output remains. Current macOS RIDs also set `StripSymbols=false` until the .NET runtime pack includes the Apple Native AOT Swift module debug-info fix tracked by dotnet/runtime#123687 and dotnet/runtime#124336. That linker workaround avoids transient clang module-cache `.pcm` warnings without publishing debug sidecars. Use `release-diagnostics` when native debug information is needed.
+
+Embeddable library packages publish `.snupkg` source-symbol packages. Framework-dependent tool pointer packages and RID-specific Native AOT tool packages set `IncludeSymbols=false` and do not publish symbol packages.
+
+`framework-dev` refers to the normal framework-dependent `dotnet build` and `dotnet run` developer mode. It is not a `.pubxml` publish profile or a release artifact.
 
 `release-minsize` must not change scanner findings, rule behavior, reports, validation states, or exit-code classification. It may reduce diagnostic richness only.
 
@@ -54,7 +58,7 @@ Every solution project commits a NuGet `packages.lock.json`. The lock files pin 
 
 The release workflow packs each tool twice: once as a top-level pointer package, and once per supported RID with `dotnet pack -r <RID>`. RID-specific packages are pushed to NuGet before the pointer packages so installs can resolve immediately.
 
-Scanner release archives, RID-specific `Picket` tool packages, and the container image include `THIRD-PARTY-NOTICES.txt` beside their license materials. This preserves the BSD notices required by the bundled zstandard runtime.
+Every public NuGet package, RID release archive, container image, MSI, and package-manager installation carries `LICENSE`, `README.md` where the format supports it, the package icon where applicable, and `THIRD-PARTY-NOTICES.txt`. The notices cover the embedded Gitleaks rule corpus, managed dependencies compiled into Native AOT binaries, Hex1b-transitive assets, Scout packages, and bundled zstandard runtimes.
 
 The CI pack gate runs on Windows, Linux, and macOS so package metadata, root readme packaging, icon packaging, symbol packages, project-reference dependencies, tool manifests, and cross-platform MSBuild paths are validated before release automation consumes the same projects.
 
@@ -84,7 +88,7 @@ dotnet run --file ./scripts/Publish-LinuxMusl.cs -- -RuntimeIdentifier linux-mus
 
 ## Container Image
 
-The repository root `Dockerfile` builds the Linux scanner image from source using the same `release-speed` Native AOT profile as the release archives. The image includes:
+The repository root `Dockerfile` builds a local Linux image from source using the same `release-speed` Native AOT profile as the release archives. Release jobs do not rebuild scanner code inside Docker. They extract the already tested `linux-x64` and `linux-arm64` release archives and build each image from `packaging/container/Dockerfile` on a native runner. The image includes:
 
 - `picket` as the entrypoint,
 - `picket-tui` beside it for `picket tui`,
@@ -108,13 +112,13 @@ wslc run --rm -v ${PWD}:/work picket:dev scan . --report-format jsonl --redact=1
 wslc run --rm -v ${PWD}:/work picket:dev git . --report-format json --redact=100
 ```
 
-For release tags, `.github/workflows/release.yml` publishes a multi-architecture Linux image to GHCR for `linux/amd64` and `linux/arm64`. The published tags are:
+For release tags, `.github/workflows/release.yml` validates and publishes `linux/amd64` on an x64 runner and `linux/arm64` on an Arm64 runner, then creates the multi-architecture manifest without emulation. The published tags are:
 
-- `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.4.2`,
-- `ghcr.io/willibrandon/picket:<semver>`, for example `0.4.2`,
+- `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.1.4`,
+- `ghcr.io/willibrandon/picket:<semver>`, for example `0.1.4`,
 - `ghcr.io/willibrandon/picket:latest` for non-prerelease versions only.
 
-The container build pushes BuildKit SBOM and provenance attestations with the image. The image is a scanner distribution surface; it does not change command defaults, compatibility behavior, reports, validation policy, or telemetry policy.
+Each architecture image carries BuildKit SBOM and provenance attestations. The immutable version manifests are published only after the GitHub Release exists, and `latest` advances only after both the versioned container and NuGet publication succeed. The image is a scanner distribution surface; it does not change command defaults, compatibility behavior, reports, validation policy, or telemetry policy.
 
 ## Package Manager Manifests
 
@@ -132,18 +136,18 @@ Generate the same files locally from a release checksum file with:
 dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.4.2 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
 ```
 
-The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. They do not change scanner behavior or publish directly into third-party package repositories.
+The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. Homebrew keeps the complete archive payload under `libexec` and writes command wrappers so the bundled zstandard library remains beside both executables. Scoop and WinGet retain the complete portable ZIP payload. The manifests do not change scanner behavior or publish directly into third-party package repositories.
 
 ## Windows MSI Installers
 
-Release automation builds MSI installers for stable `win-x64` and `win-arm64` releases from the same Windows release ZIP payloads. The WiX source lives at `packaging/msi/Picket.wxs`; it installs `picket.exe`, `picket-tui.exe`, and `LICENSE` under `Program Files\Picket` and adds that install folder to the machine PATH.
+Release automation builds MSI installers for stable `win-x64` and `win-arm64` releases from the same Windows release ZIP payloads. The WiX source lives at `packaging/msi/Picket.wxs`; it installs `picket.exe`, `picket-tui.exe`, `libzstd.dll`, `LICENSE`, and `THIRD-PARTY-NOTICES.txt` under `Program Files\Picket` and adds that install folder to the machine PATH.
 
 The MSI artifacts are named:
 
 - `picket-<tag>-win-x64.msi`
 - `picket-<tag>-win-arm64.msi`
 
-Each MSI receives a `.sha256` sidecar and a GitHub artifact attestation before the GitHub Release is created or updated. Prerelease tags skip MSI artifacts because Windows Installer `ProductVersion` does not support SemVer prerelease labels. MSI packaging does not rebuild scanner code and does not change CLI defaults, report behavior, validation policy, or telemetry policy.
+Each MSI is installed into a temporary directory, exercises a zstandard scan through the installed executable, verifies the full payload, and is uninstalled before release assembly. It then receives a `.sha256` sidecar and a GitHub artifact attestation. Prerelease tags skip MSI artifacts because Windows Installer `ProductVersion` does not support SemVer prerelease labels. MSI packaging does not rebuild scanner code and does not change CLI defaults, report behavior, validation policy, or telemetry policy.
 
 ## Azure DevOps VSIX Validation
 
@@ -180,20 +184,22 @@ Use the target RID in the publish command. Common release RIDs are:
 | macOS x64 | `osx-x64` |
 | macOS Arm64 | `osx-arm64` |
 
-Release automation should publish, sign, checksum, and archive each RID separately. The `picket` and `picket-tui` binaries are staged into the same RID archive so `picket tui` can discover the companion beside the scanner.
+Release automation publishes, checksums, attests, and archives each RID separately. The `picket` and `picket-tui` binaries are staged into the same RID archive so `picket tui` can discover the companion beside the scanner.
 
 ## Release Workflow
 
 Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can also be run manually for an existing tag.
 
-The workflow validates the source tree and runs the local GitHub Action smoke test. It publishes `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`; builds Windows MSI installers; packages the Azure DevOps VSIX; and packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages. It publishes `.nupkg` and `.snupkg` files to NuGet.org with `NUGET_API_KEY` and publishes the multi-architecture GHCR container image.
+The workflow validates the source tree and runs the local GitHub Action smoke test. It builds `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`; builds and installs Windows MSI installers; packages the Azure DevOps VSIX; validates native container images; and packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages.
 
-The final release assembly generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt`, and creates or updates the GitHub Release for the tag. It also writes `release-artifacts.json`, a deterministic inventory of final payload names, exact byte counts, and SHA-256 digests. Checksum sidecars and `checksums.txt` are excluded from that payload-size inventory; the inventory itself is included in `checksums.txt`, attested separately, and published with the release.
+The release assembly generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt`, and creates or updates the GitHub Release for the tag. It also writes `release-artifacts.json`, a deterministic inventory of final payload names, exact byte counts, and SHA-256 digests. Checksum sidecars and `checksums.txt` are excluded from that payload-size inventory; the inventory itself is included in `checksums.txt`, attested separately, and published with the release. Only after that immutable release exists does the workflow publish `.nupkg` and `.snupkg` files to NuGet.org and per-architecture GHCR images. The versioned container manifest follows those architecture images; the mutable `latest` tag waits for both NuGet and container publication.
 
-Release signing uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
+Release provenance uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 
 ```powershell
 gh attestation verify <artifact-path> -R willibrandon/picket
 ```
 
-The release tag is the source of truth for package versions. Release jobs strip a leading `v` from tags such as `v0.4.2`, pass the resulting SemVer value to `Version` and `PackageVersion`, publish package and symbol files with `--skip-duplicate`, and fail clearly when `NUGET_API_KEY` is missing.
+Artifact attestations prove repository and workflow provenance but are not Authenticode signatures or Apple notarization. Windows executables and MSIs are currently unsigned, and macOS executables are currently unnotarized, so operating-system reputation checks can still warn on first use. Code signing and notarization require dedicated signing identities and remain a release-channel enhancement; the workflow does not suppress or bypass platform security checks.
+
+The release tag is the source of truth for package versions. Release jobs strip a leading `v` from tags such as `v0.1.4`, pass the resulting SemVer value to `Version` and `PackageVersion`, publish package and symbol files with `--skip-duplicate`, and fail clearly when `NUGET_API_KEY` is missing.

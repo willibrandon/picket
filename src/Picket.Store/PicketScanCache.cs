@@ -33,11 +33,13 @@ public sealed class PicketScanCache
     private const string SchemaLine = "picket.scan-cache.v5";
     private const string ShardHeader = "shard";
     private const string StorageModeHeader = "storageMode";
+    private static readonly DateTimeOffset s_maximumZipTimestamp = new(2107, 12, 31, 23, 59, 58, TimeSpan.Zero);
+    private static readonly DateTimeOffset s_minimumZipTimestamp = new(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly UTF8Encoding s_utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
     private readonly string _entriesPath;
     private readonly string _locksPath;
     private readonly byte[] _authenticationKey;
     private readonly byte[] _fieldProtectionKey;
-    private static readonly UTF8Encoding s_utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private PicketScanCache(string rootPath, ScanCacheKey key)
     {
@@ -215,7 +217,7 @@ public sealed class PicketScanCache
                         DateTime lastWriteTimeUtc = File.GetLastWriteTimeUtc(entryPath);
                         using FileStream input = OpenSequentialRead(entryPath);
                         ZipArchiveEntry archiveEntry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
-                        archiveEntry.LastWriteTime = new DateTimeOffset(lastWriteTimeUtc, TimeSpan.Zero);
+                        archiveEntry.LastWriteTime = ClampZipTimestamp(new DateTimeOffset(lastWriteTimeUtc, TimeSpan.Zero));
                         using Stream output = archiveEntry.Open();
                         input.CopyTo(output);
                         exported++;
@@ -500,6 +502,16 @@ public sealed class PicketScanCache
         FileStream stream = OpenOwnerOnlyFile(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
         SetOwnerOnlyFile(lockPath);
         return stream;
+    }
+
+    private static DateTimeOffset ClampZipTimestamp(DateTimeOffset timestamp)
+    {
+        if (timestamp < s_minimumZipTimestamp)
+        {
+            return s_minimumZipTimestamp;
+        }
+
+        return timestamp > s_maximumZipTimestamp ? s_maximumZipTimestamp : timestamp;
     }
 
     private static FileStream OpenOwnerOnlyNewFile(string path)

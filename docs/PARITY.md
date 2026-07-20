@@ -168,7 +168,7 @@ as deliberate.
   Native config loading can add a stricter mode later, but strict compatibility
   must preserve the pinned oracle behavior.
 - **Test name:** `LoadFileExtendsPathAndMergesRuleOverrides`,
-  `LoadFileRejectsExtendPathCycles`, `LoadFileRejectsOversizedConfig`.
+  `LoadFileRejectsExtendPathCycles`, `LoadFileRejectsOversizedExtendedConfig`.
 - **Migration guidance:** Prefer explicit absolute paths or run Picket from the
   expected working directory when using relative `extend.path` values. Treat
   repository-provided configs the same way you treat any executable CI scanner

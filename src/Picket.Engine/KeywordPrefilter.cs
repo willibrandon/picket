@@ -2,15 +2,17 @@ using System.Text;
 
 namespace Picket.Engine;
 
-internal sealed class KeywordPrefilter(IReadOnlyList<byte[]> keywords)
+internal sealed class KeywordPrefilter(List<byte[]> asciiKeywords, List<string> unicodeKeywords)
 {
-    private IReadOnlyList<byte[]> Keywords { get; } = keywords ?? throw new ArgumentNullException(nameof(keywords));
+    private readonly List<byte[]> _asciiKeywords = asciiKeywords ?? throw new ArgumentNullException(nameof(asciiKeywords));
+    private readonly List<string> _unicodeKeywords = unicodeKeywords ?? throw new ArgumentNullException(nameof(unicodeKeywords));
 
     internal static KeywordPrefilter Create(IReadOnlyList<string> keywords)
     {
         ArgumentNullException.ThrowIfNull(keywords);
 
-        var encodedKeywords = new List<byte[]>(keywords.Count);
+        var asciiKeywords = new List<byte[]>(keywords.Count);
+        var unicodeKeywords = new List<string>();
         foreach (string keyword in keywords)
         {
             if (string.IsNullOrEmpty(keyword))
@@ -18,22 +20,29 @@ internal sealed class KeywordPrefilter(IReadOnlyList<byte[]> keywords)
                 continue;
             }
 
-            byte[] encodedKeyword = Encoding.UTF8.GetBytes(keyword);
-            FoldAsciiInPlace(encodedKeyword);
-            encodedKeywords.Add(encodedKeyword);
+            if (IsAscii(keyword))
+            {
+                byte[] encodedKeyword = Encoding.UTF8.GetBytes(keyword);
+                FoldAsciiInPlace(encodedKeyword);
+                asciiKeywords.Add(encodedKeyword);
+            }
+            else
+            {
+                unicodeKeywords.Add(keyword.ToLowerInvariant());
+            }
         }
 
-        return new KeywordPrefilter(encodedKeywords);
+        return new KeywordPrefilter(asciiKeywords, unicodeKeywords);
     }
 
     internal bool IsCandidate(ReadOnlySpan<byte> input)
     {
-        if (Keywords.Count == 0)
+        if (_asciiKeywords.Count == 0 && _unicodeKeywords.Count == 0)
         {
             return true;
         }
 
-        foreach (byte[] keyword in Keywords)
+        foreach (byte[] keyword in _asciiKeywords)
         {
             if (ContainsAsciiIgnoreCase(input, keyword))
             {
@@ -41,7 +50,34 @@ internal sealed class KeywordPrefilter(IReadOnlyList<byte[]> keywords)
             }
         }
 
+        if (_unicodeKeywords.Count == 0)
+        {
+            return false;
+        }
+
+        string normalizedInput = Encoding.UTF8.GetString(input).ToLowerInvariant();
+        foreach (string keyword in _unicodeKeywords)
+        {
+            if (normalizedInput.Contains(keyword, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    private static bool IsAscii(string value)
+    {
+        foreach (char character in value)
+        {
+            if (!char.IsAscii(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool ContainsAsciiIgnoreCase(ReadOnlySpan<byte> input, ReadOnlySpan<byte> keyword)

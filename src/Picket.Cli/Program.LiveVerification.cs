@@ -62,6 +62,7 @@ internal static partial class Program
 
         var verifierOptions = SecretLiveVerifierOptions.CreateDefault();
         verifierOptions.EndpointGuardOptions = endpointGuardOptions;
+        verifierOptions.WarningSink = Console.Error.WriteLine;
         if (configuration.MinimumRequestInterval.HasValue)
         {
             verifierOptions.MinimumRequestInterval = configuration.MinimumRequestInterval.Value;
@@ -88,6 +89,7 @@ internal static partial class Program
                         githubOptions.ProxyEndpoint?.ToString() ?? string.Empty,
                         ";github-tls:",
                         githubOptions.TlsMode.ToString()));
+                validationCache.PruneExpired(DateTimeOffset.UtcNow);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {
