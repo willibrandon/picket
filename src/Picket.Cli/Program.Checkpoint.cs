@@ -22,7 +22,7 @@ internal static partial class Program
     {
         string material = string.Create(
             CultureInfo.InvariantCulture,
-            $"picket.remote-scan-matching.v3\nmatching-behavior:{SecretScanner.MatchingBehaviorVersion}\nversion:{GetInformationalVersion()}\nrules:{rules.Fingerprint}\ndecode:{maxDecodeDepth}\ntarget:{(maxTargetBytes.HasValue ? maxTargetBytes.Value : -1)}\nignore-gitleaks-allow:{ignoreGitleaksAllow}");
+            $"picket.remote-scan-matching.v3\nmatching-behavior:{SecretScanner.MatchingBehaviorVersion}\nversion:{GetInformationalVersion()}\nrules:{rules.Fingerprint}\ndecode:{maxDecodeDepth}\ntarget:{maxTargetBytes ?? -1}\nignore-gitleaks-allow:{ignoreGitleaksAllow}");
         return BlobHasher.ComputeSha256Hex(material);
     }
 
