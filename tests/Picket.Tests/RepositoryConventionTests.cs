@@ -642,7 +642,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Every CI run also publishes `picket` and `picket-tui` with `release-speed`", documentation);
         Assert.Contains("normal `dotnet build` is not enough evidence", documentation);
         Assert.Contains("Azure DevOps VSIX Validation", documentation);
-        Assert.Contains("CI packages the Azure DevOps Marketplace scaffold", documentation);
+        Assert.Contains("CI installs the locked Azure DevOps packaging dependencies without lifecycle scripts", documentation);
+        Assert.Contains("fails on any npm advisory", documentation);
+        Assert.Contains("packages the Marketplace scaffold", documentation);
         Assert.Contains("CI Picket Scan Validation", documentation);
         Assert.Contains("both `picket.sarif` and `picket.jsonl`", documentation);
     }
