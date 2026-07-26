@@ -63,6 +63,9 @@ public sealed class PicketHtmlReportWriterTests
         Assert.Contains(".metadata-item{display:block;border-left:2px solid #d9ddd2;padding-left:10px;min-width:0}", html);
         Assert.Contains(".metadata-item-long{grid-column:span 2}", html);
         Assert.Contains(".metadata dd code{white-space:normal;overflow-wrap:break-word;word-break:normal}", html);
+        Assert.Contains("\"severity\":\"critical\"", html);
+        Assert.Contains("\"confidence\":\"high\"", html);
+        Assert.Contains("\"validationState\":\"unknown\"", html);
         Assert.Contains("<div class=\"report-list findings-list\">", html);
         Assert.Contains("<div class=\"report-list rules-list\">", html);
         Assert.Contains("<article class=\"finding-card\">", html);

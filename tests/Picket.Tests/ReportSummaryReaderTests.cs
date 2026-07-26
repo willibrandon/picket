@@ -18,7 +18,12 @@ public sealed class ReportSummaryReaderTests
     {
         using TempDirectory root = TempDirectory.Create();
         Finding finding = CreateFinding("picket-rule", "auth.py", "auth.py:picket-rule:1");
-        SecretRule rule = SecretRule.Create("picket-rule", "desc", "secret");
+        SecretRule rule = SecretRule.Create(
+            "picket-rule",
+            "desc",
+            "secret",
+            severity: "high",
+            confidence: "medium");
         string reportPath = WriteReport(root.Path, "report.json", PicketJsonReportWriter.Write([finding], [rule]));
 
         ReportSummary summary = ReportSummaryReader.Read(reportPath);
@@ -32,6 +37,8 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.Findings[0].Line);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        AssertTriageMetadata(summary.Findings[0], "high", "medium", "active");
+        AssertAttribution(summary.Findings[0]);
         AssertRandomness(summary.Findings[0]);
     }
 
@@ -43,7 +50,12 @@ public sealed class ReportSummaryReaderTests
     {
         using TempDirectory root = TempDirectory.Create();
         Finding finding = CreateFinding("picket-html-rule", "auth.py", "auth.py:picket-html-rule:1");
-        SecretRule rule = SecretRule.Create("picket-html-rule", "desc", "secret");
+        SecretRule rule = SecretRule.Create(
+            "picket-html-rule",
+            "desc",
+            "secret",
+            severity: "high",
+            confidence: "medium");
         string reportPath = WriteReport(root.Path, "report.html", PicketHtmlReportWriter.Write([finding], [rule]));
 
         ReportSummary summary = ReportSummaryReader.Read(reportPath);
@@ -57,6 +69,8 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.Findings[0].Line);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        AssertTriageMetadata(summary.Findings[0], "high", "medium", "active");
+        AssertAttribution(summary.Findings[0]);
         AssertRandomness(summary.Findings[0]);
         Assert.DoesNotContain("secret-value", string.Concat(
             summary.Findings[0].RuleId,
@@ -83,6 +97,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.Findings[0].Line);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual("auth.py:gitleaks-rule:1", summary.Findings[0].Fingerprint);
+        AssertAttribution(summary.Findings[0]);
     }
 
     /// <summary>
@@ -103,8 +118,12 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(2, summary.FileCount);
         Assert.AreEqual("first.py", summary.Findings[0].Path);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
+        AssertTriageMetadata(summary.Findings[0], "critical", "high", "active");
+        AssertAttribution(summary.Findings[0]);
         Assert.AreEqual("second.py", summary.Findings[1].Path);
         Assert.AreEqual(2, summary.Findings[1].StartColumn);
+        AssertTriageMetadata(summary.Findings[1], "critical", "high", "active");
+        AssertAttribution(summary.Findings[1]);
     }
 
     /// <summary>
@@ -130,6 +149,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(4, summary.Findings[0].Line);
         Assert.AreEqual(11, summary.Findings[0].StartColumn);
         Assert.AreEqual("trufflehog:AWS:keys.txt:4", summary.Findings[0].Fingerprint);
+        Assert.AreEqual("active", summary.Findings[0].ValidationState);
         Assert.DoesNotContain("AKIASECRET", summary.Findings[0].Fingerprint);
     }
 
@@ -155,6 +175,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual("config.env", summary.Findings[0].Path);
         Assert.AreEqual(9, summary.Findings[0].Line);
         Assert.AreEqual(0, summary.Findings[0].StartColumn);
+        Assert.AreEqual("unknown", summary.Findings[0].ValidationState);
     }
 
     /// <summary>
@@ -174,6 +195,7 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual("gitlab-rule", summary.Findings[0].RuleId);
         Assert.AreEqual("auth.py", summary.Findings[0].Path);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        Assert.AreEqual("critical", summary.Findings[0].Severity);
     }
 
     /// <summary>
@@ -188,7 +210,12 @@ public sealed class ReportSummaryReaderTests
             "auth.py",
             "auth.py:sarif-rule:1",
             FindingPositionKind.UnicodeCodePointsExclusive);
-        SecretRule rule = SecretRule.Create("sarif-rule", "desc", "secret");
+        SecretRule rule = SecretRule.Create(
+            "sarif-rule",
+            "desc",
+            "secret",
+            severity: "high",
+            confidence: "medium");
         string reportPath = WriteReport(root.Path, "report.sarif", PicketSarifReportWriter.Write([finding], [rule]));
 
         ReportSummary summary = ReportSummaryReader.Read(reportPath);
@@ -200,6 +227,8 @@ public sealed class ReportSummaryReaderTests
         Assert.AreEqual(1, summary.Findings[0].Line);
         Assert.AreEqual(2, summary.Findings[0].StartColumn);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), summary.Findings[0].Fingerprint);
+        AssertTriageMetadata(summary.Findings[0], "high", "medium", "active");
+        AssertAttribution(summary.Findings[0]);
         AssertRandomness(summary.Findings[0]);
     }
 
@@ -346,17 +375,35 @@ public sealed class ReportSummaryReaderTests
             "secret-value",
             file,
             string.Empty,
-            string.Empty,
+            "0123456789abcdef",
             2.5,
-            string.Empty,
+            "Ada Lovelace",
             string.Empty,
             string.Empty,
             string.Empty,
             ["tag"],
             fingerprint,
             "line containing secret",
+            validationState: "active",
             randomness: SecretRandomnessScorer.Assess("secret-value"),
             positionKind: positionKind);
+    }
+
+    private static void AssertAttribution(ReportFindingSummary finding)
+    {
+        Assert.AreEqual("0123456789abcdef", finding.Commit);
+        Assert.AreEqual("Ada Lovelace", finding.Author);
+    }
+
+    private static void AssertTriageMetadata(
+        ReportFindingSummary finding,
+        string severity,
+        string confidence,
+        string validationState)
+    {
+        Assert.AreEqual(severity, finding.Severity);
+        Assert.AreEqual(confidence, finding.Confidence);
+        Assert.AreEqual(validationState, finding.ValidationState);
     }
 
     private static void AssertRandomness(ReportFindingSummary finding)

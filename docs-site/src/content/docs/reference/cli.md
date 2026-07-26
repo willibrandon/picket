@@ -3392,6 +3392,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Open the native scan workspace instead of loading an existing report.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>-t, --tab</code></td>
+              <td data-label="Value"><code>1-6</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Start on a TUI tab by number: 1 Dashboard, 2 Scan, 3 Findings, 4 Rules, 5 Files, or 6 Logs.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>

@@ -22,10 +22,15 @@ internal static class PicketTuiFlowRunner
     /// Runs the inline report triage flow.
     /// </summary>
     /// <param name="reportPath">The optional report path. When omitted, the flow prompts for it.</param>
+    /// <param name="initialTab">The one-based tab number to show when full-screen mode opens.</param>
     /// <param name="cancellationToken">A token used to cancel the flow.</param>
     /// <returns>The process-style exit code.</returns>
-    internal static async Task<int> RunAsync(string? reportPath, CancellationToken cancellationToken = default)
+    internal static async Task<int> RunAsync(
+        string? reportPath,
+        int initialTab = 1,
+        CancellationToken cancellationToken = default)
     {
+        PicketTuiPalette.ConfigureFromEnvironment();
         int? cursorRow = TryGetCursorRow();
         bool flowCanceled = false;
         int flowExitCode = 0;
@@ -74,7 +79,7 @@ internal static class PicketTuiFlowRunner
                     return;
                 }
 
-                PicketTuiState state = PicketTuiRunner.LoadState(selectedReportPath);
+                PicketTuiState state = PicketTuiRunner.LoadState(selectedReportPath, initialTab);
                 await flow.ShowAsync(ctx => ctx.Border(b => [
                     b.Text("Picket scan report"),
                     b.Separator(),
@@ -106,11 +111,11 @@ internal static class PicketTuiFlowRunner
 
                 if (selectedAction == 0)
                 {
-                    await flow.FullScreenStepAsync((_, options) =>
+                    await flow.FullScreenStepAsync((app, options) =>
                     {
                         options.EnableMouse = true;
                         options.Theme = PicketTuiPalette.CreateTheme();
-                        return ctx => PicketTuiApp.Build(ctx, state);
+                        return ctx => PicketTuiApp.Build(ctx, state, app);
                     }).ConfigureAwait(false);
                 }
 

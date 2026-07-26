@@ -23,21 +23,34 @@ The TUI reads the same summary inputs as `picket view`:
 - SARIF,
 - Picket HTML summary metadata.
 
-The initial console uses only non-secret fields: rule IDs, detector names, paths, line numbers, fingerprints, counts, and format names. It does not load raw secret, match, or source-line evidence into TUI state.
+The initial console uses only non-secret fields: rule IDs, detector names, paths, line numbers, fingerprints, severity, confidence, validation state, commit and author attribution when present, counts, and format names. It does not load raw secret, match, or source-line evidence into TUI state.
 
 ## Full-Screen Console
 
 The full-screen console is designed as a scanner console:
 
 - a top command strip with view switching and Run scan,
+- a Dashboard summary with severity and validation counts plus top-rule and top-file tables,
 - a sectioned Scan page for target selection, output settings, validation filters, limits, command preview, status, scan timing, report path, and result counts,
-- a findings triage list with stable row focus,
+- a responsive findings triage list with stable row focus, severity, and validation state,
 - focused-finding details that can be selected and yanked,
 - rule and file frequency views with labelled finding counts,
 - searchable scanner output on the Logs view,
 - a compact status footer with non-wrapping command hints.
 
-Opening without a report starts on the Scan page. Opening an existing report with findings starts on the Findings page. The interface favors readable scanner-console density, predictable keyboard navigation, and text status over decorative layout.
+Dashboard is the first tab and the default initial view, whether the console starts empty, restores a previous scan, or opens an explicit report. Use `-t, --tab <1-6>` to start on Dashboard, Scan, Findings, Rules, Files, or Logs by one-based tab number. Run scan remains available in the header and through `Ctrl+R`, while Dashboard presents the current state before the operator moves into Scan or Findings. The interface favors readable scanner-console density, predictable keyboard navigation, and text status over decorative layout.
+
+The Findings page keeps the table visible at narrow terminal sizes. At wider sizes, a draggable details pane appears beside the table with constrained minimum, initial, and maximum widths; at narrower sizes, a compact details strip appears below it. Details lead with rule, severity, validation, confidence, and location, include commit and author when present, and place randomness diagnostics last. The full fingerprint remains in finding details and yank text rather than consuming a table column.
+
+## Keyboard Reference
+
+Press `F1` or `?` to open the in-app keyboard reference. The reference is generated from the active Hex1b input bindings, so it reflects the commands available in the current view.
+
+Press `1` through `6` to open Dashboard, Scan, Findings, Rules, Files, or Logs. These shortcuts remain inactive while entering text so numeric paths, filters, and limits can be typed normally. Global chord navigation uses `g d` for Dashboard, `g s` for Scan, `g f` for Findings, `g r` for Rules, `g b` for Files, and `g l` for Logs.
+
+`Tab` advances through the active page in visual reading order and wraps after its last control. `Shift+Tab` follows the same order in reverse. Both keys leave text fields and read-only panes instead of inserting a tab or trapping focus. `Ctrl+R` runs a scan, `F5` opens the Scan page, `y` yanks the current row or text selection, and `Ctrl+Q` quits. View-specific actions and their keys appear in the footer and keyboard reference.
+
+Set `NO_COLOR` to any non-empty value to use the monochrome palette. Picket retains visible grayscale focus, selection, progress, and yank states, and all semantic states remain labelled in text.
 
 ## Native AOT Packaging
 
@@ -79,13 +92,13 @@ Bitbucket Cloud and Bitbucket Data Center are separate targets. Cloud exposes re
 
 For object-store targets, the workspace includes S3, Google Cloud Storage, and Azure Blob Storage selectors, prefixes, token environment variable names, endpoint overrides where the CLI supports them, and explicit source endpoint policy controls.
 
-During a scan it shows text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr and can be searched without changing the finding filter. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console.
+During a scan it shows an animated activity indicator with text status, exit code state, started/completed/elapsed-time diagnostics, output availability, and cancellation status. The Logs view owns captured stdout/stderr, distinguishes errors and warnings with semantic colors and text, and highlights active search matches without changing the finding filter. While the scanner is running, the Run scan button becomes Cancel and `Ctrl+C` requests cancellation without closing the console.
 
 Before launch, the workspace prepares the report output directory and moves any previous output aside. A readable report from the current scan replaces the previous report and is loaded even when one or more inputs could not be scanned. The status identifies it as a partial report and operational success remains false. Clean completion requires exit `0` with zero findings or exit `1` with one or more findings. An exit/report mismatch is reported as a failure while preserving the readable artifact. A missing or malformed report restores the previous report and loaded results.
 
 The Scan page shows the loaded finding count and report path. The dedicated Findings view uses the same non-secret report readers as `picket view` and owns filtering, selected-row focus, finding details, and finding-specific yank text.
 
-Dashboard, finding details, and logs are read-only text panes so terminal users can select and yank exact text with the mouse or keyboard. Rule and file rows can filter the Findings view to the selected rule or file. Findings and file rows can open local files when the path exists on disk; Picket uses `PICKET_EDITOR`, then `VISUAL`, then `EDITOR`, with line-aware arguments for common editors, and falls back to the operating system default file opener. For terminal editors such as `nvim`, Picket leaves the full-screen console, runs the editor in the restored terminal, then returns to the console when the editor exits.
+The Dashboard summary, finding details, and logs are selectable read-only panes so terminal users can select and yank exact text with the mouse or keyboard. Plain `y` and selection-based yank operations visibly flash the copied text; table views flash the copied row. Rule and file rows can filter the Findings view to the selected rule or file. Findings and file rows can open local files when the path exists on disk; Picket uses `PICKET_EDITOR`, then `VISUAL`, then `EDITOR`, with line-aware arguments for common editors, and falls back to the operating system default file opener. For terminal editors such as `nvim`, Picket leaves the full-screen console, runs the editor in the restored terminal, then returns to the console when the editor exits.
 
 ## Inline Flow Mode
 

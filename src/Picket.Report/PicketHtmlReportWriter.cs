@@ -32,8 +32,9 @@ public static class PicketHtmlReportWriter
         builder.Append("<h1>Picket Secret Scan Report</h1>\n");
         builder.Append("</header>\n");
         WriteSummary(builder, findings, rules);
-        WriteEmbeddedSummary(builder, findings);
-        WriteFindings(builder, findings, PicketFindingMetadata.CreateRuleIndex(rules));
+        Dictionary<string, SecretRule> ruleIndex = PicketFindingMetadata.CreateRuleIndex(rules);
+        WriteEmbeddedSummary(builder, findings, ruleIndex);
+        WriteFindings(builder, findings, ruleIndex);
         WriteRules(builder, rules);
         builder.Append("</main>\n");
         builder.Append("</body>\n");
@@ -102,7 +103,10 @@ public static class PicketHtmlReportWriter
         builder.Append("</section>\n");
     }
 
-    private static void WriteEmbeddedSummary(StringBuilder builder, IReadOnlyList<Finding> findings)
+    private static void WriteEmbeddedSummary(
+        StringBuilder builder,
+        IReadOnlyList<Finding> findings,
+        IReadOnlyDictionary<string, SecretRule> ruleIndex)
     {
         builder.Append("<template id=\"picket-report-summary\" data-type=\"application/json\">");
         builder.Append('{');
@@ -116,21 +120,27 @@ public static class PicketHtmlReportWriter
                 builder.Append(',');
             }
 
-            WriteEmbeddedFindingSummary(builder, findings[i]);
+            Finding finding = findings[i];
+            WriteEmbeddedFindingSummary(builder, finding, PicketFindingMetadata.FindRule(ruleIndex, finding));
         }
 
         builder.Append("]}");
         builder.Append("</template>\n");
     }
 
-    private static void WriteEmbeddedFindingSummary(StringBuilder builder, Finding finding)
+    private static void WriteEmbeddedFindingSummary(StringBuilder builder, Finding finding, SecretRule? rule)
     {
         builder.Append('{');
         WriteJsonString(builder, "ruleId", finding.RuleID, comma: true);
         WriteJsonString(builder, "path", CreateLocationPath(finding), comma: true);
         WriteJsonNumber(builder, "line", finding.StartLine, comma: true);
         WriteJsonNumber(builder, "startColumn", finding.StartColumn, comma: true);
-        WriteJsonString(builder, "fingerprint", CreateFingerprint(finding), comma: finding.Randomness is not null);
+        WriteJsonString(builder, "fingerprint", CreateFingerprint(finding), comma: true);
+        WriteJsonString(builder, "severity", PicketFindingMetadata.CreateSeverity(rule), comma: true);
+        WriteJsonString(builder, "confidence", PicketFindingMetadata.CreateConfidence(rule), comma: true);
+        WriteJsonString(builder, "validationState", PicketFindingMetadata.CreateValidationState(finding), comma: true);
+        WriteJsonString(builder, "commit", finding.Commit, comma: true);
+        WriteJsonString(builder, "author", finding.Author, comma: finding.Randomness is not null);
         if (finding.Randomness is not null)
         {
             WriteJsonRandomnessNumber(builder, "randomnessScore", finding.Randomness.Score, comma: true);

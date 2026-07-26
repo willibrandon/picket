@@ -94,6 +94,8 @@ public sealed class PicketSarifReportWriterTests
         Assert.Contains("\"validationState\": \"unknown\"", sarif);
         Assert.Contains("\"severity\": \"high\"", sarif);
         Assert.Contains("\"confidence\": \"medium\"", sarif);
+        Assert.Contains("\"commit\": \"0000000000000000\"", sarif);
+        Assert.Contains("\"author\": \"John Doe\"", sarif);
         Assert.Contains("\"provenanceType\": \"git\"", sarif);
         Assert.Contains("\"baselineStatus\": \"new\"", sarif);
         Assert.Contains("\"decodePath\": [", sarif);

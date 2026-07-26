@@ -225,6 +225,7 @@ internal static class CliOptionMetadata
             "--scan" => "Open the native scan workspace instead of loading an existing report.",
             "--source" => "Override the source label stored in findings and fingerprints.",
             "--staged" => "Scan staged changes.",
+            "--tab" => "Start on a TUI tab by number: 1 Dashboard, 2 Scan, 3 Findings, 4 Rules, 5 Files, or 6 Logs.",
             "--timeout" => "Stop scanning after this many seconds. Use 0 to disable.",
             "--verify" => "Run opt-in live provider verification for supported findings.",
             "--verbose" => "Enable verbose logging.",

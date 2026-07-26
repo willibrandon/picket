@@ -104,7 +104,12 @@ public static class ReportSummaryReader
                 GetInt32(finding, "startColumn"),
                 GetOptionalDouble(finding, "randomnessScore"),
                 GetString(finding, "randomnessClassification"),
-                GetString(finding, "randomnessModel")));
+                GetString(finding, "randomnessModel"),
+                GetString(finding, "severity"),
+                GetString(finding, "confidence"),
+                GetString(finding, "validationState"),
+                GetString(finding, "commit"),
+                GetString(finding, "author")));
         }
 
         return new ReportSummary("picket-html", findings);
@@ -255,7 +260,9 @@ public static class ReportSummaryReader
                 GetDisplayPath(finding, "File", "SymlinkFile"),
                 GetInt32(finding, "StartLine"),
                 GetString(finding, "Fingerprint"),
-                GetInt32(finding, "StartColumn")));
+                GetInt32(finding, "StartColumn"),
+                commit: GetString(finding, "Commit"),
+                author: GetString(finding, "Author")));
         }
 
         return new ReportSummary("gitleaks-json", findings);
@@ -288,7 +295,8 @@ public static class ReportSummaryReader
                 GetString(finding, "check_name"),
                 GetString(location, "path"),
                 GetInt32(lines, "begin"),
-                GetString(finding, "fingerprint")));
+                GetString(finding, "fingerprint"),
+                severity: GetString(finding, "severity")));
         }
 
         return new ReportSummary("gitlab-code-quality", findings);
@@ -321,7 +329,12 @@ public static class ReportSummaryReader
             GetInt32(finding, "startColumn"),
             randomnessScore,
             randomnessClassification,
-            randomnessModel);
+            randomnessModel,
+            GetString(finding, "severity"),
+            GetString(finding, "confidence"),
+            GetString(finding, "validationState"),
+            GetString(finding, "commit"),
+            GetString(finding, "author"));
     }
 
     private static ReportFindingSummary ReadTruffleHogFinding(JsonElement finding)
@@ -359,7 +372,15 @@ public static class ReportSummaryReader
             GetString(finding, "fingerprint"),
             CreateTruffleHogFingerprint(detectorName, path, line));
 
-        return new ReportFindingSummary(detectorName, path, line, fingerprint, startColumn);
+        return new ReportFindingSummary(
+            detectorName,
+            path,
+            line,
+            fingerprint,
+            startColumn,
+            validationState: GetBoolean(finding, "Verified") || GetBoolean(finding, "verified")
+                ? "active"
+                : "unknown");
     }
 
     private static ReportSummary ReadSarif(JsonElement root)
@@ -424,7 +445,18 @@ public static class ReportSummaryReader
             GetInt32(region, "startColumn"),
             GetOptionalDouble(randomness, "score"),
             GetString(randomness, "classification"),
-            GetString(randomness, "model"));
+            GetString(randomness, "model"),
+            GetFirstNonEmptyString(
+                GetString(properties, "severity"),
+                MapSarifLevelToSeverity(GetString(result, "level"))),
+            GetString(properties, "confidence"),
+            GetString(properties, "validationState"),
+            GetFirstNonEmptyString(
+                GetString(properties, "commit"),
+                GetString(partialFingerprints, "commitSha")),
+            GetFirstNonEmptyString(
+                GetString(properties, "author"),
+                GetString(partialFingerprints, "author")));
     }
 
     private static JsonElement GetFirstArrayObject(JsonElement element, string name)
@@ -509,6 +541,28 @@ public static class ReportSummaryReader
         }
 
         return property.ValueKind == JsonValueKind.String ? property.GetString() ?? string.Empty : string.Empty;
+    }
+
+    private static bool GetBoolean(JsonElement element, string name)
+    {
+        return element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty(name, out JsonElement property)
+            && property.ValueKind == JsonValueKind.True;
+    }
+
+    private static string MapSarifLevelToSeverity(string level)
+    {
+        if (level.Equals("error", StringComparison.OrdinalIgnoreCase))
+        {
+            return "high";
+        }
+
+        if (level.Equals("warning", StringComparison.OrdinalIgnoreCase))
+        {
+            return "medium";
+        }
+
+        return level.Equals("note", StringComparison.OrdinalIgnoreCase) ? "info" : string.Empty;
     }
 
     private static double? GetOptionalDouble(JsonElement element, string name)

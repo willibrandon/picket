@@ -12,23 +12,31 @@ internal static class PicketTuiRunner
     /// Runs the full-screen report triage console.
     /// </summary>
     /// <param name="reportPath">The report path to load.</param>
+    /// <param name="initialTab">The one-based tab number to show initially.</param>
     /// <param name="cancellationToken">A token used to cancel the console.</param>
     /// <returns>The process-style exit code.</returns>
-    internal static async Task<int> RunAsync(string reportPath, CancellationToken cancellationToken = default)
+    internal static async Task<int> RunAsync(
+        string reportPath,
+        int initialTab = 1,
+        CancellationToken cancellationToken = default)
     {
-        PicketTuiState state = LoadState(reportPath);
+        PicketTuiPalette.ConfigureFromEnvironment();
+        PicketTuiState state = LoadState(reportPath, initialTab);
         return await RunTerminalLoopAsync(state, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Runs the full-screen scan workspace.
     /// </summary>
+    /// <param name="initialTab">The one-based tab number to show initially.</param>
     /// <param name="cancellationToken">A token used to cancel the console.</param>
     /// <returns>The process-style exit code.</returns>
-    internal static async Task<int> RunScanWorkspaceAsync(CancellationToken cancellationToken = default)
+    internal static async Task<int> RunScanWorkspaceAsync(
+        int initialTab = 1,
+        CancellationToken cancellationToken = default)
     {
-        PicketTuiState state = CreateScanWorkspaceState();
-        state.SetView(PicketTuiView.Scan);
+        PicketTuiPalette.ConfigureFromEnvironment();
+        PicketTuiState state = CreateScanWorkspaceState(initialTab);
         return await RunTerminalLoopAsync(state, cancellationToken).ConfigureAwait(false);
     }
 
@@ -36,26 +44,29 @@ internal static class PicketTuiRunner
     /// Loads report state for the terminal UI.
     /// </summary>
     /// <param name="reportPath">The report path to load.</param>
+    /// <param name="initialTab">The one-based tab number to show initially.</param>
     /// <returns>The initialized TUI state.</returns>
-    internal static PicketTuiState LoadState(string reportPath)
+    internal static PicketTuiState LoadState(string reportPath, int initialTab = 1)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reportPath);
 
         ReportSummary summary = ReportSummaryReader.Read(reportPath);
-        return new PicketTuiState(new PicketTuiReport(
+        var state = new PicketTuiState(new PicketTuiReport(
             Path.GetFullPath(reportPath),
             summary,
             DateTimeOffset.UtcNow));
+        state.SetViewByTabNumber(initialTab);
+        return state;
     }
 
-    private static PicketTuiState CreateScanWorkspaceState()
+    private static PicketTuiState CreateScanWorkspaceState(int initialTab)
     {
         var state = new PicketTuiState(new PicketTuiReport(
             "picket-tui-scan",
             new ReportSummary("picket-jsonl", []),
             DateTimeOffset.UtcNow));
         state.TryLoadPreviousScanReport();
-        state.SetView(PicketTuiView.Scan);
+        state.SetViewByTabNumber(initialTab);
         return state;
     }
 

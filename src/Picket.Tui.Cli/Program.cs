@@ -52,14 +52,35 @@ static RootCommand CreateRootCommand()
     {
         Description = "Open the native scan workspace instead of loading an existing report.",
     };
+    var tabOption = new Option<int>("--tab", "-t")
+    {
+        DefaultValueFactory = static _ => 1,
+        Description = "Start on a tab by number: 1 Dashboard, 2 Scan, 3 Findings, 4 Rules, 5 Files, or 6 Logs.",
+        HelpName = "1-6",
+    };
+    tabOption.Validators.Add(static result =>
+    {
+        int value = result.GetValueOrDefault<int>();
+        if (value is < 1 or > 6)
+        {
+            result.AddError("--tab requires a value from 1 through 6.");
+        }
+    });
+
     var rootCommand = new RootCommand("Interactive Picket report triage and scan workspace.")
     {
         reportArgument,
         flowOption,
         scanOption,
+        tabOption,
     };
 
-    rootCommand.SetAction(parseResult => RunRootCommandActionAsync(parseResult, reportArgument, flowOption, scanOption));
+    rootCommand.SetAction(parseResult => RunRootCommandActionAsync(
+        parseResult,
+        reportArgument,
+        flowOption,
+        scanOption,
+        tabOption));
 
     return rootCommand;
 }
@@ -68,13 +89,15 @@ static async Task<int> RunRootCommandActionAsync(
     ParseResult parseResult,
     Argument<string?> reportArgument,
     Option<bool> flowOption,
-    Option<bool> scanOption)
+    Option<bool> scanOption,
+    Option<int> tabOption)
 {
     try
     {
         string? reportPath = parseResult.GetValue(reportArgument);
         bool flow = parseResult.GetValue(flowOption);
         bool scan = parseResult.GetValue(scanOption);
+        int initialTab = parseResult.GetValue(tabOption);
 
         if (scan && flow)
         {
@@ -90,7 +113,7 @@ static async Task<int> RunRootCommandActionAsync(
 
         if (scan)
         {
-            return await PicketTuiRunner.RunScanWorkspaceAsync().ConfigureAwait(false);
+            return await PicketTuiRunner.RunScanWorkspaceAsync(initialTab).ConfigureAwait(false);
         }
 
         if (flow)
@@ -100,12 +123,12 @@ static async Task<int> RunRootCommandActionAsync(
                 return 1;
             }
 
-            return await PicketTuiFlowRunner.RunAsync(reportPath).ConfigureAwait(false);
+            return await PicketTuiFlowRunner.RunAsync(reportPath, initialTab).ConfigureAwait(false);
         }
 
         if (string.IsNullOrWhiteSpace(reportPath))
         {
-            return await PicketTuiRunner.RunScanWorkspaceAsync().ConfigureAwait(false);
+            return await PicketTuiRunner.RunScanWorkspaceAsync(initialTab).ConfigureAwait(false);
         }
 
         if (!TryValidateReportPath(reportPath))
@@ -113,7 +136,7 @@ static async Task<int> RunRootCommandActionAsync(
             return 1;
         }
 
-        return await PicketTuiRunner.RunAsync(reportPath).ConfigureAwait(false);
+        return await PicketTuiRunner.RunAsync(reportPath, initialTab).ConfigureAwait(false);
     }
     catch (OperationCanceledException)
     {

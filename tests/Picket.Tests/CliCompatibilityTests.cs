@@ -1583,6 +1583,19 @@ public sealed class CliCompatibilityTests
         Assert.Contains("picket tui [<report>] [options]", result.Stdout);
         Assert.Contains("--flow", result.Stdout);
         Assert.Contains("--scan", result.Stdout);
+        Assert.Contains("-t, --tab <1-6>", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the parent CLI rejects invalid TUI startup tab numbers before launching the companion.
+    /// </summary>
+    [TestMethod]
+    public async Task TuiRejectsStartupTabOutsideVisibleRange()
+    {
+        CliResult result = await RunCliAsync("tui", "-t=0").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("--tab requires a value from 1 through 6.", result.Stderr);
     }
 
     /// <summary>

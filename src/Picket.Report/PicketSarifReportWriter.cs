@@ -355,6 +355,7 @@ public static class PicketSarifReportWriter
         WriteStringProperty(builder, 6, "schema", "picket.finding.v1", comma: true);
         WriteStringProperty(builder, 6, "fingerprint", CreateFingerprint(finding), comma: true);
         WriteStringProperty(builder, 6, "commit", finding.Commit, comma: true);
+        WriteStringProperty(builder, 6, "author", finding.Author, comma: true);
         WriteNumberProperty(builder, 6, "entropy", finding.Entropy, comma: true);
         WriteRandomnessProperty(builder, finding.Randomness, comma: true);
         WriteStringProperty(builder, 6, "secretSha256", PicketFindingMetadata.CreateSecretSha256(finding), comma: true);

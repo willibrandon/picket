@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace Picket;
 
@@ -38,6 +39,16 @@ internal static partial class Program
             if (IsTuiScanFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--scan", out scan))
+                {
+                    return UnknownFlagExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsTuiTabFlag(arg))
+            {
+                if (!TryReadTuiTab(args, ref i))
                 {
                     return UnknownFlagExitCode;
                 }
@@ -119,5 +130,45 @@ internal static partial class Program
     private static bool IsTuiScanFlag(string arg)
     {
         return arg.Equals("--scan", StringComparison.Ordinal) || arg.StartsWith("--scan=", StringComparison.Ordinal);
+    }
+
+    private static bool IsTuiTabFlag(string arg)
+    {
+        return arg.Equals("--tab", StringComparison.Ordinal)
+            || arg.StartsWith("--tab=", StringComparison.Ordinal)
+            || arg.Equals("-t", StringComparison.Ordinal)
+            || arg.StartsWith("-t=", StringComparison.Ordinal);
+    }
+
+    private static bool TryReadTuiTab(string[] args, ref int index)
+    {
+        string arg = args[index];
+        string? value;
+        if (arg.StartsWith("--tab=", StringComparison.Ordinal))
+        {
+            value = arg["--tab=".Length..];
+        }
+        else if (arg.StartsWith("-t=", StringComparison.Ordinal))
+        {
+            value = arg["-t=".Length..];
+        }
+        else if (index + 1 < args.Length)
+        {
+            value = args[++index];
+        }
+        else
+        {
+            Console.Error.WriteLine($"{arg} requires a value");
+            return false;
+        }
+
+        if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int tab)
+            && tab is >= 1 and <= 6)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("--tab requires a value from 1 through 6.");
+        return false;
     }
 }

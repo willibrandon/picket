@@ -11,6 +11,11 @@ namespace Picket.Report;
 /// <param name="randomnessScore">The native randomness score, or <see langword="null" /> when unavailable.</param>
 /// <param name="randomnessClassification">The native randomness classification, or an empty string when unavailable.</param>
 /// <param name="randomnessModel">The native randomness model identifier, or an empty string when unavailable.</param>
+/// <param name="severity">The finding severity, or an empty string when unavailable.</param>
+/// <param name="confidence">The finding confidence, or an empty string when unavailable.</param>
+/// <param name="validationState">The credential validation state, or an empty string when unavailable.</param>
+/// <param name="commit">The source commit identifier, or an empty string when unavailable.</param>
+/// <param name="author">The source commit author, or an empty string when unavailable.</param>
 public sealed class ReportFindingSummary(
     string ruleId,
     string path,
@@ -19,7 +24,12 @@ public sealed class ReportFindingSummary(
     int startColumn = 0,
     double? randomnessScore = null,
     string randomnessClassification = "",
-    string randomnessModel = "")
+    string randomnessModel = "",
+    string severity = "",
+    string confidence = "",
+    string validationState = "",
+    string commit = "",
+    string author = "")
 {
     /// <summary>
     /// Gets the rule identifier associated with the finding.
@@ -60,6 +70,31 @@ public sealed class ReportFindingSummary(
     /// Gets the native randomness model identifier, or an empty string when unavailable.
     /// </summary>
     public string RandomnessModel { get; } = randomnessModel ?? throw new ArgumentNullException(nameof(randomnessModel));
+
+    /// <summary>
+    /// Gets the finding severity, or an empty string when unavailable.
+    /// </summary>
+    public string Severity { get; } = severity ?? throw new ArgumentNullException(nameof(severity));
+
+    /// <summary>
+    /// Gets the finding confidence, or an empty string when unavailable.
+    /// </summary>
+    public string Confidence { get; } = confidence ?? throw new ArgumentNullException(nameof(confidence));
+
+    /// <summary>
+    /// Gets the credential validation state, or an empty string when unavailable.
+    /// </summary>
+    public string ValidationState { get; } = validationState ?? throw new ArgumentNullException(nameof(validationState));
+
+    /// <summary>
+    /// Gets the source commit identifier, or an empty string when unavailable.
+    /// </summary>
+    public string Commit { get; } = commit ?? throw new ArgumentNullException(nameof(commit));
+
+    /// <summary>
+    /// Gets the source commit author, or an empty string when unavailable.
+    /// </summary>
+    public string Author { get; } = author ?? throw new ArgumentNullException(nameof(author));
 
     private static int ValidateNonNegative(int value)
     {

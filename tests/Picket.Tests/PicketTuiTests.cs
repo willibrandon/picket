@@ -1,7 +1,9 @@
 using Hex1b;
 using Hex1b.Automation;
+using Hex1b.Documents;
 using Hex1b.Input;
 using Hex1b.Theming;
+using Hex1b.Widgets;
 using Picket.Report;
 using Picket.Tui;
 using System.Diagnostics;
@@ -15,11 +17,59 @@ namespace Picket.Tests;
 public sealed class PicketTuiTests
 {
     private static readonly Lock s_editorEnvironmentLock = new();
+    private static readonly HashSet<string> s_spinnerFrames = [.. SpinnerStyle.Dots.Frames];
 
     /// <summary>
     /// Gets or sets the MSTest context for the current test.
     /// </summary>
     public TestContext TestContext { get; set; } = null!;
+
+    /// <summary>
+    /// Verifies that every TUI workspace opens on the first-position dashboard.
+    /// </summary>
+    [TestMethod]
+    public void StateStartsOnFirstPositionDashboard()
+    {
+        PicketTuiState populatedState = CreateState();
+        PicketTuiState emptyState = CreateEmptyState();
+
+        Assert.AreEqual(PicketTuiView.Dashboard, populatedState.CurrentView);
+        Assert.AreEqual(PicketTuiView.Dashboard, emptyState.CurrentView);
+        Assert.HasCount(6, PicketTuiState.NavigationItems);
+        Assert.AreEqual(PicketTuiView.Dashboard, PicketTuiState.NavigationItems[0]);
+        Assert.AreEqual(PicketTuiView.Scan, PicketTuiState.NavigationItems[1]);
+    }
+
+    /// <summary>
+    /// Verifies that one-based tab numbers select each top-level view.
+    /// </summary>
+    [TestMethod]
+    [DataRow(1)]
+    [DataRow(2)]
+    [DataRow(3)]
+    [DataRow(4)]
+    [DataRow(5)]
+    [DataRow(6)]
+    public void StateSelectsViewByOneBasedTabNumber(int tabNumber)
+    {
+        PicketTuiState state = CreateState();
+
+        state.SetViewByTabNumber(tabNumber);
+
+        Assert.AreEqual((PicketTuiView)(tabNumber - 1), state.CurrentView);
+    }
+
+    /// <summary>
+    /// Verifies that one-based tab selection rejects values outside the visible tab range.
+    /// </summary>
+    [TestMethod]
+    public void StateRejectsTabNumberOutsideVisibleRange()
+    {
+        PicketTuiState state = CreateState();
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => state.SetViewByTabNumber(0));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => state.SetViewByTabNumber(7));
+    }
 
     /// <summary>
     /// Verifies that the TUI state filters rows and keeps focused findings addressable by key.
@@ -115,17 +165,27 @@ public sealed class PicketTuiTests
     public void StateYanksFocusedFindingMetadata()
     {
         PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Findings);
+
         string text = state.GetYankText();
 
         Assert.IsTrue(state.HasYankText);
         Assert.Contains("Rule: github-token", text);
+        Assert.Contains("Severity: critical", text);
+        Assert.Contains("Confidence: high", text);
+        Assert.Contains("Validation: active", text);
         Assert.Contains("Path: src/auth.cs", text);
         Assert.Contains("Line: 12", text);
+        Assert.Contains("Commit: 0123456789abcdef", text);
+        Assert.Contains("Author: Ada Lovelace", text);
         Assert.Contains("Fingerprint: fp-auth-1", text);
         Assert.Contains("Randomness: 0.902542 (likely-random)", text);
         Assert.Contains("Randomness model: picket-random-v1", text);
         Assert.Contains("Report: report.json", text);
         Assert.DoesNotContain("Secret", text);
+        Assert.IsLessThan(
+            text.IndexOf("Randomness:", StringComparison.Ordinal),
+            text.IndexOf("Severity:", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -150,11 +210,11 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
-    /// Verifies that selected read-only editor text is yankable and gets an editor-local flash.
+    /// Verifies that selected read-only editor text is yankable, flashes, and collapses to its final character.
     /// </summary>
     [TestMethod]
     [Timeout(5000, CooperativeCancellation = true)]
-    public async Task StateYanksSelectedReadOnlyEditorTextWithFlash()
+    public async Task StateYanksSelectedReadOnlyEditorTextWithFlashAndCollapsesSelection()
     {
         PicketTuiState state = CreateState();
         state.SetView(PicketTuiView.Dashboard);
@@ -174,6 +234,8 @@ public sealed class PicketTuiTests
 
         state.ShowEditorYankNotification(text, editorState, provider, range, invalidated.Set, TestContext.CancellationToken);
 
+        Assert.IsFalse(editorState.Cursor.HasSelection);
+        Assert.AreEqual(new DocumentOffset(range.End.Value - 1), editorState.Cursor.Position);
         Assert.IsNotNull(provider.HighlightRange);
         Assert.IsFalse(state.YankFlashRow);
         Assert.IsNotNull(state.YankNotification);
@@ -185,6 +247,77 @@ public sealed class PicketTuiTests
 
         Assert.IsTrue(invalidated.IsSet);
         Assert.IsNull(provider.HighlightRange);
+        Assert.IsFalse(editorState.Cursor.HasSelection);
+        Assert.AreEqual(new DocumentOffset(range.End.Value - 1), editorState.Cursor.Position);
+    }
+
+    /// <summary>
+    /// Verifies that multiline yank flashes stop at each line's selected text instead of filling the viewport.
+    /// </summary>
+    [TestMethod]
+    public void YankDecorationStopsAtSelectedTextOnEachLine()
+    {
+        var document = new Hex1bDocument("alpha\nmiddle\nbeta");
+        var provider = new PicketTuiYankDecorationProvider
+        {
+            HighlightRange = (new DocumentPosition(1, 2), new DocumentPosition(3, 3)),
+        };
+
+        IReadOnlyList<TextDecorationSpan> spans = provider.GetDecorations(1, 3, document);
+
+        Assert.HasCount(3, spans);
+        Assert.AreEqual(new DocumentPosition(1, 2), spans[0].Start);
+        Assert.AreEqual(new DocumentPosition(1, 6), spans[0].End);
+        Assert.AreEqual(new DocumentPosition(2, 1), spans[1].Start);
+        Assert.AreEqual(new DocumentPosition(2, 7), spans[1].End);
+        Assert.AreEqual(new DocumentPosition(3, 1), spans[2].Start);
+        Assert.AreEqual(new DocumentPosition(3, 3), spans[2].End);
+    }
+
+    /// <summary>
+    /// Verifies that a plain yank targets and flashes the complete focused read-only pane.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task StateFlashesWholeFocusedReadOnlyEditorForPlainYank()
+    {
+        PicketTuiState state = CreateState();
+        EditorState dashboardEditor = state.GetDashboardEditorState();
+        using var invalidated = new ManualResetEventSlim();
+
+        bool found = state.TryGetFocusedEditorYankTarget(
+            dashboardEditor,
+            out string text,
+            out EditorState editorState,
+            out PicketTuiYankDecorationProvider provider,
+            out DocumentRange range);
+
+        Assert.IsTrue(found);
+        Assert.Contains("Severity:", text);
+        Assert.Contains("Validation:", text);
+        Assert.AreSame(dashboardEditor, editorState);
+        Assert.AreSame(state.DashboardYankProvider, provider);
+        Assert.AreEqual(DocumentOffset.Zero, range.Start);
+        Assert.AreEqual((DocumentOffset)dashboardEditor.Document.Length, range.End);
+
+        state.ShowEditorYankNotification(
+            text,
+            editorState,
+            provider,
+            range,
+            invalidated.Set,
+            TestContext.CancellationToken);
+
+        Assert.IsNotNull(provider.HighlightRange);
+        Assert.IsFalse(state.YankFlashRow);
+        Assert.AreEqual(DocumentOffset.Zero, editorState.Cursor.Position);
+
+        while (provider.HighlightRange is not null)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(25), TestContext.CancellationToken).ConfigureAwait(false);
+        }
+
+        Assert.IsTrue(invalidated.IsSet);
     }
 
     /// <summary>
@@ -213,6 +346,46 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that clearing table selection removes every selected row relevant to the active view.
+    /// </summary>
+    [TestMethod]
+    public void StateClearsSelectedRowsForActiveView()
+    {
+        PicketTuiState state = CreateState();
+        state.FocusRule("github-token");
+        state.FocusFile("src/auth.cs");
+
+        Assert.IsTrue(state.ClearSelectedRows());
+        Assert.AreEqual("github-token", state.FocusedRuleKey);
+        Assert.AreEqual("src/auth.cs", state.FocusedFileKey);
+        Assert.IsNull(state.SelectedRuleKey);
+        Assert.IsNull(state.SelectedFileKey);
+        Assert.IsNull(state.FocusedCountTableKind);
+
+        state.SetView(PicketTuiView.Findings);
+        state.FocusFinding(state.VisibleRows[0].Key);
+
+        Assert.IsTrue(state.ClearSelectedRows());
+        Assert.IsNotNull(state.FocusedFindingKey);
+        Assert.IsNull(state.SelectedFindingKey);
+
+        state.SetView(PicketTuiView.Rules);
+        state.FocusRule("github-token");
+
+        Assert.IsTrue(state.ClearSelectedRows());
+        Assert.AreEqual("github-token", state.FocusedRuleKey);
+        Assert.IsNull(state.SelectedRuleKey);
+
+        state.SetView(PicketTuiView.Files);
+        state.FocusFile("src/auth.cs");
+
+        Assert.IsTrue(state.ClearSelectedRows());
+        Assert.AreEqual("src/auth.cs", state.FocusedFileKey);
+        Assert.IsNull(state.SelectedFileKey);
+        Assert.IsFalse(state.ClearSelectedRows());
+    }
+
+    /// <summary>
     /// Verifies that rule and file rows can filter the findings table.
     /// </summary>
     [TestMethod]
@@ -238,6 +411,34 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that count-table filters select exact rule and path keys instead of substring matches.
+    /// </summary>
+    [TestMethod]
+    public void StateFiltersCountRowsByExactKey()
+    {
+        var summary = new ReportSummary(
+            "picket-json",
+            [
+                new ReportFindingSummary("token", "src/app.cs", 1, "fp-1"),
+                new ReportFindingSummary("token-extended", "src/app.generated.cs", 2, "fp-2"),
+            ]);
+        var state = new PicketTuiState(new PicketTuiReport("report.json", summary, DateTimeOffset.UnixEpoch));
+
+        state.FocusRule("token");
+        state.FilterFindingsToFocusedRule();
+
+        Assert.HasCount(1, state.VisibleRows);
+        Assert.AreEqual("token", state.VisibleRows[0].RuleId);
+
+        state.ClearSearch();
+        state.FocusFile("src/app.cs");
+        state.FilterFindingsToFocusedFile();
+
+        Assert.HasCount(1, state.VisibleRows);
+        Assert.AreEqual("src/app.cs", state.VisibleRows[0].Path);
+    }
+
+    /// <summary>
     /// Verifies that each top-level tab publishes a deterministic primary focus target.
     /// </summary>
     [TestMethod]
@@ -245,11 +446,8 @@ public sealed class PicketTuiTests
     {
         PicketTuiState state = CreateState();
 
-        Assert.AreEqual(PicketTuiFocusTarget.FindingsTable, state.ConsumePendingFocusTarget());
-        Assert.IsNull(state.ConsumePendingFocusTarget());
-
-        state.SetView(PicketTuiView.Dashboard);
         Assert.AreEqual(PicketTuiFocusTarget.DashboardEditor, state.ConsumePendingFocusTarget());
+        Assert.IsNull(state.ConsumePendingFocusTarget());
 
         state.SetView(PicketTuiView.Scan);
         Assert.AreEqual(PicketTuiFocusTarget.ScanPrimaryControl, state.ConsumePendingFocusTarget());
@@ -352,7 +550,7 @@ public sealed class PicketTuiTests
         Assert.Contains("Command: picket scan", text);
         Assert.Contains("Report: picket-results/picket-tui.jsonl", text);
         Assert.Contains("Status: Ready to scan", text);
-        Assert.Contains("Timing: not run yet", text);
+        Assert.Contains("Timing: Not run yet", text);
         Assert.Contains("Summary: 3 findings across 2 files in picket-json", text);
         Assert.DoesNotContain("Focused finding:", text);
         Assert.DoesNotContain("Rule: github-token", text);
@@ -384,6 +582,35 @@ public sealed class PicketTuiTests
         Assert.Contains("stderr: 1 finding", text);
         Assert.DoesNotContain("enumerated 1 file", text);
         Assert.DoesNotContain("stdout: scan complete", text);
+    }
+
+    /// <summary>
+    /// Verifies that log decorations distinguish failures, warnings, and active search matches.
+    /// </summary>
+    [TestMethod]
+    public void LogDecorationsExposeSemanticLevelsAndSearchMatches()
+    {
+        var document = new Hex1bDocument(
+            """
+            stderr: fatal error
+            stderr: warning: archive limit reached
+            stdout: token found
+            """);
+        var provider = new PicketTuiLogDecorationProvider
+        {
+            Query = "token",
+        };
+
+        IReadOnlyList<TextDecorationSpan> decorations = provider.GetDecorations(1, 3, document);
+
+        Assert.HasCount(3, decorations);
+        TextDecorationSpan error = decorations.Single(static span => span.Start.Line == 1);
+        TextDecorationSpan warning = decorations.Single(static span => span.Start.Line == 2);
+        TextDecorationSpan search = decorations.Single(static span => span.Start.Line == 3);
+        Assert.AreEqual(PicketTuiPalette.ErrorForeground, error.Decoration.Foreground);
+        Assert.AreEqual(PicketTuiPalette.WarningForeground, warning.Decoration.Foreground);
+        Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, search.Decoration.Foreground);
+        Assert.AreEqual(PicketTuiPalette.EditorSelectionBackground, search.Decoration.Background);
     }
 
     /// <summary>
@@ -1969,7 +2196,7 @@ public sealed class PicketTuiTests
         bool loaded = state.TryLoadPreviousScanReport();
 
         Assert.IsTrue(loaded);
-        Assert.AreEqual(PicketTuiView.Scan, state.CurrentView);
+        Assert.AreEqual(PicketTuiView.Dashboard, state.CurrentView);
         Assert.AreEqual(reportPath, state.Report.Path);
         Assert.AreEqual(1, state.Report.Summary.FindingCount);
         Assert.AreEqual("fake-rule", state.Rows[0].RuleId);
@@ -1993,13 +2220,25 @@ public sealed class PicketTuiTests
         AssertTextContrast(PicketTuiPalette.WarningForeground, PicketTuiPalette.Background);
         AssertTextContrast(PicketTuiPalette.FocusForeground, PicketTuiPalette.FocusBackground);
         AssertTextContrast(PicketTuiPalette.FocusedRowForeground, PicketTuiPalette.FocusedRowBackground);
-        AssertTextContrast(PicketTuiPalette.Foreground, PicketTuiPalette.EditorSelectionBackground);
+        AssertTextContrast(PicketTuiPalette.FocusedRowForeground, PicketTuiPalette.EditorSelectionBackground);
         AssertTextContrast(PicketTuiPalette.YankFlashForeground, PicketTuiPalette.YankFlashBackground);
         AssertUiContrast(PicketTuiPalette.Border, PicketTuiPalette.Background);
         AssertUiContrast(PicketTuiPalette.FocusBackground, PicketTuiPalette.Background);
         AssertUiContrast(PicketTuiPalette.FocusedRowBackground, PicketTuiPalette.Background);
         AssertUiContrast(PicketTuiPalette.EditorSelectionBackground, PicketTuiPalette.Background);
         AssertUiContrast(PicketTuiPalette.YankFlashBackground, PicketTuiPalette.Background);
+    }
+
+    /// <summary>
+    /// Verifies that any non-empty NO_COLOR value selects the monochrome terminal palette.
+    /// </summary>
+    [TestMethod]
+    public void PaletteHonorsNoColorConvention()
+    {
+        Assert.IsTrue(PicketTuiPalette.IsColorEnabled(null));
+        Assert.IsTrue(PicketTuiPalette.IsColorEnabled(string.Empty));
+        Assert.IsFalse(PicketTuiPalette.IsColorEnabled("1"));
+        Assert.IsFalse(PicketTuiPalette.IsColorEnabled("0"));
     }
 
     /// <summary>
@@ -2014,7 +2253,7 @@ public sealed class PicketTuiTests
         Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, theme.Get(TableTheme.FocusedRowBackground));
         Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, theme.Get(TableTheme.FocusedRowForeground));
         Assert.AreEqual(PicketTuiPalette.EditorSelectionBackground, theme.Get(EditorTheme.SelectionBackgroundColor));
-        Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.ScrollbarThumbColor));
+        Assert.AreEqual(PicketTuiPalette.ScrollbarThumb, theme.Get(TableTheme.ScrollbarThumbColor));
         Assert.AreEqual(PicketTuiPalette.Border, theme.Get(TableTheme.TableFocusedBorderColor));
     }
 
@@ -2033,7 +2272,7 @@ public sealed class PicketTuiTests
             theme.Get(ToggleSwitchTheme.UnfocusedSelectedForegroundColor),
             theme.Get(ToggleSwitchTheme.FocusedSelectedForegroundColor));
         Assert.AreEqual(
-            PicketTuiPalette.PrimaryActionBackground,
+            PicketTuiPalette.FocusedRowBackground,
             theme.Get(TabBarTheme.SelectedBackgroundColor));
     }
 
@@ -2093,8 +2332,11 @@ public sealed class PicketTuiTests
         Assert.Contains("Picket", screenText);
         Assert.Contains("github-token", screenText);
         Assert.Contains("src/auth.cs", screenText);
+        Assert.Contains("critical", screenText);
+        Assert.Contains("active", screenText);
         Assert.Contains("g s scan", screenText);
         Assert.Contains("y yank", screenText);
+        Assert.Contains("? help", screenText);
         Assert.DoesNotContain("Ctrl+R run", screenText);
     }
 
@@ -2106,6 +2348,7 @@ public sealed class PicketTuiTests
     public async Task Hex1bFullScreenConsoleKeepsSelectedRowChromeConsistent()
     {
         PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Findings);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
 
@@ -2134,13 +2377,19 @@ public sealed class PicketTuiTests
         int nextRowY = Array.FindIndex(lines, line =>
             line.Contains("github-token", StringComparison.Ordinal)
             && line.Contains("src/auth.cs:18", StringComparison.Ordinal));
+        int inactiveRowY = Array.FindIndex(lines, line =>
+            line.Contains("aws-key", StringComparison.Ordinal)
+            && line.Contains("infra/main.tf:4", StringComparison.Ordinal));
         Assert.IsGreaterThanOrEqualTo(0, textX);
         Assert.IsGreaterThanOrEqualTo(0, locationX);
         Assert.IsGreaterThanOrEqualTo(0, nextRowY);
+        Assert.IsGreaterThanOrEqualTo(0, inactiveRowY);
 
         TerminalCell textCell = snapshot.GetCell(textX, rowY);
         TerminalCell locationCell = snapshot.GetCell(locationX, rowY);
         TerminalCell nextRowCell = snapshot.GetCell(lines[nextRowY].IndexOf("github-token", StringComparison.Ordinal), nextRowY);
+        TerminalCell lowSeverityCell = snapshot.GetCell(lines[inactiveRowY].IndexOf("low", StringComparison.Ordinal), inactiveRowY);
+        TerminalCell inactiveStateCell = snapshot.GetCell(lines[inactiveRowY].IndexOf("inactive", StringComparison.Ordinal), inactiveRowY);
 
         Assert.AreEqual(PicketTuiPalette.FocusedRowForeground, textCell.Foreground);
         Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, textCell.Background);
@@ -2148,6 +2397,344 @@ public sealed class PicketTuiTests
         Assert.AreEqual(PicketTuiPalette.FocusedRowBackground, locationCell.Background);
         Assert.AreEqual(PicketTuiPalette.Foreground, nextRowCell.Foreground);
         Assert.AreEqual(PicketTuiPalette.Background, nextRowCell.Background);
+        Assert.AreEqual(PicketTuiPalette.InfoForeground, lowSeverityCell.Foreground);
+        Assert.AreEqual(PicketTuiPalette.SuccessForeground, inactiveStateCell.Foreground);
+    }
+
+    /// <summary>
+    /// Verifies that the dashboard exposes triage breakdowns with semantic colors and structured top lists.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bDashboardRendersSemanticTriageSummary()
+    {
+        PicketTuiState state = CreateState();
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Severity: 1 critical"), TimeSpan.FromSeconds(5), "dashboard triage summary to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string[] lines = snapshot.GetScreenText().Split('\n');
+        int severityY = Array.FindIndex(lines, static line => line.Contains("Severity: 1 critical", StringComparison.Ordinal));
+        int validationY = Array.FindIndex(lines, static line => line.Contains("Validation: 1 active", StringComparison.Ordinal));
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsGreaterThanOrEqualTo(0, severityY);
+        Assert.IsGreaterThanOrEqualTo(0, validationY);
+        Assert.Contains("Top rules", snapshot.GetScreenText());
+        Assert.Contains("Top files", snapshot.GetScreenText());
+        Assert.AreEqual(
+            PicketTuiPalette.ErrorForeground,
+            snapshot.GetCell(lines[severityY].IndexOf("critical", StringComparison.Ordinal), severityY).Foreground);
+        Assert.AreEqual(
+            PicketTuiPalette.ErrorForeground,
+            snapshot.GetCell(lines[validationY].IndexOf("active", StringComparison.Ordinal), validationY).Foreground);
+    }
+
+    /// <summary>
+    /// Verifies that Escape removes the selected rows from both dashboard count tables.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bDashboardEscapeClearsBothSelectedCountRows()
+    {
+        PicketTuiState state = CreateState();
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot initialSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(
+                s => s.ContainsText("github-token") && s.ContainsText("src/auth.cs"),
+                TimeSpan.FromSeconds(5),
+                "dashboard count rows to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        string[] initialLines = initialSnapshot.GetScreenText().Split('\n');
+        int ruleY = Array.FindIndex(initialLines, static line => line.Contains("github-token", StringComparison.Ordinal));
+        int fileY = Array.FindIndex(initialLines, static line => line.Contains("src/auth.cs", StringComparison.Ordinal));
+        Assert.IsGreaterThanOrEqualTo(0, ruleY);
+        Assert.IsGreaterThanOrEqualTo(0, fileY);
+        int ruleX = initialLines[ruleY].IndexOf("github-token", StringComparison.Ordinal);
+        int fileX = initialLines[fileY].IndexOf("src/auth.cs", StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, ruleX);
+        Assert.IsGreaterThanOrEqualTo(0, fileX);
+
+        Hex1bTerminalSnapshot selectedSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .ClickAt(ruleX, ruleY)
+            .WaitUntil(
+                _ => state.FocusedRuleKey == "github-token",
+                TimeSpan.FromSeconds(5),
+                "dashboard rule row to be selected")
+            .ClickAt(fileX, fileY)
+            .WaitUntil(
+                s => state.FocusedFileKey == "src/auth.cs"
+                    && HasRowColors(
+                        s,
+                        "github-token",
+                        PicketTuiPalette.FocusedRowForeground,
+                        PicketTuiPalette.FocusedRowBackground)
+                    && HasRowColors(
+                        s,
+                        "src/auth.cs",
+                        PicketTuiPalette.FocusedRowForeground,
+                        PicketTuiPalette.FocusedRowBackground),
+                TimeSpan.FromSeconds(5),
+                "both dashboard count rows to be selected")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        Hex1bTerminalSnapshot clearedSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .Key(Hex1bKey.Escape)
+            .WaitUntil(
+                s => state.SelectedRuleKey is null
+                    && state.SelectedFileKey is null
+                    && !HasRowColors(
+                        s,
+                        "github-token",
+                        PicketTuiPalette.FocusedRowForeground,
+                        PicketTuiPalette.FocusedRowBackground)
+                    && !HasRowColors(
+                        s,
+                        "src/auth.cs",
+                        PicketTuiPalette.FocusedRowForeground,
+                        PicketTuiPalette.FocusedRowBackground),
+                TimeSpan.FromSeconds(5),
+                "both dashboard count rows to clear")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsTrue(HasRowColors(
+            selectedSnapshot,
+            "github-token",
+            PicketTuiPalette.FocusedRowForeground,
+            PicketTuiPalette.FocusedRowBackground));
+        Assert.IsTrue(HasRowColors(
+            selectedSnapshot,
+            "src/auth.cs",
+            PicketTuiPalette.FocusedRowForeground,
+            PicketTuiPalette.FocusedRowBackground));
+        Assert.IsFalse(HasRowColors(
+            clearedSnapshot,
+            "github-token",
+            PicketTuiPalette.FocusedRowForeground,
+            PicketTuiPalette.FocusedRowBackground));
+        Assert.IsFalse(HasRowColors(
+            clearedSnapshot,
+            "src/auth.cs",
+            PicketTuiPalette.FocusedRowForeground,
+            PicketTuiPalette.FocusedRowBackground));
+    }
+
+    /// <summary>
+    /// Verifies that Escape reliably clears a Files row across rapid input and focus changes.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFilesEscapeReliablyClearsSelectedRow()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Files);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot initialSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(
+                s => s.ContainsText("src/auth.cs"),
+                TimeSpan.FromSeconds(5),
+                "file row to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        string[] initialLines = initialSnapshot.GetScreenText().Split('\n');
+        int fileY = Array.FindIndex(initialLines, static line => line.Contains("src/auth.cs", StringComparison.Ordinal));
+        Assert.IsGreaterThanOrEqualTo(0, fileY);
+        int fileX = initialLines[fileY].IndexOf("src/auth.cs", StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, fileX);
+
+        await new Hex1bTerminalInputSequenceBuilder()
+            .ClickAt(fileX, fileY)
+            .Key(Hex1bKey.Escape)
+            .WaitUntil(
+                s => state.SelectedFileKey is null
+                    && !HasRowColors(
+                        s,
+                        "src/auth.cs",
+                        PicketTuiPalette.FocusedRowForeground,
+                        PicketTuiPalette.FocusedRowBackground),
+                TimeSpan.FromSeconds(5),
+                "rapidly selected file row to clear")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        Hex1bTerminalSnapshot selectedSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .Key(Hex1bKey.DownArrow)
+            .WaitUntil(
+                s => state.FocusedFileKey == "infra/main.tf"
+                    && state.SelectedFileKey == "infra/main.tf"
+                    && HasRowColors(
+                        s,
+                        "infra/main.tf",
+                        PicketTuiPalette.FocusedRowForeground,
+                        PicketTuiPalette.FocusedRowBackground),
+                TimeSpan.FromSeconds(5),
+                "keyboard navigation to select the next file row")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        Hex1bTerminalSnapshot clearedSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .Key(Hex1bKey.Tab)
+            .Key(Hex1bKey.Escape)
+            .WaitUntil(
+                s => state.SelectedFileKey is null
+                    && !HasRowColors(
+                        s,
+                        "infra/main.tf",
+                        PicketTuiPalette.FocusedRowForeground,
+                        PicketTuiPalette.FocusedRowBackground),
+                TimeSpan.FromSeconds(5),
+                "file row to clear after focus changes")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsTrue(HasRowColors(
+            selectedSnapshot,
+            "infra/main.tf",
+            PicketTuiPalette.FocusedRowForeground,
+            PicketTuiPalette.FocusedRowBackground));
+        Assert.IsFalse(HasRowColors(
+            clearedSnapshot,
+            "infra/main.tf",
+            PicketTuiPalette.FocusedRowForeground,
+            PicketTuiPalette.FocusedRowBackground));
+    }
+
+    /// <summary>
+    /// Verifies that Rules and Files flash the complete focused row after a contextual yank.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bCountTablesFlashYankedRows()
+    {
+        await AssertCountTableYankFlashAsync(
+            PicketTuiView.Rules,
+            "github-token",
+            TestContext.CancellationToken).ConfigureAwait(false);
+        await AssertCountTableYankFlashAsync(
+            PicketTuiView.Files,
+            "src/auth.cs",
+            TestContext.CancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Verifies that a wide findings view keeps its details pane readable beside the findings table.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleKeepsWideFindingDetailsReadable()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Findings);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 140, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Validation: active"), TimeSpan.FromSeconds(5), "finding details to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Severity", screenText);
+        Assert.Contains("Validation", screenText);
+        Assert.Contains("Validation: active", screenText);
+        Assert.Contains("Commit: 0123456789abcdef", screenText);
+        Assert.Contains("Author: Ada Lovelace", screenText);
+        Assert.Contains("Fingerprint: fp-auth-1", screenText);
+        Assert.Contains("src/auth.cs:12", screenText);
+        Assert.DoesNotContain("~", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that the wide finding-details panel can be resized by dragging its left handle.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleResizesFindingDetailsWithDragHandle()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Findings);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 140, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot initialSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => FindFindingDetailsHandleColumn(s) >= 0, TimeSpan.FromSeconds(5), "finding details drag handle to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        int initialHandleX = FindFindingDetailsHandleColumn(initialSnapshot);
+        int expectedHandleX = initialHandleX - 8;
+        Hex1bTerminalSnapshot resizedSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .Drag(initialHandleX, 18, expectedHandleX, 18)
+            .WaitUntil(
+                s => FindFindingDetailsHandleColumn(s) == expectedHandleX,
+                TimeSpan.FromSeconds(5),
+                "finding details panel to resize")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsGreaterThanOrEqualTo(0, initialHandleX);
+        Assert.AreEqual(expectedHandleX, FindFindingDetailsHandleColumn(resizedSnapshot));
     }
 
     /// <summary>
@@ -2158,12 +2745,17 @@ public sealed class PicketTuiTests
     public async Task Hex1bFullScreenConsoleHandlesNarrowTerminalAndKeyboardNavigation()
     {
         PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Findings);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 80, height: 24);
 
         Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot findingsSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("src/auth.cs:12"), TimeSpan.FromSeconds(5), "findings to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
-            .WaitUntil(s => s.ContainsText("Findings"), TimeSpan.FromSeconds(5), "findings to render")
             .Key(Hex1bKey.G)
             .Key(Hex1bKey.S)
             .WaitUntil(s => s.ContainsText("Source"), TimeSpan.FromSeconds(5), "scan workspace to render")
@@ -2178,8 +2770,12 @@ public sealed class PicketTuiTests
 
         int exitCode = await runTask.ConfigureAwait(false);
         string screenText = snapshot.GetScreenText();
+        string findingsText = findingsSnapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
+        Assert.Contains("github-token", findingsText);
+        Assert.Contains("src/auth.cs:12", findingsText);
+        Assert.Contains("Severity", findingsText);
         Assert.Contains("Run scan", screenText);
         Assert.Contains("Ctrl+R run", screenText);
         Assert.Contains("g f findings", screenText);
@@ -2191,6 +2787,313 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that Vim-style navigation and yank commands work while the Dashboard editor has focus.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleHandlesCommandsFromDashboardEditor()
+    {
+        PicketTuiState state = CreateState();
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot yankSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Top rules"), TimeSpan.FromSeconds(5), "dashboard to render")
+            .Key(Hex1bKey.Y)
+            .WaitUntil(s => s.ContainsText("Yanked"), TimeSpan.FromSeconds(5), "dashboard content to be yanked")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        Hex1bTerminalSnapshot findingsSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .Key(Hex1bKey.G)
+            .Key(Hex1bKey.F)
+            .WaitUntil(s => s.ContainsText("src/auth.cs:12"), TimeSpan.FromSeconds(5), "findings to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Yanked", yankSnapshot.GetScreenText());
+        Assert.Contains("github-token", findingsSnapshot.GetScreenText());
+        Assert.AreEqual(PicketTuiView.Findings, state.CurrentView);
+    }
+
+    /// <summary>
+    /// Verifies that Tab and Shift+Tab traverse each page's controls in opposite visual order.
+    /// </summary>
+    [TestMethod]
+    [DataRow(1, 2, "ButtonNode,TabPanelNode,EditorNode,TableNode`1,TableNode`1")]
+    [DataRow(2, 1, "TabPanelNode,ButtonNode,ToggleSwitchNode,ToggleSwitchNode,TextBoxNode,SplitterNode")]
+    [DataRow(3, 3, "ButtonNode,TabPanelNode,TextBoxNode,TableNode`1,DragBarPanelNode,EditorNode")]
+    [DataRow(4, 2, "ButtonNode,TabPanelNode,TableNode`1")]
+    [DataRow(5, 2, "ButtonNode,TabPanelNode,TableNode`1")]
+    [DataRow(6, 2, "ButtonNode,TabPanelNode,TextBoxNode,EditorNode")]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleTraversesEachTabInLogicalOrder(
+        int tabNumber,
+        int initialFocusIndex,
+        string expectedFocusOrder)
+    {
+        PicketTuiState state = CreateState();
+        state.SetViewByTabNumber(tabNumber);
+        Hex1bApp? app = null;
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(
+            state,
+            width: 140,
+            height: 38,
+            createdApp => app = createdApp);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(
+                _ => app is not null
+                    && app.Focusables.Count > initialFocusIndex
+                    && ReferenceEquals(app.FocusedNode, app.Focusables[initialFocusIndex]),
+                TimeSpan.FromSeconds(5),
+                "initial page control to receive focus")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        Hex1bNode[] focusables = [.. app!.Focusables];
+        string[] expectedNodeNames = expectedFocusOrder.Split(',');
+        Assert.HasCount(expectedNodeNames.Length, focusables);
+        for (int index = 0; index < expectedNodeNames.Length; index++)
+        {
+            Assert.AreEqual(expectedNodeNames[index], focusables[index].GetType().Name);
+        }
+
+        var traversal = new Hex1bTerminalInputSequenceBuilder();
+        for (int offset = 1; offset <= focusables.Length; offset++)
+        {
+            int expectedIndex = (initialFocusIndex + offset) % focusables.Length;
+            Hex1bNode expectedNode = focusables[expectedIndex];
+            traversal
+                .Key(Hex1bKey.Tab)
+                .WaitUntil(
+                    _ => ReferenceEquals(app.FocusedNode, expectedNode),
+                    TimeSpan.FromSeconds(5),
+                    "Tab to move to the next page control");
+        }
+
+        for (int offset = 1; offset <= focusables.Length; offset++)
+        {
+            int expectedIndex = (initialFocusIndex - offset + focusables.Length) % focusables.Length;
+            Hex1bNode expectedNode = focusables[expectedIndex];
+            traversal
+                .Shift().Key(Hex1bKey.Tab)
+                .WaitUntil(
+                    _ => ReferenceEquals(app.FocusedNode, expectedNode),
+                    TimeSpan.FromSeconds(5),
+                    "Shift+Tab to move to the previous page control");
+        }
+
+        await traversal
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsTrue(ReferenceEquals(focusables[initialFocusIndex], app.FocusedNode));
+    }
+
+    /// <summary>
+    /// Verifies that number keys select tabs without preventing numeric text entry.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleUsesNumberedTabsOutsideTextEntry()
+    {
+        PicketTuiState state = CreateState();
+        Hex1bApp? app = null;
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(
+            state,
+            width: 140,
+            height: 38,
+            createdApp => app = createdApp);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Dashboard"), TimeSpan.FromSeconds(5), "tabs to render")
+            .Key(Hex1bKey.D2)
+            .WaitUntil(_ => state.CurrentView == PicketTuiView.Scan, TimeSpan.FromSeconds(5), "Scan tab to open")
+            .Key(Hex1bKey.D3)
+            .WaitUntil(_ => state.CurrentView == PicketTuiView.Findings, TimeSpan.FromSeconds(5), "Findings tab to open")
+            .Key(Hex1bKey.D4)
+            .WaitUntil(_ => state.CurrentView == PicketTuiView.Rules, TimeSpan.FromSeconds(5), "Rules tab to open")
+            .Key(Hex1bKey.D5)
+            .WaitUntil(_ => state.CurrentView == PicketTuiView.Files, TimeSpan.FromSeconds(5), "Files tab to open")
+            .Key(Hex1bKey.D6)
+            .WaitUntil(
+                _ => state.CurrentView == PicketTuiView.Logs
+                    && string.Equals(app?.FocusedNode?.GetType().Name, "TextBoxNode", StringComparison.Ordinal),
+                TimeSpan.FromSeconds(5),
+                "Logs search to enter text-entry mode")
+            .Key(Hex1bKey.D1)
+            .WaitUntil(
+                _ => state.CurrentView == PicketTuiView.Logs && state.LogSearchText == "1",
+                TimeSpan.FromSeconds(5),
+                "numeric search text to be entered")
+            .Key(Hex1bKey.Tab)
+            .WaitUntil(
+                _ => string.Equals(app?.FocusedNode?.GetType().Name, "EditorNode", StringComparison.Ordinal),
+                TimeSpan.FromSeconds(5),
+                "Logs output to receive focus")
+            .Key(Hex1bKey.D1)
+            .WaitUntil(_ => state.CurrentView == PicketTuiView.Dashboard, TimeSpan.FromSeconds(5), "Dashboard tab to open")
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.AreEqual(PicketTuiView.Dashboard, state.CurrentView);
+        Assert.AreEqual("1", state.LogSearchText);
+    }
+
+    /// <summary>
+    /// Verifies that Escape leaves the Logs search field and returns focus to scanner output.
+    /// </summary>
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("finding")]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bLogsEscapeLeavesSearchField(string searchText)
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Logs);
+        state.SetLogSearchText(searchText);
+        Hex1bApp? app = null;
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(
+            state,
+            width: 120,
+            height: 32,
+            createdApp => app = createdApp);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(
+                _ => app?.FocusedNode is TextBoxNode,
+                TimeSpan.FromSeconds(5),
+                "Logs search to receive focus")
+            .Key(Hex1bKey.Escape)
+            .WaitUntil(
+                _ => app?.FocusedNode is EditorNode,
+                TimeSpan.FromSeconds(5),
+                "Logs output to receive focus")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsEmpty(state.LogSearchText);
+        Assert.DoesNotContain("1 Dashboard", screenText);
+        Assert.DoesNotContain("2 Scan", screenText);
+        Assert.DoesNotContain("3 Findings", screenText);
+        Assert.DoesNotContain("4 Rules", screenText);
+        Assert.DoesNotContain("5 Files", screenText);
+        Assert.DoesNotContain("6 Logs", screenText);
+        Assert.Contains("Dashboard", screenText);
+        Assert.Contains("Logs", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that Escape clears a focused read-only editor selection without moving its cursor.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bReadOnlyEditorEscapeClearsSelectionWithoutMovingCursor()
+    {
+        PicketTuiState state = CreateState();
+        EditorState editorState = state.GetDashboardEditorState();
+        editorState.SelectAll();
+        DocumentOffset expectedCursorPosition = editorState.Cursor.Position;
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Report"), TimeSpan.FromSeconds(5), "dashboard selection to render")
+            .Key(Hex1bKey.Escape)
+            .WaitUntil(_ => !editorState.Cursor.HasSelection, TimeSpan.FromSeconds(5), "dashboard selection to clear")
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsFalse(editorState.Cursor.HasSelection);
+        Assert.AreEqual(expectedCursorPosition, editorState.Cursor.Position);
+    }
+
+    /// <summary>
+    /// Verifies that the generated keyboard reference exposes global, navigation, and contextual bindings.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleShowsGeneratedKeyboardHelp()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Findings);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot helpSnapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("? help"), TimeSpan.FromSeconds(5), "help hint to render")
+            .Key(Hex1bKey.F1)
+            .WaitUntil(s => s.ContainsText("Keyboard help"), TimeSpan.FromSeconds(5), "keyboard help to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Key(Hex1bKey.Escape)
+            .WaitUntil(s => s.ContainsText("src/auth.cs:12"), TimeSpan.FromSeconds(5), "findings to regain focus")
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string helpText = helpSnapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Global", helpText);
+        Assert.Contains("Navigation", helpText);
+        Assert.Contains("g b", helpText);
+        Assert.Contains("Files", helpText);
+        Assert.Contains("j", helpText);
+        Assert.Contains("Move finding", helpText);
+        Assert.Contains("Esc closes this reference.", helpText);
+    }
+
+    /// <summary>
     /// Verifies that returning to the findings tab gives keyboard focus back to the table.
     /// </summary>
     [TestMethod]
@@ -2198,6 +3101,7 @@ public sealed class PicketTuiTests
     public async Task Hex1bFullScreenConsoleFocusesFindingsTableAfterTabSwitch()
     {
         PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Findings);
         using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
         await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
 
@@ -2275,6 +3179,50 @@ public sealed class PicketTuiTests
         Assert.DoesNotContain("Latest results", screenText);
         Assert.DoesNotContain("src/auth.cs", screenText);
         Assert.DoesNotContain("g s scan", screenText);
+    }
+
+    /// <summary>
+    /// Verifies that an active scan has animated progress and a textual running state.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleShowsRunningScanProgress()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        var executor = new PicketTuiFakeScanExecutor
+        {
+            WaitForCancellation = true,
+        };
+        PicketTuiState state = CreateState(executor);
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetReportPath(Path.Combine(temp.Path, "picket.jsonl"));
+        state.StartScanInBackground(static () => { }, TestContext.CancellationToken);
+        await executor.Started.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 34);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Running"), TimeSpan.FromSeconds(5), "running scan status to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        state.CancelScan(static () => { });
+        await WaitUntilAsync(() => !state.ScanWorkspace.IsRunning, TestContext.CancellationToken).ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Running", screenText);
+        Assert.Contains("Ctrl+C cancel", screenText);
+        Assert.IsTrue(ContainsSpinnerFrame(snapshot));
     }
 
     /// <summary>
@@ -2747,7 +3695,7 @@ public sealed class PicketTuiTests
 
         Assert.AreEqual(0, exitCode);
         Assert.DoesNotContain("Use g f to review", screenText);
-        Assert.Contains("Completed:", screenText);
+        Assert.Contains("Completed ", screenText);
         Assert.DoesNotContain("fake-rule", screenText);
         Assert.Contains("fake-rule", findingsText);
         Assert.Contains("scan", executor.CapturedArguments);
@@ -2827,7 +3775,23 @@ public sealed class PicketTuiTests
         Assert.Contains("picket-tui [<report>] [options]", result.Stdout);
         Assert.Contains("--flow", result.Stdout);
         Assert.Contains("--scan", result.Stdout);
+        Assert.Contains("-t, --tab <1-6>", result.Stdout);
         Assert.Contains("--version", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that the companion rejects startup tab numbers outside the visible range.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task CompanionRejectsStartupTabOutsideVisibleRange()
+    {
+        CliResult result = await RunTuiCliAsync(["--tab", "7"], TestContext.CancellationToken).ConfigureAwait(false);
+        string output = string.Concat(result.Stdout, result.Stderr);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("--tab requires a value from 1 through 6.", output);
+        Assert.DoesNotContain("Unhandled exception", output);
     }
 
     /// <summary>
@@ -2861,9 +3825,30 @@ public sealed class PicketTuiTests
                     7,
                     randomnessScore: 0.902542,
                     randomnessClassification: "likely-random",
-                    randomnessModel: "picket-random-v1"),
-                new ReportFindingSummary("github-token", "src/auth.cs", 18, "fp-auth-2", 8),
-                new ReportFindingSummary("aws-key", "infra/main.tf", 4, "fp-infra-1", 3),
+                    randomnessModel: "picket-random-v1",
+                    severity: "critical",
+                    confidence: "high",
+                    validationState: "active",
+                    commit: "0123456789abcdef",
+                    author: "Ada Lovelace"),
+                new ReportFindingSummary(
+                    "github-token",
+                    "src/auth.cs",
+                    18,
+                    "fp-auth-2",
+                    8,
+                    severity: "medium",
+                    confidence: "medium",
+                    validationState: "unknown"),
+                new ReportFindingSummary(
+                    "aws-key",
+                    "infra/main.tf",
+                    4,
+                    "fp-infra-1",
+                    3,
+                    severity: "low",
+                    confidence: "high",
+                    validationState: "inactive"),
             ]);
 
         return new PicketTuiState(new PicketTuiReport("report.json", summary, DateTimeOffset.UnixEpoch), executor, fileLauncher);
@@ -2886,7 +3871,11 @@ public sealed class PicketTuiTests
             Environment.NewLine);
     }
 
-    private static Hex1bTerminal CreateHeadlessTerminal(PicketTuiState state, int width, int height)
+    private static Hex1bTerminal CreateHeadlessTerminal(
+        PicketTuiState state,
+        int width,
+        int height,
+        Action<Hex1bApp>? appCreated = null)
     {
         return Hex1bTerminal.CreateBuilder()
             .WithHex1bApp(
@@ -2895,10 +3884,100 @@ public sealed class PicketTuiTests
                     options.EnableMouse = true;
                     options.Theme = PicketTuiPalette.CreateTheme();
                 },
-                app => ctx => PicketTuiApp.Build(ctx, state, app))
+                app =>
+                {
+                    appCreated?.Invoke(app);
+                    return ctx => PicketTuiApp.Build(ctx, state, app);
+                })
             .WithHeadless()
             .WithDimensions(width, height)
             .Build();
+    }
+
+    private static async Task AssertCountTableYankFlashAsync(
+        PicketTuiView view,
+        string rowText,
+        CancellationToken cancellationToken)
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(view);
+        if (view == PicketTuiView.Rules)
+        {
+            state.FocusRule(rowText);
+        }
+        else
+        {
+            state.FocusFile(rowText);
+        }
+
+        using var flashCancellation = new CancellationTokenSource();
+        flashCancellation.Cancel();
+        state.ShowYankNotification(
+            state.GetYankText(),
+            static () => { },
+            flashCancellation.Token);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(
+                s => HasRowColors(
+                    s,
+                    rowText,
+                    PicketTuiPalette.YankFlashForeground,
+                    PicketTuiPalette.YankFlashBackground),
+                TimeSpan.FromSeconds(5),
+                "count row yank flash to render")
+            .Build()
+            .ApplyAsync(terminal, cancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, cancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string[] lines = snapshot.GetScreenText().Split('\n');
+        int rowY = Array.FindIndex(lines, line => line.Contains(rowText, StringComparison.Ordinal));
+        Assert.AreEqual(0, exitCode);
+        Assert.IsGreaterThanOrEqualTo(0, rowY);
+        int rowX = lines[rowY].IndexOf(rowText, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, rowX);
+        Assert.AreEqual(PicketTuiPalette.YankFlashBackground, snapshot.GetCell(rowX, rowY).Background);
+        Assert.AreEqual(PicketTuiPalette.YankFlashForeground, snapshot.GetCell(rowX, rowY).Foreground);
+    }
+
+    private static bool HasRowColors(
+        Hex1bTerminalSnapshot snapshot,
+        string rowText,
+        Hex1bColor foreground,
+        Hex1bColor background)
+    {
+        string[] lines = snapshot.GetScreenText().Split('\n');
+        int rowY = Array.FindIndex(lines, line => line.Contains(rowText, StringComparison.Ordinal));
+        if (rowY < 0)
+        {
+            return false;
+        }
+
+        int rowX = lines[rowY].IndexOf(rowText, StringComparison.Ordinal);
+        TerminalCell cell = snapshot.GetCell(rowX, rowY);
+        return cell.Foreground.Equals(foreground) && cell.Background.Equals(background);
+    }
+
+    private static int FindFindingDetailsHandleColumn(Hex1bTerminalSnapshot snapshot)
+    {
+        string[] lines = snapshot.GetScreenText().Split('\n');
+        int detailsLine = Array.FindIndex(lines, static line => line.Contains("Rule: github-token", StringComparison.Ordinal));
+        if (detailsLine < 0)
+        {
+            return -1;
+        }
+
+        int detailsText = lines[detailsLine].IndexOf("Rule: github-token", StringComparison.Ordinal);
+        return lines[detailsLine].LastIndexOf('│', detailsText - 1);
     }
 
     private static async Task WaitUntilAsync(Func<bool> predicate, CancellationToken cancellationToken)
@@ -2908,6 +3987,22 @@ public sealed class PicketTuiTests
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private static bool ContainsSpinnerFrame(Hex1bTerminalSnapshot snapshot)
+    {
+        for (int y = 0; y < snapshot.Height; y++)
+        {
+            for (int x = 0; x < snapshot.Width; x++)
+            {
+                if (s_spinnerFrames.Contains(snapshot.GetCell(x, y).Character))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static void AssertTextContrast(Hex1bColor foreground, Hex1bColor background)

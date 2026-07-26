@@ -413,6 +413,12 @@ internal static partial class Program
         AddOptionalArgument(command, "picket tui", "report");
         command.Options.Add(CreateFlagOption("picket tui", "--flow"));
         command.Options.Add(CreateFlagOption("picket tui", "--scan"));
+        command.Options.Add(CreateChoiceValueOption(
+            "picket tui",
+            "--tab",
+            "1-6",
+            ["1", "2", "3", "4", "5", "6"],
+            "-t"));
         return command;
     }
 

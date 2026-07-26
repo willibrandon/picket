@@ -204,7 +204,12 @@ ReportFindingSummary(
     int startColumn,
     double? randomnessScore,
     string randomnessClassification,
-    string randomnessModel
+    string randomnessModel,
+    string severity,
+    string confidence,
+    string validationState,
+    string commit,
+    string author
 )
 ```
 
@@ -213,6 +218,9 @@ Represents the non-secret fields needed to triage a report finding.
 
 ### Properties
 
+- `Author` - Gets the source commit author, or an empty string when unavailable.
+- `Commit` - Gets the source commit identifier, or an empty string when unavailable.
+- `Confidence` - Gets the finding confidence, or an empty string when unavailable.
 - `Fingerprint` - Gets the stable fingerprint associated with the finding, or an empty string when unavailable.
 - `Line` - Gets the one-based start line for the finding, or zero when unavailable.
 - `Path` - Gets the reported path for the finding.
@@ -220,7 +228,9 @@ Represents the non-secret fields needed to triage a report finding.
 - `RandomnessModel` - Gets the native randomness model identifier, or an empty string when unavailable.
 - `RandomnessScore` - Gets the native randomness score, or when unavailable.
 - `RuleId` - Gets the rule identifier associated with the finding.
+- `Severity` - Gets the finding severity, or an empty string when unavailable.
 - `StartColumn` - Gets the one-based start column for the finding, or zero when unavailable.
+- `ValidationState` - Gets the credential validation state, or an empty string when unavailable.
 
 ## ReportSummary
 

@@ -34,6 +34,37 @@ internal sealed class PicketTuiYankDecorationProvider : ITextDecorationProvider
             return [];
         }
 
-        return [new TextDecorationSpan(range.Start, range.End, s_yankDecoration, Priority: 30)];
+        int firstLine = Math.Max(range.Start.Line, startLine);
+        int lastLine = Math.Min(Math.Min(range.End.Line, endLine), document.LineCount);
+        if (firstLine > lastLine)
+        {
+            return [];
+        }
+
+        var spans = new List<TextDecorationSpan>(lastLine - firstLine + 1);
+
+        for (int line = firstLine; line <= lastLine; line++)
+        {
+            int lineEndColumn = document.GetLineLength(line) + 1;
+            int spanStartColumn = line == range.Start.Line
+                ? Math.Min(range.Start.Column, lineEndColumn)
+                : 1;
+            int spanEndColumn = line == range.End.Line
+                ? Math.Min(range.End.Column, lineEndColumn)
+                : lineEndColumn;
+
+            if (spanStartColumn >= spanEndColumn)
+            {
+                continue;
+            }
+
+            spans.Add(new TextDecorationSpan(
+                new DocumentPosition(line, spanStartColumn),
+                new DocumentPosition(line, spanEndColumn),
+                s_yankDecoration,
+                Priority: 30));
+        }
+
+        return spans;
     }
 }

@@ -56,6 +56,31 @@ internal sealed class PicketTuiFindingRow(ReportFindingSummary finding, int inde
     internal string Fingerprint { get; } = EmptyAsUnknown(finding.Fingerprint);
 
     /// <summary>
+    /// Gets the displayed severity.
+    /// </summary>
+    internal string Severity { get; } = EmptyAsUnknown(finding.Severity);
+
+    /// <summary>
+    /// Gets the displayed confidence.
+    /// </summary>
+    internal string Confidence { get; } = EmptyAsUnknown(finding.Confidence);
+
+    /// <summary>
+    /// Gets the displayed credential validation state.
+    /// </summary>
+    internal string ValidationState { get; } = EmptyAsUnknown(finding.ValidationState);
+
+    /// <summary>
+    /// Gets the source commit identifier, or an empty string when unavailable.
+    /// </summary>
+    internal string Commit { get; } = finding.Commit;
+
+    /// <summary>
+    /// Gets the source commit author, or an empty string when unavailable.
+    /// </summary>
+    internal string Author { get; } = finding.Author;
+
+    /// <summary>
     /// Gets the displayed randomness score and classification, or an empty string when unavailable.
     /// </summary>
     internal string Randomness { get; } = CreateRandomness(finding);
