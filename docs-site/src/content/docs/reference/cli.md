@@ -118,7 +118,7 @@ Use the grouped index to jump to the workflow you need.
       <li>
         <a class="cli-command-link" href="#picket-hooks-install">
           <code>picket hooks install</code>
-          <span>Write managed pre-commit, pre-push, and pre-receive hooks.</span>
+          <span>Install managed pre-commit, pre-push, or pre-receive scanning hooks.</span>
         </a>
       </li>
     </ul>
@@ -3168,7 +3168,7 @@ Use the grouped index to jump to the workflow you need.
       <dd>Optional hook name</dd>
     </div>
   </dl>
-  <p class="cli-command-summary">Write managed pre-commit, pre-push, and pre-receive hooks.</p>
+  <p class="cli-command-summary">Install managed pre-commit, pre-push, or pre-receive scanning hooks.</p>
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
@@ -3209,19 +3209,19 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--repo</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Install hook scripts into this repository.</td>
+              <td data-label="Description">Install hooks for this repository, honoring core.hooksPath.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--force</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Overwrite existing hook files.</td>
+              <td data-label="Description">Overwrite an existing hook not managed by Picket.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--command</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Use this command path in generated hook scripts.</td>
+              <td data-label="Description">Embed this Picket command or executable path in generated hook scripts.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-c, --config</code></td>
@@ -3245,7 +3245,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--redact</code></td>
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Redact secret text in reports. n is the percent to hide: 0 shows secrets, 100 writes REDACTED, and 75 keeps about the first 25%.</td>
+              <td data-label="Description">Set the redaction percentage used for baseline matching. Hook summaries always omit secret values.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>

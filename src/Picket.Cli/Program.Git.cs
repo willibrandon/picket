@@ -26,6 +26,7 @@ internal static partial class Program
         string? configPath = null;
         string? diagnostics = null;
         string? diagnosticsDir = null;
+        string? hookContext = null;
         string? reportPath = null;
         string? reportFormat = null;
         string? reportTemplatePath = null;
@@ -171,6 +172,16 @@ internal static partial class Program
                 }
 
                 gitleaksIgnorePath = value;
+                continue;
+            }
+
+            if (IsHookContextFlag(arg))
+            {
+                if (!TryReadHookContext(args, ref i, out hookContext))
+                {
+                    return GetOperationalExitCode(nativeMode);
+                }
+
                 continue;
             }
 
@@ -413,6 +424,7 @@ internal static partial class Program
             filteredFindings = SecretRandomnessFindingProcessor.Apply(filteredFindings, rules);
         }
 
+        IReadOnlyList<Finding>? hookFindings = hookContext is null ? null : filteredFindings;
         if (redactionPercent > 0)
         {
             filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent, requirePartialMask: nativeMode);
@@ -428,6 +440,11 @@ internal static partial class Program
         {
             Console.Error.WriteLine(TimeoutErrorMessage);
             return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
+        }
+
+        if (hookContext is not null && hookFindings?.Count > 0)
+        {
+            WriteHookFindingSummary(Console.Error, hookFindings, hookContext);
         }
 
         return CompleteRun(filteredFindings.Count == 0 ? 0 : exitCode, diagnosticsSession);

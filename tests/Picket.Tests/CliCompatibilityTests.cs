@@ -4615,7 +4615,7 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that the native hook installer writes a managed pre-commit hook that uses the existing protect workflow.
+    /// Verifies that the native hook installer writes a managed pre-commit hook using the public git workflow.
     /// </summary>
     [TestMethod]
     public async Task HooksInstallWritesManagedPreCommitHook()
@@ -4642,7 +4642,11 @@ public sealed class CliCompatibilityTests
         Assert.IsEmpty(result.Stderr);
         Assert.Contains("#!/bin/sh\n", hook);
         Assert.Contains("# managed by picket hooks install", hook);
-        Assert.Contains("'picket-dev' protect --staged --source \"$repo_root\"", hook);
+        Assert.Contains("'picket-dev' git \"$repo_root\" --pre-commit --staged", hook);
+        Assert.Contains("'--hook-context=pre-commit'", hook);
+        Assert.Contains("'--exit-code=3'", hook);
+        Assert.Contains("Picket could not scan staged changes; commit blocked.", hook);
+        Assert.DoesNotContain(" protect ", hook);
         Assert.Contains("--config", hook);
         Assert.Contains(configPath, hook);
         Assert.Contains("'--redact=100'", hook);
@@ -4671,8 +4675,8 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.IsEmpty(result.Stderr);
-        Assert.Contains(string.Concat("exec ", QuotedCommandPath, " protect --staged --source \"$repo_root\""), hook);
-        Assert.DoesNotContain(string.Concat("exec ", CommandPath, " protect"), hook);
+        Assert.Contains(string.Concat(QuotedCommandPath, " git \"$repo_root\" --pre-commit --staged"), hook);
+        Assert.DoesNotContain(string.Concat(CommandPath, " git"), hook);
     }
 
     /// <summary>
@@ -4695,9 +4699,13 @@ public sealed class CliCompatibilityTests
         Assert.Contains("while read local_ref local_sha remote_ref remote_sha", prePush);
         Assert.Contains("remote_sha..$local_sha", prePush);
         Assert.Contains("git \"$repo_root\" --log-opts \"$range\"", prePush);
+        Assert.Contains("'--hook-context=pre-push'", prePush);
+        Assert.Contains("Picket could not scan outgoing commits; push blocked.", prePush);
         Assert.Contains("while read old_sha new_sha ref_name", preReceive);
         Assert.Contains("old_sha..$new_sha", preReceive);
         Assert.Contains("git \"$repo_root\" --log-opts \"$range\"", preReceive);
+        Assert.Contains("'--hook-context=pre-receive'", preReceive);
+        Assert.Contains("Picket could not scan received commits; push rejected.", preReceive);
     }
 
     /// <summary>
@@ -4727,16 +4735,25 @@ public sealed class CliCompatibilityTests
     [TestMethod]
     public async Task HooksHelpAdvertisesInstall()
     {
+        CliResult root = await RunCliAsync("--help").ConfigureAwait(false);
         CliResult result = await RunCliAsync("hooks", "--help").ConfigureAwait(false);
+        CliResult git = await RunCliAsync("git", "--help").ConfigureAwait(false);
         CliResult install = await RunCliAsync("hooks", "install", "--help").ConfigureAwait(false);
+        CliResult protect = await RunCliAsync("protect", "--help").ConfigureAwait(false);
 
+        Assert.AreEqual(0, root.ExitCode);
+        Assert.Contains("hooks", root.Stdout);
+        Assert.DoesNotContain("\n  protect", root.Stdout);
         Assert.AreEqual(0, result.ExitCode);
         Assert.Contains("picket hooks [command] [options]", result.Stdout);
+        Assert.Contains("block commits and pushes containing findings", result.Stdout);
         Assert.Contains("install <pre-commit|pre-push|pre-receive|all>", result.Stdout);
         Assert.AreEqual(0, install.ExitCode);
         Assert.Contains("picket hooks install", install.Stdout);
         Assert.Contains("pre-commit|pre-push|pre-receive|all", result.Stdout);
         Assert.Contains("Installs pre-commit when no hook name is provided", install.Stdout);
+        Assert.DoesNotContain("--hook-context", git.Stdout);
+        Assert.Contains("Deprecated Gitleaks-compatible pre-commit shim", protect.Stdout);
     }
 
     /// <summary>

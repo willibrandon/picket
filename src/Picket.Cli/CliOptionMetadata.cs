@@ -41,6 +41,12 @@ internal static class CliOptionMetadata
             };
         }
 
+        if (command.Equals("picket hooks install", StringComparison.Ordinal)
+            && key.Equals("--redact", StringComparison.Ordinal))
+        {
+            return "Set the redaction percentage used for baseline matching. Hook summaries always omit secret values.";
+        }
+
         return key switch
         {
             "--" => "End option parsing before literal input.",
@@ -107,7 +113,7 @@ internal static class CliOptionMetadata
             "--cache-mode" => "Choose whether scan cache entries store raw evidence or secret and match hashes only.",
             "--checkpoint" => "Persist encrypted native source-scan progress here and resume it when the source snapshot still matches.",
             "--checkpoint-reset" => "Discard existing checkpoint state before starting the native source scan.",
-            "--command" => "Use this command path in generated hook scripts.",
+            "--command" => "Embed this Picket command or executable path in generated hook scripts.",
             "--config" => "Load a config file.",
             "--diagnostics" => "Write structured diagnostics for the selected modes.",
             "--diagnostics-dir" => "Write diagnostics artifacts to this directory.",
@@ -115,7 +121,7 @@ internal static class CliOptionMetadata
             "--enable-rule" => "Enable an additional rule by ID.",
             "--exit-code" => "Exit with this code when findings are present.",
             "--follow-symlinks" => "Follow symlinks while scanning directories.",
-            "--force" => "Overwrite existing hook files.",
+            "--force" => "Overwrite an existing hook not managed by Picket.",
             "--flow" => "Run the interactive report triage console as inline terminal steps.",
             "--gcs-bucket" => "Scan objects from this Google Cloud Storage bucket.",
             "--gcs-endpoint" => "Use this Google Cloud Storage JSON API endpoint for native object-store enumeration.",
@@ -209,7 +215,7 @@ internal static class CliOptionMetadata
             "--registry-platform" => "Scan only this os/architecture[/variant] image from a multi-platform index; all platforms are scanned when omitted.",
             "--registry-token-env" => "Read a pre-issued registry bearer token from this environment variable.",
             "--registry-username-env" => "Read the registry username for basic authentication from this environment variable.",
-            "--repo" => "Install hook scripts into this repository.",
+            "--repo" => "Install hooks for this repository, honoring core.hooksPath.",
             "--report-format" => "Select report format.",
             "--report-path" => "Write a report to this path.",
             "--report-template" => "Render template reports with this template file.",

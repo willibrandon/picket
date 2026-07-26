@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -197,43 +199,64 @@ internal static partial class Program
     static string ResolveHooksDirectory(string repo)
     {
         string repositoryPath = Path.GetFullPath(repo.Length == 0 ? "." : repo);
-        string dotGitPath = Path.Combine(repositoryPath, ".git");
-        if (Directory.Exists(dotGitPath))
+        if (!Directory.Exists(repositoryPath))
         {
-            return Path.Combine(dotGitPath, "hooks");
+            throw new DirectoryNotFoundException($"repository path does not exist: {repositoryPath}");
         }
 
-        if (File.Exists(dotGitPath))
+        var startInfo = new ProcessStartInfo("git")
         {
-            string gitDir = ReadGitDirectoryFile(repositoryPath, dotGitPath);
-            return Path.Combine(gitDir, "hooks");
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+        startInfo.ArgumentList.Add("-C");
+        startInfo.ArgumentList.Add(repositoryPath);
+        startInfo.ArgumentList.Add("rev-parse");
+        startInfo.ArgumentList.Add("--path-format=absolute");
+        startInfo.ArgumentList.Add("--git-path");
+        startInfo.ArgumentList.Add("hooks");
+
+        Process process;
+        try
+        {
+            process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("git did not start");
+        }
+        catch (Win32Exception ex)
+        {
+            throw new InvalidOperationException("git is required to install repository hooks but could not be started", ex);
         }
 
-        if (File.Exists(Path.Combine(repositoryPath, "HEAD"))
-            && Directory.Exists(Path.Combine(repositoryPath, "objects")))
+        using (process)
         {
-            return Path.Combine(repositoryPath, "hooks");
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+            process.WaitForExit();
+            string output = outputTask.GetAwaiter().GetResult();
+            string error = errorTask.GetAwaiter().GetResult();
+            if (process.ExitCode != 0)
+            {
+                string reason = SanitizeHookText(error.Trim(), MaxHookPathLength);
+                throw new InvalidOperationException(reason.Length == 0
+                    ? $"{repositoryPath} is not a git repository or bare repository"
+                    : reason);
+            }
+
+            string hooksPath = output.ReplaceLineEndings("\n");
+            if (hooksPath.EndsWith('\n'))
+            {
+                hooksPath = hooksPath[..^1];
+            }
+
+            if (hooksPath.Length == 0 || hooksPath.Contains('\n'))
+            {
+                throw new InvalidOperationException("git returned an invalid hooks path");
+            }
+
+            return Path.GetFullPath(hooksPath);
         }
-
-        throw new DirectoryNotFoundException($"{repositoryPath} is not a git repository or bare repository");
-    }
-
-    static string ReadGitDirectoryFile(string repositoryPath, string dotGitPath)
-    {
-        string text = File.ReadAllText(dotGitPath).Trim();
-        const string Prefix = "gitdir:";
-        if (!text.StartsWith(Prefix, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException($"{dotGitPath} is not a supported gitdir file");
-        }
-
-        string gitDir = text[Prefix.Length..].Trim();
-        if (Path.IsPathRooted(gitDir))
-        {
-            return Path.GetFullPath(gitDir);
-        }
-
-        return Path.GetFullPath(Path.Combine(repositoryPath, gitDir));
     }
 
     static bool TryWriteHook(string hooksDirectory, string hookName, string script, bool force)
@@ -298,11 +321,13 @@ internal static partial class Program
         var builder = new StringBuilder();
         AppendHookHeader(builder);
         builder.Append("repo_root=$(git rev-parse --show-toplevel)\n");
-        builder.Append("exec ");
+        builder.Append("status=0\n");
         builder.Append(QuoteShell(options.CommandPath));
-        builder.Append(" protect --staged --source \"$repo_root\"");
-        AppendHookScanOptions(builder, options);
-        builder.Append('\n');
+        builder.Append(" git \"$repo_root\" --pre-commit --staged");
+        AppendHookScanOptions(builder, options, PreCommitHookContext);
+        builder.Append(" || status=$?\n");
+        AppendHookOperationalFailure(builder, "status", PreCommitHookContext, indent: "");
+        builder.Append("exit \"$status\"\n");
         return builder.ToString();
     }
 
@@ -312,7 +337,13 @@ internal static partial class Program
         var builder = new StringBuilder();
         AppendHookHeader(builder);
         builder.Append("repo_root=$(git rev-parse --show-toplevel)\n");
-        AppendHookRangeLoop(builder, options, "local_ref local_sha remote_ref remote_sha", "remote_sha", "local_sha");
+        AppendHookRangeLoop(
+            builder,
+            options,
+            "local_ref local_sha remote_ref remote_sha",
+            "remote_sha",
+            "local_sha",
+            PrePushHookContext);
         return builder.ToString();
     }
 
@@ -326,7 +357,13 @@ internal static partial class Program
         builder.Append("  /*) repo_root=$git_dir ;;\n");
         builder.Append("  *) repo_root=$(pwd -P)/$git_dir ;;\n");
         builder.Append("esac\n");
-        AppendHookRangeLoop(builder, options, "old_sha new_sha ref_name", "old_sha", "new_sha");
+        AppendHookRangeLoop(
+            builder,
+            options,
+            "old_sha new_sha ref_name",
+            "old_sha",
+            "new_sha",
+            PreReceiveHookContext);
         return builder.ToString();
     }
 
@@ -336,6 +373,9 @@ internal static partial class Program
         builder.Append(ManagedHookMarker);
         builder.Append('\n');
         builder.Append("set -eu\n");
+        builder.Append("finding_status=");
+        builder.Append(HookFindingExitCode.ToString(CultureInfo.InvariantCulture));
+        builder.Append('\n');
         builder.Append("zero=0000000000000000000000000000000000000000\n");
     }
 
@@ -344,7 +384,8 @@ internal static partial class Program
         (string CommandPath, string? ConfigPath, string? BaselinePath, string? MaxTargetMegabytes, int RedactionPercent) options,
         string readVariables,
         string oldShaVariable,
-        string newShaVariable)
+        string newShaVariable,
+        string hookContext)
     {
         builder.Append("status=0\n");
         builder.Append("while read ");
@@ -367,24 +408,59 @@ internal static partial class Program
         builder.Append(newShaVariable);
         builder.Append("\"\n");
         builder.Append("  fi\n");
+        builder.Append("  result=0\n");
         builder.Append("  ");
         builder.Append(QuoteShell(options.CommandPath));
         builder.Append(" git \"$repo_root\" --log-opts \"$range\"");
-        AppendHookScanOptions(builder, options);
-        builder.Append(" || status=$?\n");
+        AppendHookScanOptions(builder, options, hookContext);
+        builder.Append(" || result=$?\n");
+        builder.Append("  if [ \"$result\" -ne 0 ]; then\n");
+        AppendHookOperationalFailure(builder, "result", hookContext, indent: "    ");
+        builder.Append("    if [ \"$result\" -ne \"$finding_status\" ] || [ \"$status\" -eq 0 ]; then\n");
+        builder.Append("      status=$result\n");
+        builder.Append("    fi\n");
+        builder.Append("  fi\n");
         builder.Append("done\n");
         builder.Append("exit \"$status\"\n");
     }
 
     static void AppendHookScanOptions(
         StringBuilder builder,
-        (string CommandPath, string? ConfigPath, string? BaselinePath, string? MaxTargetMegabytes, int RedactionPercent) options)
+        (string CommandPath, string? ConfigPath, string? BaselinePath, string? MaxTargetMegabytes, int RedactionPercent) options,
+        string hookContext)
     {
         AppendHookOption(builder, "--config", options.ConfigPath);
         AppendHookOption(builder, "--baseline-path", options.BaselinePath);
         AppendHookOption(builder, "--max-target-megabytes", options.MaxTargetMegabytes);
         builder.Append(' ');
+        builder.Append(QuoteShell($"--hook-context={hookContext}"));
+        builder.Append(' ');
+        builder.Append(QuoteShell($"--exit-code={HookFindingExitCode.ToString(CultureInfo.InvariantCulture)}"));
+        builder.Append(" --no-banner --no-color ");
         builder.Append(QuoteShell($"--redact={options.RedactionPercent.ToString(CultureInfo.InvariantCulture)}"));
+    }
+
+    static void AppendHookOperationalFailure(StringBuilder builder, string statusVariable, string hookContext, string indent)
+    {
+        string message = hookContext switch
+        {
+            PreCommitHookContext => "Picket could not scan staged changes; commit blocked.",
+            PrePushHookContext => "Picket could not scan outgoing commits; push blocked.",
+            PreReceiveHookContext => "Picket could not scan received commits; push rejected.",
+            _ => throw new InvalidOperationException($"unsupported hook context: {hookContext}"),
+        };
+        builder.Append(indent);
+        builder.Append("if [ \"$");
+        builder.Append(statusVariable);
+        builder.Append("\" -ne 0 ] && [ \"$");
+        builder.Append(statusVariable);
+        builder.Append("\" -ne \"$finding_status\" ]; then\n");
+        builder.Append(indent);
+        builder.Append("  printf '%s\\n' ");
+        builder.Append(QuoteShell(message));
+        builder.Append(" >&2\n");
+        builder.Append(indent);
+        builder.Append("fi\n");
     }
 
     static void AppendHookOption(StringBuilder builder, string name, string? value)

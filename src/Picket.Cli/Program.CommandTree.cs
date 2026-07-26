@@ -281,6 +281,15 @@ internal static partial class Program
         command.Options.Add(CreateChoiceValueOption("picket git", "--platform", "value", "unknown", "none", "github", "gitlab", "azuredevops", "gitea", "bitbucket"));
         command.Options.Add(CreateFlagOption("picket git", "--staged"));
         command.Options.Add(CreateFlagOption("picket git", "--pre-commit"));
+        Option<string?> hookContextOption = CreateChoiceValueOption(
+            "picket git",
+            "--hook-context",
+            "pre-commit|pre-push|pre-receive",
+            PreCommitHookContext,
+            PrePushHookContext,
+            PreReceiveHookContext);
+        hookContextOption.Hidden = true;
+        command.Options.Add(hookContextOption);
         AddScanLimitOptions(command, "picket git", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, "picket git");
         command.Options.Add(CreateRedactOption("picket git"));
@@ -367,13 +376,13 @@ internal static partial class Program
 
     private static Command CreateHooksCommand(string[] args)
     {
-        var command = new Command("hooks", "Install local git hooks.")
+        var command = new Command("hooks", "Install Git hooks that block commits and pushes containing findings.")
         {
             TreatUnmatchedTokensAsErrors = true,
         };
         Command installCommand = CreateForwardingCommand(
             "install",
-            "Write managed pre-commit, pre-push, and pre-receive hooks.",
+            "Install managed pre-commit, pre-push, or pre-receive scanning hooks.",
             args,
             2,
             static forwardedArgs => Task.FromResult(RunHooksInstall(forwardedArgs)));

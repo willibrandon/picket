@@ -1129,6 +1129,10 @@ Picket ships:
 - `dotnet tool`,
 - NuGet packages for embedding.
 
+Managed hooks use the public `picket git` workflow. Pre-commit scans staged additions before the commit is created, pre-push scans outgoing commit ranges before the remote ref changes, and pre-receive scans received ranges while Git quarantine objects are available and before server refs change. Findings fail with a dedicated exit code and a redacted, terminal-safe summary capped at 20 rule/path/line entries; push and receive summaries also include abbreviated commit IDs. Scanner or configuration failures fail closed with a distinct operational message.
+
+Installation asks Git for its effective hook directory so normal repositories, nested worktree paths, bare repositories, linked worktrees, and `core.hooksPath` use Git's own path semantics. Local hooks are developer feedback and can be skipped through Git's standard `--no-verify` behavior; CI and server-side pre-receive hooks provide central enforcement.
+
 The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, baseline handling, validation-result filtering, cache restore/save, least-privilege permissions, summary output, and explicit fail modes.
 
 The Azure DevOps pipeline integration supports a first-class `PicketScan@1` task, workspace scans, optional Azure Repos/project/org enumeration, pipeline/build/release artifact scanning, JSONL/SARIF/HTML report publication, build annotations where Azure DevOps supports safe source locations, explicit fail modes, scan-cache use through task inputs, and no telemetry. Task metadata lives under `azure-devops/tasks/PicketScanV1`, and the marketplace extension manifest lives at `azure-devops/vss-extension.json`. Release-phase packaging validates the VSIX and agent smoke tests before publication. Self-hosted marketplace smoke tests run only through explicit manual queueing; pull-request and push validation use hosted agents, recorded responses, or local fakes. The task works on Microsoft-hosted and self-hosted Windows, Linux, and macOS agents when `picket` is available through `picketPath` or the agent `PATH`.

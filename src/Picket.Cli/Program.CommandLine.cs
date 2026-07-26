@@ -783,6 +783,12 @@ internal static partial class Program
             || arg.StartsWith("--log-level=", StringComparison.Ordinal);
     }
 
+    static bool IsHookContextFlag(string arg)
+    {
+        return arg.Equals("--hook-context", StringComparison.Ordinal)
+            || arg.StartsWith("--hook-context=", StringComparison.Ordinal);
+    }
+
     static bool IsVerboseFlag(string arg)
     {
         return arg is "-v" or "--verbose"

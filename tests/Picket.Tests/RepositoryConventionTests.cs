@@ -1588,6 +1588,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("pre-push", hooks);
         Assert.Contains("pre-receive", hooks);
         Assert.Contains("--redact[=n]", hooks);
+        Assert.Contains("Picket blocked the commit", hooks);
+        Assert.Contains("Picket could not complete the scan", hooks);
+        Assert.Contains("core.hooksPath", hooks);
+        Assert.Contains("--no-verify", hooks);
         Assert.Contains("BenchmarkDotNet", performance);
         Assert.Contains("benchmarks/Picket.Benchmarks", performance);
         Assert.Contains("tests/fixtures/github-secret-scanning", performance);
