@@ -200,7 +200,7 @@ internal static class PicketTuiApp
                         }
 
                         return [.. widgets];
-                }).Fill()).Fill())
+                    }).Fill()).Fill())
                 .Title(" Keyboard help ")
                 .FixedWidth(68)
                 .FixedHeight(lines.Length + 2))
