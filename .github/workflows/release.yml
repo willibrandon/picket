@@ -25,12 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.4.0
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: |
             9.0.x
@@ -43,7 +43,7 @@ jobs:
           run_install: false
 
       - name: Set up Node
-        uses: actions/setup-node@v6.0.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -137,12 +137,12 @@ jobs:
             archive-extension: tar.gz
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.4.0
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: |
             9.0.x
@@ -326,17 +326,17 @@ jobs:
           "checksum-path=$checksumPath" >> $env:GITHUB_OUTPUT
 
       - name: Generate binary artifact attestation
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: ${{ steps.package.outputs.archive-path }}
 
       - name: Generate Native AOT tool package attestation
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: ${{ steps.tool-package.outputs.archive-path }}
 
       - name: Upload binary release assets
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: release-binaries-${{ matrix.rid }}
           path: |
@@ -345,7 +345,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Native AOT tool package assets
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: release-nuget-${{ matrix.rid }}
           path: |
@@ -363,12 +363,12 @@ jobs:
       attestations: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.4.0
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: |
             9.0.x
@@ -420,12 +420,12 @@ jobs:
           "checksum-path=$checksumPath" >> $env:GITHUB_OUTPUT
 
       - name: Generate NuGet artifact attestation
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: ${{ steps.package.outputs.archive-path }}
 
       - name: Upload NuGet release assets
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: release-nuget
           path: |
@@ -444,14 +444,14 @@ jobs:
       contents: read
     steps:
       - name: Download NuGet artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8.0.1
         with:
           pattern: release-nuget*
           path: dist
           merge-multiple: true
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.4.0
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: 10.0.301
 
@@ -538,12 +538,12 @@ jobs:
             architecture: arm64
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.4.0
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: 10.0.301
 
@@ -552,7 +552,7 @@ jobs:
         run: dotnet tool install --tool-path (Join-Path $env:RUNNER_TEMP 'wix') wix --version 6.0.2
 
       - name: Download Windows release archive
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8.0.1
         with:
           name: release-binaries-${{ matrix.rid }}
           path: dist
@@ -607,9 +607,10 @@ jobs:
           }
 
           $installRoot = Join-Path $env:RUNNER_TEMP "picket-msi-install-$rid"
-          & msiexec.exe /i $msiPath /qn /norestart "INSTALLFOLDER=$installRoot"
-          if ($LASTEXITCODE -ne 0) {
-            throw "Installing $msiName failed with exit code $LASTEXITCODE."
+          $installArguments = "/i `"$msiPath`" /qn /norestart INSTALLFOLDER=`"$installRoot`""
+          $installProcess = Start-Process -FilePath 'msiexec.exe' -ArgumentList $installArguments -Wait -PassThru -WindowStyle Hidden
+          if ($installProcess.ExitCode -ne 0) {
+            throw "Installing $msiName failed with exit code $($installProcess.ExitCode)."
           }
 
           try {
@@ -631,9 +632,10 @@ jobs:
             $global:LASTEXITCODE = 0
           }
           finally {
-            & msiexec.exe /x $msiPath /qn /norestart
-            if ($LASTEXITCODE -ne 0) {
-              throw "Uninstalling $msiName failed with exit code $LASTEXITCODE."
+            $uninstallArguments = "/x `"$msiPath`" /qn /norestart"
+            $uninstallProcess = Start-Process -FilePath 'msiexec.exe' -ArgumentList $uninstallArguments -Wait -PassThru -WindowStyle Hidden
+            if ($uninstallProcess.ExitCode -ne 0) {
+              throw "Uninstalling $msiName failed with exit code $($uninstallProcess.ExitCode)."
             }
           }
 
@@ -643,13 +645,13 @@ jobs:
 
       - name: Generate MSI artifact attestation
         if: steps.msi.outputs.created == 'true'
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: ${{ runner.temp }}/picket-release-assets/*.msi
 
       - name: Upload MSI release assets
         if: steps.msi.outputs.created == 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: release-msi-${{ matrix.rid }}
           path: |
@@ -667,12 +669,12 @@ jobs:
       attestations: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Node
-        uses: actions/setup-node@v6.0.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -735,13 +737,13 @@ jobs:
 
       - name: Generate Azure DevOps VSIX artifact attestation
         if: steps.vsix.outputs.created == 'true'
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: ${{ runner.temp }}/picket-release-assets/*.vsix
 
       - name: Upload Azure DevOps VSIX release assets
         if: steps.vsix.outputs.created == 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: release-azure-devops-vsix
           path: |
@@ -767,12 +769,12 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Download native Linux archive
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8.0.1
         with:
           name: release-binaries-${{ matrix.rid }}
           path: dist
@@ -848,12 +850,12 @@ jobs:
       packages: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Download native Linux archive
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8.0.1
         with:
           name: release-binaries-${{ matrix.rid }}
           path: dist
@@ -942,17 +944,17 @@ jobs:
       attestations: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.4.0
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: 10.0.301
 
       - name: Download release assets
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8.0.1
         with:
           pattern: release-*
           path: dist
@@ -1016,12 +1018,12 @@ jobs:
           Set-Content -LiteralPath (Join-Path 'dist' 'checksums.txt') -Encoding utf8NoBOM -Value $lines
 
       - name: Generate checksum attestation
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: dist/checksums.txt
 
       - name: Generate release artifact manifest attestation
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: dist/release-artifacts.json
 
@@ -1056,7 +1058,7 @@ jobs:
       contents: read
     steps:
       - name: Check out Homebrew tap
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           repository: willibrandon/homebrew-tap
           ref: main
@@ -1186,7 +1188,7 @@ jobs:
       contents: read
     steps:
       - name: Check out Scoop bucket
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           repository: willibrandon/scoop-bucket
           ref: main
@@ -1295,7 +1297,7 @@ jobs:
       contents: read
     steps:
       - name: Check out WinGet fork
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           repository: willibrandon/winget-pkgs
           ref: master

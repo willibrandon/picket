@@ -196,7 +196,7 @@ The workflow validates the source tree and runs the local GitHub Action smoke te
 
 The release assembly generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt`, and creates or updates the GitHub Release for the tag. It also writes `release-artifacts.json`, a deterministic inventory of final payload names, exact byte counts, and SHA-256 digests. Checksum sidecars and `checksums.txt` are excluded from that payload-size inventory; the inventory itself is included in `checksums.txt`, attested separately, and published with the release. Only after that immutable release exists does the workflow publish `.nupkg` and `.snupkg` files to NuGet.org and per-architecture GHCR images. Stable releases then update the Homebrew tap and Scoop bucket and submit the WinGet manifest. The versioned container manifest follows its architecture images; the mutable `latest` tag waits for both NuGet and container publication.
 
-Release provenance uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
+Release provenance uses GitHub artifact attestations through `actions/attest@v4.2.0`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 
 ```powershell
 gh attestation verify <artifact-path> -R willibrandon/picket

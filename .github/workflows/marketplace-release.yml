@@ -52,7 +52,7 @@ jobs:
           }
 
       - name: Check out release tag
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ inputs.release_tag }}
@@ -145,17 +145,17 @@ jobs:
       contents: read
     steps:
       - name: Check out release tag
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ inputs.release_tag }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5.4.0
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: 10.0.301
 
       - name: Set up Node
-        uses: actions/setup-node@v6.0.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
           cache: npm

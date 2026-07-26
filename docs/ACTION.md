@@ -19,7 +19,7 @@ jobs:
   picket:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
 
       - uses: willibrandon/picket@main
         with:

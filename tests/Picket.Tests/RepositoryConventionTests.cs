@@ -242,10 +242,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("max-archive-entries", action);
         Assert.Contains("max-archive-megabytes", action);
         Assert.Contains("max-archive-ratio", action);
-        Assert.Contains("actions/cache/restore", action);
-        Assert.Contains("actions/cache/save", action);
-        Assert.Contains("github/codeql-action/upload-sarif", action);
-        Assert.Contains("actions/setup-dotnet", action);
+        Assert.Contains("actions/cache/restore@v6.1.0", action);
+        Assert.Contains("actions/cache/save@v6.1.0", action);
+        Assert.Contains("github/codeql-action/upload-sarif@v4.37.3", action);
+        Assert.Contains("actions/setup-dotnet@v6.0.0", action);
         Assert.Contains("run-picket.cs", action);
         Assert.Contains("dotnet build", action);
         Assert.Contains("dotnet run --file", action);
@@ -454,7 +454,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Native AOT", documentation);
         Assert.Contains("must not change scanner findings", documentation);
         Assert.Contains("Release Workflow", documentation);
-        Assert.Contains("actions/attest@v4", documentation);
+        Assert.Contains("actions/attest@v4.2.0", documentation);
         Assert.Contains("gh attestation verify", documentation);
         Assert.Contains("NUGET_API_KEY", documentation);
     }
@@ -667,6 +667,29 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("cache-dependency-path: azure-devops/package-lock.json", release);
         Assert.Contains("\"lockfileVersion\": 3", azureDevOpsLock);
         Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub workflows use the current Node 24 action releases.
+    /// </summary>
+    [TestMethod]
+    public void GitHubWorkflowsUseCurrentNode24ActionReleases()
+    {
+        string workflowDirectory = ResolveRepositoryPath(".github/workflows");
+        string workflows = string.Join(
+            '\n',
+            Directory.EnumerateFiles(workflowDirectory, "*.yml", SearchOption.TopDirectoryOnly)
+                .Select(File.ReadAllText));
+
+        AssertActionReference(workflows, "actions/attest", "actions/attest@v4.2.0");
+        AssertActionReference(workflows, "actions/checkout", "actions/checkout@v7.0.1");
+        AssertActionReference(workflows, "actions/configure-pages", "actions/configure-pages@v6.0.0");
+        AssertActionReference(workflows, "actions/deploy-pages", "actions/deploy-pages@v5.0.0");
+        AssertActionReference(workflows, "actions/download-artifact", "actions/download-artifact@v8.0.1");
+        AssertActionReference(workflows, "actions/setup-dotnet", "actions/setup-dotnet@v6.0.0");
+        AssertActionReference(workflows, "actions/setup-node", "actions/setup-node@v7.0.0");
+        AssertActionReference(workflows, "actions/upload-artifact", "actions/upload-artifact@v7.0.1");
+        AssertActionReference(workflows, "actions/upload-pages-artifact", "actions/upload-pages-artifact@v5.0.0");
     }
 
     /// <summary>
@@ -1010,11 +1033,11 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("ubuntu-24.04-arm", workflow);
         Assert.Contains("windows-11-arm", workflow);
         Assert.Contains("macos-26-intel", workflow);
-        Assert.Contains("actions/attest@v4", workflow);
+        Assert.Contains("actions/attest@v4.2.0", workflow);
         Assert.Contains("id-token: write", workflow);
         Assert.Contains("attestations: write", workflow);
-        Assert.Contains("actions/upload-artifact@v6", workflow);
-        Assert.Contains("actions/download-artifact@v5", workflow);
+        Assert.Contains("actions/upload-artifact@v7.0.1", workflow);
+        Assert.Contains("actions/download-artifact@v8.0.1", workflow);
         Assert.Contains("build-binaries", workflow);
         Assert.Contains("release-binaries-${{ matrix.rid }}", workflow);
         Assert.Contains("release-nuget-${{ matrix.rid }}", workflow);
@@ -1215,8 +1238,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("created=true", workflow);
         Assert.Contains("picket-$env:RELEASE_TAG-$rid.msi", workflow);
         Assert.Contains("picket-msi-zstd-$rid.zst", workflow);
-        Assert.Contains("msiexec.exe /i", workflow);
-        Assert.Contains("msiexec.exe /x", workflow);
+        Assert.Contains("Start-Process -FilePath 'msiexec.exe' -ArgumentList $installArguments -Wait -PassThru -WindowStyle Hidden", workflow);
+        Assert.Contains("Start-Process -FilePath 'msiexec.exe' -ArgumentList $uninstallArguments -Wait -PassThru -WindowStyle Hidden", workflow);
+        Assert.DoesNotContain("& msiexec.exe", workflow);
         Assert.Contains("picket-<tag>-win-x64.msi", release);
         Assert.Contains("picket-<tag>-win-arm64.msi", release);
         Assert.Contains("does not rebuild scanner code", release);
@@ -2885,6 +2909,25 @@ public sealed partial class RepositoryConventionTests
         }
 
         throw new DirectoryNotFoundException("Could not find repository root.");
+    }
+
+    private static void AssertActionReference(string workflows, string action, string expectedReference)
+    {
+        string marker = $"uses: {action}@";
+        int references = 0;
+
+        foreach (string line in workflows.Split('\n'))
+        {
+            if (!line.Contains(marker, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            references++;
+            Assert.Contains($"uses: {expectedReference}", line);
+        }
+
+        Assert.IsGreaterThan(0, references, $"No {action} references were found.");
     }
 
     private static bool IsRepositorySourceFile(string root, string file)
