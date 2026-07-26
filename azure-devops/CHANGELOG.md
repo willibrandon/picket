@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- Publish the GitHub Action under the unique Picket Secret Scanner Marketplace name.
+
 ## 0.1.9
 
 - Keep `picket tui` attached to the invoking terminal when the companion is installed as a separate .NET tool.

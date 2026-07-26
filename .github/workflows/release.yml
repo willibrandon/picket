@@ -1788,7 +1788,7 @@ jobs:
       - name: Verify immutable release is listed
         shell: pwsh
         run: |
-          $marketplaceUrl = "https://github.com/marketplace/actions/picket"
+          $marketplaceUrl = "https://github.com/marketplace/actions/picket-secret-scanner"
           $releaseEditUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/edit/$env:RELEASE_TAG"
           $repositoryLink = "href=`"/$env:GITHUB_REPOSITORY`""
 

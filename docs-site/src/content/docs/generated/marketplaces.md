@@ -110,7 +110,7 @@ The workflow first creates or updates the immutable GitHub Release. Azure DevOps
 
 Azure publication uses `AZURE_DEVOPS_MARKETPLACE_PAT` and the existing `willibrandon.picket` extension. The extension manifest carries the Marketplace `Public` gallery flag before packaging and attestation. A rerun queries the published extension and skips `tfx extension publish` when the release version already exists. After Azure publication succeeds, the workflow creates or moves only the mutable GitHub Action `vMAJOR` ref to the immutable release commit through the Git refs API.
 
-The workflow cannot select GitHub's Marketplace publication control because GitHub does not expose it through the public API. Its final `Verify GitHub Marketplace listing` job checks `https://github.com/marketplace/actions/picket` for both `willibrandon/picket` and the exact immutable tag. The job fails with the release-edit URL until the owner completes GitHub's publication step, and it can be rerun after the listing propagates.
+The workflow cannot select GitHub's Marketplace publication control because GitHub does not expose it through the public API. Its final `Verify GitHub Marketplace listing` job checks `https://github.com/marketplace/actions/picket-secret-scanner` for both `willibrandon/picket` and the exact immutable tag. The job fails with the release-edit URL until the owner completes GitHub's publication step, and it can be rerun after the listing propagates.
 
 ## Rollback
 

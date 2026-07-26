@@ -1,4 +1,4 @@
-name: Picket
+name: Picket Secret Scanner
 description: Scan a repository with Picket and publish SARIF-ready results.
 author: willibrandon
 
