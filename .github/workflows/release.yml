@@ -1728,7 +1728,7 @@ jobs:
               exit 0
             }
 
-            npm exec -- tfx extension publish --vsix $env:PICKET_VSIX_PATH --share-with willibrandon --token $env:AZURE_DEVOPS_MARKETPLACE_PAT --no-prompt --no-color
+            npm exec -- tfx extension publish --vsix $env:PICKET_VSIX_PATH --token $env:AZURE_DEVOPS_MARKETPLACE_PAT --no-prompt --no-color
             if ($LASTEXITCODE -ne 0) {
               throw "Azure DevOps Marketplace publication failed with exit code $LASTEXITCODE."
             }

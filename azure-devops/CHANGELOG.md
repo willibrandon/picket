@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- Publish the public Marketplace extension without applying private sharing metadata.
+
 ## 0.1.7
 
 - Validate WinGet manifests through a current-user package-manager repair on hosted release runners.
