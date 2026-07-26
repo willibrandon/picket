@@ -184,9 +184,16 @@ public sealed class GitHookIntegrationTests
             "--command",
             GetCliExecutablePath()).ConfigureAwait(false);
         string expectedPath = Path.Combine(repositoryPath, ".picket-hooks", "pre-commit");
+        string resolvedHooksPath = await RunGitSuccessAsync(
+            nestedPath,
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-path",
+            "hooks").ConfigureAwait(false);
+        string resolvedPath = Path.Combine(Path.GetFullPath(resolvedHooksPath), "pre-commit");
 
         Assert.AreEqual(0, install.ExitCode);
-        Assert.Contains($"installed pre-commit: {expectedPath}", install.Stdout);
+        Assert.Contains($"installed pre-commit: {resolvedPath}", install.Stdout);
         Assert.IsTrue(File.Exists(expectedPath));
         Assert.IsFalse(File.Exists(Path.Combine(repositoryPath, ".git", "hooks", "pre-commit")));
     }
