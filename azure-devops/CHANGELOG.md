@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Make the NuGet tool-install gate inspect expected nonzero companion exits without failing the release shell.
+
 ## 0.1.5
 
 - Publish stable Marketplace releases automatically after provenance and package validation.

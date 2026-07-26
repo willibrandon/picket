@@ -542,8 +542,32 @@ jobs:
           try {
             $env:PATH = [string]::Concat($toolPath, [IO.Path]::PathSeparator, $previousPath)
             $missingReport = Join-Path $env:RUNNER_TEMP 'picket-missing-report.json'
-            $companionOutput = @(& $picket tui $missingReport 2>&1)
-            $companionExitCode = $LASTEXITCODE
+            $startInfo = [Diagnostics.ProcessStartInfo]::new()
+            $startInfo.FileName = $picket
+            $startInfo.UseShellExecute = $false
+            $startInfo.RedirectStandardOutput = $true
+            $startInfo.RedirectStandardError = $true
+            [void]$startInfo.ArgumentList.Add('tui')
+            [void]$startInfo.ArgumentList.Add($missingReport)
+
+            $companionProcess = [Diagnostics.Process]::Start($startInfo)
+            if ($null -eq $companionProcess) {
+              throw 'Picket TUI companion smoke test could not start.'
+            }
+
+            try {
+              $standardOutput = $companionProcess.StandardOutput.ReadToEndAsync()
+              $standardError = $companionProcess.StandardError.ReadToEndAsync()
+              $companionProcess.WaitForExit()
+              $companionExitCode = $companionProcess.ExitCode
+              $companionOutput = @(
+                $standardOutput.GetAwaiter().GetResult(),
+                $standardError.GetAwaiter().GetResult()
+              )
+            }
+            finally {
+              $companionProcess.Dispose()
+            }
           }
           finally {
             $env:PATH = $previousPath
