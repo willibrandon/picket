@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Publish stable Marketplace releases automatically after provenance and package validation.
+- Resolve the TUI companion from Windows global-tool command shims.
+- Strengthen release checks for installed tools, containers, Homebrew, and WinGet.
+
 ## 0.1.4
 
 - Align the scanner, task, extension, and package release versions for the first public release.

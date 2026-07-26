@@ -1612,6 +1612,28 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that the parent CLI launches the Windows command shim emitted for an installed companion tool.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    public async Task TuiLaunchesWindowsGlobalToolCommandShim()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string shimPath = Path.Combine(root.Path, "picket-tui.cmd");
+        File.WriteAllText(shimPath, "@echo off\r\nexit /b 23\r\n", Encoding.ASCII);
+        string existingPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        var environment = new Dictionary<string, string?>
+        {
+            ["PATH"] = string.Concat(root.Path, Path.PathSeparator, existingPath),
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(environment, "tui", "--scan").ConfigureAwait(false);
+
+        Assert.AreEqual(23, result.ExitCode);
+        Assert.DoesNotContain("requires the picket-tui companion executable", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that System.CommandLine shell suggestions expose public commands.
     /// </summary>
     [TestMethod]

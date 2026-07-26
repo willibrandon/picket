@@ -97,10 +97,10 @@ internal static partial class Program
 
     private static async Task<int> RunTuiCompanionAsync(string[] args)
     {
-        string executablePath = ResolveTuiCompanionPath();
+        string executablePath = ResolveTuiCompanionPath(out bool useShellExecute);
         using var process = new Process();
         process.StartInfo.FileName = executablePath;
-        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.UseShellExecute = useShellExecute;
         for (int i = 0; i < args.Length; i++)
         {
             process.StartInfo.ArgumentList.Add(args[i]);
@@ -115,11 +115,18 @@ internal static partial class Program
         return process.ExitCode;
     }
 
-    private static string ResolveTuiCompanionPath()
+    private static string ResolveTuiCompanionPath(out bool useShellExecute)
     {
         string executableName = OperatingSystem.IsWindows() ? "picket-tui.exe" : "picket-tui";
         string besidePicket = Path.Combine(AppContext.BaseDirectory, executableName);
-        return File.Exists(besidePicket) ? besidePicket : executableName;
+        if (File.Exists(besidePicket))
+        {
+            useShellExecute = false;
+            return besidePicket;
+        }
+
+        useShellExecute = OperatingSystem.IsWindows();
+        return "picket-tui";
     }
 
     private static bool IsFlowFlag(string arg)

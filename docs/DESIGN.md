@@ -1133,9 +1133,9 @@ Marketplace distribution is planned for the public release phase, after core sca
 
 - GitHub Marketplace listing for the GitHub Action with semver tags, immutable release tags, least-privilege permission examples, clear SARIF/code-scanning setup, screenshots or summary examples that contain no real secrets, MIT license metadata, and generated input/output reference from `action.yml`.
 - Azure DevOps Marketplace extension with a VSIX manifest, task metadata, icon, README, privacy and license details, agent compatibility matrix, a versioned task major line such as `PicketScan@1`, and installation-free execution through bundled signed binaries or deterministic acquisition from Picket releases.
-- Both marketplace packages use the same release provenance as CLI artifacts: checksums, attestations where the platform supports them, generated docs, dry-run validation, and a rollback path.
+- Both marketplace packages use the same release provenance as CLI artifacts: checksums, attestations where the platform supports them, generated docs, pre-publication validation, and a rollback path.
 
-Marketplace promotion is manual-only through `.github/workflows/marketplace-release.yml`. A dispatch accepts one stable release tag, a target surface, and a dry-run switch that defaults to enabled. Promotion requires an existing non-draft, non-prerelease GitHub Release and a successful Release workflow for the tag commit. GitHub Action promotion creates or moves only the mutable `vMAJOR` tag; immutable release tags are never rewritten. Azure DevOps promotion downloads the release VSIX and checksum, verifies the GitHub artifact attestation, validates bounded package structure and identity through `scripts/Validate-MarketplaceRelease.cs`, and publishes through `tfx` without validation or TLS bypasses. Real mutations use the `marketplaces` environment; rerunning a reviewed older stable release in GitHub Action mode is the rollback path for the mutable major tag.
+Stable tags publish both marketplace surfaces through `.github/workflows/release.yml`. Azure DevOps publication starts only after the immutable GitHub Release, NuGet packages, containers, and package-manager updates succeed. It downloads the release VSIX and checksum, verifies the GitHub artifact attestation, validates bounded package structure and identity through `scripts/Validate-MarketplaceRelease.cs`, and publishes through `tfx` without validation or TLS bypasses. The GitHub Action `vMAJOR` tag advances to the immutable release commit only after Azure DevOps publication succeeds; immutable patch tags are never rewritten. Prerelease tags do not publish either marketplace surface.
 - Marketplace packaging must not fork scanner behavior. It is a distribution wrapper around the same CLI/library contracts used by local and CI execution.
 
 Pre-receive support handles bare repositories, quarantine environment variables, old/new ref input, timeouts, concurrency, and clear rejection messages.
@@ -1391,7 +1391,7 @@ Gate: remote enumeration, checkpointing, redaction, and dedup tests green.
 - hooks,
 - generated static documentation site.
 
-Gate: release workflow produces signed/checksummed artifacts, action smoke tests pass, marketplace packages validate without publishing, and the docs site builds and deploys through GitHub Pages from the default branch.
+Gate: release workflow produces signed/checksummed artifacts, action smoke tests pass, stable releases publish both marketplace surfaces, and the docs site builds and deploys through GitHub Pages from the default branch.
 
 Marketplace publishing can be implemented late in the milestone. It is a release-readiness task, not a prerequisite for engine, rule, report, or local CLI work.
 

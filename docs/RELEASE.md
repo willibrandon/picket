@@ -106,8 +106,8 @@ wslc run --rm -v ${PWD}:/work picket:dev git . --report-format json --redact=100
 
 For release tags, `.github/workflows/release.yml` validates and publishes `linux/amd64` on an x64 runner and `linux/arm64` on an Arm64 runner, then creates the multi-architecture manifest without emulation. The published tags are:
 
-- `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.1.4`,
-- `ghcr.io/willibrandon/picket:<semver>`, for example `0.1.4`,
+- `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.1.5`,
+- `ghcr.io/willibrandon/picket:<semver>`, for example `0.1.5`,
 - `ghcr.io/willibrandon/picket:latest` for non-prerelease versions only.
 
 Each architecture image carries BuildKit SBOM and provenance attestations. The immutable version manifests are published only after the GitHub Release exists, and `latest` advances only after both the versioned container and NuGet publication succeed. The image is a scanner distribution surface; it does not change command defaults, compatibility behavior, reports, validation policy, or telemetry policy.
@@ -125,7 +125,7 @@ The generated files are packaged as `picket-<tag>-package-manager-manifests.zip`
 Generate the same files locally from a release checksum file with:
 
 ```powershell
-dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.1.4 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
+dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.1.5 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
 ```
 
 The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. Homebrew keeps the complete archive payload under `libexec` and writes command wrappers so the bundled zstandard library remains beside both executables. Scoop and WinGet retain the complete portable ZIP payload.
@@ -151,9 +151,9 @@ Release automation also packages stable-tag VSIX artifacts with the release vers
 
 - `picket-<tag>-azure-devops.vsix`
 
-The VSIX receives a `.sha256` sidecar and a GitHub artifact attestation before the GitHub Release is created or updated. Prerelease tags skip VSIX artifacts because Azure DevOps extension manifest versions do not support SemVer prerelease labels. Publishing to the Azure DevOps Marketplace remains an explicit release step using `AZURE_DEVOPS_MARKETPLACE_PAT`; the release workflow validates and archives the package without publishing it.
+The VSIX receives a `.sha256` sidecar and a GitHub artifact attestation before the GitHub Release is created or updated. Prerelease tags skip VSIX artifacts because Azure DevOps extension manifest versions do not support SemVer prerelease labels.
 
-After the Release workflow succeeds, `.github/workflows/marketplace-release.yml` can promote the immutable release to the GitHub Action major tag, the Azure DevOps Marketplace, or both. It is manual-only and defaults to a dry run. Azure promotion revalidates the VSIX checksum, identity, required package contents, and artifact attestation before `tfx extension publish`. Real promotion uses the `marketplaces` environment. See `docs/MARKETPLACES.md` for approval, visibility, and rollback behavior.
+For a stable tag, the Release workflow automatically revalidates the VSIX checksum, identity, required package contents, and artifact attestation before publishing it with `AZURE_DEVOPS_MARKETPLACE_PAT`. After Azure DevOps publication succeeds, the workflow advances the GitHub Action `vMAJOR` tag to the immutable release commit. Reruns detect an already-published Azure DevOps extension version and continue without attempting to overwrite it. See `docs/MARKETPLACES.md` for release ordering, visibility, and rollback behavior.
 
 ## Documentation Validation
 
@@ -186,7 +186,7 @@ Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can a
 
 The workflow validates the source tree and runs the local GitHub Action smoke test. It builds `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`; builds and installs Windows MSI installers; packages the Azure DevOps VSIX; validates native container images; and packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages.
 
-The release assembly generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt`, and creates or updates the GitHub Release for the tag. It also writes `release-artifacts.json`, a deterministic inventory of final payload names, exact byte counts, and SHA-256 digests. Checksum sidecars and `checksums.txt` are excluded from that payload-size inventory; the inventory itself is included in `checksums.txt`, attested separately, and published with the release. Only after that immutable release exists does the workflow publish `.nupkg` and `.snupkg` files to NuGet.org and per-architecture GHCR images. Stable releases then update the Homebrew tap and Scoop bucket and submit the WinGet manifest. The versioned container manifest follows its architecture images; the mutable `latest` tag waits for both NuGet and container publication.
+The release assembly generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt`, and creates or updates the GitHub Release for the tag. It also writes `release-artifacts.json`, a deterministic inventory of final payload names, exact byte counts, and SHA-256 digests. Checksum sidecars and `checksums.txt` are excluded from that payload-size inventory; the inventory itself is included in `checksums.txt`, attested separately, and published with the release. Only after that immutable release exists does the workflow publish `.nupkg` and `.snupkg` files to NuGet.org and per-architecture GHCR images. Stable releases then update the Homebrew tap and Scoop bucket, submit the WinGet manifest, publish the Azure DevOps extension, and advance the GitHub Action major tag. The versioned container manifest follows its architecture images; the mutable `latest` tag waits for both NuGet and container publication.
 
 Release provenance uses GitHub artifact attestations through `actions/attest@v4.2.0`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 
@@ -196,4 +196,4 @@ gh attestation verify <artifact-path> -R willibrandon/picket
 
 Artifact attestations prove repository and workflow provenance but are not Authenticode signatures or Apple notarization. Windows executables and MSIs are currently unsigned, and macOS executables are currently unnotarized, so operating-system reputation checks can still warn on first use. Code signing and notarization require dedicated signing identities and remain a release-channel enhancement; the workflow does not suppress or bypass platform security checks.
 
-The release tag is the source of truth for package versions. Release jobs strip a leading `v` from tags such as `v0.1.4`, pass the resulting SemVer value to `Version` and `PackageVersion`, publish package and symbol files with `--skip-duplicate`, and fail clearly when `NUGET_API_KEY` is missing.
+The release tag is the source of truth for package versions. Release jobs strip a leading `v` from tags such as `v0.1.5`, pass the resulting SemVer value to `Version` and `PackageVersion`, publish package and symbol files with `--skip-duplicate`, and fail clearly when `NUGET_API_KEY` is missing.

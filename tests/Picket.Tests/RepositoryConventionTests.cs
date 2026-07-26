@@ -648,14 +648,17 @@ public sealed partial class RepositoryConventionTests
     [TestMethod]
     public void WorkflowsPinThirdPartySetupAndPackagingDependencies()
     {
+        const string DockerSetupBuildxPinnedRef = "docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0";
         const string PnpmActionSetupPinnedRef = "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9";
         string ci = ReadRepositoryFile(".github/workflows/ci.yml");
         string docs = ReadRepositoryFile(".github/workflows/docs.yml");
         string release = ReadRepositoryFile(".github/workflows/release.yml");
         string azureDevOpsLock = ReadRepositoryFile("azure-devops/package-lock.json");
 
+        Assert.Contains(DockerSetupBuildxPinnedRef, release);
         Assert.Contains(PnpmActionSetupPinnedRef, docs);
         Assert.Contains(PnpmActionSetupPinnedRef, release);
+        Assert.DoesNotContain("docker/setup-buildx-action@v", release);
         Assert.DoesNotContain("pnpm/action-setup@v", docs);
         Assert.DoesNotContain("pnpm/action-setup@v", release);
         Assert.DoesNotContain("npx --yes", ci);
@@ -685,11 +688,11 @@ public sealed partial class RepositoryConventionTests
         AssertActionReference(workflows, "actions/checkout", "actions/checkout@v7.0.1");
         AssertActionReference(workflows, "actions/configure-pages", "actions/configure-pages@v6.0.0");
         AssertActionReference(workflows, "actions/deploy-pages", "actions/deploy-pages@v5.0.0");
-        AssertActionReference(workflows, "actions/download-artifact", "actions/download-artifact@v8.0.1");
         AssertActionReference(workflows, "actions/setup-dotnet", "actions/setup-dotnet@v6.0.0");
         AssertActionReference(workflows, "actions/setup-node", "actions/setup-node@v7.0.0");
         AssertActionReference(workflows, "actions/upload-artifact", "actions/upload-artifact@v7.0.1");
         AssertActionReference(workflows, "actions/upload-pages-artifact", "actions/upload-pages-artifact@v5.0.0");
+        Assert.DoesNotContain("actions/download-artifact@", workflows);
     }
 
     /// <summary>
@@ -802,7 +805,7 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
-        Assert.AreEqual("0.1.4", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("0.1.5", extensionRoot.GetProperty("version").GetString());
         HashSet<string> galleryFlags = [.. extensionRoot
             .GetProperty("galleryFlags")
             .EnumerateArray()
@@ -905,7 +908,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secret-hash-only", privacy);
         Assert.Contains("agent `3.220.0` or newer", compatibility);
         Assert.Contains("`linux-musl-arm64`", compatibility);
-        Assert.Contains("## 0.1.4", changelog);
+        Assert.Contains("## 0.1.5", changelog);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task", azureDevOps);
@@ -914,29 +917,30 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
-    /// Verifies Marketplace promotion is manual, dry-run-first, provenance-checked, and free of validation bypasses.
+    /// Verifies stable releases publish both Marketplace surfaces after provenance checks and without validation bypasses.
     /// </summary>
     [TestMethod]
-    public void MarketplacePromotionWorkflowIsManualAndFailClosed()
+    public void ReleaseWorkflowPublishesMarketplacesAutomaticallyAndFailClosed()
     {
-        string workflow = ReadRepositoryFile(".github/workflows/marketplace-release.yml");
+        string workflow = ReadRepositoryFile(".github/workflows/release.yml");
         string design = ReadRepositoryFile("docs/DESIGN.md");
         string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
         string release = ReadRepositoryFile("docs/RELEASE.md");
         string scriptsReadme = ReadRepositoryFile("scripts/README.md");
         string validator = ReadRepositoryFile("scripts/Validate-MarketplaceRelease.cs");
 
-        Assert.Contains("workflow_dispatch:", workflow);
         Assert.DoesNotContain("pull_request:", workflow);
-        Assert.DoesNotContain("push:", workflow);
-        Assert.Contains("dry_run:", workflow);
-        Assert.Contains("default: true", workflow);
-        Assert.Contains("group: marketplace-release", workflow);
-        Assert.Contains("name: marketplaces", workflow);
-        Assert.Contains("gh run list --repo $env:GITHUB_REPOSITORY --workflow release.yml --commit $commit", workflow);
+        Assert.Contains("push:", workflow);
+        Assert.Contains("tags:", workflow);
+        Assert.Contains("publish-azure-devops-marketplace:", workflow);
+        Assert.Contains("publish-github-marketplace:", workflow);
+        Assert.Contains("needs: publish-azure-devops-marketplace", workflow);
+        Assert.Contains("Publish Azure DevOps Marketplace extension", workflow);
+        Assert.Contains("Publish GitHub Marketplace release", workflow);
         Assert.Contains("gh attestation verify", workflow);
         Assert.Contains("scripts/Validate-MarketplaceRelease.cs", workflow);
         Assert.Contains("tfx extension publish", workflow);
+        Assert.Contains("tfx extension show", workflow);
         Assert.Contains("--share-with willibrandon", workflow);
         Assert.Contains("AZURE_DEVOPS_MARKETPLACE_PAT", workflow);
         Assert.Contains("--no-prompt --no-color", workflow);
@@ -944,14 +948,15 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("--bypass-validation", workflow);
         Assert.DoesNotContain("--skip-cert-validation", workflow);
         Assert.DoesNotContain("--no-wait-validation", workflow);
-        Assert.Contains("git/refs/tags/$env:MAJOR_TAG", workflow);
+        Assert.Contains("git/refs/tags/$majorTag", workflow);
         Assert.Contains("force=true", workflow);
-        Assert.Contains("marketplace-release.yml", design);
-        Assert.Contains("dry_run: true", marketplaces);
-        Assert.Contains("requires approval from `willibrandon`", marketplaces);
-        Assert.Contains("deployments only from `main`", marketplaces);
+        Assert.IsFalse(File.Exists(ResolveRepositoryPath(".github/workflows/marketplace-release.yml")));
+        Assert.Contains("Stable tags publish both marketplace surfaces", design);
+        Assert.Contains("Stable `vMAJOR.MINOR.PATCH` tags publish both marketplace surfaces", marketplaces);
+        Assert.DoesNotContain("manual-only", marketplaces);
+        Assert.DoesNotContain("dry_run", marketplaces);
         Assert.Contains("cannot be overwritten or downgraded", marketplaces);
-        Assert.Contains("marketplace-release.yml", release);
+        Assert.Contains("automatically revalidates the VSIX", release);
         Assert.Contains("Validate-MarketplaceRelease.cs", scriptsReadme);
         Assert.Contains("MaxUncompressedBytes", validator);
         Assert.Contains("ValidateChecksum", validator);
@@ -1037,7 +1042,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("id-token: write", workflow);
         Assert.Contains("attestations: write", workflow);
         Assert.Contains("actions/upload-artifact@v7.0.1", workflow);
-        Assert.Contains("actions/download-artifact@v8.0.1", workflow);
+        Assert.Contains("gh run download $env:GITHUB_RUN_ID", workflow);
+        Assert.DoesNotContain("actions/download-artifact@", workflow);
         Assert.Contains("build-binaries", workflow);
         Assert.Contains("release-binaries-${{ matrix.rid }}", workflow);
         Assert.Contains("release-nuget-${{ matrix.rid }}", workflow);
@@ -1119,8 +1125,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("repository: willibrandon/homebrew-tap", workflow);
         Assert.Contains("secrets.HOMEBREW_TAP_TOKEN", workflow);
         Assert.Contains("Formula/picket.rb", workflow);
-        Assert.Contains("brew install --formula", workflow);
-        Assert.Contains("brew test picket", workflow);
+        Assert.Contains("brew tap --custom-remote $tapName (Resolve-Path homebrew-tap)", workflow);
+        Assert.Contains("$tapRepository = (brew --repository $tapName).Trim()", workflow);
+        Assert.Contains("Copy-Item -LiteralPath homebrew-tap/Formula/picket.rb", workflow);
+        Assert.Contains("brew install \"$tapName/picket\"", workflow);
+        Assert.Contains("brew test \"$tapName/picket\"", workflow);
+        Assert.Contains("brew untap --force $tapName", workflow);
         Assert.Contains("update-scoop:", workflow);
         Assert.Contains("Update Scoop bucket", workflow);
         Assert.Contains("repository: willibrandon/scoop-bucket", workflow);
@@ -1130,16 +1140,26 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Submit WinGet manifest", workflow);
         Assert.Contains("repository: willibrandon/winget-pkgs", workflow);
         Assert.Contains("secrets.WINGET_PKGS_TOKEN", workflow);
-        Assert.Contains("winget validate --manifest", workflow);
+        Assert.Contains("-RequiredVersion '1.29.280'", workflow);
+        Assert.Contains("Repair-WinGetPackageManager -Version 'v1.29.280' -AllUsers -Force", workflow);
+        Assert.Contains("winget validate --manifest $manifestDirectory --disable-interactivity", workflow);
+        Assert.DoesNotContain("--ignore-warnings", workflow);
+        Assert.DoesNotContain("--nowarn", workflow);
         Assert.Contains("manifests/w/willibrandon/picket/$version", workflow);
         Assert.Contains("gh pr create --repo microsoft/winget-pkgs", workflow);
         Assert.Contains("README.md", workflow);
         Assert.Contains("-p:Version=$version", workflow);
         Assert.Contains("-p:PackageVersion=$version", workflow);
-        Assert.Contains("pattern: release-nuget*", workflow);
+        Assert.Contains("--pattern 'release-nuget*'", workflow);
         Assert.Contains("$pointerPackages", workflow);
+        Assert.Contains("Verify local dotnet tool install", workflow);
+        Assert.Contains("dotnet tool install Picket --tool-path $toolPath", workflow);
+        Assert.Contains("dotnet tool install Picket.Tui.Cli --tool-path $toolPath", workflow);
+        Assert.Contains("& $picket tui $missingReport", workflow);
         Assert.Contains("publish-container-architectures:", workflow);
         Assert.Contains("publish-container-latest:", workflow);
+        Assert.Contains("driver: docker-container", workflow);
+        Assert.Contains("--sbom=true --provenance=true --push", workflow);
         Assert.Contains("docker buildx imagetools create", workflow);
         Assert.Contains("- publish-release", workflow);
         Assert.Contains("- publish-container", workflow);
@@ -1152,7 +1172,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("exact byte counts", documentation);
         Assert.Contains("attested separately", documentation);
         Assert.Contains("picket-<tag>-azure-devops.vsix", documentation);
-        Assert.Contains("Publishing to the Azure DevOps Marketplace remains an explicit release step", documentation);
+        Assert.Contains("Release workflow automatically revalidates the VSIX", documentation);
         Assert.Contains("Windows MSI Installers", documentation);
         Assert.Contains("picket-<tag>-win-x64.msi", documentation);
         Assert.Contains("picket-<tag>-win-arm64.msi", documentation);
@@ -1256,7 +1276,7 @@ public sealed partial class RepositoryConventionTests
         XElement props = ReadProjectFile("Directory.Build.props");
         string targets = ReadRepositoryFile("Directory.Build.targets");
 
-        AssertProjectProperty(props, "VersionPrefix", "0.1.4");
+        AssertProjectProperty(props, "VersionPrefix", "0.1.5");
         AssertProjectProperty(props, "Authors", "willibrandon");
         AssertProjectProperty(props, "PackageLicenseExpression", "MIT");
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
