@@ -30,6 +30,12 @@ internal static partial class Program
             return true;
         }
 
+        if (!TryValidateNativeIgnoreFilePaths(nativeIgnorePaths))
+        {
+            picketIgnore = null;
+            return false;
+        }
+
         try
         {
             picketIgnore = PicketIgnore.LoadExisting(root, nativeIgnorePaths);
@@ -41,6 +47,40 @@ internal static partial class Program
             picketIgnore = null;
             return false;
         }
+    }
+
+    static bool TryValidateNativeIgnoreFilePaths(IReadOnlyList<string> nativeIgnorePaths)
+    {
+        for (int i = 0; i < nativeIgnorePaths.Count; i++)
+        {
+            string path = nativeIgnorePaths[i];
+            try
+            {
+                FileAttributes attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    Console.Error.WriteLine($"invalid --ignore-path: path is a directory: {path}");
+                    return false;
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                Console.Error.WriteLine($"invalid --ignore-path: file does not exist: {path}");
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                Console.Error.WriteLine($"invalid --ignore-path: file does not exist: {path}");
+                return false;
+            }
+            catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine($"invalid --ignore-path '{path}': {ex.Message}");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     static void WritePicketIgnoreStaleWarnings(PicketIgnore picketIgnore)

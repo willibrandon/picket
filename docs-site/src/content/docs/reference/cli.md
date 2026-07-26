@@ -258,7 +258,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--ignore-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Load additional ignore patterns from this file.</td>
+              <td data-label="Description">Load additional patterns from an ignore file. The value is a file path, not a glob.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--no-ignore</code></td>
@@ -1753,7 +1753,7 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Option"><code>--ignore-path</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
-              <td data-label="Description">Load additional ignore patterns from this file.</td>
+              <td data-label="Description">Load additional patterns from an ignore file. The value is a file path, not a glob.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--no-ignore</code></td>

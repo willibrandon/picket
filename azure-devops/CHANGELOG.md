@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11
+
+- Report invalid `--ignore-path` files and malformed ignore patterns without unhandled exceptions.
+
 ## 0.1.10
 
 - Publish the GitHub Action under the unique Picket Secret Scanner Marketplace name.

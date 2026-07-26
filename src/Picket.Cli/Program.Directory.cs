@@ -553,7 +553,7 @@ internal static partial class Program
 
             picketIgnore = loadedPicketIgnore;
             long? enumerationMaxTargetBytes = GetEnumerationMaxTargetBytes(maxTargetBytes, nativeMode);
-            files = DirectorySource.Enumerate(new DirectoryScanOptions(
+            var directoryScanOptions = new DirectoryScanOptions(
                 root,
                 maxTargetBytes: enumerationMaxTargetBytes,
                 followSymbolicLinks: followSymlinks,
@@ -571,7 +571,11 @@ internal static partial class Program
                 ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
                 warningSink: Console.Error.WriteLine,
                 isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
-                identifyArchivesByContent: nativeMode));
+                identifyArchivesByContent: nativeMode);
+            if (!TryEnumerateDirectorySource(directoryScanOptions, out files))
+            {
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
+            }
         }
         else
         {

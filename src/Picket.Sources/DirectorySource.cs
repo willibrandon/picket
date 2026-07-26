@@ -1,3 +1,4 @@
+using Scout.IO.Globbing;
 using Scout.IO.Ignore;
 
 namespace Picket.Sources;
@@ -18,6 +19,21 @@ public sealed class DirectorySource
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        try
+        {
+            return EnumerateCore(options);
+        }
+        catch (GlobParseException exception)
+        {
+            string context = options.IgnoreFilePaths.Count == 1
+                ? $" in '{options.IgnoreFilePaths[0]}'"
+                : string.Empty;
+            throw new InvalidDataException($"invalid ignore pattern{context}: {exception.Message}", exception);
+        }
+    }
+
+    private static List<SourceFile> EnumerateCore(DirectoryScanOptions options)
+    {
         if (IsCancellationRequested(options))
         {
             return [];

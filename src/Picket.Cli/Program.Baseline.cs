@@ -335,7 +335,7 @@ internal static partial class Program
             return CompleteRun(1, diagnosticsSession);
         }
 
-        IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+        var directoryScanOptions = new DirectoryScanOptions(
             root,
             maxTargetBytes: maxTargetBytes,
             followSymbolicLinks: followSymlinks,
@@ -352,7 +352,12 @@ internal static partial class Program
             readParentIgnoreFiles: respectNativeIgnoreFiles,
             ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
             warningSink: Console.Error.WriteLine,
-            isCancellationRequested: () => IsTimedOut(timeoutTimestamp)));
+            isCancellationRequested: () => IsTimedOut(timeoutTimestamp));
+        if (!TryEnumerateDirectorySource(directoryScanOptions, out IReadOnlyList<SourceFile> files))
+        {
+            return CompleteRun(1, diagnosticsSession);
+        }
+
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
         string? reportDisplayPath = CreateControlFileDisplayPath(root, reportPath);

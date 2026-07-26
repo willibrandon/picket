@@ -175,7 +175,7 @@ internal static class CliOptionMetadata
             "--gitlab-token-env" => "Read the GitLab source enumeration token from this environment variable.",
             "--gitleaks-ignore-path" => "Load a Gitleaks ignore file.",
             "--ignore-gitleaks-allow" => "Do not honor gitleaks:allow comments.",
-            "--ignore-path" => "Load additional ignore patterns from this file.",
+            "--ignore-path" => "Load additional patterns from an ignore file. The value is a file path, not a glob.",
             "--input" => "Read a portable cache archive from this path.",
             "--live" => "Run opt-in live provider verification for supported findings.",
             "--live-provider-rate-limit-ms" => "Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.",

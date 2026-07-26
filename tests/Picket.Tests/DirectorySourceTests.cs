@@ -137,6 +137,30 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that invalid Scout patterns in explicit ignore files use the source-enumeration exception contract.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateRejectsInvalidExplicitIgnorePattern()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string ignorePath = Path.Combine(root, "picket.ignore");
+            File.WriteAllText(ignorePath, "[z-a]\n");
+
+            InvalidDataException exception = Assert.ThrowsExactly<InvalidDataException>(
+                () => DirectorySource.Enumerate(new DirectoryScanOptions(root, ignoreFilePaths: [ignorePath])));
+
+            Assert.Contains($"invalid ignore pattern in '{ignorePath}'", exception.Message);
+            Assert.DoesNotContain("Scout.IO.Globbing", exception.Message);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that the max-target byte cap filters large files before scanning.
     /// </summary>
     [TestMethod]

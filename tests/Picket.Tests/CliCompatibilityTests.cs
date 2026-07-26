@@ -2734,6 +2734,64 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native scans reject a directory passed as an explicit ignore file without crashing.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRejectsDirectoryIgnorePathWithoutStackTrace()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignorePath = Directory.CreateDirectory(Path.Combine(root.Path, "docs")).FullName;
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "--ignore-path", ignorePath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ExitCode);
+        Assert.Contains("invalid --ignore-path: path is a directory:", result.Stderr);
+        Assert.Contains(ignorePath, result.Stderr);
+        Assert.DoesNotContain("Unhandled exception", result.Stderr);
+        Assert.DoesNotContain("Scout.IO.Ignore", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scans reject wildcard syntax where an explicit ignore-file path is required.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRejectsWildcardIgnorePathWithoutStackTrace()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignorePath = Path.Combine(root.Path, "docs", "*");
+        Directory.CreateDirectory(Path.GetDirectoryName(ignorePath)!);
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "--ignore-path", ignorePath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ExitCode);
+        Assert.Contains("invalid --ignore-path", result.Stderr);
+        Assert.Contains(ignorePath, result.Stderr);
+        Assert.DoesNotContain("Unhandled exception", result.Stderr);
+        Assert.DoesNotContain("Scout.IO.Globbing", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scans report invalid ignore-file patterns without exposing Scout stack traces.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRejectsInvalidIgnorePatternWithoutStackTrace()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignorePath = Path.Combine(root.Path, "picket.ignore");
+        File.WriteAllText(ignorePath, "[z-a]\n");
+
+        CliResult result = await RunCliAsync("scan", root.Path, "-c", configPath, "--ignore-path", ignorePath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ExitCode);
+        Assert.Contains($"failed to enumerate source: invalid ignore pattern in '{ignorePath}'", result.Stderr);
+        Assert.DoesNotContain("Unhandled exception", result.Stderr);
+        Assert.DoesNotContain("Scout.IO.Globbing", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that compatibility directory scans are not affected by native .picketignore rules.
     /// </summary>
     [TestMethod]
@@ -2781,6 +2839,25 @@ public sealed class CliCompatibilityTests
         Assert.DoesNotContain("token-99991", baseline);
         Assert.AreEqual(0, scan.ExitCode);
         Assert.IsEmpty(scan.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that baseline creation rejects a directory passed as an explicit ignore file without crashing.
+    /// </summary>
+    [TestMethod]
+    public async Task BaselineCreateRejectsDirectoryIgnorePathWithoutStackTrace()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string ignorePath = Directory.CreateDirectory(Path.Combine(root.Path, "docs")).FullName;
+
+        CliResult result = await RunCliAsync("baseline", "create", root.Path, "-c", configPath, "--ignore-path", ignorePath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("invalid --ignore-path: path is a directory:", result.Stderr);
+        Assert.Contains(ignorePath, result.Stderr);
+        Assert.DoesNotContain("Unhandled exception", result.Stderr);
+        Assert.DoesNotContain("Scout.IO.Ignore", result.Stderr);
     }
 
     /// <summary>
