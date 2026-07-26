@@ -800,8 +800,10 @@ jobs:
           cache-dependency-path: azure-devops/package-lock.json
 
       - name: Install Azure DevOps packaging dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: azure-devops
+        run: |
+          npm ci --ignore-scripts --no-fund
+          npm audit --audit-level=low
 
       - name: Test Azure DevOps task
         run: node --test azure-devops/tasks/PicketScanV1/index.test.js
@@ -1521,7 +1523,7 @@ jobs:
             -Scope CurrentUser `
             -Force
           Import-Module Microsoft.WinGet.Client -RequiredVersion '1.29.280' -Force
-          Repair-WinGetPackageManager -Version 'v1.29.280' -AllUsers -Force
+          Repair-WinGetPackageManager -Version 'v1.29.280' -Force
 
           $version = winget --version
           if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'v1.29.280') {
@@ -1668,8 +1670,10 @@ jobs:
           cache-dependency-path: azure-devops/package-lock.json
 
       - name: Install Azure DevOps publishing dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: azure-devops
+        run: |
+          npm ci --ignore-scripts --no-fund
+          npm audit --audit-level=low
 
       - name: Download release VSIX
         shell: pwsh

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Validate WinGet manifests through a current-user package-manager repair on hosted release runners.
+
 ## 0.1.6
 
 - Make the NuGet tool-install gate inspect expected nonzero companion exits without failing the release shell.

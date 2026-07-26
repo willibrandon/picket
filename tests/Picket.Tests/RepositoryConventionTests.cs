@@ -617,10 +617,15 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dotnet pack src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }}", workflow);
         Assert.Contains("dotnet pack src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }}", workflow);
         Assert.Contains("Validate Azure DevOps VSIX package", workflow);
-        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", workflow);
+        Assert.Contains("npm ci --ignore-scripts --no-fund", workflow);
+        Assert.Contains("npm audit --audit-level=low", workflow);
+        Assert.DoesNotContain("--no-audit", workflow);
         Assert.Contains("npm exec -- tfx extension create", workflow);
         Assert.DoesNotContain("npx --yes", workflow);
-        Assert.Contains("\"tfx-cli\": \"0.23.3\"", azureDevOpsPackage);
+        Assert.Contains("\"brace-expansion\": \"5.0.8\"", azureDevOpsPackage);
+        Assert.Contains("\"glob\": \"13.0.6\"", azureDevOpsPackage);
+        Assert.Contains("\"minimatch\": \"10.2.5\"", azureDevOpsPackage);
+        Assert.Contains("\"tfx-cli\": \"0.23.4\"", azureDevOpsPackage);
         Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
         Assert.Contains("--manifest-globs vss-extension.json", workflow);
         Assert.Contains("working-directory: azure-devops", workflow);
@@ -662,10 +667,14 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("pnpm/action-setup@v", docs);
         Assert.DoesNotContain("pnpm/action-setup@v", release);
         Assert.DoesNotContain("npx --yes", ci);
-        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", ci);
+        Assert.Contains("npm ci --ignore-scripts --no-fund", ci);
+        Assert.Contains("npm audit --audit-level=low", ci);
+        Assert.DoesNotContain("--no-audit", ci);
         Assert.Contains("npm exec -- tfx extension create", ci);
         Assert.DoesNotContain("npx --yes", release);
-        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", release);
+        Assert.Contains("npm ci --ignore-scripts --no-fund", release);
+        Assert.Contains("npm audit --audit-level=low", release);
+        Assert.DoesNotContain("--no-audit", release);
         Assert.Contains("npm exec -- tfx extension create", release);
         Assert.Contains("cache-dependency-path: azure-devops/package-lock.json", release);
         Assert.Contains("\"lockfileVersion\": 3", azureDevOpsLock);
@@ -693,6 +702,8 @@ public sealed partial class RepositoryConventionTests
         AssertActionReference(workflows, "actions/upload-artifact", "actions/upload-artifact@v7.0.1");
         AssertActionReference(workflows, "actions/upload-pages-artifact", "actions/upload-pages-artifact@v5.0.0");
         Assert.DoesNotContain("actions/download-artifact@", workflows);
+        Assert.HasCount(6, workflows.Split("node-version: 24", StringSplitOptions.None));
+        Assert.DoesNotContain("node-version: 20", workflows);
     }
 
     /// <summary>
@@ -805,7 +816,7 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
-        Assert.AreEqual("0.1.6", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("0.1.7", extensionRoot.GetProperty("version").GetString());
         HashSet<string> galleryFlags = [.. extensionRoot
             .GetProperty("galleryFlags")
             .EnumerateArray()
@@ -908,7 +919,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secret-hash-only", privacy);
         Assert.Contains("agent `3.220.0` or newer", compatibility);
         Assert.Contains("`linux-musl-arm64`", compatibility);
-        Assert.Contains("## 0.1.6", changelog);
+        Assert.Contains("## 0.1.7", changelog);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task", azureDevOps);
@@ -1085,7 +1096,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("build-azure-devops-extension:", workflow);
         Assert.Contains("Build Azure DevOps VSIX", workflow);
         Assert.Contains("cache-dependency-path: azure-devops/package-lock.json", workflow);
-        Assert.Contains("npm ci --ignore-scripts --no-audit --no-fund", workflow);
+        Assert.Contains("npm ci --ignore-scripts --no-fund", workflow);
+        Assert.Contains("npm audit --audit-level=low", workflow);
+        Assert.DoesNotContain("--no-audit", workflow);
         Assert.Contains("node --test azure-devops/tasks/PicketScanV1/index.test.js", workflow);
         Assert.Contains("npm exec -- tfx extension create", workflow);
         Assert.Contains("--override $override", workflow);
@@ -1141,7 +1154,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("repository: willibrandon/winget-pkgs", workflow);
         Assert.Contains("secrets.WINGET_PKGS_TOKEN", workflow);
         Assert.Contains("-RequiredVersion '1.29.280'", workflow);
-        Assert.Contains("Repair-WinGetPackageManager -Version 'v1.29.280' -AllUsers -Force", workflow);
+        Assert.Contains("Repair-WinGetPackageManager -Version 'v1.29.280' -Force", workflow);
+        Assert.DoesNotContain("Repair-WinGetPackageManager -Version 'v1.29.280' -AllUsers", workflow);
         Assert.Contains("winget validate --manifest $manifestDirectory --disable-interactivity", workflow);
         Assert.DoesNotContain("--ignore-warnings", workflow);
         Assert.DoesNotContain("--nowarn", workflow);
@@ -1279,7 +1293,7 @@ public sealed partial class RepositoryConventionTests
         XElement props = ReadProjectFile("Directory.Build.props");
         string targets = ReadRepositoryFile("Directory.Build.targets");
 
-        AssertProjectProperty(props, "VersionPrefix", "0.1.6");
+        AssertProjectProperty(props, "VersionPrefix", "0.1.7");
         AssertProjectProperty(props, "Authors", "willibrandon");
         AssertProjectProperty(props, "PackageLicenseExpression", "MIT");
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
