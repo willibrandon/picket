@@ -87,7 +87,7 @@ Without `--report-format`, Picket infers the writer from `--report-path`:
 - `.junit.xml` selects JUnit for native commands.
 - `gl-code-quality-report.json` or `*.gitlab-code-quality.json` selects GitLab code-quality for native commands.
 
-When no path or format is supplied, JSON is written to standard output.
+Native commands write JSON to standard output when no path or format is supplied. Gitleaks-compatible commands do not write a report unless `--report-path` is supplied; use `--report-path -` to write the report to standard output.
 
 Native commands create missing parent directories for file report paths and print `report written: <path>` to standard error after saving a report file. Standard output remains reserved for report content when no report path is supplied or when `--report-path -` is used.
 
