@@ -58,9 +58,9 @@ internal static class GeneratePackageManagerManifestsApp
         string repository = RequireRepository(ScriptSupport.GetString(values, "Repository", "willibrandon/picket"));
         string checksumsPath = Path.GetFullPath(ScriptSupport.GetString(values, "ChecksumsPath", Path.Combine(repositoryRoot, "dist", "checksums.txt")));
         string outputDirectory = Path.GetFullPath(ScriptSupport.GetString(values, "OutputDirectory", Path.Combine(repositoryRoot, "artifacts", "package-managers")));
-        string packageIdentifier = RequireNonEmpty(ScriptSupport.GetString(values, "PackageIdentifier", "Willibrandon.Picket"), "PackageIdentifier");
+        string packageIdentifier = RequireNonEmpty(ScriptSupport.GetString(values, "PackageIdentifier", "willibrandon.picket"), "PackageIdentifier");
         string packageName = RequireNonEmpty(ScriptSupport.GetString(values, "PackageName", "Picket"), "PackageName");
-        string publisher = RequireNonEmpty(ScriptSupport.GetString(values, "Publisher", "Brandon Williams"), "Publisher");
+        string publisher = RequireNonEmpty(ScriptSupport.GetString(values, "Publisher", "willibrandon"), "Publisher");
         string publisherUrl = RequireNonEmpty(ScriptSupport.GetString(values, "PublisherUrl", "https://github.com/willibrandon"), "PublisherUrl");
 
         Dictionary<string, string> checksums = ReadChecksums(checksumsPath);
@@ -314,6 +314,9 @@ internal static class GeneratePackageManagerManifestsApp
         Directory.CreateDirectory(formulaDirectory);
         string formulaPath = Path.Combine(formulaDirectory, "picket.rb");
         var formula = new StringBuilder();
+        formula.AppendLine("# typed: false");
+        formula.AppendLine("# frozen_string_literal: true");
+        formula.AppendLine();
         formula.AppendLine("class Picket < Formula");
         formula.AppendLine("  desc \"Native AOT secrets scanner with Gitleaks-compatible and Picket-native modes\"");
         formula.AppendLine($"  homepage \"https://github.com/{repository}\"");
@@ -321,20 +324,22 @@ internal static class GeneratePackageManagerManifestsApp
         formula.AppendLine("  license \"MIT\"");
         formula.AppendLine();
         formula.AppendLine("  on_macos do");
-        formula.AppendLine("    if Hardware::CPU.arm?");
+        formula.AppendLine("    on_arm do");
         formula.AppendLine($"      url \"{CreateArchiveUrl(repository, releaseTag, "osx-arm64", "tar.gz")}\"");
         formula.AppendLine($"      sha256 \"{archiveHashes["osx-arm64"]}\"");
-        formula.AppendLine("    else");
+        formula.AppendLine("    end");
+        formula.AppendLine("    on_intel do");
         formula.AppendLine($"      url \"{CreateArchiveUrl(repository, releaseTag, "osx-x64", "tar.gz")}\"");
         formula.AppendLine($"      sha256 \"{archiveHashes["osx-x64"]}\"");
         formula.AppendLine("    end");
         formula.AppendLine("  end");
         formula.AppendLine();
         formula.AppendLine("  on_linux do");
-        formula.AppendLine("    if Hardware::CPU.arm?");
+        formula.AppendLine("    on_arm do");
         formula.AppendLine($"      url \"{CreateArchiveUrl(repository, releaseTag, "linux-arm64", "tar.gz")}\"");
         formula.AppendLine($"      sha256 \"{archiveHashes["linux-arm64"]}\"");
-        formula.AppendLine("    else");
+        formula.AppendLine("    end");
+        formula.AppendLine("    on_intel do");
         formula.AppendLine($"      url \"{CreateArchiveUrl(repository, releaseTag, "linux-x64", "tar.gz")}\"");
         formula.AppendLine($"      sha256 \"{archiveHashes["linux-x64"]}\"");
         formula.AppendLine("    end");
@@ -405,6 +410,9 @@ internal static class GeneratePackageManagerManifestsApp
         json.AppendLine("      \"arm64\": {");
         AppendJsonProperty(json, 8, "url", $"https://github.com/{repository}/releases/download/v$version/picket-v$version-win-arm64.zip", trailingComma: false);
         json.AppendLine("      }");
+        json.AppendLine("    },");
+        json.AppendLine("    \"hash\": {");
+        AppendJsonProperty(json, 6, "url", "$url.sha256", trailingComma: false);
         json.AppendLine("    }");
         json.AppendLine("  }");
         json.AppendLine("}");
@@ -518,6 +526,7 @@ internal static class GeneratePackageManagerManifestsApp
         ScriptSupport.WriteTextFile(
             versionPath,
             $$"""
+            # yaml-language-server: $schema=https://aka.ms/winget-manifest.version.{{WingetManifestVersion}}.schema.json
             PackageIdentifier: {{packageIdentifier}}
             PackageVersion: {{version}}
             DefaultLocale: en-US
@@ -527,6 +536,7 @@ internal static class GeneratePackageManagerManifestsApp
         ScriptSupport.WriteTextFile(
             localePath,
             $$"""
+            # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.{{WingetManifestVersion}}.schema.json
             PackageIdentifier: {{packageIdentifier}}
             PackageVersion: {{version}}
             PackageLocale: en-US
@@ -549,6 +559,7 @@ internal static class GeneratePackageManagerManifestsApp
         ScriptSupport.WriteTextFile(
             installerPath,
             $$"""
+            # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.{{WingetManifestVersion}}.schema.json
             PackageIdentifier: {{packageIdentifier}}
             PackageVersion: {{version}}
             MinimumOSVersion: 10.0.17763.0

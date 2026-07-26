@@ -6,17 +6,17 @@ Release packaging is generated from built release artifacts, not maintained by h
 
 - `homebrew/picket.rb`
 - `scoop/picket.json`
-- `winget/Willibrandon.Picket/<version>/Willibrandon.Picket.yaml`
-- `winget/Willibrandon.Picket/<version>/Willibrandon.Picket.locale.en-US.yaml`
-- `winget/Willibrandon.Picket/<version>/Willibrandon.Picket.installer.yaml`
+- `winget/willibrandon.picket/<version>/willibrandon.picket.yaml`
+- `winget/willibrandon.picket/<version>/willibrandon.picket.locale.en-US.yaml`
+- `winget/willibrandon.picket/<version>/willibrandon.picket.installer.yaml`
 
 Run it locally after release archives and checksums exist:
 
 ```powershell
-dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.4.2 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
+dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.1.4 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
 ```
 
-The release workflow packages those files into `picket-<tag>-package-manager-manifests.zip`. Publish or submit the generated files from that bundle to the appropriate package-manager repository after validating the target repository policy.
+The release workflow packages those files into `picket-<tag>-package-manager-manifests.zip`. Stable releases validate and commit the Homebrew and Scoop files to their package repositories and submit the WinGet set through a pull request. Prereleases publish the bundle without changing package repositories.
 
 The WinGet manifests use the Windows ZIP portable installer path so `picket.exe` and `picket-tui.exe` remain the same Native AOT executables shipped in the Windows release archives.
 

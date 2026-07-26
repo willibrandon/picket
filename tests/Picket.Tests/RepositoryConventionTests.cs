@@ -1064,9 +1064,16 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("extension manifest versions do not support prerelease labels", workflow);
         Assert.Contains("release-azure-devops-vsix", workflow);
         Assert.Contains("build-msi:", workflow);
-        Assert.Contains("Build Windows MSI installers", workflow);
+        Assert.Contains("Build Windows MSI installer (${{ matrix.rid }})", workflow);
+        Assert.Contains("runs-on: ${{ matrix.os }}", workflow);
+        Assert.Contains("os: windows-latest", workflow);
+        Assert.Contains("os: windows-11-arm", workflow);
+        Assert.Contains("architecture: x64", workflow);
+        Assert.Contains("architecture: arm64", workflow);
+        Assert.Contains("name: release-binaries-${{ matrix.rid }}", workflow);
+        Assert.Contains("name: release-msi-${{ matrix.rid }}", workflow);
+        Assert.DoesNotContain("foreach ($rid in @('win-x64', 'win-arm64'))", workflow);
         Assert.Contains("dotnet tool install --tool-path (Join-Path $env:RUNNER_TEMP 'wix') wix --version 6.0.2", workflow);
-        Assert.Contains("pattern: release-binaries-win-*", workflow);
         Assert.Contains("packaging/msi/Picket.wxs", workflow);
         Assert.Contains("picket-$env:RELEASE_TAG-$rid.msi", workflow);
         Assert.Contains("Windows Installer ProductVersion does not support prerelease labels", workflow);
@@ -1084,6 +1091,26 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("dist/release-artifacts.json", workflow);
         Assert.Contains("package-size metadata", workflow);
         Assert.Contains("package-manager-manifests.zip", workflow);
+        Assert.Contains("update-homebrew:", workflow);
+        Assert.Contains("Update Homebrew tap", workflow);
+        Assert.Contains("repository: willibrandon/homebrew-tap", workflow);
+        Assert.Contains("secrets.HOMEBREW_TAP_TOKEN", workflow);
+        Assert.Contains("Formula/picket.rb", workflow);
+        Assert.Contains("brew install --formula", workflow);
+        Assert.Contains("brew test picket", workflow);
+        Assert.Contains("update-scoop:", workflow);
+        Assert.Contains("Update Scoop bucket", workflow);
+        Assert.Contains("repository: willibrandon/scoop-bucket", workflow);
+        Assert.Contains("secrets.SCOOP_BUCKET_TOKEN", workflow);
+        Assert.Contains("bucket/picket.json", workflow);
+        Assert.Contains("submit-winget:", workflow);
+        Assert.Contains("Submit WinGet manifest", workflow);
+        Assert.Contains("repository: willibrandon/winget-pkgs", workflow);
+        Assert.Contains("secrets.WINGET_PKGS_TOKEN", workflow);
+        Assert.Contains("winget validate --manifest", workflow);
+        Assert.Contains("manifests/w/willibrandon/picket/$version", workflow);
+        Assert.Contains("gh pr create --repo microsoft/winget-pkgs", workflow);
+        Assert.Contains("README.md", workflow);
         Assert.Contains("-p:Version=$version", workflow);
         Assert.Contains("-p:PackageVersion=$version", workflow);
         Assert.Contains("pattern: release-nuget*", workflow);
@@ -1129,13 +1156,17 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("picket-<tag>-package-manager-manifests.zip", packaging);
         Assert.Contains("homebrew/picket.rb", packaging);
         Assert.Contains("scoop/picket.json", packaging);
-        Assert.Contains("winget/Willibrandon.Picket/<version>", packaging);
+        Assert.Contains("winget/willibrandon.picket/<version>", packaging);
         Assert.Contains("packaging/msi/Picket.wxs", packaging);
         Assert.Contains("Program Files\\Picket", packaging);
         Assert.Contains("ProductVersion", packaging);
         Assert.Contains("InstallerType: zip", script);
         Assert.Contains("NestedInstallerType: portable", script);
         Assert.Contains("ManifestVersion: {{WingetManifestVersion}}", script);
+        Assert.Contains("winget-manifest.version.{{WingetManifestVersion}}.schema.json", script);
+        Assert.Contains("winget-manifest.defaultLocale.{{WingetManifestVersion}}.schema.json", script);
+        Assert.Contains("winget-manifest.installer.{{WingetManifestVersion}}.schema.json", script);
+        Assert.Contains("\"willibrandon.picket\"", script);
         Assert.Contains("libexec.install Dir[\\\"*\\\"]", script);
         Assert.Contains("bin.write_exec_script libexec/\\\"picket\\\"", script);
         Assert.Contains("bin.write_exec_script libexec/\\\"picket-tui\\\"", script);
@@ -1146,6 +1177,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("linux-x64", script);
         Assert.Contains("linux-arm64", script);
         Assert.Contains("Release automation generates package-manager submission files", release);
+        Assert.Contains("willibrandon/homebrew-tap", release);
+        Assert.Contains("willibrandon/scoop-bucket", release);
+        Assert.Contains("willibrandon/winget-pkgs", release);
+        Assert.Contains("microsoft/winget-pkgs", release);
     }
 
     /// <summary>
@@ -1172,7 +1207,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Value=\"[INSTALLFOLDER]\"", installer);
         Assert.Contains("System=\"yes\"", installer);
         Assert.Contains("Root=\"HKLM\"", installer);
-        Assert.Contains("Build Windows MSI installers", workflow);
+        Assert.Contains("Build Windows MSI installer (${{ matrix.rid }})", workflow);
         Assert.Contains("-arch $architecture", workflow);
         Assert.Contains("-d \"Version=$version\"", workflow);
         Assert.Contains("-d \"PayloadDir=$payload\"", workflow);

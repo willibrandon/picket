@@ -1529,6 +1529,19 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that package-manager validation can invoke the executable without arguments.
+    /// </summary>
+    [TestMethod]
+    public async Task RootInvocationWithoutArgumentsShowsHelp()
+    {
+        CliResult result = await RunCliAsync().ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket [command] [options]", result.Stdout);
+        Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that hidden compatibility shims still expose direct command help.
     /// </summary>
     [TestMethod]

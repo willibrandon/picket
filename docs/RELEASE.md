@@ -118,17 +118,19 @@ Release automation generates package-manager submission files from the actual re
 
 - `homebrew/picket.rb` for a Homebrew tap.
 - `scoop/picket.json` for a Scoop bucket.
-- `winget/Willibrandon.Picket/<version>/` for WinGet package submission.
+- `winget/willibrandon.picket/<version>/` for WinGet package submission.
 
 The generated files are packaged as `picket-<tag>-package-manager-manifests.zip` and uploaded to the GitHub Release with its own `.sha256` sidecar. The final aggregate `checksums.txt` includes the manifest bundle.
 
 Generate the same files locally from a release checksum file with:
 
 ```powershell
-dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.4.2 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
+dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.1.4 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
 ```
 
-The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. Homebrew keeps the complete archive payload under `libexec` and writes command wrappers so the bundled zstandard library remains beside both executables. Scoop and WinGet retain the complete portable ZIP payload. The manifests do not change scanner behavior or publish directly into third-party package repositories.
+The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. Homebrew keeps the complete archive payload under `libexec` and writes command wrappers so the bundled zstandard library remains beside both executables. Scoop and WinGet retain the complete portable ZIP payload.
+
+For stable tags, the release workflow validates and commits `Formula/picket.rb` to `willibrandon/homebrew-tap`, commits `bucket/picket.json` to `willibrandon/scoop-bucket`, and updates both repository catalogs. It also validates the WinGet manifest set, pushes it to `willibrandon/winget-pkgs`, and opens or reuses a pull request against `microsoft/winget-pkgs`. Prerelease tags publish the manifest bundle with the GitHub Release but do not update package repositories.
 
 ## Windows MSI Installers
 
@@ -139,7 +141,7 @@ The MSI artifacts are named:
 - `picket-<tag>-win-x64.msi`
 - `picket-<tag>-win-arm64.msi`
 
-Each MSI is installed into a temporary directory, exercises a zstandard scan through the installed executable, verifies the full payload, and is uninstalled before release assembly. It then receives a `.sha256` sidecar and a GitHub artifact attestation. Prerelease tags skip MSI artifacts because Windows Installer `ProductVersion` does not support SemVer prerelease labels. MSI packaging does not rebuild scanner code and does not change CLI defaults, report behavior, validation policy, or telemetry policy.
+Each MSI is built, installed, and tested on a matching Windows runner architecture. The test installs into a temporary directory, exercises a zstandard scan through the installed executable, verifies the full payload, and uninstalls it before release assembly. Each artifact then receives a `.sha256` sidecar and a GitHub artifact attestation. Prerelease tags skip MSI artifacts because Windows Installer `ProductVersion` does not support SemVer prerelease labels. MSI packaging does not rebuild scanner code and does not change CLI defaults, report behavior, validation policy, or telemetry policy.
 
 ## Azure DevOps VSIX Validation
 
@@ -184,7 +186,7 @@ Tags that match `v*.*.*` run `.github/workflows/release.yml`. The workflow can a
 
 The workflow validates the source tree and runs the local GitHub Action smoke test. It builds `release-speed` Native AOT binary archives for `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-arm64`, `osx-x64`, and `osx-arm64`; builds and installs Windows MSI installers; packages the Azure DevOps VSIX; validates native container images; and packages the public NuGet libraries, top-level tool pointer packages, and RID-specific Native AOT tool packages.
 
-The release assembly generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt`, and creates or updates the GitHub Release for the tag. It also writes `release-artifacts.json`, a deterministic inventory of final payload names, exact byte counts, and SHA-256 digests. Checksum sidecars and `checksums.txt` are excluded from that payload-size inventory; the inventory itself is included in `checksums.txt`, attested separately, and published with the release. Only after that immutable release exists does the workflow publish `.nupkg` and `.snupkg` files to NuGet.org and per-architecture GHCR images. The versioned container manifest follows those architecture images; the mutable `latest` tag waits for both NuGet and container publication.
+The release assembly generates Homebrew, Scoop, and WinGet manifests from release checksums, writes per-asset `.sha256` files, writes an aggregate `checksums.txt`, and creates or updates the GitHub Release for the tag. It also writes `release-artifacts.json`, a deterministic inventory of final payload names, exact byte counts, and SHA-256 digests. Checksum sidecars and `checksums.txt` are excluded from that payload-size inventory; the inventory itself is included in `checksums.txt`, attested separately, and published with the release. Only after that immutable release exists does the workflow publish `.nupkg` and `.snupkg` files to NuGet.org and per-architecture GHCR images. Stable releases then update the Homebrew tap and Scoop bucket and submit the WinGet manifest. The versioned container manifest follows its architecture images; the mutable `latest` tag waits for both NuGet and container publication.
 
 Release provenance uses GitHub artifact attestations through `actions/attest@v4`. GitHub's current guidance for binary provenance requires `id-token: write`, `contents: read`, `attestations: write`, and a step that attests the built artifact. Consumers can verify a downloaded artifact with:
 
