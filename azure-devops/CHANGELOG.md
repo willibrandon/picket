@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9
+
+- Keep `picket tui` attached to the invoking terminal when the companion is installed as a separate .NET tool.
+
 ## 0.1.8
 
 - Publish the public Marketplace extension without applying private sharing metadata.

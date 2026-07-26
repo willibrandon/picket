@@ -152,29 +152,29 @@
       "picket.analyze": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.8, )"
+          "Picket.Engine": "[0.1.9, )"
         }
       },
       "picket.compat": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.8, )",
-          "Picket.Rules": "[0.1.8, )"
+          "Picket.Engine": "[0.1.9, )",
+          "Picket.Rules": "[0.1.9, )"
         }
       },
       "picket.docs": {
         "type": "Project",
         "dependencies": {
-          "Picket.Analyze": "[0.1.8, )",
-          "Picket.Compat": "[0.1.8, )",
-          "Picket.Report": "[0.1.8, )",
-          "Picket.Verify": "[0.1.8, )"
+          "Picket.Analyze": "[0.1.9, )",
+          "Picket.Compat": "[0.1.9, )",
+          "Picket.Report": "[0.1.9, )",
+          "Picket.Verify": "[0.1.9, )"
         }
       },
       "picket.engine": {
         "type": "Project",
         "dependencies": {
-          "Picket.Rules": "[0.1.8, )",
+          "Picket.Rules": "[0.1.9, )",
           "Scout.Text.Regex": "[0.4.7, )",
           "SharpYaml": "[3.13.0, )"
         }
@@ -182,8 +182,8 @@
       "picket.report": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.8, )",
-          "Picket.Rules": "[0.1.8, )"
+          "Picket.Engine": "[0.1.9, )",
+          "Picket.Rules": "[0.1.9, )"
         }
       },
       "picket.rules": {
@@ -206,22 +206,22 @@
       "picket.store": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.8, )",
-          "Picket.Security": "[0.1.8, )"
+          "Picket.Engine": "[0.1.9, )",
+          "Picket.Security": "[0.1.9, )"
         }
       },
       "picket.tui": {
         "type": "Project",
         "dependencies": {
           "Hex1b": "[0.165.0, )",
-          "Picket.Report": "[0.1.8, )"
+          "Picket.Report": "[0.1.9, )"
         }
       },
       "picket.verify": {
         "type": "Project",
         "dependencies": {
-          "Picket.Engine": "[0.1.8, )",
-          "Picket.Security": "[0.1.8, )"
+          "Picket.Engine": "[0.1.9, )",
+          "Picket.Security": "[0.1.9, )"
         }
       },
       "Hex1b": {
