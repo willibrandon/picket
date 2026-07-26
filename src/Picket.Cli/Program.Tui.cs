@@ -97,14 +97,10 @@ internal static partial class Program
 
     private static async Task<int> RunTuiCompanionAsync(string[] args)
     {
-        string executablePath = ResolveTuiCompanionPath(out bool useShellExecute);
-        using var process = new Process();
-        process.StartInfo.FileName = executablePath;
-        process.StartInfo.UseShellExecute = useShellExecute;
-        for (int i = 0; i < args.Length; i++)
+        using var process = new Process
         {
-            process.StartInfo.ArgumentList.Add(args[i]);
-        }
+            StartInfo = CreateTuiCompanionStartInfo(args),
+        };
 
         if (!process.Start())
         {
@@ -115,18 +111,79 @@ internal static partial class Program
         return process.ExitCode;
     }
 
-    private static string ResolveTuiCompanionPath(out bool useShellExecute)
+    private static ProcessStartInfo CreateTuiCompanionStartInfo(string[] args)
+    {
+        string executablePath = ResolveTuiCompanionPath();
+        ProcessStartInfo startInfo;
+        if (OperatingSystem.IsWindows()
+            && Path.GetExtension(executablePath) is ".cmd" or ".bat")
+        {
+            startInfo = new ProcessStartInfo(ResolveWindowsCommandProcessor())
+            {
+                UseShellExecute = false,
+            };
+            startInfo.ArgumentList.Add("/d");
+            startInfo.ArgumentList.Add("/s");
+            startInfo.ArgumentList.Add("/c");
+            startInfo.ArgumentList.Add(executablePath);
+        }
+        else
+        {
+            startInfo = new ProcessStartInfo(executablePath)
+            {
+                UseShellExecute = false,
+            };
+        }
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            startInfo.ArgumentList.Add(args[i]);
+        }
+
+        return startInfo;
+    }
+
+    private static string ResolveTuiCompanionPath()
     {
         string executableName = OperatingSystem.IsWindows() ? "picket-tui.exe" : "picket-tui";
         string besidePicket = Path.Combine(AppContext.BaseDirectory, executableName);
         if (File.Exists(besidePicket))
         {
-            useShellExecute = false;
             return besidePicket;
         }
 
-        useShellExecute = OperatingSystem.IsWindows();
-        return "picket-tui";
+        if (!OperatingSystem.IsWindows())
+        {
+            return executableName;
+        }
+
+        string? path = Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            string[] extensions = [".exe", ".cmd", ".bat"];
+            foreach (string directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmedDirectory = directory.Trim().Trim('"');
+                for (int extensionIndex = 0; extensionIndex < extensions.Length; extensionIndex++)
+                {
+                    string candidate = Path.Combine(trimmedDirectory, string.Concat("picket-tui", extensions[extensionIndex]));
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        return executableName;
+    }
+
+    private static string ResolveWindowsCommandProcessor()
+    {
+        string? commandProcessor = Environment.GetEnvironmentVariable("ComSpec");
+        return string.IsNullOrWhiteSpace(commandProcessor)
+            ? Path.Combine(Environment.SystemDirectory, "cmd.exe")
+            : commandProcessor;
     }
 
     private static bool IsFlowFlag(string arg)

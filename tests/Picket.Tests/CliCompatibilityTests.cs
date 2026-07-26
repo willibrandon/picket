@@ -1620,7 +1620,10 @@ public sealed class CliCompatibilityTests
     {
         using TempDirectory root = TempDirectory.Create();
         string shimPath = Path.Combine(root.Path, "picket-tui.cmd");
-        File.WriteAllText(shimPath, "@echo off\r\nexit /b 23\r\n", Encoding.ASCII);
+        File.WriteAllText(
+            shimPath,
+            "@echo off\r\necho current-console-tui\r\necho current-console-error 1>&2\r\nexit /b 23\r\n",
+            Encoding.ASCII);
         string existingPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
         var environment = new Dictionary<string, string?>
         {
@@ -1630,6 +1633,8 @@ public sealed class CliCompatibilityTests
         CliResult result = await RunCliWithEnvironmentAsync(environment, "tui", "--scan").ConfigureAwait(false);
 
         Assert.AreEqual(23, result.ExitCode);
+        Assert.Contains("current-console-tui", result.Stdout);
+        Assert.Contains("current-console-error", result.Stderr);
         Assert.DoesNotContain("requires the picket-tui companion executable", result.Stderr);
     }
 
