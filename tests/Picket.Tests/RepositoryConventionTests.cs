@@ -226,6 +226,10 @@ public sealed partial class RepositoryConventionTests
     {
         string action = ReadRepositoryFile("action.yml");
 
+        Assert.Contains("author: willibrandon", action);
+        Assert.Contains("branding:", action);
+        Assert.Contains("icon: shield", action);
+        Assert.Contains("color: green", action);
         Assert.Contains("upload-sarif", action);
         Assert.Contains("fail-on", action);
         Assert.Contains("summary", action);
@@ -930,10 +934,10 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
-    /// Verifies stable releases publish both Marketplace surfaces after provenance checks and without validation bypasses.
+    /// Verifies stable releases automate supported Marketplace steps, verify the public listing, and avoid validation bypasses.
     /// </summary>
     [TestMethod]
-    public void ReleaseWorkflowPublishesMarketplacesAutomaticallyAndFailClosed()
+    public void ReleaseWorkflowAutomatesSupportedMarketplaceStepsAndFailsClosed()
     {
         string workflow = ReadRepositoryFile(".github/workflows/release.yml");
         string design = ReadRepositoryFile("docs/DESIGN.md");
@@ -946,10 +950,18 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("push:", workflow);
         Assert.Contains("tags:", workflow);
         Assert.Contains("publish-azure-devops-marketplace:", workflow);
-        Assert.Contains("publish-github-marketplace:", workflow);
+        Assert.Contains("publish-github-action:", workflow);
+        Assert.Contains("verify-github-marketplace:", workflow);
         Assert.Contains("needs: publish-azure-devops-marketplace", workflow);
+        Assert.Contains("needs: publish-github-action", workflow);
         Assert.Contains("Publish Azure DevOps Marketplace extension", workflow);
-        Assert.Contains("Publish GitHub Marketplace release", workflow);
+        Assert.Contains("Advance GitHub Action release channel", workflow);
+        Assert.Contains("Verify GitHub Marketplace listing", workflow);
+        Assert.Contains("https://github.com/marketplace/actions/picket", workflow);
+        Assert.Contains("releases/edit/$env:RELEASE_TAG", workflow);
+        Assert.Contains("Publish this Action to the GitHub Marketplace", workflow);
+        Assert.DoesNotContain("publish-github-marketplace:", workflow);
+        Assert.DoesNotContain("Publish GitHub Marketplace release", workflow);
         Assert.Contains("gh attestation verify", workflow);
         Assert.Contains("scripts/Validate-MarketplaceRelease.cs", workflow);
         Assert.Contains("tfx extension publish", workflow);
@@ -964,8 +976,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("git/refs/tags/$majorTag", workflow);
         Assert.Contains("force=true", workflow);
         Assert.IsFalse(File.Exists(ResolveRepositoryPath(".github/workflows/marketplace-release.yml")));
-        Assert.Contains("Stable tags publish both marketplace surfaces", design);
-        Assert.Contains("Stable `vMAJOR.MINOR.PATCH` tags publish both marketplace surfaces", marketplaces);
+        Assert.Contains("Stable tags publish the Azure DevOps extension and advance the GitHub Action release channel", design);
+        Assert.Contains("GitHub requires the repository owner to publish each Action release", design);
+        Assert.Contains("Stable `vMAJOR.MINOR.PATCH` tags publish the Azure DevOps extension and advance the GitHub Action release channel", marketplaces);
+        Assert.Contains("GitHub CLI and the public Releases REST API do not expose the Marketplace publication control", marketplaces);
         Assert.DoesNotContain("manual-only", marketplaces);
         Assert.DoesNotContain("dry_run", marketplaces);
         Assert.Contains("cannot be overwritten or downgraded", marketplaces);

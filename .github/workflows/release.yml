@@ -1737,8 +1737,8 @@ jobs:
             Pop-Location
           }
 
-  publish-github-marketplace:
-    name: Publish GitHub Marketplace release
+  publish-github-action:
+    name: Advance GitHub Action release channel
     if: ${{ !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') }}
     needs: publish-azure-devops-marketplace
     runs-on: ubuntu-latest
@@ -1776,3 +1776,34 @@ jobs:
           }
 
           "GitHub Action tag ``$majorTag`` now targets ``$releaseCommit``." >> $env:GITHUB_STEP_SUMMARY
+
+  verify-github-marketplace:
+    name: Verify GitHub Marketplace listing
+    if: ${{ !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') }}
+    needs: publish-github-action
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify immutable release is listed
+        shell: pwsh
+        run: |
+          $marketplaceUrl = "https://github.com/marketplace/actions/picket"
+          $releaseEditUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/edit/$env:RELEASE_TAG"
+          $repositoryLink = "href=`"/$env:GITHUB_REPOSITORY`""
+
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+            $response = Invoke-WebRequest -Uri $marketplaceUrl -MaximumRedirection 3 -SkipHttpErrorCheck
+            if ($response.StatusCode -eq 200 -and
+                $response.Content.Contains($repositoryLink, [StringComparison]::OrdinalIgnoreCase) -and
+                $response.Content.Contains($env:RELEASE_TAG, [StringComparison]::Ordinal)) {
+              "GitHub Marketplace lists [$env:GITHUB_REPOSITORY $env:RELEASE_TAG]($marketplaceUrl)." >> $env:GITHUB_STEP_SUMMARY
+              exit 0
+            }
+
+            if ($attempt -lt 12) {
+              Start-Sleep -Seconds 10
+            }
+          }
+
+          throw "GitHub Marketplace does not list $env:GITHUB_REPOSITORY release $env:RELEASE_TAG. GitHub requires a repository owner to edit the release, select 'Publish this Action to the GitHub Marketplace', choose categories, accept the Marketplace Developer Agreement when prompted, and complete two-factor authentication. Edit the release at $releaseEditUrl and rerun this job."

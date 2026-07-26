@@ -1,6 +1,10 @@
 name: Picket
 description: Scan a repository with Picket and publish SARIF-ready results.
-author: Picket
+author: willibrandon
+
+branding:
+  icon: shield
+  color: green
 
 inputs:
   path:

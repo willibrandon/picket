@@ -39,6 +39,7 @@ The GitHub Action listing is driven by the root `action.yml`, release tags, READ
 Release requirements:
 
 - keep `action.yml` as the source of truth for action inputs and outputs,
+- identify `willibrandon` as the action author and use supported `shield`/`green` Marketplace branding,
 - generate the docs reference from `action.yml`,
 - publish immutable `vX.Y.Z` tags for every release,
 - update the mutable `vX` tag only after CI, docs, action smoke, and release artifact validation pass,
@@ -48,6 +49,8 @@ Release requirements:
 - verify the action on pull request and push workflows before updating the marketplace listing.
 
 The listing should describe the scanner in terms of local-first secrets scanning, Native AOT CLI distribution, Gitleaks compatibility, native validation, reports, baselines, cache, and privacy. It should not imply that live network validation runs by default.
+
+GitHub's supported Action publication flow requires a repository owner to edit the immutable release in the GitHub web interface, select **Publish this Action to the GitHub Marketplace**, choose categories, accept the GitHub Marketplace Developer Agreement when prompted, and complete two-factor authentication. Use **Security** as the primary category and **Code quality** as the secondary category. GitHub CLI and the public Releases REST API do not expose the Marketplace publication control.
 
 ## Azure DevOps Marketplace
 
@@ -96,14 +99,18 @@ Marketplace packaging happens while the scanner release artifacts are built and 
 8. Create or update the GitHub Release.
 9. Publish the Azure DevOps extension from the attested VSIX.
 10. Advance the GitHub Action major tag to the immutable release commit.
+11. Publish the immutable Action release through GitHub's Marketplace release control.
+12. Verify that the Marketplace page exposes the exact immutable release tag.
 
 ## Publication
 
-Stable `vMAJOR.MINOR.PATCH` tags publish both marketplace surfaces through `.github/workflows/release.yml`. Prerelease tags package neither the Azure DevOps extension nor mutable GitHub Action tags.
+Stable `vMAJOR.MINOR.PATCH` tags publish the Azure DevOps extension and advance the GitHub Action release channel through `.github/workflows/release.yml`. Prerelease tags package neither the Azure DevOps extension nor mutable GitHub Action tags.
 
 The workflow first creates or updates the immutable GitHub Release. Azure DevOps publication waits for NuGet, container, Homebrew, Scoop, and WinGet release jobs, then downloads `picket-<tag>-azure-devops.vsix` and its checksum from that release. `scripts/Validate-MarketplaceRelease.cs` verifies the sidecar hash, canonical stable version, bounded archive structure, required assets, `willibrandon.picket` identity, `PicketScan@1` metadata, and icon dimensions. The workflow verifies the GitHub artifact attestation before invoking the pinned `tfx-cli`. It does not use scope, validation, certificate, or wait bypasses.
 
 Azure publication uses `AZURE_DEVOPS_MARKETPLACE_PAT` and the existing `willibrandon.picket` extension. The extension manifest carries the Marketplace `Public` gallery flag before packaging and attestation. A rerun queries the published extension and skips `tfx extension publish` when the release version already exists. After Azure publication succeeds, the workflow creates or moves only the mutable GitHub Action `vMAJOR` ref to the immutable release commit through the Git refs API.
+
+The workflow cannot select GitHub's Marketplace publication control because GitHub does not expose it through the public API. Its final `Verify GitHub Marketplace listing` job checks `https://github.com/marketplace/actions/picket` for both `willibrandon/picket` and the exact immutable tag. The job fails with the release-edit URL until the owner completes GitHub's publication step, and it can be rerun after the listing propagates.
 
 ## Rollback
 
@@ -133,7 +140,7 @@ Repository secrets should be narrowly scoped:
 
 `PICKET_GITHUB_SECRET_SCANNING_PAT` is consumed by the manual `Live GitHub Secret Scanning Oracle` workflow, not by default push or pull-request CI.
 
-GitHub Releases, GitHub Pages, artifact attestations, and normal action publishing should use built-in GitHub workflow credentials wherever possible.
+GitHub Releases, GitHub Pages, artifact attestations, and GitHub Action tag updates use built-in GitHub workflow credentials.
 
 ## Gates
 
@@ -141,6 +148,7 @@ Marketplace-related CI gates should cover:
 
 - stale generated docs,
 - action smoke tests,
+- exact-version GitHub Marketplace listing verification,
 - VSIX package validation,
 - metadata validation,
 - generated reference consistency,
