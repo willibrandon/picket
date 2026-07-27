@@ -35,7 +35,7 @@ This page is generated from publish profiles, packable project files, central pa
 
 | Property | Value |
 |---|---|
-| `VersionPrefix` | `0.1.11` |
+| `VersionPrefix` | `0.1.12` |
 | `Authors` | `willibrandon` |
 | `PackageLicenseExpression` | `MIT` |
 | `PackageProjectUrl` | `https://github.com/willibrandon/picket` |

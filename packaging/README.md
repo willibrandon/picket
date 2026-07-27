@@ -13,7 +13,7 @@ Release packaging is generated from built release artifacts, not maintained by h
 Run it locally after release archives and checksums exist:
 
 ```powershell
-dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.1.11 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
+dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.1.12 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
 ```
 
 The release workflow packages those files into `picket-<tag>-package-manager-manifests.zip`. Stable releases validate and commit the Homebrew and Scoop files to their package repositories and submit the WinGet set through a pull request. Prereleases publish the bundle without changing package repositories.

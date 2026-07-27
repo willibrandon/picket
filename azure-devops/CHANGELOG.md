@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12
+
+- Add native ignore-path support, stable fingerprint ignores, safer report and cache defaults, and clearer custom-config guidance.
+
 ## 0.1.11
 
 - Report invalid `--ignore-path` files and malformed ignore patterns without unhandled exceptions.
