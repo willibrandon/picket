@@ -102,6 +102,19 @@ jobs:
             throw "release-speed publish produced public debug symbols: $($symbolArtifacts.FullName -join ', ')"
           }
 
+          $tuiExecutableName = if ($IsWindows) { 'picket-tui.exe' } else { 'picket-tui' }
+          $tuiExecutable = Join-Path $publishOutput $tuiExecutableName
+          $tuiOutput = & $tuiExecutable 2>&1
+          $tuiExitCode = $LASTEXITCODE
+          $tuiText = $tuiOutput -join "`n"
+          if ($tuiExitCode -ne 0 -or !$tuiText.Contains('Usage:', [StringComparison]::Ordinal)) {
+            throw "picket-tui no-argument smoke test failed with exit code ${tuiExitCode}: $tuiText"
+          }
+
+          if ($IsWindows -and (Test-Path -LiteralPath (Join-Path $publishOutput 'hex1bpty.exe'))) {
+            throw 'Windows publish output contains the unused hex1bpty.exe helper.'
+          }
+
       - name: Test Native AOT compatibility oracles
         shell: pwsh
         run: |

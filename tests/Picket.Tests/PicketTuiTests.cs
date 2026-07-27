@@ -3781,6 +3781,22 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that package validators can invoke the companion without arguments and without an interactive terminal.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task CompanionWithoutArgumentsPrintsHelpWhenTerminalIsRedirected()
+    {
+        CliResult result = await RunTuiCliAsync([], TestContext.CancellationToken).ConfigureAwait(false);
+        string output = string.Concat(result.Stdout, result.Stderr);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket-tui [<report>] [options]", result.Stdout);
+        Assert.DoesNotContain("Unhandled exception", output);
+        Assert.DoesNotContain("WindowsConsoleDriver", output);
+    }
+
+    /// <summary>
     /// Verifies that the companion rejects startup tab numbers outside the visible range.
     /// </summary>
     [TestMethod]

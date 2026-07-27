@@ -908,7 +908,7 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
-        Assert.AreEqual("0.1.12", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("0.1.13", extensionRoot.GetProperty("version").GetString());
         HashSet<string> galleryFlags = [.. extensionRoot
             .GetProperty("galleryFlags")
             .EnumerateArray()
@@ -1017,7 +1017,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secret-hash-only", privacy);
         Assert.Contains("agent `3.220.0` or newer", compatibility);
         Assert.Contains("`linux-musl-arm64`", compatibility);
-        Assert.Contains("## 0.1.12", changelog);
+        Assert.Contains("## 0.1.13", changelog);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task", azureDevOps);
@@ -1405,7 +1405,7 @@ public sealed partial class RepositoryConventionTests
         XElement props = ReadProjectFile("Directory.Build.props");
         string targets = ReadRepositoryFile("Directory.Build.targets");
 
-        AssertProjectProperty(props, "VersionPrefix", "0.1.12");
+        AssertProjectProperty(props, "VersionPrefix", "0.1.13");
         AssertProjectProperty(props, "Authors", "willibrandon");
         AssertProjectProperty(props, "PackageLicenseExpression", "MIT");
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
@@ -1466,6 +1466,24 @@ public sealed partial class RepositoryConventionTests
     {
         AssertToolPackage("src/Picket.Cli/Picket.Cli.csproj", "Picket", "picket");
         AssertToolPackage("src/Picket.Tui.Cli/Picket.Tui.Cli.csproj", "Picket.Tui.Cli", "picket-tui");
+    }
+
+    /// <summary>
+    /// Verifies that published Windows archives contain only supported executable entry points.
+    /// </summary>
+    [TestMethod]
+    public void WindowsReleaseArtifactsExcludeUnusedPtyHost()
+    {
+        string project = ReadRepositoryFile("src/Picket.Tui.Cli/Picket.Tui.Cli.csproj");
+        string ciWorkflow = ReadRepositoryFile(".github/workflows/ci.yml");
+        string releaseWorkflow = ReadRepositoryFile(".github/workflows/release.yml");
+
+        Assert.Contains("RemoveUnusedWindowsPtyHostFromPublish", project);
+        Assert.Contains("<Delete Files=\"$(PublishDir)hex1bpty.exe\" />", project);
+        Assert.Contains("picket-tui no-argument smoke test failed", ciWorkflow);
+        Assert.Contains("Windows publish output contains the unused hex1bpty.exe helper.", ciWorkflow);
+        Assert.Contains("picket-tui no-argument smoke test failed", releaseWorkflow);
+        Assert.Contains("Windows release payload contains unexpected executables", releaseWorkflow);
     }
 
     /// <summary>

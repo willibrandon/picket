@@ -7,6 +7,11 @@ return await RunAsync(args).ConfigureAwait(false);
 static async Task<int> RunAsync(string[] args)
 {
     RootCommand rootCommand = CreateRootCommand();
+    if (args.Length == 0 && !IsInteractiveTerminal())
+    {
+        args = ["--help"];
+    }
+
     ParseResult parseResult = rootCommand.Parse(args, new ParserConfiguration
     {
         EnablePosixBundling = false,
@@ -35,6 +40,12 @@ static async Task<int> RunAsync(string[] args)
     {
         RestoreTerminal();
     }
+}
+
+static bool IsInteractiveTerminal()
+{
+    return !Console.IsInputRedirected
+        && !Console.IsOutputRedirected;
 }
 
 static RootCommand CreateRootCommand()

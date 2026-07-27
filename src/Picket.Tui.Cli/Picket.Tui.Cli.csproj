@@ -43,4 +43,12 @@
     <ProjectReference Include="..\Picket.Security\Picket.Security.csproj" />
     <ProjectReference Include="..\Picket.Tui\Picket.Tui.csproj" />
   </ItemGroup>
+
+  <Target Name="RemoveUnusedWindowsPtyHostFromPublish"
+          AfterTargets="Publish"
+          Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-', StringComparison.Ordinal))">
+    <Delete Files="$(PublishDir)hex1bpty.exe" />
+    <Error Condition="Exists('$(PublishDir)hex1bpty.exe')"
+           Text="The unused Hex1b PTY host must not be included in Picket publish output." />
+  </Target>
 </Project>

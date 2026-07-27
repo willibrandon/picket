@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.13
+
+- Add Gitleaks-compatible banners, verbose finding output, log-level filtering, and scan summaries.
+- Make Windows portable releases pass WinGet executable validation.
+
 ## 0.1.12
 
 - Add native ignore-path support, stable fingerprint ignores, safer report and cache defaults, and clearer custom-config guidance.
