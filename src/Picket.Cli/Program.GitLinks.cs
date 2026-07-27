@@ -23,6 +23,7 @@ internal static partial class Program
         long timeoutTimestamp,
         string scmPlatform,
         string remoteUrl,
+        CompatibilityScanMetrics? metrics,
         out bool timedOut)
     {
         timedOut = false;
@@ -35,6 +36,7 @@ internal static partial class Program
                 break;
             }
 
+            metrics?.AddBytes(fragment.Input.Length);
             IReadOnlyList<Finding> fragmentFindings = SecretScanner.Scan(new ScanRequest(
                 fragment.Input,
                 fragment.FilePath,
@@ -65,6 +67,21 @@ internal static partial class Program
         }
 
         return findings;
+    }
+
+    static int CountGitCommits(IReadOnlyList<GitPatchFragment> fragments)
+    {
+        var commits = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < fragments.Count; i++)
+        {
+            string commit = fragments[i].Commit;
+            if (commit.Length != 0)
+            {
+                commits.Add(commit);
+            }
+        }
+
+        return commits.Count;
     }
 
     static Finding MapGitFinding(Finding finding, GitPatchFragment fragment, string scmPlatform, string remoteUrl)

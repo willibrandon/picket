@@ -567,9 +567,13 @@ public sealed class SecretScanner
         var filteredFindings = new List<Finding>(primaryFindings.Count);
         foreach (Finding primaryFinding in primaryFindings)
         {
-            if (HasAllRequiredRules(primaryFinding, primaryRule.Rule.RequiredRules, requiredFindingsByRuleId))
+            if (TryCollectRequiredFindings(
+                primaryFinding,
+                primaryRule.Rule.RequiredRules,
+                requiredFindingsByRuleId,
+                out List<RequiredFinding>? requiredFindings))
             {
-                filteredFindings.Add(primaryFinding);
+                filteredFindings.Add(primaryFinding.WithRequiredFindings(requiredFindings));
             }
         }
 
@@ -589,11 +593,13 @@ public sealed class SecretScanner
         return null;
     }
 
-    private static bool HasAllRequiredRules(
+    private static bool TryCollectRequiredFindings(
         Finding primaryFinding,
         IReadOnlyList<SecretRequiredRule> requiredRules,
-        Dictionary<string, List<Finding>> requiredFindingsByRuleId)
+        Dictionary<string, List<Finding>> requiredFindingsByRuleId,
+        out List<RequiredFinding> supportingFindings)
     {
+        supportingFindings = [];
         var foundRuleIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (SecretRequiredRule requiredRule in requiredRules)
         {
@@ -607,7 +613,10 @@ public sealed class SecretScanner
                 if (IsWithinProximity(primaryFinding, requiredFinding, requiredRule))
                 {
                     foundRuleIds.Add(requiredRule.Id);
-                    break;
+                    supportingFindings.Add(new RequiredFinding(
+                        requiredFinding.RuleID,
+                        requiredFinding.StartLine,
+                        requiredFinding.Secret));
                 }
             }
         }
@@ -621,6 +630,7 @@ public sealed class SecretScanner
         {
             if (!foundRuleIds.Contains(requiredRule.Id))
             {
+                supportingFindings = [];
                 return false;
             }
         }

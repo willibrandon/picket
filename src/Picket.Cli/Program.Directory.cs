@@ -33,6 +33,7 @@ internal static partial class Program
             return GetOperationalExitCode(nativeReportFormats);
         }
 
+        var consoleOptions = new CompatibilityConsoleOptions();
         string? baselinePath = null;
         GitleaksBaselineComparisonMode baselineComparisonMode = GitleaksBaselineComparisonMode.Exact;
         string? cacheDir = null;
@@ -405,7 +406,11 @@ internal static partial class Program
                 continue;
             }
 
-            if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
+            if (!TryHandleCommonCompatibilityFlag(
+                args,
+                ref i,
+                out bool handledCommonFlag,
+                nativeMode ? null : consoleOptions))
             {
                 return GetOperationalExitCode(nativeMode);
             }
@@ -477,6 +482,11 @@ internal static partial class Program
                 Console.Error.WriteLine("checkpoint path must be different from every report path");
                 return GetOperationalExitCode(nativeMode);
             }
+        }
+
+        if (!nativeMode)
+        {
+            CompatibilityConsoleWriter.WriteBanner(consoleOptions);
         }
 
         if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, diagnosticsCommand, Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
@@ -705,6 +715,15 @@ internal static partial class Program
         {
             if (!hadScanError)
             {
+                if (!nativeMode)
+                {
+                    AddCompatibilityControlFileBytes(
+                        files,
+                        configDisplayPath,
+                        baselineDisplayPath,
+                        consoleOptions.Metrics);
+                }
+
                 int parallelScanDegree = GetSourceFileScanDegree(sourceFileCount - startFileIndex);
                 bool completed = ScanSourceFiles(
                     files,
@@ -723,6 +742,7 @@ internal static partial class Program
                     scanCache,
                     diagnosticsSession,
                     findings,
+                    nativeMode ? null : consoleOptions.Metrics,
                     out bool stopped,
                     out Exception? scanError,
                     cancellationToken);
@@ -791,6 +811,7 @@ internal static partial class Program
                             timeoutTimestamp,
                             scanCache,
                             diagnosticsSession,
+                            nativeMode ? null : consoleOptions.Metrics,
                             out bool stopped,
                             cancellationToken);
                         if (stopped)
@@ -815,6 +836,11 @@ internal static partial class Program
                     {
                         scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
                         continue;
+                    }
+
+                    if (!nativeMode)
+                    {
+                        consoleOptions.Metrics.AddBytes(input.LongLength);
                     }
 
                     diagnosticsSession?.RecordScanInput();
@@ -906,7 +932,25 @@ internal static partial class Program
             hadScanError,
             scanCheckpoint is null
                 ? null
-                : () => CompleteRemoteScanCheckpoint(scanCheckpoint));
+                : () => CompleteRemoteScanCheckpoint(scanCheckpoint),
+            nativeMode ? null : consoleOptions);
+    }
+
+    private static void AddCompatibilityControlFileBytes(
+        IReadOnlyList<SourceFile> files,
+        string? configDisplayPath,
+        string? baselineDisplayPath,
+        CompatibilityScanMetrics metrics)
+    {
+        string?[] controlDisplayPaths = [configDisplayPath, baselineDisplayPath];
+        for (int i = 0; i < files.Count; i++)
+        {
+            SourceFile file = files[i];
+            if (IsControlFile(file, controlDisplayPaths))
+            {
+                metrics.AddBytes(file.Length);
+            }
+        }
     }
 
     private static long? GetEnumerationMaxTargetBytes(long? maxTargetBytes, bool nativeMode)

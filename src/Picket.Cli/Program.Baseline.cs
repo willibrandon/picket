@@ -391,6 +391,7 @@ internal static partial class Program
                 scanCache: null,
                 diagnosticsSession,
                 findings,
+                metrics: null,
                 out bool stopped,
                 out Exception? scanError,
                 CancellationToken.None);

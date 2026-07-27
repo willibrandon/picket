@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Picket.Tests;
 
@@ -7,7 +8,7 @@ namespace Picket.Tests;
 /// Tests committed compatibility oracle fixtures.
 /// </summary>
 [TestClass]
-public sealed class CompatibilityOracleFixtureTests
+public sealed partial class CompatibilityOracleFixtureTests
 {
     private static readonly string[] s_compatibilityReportFormats = ["json", "csv", "junit", "sarif"];
 
@@ -41,13 +42,19 @@ public sealed class CompatibilityOracleFixtureTests
                 format,
                 "-r",
                 reportPath,
+                "--verbose",
                 "--no-banner",
                 "--no-color",
                 "--redact=100").ConfigureAwait(false);
 
             Assert.AreEqual(1, result.ExitCode);
-            Assert.IsEmpty(result.Stdout);
-            Assert.IsEmpty(result.Stderr);
+            Assert.Contains("Finding:     REDACTED", result.Stdout);
+            Assert.Contains("Secret:      REDACTED", result.Stdout);
+            Assert.Contains("RuleID:      oracle-token", result.Stdout);
+            Assert.Contains("File:        source.txt", result.Stdout);
+            Assert.Contains("Line:        1", result.Stdout);
+            Assert.Contains("Fingerprint: source.txt:oracle-token:1", result.Stdout);
+            AssertOracleStderr(oracleRoot, format, result.Stderr);
             Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
         }
     }
@@ -83,7 +90,7 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.IsEmpty(result.Stderr);
+        AssertOracleStderr(oracleRoot, "json", result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
@@ -118,7 +125,7 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.IsEmpty(result.Stderr);
+        AssertOracleStderr(oracleRoot, "json", result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
@@ -155,7 +162,7 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.IsEmpty(result.Stderr);
+        AssertOracleStderr(oracleRoot, "json", result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
@@ -187,14 +194,26 @@ public sealed class CompatibilityOracleFixtureTests
             "json",
             "-r",
             reportPath,
+            "--verbose",
             "--no-banner",
             "--no-color",
             "--redact=100").ConfigureAwait(false);
 
         Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
-        Assert.IsEmpty(result.Stdout);
-        Assert.IsEmpty(result.Stderr);
+        Assert.Contains("Finding:     REDACTED", result.Stdout);
+        Assert.Contains("Secret:      REDACTED", result.Stdout);
+        Assert.Contains("RuleID:      git-token", result.Stdout);
+        Assert.Contains("File:        source.txt", result.Stdout);
+        Assert.Contains("Line:        1", result.Stdout);
+        Assert.Contains("Commit:      a0f75bb7be6981e97ea40bfd4402a58f0e356401", result.Stdout);
+        Assert.Contains("Author:      Picket Oracle", result.Stdout);
+        Assert.Contains("Email:       picket@example.com", result.Stdout);
+        Assert.Contains("Date:        2024-01-01T00:00:00Z", result.Stdout);
+        Assert.Contains(
+            "Fingerprint: a0f75bb7be6981e97ea40bfd4402a58f0e356401:source.txt:git-token:1",
+            result.Stdout);
+        AssertOracleStderr(oracleRoot, "json", result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
@@ -232,7 +251,7 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.IsEmpty(result.Stderr);
+        AssertOracleStderr(oracleRoot, "json", result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
@@ -269,7 +288,7 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.IsEmpty(result.Stderr);
+        AssertOracleStderr(oracleRoot, "json", result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
@@ -307,7 +326,7 @@ public sealed class CompatibilityOracleFixtureTests
         Assert.AreEqual(expectedReport, promotedPicketReport);
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
-        Assert.IsEmpty(result.Stderr);
+        AssertOracleStderr(oracleRoot, "template", result.Stderr);
         Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
     }
 
@@ -345,7 +364,7 @@ public sealed class CompatibilityOracleFixtureTests
             Assert.AreEqual(expectedReport, promotedPicketReport);
             Assert.AreEqual(0, result.ExitCode);
             Assert.IsEmpty(result.Stdout);
-            Assert.IsEmpty(result.Stderr);
+            AssertOracleStderr(oracleRoot, format, result.Stderr);
             Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
         }
     }
@@ -388,7 +407,7 @@ public sealed class CompatibilityOracleFixtureTests
             Assert.AreEqual(expectedReport, promotedPicketReport);
             Assert.AreEqual(1, result.ExitCode);
             Assert.IsEmpty(result.Stdout);
-            Assert.IsEmpty(result.Stderr);
+            AssertOracleStderr(oracleRoot, format, result.Stderr);
             Assert.AreEqual(expectedReport, NormalizeLineEndings(File.ReadAllText(reportPath)));
         }
     }
@@ -587,8 +606,23 @@ public sealed class CompatibilityOracleFixtureTests
         return value.ReplaceLineEndings("\n");
     }
 
+    private static void AssertOracleStderr(string oracleRoot, string format, string actual)
+    {
+        string expected = NormalizeLineEndings(
+            File.ReadAllText(Path.Combine(oracleRoot, $"gitleaks.{format}.stderr.txt")));
+        string normalizedActual = ClockPrefixPattern().Replace(NormalizeLineEndings(actual), "<time> ");
+        normalizedActual = ScanDurationPattern().Replace(normalizedActual, "$1<duration>");
+        Assert.AreEqual(expected, normalizedActual);
+    }
+
     private static string ReadOracleReport(string oracleRoot, string tool, string format)
     {
         return NormalizeLineEndings(File.ReadAllText(Path.Combine(oracleRoot, $"{tool}.{format}")));
     }
+
+    [GeneratedRegex("(?m)^\\d{1,2}:\\d{2}(?:AM|PM)\\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex ClockPrefixPattern();
+
+    [GeneratedRegex("(?m)( scanned ~[0-9.,]+ [A-Za-z]+ \\([0-9.,]+ [A-Za-z]+\\) in )\\S+", RegexOptions.CultureInvariant)]
+    private static partial Regex ScanDurationPattern();
 }

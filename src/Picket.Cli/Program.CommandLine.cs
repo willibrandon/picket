@@ -155,6 +155,24 @@ internal static partial class Program
         return true;
     }
 
+    static bool TryReadStringFlagWithShort(
+        string[] args,
+        ref int index,
+        string shortName,
+        string longName,
+        [NotNullWhen(true)] out string? value)
+    {
+        string arg = args[index];
+        string shortNameWithEquals = string.Concat(shortName, "=");
+        if (arg.StartsWith(shortNameWithEquals, StringComparison.Ordinal))
+        {
+            value = arg[shortNameWithEquals.Length..];
+            return true;
+        }
+
+        return TryReadStringFlag(args, ref index, longName, out value);
+    }
+
     static bool TryReadUriFlag(string[] args, ref int index, string longName, [NotNullWhen(true)] out Uri? value)
     {
         value = null;
@@ -780,6 +798,7 @@ internal static partial class Program
     static bool IsLogLevelFlag(string arg)
     {
         return arg is "-l" or "--log-level"
+            || arg.StartsWith("-l=", StringComparison.Ordinal)
             || arg.StartsWith("--log-level=", StringComparison.Ordinal);
     }
 
@@ -792,6 +811,7 @@ internal static partial class Program
     static bool IsVerboseFlag(string arg)
     {
         return arg is "-v" or "--verbose"
+            || arg.StartsWith("-v=", StringComparison.Ordinal)
             || arg.StartsWith("--verbose=", StringComparison.Ordinal);
     }
 
@@ -1044,35 +1064,117 @@ internal static partial class Program
             return true;
         }
 
+        string shortNameWithEquals = string.Concat(shortName, "=");
+        if (arg.StartsWith(shortNameWithEquals, StringComparison.Ordinal))
+        {
+            string text = arg[shortNameWithEquals.Length..];
+            if (bool.TryParse(text, out value))
+            {
+                return true;
+            }
+
+            Console.Error.WriteLine($"{shortName} requires a boolean value");
+            return false;
+        }
+
         return TryReadBooleanFlag(arg, longName, out value);
     }
 
-    static bool TryHandleCommonCompatibilityFlag(string[] args, ref int index, out bool handled)
+    static bool TryHandleCommonCompatibilityFlag(
+        string[] args,
+        ref int index,
+        out bool handled,
+        CompatibilityConsoleOptions? consoleOptions = null)
     {
         string arg = args[index];
         handled = true;
         if (IsLogLevelFlag(arg))
         {
-            return TryReadStringFlag(args, ref index, "--log-level", out _);
+            if (!TryReadStringFlagWithShort(args, ref index, "-l", "--log-level", out string? value))
+            {
+                return false;
+            }
+
+            consoleOptions?.LogLevel = ParseCompatibilityLogLevel(value);
+
+            return true;
         }
 
         if (IsVerboseFlag(arg))
         {
-            return TryReadBooleanFlagWithShort(arg, "-v", "--verbose", out _);
+            if (!TryReadBooleanFlagWithShort(arg, "-v", "--verbose", out bool value))
+            {
+                return false;
+            }
+
+            consoleOptions?.Verbose = value;
+
+            return true;
         }
 
         if (IsNoColorFlag(arg))
         {
-            return TryReadBooleanFlag(arg, "--no-color", out _);
+            if (!TryReadBooleanFlag(arg, "--no-color", out bool value))
+            {
+                return false;
+            }
+
+            consoleOptions?.NoColor = value;
+
+            return true;
         }
 
         if (IsNoBannerFlag(arg))
         {
-            return TryReadBooleanFlag(arg, "--no-banner", out _);
+            if (!TryReadBooleanFlag(arg, "--no-banner", out bool value))
+            {
+                return false;
+            }
+
+            consoleOptions?.NoBanner = value;
+
+            return true;
         }
 
         handled = false;
         return true;
+    }
+
+    private static CompatibilityLogLevel ParseCompatibilityLogLevel(string value)
+    {
+        if (value.Equals("trace", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompatibilityLogLevel.Trace;
+        }
+
+        if (value.Equals("debug", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompatibilityLogLevel.Debug;
+        }
+
+        if (value.Equals("info", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompatibilityLogLevel.Info;
+        }
+
+        if (value.Equals("warn", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompatibilityLogLevel.Warn;
+        }
+
+        if (value.Equals("err", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("error", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompatibilityLogLevel.Error;
+        }
+
+        if (value.Equals("fatal", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompatibilityLogLevel.Fatal;
+        }
+
+        CompatibilityConsoleWriter.WriteUnknownLogLevel(value);
+        return CompatibilityLogLevel.Info;
     }
 
     static bool IsRedactFlag(string arg)

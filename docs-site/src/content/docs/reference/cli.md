@@ -1130,6 +1130,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -1364,6 +1388,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>
@@ -1600,6 +1648,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -1677,6 +1749,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>
@@ -1833,6 +1929,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -1933,6 +2053,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>
@@ -2047,6 +2191,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -2153,6 +2321,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>
@@ -2261,6 +2453,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -2353,18 +2569,6 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Load a Gitleaks ignore file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-l, --log-level</code></td>
-              <td data-label="Value"><code>level</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Set the log level.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>-v, --verbose</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Enable verbose logging.</td>
-            </tr>
-            <tr>
               <td data-label="Option"><code>--profile</code></td>
               <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
@@ -2381,18 +2585,6 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional, repeatable</td>
               <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--no-color</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Disable colored console output.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--no-banner</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--report-template</code></td>
@@ -2502,6 +2694,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -2594,18 +2810,6 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Load a Gitleaks ignore file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-l, --log-level</code></td>
-              <td data-label="Value"><code>level</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Set the log level.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>-v, --verbose</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Enable verbose logging.</td>
-            </tr>
-            <tr>
               <td data-label="Option"><code>--profile</code></td>
               <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
@@ -2622,18 +2826,6 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional, repeatable</td>
               <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--no-color</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Disable colored console output.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--no-banner</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--report-template</code></td>
@@ -2725,6 +2917,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -2800,18 +3016,6 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Load a Gitleaks ignore file.</td>
             </tr>
             <tr>
-              <td data-label="Option"><code>-l, --log-level</code></td>
-              <td data-label="Value"><code>level</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Set the log level.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>-v, --verbose</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Enable verbose logging.</td>
-            </tr>
-            <tr>
               <td data-label="Option"><code>--profile</code></td>
               <td data-label="Value"><code>profile</code></td>
               <td data-label="Required">Optional</td>
@@ -2828,18 +3032,6 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional, repeatable</td>
               <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--no-color</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Disable colored console output.</td>
-            </tr>
-            <tr>
-              <td data-label="Option"><code>--no-banner</code></td>
-              <td data-label="Value"><code>flag</code></td>
-              <td data-label="Required">Optional</td>
-              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--report-template</code></td>
@@ -2912,6 +3104,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>
@@ -2995,6 +3211,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>
@@ -3148,6 +3388,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -3253,6 +3517,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -3321,6 +3609,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>
@@ -3403,6 +3715,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
             </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -3444,6 +3780,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
             </tr>
           </tbody>
         </table>

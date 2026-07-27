@@ -25,6 +25,7 @@ internal static partial class Program
             return 1;
         }
 
+        var consoleOptions = new CompatibilityConsoleOptions();
         string? baselinePath = null;
         GitleaksBaselineComparisonMode baselineComparisonMode = GitleaksBaselineComparisonMode.Exact;
         string? configPath = null;
@@ -248,7 +249,11 @@ internal static partial class Program
                 continue;
             }
 
-            if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
+            if (!TryHandleCommonCompatibilityFlag(
+                args,
+                ref i,
+                out bool handledCommonFlag,
+                nativeMode ? null : consoleOptions))
             {
                 return GetOperationalExitCode(nativeMode);
             }
@@ -266,6 +271,11 @@ internal static partial class Program
         {
             Console.Error.WriteLine("--exit-code 2 is reserved for incomplete or failed native scans");
             return NativeOperationalExitCode;
+        }
+
+        if (!nativeMode)
+        {
+            CompatibilityConsoleWriter.WriteBanner(consoleOptions);
         }
 
         if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "stdin", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
@@ -306,6 +316,7 @@ internal static partial class Program
             maxTargetBytes,
             nativeMode,
             timeoutTimestamp,
+            nativeMode ? null : consoleOptions.Metrics,
             out bool stopped,
             CancellationToken.None);
         if (stopped || IsTimedOut(timeoutTimestamp))
@@ -332,6 +343,12 @@ internal static partial class Program
         }
 
         diagnosticsSession?.RecordFindingCount(findings.Count);
+        if (!nativeMode)
+        {
+            CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, findings);
+            CompatibilityConsoleWriter.WriteSummary(consoleOptions, findings, partialScan: false);
+        }
+
         if (!TryWriteReport(findings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
         {
             return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);

@@ -21,6 +21,7 @@ internal static partial class Program
             return 1;
         }
 
+        var consoleOptions = new CompatibilityConsoleOptions();
         string? baselinePath = null;
         GitleaksBaselineComparisonMode baselineComparisonMode = GitleaksBaselineComparisonMode.Exact;
         string? configPath = null;
@@ -335,7 +336,11 @@ internal static partial class Program
                 continue;
             }
 
-            if (!TryHandleCommonCompatibilityFlag(args, ref i, out bool handledCommonFlag))
+            if (!TryHandleCommonCompatibilityFlag(
+                args,
+                ref i,
+                out bool handledCommonFlag,
+                nativeMode ? null : consoleOptions))
             {
                 return GetOperationalExitCode(nativeMode);
             }
@@ -370,6 +375,11 @@ internal static partial class Program
         if (!staged && !preCommit && !TryValidatePlatform(platform))
         {
             return GetOperationalExitCode(nativeMode);
+        }
+
+        if (!nativeMode)
+        {
+            CompatibilityConsoleWriter.WriteBanner(consoleOptions);
         }
 
         if (!CompatibilityDiagnosticsSession.TryStart(diagnostics, diagnosticsDir, "git", Console.Error, out CompatibilityDiagnosticsSession? diagnosticsSession))
@@ -415,7 +425,18 @@ internal static partial class Program
         GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
         CreateGitLinkContext(root, staged || preCommit, platform, out string scmPlatform, out string remoteUrl);
         diagnosticsSession?.RecordScanInputs(fragments.Count);
-        List<Finding> findings = ScanGitFragments(fragments, rules, ignoreGitleaksAllow, maxTargetBytes, maxDecodeDepth, nativeMode, timeoutTimestamp, scmPlatform, remoteUrl, out bool timedOut);
+        List<Finding> findings = ScanGitFragments(
+            fragments,
+            rules,
+            ignoreGitleaksAllow,
+            maxTargetBytes,
+            maxDecodeDepth,
+            nativeMode,
+            timeoutTimestamp,
+            scmPlatform,
+            remoteUrl,
+            nativeMode ? null : consoleOptions.Metrics,
+            out bool timedOut);
         timedOut |= IsTimedOut(timeoutTimestamp);
         IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
         if (nativeMode)
@@ -431,6 +452,13 @@ internal static partial class Program
         }
 
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
+        if (!nativeMode)
+        {
+            CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, filteredFindings);
+            CompatibilityConsoleWriter.WriteGitCommitCount(consoleOptions, CountGitCommits(fragments));
+            CompatibilityConsoleWriter.WriteSummary(consoleOptions, filteredFindings, partialScan: timedOut);
+        }
+
         if (!TryWriteReport(filteredFindings, rules.Rules, reportPath, reportFormat, reportTemplatePath, nativeMode))
         {
             return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);

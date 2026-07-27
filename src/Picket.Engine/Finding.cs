@@ -30,6 +30,7 @@ namespace Picket.Engine;
 /// <param name="decodePath">The decode operations that exposed the finding, or <see langword="null" />.</param>
 /// <param name="randomness">The native randomness assessment, or <see langword="null" />.</param>
 /// <param name="positionKind">The coordinate system used by the finding's source positions.</param>
+/// <param name="requiredFindings">The supporting findings that satisfied composite rule requirements, or <see langword="null" />.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -57,7 +58,8 @@ public sealed class Finding(
     string blobSha256 = "",
     IReadOnlyList<string>? decodePath = null,
     SecretRandomnessAssessment? randomness = null,
-    FindingPositionKind positionKind = FindingPositionKind.GitleaksUtf8BytesInclusive)
+    FindingPositionKind positionKind = FindingPositionKind.GitleaksUtf8BytesInclusive,
+    IReadOnlyList<RequiredFinding>? requiredFindings = null)
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -199,6 +201,11 @@ public sealed class Finding(
     public FindingPositionKind PositionKind { get; } = positionKind;
 
     /// <summary>
+    /// Gets the supporting findings that satisfied composite rule requirements.
+    /// </summary>
+    public IReadOnlyList<RequiredFinding> RequiredFindings { get; } = requiredFindings ?? [];
+
+    /// <summary>
     /// Gets the stable Picket-native fingerprint captured before evidence redaction, or an empty string.
     /// </summary>
     public string NativeFingerprint { get; private init; } = string.Empty;
@@ -232,7 +239,8 @@ public sealed class Finding(
             blobSha256,
             DecodePath,
             Randomness,
-            PositionKind)
+            PositionKind,
+            RequiredFindings)
         {
             NativeFingerprint = NativeFingerprint,
         };
@@ -267,9 +275,46 @@ public sealed class Finding(
             BlobSha256,
             DecodePath,
             Randomness,
-            PositionKind)
+            PositionKind,
+            RequiredFindings)
         {
             NativeFingerprint = nativeFingerprint,
+        };
+    }
+
+    internal Finding WithRequiredFindings(IReadOnlyList<RequiredFinding> requiredFindings)
+    {
+        return new Finding(
+            RuleID,
+            Description,
+            StartLine,
+            EndLine,
+            StartColumn,
+            EndColumn,
+            Match,
+            Secret,
+            File,
+            SymlinkFile,
+            Commit,
+            Entropy,
+            Author,
+            Email,
+            Date,
+            Message,
+            Tags,
+            Fingerprint,
+            Line,
+            Link,
+            SecretSha256,
+            MatchSha256,
+            ValidationState,
+            BlobSha256,
+            DecodePath,
+            Randomness,
+            PositionKind,
+            requiredFindings)
+        {
+            NativeFingerprint = NativeFingerprint,
         };
     }
 }

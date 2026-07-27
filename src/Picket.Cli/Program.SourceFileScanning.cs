@@ -23,6 +23,7 @@ internal static partial class Program
         long timeoutTimestamp,
         PicketScanCache? scanCache,
         CompatibilityDiagnosticsSession? diagnosticsSession,
+        CompatibilityScanMetrics? metrics,
         out bool stopped,
         CancellationToken cancellationToken)
     {
@@ -132,6 +133,7 @@ internal static partial class Program
                     maxTargetBytes: null,
                     blobSha256,
                     scannedHash,
+                    metrics,
                     timeoutTimestamp,
                     out stopped,
                     cancellationToken);
@@ -194,6 +196,7 @@ internal static partial class Program
         long? maxTargetBytes,
         bool nativeMode,
         long timeoutTimestamp,
+        CompatibilityScanMetrics? metrics,
         out bool stopped,
         CancellationToken cancellationToken)
     {
@@ -264,6 +267,7 @@ internal static partial class Program
                     maxTargetBytes,
                     blobSha256: string.Empty,
                     scannedHash,
+                    metrics,
                     timeoutTimestamp,
                     out stopped,
                     cancellationToken);
@@ -314,6 +318,7 @@ internal static partial class Program
         long? maxTargetBytes,
         string blobSha256,
         IncrementalHash scannedHash,
+        CompatibilityScanMetrics? metrics,
         long timeoutTimestamp,
         out bool stopped,
         CancellationToken cancellationToken)
@@ -325,6 +330,7 @@ internal static partial class Program
         {
             using (fragment)
             {
+                metrics?.AddBytes(fragment.Content.Length);
                 scannedHash.AppendData(fragment.Content.Span);
                 findings.AddRange(ScanSourceFragment(
                     fragment.Content,

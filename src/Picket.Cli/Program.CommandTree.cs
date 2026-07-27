@@ -25,7 +25,7 @@ internal static partial class Program
             return Task.FromResult(1);
         }
 
-        RootCommand rootCommand = CreateRootCommand(args);
+        RootCommand rootCommand = CreateRootCommand(normalizedArgs);
         ParseResult parseResult = rootCommand.Parse(normalizedArgs, s_commandLineParserConfiguration);
         return parseResult.InvokeAsync();
     }
@@ -37,6 +37,7 @@ internal static partial class Program
             TreatUnmatchedTokensAsErrors = true,
         };
 
+        AddRecursiveCompatibilityOptions(rootCommand);
         rootCommand.Subcommands.Add(CreateScanCommand(args));
         rootCommand.Subcommands.Add(CreateVerifyCommand(args));
         rootCommand.Subcommands.Add(CreateAnalyzeCommand(args));
@@ -472,8 +473,6 @@ internal static partial class Program
         command.Options.Add(CreateValueOption("picket detect", "--log-opts", "value"));
         command.Options.Add(CreateChoiceValueOption("picket detect", "--platform", "value", "unknown", "none", "github", "gitlab", "azuredevops", "gitea", "bitbucket"));
         command.Options.Add(CreateFlagOption("picket detect", "--follow-symlinks"));
-        command.Options.Add(CreateFlagOption("picket detect", "--no-color"));
-        command.Options.Add(CreateFlagOption("picket detect", "--no-banner"));
         command.Options.Add(CreateValueOption("picket detect", "--report-template", "path"));
         command.Options.Add(CreateValueOption("picket detect", "--enable-rule", "id"));
         command.Options.Add(CreateValueOption("picket detect", "--exit-code", "n"));
@@ -500,8 +499,6 @@ internal static partial class Program
         command.Options.Add(CreateFlagOption("picket protect", "--staged"));
         AddCompatibilityReportOptions(command, "picket protect");
         command.Options.Add(CreateValueOption("picket protect", "--log-opts", "value"));
-        command.Options.Add(CreateFlagOption("picket protect", "--no-color"));
-        command.Options.Add(CreateFlagOption("picket protect", "--no-banner"));
         command.Options.Add(CreateValueOption("picket protect", "--report-template", "path"));
         command.Options.Add(CreateValueOption("picket protect", "--enable-rule", "id"));
         command.Options.Add(CreateValueOption("picket protect", "--exit-code", "n"));
@@ -547,7 +544,60 @@ internal static partial class Program
 
     private static string[] GetForwardedArgs(string[] args, int commandTokenCount)
     {
-        return args.Length <= commandTokenCount ? [] : args[commandTokenCount..];
+        if (args.Length <= commandTokenCount)
+        {
+            return [];
+        }
+
+        int commandIndex = FindCommandTokenIndex(args);
+        if (commandIndex < 0)
+        {
+            return args[commandTokenCount..];
+        }
+
+        var forwardedArgs = new List<string>(args.Length - commandTokenCount);
+        int commandTokensRemaining = commandTokenCount;
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (commandTokensRemaining != 0
+                && i >= commandIndex
+                && !IsRecursiveCompatibilityOption(args[i]))
+            {
+                commandTokensRemaining--;
+                continue;
+            }
+
+            forwardedArgs.Add(args[i]);
+            if (IsLogLevelFlag(args[i]) && !args[i].Contains('='))
+            {
+                i++;
+                if (i < args.Length)
+                {
+                    forwardedArgs.Add(args[i]);
+                }
+            }
+        }
+
+        return [.. forwardedArgs];
+    }
+
+    private static void AddRecursiveCompatibilityOptions(Command command)
+    {
+        Option<string?> logLevelOption = CreateValueOption("picket", "--log-level", "level", "-l");
+        logLevelOption.Recursive = true;
+        command.Options.Add(logLevelOption);
+
+        Option<bool> verboseOption = CreateFlagOption("picket", "--verbose", "-v");
+        verboseOption.Recursive = true;
+        command.Options.Add(verboseOption);
+
+        Option<bool> noColorOption = CreateFlagOption("picket", "--no-color");
+        noColorOption.Recursive = true;
+        command.Options.Add(noColorOption);
+
+        Option<bool> noBannerOption = CreateFlagOption("picket", "--no-banner");
+        noBannerOption.Recursive = true;
+        command.Options.Add(noBannerOption);
     }
 
     private static void AddNativeScanOptions(Command command, string commandName)
@@ -821,8 +871,6 @@ internal static partial class Program
         command.Options.Add(CreateChoiceValueOption(commandName, "--profile", "profile", "picket"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--baseline-mode", "exact|portable", "exact", "portable"));
         command.Options.Add(CreateChoiceValueOption(commandName, "--rule-pack", "name", PicketRulePackNames.Strict, PicketRulePackNames.Experimental));
-        command.Options.Add(CreateFlagOption(commandName, "--no-color"));
-        command.Options.Add(CreateFlagOption(commandName, "--no-banner"));
         command.Options.Add(CreateValueOption(commandName, "--report-template", "path"));
         command.Options.Add(CreateValueOption(commandName, "--enable-rule", "id"));
         command.Options.Add(CreateValueOption(commandName, "--exit-code", "n"));
@@ -836,8 +884,6 @@ internal static partial class Program
         command.Options.Add(CreateChoiceValueOption(commandName, "--report-format", "json|csv|junit|sarif|template", ["json", "csv", "junit", "sarif", "template"], "-f"));
         command.Options.Add(CreateValueOption(commandName, "--report-path", "path", "-r"));
         command.Options.Add(CreateValueOption(commandName, "--gitleaks-ignore-path", "path", "-i"));
-        command.Options.Add(CreateValueOption(commandName, "--log-level", "level", "-l"));
-        command.Options.Add(CreateFlagOption(commandName, "--verbose", "-v"));
     }
 
     private static Option<string?> CreateValueOption(string commandName, string name, string helpName, params string[] aliases)
@@ -976,10 +1022,28 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsRecursiveCompatibilityOption(arg))
+            {
+                if (IsLogLevelFlag(arg) && !arg.Contains('='))
+                {
+                    i++;
+                }
+
+                continue;
+            }
+
             return arg[0] == '-' || arg[0] == '/' ? -1 : i;
         }
 
         return -1;
+    }
+
+    private static bool IsRecursiveCompatibilityOption(string arg)
+    {
+        return IsLogLevelFlag(arg)
+            || IsVerboseFlag(arg)
+            || IsNoColorFlag(arg)
+            || IsNoBannerFlag(arg);
     }
 
     private static bool CanParseRootCommand(string[] args)

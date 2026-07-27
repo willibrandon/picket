@@ -424,6 +424,8 @@ Compatibility flags include:
 
 `-c/--config`, `--exit-code`, `-r/--report-path`, `-f/--report-format`, `--report-template`, `-b/--baseline-path`, `-l/--log-level`, `-v/--verbose`, `--no-color`, `--no-banner`, `--max-target-megabytes`, `--ignore-gitleaks-allow`, `--redact[=0..100]`, `--enable-rule`, `-i/--gitleaks-ignore-path`, `--max-decode-depth`, `--max-archive-depth`, `--timeout`, `--diagnostics`, and `--diagnostics-dir`.
 
+`-l/--log-level`, `-v/--verbose`, `--no-color`, and `--no-banner` are recursive root options and may appear before or after a compatibility command. Unless `--no-banner` is selected, compatibility scans write the Picket banner to standard error. `--verbose` writes each filtered finding to standard output using the Gitleaks field order, including supporting `Required` evidence for composite rules. Scan byte totals, elapsed time, commit counts, and the final leak count are written to standard error and filtered by `--log-level`. Requested reports remain separate file or standard-output artifacts governed by the report options.
+
 Config precedence in compatibility mode is exact:
 
 1. `--config`

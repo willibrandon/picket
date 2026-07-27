@@ -772,6 +772,10 @@ public sealed class SecretScannerTests
         Assert.HasCount(1, findings);
         Assert.AreEqual("primary-rule", findings[0].RuleID);
         Assert.AreEqual("secret", findings[0].Secret);
+        Assert.HasCount(1, findings[0].RequiredFindings);
+        Assert.AreEqual("username-rule", findings[0].RequiredFindings[0].RuleID);
+        Assert.AreEqual(1, findings[0].RequiredFindings[0].StartLine);
+        Assert.AreEqual("alice", findings[0].RequiredFindings[0].Secret);
     }
 
     /// <summary>

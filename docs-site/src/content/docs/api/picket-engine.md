@@ -26,6 +26,7 @@ Generated from XML documentation for `Picket.Engine`.
 - [NativeYamlIndex](#nativeyamlindex) - Indexes YAML mappings through the low-level event API without alias expansion.
 - [NativeYamlMapping](#nativeyamlmapping) - Represents one YAML mapping in the event index.
 - [NativeYamlScalarValue](#nativeyamlscalarvalue) - Represents one scalar mapping value and its UTF-8 source span.
+- [RequiredFinding](#requiredfinding) - Represents supporting evidence that satisfied a composite rule requirement.
 - [ScanRequest](#scanrequest) - Describes a byte-buffer scan request.
 - [SecretRandomnessAssessment](#secretrandomnessassessment) - Represents a deterministic estimate that secret material resembles a uniformly generated token.
 - [SecretRandomnessFeatures](#secretrandomnessfeatures) - Describes the non-secret statistical features used by the Picket randomness model.
@@ -96,7 +97,8 @@ Finding(
     string blobSha256,
     IReadOnlyList<string> decodePath,
     SecretRandomnessAssessment randomness,
-    FindingPositionKind positionKind
+    FindingPositionKind positionKind,
+    IReadOnlyList<RequiredFinding> requiredFindings
 )
 ```
 
@@ -125,6 +127,7 @@ Represents a detected secret finding using the Gitleaks-compatible field model.
 - `NativeFingerprint` - Gets the stable Picket-native fingerprint captured before evidence redaction, or an empty string.
 - `PositionKind` - Gets the coordinate system used by the finding's source positions.
 - `Randomness` - Gets the native randomness assessment, or when scoring was not enabled.
+- `RequiredFindings` - Gets the supporting findings that satisfied composite rule requirements.
 - `RuleID` - Gets the rule identifier.
 - `Secret` - Gets the secret text.
 - `SecretSha256` - Gets the original secret SHA-256 hash for native reports, or an empty string.
@@ -262,6 +265,22 @@ Represents one scalar mapping value and its UTF-8 source span.
 ### Constructors
 
 - `NativeYamlScalarValue(string, string, int, int, bool)` - Represents one scalar mapping value and its UTF-8 source span.
+
+## RequiredFinding
+
+`Picket.Engine.RequiredFinding`
+
+Represents supporting evidence that satisfied a composite rule requirement.
+
+### Constructors
+
+- `RequiredFinding(string ruleID, int startLine, string secret)` - Represents supporting evidence that satisfied a composite rule requirement.
+
+### Properties
+
+- `RuleID` - Gets the supporting rule identifier.
+- `Secret` - Gets the supporting secret text.
+- `StartLine` - Gets the one-based source line.
 
 ## ScanRequest
 

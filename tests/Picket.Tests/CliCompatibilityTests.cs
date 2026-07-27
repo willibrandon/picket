@@ -4021,6 +4021,7 @@ public sealed class CliCompatibilityTests
         process.StartInfo.ArgumentList.Add("-c");
         process.StartInfo.ArgumentList.Add(configPath);
         process.StartInfo.ArgumentList.Add("--diagnostics=http");
+        process.StartInfo.ArgumentList.Add("--no-banner");
         process.StartInfo.ArgumentList.Add("-r");
         process.StartInfo.ArgumentList.Add("-");
 

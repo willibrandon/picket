@@ -52,6 +52,7 @@ internal static partial class Program
         PicketScanCache? scanCache,
         CompatibilityDiagnosticsSession? diagnosticsSession,
         List<Finding> findings,
+        CompatibilityScanMetrics? metrics,
         out bool stopped,
         out Exception? error,
         CancellationToken cancellationToken)
@@ -89,6 +90,7 @@ internal static partial class Program
                     timeoutTimestamp,
                     scanCache,
                     diagnosticsSession,
+                    metrics,
                     out stoppedFiles[resultIndex],
                     cancellationToken);
             }
@@ -147,6 +149,7 @@ internal static partial class Program
         long timeoutTimestamp,
         PicketScanCache? scanCache,
         CompatibilityDiagnosticsSession? diagnosticsSession,
+        CompatibilityScanMetrics? metrics,
         out bool stopped,
         CancellationToken cancellationToken)
     {
@@ -163,6 +166,7 @@ internal static partial class Program
                 timeoutTimestamp,
                 scanCache,
                 diagnosticsSession,
+                metrics,
                 out stopped,
                 cancellationToken);
         }
@@ -174,6 +178,7 @@ internal static partial class Program
             return [];
         }
 
+        metrics?.AddBytes(input.LongLength);
         diagnosticsSession?.RecordScanInput();
         if (scanCache is not null
             && scanCache.TryRead(input, file.DisplayPath, file.SymlinkDisplayPath, out List<Finding>? cachedFindings))

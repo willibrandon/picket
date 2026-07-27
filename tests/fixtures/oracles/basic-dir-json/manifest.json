@@ -10,7 +10,7 @@
   ],
   "Upstream": {
     "Tool": "gitleaks",
-    "Version": "version is set by build process",
+    "Version": "8.30.1",
     "CloneVersion": "v8.30.0-23-g4c232b5",
     "Commit": "4c232b5014f7618360bd992b4c489cb055881c6b",
     "Remote": "https://github.com/gitleaks/gitleaks.git"
@@ -54,7 +54,7 @@
       "Kind": "picket-stderr",
       "Format": "json",
       "Path": "picket.json.stderr.txt",
-      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
     },
     {
       "Kind": "gitleaks-report",
@@ -90,7 +90,7 @@
       "Kind": "picket-stderr",
       "Format": "csv",
       "Path": "picket.csv.stderr.txt",
-      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
     },
     {
       "Kind": "gitleaks-report",
@@ -126,7 +126,7 @@
       "Kind": "picket-stderr",
       "Format": "junit",
       "Path": "picket.junit.stderr.txt",
-      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
     },
     {
       "Kind": "gitleaks-report",
@@ -162,7 +162,7 @@
       "Kind": "picket-stderr",
       "Format": "sarif",
       "Path": "picket.sarif.stderr.txt",
-      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "Sha256": "e59320efc50cf4fd112ec8dd1116a2356b4b9970368206846f34d622d0051721"
     }
   ],
   "Comparisons": [

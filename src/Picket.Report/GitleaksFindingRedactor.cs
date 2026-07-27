@@ -117,7 +117,8 @@ public static class GitleaksFindingRedactor
             finding.BlobSha256,
             finding.DecodePath,
             randomness: null,
-            positionKind: finding.PositionKind);
+            positionKind: finding.PositionKind,
+            requiredFindings: finding.RequiredFindings);
         return redacted.WithNativeFingerprint(nativeFingerprint);
     }
 
@@ -152,7 +153,8 @@ public static class GitleaksFindingRedactor
             finding.BlobSha256,
             finding.DecodePath,
             randomness: null,
-            positionKind: finding.PositionKind);
+            positionKind: finding.PositionKind,
+            requiredFindings: finding.RequiredFindings);
         return redacted.WithNativeFingerprint(nativeFingerprint);
     }
 

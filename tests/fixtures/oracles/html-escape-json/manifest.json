@@ -7,7 +7,7 @@
   ],
   "Upstream": {
     "Tool": "gitleaks",
-    "Version": "version is set by build process",
+    "Version": "8.30.1",
     "CloneVersion": "v8.30.0-23-g4c232b5",
     "Commit": "4c232b5014f7618360bd992b4c489cb055881c6b",
     "Remote": "https://github.com/gitleaks/gitleaks.git"
@@ -51,7 +51,7 @@
       "Kind": "picket-stderr",
       "Format": "json",
       "Path": "picket.json.stderr.txt",
-      "Sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "Sha256": "406b0316b4a4ebeace34895e5de2c2788ce3a4a128cb454de71ec93704dc5bf7"
     }
   ],
   "Comparisons": [

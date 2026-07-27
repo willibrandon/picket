@@ -34,7 +34,8 @@ internal static partial class Program
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter,
         int exitCode,
         bool hadScanError,
-        Action? successfulRunCallback = null)
+        Action? successfulRunCallback = null,
+        CompatibilityConsoleOptions? consoleOptions = null)
     {
         IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
         if (nativeMode)
@@ -84,6 +85,12 @@ internal static partial class Program
         }
 
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
+        if (consoleOptions is not null)
+        {
+            CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, filteredFindings);
+            CompatibilityConsoleWriter.WriteSummary(consoleOptions, filteredFindings, hadScanError);
+        }
+
         bool wroteResults = nativeResultWriter is null
             ? TryWriteReports(
                 filteredFindings,
