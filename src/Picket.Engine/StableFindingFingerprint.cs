@@ -21,6 +21,11 @@ public static class StableFindingFingerprint
     {
         ArgumentNullException.ThrowIfNull(finding);
 
+        if (IsValid(finding.NativeFingerprint))
+        {
+            return finding.NativeFingerprint;
+        }
+
         string locationPath = NormalizeLocationPath(finding.SymlinkFile.Length == 0 ? finding.File : finding.SymlinkFile);
         string secretHash = CreateSecretOrMatchHash(finding);
         string decodePath = string.Join('\0', finding.DecodePath);
@@ -36,6 +41,25 @@ public static class StableFindingFingerprint
             decodePath);
 
         return string.Concat(Prefix, CreateSha256(material));
+    }
+
+    private static bool IsValid(string fingerprint)
+    {
+        if (fingerprint.Length != Prefix.Length + 64
+            || !fingerprint.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (char value in fingerprint.AsSpan(Prefix.Length))
+        {
+            if (!char.IsAsciiHexDigit(value))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string CreateSecretOrMatchHash(Finding finding)

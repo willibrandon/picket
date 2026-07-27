@@ -1,4 +1,5 @@
 using Picket.Compat;
+using Picket.Engine;
 using Picket.Report;
 using Picket.Sources;
 using System.ComponentModel;
@@ -47,6 +48,52 @@ internal static partial class Program
             picketIgnore = null;
             return false;
         }
+    }
+
+    static bool TryLoadPicketIgnore(
+        IReadOnlyList<string> nativeIgnorePaths,
+        bool respectNativeIgnoreFiles,
+        [NotNullWhen(true)] out PicketIgnore? picketIgnore)
+    {
+        if (!respectNativeIgnoreFiles)
+        {
+            picketIgnore = PicketIgnore.Empty;
+            return true;
+        }
+
+        if (!TryValidateNativeIgnoreFilePaths(nativeIgnorePaths))
+        {
+            picketIgnore = null;
+            return false;
+        }
+
+        try
+        {
+            picketIgnore = PicketIgnore.LoadExisting(nativeIgnorePaths);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine(ex.Message);
+            picketIgnore = null;
+            return false;
+        }
+    }
+
+    static List<Finding> FilterNativeIgnoredFindings(IReadOnlyList<Finding> findings, PicketIgnore picketIgnore)
+    {
+        var filteredFindings = new List<Finding>(findings.Count);
+        for (int i = 0; i < findings.Count; i++)
+        {
+            Finding finding = findings[i];
+            string fingerprint = StableFindingFingerprint.Create(finding);
+            if (!picketIgnore.IsFindingFingerprintIgnored(fingerprint))
+            {
+                filteredFindings.Add(finding);
+            }
+        }
+
+        return filteredFindings;
     }
 
     static bool TryValidateNativeIgnoreFilePaths(IReadOnlyList<string> nativeIgnorePaths)

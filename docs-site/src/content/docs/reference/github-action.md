@@ -32,7 +32,7 @@ This page is generated from `action.yml`.
     <div class="reference-card-heading">
       <code>config-path</code><span>Input</span>
     </div>
-    <p class="reference-card-description">Optional Gitleaks-compatible config path.</p>
+    <p class="reference-card-description">Optional config path. A custom config replaces Picket&#39;s embedded native default rules; extend.useDefault restores only the Gitleaks defaults.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>
@@ -49,6 +49,22 @@ This page is generated from `action.yml`.
       <code>baseline-path</code><span>Input</span>
     </div>
     <p class="reference-card-description">Optional Gitleaks-compatible baseline path.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>ignore-path</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional .picketignore path containing native stable finding fingerprints or content hashes.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>
@@ -112,7 +128,7 @@ This page is generated from `action.yml`.
     <div class="reference-card-heading">
       <code>cache-path</code><span>Input</span>
     </div>
-    <p class="reference-card-description">Native Picket scan cache directory.</p>
+    <p class="reference-card-description">Native Picket scan cache directory. Empty uses the runner temporary directory.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>
@@ -120,7 +136,7 @@ This page is generated from `action.yml`.
       </div>
       <div>
         <dt>Default or value</dt>
-        <dd><code>.picket/cache</code></dd>
+        <dd>-</dd>
       </div>
     </dl>
   </article>
@@ -144,7 +160,7 @@ This page is generated from `action.yml`.
     <div class="reference-card-heading">
       <code>report-directory</code><span>Input</span>
     </div>
-    <p class="reference-card-description">Directory where SARIF and JSONL reports are written.</p>
+    <p class="reference-card-description">Directory where SARIF and JSONL reports are written. Empty uses the runner temporary directory.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>
@@ -152,7 +168,7 @@ This page is generated from `action.yml`.
       </div>
       <div>
         <dt>Default or value</dt>
-        <dd><code>picket-results</code></dd>
+        <dd>-</dd>
       </div>
     </dl>
   </article>

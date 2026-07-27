@@ -185,7 +185,7 @@ internal static partial class Program
 
     private static Finding CopyWithValidationState(Finding finding, string validationState)
     {
-        return new Finding(
+        Finding copy = new(
             finding.RuleID,
             finding.Description,
             finding.StartLine,
@@ -213,6 +213,7 @@ internal static partial class Program
             finding.DecodePath,
             finding.Randomness,
             finding.PositionKind);
+        return copy.WithNativeFingerprint(finding.NativeFingerprint);
     }
 
     private static CredentialAnalysisMetadata CreateAnalysisMetadata(SecretValidationResult result)

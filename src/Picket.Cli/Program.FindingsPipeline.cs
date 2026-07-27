@@ -2,6 +2,7 @@ using Picket.Analyze;
 using Picket.Compat;
 using Picket.Engine;
 using Picket.Report;
+using Picket.Sources;
 using Picket.Verify;
 
 namespace Picket;
@@ -18,6 +19,7 @@ internal static partial class Program
         CompiledRuleSet rules,
         GitleaksBaseline baseline,
         GitleaksIgnore gitleaksIgnore,
+        PicketIgnore picketIgnore,
         int redactionPercent,
         HashSet<string> validationResults,
         LiveVerificationConfiguration? liveVerification,
@@ -37,6 +39,11 @@ internal static partial class Program
         IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
         if (nativeMode)
         {
+            if (picketIgnore.FindingFingerprintCount != 0)
+            {
+                filteredFindings = FilterNativeIgnoredFindings(filteredFindings, picketIgnore);
+            }
+
             filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
             filteredFindings = SecretRandomnessFindingProcessor.Apply(filteredFindings, rules);
         }

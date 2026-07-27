@@ -12,11 +12,15 @@ inputs:
     required: false
     default: .
   config-path:
-    description: Optional Gitleaks-compatible config path.
+    description: Optional config path. A custom config replaces Picket's embedded native default rules; extend.useDefault restores only the Gitleaks defaults.
     required: false
     default: ""
   baseline-path:
     description: Optional Gitleaks-compatible baseline path.
+    required: false
+    default: ""
+  ignore-path:
+    description: Optional .picketignore path containing native stable finding fingerprints or content hashes.
     required: false
     default: ""
   rule-packs:
@@ -32,17 +36,17 @@ inputs:
     required: false
     default: secret-hash-only
   cache-path:
-    description: Native Picket scan cache directory.
+    description: Native Picket scan cache directory. Empty uses the runner temporary directory.
     required: false
-    default: .picket/cache
+    default: ""
   cache-key:
     description: Optional explicit cache key.
     required: false
     default: ""
   report-directory:
-    description: Directory where SARIF and JSONL reports are written.
+    description: Directory where SARIF and JSONL reports are written. Empty uses the runner temporary directory.
     required: false
-    default: picket-results
+    default: ""
   fail-on:
     description: Failure mode. Use findings, errors, or never.
     required: false
@@ -144,7 +148,7 @@ runs:
       if: ${{ inputs.cache == 'true' }}
       uses: actions/cache/restore@v6.1.0
       with:
-        path: ${{ inputs.cache-path }}
+        path: ${{ inputs.cache-path != '' && inputs.cache-path || format('{0}/picket-cache', runner.temp) }}
         key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-{3}', runner.os, inputs.cache-mode, github.ref_name, github.sha) }}
         restore-keys: |
           ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-', runner.os, inputs.cache-mode, github.ref_name) }}
@@ -158,6 +162,7 @@ runs:
         PICKET_PATH: ${{ inputs.path }}
         PICKET_CONFIG_PATH: ${{ inputs.config-path }}
         PICKET_BASELINE_PATH: ${{ inputs.baseline-path }}
+        PICKET_IGNORE_PATH: ${{ inputs.ignore-path }}
         PICKET_RULE_PACKS: ${{ inputs.rule-packs }}
         PICKET_CACHE_ENABLED: ${{ inputs.cache }}
         PICKET_CACHE_MODE: ${{ inputs.cache-mode }}
@@ -184,7 +189,7 @@ runs:
       if: ${{ inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6.1.0
       with:
-        path: ${{ inputs.cache-path }}
+        path: ${{ inputs.cache-path != '' && inputs.cache-path || format('{0}/picket-cache', runner.temp) }}
         key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-{3}', runner.os, inputs.cache-mode, github.ref_name, github.sha) }}
 
     - name: Upload SARIF

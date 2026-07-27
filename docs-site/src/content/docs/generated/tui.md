@@ -70,6 +70,8 @@ Keeping the TUI in `picket-tui` prevents Hex1b terminal UI code and terminal-nat
 
 The TUI includes a scan workspace for running native scans interactively. It builds and displays the command-equivalent `picket scan` request, then runs the scanner executable.
 
+The default report path is under the operating system temporary directory rather than the scanned checkout. The path is stable across TUI launches so the previous report can be restored when it still exists. The Output settings accept an explicit report path when a durable artifact is required.
+
 The workspace keeps the normal path short: choose a target, check the command preview, press Run scan, then jump to Findings when row triage is needed. It exposes commonly changed options directly:
 
 - local path, local container archive, remote registry image, source-host target, or object-store target,

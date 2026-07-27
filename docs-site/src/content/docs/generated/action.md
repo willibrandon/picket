@@ -41,14 +41,15 @@ jobs:
 | Input | Default | Description |
 | --- | --- | --- |
 | `path` | `.` | Repository-relative or absolute path to scan. |
-| `config-path` | empty | Optional Gitleaks-compatible configuration path. |
+| `config-path` | empty | Optional configuration path. A custom config replaces Picket's embedded native default rules. |
 | `baseline-path` | empty | Optional Gitleaks-compatible baseline report path. |
+| `ignore-path` | empty | Optional `.picketignore` path containing native stable finding fingerprints or `sha256:` content hashes. |
 | `rule-packs` | empty | Optional comma-separated built-in rule packs: `picket-strict` and `picket-experimental`. |
 | `cache` | `true` | Restore and save the native Picket scan cache. |
 | `cache-mode` | `secret-hash-only` | Cache storage mode. Use `secret-hash-only` for public CI safety or `raw` for exact cached report replay in trusted private jobs. |
-| `cache-path` | `.picket/cache` | Cache directory used by Picket and `actions/cache`. |
+| `cache-path` | runner temp `picket-cache` | Cache directory used by Picket and `actions/cache`. |
 | `cache-key` | empty | Optional explicit cache key. Empty uses an OS, cache-mode, branch, and commit scoped default with mode-scoped branch restore keys. |
-| `report-directory` | `picket-results` | Directory where `picket.sarif` and `picket.jsonl` are written. |
+| `report-directory` | runner temp `picket-results` | Directory where `picket.sarif` and `picket.jsonl` are written. |
 | `fail-on` | `findings` | Failure policy: `findings`, `errors`, or `never`. |
 | `summary` | `true` | Write the Picket scan job summary. |
 | `results` | empty | Optional comma-separated validation states to keep before reports, annotations, and failure enforcement. |
@@ -65,6 +66,10 @@ jobs:
 | `max-archive-ratio` | empty | Optional maximum archive expansion ratio. Use `0` to disable. |
 | `dotnet-version` | `10.0.301` | .NET SDK version used by the source-based action. |
 | `setup-dotnet` | `true` | Install the configured SDK before restoring and running Picket. |
+
+Supplying `config-path` replaces the embedded native default rule set, including Picket-owned high-confidence rules. `[extend] useDefault = true` restores the Gitleaks default rules, not Picket's complete native default profile. Review the resolved rule set with `picket rules check --print-config` before using a custom config as a required CI gate; otherwise the scan can cover fewer credential types than the default Action configuration.
+
+`ignore-path` accepts the same native entries as `.picketignore`. Copy a full `picket:v1:<sha256>` fingerprint from a native report to suppress that stable finding, or use `sha256:<content-sha256>` to suppress an entire file by content identity.
 
 ## Outputs
 
@@ -94,9 +99,9 @@ The repository CI runs the local composite action against the repository root on
 
 ## Reports And Caching
 
-The action always writes native Picket SARIF and JSONL reports. Formats are inferred from the output extensions, so the action does not pass a global report format flag.
+The action always writes native Picket SARIF and JSONL reports. Formats are inferred from the output extensions, so the action does not pass a global report format flag. By default, reports are written beneath `runner.temp` rather than the checked-out workspace, preventing an earlier report from becoming scan input. An explicit relative `report-directory` remains workspace-relative.
 
-When `cache` is `true`, `actions/cache/restore` restores `cache-path` before scanning and `actions/cache/save` saves it before SARIF upload and final failure enforcement. The same path is passed to `picket scan --cache-dir`, and `cache-mode` is passed to `picket scan --cache-mode`.
+When `cache` is `true`, `actions/cache/restore` restores `cache-path` before scanning and `actions/cache/save` saves it before SARIF upload and final failure enforcement. The same path is passed to `picket scan --cache-dir`, and `cache-mode` is passed to `picket scan --cache-mode`. The default cache path is beneath `runner.temp`; an explicit relative `cache-path` remains workspace-relative.
 
 The default action cache mode is `secret-hash-only`, so saved cache entries keep finding hashes and provenance without raw match, secret, or line text. Set `cache-mode: raw` only for trusted private CI where exact cached report replay is more important than cache privacy.
 

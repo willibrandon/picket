@@ -31,6 +31,8 @@ public sealed class ReportFindingReaderTests
         Assert.AreEqual("auth.py", findings[0].File);
         Assert.AreEqual("secret-value", findings[0].Secret);
         Assert.AreEqual(StableFindingFingerprint.Create(finding), findings[0].Fingerprint);
+        Assert.AreEqual(StableFindingFingerprint.Create(finding), findings[0].NativeFingerprint);
+        Assert.AreEqual(StableFindingFingerprint.Create(finding), StableFindingFingerprint.Create(findings[0]));
     }
 
     /// <summary>

@@ -1316,7 +1316,7 @@ public static class OfflineSecretValidator
 
     private static Finding CopyWithValidationState(Finding finding, string validationState)
     {
-        return new Finding(
+        Finding copy = new(
             finding.RuleID,
             finding.Description,
             finding.StartLine,
@@ -1344,6 +1344,7 @@ public static class OfflineSecretValidator
             finding.DecodePath,
             finding.Randomness,
             finding.PositionKind);
+        return copy.WithNativeFingerprint(finding.NativeFingerprint);
     }
 
     private static bool IsTestCredential(string secret)

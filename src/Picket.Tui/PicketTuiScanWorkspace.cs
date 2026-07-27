@@ -10,7 +10,7 @@ namespace Picket.Tui;
 /// </summary>
 internal sealed class PicketTuiScanWorkspace
 {
-    private const string DefaultReportPath = "picket-results/picket-tui.jsonl";
+    private const string DefaultReportDirectoryName = "picket";
     private const int MaxCapturedOutputLineLength = 180;
     private const int MaxCapturedOutputLines = 500;
     private const string PartialScanDiagnosticPrefix = "scan incomplete:";
@@ -28,6 +28,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
     private static readonly string[] s_containerTargetModeLabels = ["Docker archive", "OCI archive", "Registry"];
+    private static readonly string s_defaultReportDirectory = Path.Combine(Path.GetTempPath(), DefaultReportDirectoryName, "reports");
     private static readonly string[] s_localTargetModeLabels = ["Local"];
     private static readonly string[] s_objectStoreTargetModeLabels = ["S3", "GCS", "Azure Blob"];
     private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "Bitbucket Data Center"];
@@ -767,7 +768,7 @@ internal sealed class PicketTuiScanWorkspace
     /// <summary>
     /// Gets the report path.
     /// </summary>
-    internal string ReportPath { get; private set; } = DefaultReportPath;
+    internal string ReportPath { get; private set; } = GetDefaultReportPath("jsonl");
 
     /// <summary>
     /// Gets the optional native source scan checkpoint path.
@@ -2585,9 +2586,7 @@ internal sealed class PicketTuiScanWorkspace
 
     private static string GetDefaultReportPath(string reportFormat)
     {
-        return reportFormat.Equals("jsonl", StringComparison.Ordinal)
-            ? DefaultReportPath
-            : string.Concat("picket-results/picket-tui.", reportFormat);
+        return Path.Combine(s_defaultReportDirectory, string.Concat("picket-tui.", reportFormat));
     }
 
     private static int IndexOf(string[] values, string value)

@@ -72,7 +72,7 @@ internal static partial class Program
         int startLine = MapGitLine(fragment, finding.StartLine);
         int endLine = MapGitLine(fragment, finding.EndLine);
         string link = CreateScmLink(scmPlatform, remoteUrl, finding.File, fragment.Commit, startLine, endLine);
-        return new Finding(
+        Finding mapped = new(
             finding.RuleID,
             finding.Description,
             startLine,
@@ -100,6 +100,7 @@ internal static partial class Program
             finding.DecodePath,
             finding.Randomness,
             finding.PositionKind);
+        return mapped.WithNativeFingerprint(finding.NativeFingerprint);
     }
 
     static void CreateGitLinkContext(string root, bool disableLinks, string? platform, out string scmPlatform, out string remoteUrl)

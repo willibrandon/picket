@@ -546,9 +546,10 @@ public sealed class PicketTuiTests
         state.SetView(PicketTuiView.Scan);
 
         string text = state.GetYankText();
+        string defaultReportPath = Path.Combine(Path.GetTempPath(), "picket", "reports", "picket-tui.jsonl");
 
         Assert.Contains("Command: picket scan", text);
-        Assert.Contains("Report: picket-results/picket-tui.jsonl", text);
+        Assert.Contains($"Report: {defaultReportPath}", text);
         Assert.Contains("Status: Ready to scan", text);
         Assert.Contains("Timing: Not run yet", text);
         Assert.Contains("Summary: 3 findings across 2 files in picket-json", text);

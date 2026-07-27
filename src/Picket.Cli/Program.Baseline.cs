@@ -415,6 +415,11 @@ internal static partial class Program
         }
 
         IReadOnlyList<Finding> filteredFindings = gitleaksIgnore.Filter(findings);
+        if (picketIgnore.FindingFingerprintCount != 0)
+        {
+            filteredFindings = FilterNativeIgnoredFindings(filteredFindings, picketIgnore);
+        }
+
         if (redactionPercent > 0)
         {
             filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent);

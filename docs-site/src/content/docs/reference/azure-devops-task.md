@@ -11,7 +11,7 @@ This page is generated from `azure-devops/tasks/PicketScanV1/task.json`.
 
 Task name: `PicketScan`
 
-Version: `1.0.4`
+Version: `1.0.5`
 
 ## Inputs
 
@@ -52,7 +52,7 @@ Version: `1.0.4`
     <div class="reference-card-heading">
       <code>config</code><span>filePath</span>
     </div>
-    <p class="reference-card-description">Optional Picket or Gitleaks-compatible configuration path.</p>
+    <p class="reference-card-description">Optional configuration path. A custom config replaces Picket&#39;s embedded native default rules; extend.useDefault restores only the Gitleaks defaults.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>
@@ -149,6 +149,22 @@ Version: `1.0.4`
       <code>baselinePath</code><span>filePath</span>
     </div>
     <p class="reference-card-description">Optional baseline report used to suppress known findings.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>ignorePath</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">Optional .picketignore path containing native stable finding fingerprints or content hashes.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>

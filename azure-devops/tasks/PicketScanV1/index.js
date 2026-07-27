@@ -123,6 +123,7 @@ function readInputs() {
     reportDirectory: path.resolve(getInput("reportDirectory", defaultReportDirectory())),
     failOn,
     baselinePath: getOptionalFileInput("baselinePath", target),
+    ignorePath: getOptionalFileInput("ignorePath", target),
     results,
     onlyVerified,
     redact,
@@ -183,6 +184,7 @@ function createPicketArguments(inputs, reportPaths) {
 
   addValue(args, "--config", inputs.config);
   addValue(args, "--baseline-path", inputs.baselinePath);
+  addValue(args, "--ignore-path", inputs.ignorePath);
   for (const rulePack of inputs.rulePacks) {
     addValue(args, "--rule-pack", rulePack);
   }

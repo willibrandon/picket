@@ -152,6 +152,22 @@ public sealed class GitleaksFindingRedactorTests
     }
 
     /// <summary>
+    /// Verifies native redaction preserves the stable finding identity without retaining raw evidence hashes.
+    /// </summary>
+    [TestMethod]
+    public void RedactStrictPreservesNativeFingerprint()
+    {
+        Finding finding = CreateFinding("line containing secret", "secret");
+        string fingerprint = StableFindingFingerprint.Create(finding);
+
+        Finding redacted = GitleaksFindingRedactor.Redact(finding, 100, requirePartialMask: true);
+
+        Assert.AreEqual(fingerprint, redacted.NativeFingerprint);
+        Assert.AreEqual(fingerprint, StableFindingFingerprint.Create(redacted));
+        Assert.AreNotEqual(CreateSha256("secret"), redacted.SecretSha256);
+    }
+
+    /// <summary>
     /// Verifies that zero redaction keeps findings unchanged.
     /// </summary>
     [TestMethod]

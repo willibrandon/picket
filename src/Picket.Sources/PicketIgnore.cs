@@ -9,10 +9,12 @@ namespace Picket.Sources;
 /// <param name="contentSha256Hashes">SHA-256 content hashes to suppress.</param>
 public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
 {
+    private const string FindingFingerprintPrefix = "picket:v1:";
     private const string Sha256Prefix = "sha256:";
     private const int Sha256HexLength = 64;
     private readonly HashSet<string> _contentSha256Hashes = CreateHashSet(contentSha256Hashes);
     private readonly Dictionary<string, string> _contentSha256Locations = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _findingFingerprints = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _matchedContentSha256Hashes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lock _matchedContentSha256HashesLock = new();
 
@@ -26,10 +28,19 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
     /// </summary>
     public int ContentHashCount => _contentSha256Hashes.Count;
 
-    private PicketIgnore(HashSet<string> contentSha256Hashes, Dictionary<string, string> contentSha256Locations)
+    /// <summary>
+    /// Gets the number of stable finding-fingerprint ignore entries.
+    /// </summary>
+    public int FindingFingerprintCount => _findingFingerprints.Count;
+
+    private PicketIgnore(
+        HashSet<string> contentSha256Hashes,
+        Dictionary<string, string> contentSha256Locations,
+        HashSet<string> findingFingerprints)
         : this(contentSha256Hashes)
     {
         _contentSha256Locations = contentSha256Locations;
+        _findingFingerprints = findingFingerprints;
     }
 
     /// <summary>
@@ -68,6 +79,7 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
 
         var hashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var locations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var findingFingerprints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (string path in paths)
         {
             if (!File.Exists(path))
@@ -79,11 +91,13 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
             foreach (string line in File.ReadLines(path))
             {
                 lineNumber++;
-                AddLine(hashes, locations, line, path, lineNumber);
+                AddLine(hashes, locations, findingFingerprints, line, path, lineNumber);
             }
         }
 
-        return hashes.Count == 0 ? Empty : new PicketIgnore(hashes, locations);
+        return hashes.Count == 0 && findingFingerprints.Count == 0
+            ? Empty
+            : new PicketIgnore(hashes, locations, findingFingerprints);
     }
 
     /// <summary>
@@ -97,12 +111,15 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
 
         var hashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var locations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var findingFingerprints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (string line in lines)
         {
-            AddLine(hashes, locations, line, sourcePath: string.Empty, lineNumber: 0);
+            AddLine(hashes, locations, findingFingerprints, line, sourcePath: string.Empty, lineNumber: 0);
         }
 
-        return hashes.Count == 0 ? Empty : new PicketIgnore(hashes, locations);
+        return hashes.Count == 0 && findingFingerprints.Count == 0
+            ? Empty
+            : new PicketIgnore(hashes, locations, findingFingerprints);
     }
 
     /// <summary>
@@ -163,6 +180,17 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
     }
 
     /// <summary>
+    /// Returns a value indicating whether the supplied stable finding fingerprint is ignored.
+    /// </summary>
+    /// <param name="fingerprint">The native stable finding fingerprint to test.</param>
+    /// <returns><see langword="true" /> when the finding fingerprint is ignored.</returns>
+    public bool IsFindingFingerprintIgnored(string fingerprint)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fingerprint);
+        return _findingFingerprints.Contains(fingerprint.Trim());
+    }
+
+    /// <summary>
     /// Gets human-readable SHA-256 ignore entries that did not match any recorded content.
     /// </summary>
     /// <returns>The unmatched SHA-256 ignore entries in deterministic order.</returns>
@@ -196,6 +224,7 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
     private static void AddLine(
         HashSet<string> hashes,
         Dictionary<string, string> locations,
+        HashSet<string> findingFingerprints,
         string line,
         string sourcePath,
         int lineNumber)
@@ -206,13 +235,24 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
             return;
         }
 
-        if (!trimmed.StartsWith(Sha256Prefix, StringComparison.OrdinalIgnoreCase))
+        string entry = TrimInlineComment(trimmed);
+        if (entry.StartsWith(FindingFingerprintPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            ReadOnlySpan<char> fingerprintHash = entry.AsSpan(FindingFingerprintPrefix.Length);
+            if (IsSha256Hex(fingerprintHash))
+            {
+                findingFingerprints.Add(string.Concat(FindingFingerprintPrefix, fingerprintHash));
+            }
+
+            return;
+        }
+
+        if (!entry.StartsWith(Sha256Prefix, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        string hash = TrimInlineComment(trimmed[Sha256Prefix.Length..].Trim());
-
+        string hash = entry[Sha256Prefix.Length..].Trim();
         if (IsSha256Hex(hash))
         {
             hashes.Add(hash);
@@ -234,7 +274,7 @@ public sealed class PicketIgnore(IEnumerable<string> contentSha256Hashes)
         return value[..commentIndex].TrimEnd();
     }
 
-    private static bool IsSha256Hex(string value)
+    private static bool IsSha256Hex(ReadOnlySpan<char> value)
     {
         if (value.Length != Sha256HexLength)
         {

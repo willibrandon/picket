@@ -122,6 +122,7 @@ Represents a detected secret finding using the Gitleaks-compatible field model.
 - `Match` - Gets the full matched text.
 - `MatchSha256` - Gets the original match SHA-256 hash for native reports, or an empty string.
 - `Message` - Gets the git commit message, or an empty string.
+- `NativeFingerprint` - Gets the stable Picket-native fingerprint captured before evidence redaction, or an empty string.
 - `PositionKind` - Gets the coordinate system used by the finding's source positions.
 - `Randomness` - Gets the native randomness assessment, or when scoring was not enabled.
 - `RuleID` - Gets the rule identifier.

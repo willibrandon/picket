@@ -86,7 +86,7 @@ public static class SecretRandomnessFindingProcessor
 
     private static Finding CopyWithAssessment(Finding finding, SecretRandomnessAssessment assessment)
     {
-        return new Finding(
+        Finding copy = new(
             finding.RuleID,
             finding.Description,
             finding.StartLine,
@@ -114,5 +114,6 @@ public static class SecretRandomnessFindingProcessor
             finding.DecodePath,
             assessment,
             finding.PositionKind);
+        return copy.WithNativeFingerprint(finding.NativeFingerprint);
     }
 }

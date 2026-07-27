@@ -126,7 +126,7 @@ public static class ReportFindingReader
             return false;
         }
 
-        finding = new Finding(
+        Finding parsedFinding = new(
             GetString(element, "ruleId"),
             GetString(element, "description"),
             GetInt32(element, "startLine"),
@@ -154,6 +154,7 @@ public static class ReportFindingReader
             GetStringArray(element, "decodePath"),
             GetRandomness(element),
             GetPositionKind(element));
+        finding = parsedFinding.WithNativeFingerprint(GetString(element, "fingerprint"));
         return true;
     }
 

@@ -494,6 +494,11 @@ internal static partial class Program
         {
             string reportInputRoot = Path.GetDirectoryName(Path.GetFullPath(root)) ?? ".";
             GitleaksIgnore reportInputIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, reportInputRoot);
+            if (!TryLoadPicketIgnore(reportInputRoot, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? reportInputPicketIgnore))
+            {
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
+            }
+
             if (!TryLoadBaseline(baselinePath, baselineComparisonMode, out GitleaksBaseline? reportInputBaseline))
             {
                 return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
@@ -505,6 +510,7 @@ internal static partial class Program
                 rules,
                 reportInputBaseline,
                 reportInputIgnore,
+                reportInputPicketIgnore,
                 redactionPercent,
                 validationResults,
                 liveVerification,
@@ -579,9 +585,14 @@ internal static partial class Program
         }
         else
         {
+            if (!TryLoadPicketIgnore(nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? loadedPicketIgnore))
+            {
+                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
+            }
+
+            picketIgnore = loadedPicketIgnore;
             try
             {
-                picketIgnore = PicketIgnore.Empty;
                 files = RemoteScanManifest.OrderFiles(sourceFileProvider(
                     root,
                     rules,
@@ -878,6 +889,7 @@ internal static partial class Program
             rules,
             baseline,
             gitleaksIgnore,
+            picketIgnore,
             redactionPercent,
             validationResults,
             liveVerification,

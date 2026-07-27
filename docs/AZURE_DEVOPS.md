@@ -39,13 +39,14 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | --- | --- | --- |
 | `target` | `$(Build.SourcesDirectory)` | File, directory, or checked-out repository path to scan. |
 | `picketPath` | `picket` | Path to the Picket executable or command name available on `PATH`. |
-| `config` | empty | Optional Picket or Gitleaks-compatible configuration path. |
+| `config` | empty | Optional configuration path. A custom config replaces Picket's embedded native default rules. |
 | `profile` | `picket` | Scan profile. Use `gitleaks` only when strict compatibility behavior is desired. |
 | `rulePacks` | empty | Optional comma-separated built-in rule packs: `picket-strict` and `picket-experimental`. |
 | `reportFormats` | `sarif,jsonl,html` | Comma-separated report formats published by the task. |
 | `reportDirectory` | `$(Build.ArtifactStagingDirectory)/picket` | Directory where task reports are written. |
 | `failOn` | `findings` | Failure policy: `findings`, `errors`, or `never`. Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task, including when a partial report contains findings. |
 | `baselinePath` | empty | Optional baseline report used to suppress known findings. |
+| `ignorePath` | empty | Optional `.picketignore` path containing native stable finding fingerprints or `sha256:` content hashes. |
 | `results` | empty | Optional comma-separated validation states to keep before reports and failure enforcement. |
 | `onlyVerified` | `false` | Keep only offline structurally valid findings and live active findings. |
 | `redact` | `100` | Redaction percentage from `0` through `100`. Public pipeline examples use full redaction. |
@@ -57,7 +58,7 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `publishHtml` | `true` | Publish the HTML report as a build artifact. |
 | `cache` | `true` | Pass a native Picket scan cache directory to the CLI. |
 | `cacheMode` | `secret-hash-only` | Cache storage mode. Use `raw` only in trusted private jobs. |
-| `cachePath` | `$(Pipeline.Workspace)/.picket/cache` | Cache directory passed to the CLI. |
+| `cachePath` | `$(Pipeline.Workspace)/.picket/cache` | Cache directory passed to the CLI. This default is outside `$(Build.SourcesDirectory)`. |
 | `maxTargetMegabytes` | empty | Optional maximum file size in decimal MB for content rules. |
 | `maxArchiveDepth` | empty | Optional maximum nested archive traversal depth. |
 | `maxArchiveEntries` | empty | Optional maximum number of files extracted from archives. |
@@ -89,7 +90,11 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `allowInsecureSourceEndpoints` | `false` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 | `extraArgs` | empty | Additional CLI arguments appended after validated task inputs. |
 
-The task rejects contradictory inputs before invoking the scanner. Examples include `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support. Optional `config` and `baselinePath` inputs are forwarded only when they name files rather than the checkout directory supplied by an empty Azure Pipelines file-path control.
+The task rejects contradictory inputs before invoking the scanner. Examples include `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support. Optional `config`, `baselinePath`, and `ignorePath` inputs are forwarded only when they name files rather than the checkout directory supplied by an empty Azure Pipelines file-path control.
+
+Supplying `config` replaces the embedded native default rule set, including Picket-owned high-confidence rules. `[extend] useDefault = true` restores the Gitleaks default rules, not Picket's complete native default profile. Review the resolved rule set with `picket rules check --print-config` before using a custom config as a required pipeline gate.
+
+`ignorePath` accepts the same native entries as `.picketignore`. Copy a complete `picket:v1:<sha256>` fingerprint from a native report to suppress that stable finding, or use `sha256:<content-sha256>` to suppress a complete file by content identity.
 
 ## Outputs
 

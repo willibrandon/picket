@@ -46,11 +46,12 @@ internal static class PicketGitHubActionApp
         string scanPath = ResolveWorkspacePath(GetActionInput("PICKET_PATH", "."));
         string configPath = GetActionInput("PICKET_CONFIG_PATH");
         string baselinePath = GetActionInput("PICKET_BASELINE_PATH");
+        string ignorePath = GetActionInput("PICKET_IGNORE_PATH");
         List<string> rulePacks = ParseRulePacks(GetActionInput("PICKET_RULE_PACKS"));
         string cacheEnabled = GetActionInput("PICKET_CACHE_ENABLED", "true");
         string cacheMode = GetActionInput("PICKET_CACHE_MODE", "secret-hash-only").Trim().ToLowerInvariant();
-        string cachePath = GetActionInput("PICKET_CACHE_PATH", ".picket/cache");
-        string reportDirectory = ResolveWorkspacePath(GetActionInput("PICKET_REPORT_DIRECTORY", "picket-results"));
+        string cachePath = ResolveGeneratedPath(GetActionInput("PICKET_CACHE_PATH"), "picket-cache");
+        string reportDirectory = ResolveGeneratedPath(GetActionInput("PICKET_REPORT_DIRECTORY"), "picket-results");
         string failOn = GetActionInput("PICKET_FAIL_ON", "findings").Trim().ToLowerInvariant();
         string summaryEnabled = GetActionInput("PICKET_SUMMARY", "true").Trim().ToLowerInvariant();
         string validationResults = GetActionInput("PICKET_RESULTS");
@@ -99,6 +100,7 @@ internal static class PicketGitHubActionApp
 
         AddOptionalPathOption(arguments, "-c", configPath);
         AddOptionalPathOption(arguments, "-b", baselinePath);
+        AddOptionalPathOption(arguments, "--ignore-path", ignorePath);
         foreach (string rulePack in rulePacks)
         {
             AddOptionalValueOption(arguments, "--rule-pack", rulePack);
@@ -106,10 +108,9 @@ internal static class PicketGitHubActionApp
 
         if (cacheEnabled.Equals("true", StringComparison.OrdinalIgnoreCase))
         {
-            string resolvedCachePath = ResolveWorkspacePath(cachePath);
-            Directory.CreateDirectory(resolvedCachePath);
+            Directory.CreateDirectory(cachePath);
             arguments.Add("--cache-dir");
-            arguments.Add(resolvedCachePath);
+            arguments.Add(cachePath);
             arguments.Add("--cache-mode");
             arguments.Add(cacheMode);
         }
@@ -208,6 +209,23 @@ internal static class PicketGitHubActionApp
 
         string workspace = GetActionInput("GITHUB_WORKSPACE", Directory.GetCurrentDirectory());
         return Path.GetFullPath(Path.Combine(workspace, path));
+    }
+
+    /// <summary>
+    /// Resolves an explicit path against the workspace or returns a generated path under the runner temporary directory.
+    /// </summary>
+    /// <param name="path">The optional explicit path.</param>
+    /// <param name="defaultDirectoryName">The directory name to use beneath the runner temporary directory.</param>
+    /// <returns>The full generated or explicit path.</returns>
+    private static string ResolveGeneratedPath(string path, string defaultDirectoryName)
+    {
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            return ResolveWorkspacePath(path);
+        }
+
+        string runnerTemp = GetActionInput("RUNNER_TEMP", Path.GetTempPath());
+        return Path.GetFullPath(Path.Combine(runnerTemp, defaultDirectoryName));
     }
 
     /// <summary>

@@ -15,12 +15,17 @@ steps:
     target: '$(Build.SourcesDirectory)'
     profile: 'picket'
     rulePacks: 'picket-strict'
+    ignorePath: '$(Build.SourcesDirectory)/.picketignore'
     reportFormats: 'sarif,jsonl,html'
     failOn: 'findings'
     redact: '100'
 ```
 
 Use `picketPath` when the executable is not named `picket` or is not available on `PATH`. Live verification and remote Azure DevOps enumeration are opt-in task inputs.
+
+`ignorePath` accepts complete `picket:v1:<sha256>` fingerprints copied from native reports and `sha256:<content-sha256>` content-hash entries.
+
+Supplying `config` replaces Picket's embedded native default rule set. `[extend] useDefault = true` restores the Gitleaks default rules, not Picket's complete native default profile.
 
 `failOn: never` suppresses finding-based failure only. Scanner execution errors still fail the task.
 

@@ -353,6 +353,70 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that the GitHub Action exposes and forwards a native ignore-file path.
+    /// </summary>
+    [TestMethod]
+    public void GitHubActionForwardsNativeIgnorePath()
+    {
+        string action = ReadRepositoryFile("action.yml");
+        string helper = ReadRepositoryFile(".github/actions/run-picket.cs");
+        string documentation = ReadRepositoryFile("docs/ACTION.md");
+
+        Assert.Contains("  ignore-path:", action);
+        Assert.Contains("PICKET_IGNORE_PATH: ${{ inputs.ignore-path }}", action);
+        Assert.Contains("GetActionInput(\"PICKET_IGNORE_PATH\")", helper);
+        Assert.Contains("AddOptionalPathOption(arguments, \"--ignore-path\", ignorePath);", helper);
+        Assert.Contains("| `ignore-path` |", documentation);
+    }
+
+    /// <summary>
+    /// Verifies that Action documentation explains how custom configuration affects native defaults.
+    /// </summary>
+    [TestMethod]
+    public void GitHubActionDocumentationExplainsCustomConfigReplacement()
+    {
+        string documentation = ReadRepositoryFile("docs/ACTION.md");
+        string normalizedDocumentation = documentation.ToLowerInvariant();
+
+        Assert.Contains("config-path", documentation);
+        Assert.Contains("custom config", normalizedDocumentation);
+        Assert.Contains("replaces", normalizedDocumentation);
+        Assert.Contains("embedded native default", normalizedDocumentation);
+        Assert.Contains("[extend]", documentation);
+        Assert.Contains("useDefault = true", documentation);
+        Assert.Contains("Gitleaks default rules", documentation);
+    }
+
+    /// <summary>
+    /// Verifies that default Action artifacts live under the runner temporary directory instead of the scanned workspace.
+    /// </summary>
+    [TestMethod]
+    public void GitHubActionDefaultsKeepArtifactsOutsideWorkspace()
+    {
+        string action = ReadRepositoryFile("action.yml");
+        string helper = ReadRepositoryFile(".github/actions/run-picket.cs");
+        string documentation = ReadRepositoryFile("docs/ACTION.md");
+
+        string cachePathInput = ReadActionInputBlock(action, "cache-path");
+        string reportDirectoryInput = ReadActionInputBlock(action, "report-directory");
+
+        Assert.Contains("default: \"\"", cachePathInput);
+        Assert.Contains("runner temporary directory", cachePathInput);
+        Assert.Contains("default: \"\"", reportDirectoryInput);
+        Assert.Contains("runner temporary directory", reportDirectoryInput);
+        Assert.Contains("format('{0}/picket-cache', runner.temp)", action);
+        Assert.Contains("ResolveGeneratedPath(GetActionInput(\"PICKET_CACHE_PATH\"), \"picket-cache\")", helper);
+        Assert.Contains("ResolveGeneratedPath(GetActionInput(\"PICKET_REPORT_DIRECTORY\"), \"picket-results\")", helper);
+        Assert.Contains("GetActionInput(\"RUNNER_TEMP\", Path.GetTempPath())", helper);
+        Assert.DoesNotContain("default: .picket/cache", action);
+        Assert.DoesNotContain("default: picket-results", action);
+        Assert.Contains("reports are written beneath `runner.temp` rather than the checked-out workspace", documentation);
+        Assert.Contains("default cache path is beneath `runner.temp`", documentation);
+        Assert.DoesNotContain("| `cache-path` | `.picket/cache` |", documentation);
+        Assert.DoesNotContain("| `report-directory` | `picket-results` |", documentation);
+    }
+
+    /// <summary>
     /// Verifies that named Native AOT publish profiles match the release design contract.
     /// </summary>
     [TestMethod]
@@ -845,7 +909,7 @@ public sealed partial class RepositoryConventionTests
         Assert.AreEqual("PicketScan", taskRoot.GetProperty("name").GetString());
         Assert.AreEqual("Picket scan", taskRoot.GetProperty("friendlyName").GetString());
         Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Major").GetInt32());
-        Assert.AreEqual(4, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
+        Assert.AreEqual(5, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
         Assert.AreEqual("index.js", taskRoot.GetProperty("execution").GetProperty("Node20_1").GetProperty("target").GetString());
 
         HashSet<string> inputNames = ReadJsonNameSet(taskRoot.GetProperty("inputs"));
@@ -857,6 +921,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("reportDirectory", inputNames);
         Assert.Contains("failOn", inputNames);
         Assert.Contains("baselinePath", inputNames);
+        Assert.Contains("ignorePath", inputNames);
         Assert.Contains("redact", inputNames);
         Assert.Contains("cacheMode", inputNames);
         Assert.Contains("azureDevOpsOrganization", inputNames);
@@ -892,6 +957,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("formats.includes(\"jsonl\")", handler);
         Assert.Contains("getOptionalFileInput(\"config\", target)", handler);
         Assert.Contains("getOptionalFileInput(\"baselinePath\", target)", handler);
+        Assert.Contains("getOptionalFileInput(\"ignorePath\", target)", handler);
+        Assert.Contains("addValue(args, \"--ignore-path\", inputs.ignorePath)", handler);
         Assert.Contains("isDefaultInputDirectory(value, defaultDirectory)", handler);
         Assert.Contains("process.env.BUILD_SOURCESDIRECTORY", handler);
         Assert.Contains("isScannerError(exitCode, findings)", handler);
@@ -912,11 +979,14 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("finding.match", handler);
         Assert.DoesNotContain("finding.line", handler);
         Assert.Contains("Scanner execution errors always fail the task", taskMetadata);
+        Assert.Contains("custom config replaces Picket's embedded native default rules", taskMetadata);
 
         Assert.Contains("Picket for Azure Pipelines", readme);
         Assert.Contains("PicketScan@1", readme);
         Assert.Contains("task: PicketScan@1", readme);
         Assert.Contains("picketPath", readme);
+        Assert.Contains("ignorePath", readme);
+        Assert.Contains("Supplying `config` replaces Picket's embedded native default rule set.", readme);
         Assert.Contains("failOn: never", readme);
         Assert.Contains("Scanner execution errors still fail the task.", readme);
         Assert.DoesNotContain("This folder", readme);
@@ -929,7 +999,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task", azureDevOps);
-        Assert.Contains("Optional `config` and `baselinePath` inputs are forwarded only when they name files", azureDevOps);
+        Assert.Contains("Optional `config`, `baselinePath`, and `ignorePath` inputs are forwarded only when they name files", azureDevOps);
+        Assert.Contains("`ignorePath` accepts the same native entries as `.picketignore`", azureDevOps);
+        Assert.Contains("This default is outside `$(Build.SourcesDirectory)`", azureDevOps);
         Assert.Contains("azure-devops/vss-extension.json", marketplaces);
     }
 
@@ -2269,7 +2341,7 @@ public sealed partial class RepositoryConventionTests
             (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(validProcess, TestContext.CancellationToken).ConfigureAwait(false);
             Assert.AreEqual(0, validProcess.ExitCode, string.Concat(stdout, stderr));
             Assert.Contains("extension: willibrandon.picket 0.1.3", stdout);
-            Assert.Contains("task: PicketScan@1.0.4", stdout);
+            Assert.Contains("task: PicketScan@1.0.5", stdout);
         }
 
         File.WriteAllText(checksumPath, $"{new string('0', 64)}  {Path.GetFileName(vsixPath)}\n");
@@ -3063,6 +3135,30 @@ public sealed partial class RepositoryConventionTests
     private static string ReadRepositoryFile(string relativePath)
     {
         return File.ReadAllText(ResolveRepositoryPath(relativePath));
+    }
+
+    private static string ReadActionInputBlock(string action, string inputName)
+    {
+        string marker = $"  {inputName}:";
+        int start = action.IndexOf(marker, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, start, $"Missing GitHub Action input: {inputName}");
+
+        int end = action.Length;
+        int lineStart = action.IndexOf('\n', start);
+        while (lineStart >= 0 && lineStart + 1 < action.Length)
+        {
+            int candidateStart = lineStart + 1;
+            if (action.AsSpan(candidateStart).StartsWith("  ", StringComparison.Ordinal)
+                && !action.AsSpan(candidateStart).StartsWith("    ", StringComparison.Ordinal))
+            {
+                end = candidateStart;
+                break;
+            }
+
+            lineStart = action.IndexOf('\n', candidateStart);
+        }
+
+        return action[start..end];
     }
 
     private static XElement ReadProjectFile(string relativePath)

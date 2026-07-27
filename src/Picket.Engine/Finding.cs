@@ -198,6 +198,11 @@ public sealed class Finding(
     /// </summary>
     public FindingPositionKind PositionKind { get; } = positionKind;
 
+    /// <summary>
+    /// Gets the stable Picket-native fingerprint captured before evidence redaction, or an empty string.
+    /// </summary>
+    public string NativeFingerprint { get; private init; } = string.Empty;
+
     internal Finding WithBlobSha256(string blobSha256)
     {
         return new Finding(
@@ -227,6 +232,44 @@ public sealed class Finding(
             blobSha256,
             DecodePath,
             Randomness,
-            PositionKind);
+            PositionKind)
+        {
+            NativeFingerprint = NativeFingerprint,
+        };
+    }
+
+    internal Finding WithNativeFingerprint(string nativeFingerprint)
+    {
+        return new Finding(
+            RuleID,
+            Description,
+            StartLine,
+            EndLine,
+            StartColumn,
+            EndColumn,
+            Match,
+            Secret,
+            File,
+            SymlinkFile,
+            Commit,
+            Entropy,
+            Author,
+            Email,
+            Date,
+            Message,
+            Tags,
+            Fingerprint,
+            Line,
+            Link,
+            SecretSha256,
+            MatchSha256,
+            ValidationState,
+            BlobSha256,
+            DecodePath,
+            Randomness,
+            PositionKind)
+        {
+            NativeFingerprint = nativeFingerprint,
+        };
     }
 }

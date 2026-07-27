@@ -2635,6 +2635,36 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that native ignore files accept emitted stable fingerprints directly.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanHonorsPicketIgnoreStableFingerprint()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
+
+        CliResult firstScan = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl", "--redact=100").ConfigureAwait(false);
+
+        Assert.AreEqual(1, firstScan.ExitCode);
+        using JsonDocument firstFinding = JsonDocument.Parse(firstScan.Stdout);
+        string fingerprint = firstFinding.RootElement.GetProperty("fingerprint").GetString()
+            ?? throw new InvalidDataException("The native finding did not contain a stable fingerprint.");
+        Assert.StartsWith("picket:v1:", fingerprint);
+
+        File.WriteAllText(Path.Combine(root.Path, ".picketignore"), $"{fingerprint}\n");
+        File.WriteAllText(Path.Combine(root.Path, "keep.txt"), "token-23456");
+
+        CliResult secondScan = await RunCliAsync("scan", root.Path, "-c", configPath, "-f", "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, secondScan.ExitCode);
+        Assert.Contains("\"file\":\"keep.txt\"", secondScan.Stdout);
+        Assert.Contains("\"secret\":\"token-23456\"", secondScan.Stdout);
+        Assert.DoesNotContain("\"file\":\"ignored.txt\"", secondScan.Stdout);
+        Assert.DoesNotContain("\"secret\":\"token-12345\"", secondScan.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that native scans warn about stale .picketignore SHA-256 content hashes.
     /// </summary>
     [TestMethod]

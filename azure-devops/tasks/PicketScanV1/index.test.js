@@ -75,6 +75,27 @@ test("createPicketArguments forwards Azure Artifacts package selectors", () => {
   assert.deepEqual(args.slice(args.indexOf("--azure-devops-max-package-megabytes"), args.indexOf("--azure-devops-max-package-megabytes") + 2), ["--azure-devops-max-package-megabytes", "50"]);
 });
 
+test("createPicketArguments forwards the native ignore path", () => {
+  const inputs = {
+    target: ".",
+    profile: "picket",
+    rulePacks: [],
+    redact: 100,
+    baselinePath: "",
+    ignorePath: ".picketignore",
+    cache: false,
+    onlyVerified: false,
+    verify: false,
+    extraArgs: []
+  };
+
+  const args = task.createPicketArguments(inputs, new Map());
+
+  assert.deepEqual(
+    args.slice(args.indexOf("--ignore-path"), args.indexOf("--ignore-path") + 2),
+    ["--ignore-path", ".picketignore"]);
+});
+
 test("readInputs rejects package selectors when package scanning is disabled", () => {
   withEnvironment({
     INPUT_azureDevOpsIncludePackages: "false",

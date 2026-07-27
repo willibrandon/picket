@@ -1,4 +1,10 @@
-# GitHub Action Helper
+# GitHub Action
+
+The [Picket Secret Scanner](https://github.com/marketplace/actions/picket-secret-scanner) Action scans checked-out repositories, writes native SARIF and JSONL reports, and can upload SARIF to GitHub code scanning. Its public inputs, outputs, permissions, and failure modes are documented in [`docs/ACTION.md`](../../docs/ACTION.md).
+
+Azure Pipelines users can run the `PicketScan@1` task documented in [`docs/AZURE_DEVOPS.md`](../../docs/AZURE_DEVOPS.md).
+
+## Implementation
 
 `run-picket.cs` is a .NET file-based app used by the local composite action in
 `action.yml`. The action builds it first, then runs it with `--no-build`:

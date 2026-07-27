@@ -10,7 +10,7 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 4
+    "Patch": 5
   },
   "minimumAgentVersion": "3.220.0",
   "instanceNameFormat": "Picket scan $(target)",
@@ -37,7 +37,7 @@
       "label": "Config",
       "defaultValue": "",
       "required": false,
-      "helpMarkDown": "Optional Picket or Gitleaks-compatible configuration path."
+      "helpMarkDown": "Optional configuration path. A custom config replaces Picket's embedded native default rules; extend.useDefault restores only the Gitleaks defaults."
     },
     {
       "name": "profile",
@@ -95,6 +95,14 @@
       "defaultValue": "",
       "required": false,
       "helpMarkDown": "Optional baseline report used to suppress known findings."
+    },
+    {
+      "name": "ignorePath",
+      "type": "filePath",
+      "label": "Ignore path",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional .picketignore path containing native stable finding fingerprints or content hashes."
     },
     {
       "name": "results",
