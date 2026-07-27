@@ -2,7 +2,7 @@
 
 The [Picket Secret Scanner](https://github.com/marketplace/actions/picket-secret-scanner) Action scans checked-out repositories, writes native SARIF and JSONL reports, and can upload SARIF to GitHub code scanning. Its public inputs, outputs, permissions, and failure modes are documented in [`docs/ACTION.md`](../../docs/ACTION.md).
 
-Azure Pipelines users can run the `PicketScan@1` task documented in [`docs/AZURE_DEVOPS.md`](../../docs/AZURE_DEVOPS.md).
+Azure Pipelines users can install [Picket from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=willibrandon.picket) and run the `PicketScan@1` task documented in [`docs/AZURE_DEVOPS.md`](../../docs/AZURE_DEVOPS.md).
 
 ## Implementation
 

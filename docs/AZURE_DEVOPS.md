@@ -9,7 +9,7 @@ The pipeline task is a distribution wrapper around the same Picket CLI behavior 
 
 ## Pipeline Task Contract
 
-The task name is `PicketScan@1`. Task metadata lives in `azure-devops/tasks/PicketScanV1/task.json`, and the Azure DevOps extension manifest lives in `azure-devops/vss-extension.json`. The default execution scans `$(Build.SourcesDirectory)` with the native scan surface and writes JSONL, SARIF, and HTML reports under a task-controlled report directory.
+Install [Picket from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=willibrandon.picket), then use the `PicketScan@1` task. Task metadata lives in `azure-devops/tasks/PicketScanV1/task.json`, and the Azure DevOps extension manifest lives in `azure-devops/vss-extension.json`. The default execution scans `$(Build.SourcesDirectory)` with the native scan surface and writes JSONL, SARIF, and HTML reports under a task-controlled report directory.
 
 ```yaml
 steps:

@@ -29,7 +29,7 @@ Use the [Picket Secret Scanner](https://github.com/marketplace/actions/picket-se
     upload-sarif: true
 ```
 
-Azure Pipelines can use the `PicketScan@1` task:
+Azure Pipelines can install [Picket from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=willibrandon.picket) and use the `PicketScan@1` task:
 
 ```yaml
 - task: PicketScan@1

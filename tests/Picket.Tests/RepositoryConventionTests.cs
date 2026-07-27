@@ -417,6 +417,28 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies public readmes link directly to the GitHub and Azure DevOps Marketplace integrations.
+    /// </summary>
+    [TestMethod]
+    public void PublicReadmesLinkCiMarketplaceIntegrations()
+    {
+        const string AzureMarketplaceUrl = "https://marketplace.visualstudio.com/items?itemName=willibrandon.picket";
+        const string GitHubMarketplaceUrl = "https://github.com/marketplace/actions/picket-secret-scanner";
+
+        string rootReadme = ReadRepositoryFile("README.md");
+        string actionReadme = ReadRepositoryFile(".github/actions/README.md");
+        string azureReadme = ReadRepositoryFile("azure-devops/README.md");
+        string azureDocumentation = ReadRepositoryFile("docs/AZURE_DEVOPS.md");
+
+        Assert.Contains(GitHubMarketplaceUrl, rootReadme);
+        Assert.Contains(AzureMarketplaceUrl, rootReadme);
+        Assert.Contains(GitHubMarketplaceUrl, actionReadme);
+        Assert.Contains(AzureMarketplaceUrl, actionReadme);
+        Assert.Contains(AzureMarketplaceUrl, azureReadme);
+        Assert.Contains(AzureMarketplaceUrl, azureDocumentation);
+    }
+
+    /// <summary>
     /// Verifies that named Native AOT publish profiles match the release design contract.
     /// </summary>
     [TestMethod]

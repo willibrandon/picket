@@ -1,6 +1,6 @@
 # Picket for Azure Pipelines
 
-Run Picket secret scanning in Azure Pipelines with the `PicketScan@1` task.
+Install [Picket from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=willibrandon.picket), then run secret scanning in Azure Pipelines with the `PicketScan@1` task.
 
 The task builds a `picket scan` command from validated inputs, writes reports to a task-owned report directory, emits Azure DevOps output variables, and can publish SARIF, JSONL, and HTML reports as build artifacts.
 
