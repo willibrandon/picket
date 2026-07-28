@@ -86,7 +86,7 @@ For GitHub targets, a Scope picker selects exactly one target: one `owner/name` 
 
 For Azure DevOps targets, the workspace includes endpoint, organization, project, repository, branch, pull request, token environment variable, token kind, build ID, release ID, wiki/artifact/log/release-artifact toggles, artifact and log size caps, and explicit source endpoint policy toggles.
 
-For GitLab targets, the workspace includes project and group selectors, ref, merge request, pipeline ID, token environment variable, API endpoint override, subgroup/snippet/job artifact/job log/package toggles, and explicit source endpoint policy toggles.
+For GitLab targets, the workspace includes project and group selectors, ref, merge request, pipeline ID, token environment variable, API endpoint override, issue state, subgroup/snippet/job artifact/job log/package/issue/release/release-asset toggles, and explicit source endpoint policy toggles.
 
 For Hugging Face targets, the workspace selects a model, dataset, Space, or storage bucket. Repository targets accept a revision or pull request and can include discussions. Bucket targets accept an optional path prefix. The token is read from the named environment variable, and endpoint policy overrides remain explicit.
 

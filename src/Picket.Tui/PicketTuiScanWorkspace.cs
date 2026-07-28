@@ -20,6 +20,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_bitbucketDataCenterTokenKinds = ["bearer", "basic"];
     private static readonly string[] s_bitbucketTokenKinds = ["bearer", "app-password"];
     private static readonly string[] s_giteaIssueStates = ["all", "open", "closed"];
+    private static readonly string[] s_gitLabIssueStates = ["all", "opened", "closed"];
     private static readonly string[] s_githubIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubRepositoryTypes = ["all", "public", "private", "forks", "sources", "owner", "member"];
     private static readonly string[] s_githubScopeLabels = ["Repository", "Organization", "User", "Gist", "My gists", "User gists"];
@@ -71,6 +72,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selectable Gitea issue states.
     /// </summary>
     internal static IReadOnlyList<string> GiteaIssueStates => s_giteaIssueStates;
+
+    /// <summary>
+    /// Gets the selectable GitLab issue states.
+    /// </summary>
+    internal static IReadOnlyList<string> GitLabIssueStates => s_gitLabIssueStates;
 
     /// <summary>
     /// Gets the selectable GitHub issue states.
@@ -490,6 +496,26 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets a value indicating whether GitLab generic package files are included.
     /// </summary>
     internal bool IncludeGitLabPackages { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab issues and comments are included.
+    /// </summary>
+    internal bool IncludeGitLabIssues { get; private set; }
+
+    /// <summary>
+    /// Gets the GitLab issue state filter.
+    /// </summary>
+    internal string GitLabIssueState { get; private set; } = "all";
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab release descriptions are included.
+    /// </summary>
+    internal bool IncludeGitLabReleases { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab release assets are included.
+    /// </summary>
+    internal bool IncludeGitLabReleaseAssets { get; private set; }
 
     /// <summary>
     /// Gets the Gitea repository selector.
@@ -1050,6 +1076,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selected GitHub issue state index.
     /// </summary>
     internal int GitHubIssueStateIndex => IndexOf(s_githubIssueStates, GitHubIssueState);
+
+    /// <summary>
+    /// Gets the selected GitLab issue state index.
+    /// </summary>
+    internal int GitLabIssueStateIndex => IndexOf(s_gitLabIssueStates, GitLabIssueState);
 
     /// <summary>
     /// Gets the selected GitHub repository type index.
@@ -1737,6 +1768,34 @@ internal sealed class PicketTuiScanWorkspace
     /// </summary>
     /// <param name="value">The include state.</param>
     internal void SetIncludeGitLabPackages(bool value) => IncludeGitLabPackages = value;
+
+    /// <summary>
+    /// Sets whether GitLab issues and comments are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabIssues(bool value) => IncludeGitLabIssues = value;
+
+    /// <summary>
+    /// Sets the GitLab issue state from its displayed index.
+    /// </summary>
+    /// <param name="index">The issue state index.</param>
+    internal void SetGitLabIssueStateByIndex(int index)
+    {
+        GitLabIssueState = s_gitLabIssueStates[Math.Clamp(index, 0, s_gitLabIssueStates.Length - 1)];
+        IncludeGitLabIssues = true;
+    }
+
+    /// <summary>
+    /// Sets whether GitLab release descriptions are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabReleases(bool value) => IncludeGitLabReleases = value;
+
+    /// <summary>
+    /// Sets whether GitLab release assets are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeGitLabReleaseAssets(bool value) => IncludeGitLabReleaseAssets = value;
 
     /// <summary>
     /// Sets the Gitea repository selector.
@@ -2881,6 +2940,10 @@ internal sealed class PicketTuiScanWorkspace
                 AddFlag(arguments, "--gitlab-include-job-artifacts", IncludeGitLabJobArtifacts);
                 AddFlag(arguments, "--gitlab-include-job-logs", IncludeGitLabJobLogs);
                 AddFlag(arguments, "--gitlab-include-packages", IncludeGitLabPackages);
+                AddFlag(arguments, "--gitlab-include-issues", IncludeGitLabIssues);
+                AddOptionalNonDefaultValue(arguments, "--gitlab-issue-state", GitLabIssueState, "all");
+                AddFlag(arguments, "--gitlab-include-releases", IncludeGitLabReleases);
+                AddFlag(arguments, "--gitlab-include-release-assets", IncludeGitLabReleaseAssets);
                 AddOptionalValue(arguments, "--gitlab-token-env", GitLabTokenEnvironmentVariable);
                 AddOptionalValue(arguments, "--gitlab-api-endpoint", GitLabApiEndpoint);
                 break;
@@ -3184,6 +3247,14 @@ internal sealed class PicketTuiScanWorkspace
             && !string.IsNullOrWhiteSpace(GitLabMergeRequest))
         {
             error = "--gitlab-merge-request requires a project selector.";
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.GitLab
+            && !string.IsNullOrWhiteSpace(GitLabMergeRequest)
+            && (IncludeGitLabIssues || IncludeGitLabReleases || IncludeGitLabReleaseAssets))
+        {
+            error = "GitLab merge request scans cannot include issues, releases, or release assets.";
             return false;
         }
 

@@ -20,6 +20,10 @@ namespace Picket.Sources;
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 /// <param name="includePackages">A value indicating whether GitLab generic package files should be scanned for each group project.</param>
+/// <param name="includeIssues">A value indicating whether GitLab issue bodies and comments should be scanned for each group project.</param>
+/// <param name="issueState">The GitLab issue state filter applied to each group project.</param>
+/// <param name="includeReleases">A value indicating whether GitLab release descriptions should be scanned for each group project.</param>
+/// <param name="includeReleaseAssets">A value indicating whether GitLab release asset links should be scanned for each group project.</param>
 public sealed class GitLabGroupSourceOptions(
     Uri endpoint,
     string group,
@@ -37,7 +41,11 @@ public sealed class GitLabGroupSourceOptions(
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null,
-    bool includePackages = false)
+    bool includePackages = false,
+    bool includeIssues = false,
+    string issueState = GitLabSourceOptions.DefaultIssueState,
+    bool includeReleases = false,
+    bool includeReleaseAssets = false)
 {
     private readonly string _credential = GitLabSourceOptions.RequireCredential(credential);
 
@@ -80,6 +88,26 @@ public sealed class GitLabGroupSourceOptions(
     /// Gets a value indicating whether GitLab generic package files should be scanned for each group project.
     /// </summary>
     public bool IncludePackages { get; } = includePackages;
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab issue bodies and comments should be scanned for each group project.
+    /// </summary>
+    public bool IncludeIssues { get; } = includeIssues;
+
+    /// <summary>
+    /// Gets the GitLab issue state filter applied to each group project.
+    /// </summary>
+    public string IssueState { get; } = GitLabSourceOptions.NormalizeIssueState(issueState);
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab release descriptions should be scanned for each group project.
+    /// </summary>
+    public bool IncludeReleases { get; } = includeReleases;
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab release asset links should be scanned for each group project.
+    /// </summary>
+    public bool IncludeReleaseAssets { get; } = includeReleaseAssets;
 
     /// <summary>
     /// Gets the maximum file content bytes to download.

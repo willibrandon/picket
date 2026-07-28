@@ -66,6 +66,30 @@ internal static partial class Program
             || arg.StartsWith("--gitlab-include-packages=", StringComparison.Ordinal);
     }
 
+    static bool IsGitLabIncludeIssuesFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-issues", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-issues=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitLabIssueStateFlag(string arg)
+    {
+        return arg.Equals("--gitlab-issue-state", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-issue-state=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitLabIncludeReleasesFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-releases", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-releases=", StringComparison.Ordinal);
+    }
+
+    static bool IsGitLabIncludeReleaseAssetsFlag(string arg)
+    {
+        return arg.Equals("--gitlab-include-release-assets", StringComparison.Ordinal)
+            || arg.StartsWith("--gitlab-include-release-assets=", StringComparison.Ordinal);
+    }
+
     static bool IsGitLabTokenEnvironmentVariableFlag(string arg)
     {
         return arg.Equals("--gitlab-token-env", StringComparison.Ordinal)
@@ -110,6 +134,26 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadGitLabIssueStateFlag(string[] args, ref int index, out string issueState)
+    {
+        issueState = GitLabSourceOptions.DefaultIssueState;
+        if (!TryReadStringFlag(args, ref index, "--gitlab-issue-state", out string? value))
+        {
+            return false;
+        }
+
+        try
+        {
+            issueState = GitLabSourceOptions.NormalizeIssueState(value);
+            return true;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return false;
+        }
+    }
+
     static bool TryCreateGitLabSourceProvider(
         Uri? endpoint,
         string project,
@@ -122,6 +166,10 @@ internal static partial class Program
         bool includeJobArtifacts,
         bool includeJobLogs,
         bool includePackages,
+        bool includeIssues,
+        string issueState,
+        bool includeReleases,
+        bool includeReleaseAssets,
         string? tokenEnvironmentVariable,
         bool allowNonPublicSourceEndpoints,
         bool allowInsecureSourceEndpoints,
@@ -187,7 +235,11 @@ internal static partial class Program
                     includeSnippets,
                     includeJobArtifacts,
                     includeJobLogs,
-                    includePackages: includePackages);
+                    includePackages: includePackages,
+                    includeIssues: includeIssues,
+                    issueState: issueState,
+                    includeReleases: includeReleases,
+                    includeReleaseAssets: includeReleaseAssets);
                 sourceEndpoint = validatedGroupOptions.Endpoint;
                 group = validatedGroupOptions.Group;
                 gitRef = validatedGroupOptions.Ref;
@@ -196,6 +248,10 @@ internal static partial class Program
                 includeJobArtifacts = validatedGroupOptions.IncludeJobArtifacts;
                 includeJobLogs = validatedGroupOptions.IncludeJobLogs;
                 includePackages = validatedGroupOptions.IncludePackages;
+                includeIssues = validatedGroupOptions.IncludeIssues;
+                issueState = validatedGroupOptions.IssueState;
+                includeReleases = validatedGroupOptions.IncludeReleases;
+                includeReleaseAssets = validatedGroupOptions.IncludeReleaseAssets;
             }
             else
             {
@@ -209,7 +265,11 @@ internal static partial class Program
                     includeJobArtifacts,
                     includeJobLogs,
                     pipelineId,
-                    includePackages: includePackages);
+                    includePackages: includePackages,
+                    includeIssues: includeIssues,
+                    issueState: issueState,
+                    includeReleases: includeReleases,
+                    includeReleaseAssets: includeReleaseAssets);
                 sourceEndpoint = validatedOptions.Endpoint;
                 project = validatedOptions.Project;
                 gitRef = validatedOptions.Ref;
@@ -219,6 +279,10 @@ internal static partial class Program
                 includeJobArtifacts = validatedOptions.IncludeJobArtifacts;
                 includeJobLogs = validatedOptions.IncludeJobLogs;
                 includePackages = validatedOptions.IncludePackages;
+                includeIssues = validatedOptions.IncludeIssues;
+                issueState = validatedOptions.IssueState;
+                includeReleases = validatedOptions.IncludeReleases;
+                includeReleaseAssets = validatedOptions.IncludeReleaseAssets;
             }
         }
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
@@ -265,7 +329,11 @@ internal static partial class Program
                     rules.IsGlobalPathAllowed,
                     Console.Error.WriteLine,
                     () => IsScanStopped(timeoutTimestamp, cancellationToken),
-                    includePackages), cancellationToken).GetAwaiter().GetResult();
+                    includePackages,
+                    includeIssues,
+                    issueState,
+                    includeReleases,
+                    includeReleaseAssets), cancellationToken).GetAwaiter().GetResult();
             }
 
             return client.EnumerateRepositoryFilesAsync(new GitLabSourceOptions(
@@ -286,7 +354,11 @@ internal static partial class Program
                 rules.IsGlobalPathAllowed,
                 Console.Error.WriteLine,
                 () => IsScanStopped(timeoutTimestamp, cancellationToken),
-                includePackages), cancellationToken).GetAwaiter().GetResult();
+                includePackages,
+                includeIssues,
+                issueState,
+                includeReleases,
+                includeReleaseAssets), cancellationToken).GetAwaiter().GetResult();
         };
         return true;
     }

@@ -614,6 +614,30 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Include GitLab generic package files in native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--gitlab-include-issues</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include GitLab issue bodies and comments in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-issue-state</code></td>
+              <td data-label="Value"><code>all | opened | closed</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit GitLab issue enumeration to all, opened, or closed issues; also enables issue scanning.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-include-releases</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include GitLab release descriptions in native source enumeration.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-include-release-assets</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include linked GitLab release assets in native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--gitlab-token-env</code></td>
               <td data-label="Value"><code>name</code></td>
               <td data-label="Required">Optional</td>

@@ -21,6 +21,10 @@ namespace Picket.Sources;
 /// <param name="warningSink">An optional callback that receives non-fatal source enumeration warnings.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 /// <param name="includePackages">A value indicating whether GitLab generic package files should be scanned.</param>
+/// <param name="includeIssues">A value indicating whether GitLab issue bodies and comments should be scanned.</param>
+/// <param name="issueState">The GitLab issue state filter.</param>
+/// <param name="includeReleases">A value indicating whether GitLab release descriptions should be scanned.</param>
+/// <param name="includeReleaseAssets">A value indicating whether GitLab release asset links should be scanned.</param>
 public sealed class GitLabSourceOptions(
     Uri endpoint,
     string project,
@@ -39,8 +43,17 @@ public sealed class GitLabSourceOptions(
     Func<string, bool>? isPathAllowed = null,
     Action<string>? warningSink = null,
     Func<bool>? isCancellationRequested = null,
-    bool includePackages = false)
+    bool includePackages = false,
+    bool includeIssues = false,
+    string issueState = GitLabSourceOptions.DefaultIssueState,
+    bool includeReleases = false,
+    bool includeReleaseAssets = false)
 {
+    /// <summary>
+    /// The default GitLab issue state filter.
+    /// </summary>
+    public const string DefaultIssueState = "all";
+
     internal const long DefaultMaxFileBytes = 100_000_000;
     private readonly string _credential = RequireCredential(credential);
 
@@ -88,6 +101,26 @@ public sealed class GitLabSourceOptions(
     /// Gets a value indicating whether GitLab generic package files should be scanned.
     /// </summary>
     public bool IncludePackages { get; } = RequireIncludePackages(includePackages, mergeRequestIid);
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab issue bodies and comments should be scanned.
+    /// </summary>
+    public bool IncludeIssues { get; } = RequireIncludeIssues(includeIssues, mergeRequestIid);
+
+    /// <summary>
+    /// Gets the GitLab issue state filter.
+    /// </summary>
+    public string IssueState { get; } = NormalizeIssueState(issueState);
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab release descriptions should be scanned.
+    /// </summary>
+    public bool IncludeReleases { get; } = RequireIncludeReleases(includeReleases, mergeRequestIid);
+
+    /// <summary>
+    /// Gets a value indicating whether GitLab release asset links should be scanned.
+    /// </summary>
+    public bool IncludeReleaseAssets { get; } = RequireIncludeReleaseAssets(includeReleaseAssets, mergeRequestIid);
 
     /// <summary>
     /// Gets the maximum file content bytes to download.
@@ -203,6 +236,28 @@ public sealed class GitLabSourceOptions(
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
+    /// <summary>
+    /// Normalizes and validates a GitLab issue state filter.
+    /// </summary>
+    /// <param name="value">The issue state filter value.</param>
+    /// <returns>The normalized issue state filter.</returns>
+    /// <exception cref="ArgumentException"><paramref name="value" /> is not a supported GitLab issue state filter.</exception>
+    public static string NormalizeIssueState(string value)
+    {
+        string normalized = NormalizeOptionalText(value).ToLowerInvariant();
+        if (normalized.Length == 0)
+        {
+            return DefaultIssueState;
+        }
+
+        if (normalized is "all" or "opened" or "closed")
+        {
+            return normalized;
+        }
+
+        throw new ArgumentException("GitLab issue state must be one of: all, opened, closed.", nameof(value));
+    }
+
     private static string NormalizeRef(string value, int mergeRequestIid)
     {
         string normalized = NormalizeOptionalText(value);
@@ -266,6 +321,36 @@ public sealed class GitLabSourceOptions(
         if (value && mergeRequestIid != 0)
         {
             throw new ArgumentException("GitLab source options cannot combine merge request scans with package file enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static bool RequireIncludeIssues(bool value, int mergeRequestIid)
+    {
+        if (value && mergeRequestIid != 0)
+        {
+            throw new ArgumentException("GitLab source options cannot combine merge request scans with issue enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static bool RequireIncludeReleases(bool value, int mergeRequestIid)
+    {
+        if (value && mergeRequestIid != 0)
+        {
+            throw new ArgumentException("GitLab source options cannot combine merge request scans with release enumeration.", nameof(value));
+        }
+
+        return value;
+    }
+
+    private static bool RequireIncludeReleaseAssets(bool value, int mergeRequestIid)
+    {
+        if (value && mergeRequestIid != 0)
+        {
+            throw new ArgumentException("GitLab source options cannot combine merge request scans with release asset enumeration.", nameof(value));
         }
 
         return value;

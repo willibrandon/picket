@@ -13,9 +13,13 @@ namespace Picket.Sources;
 public sealed class GitLabSourceClient(HttpClient httpClient)
 {
     private const int GroupProjectsPerPage = 100;
+    private const int IssueNotesPerPage = 100;
+    private const int IssuesPerPage = 100;
     private const int JobsPerPage = 100;
     private const int PackageFilesPerPage = 100;
     private const int PackagesPerPage = 100;
+    private const int ReleaseLinksPerPage = 100;
+    private const int ReleasesPerPage = 100;
     private const int SnippetsPerPage = 100;
     private const int TreeEntriesPerPage = 100;
     private const int MaxPaginationPages = 1000;
@@ -71,6 +75,16 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             if (hasRepositoryFiles)
             {
                 await AddRepositoryFilesAsync(options, gitRef, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (options.IncludeIssues && !IsCancellationRequested(options))
+            {
+                await AddProjectIssueFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            if ((options.IncludeReleases || options.IncludeReleaseAssets) && !IsCancellationRequested(options))
+            {
+                await AddProjectReleaseFilesAsync(options, sourceFiles, cancellationToken).ConfigureAwait(false);
             }
 
             if (options.IncludeSnippets && !IsCancellationRequested(options))
@@ -242,7 +256,11 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
                 isPathAllowed: options.IsPathAllowed,
                 warningSink: options.WarningSink,
                 isCancellationRequested: options.IsCancellationRequested,
-                includePackages: options.IncludePackages);
+                includePackages: options.IncludePackages,
+                includeIssues: options.IncludeIssues,
+                issueState: options.IssueState,
+                includeReleases: options.IncludeReleases,
+                includeReleaseAssets: options.IncludeReleaseAssets);
             try
             {
                 List<SourceFile> projectFiles = await EnumerateRepositoryFilesAsync(projectOptions, cancellationToken).ConfigureAwait(false);
@@ -252,6 +270,312 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             {
                 options.WarningSink?.Invoke($"skipping GitLab project {project} because a GitLab request failed");
             }
+        }
+    }
+
+    private async Task AddProjectIssueFilesAsync(
+        GitLabSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri issuesUri = CreateIssuesUri(options, page);
+            using HttpResponseMessage issuesResponse = await SendAsync(options, issuesUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!issuesResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, issuesResponse, $"skipping GitLab project {options.Project} issues");
+                return;
+            }
+
+            var issueIidsWithComments = new List<long>();
+            await AddIssueFilesAsync(options, issuesResponse, issueIidsWithComments, sourceFiles, cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < issueIidsWithComments.Count; i++)
+            {
+                await AddIssueCommentFilesAsync(options, issueIidsWithComments[i], sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            hasNextPage = HasNextPage(issuesResponse, page, options.WarningSink, $"GitLab project {options.Project} issue enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private static async Task AddIssueFilesAsync(
+        GitLabSourceOptions options,
+        HttpResponseMessage response,
+        List<long> issueIidsWithComments,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement issue in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonInt64(issue, "iid", out long issueIid) || issueIid <= 0)
+            {
+                continue;
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateIssueDisplayPath(options, issueIid),
+                CreateIssueContent(issueIid, GetString(issue, "title"), GetString(issue, "description")),
+                sourceFiles);
+
+            if (!TryGetJsonInt64(issue, "user_notes_count", out long comments) || comments > 0)
+            {
+                issueIidsWithComments.Add(issueIid);
+            }
+        }
+    }
+
+    private async Task AddIssueCommentFilesAsync(
+        GitLabSourceOptions options,
+        long issueIid,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri notesUri = CreateIssueNotesUri(options, issueIid, page);
+            using HttpResponseMessage notesResponse = await SendAsync(options, notesUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!notesResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(
+                    options,
+                    notesResponse,
+                    $"skipping GitLab issue comments for {options.Project}#{issueIid.ToString(CultureInfo.InvariantCulture)}");
+                return;
+            }
+
+            await AddIssueCommentFilesAsync(options, issueIid, notesResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(
+                notesResponse,
+                page,
+                options.WarningSink,
+                $"GitLab issue comment enumeration for {options.Project}#{issueIid.ToString(CultureInfo.InvariantCulture)}");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private static async Task AddIssueCommentFilesAsync(
+        GitLabSourceOptions options,
+        long issueIid,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement comment in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            if (!TryGetJsonInt64(comment, "id", out long commentId) || commentId <= 0)
+            {
+                continue;
+            }
+
+            AddSyntheticTextFile(
+                options,
+                CreateIssueCommentDisplayPath(options, issueIid, commentId),
+                CreateIssueCommentContent(issueIid, commentId, GetString(comment, "body")),
+                sourceFiles);
+        }
+    }
+
+    private async Task AddProjectReleaseFilesAsync(
+        GitLabSourceOptions options,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri releasesUri = CreateReleasesUri(options, page);
+            using HttpResponseMessage releasesResponse = await SendAsync(options, releasesUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!releasesResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, releasesResponse, $"skipping GitLab project {options.Project} releases");
+                return;
+            }
+
+            await AddReleaseFilesAsync(options, releasesResponse, sourceFiles, cancellationToken).ConfigureAwait(false);
+            hasNextPage = HasNextPage(releasesResponse, page, options.WarningSink, $"GitLab project {options.Project} release enumeration");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddReleaseFilesAsync(
+        GitLabSourceOptions options,
+        HttpResponseMessage response,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(response.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (JsonElement release in document.RootElement.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            string releaseTag = GetString(release, "tag_name");
+            if (releaseTag.Length == 0)
+            {
+                continue;
+            }
+
+            if (options.IncludeReleases)
+            {
+                AddSyntheticTextFile(
+                    options,
+                    CreateReleaseDisplayPath(options, releaseTag),
+                    CreateReleaseContent(releaseTag, GetString(release, "name"), GetString(release, "description")),
+                    sourceFiles);
+            }
+
+            if (!options.IncludeReleaseAssets)
+            {
+                continue;
+            }
+
+            if (release.TryGetProperty("assets", out JsonElement assets)
+                && assets.ValueKind == JsonValueKind.Object
+                && assets.TryGetProperty("links", out JsonElement links)
+                && links.ValueKind == JsonValueKind.Array)
+            {
+                await AddReleaseAssetFilesAsync(options, releaseTag, links, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await AddReleaseAssetFilesAsync(options, releaseTag, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task AddReleaseAssetFilesAsync(
+        GitLabSourceOptions options,
+        string releaseTag,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        int page = 1;
+        bool hasNextPage;
+        do
+        {
+            Uri linksUri = CreateReleaseLinksUri(options, releaseTag, page);
+            using HttpResponseMessage linksResponse = await SendAsync(options, linksUri, acceptRaw: false, cancellationToken).ConfigureAwait(false);
+            if (!linksResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, linksResponse, $"skipping GitLab release assets for {options.Project}@{releaseTag}");
+                return;
+            }
+
+            using JsonDocument document = await RemoteJsonDocumentReader.ReadAsync(linksResponse.Content, "GitLab source metadata", options.WarningSink, cancellationToken).ConfigureAwait(false);
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                await AddReleaseAssetFilesAsync(options, releaseTag, document.RootElement, sourceFiles, cancellationToken).ConfigureAwait(false);
+            }
+
+            hasNextPage = HasNextPage(
+                linksResponse,
+                page,
+                options.WarningSink,
+                $"GitLab release asset enumeration for {options.Project}@{releaseTag}");
+            page++;
+        }
+        while (hasNextPage && !IsCancellationRequested(options));
+    }
+
+    private async Task AddReleaseAssetFilesAsync(
+        GitLabSourceOptions options,
+        string releaseTag,
+        JsonElement links,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        foreach (JsonElement link in links.EnumerateArray())
+        {
+            if (IsCancellationRequested(options))
+            {
+                return;
+            }
+
+            await AddReleaseAssetFileAsync(options, releaseTag, link, sourceFiles, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AddReleaseAssetFileAsync(
+        GitLabSourceOptions options,
+        string releaseTag,
+        JsonElement link,
+        List<SourceFile> sourceFiles,
+        CancellationToken cancellationToken)
+    {
+        string assetName = GetString(link, "name");
+        if (assetName.Length == 0)
+        {
+            assetName = TryGetJsonInt64(link, "id", out long linkId)
+                ? string.Concat("asset-", linkId.ToString(CultureInfo.InvariantCulture))
+                : "asset";
+        }
+
+        string displayPath = CreateReleaseAssetDisplayPath(options, releaseTag, assetName);
+        if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+        {
+            return;
+        }
+
+        string assetUrl = GetString(link, "direct_asset_url");
+        if (assetUrl.Length == 0)
+        {
+            assetUrl = GetString(link, "url");
+        }
+
+        if (assetUrl.Length == 0
+            || !Uri.TryCreate(assetUrl, UriKind.Absolute, out Uri? assetUri)
+            || !IsAllowedDownloadRedirectUri(options.Endpoint, assetUri))
+        {
+            options.WarningSink?.Invoke($"skipping GitLab release asset {displayPath} because the release API did not return a safe asset URL");
+            return;
+        }
+
+        byte[]? content = IsSameAuthority(options.Endpoint, assetUri)
+            ? await DownloadRawContentAsync(options, assetUri, displayPath, "GitLab release asset", cancellationToken).ConfigureAwait(false)
+            : await DownloadUnauthenticatedRawContentAsync(options, assetUri, displayPath, "GitLab release asset", cancellationToken).ConfigureAwait(false);
+        if (content is not null)
+        {
+            AddContentOrArchiveEntries(options, displayPath, content, sourceFiles);
         }
     }
 
@@ -721,6 +1045,58 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
         return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<byte[]?> DownloadUnauthenticatedRawContentAsync(
+        GitLabSourceOptions options,
+        Uri uri,
+        string displayPath,
+        string target,
+        CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await SendUnauthenticatedRawAsync(uri, cancellationToken).ConfigureAwait(false);
+        if (IsRedirect(response) && response.Headers.Location is not null)
+        {
+            Uri redirectUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(uri, response.Headers.Location);
+            if (!IsAllowedDownloadRedirectUri(options.Endpoint, redirectUri))
+            {
+                options.WarningSink?.Invoke($"skipping {target} {displayPath} because the redirected download URL is not an allowed GitLab endpoint");
+                return null;
+            }
+
+            using HttpResponseMessage redirectedResponse = await SendUnauthenticatedRawAsync(redirectUri, cancellationToken).ConfigureAwait(false);
+            if (!redirectedResponse.IsSuccessStatusCode)
+            {
+                WarnUnsuccessfulResponse(options, redirectedResponse, $"skipping {target} {displayPath}");
+                return null;
+            }
+
+            if (redirectedResponse.Content.Headers.ContentLength.HasValue
+                && redirectedResponse.Content.Headers.ContentLength.Value > options.MaxFileBytes)
+            {
+                options.WarningSink?.Invoke($"GitLab file byte limit skipped {displayPath}");
+                return null;
+            }
+
+            return await ReadContentWithinLimitAsync(redirectedResponse, options, displayPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            WarnUnsuccessfulResponse(options, response, $"skipping {target} {displayPath}");
+            return null;
+        }
+
+        if (response.Content.Headers.ContentLength.HasValue
+            && response.Content.Headers.ContentLength.Value > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"GitLab file byte limit skipped {displayPath}");
+            return null;
+        }
+
+        return await ReadContentWithinLimitAsync(response, options, displayPath, cancellationToken).ConfigureAwait(false);
+    }
+
     private static void AddContentOrArchiveEntries(
         GitLabSourceOptions options,
         string displayPath,
@@ -872,6 +1248,52 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
     private static Uri CreateProjectUri(GitLabSourceOptions options)
     {
         return CreateUri(options.Endpoint, ["projects", options.Project], []);
+    }
+
+    private static Uri CreateIssuesUri(GitLabSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "issues"],
+            [
+                new KeyValuePair<string, string>("state", options.IssueState),
+                new KeyValuePair<string, string>("per_page", IssuesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateIssueNotesUri(GitLabSourceOptions options, long issueIid, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "issues", issueIid.ToString(CultureInfo.InvariantCulture), "notes"],
+            [
+                new KeyValuePair<string, string>("activity_filter", "only_comments"),
+                new KeyValuePair<string, string>("per_page", IssueNotesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateReleasesUri(GitLabSourceOptions options, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "releases"],
+            [
+                new KeyValuePair<string, string>("per_page", ReleasesPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
+    }
+
+    private static Uri CreateReleaseLinksUri(GitLabSourceOptions options, string releaseTag, int page)
+    {
+        return CreateUri(
+            options.Endpoint,
+            ["projects", options.Project, "releases", releaseTag, "assets", "links"],
+            [
+                new KeyValuePair<string, string>("per_page", ReleaseLinksPerPage.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)),
+            ]);
     }
 
     private static Uri CreateSnippetsUri(GitLabSourceOptions options, int page)
@@ -1174,6 +1596,27 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             : string.Empty;
     }
 
+    private static void AddSyntheticTextFile(
+        GitLabSourceOptions options,
+        string displayPath,
+        string content,
+        List<SourceFile> sourceFiles)
+    {
+        if (options.IsPathAllowed is not null && options.IsPathAllowed(displayPath))
+        {
+            return;
+        }
+
+        byte[] bytes = Encoding.UTF8.GetBytes(content);
+        if (bytes.LongLength > options.MaxFileBytes)
+        {
+            options.WarningSink?.Invoke($"GitLab file byte limit skipped {displayPath}");
+            return;
+        }
+
+        sourceFiles.Add(new SourceFile(s_remoteFullPath, displayPath, bytes));
+    }
+
     private static string CreateDisplayPath(GitLabSourceOptions options, string itemPath)
     {
         return string.Concat(
@@ -1181,6 +1624,49 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             NormalizeRemoteItemPath(options.Project),
             "/",
             NormalizeRemoteItemPath(itemPath));
+    }
+
+    private static string CreateIssueDisplayPath(GitLabSourceOptions options, long issueIid)
+    {
+        return string.Concat(
+            "gitlab-issue/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            issueIid.ToString(CultureInfo.InvariantCulture),
+            ".md");
+    }
+
+    private static string CreateIssueCommentDisplayPath(GitLabSourceOptions options, long issueIid, long commentId)
+    {
+        return string.Concat(
+            "gitlab-issue/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            issueIid.ToString(CultureInfo.InvariantCulture),
+            "/comments/",
+            commentId.ToString(CultureInfo.InvariantCulture),
+            ".md");
+    }
+
+    private static string CreateReleaseDisplayPath(GitLabSourceOptions options, string releaseTag)
+    {
+        return string.Concat(
+            "gitlab-release/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            EscapeDisplaySegment(releaseTag),
+            ".md");
+    }
+
+    private static string CreateReleaseAssetDisplayPath(GitLabSourceOptions options, string releaseTag, string assetName)
+    {
+        return string.Concat(
+            "gitlab-release/",
+            NormalizeRemoteItemPath(options.Project),
+            "/",
+            EscapeDisplaySegment(releaseTag),
+            "/assets/",
+            NormalizeRemoteItemPath(assetName));
     }
 
     private static string CreateSnippetDisplayPath(GitLabSourceOptions options, long snippetId, string fileName)
@@ -1237,6 +1723,72 @@ public sealed class GitLabSourceClient(HttpClient httpClient)
             NormalizeRemoteItemPath(packageVersion),
             "/",
             NormalizeRemoteItemPath(fileName));
+    }
+
+    private static string CreateIssueContent(long issueIid, string title, string description)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Issue ");
+        builder.Append(issueIid.ToString(CultureInfo.InvariantCulture));
+        if (title.Length != 0)
+        {
+            builder.Append(": ");
+            builder.Append(title);
+        }
+
+        builder.AppendLine();
+        builder.AppendLine();
+        if (description.Length != 0)
+        {
+            builder.AppendLine(description);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string CreateIssueCommentContent(long issueIid, long commentId, string body)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Issue ");
+        builder.Append(issueIid.ToString(CultureInfo.InvariantCulture));
+        builder.Append(" comment ");
+        builder.Append(commentId.ToString(CultureInfo.InvariantCulture));
+        builder.AppendLine();
+        builder.AppendLine();
+        if (body.Length != 0)
+        {
+            builder.AppendLine(body);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string CreateReleaseContent(string releaseTag, string name, string description)
+    {
+        var builder = new StringBuilder();
+        builder.Append("# Release ");
+        builder.Append(releaseTag);
+        if (name.Length != 0)
+        {
+            builder.Append(": ");
+            builder.Append(name);
+        }
+
+        builder.AppendLine();
+        builder.AppendLine();
+        if (description.Length != 0)
+        {
+            builder.AppendLine(description);
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsSameAuthority(Uri left, Uri right)
+    {
+        return left.Scheme.Equals(right.Scheme, StringComparison.OrdinalIgnoreCase)
+            && left.Host.Equals(right.Host, StringComparison.OrdinalIgnoreCase)
+            && left.Port == right.Port;
     }
 
     private static bool IsAllowedDownloadRedirectUri(Uri endpoint, Uri redirectUri)

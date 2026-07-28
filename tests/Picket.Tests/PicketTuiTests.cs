@@ -1553,7 +1553,6 @@ public sealed class PicketTuiTests
         scan.SetTargetMode(3);
         scan.SetGitLabProject("group/project");
         scan.SetGitLabRef("main");
-        scan.SetGitLabMergeRequest("42");
         scan.SetGitLabPipelineId("123");
         scan.SetGitLabTokenEnvironmentVariable("PICKET_GITLAB_SOURCE_TOKEN");
         scan.SetGitLabApiEndpoint("https://gitlab.example/api/v4");
@@ -1561,6 +1560,10 @@ public sealed class PicketTuiTests
         scan.SetIncludeGitLabJobArtifacts(true);
         scan.SetIncludeGitLabJobLogs(true);
         scan.SetIncludeGitLabPackages(true);
+        scan.SetIncludeGitLabIssues(true);
+        scan.SetGitLabIssueStateByIndex(2);
+        scan.SetIncludeGitLabReleases(true);
+        scan.SetIncludeGitLabReleaseAssets(true);
         scan.SetAllowNonPublicSourceEndpoints(true);
         scan.SetAllowInsecureSourceEndpoints(true);
 
@@ -1571,8 +1574,6 @@ public sealed class PicketTuiTests
         Assert.Contains("group/project", arguments);
         Assert.Contains("--gitlab-ref", arguments);
         Assert.Contains("main", arguments);
-        Assert.Contains("--gitlab-merge-request", arguments);
-        Assert.Contains("42", arguments);
         Assert.Contains("--gitlab-pipeline-id", arguments);
         Assert.Contains("123", arguments);
         Assert.Contains("--gitlab-token-env", arguments);
@@ -1583,6 +1584,11 @@ public sealed class PicketTuiTests
         Assert.Contains("--gitlab-include-job-artifacts", arguments);
         Assert.Contains("--gitlab-include-job-logs", arguments);
         Assert.Contains("--gitlab-include-packages", arguments);
+        Assert.Contains("--gitlab-include-issues", arguments);
+        Assert.Contains("--gitlab-issue-state", arguments);
+        Assert.Contains("closed", arguments);
+        Assert.Contains("--gitlab-include-releases", arguments);
+        Assert.Contains("--gitlab-include-release-assets", arguments);
         Assert.Contains("--allow-non-public-source-endpoints", arguments);
         Assert.Contains("--allow-insecure-source-endpoints", arguments);
     }
@@ -1625,6 +1631,28 @@ public sealed class PicketTuiTests
         Assert.IsFalse(built);
         Assert.IsEmpty(arguments);
         Assert.Contains("--gitlab-pipeline-id requires GitLab job logs or artifacts", error);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects GitLab merge request scans with issue and release scopes.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsGitLabMergeRequestWithIssuesAndReleases()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode(3);
+        scan.SetGitLabProject("group/project");
+        scan.SetGitLabMergeRequest("42");
+        scan.SetIncludeGitLabIssues(true);
+        scan.SetIncludeGitLabReleases(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("merge request scans cannot include issues, releases, or release assets", error);
     }
 
     /// <summary>
@@ -3568,6 +3596,43 @@ public sealed class PicketTuiTests
         Assert.Contains("sources", PicketTuiScanWorkspace.GitHubRepositoryTypes);
         Assert.Contains("owner", PicketTuiScanWorkspace.GitHubRepositoryTypes);
         Assert.Contains("member", PicketTuiScanWorkspace.GitHubRepositoryTypes);
+    }
+
+    /// <summary>
+    /// Verifies that GitLab source scan controls expose issue and release scopes.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersGitLabIssueAndReleaseControls()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetTargetMode(3);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 140, height: 42);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Release assets"), TimeSpan.FromSeconds(5), "GitLab controls to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Issues", screenText);
+        Assert.Contains("Issue state", screenText);
+        Assert.Contains("Releases", screenText);
+        Assert.Contains("Release assets", screenText);
+        Assert.Contains("opened", PicketTuiScanWorkspace.GitLabIssueStates);
+        Assert.Contains("closed", PicketTuiScanWorkspace.GitLabIssueStates);
     }
 
     /// <summary>

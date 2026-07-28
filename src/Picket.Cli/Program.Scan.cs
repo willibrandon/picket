@@ -98,9 +98,13 @@ internal static partial class Program
         string gitLabGroup = string.Empty;
         bool gitLabIncludeJobArtifacts = false;
         bool gitLabIncludeJobLogs = false;
+        bool gitLabIncludeIssues = false;
         bool gitLabIncludePackages = false;
+        bool gitLabIncludeReleaseAssets = false;
+        bool gitLabIncludeReleases = false;
         bool gitLabIncludeSubgroups = false;
         bool gitLabIncludeSnippets = false;
+        string gitLabIssueState = GitLabSourceOptions.DefaultIssueState;
         bool gitLabOptionSpecified = false;
         int gitLabMergeRequestIid = 0;
         int gitLabPipelineId = 0;
@@ -1083,6 +1087,63 @@ internal static partial class Program
                 }
 
                 if (gitLabIncludePackages)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitLabIncludeIssuesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-issues", out gitLabIncludeIssues))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                if (gitLabIncludeIssues)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitLabIssueStateFlag(arg))
+            {
+                if (!TryReadGitLabIssueStateFlag(args, ref i, out gitLabIssueState))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                gitLabIncludeIssues = true;
+                gitLabOptionSpecified = true;
+                continue;
+            }
+
+            if (IsGitLabIncludeReleasesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-releases", out gitLabIncludeReleases))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                if (gitLabIncludeReleases)
+                {
+                    gitLabOptionSpecified = true;
+                }
+
+                continue;
+            }
+
+            if (IsGitLabIncludeReleaseAssetsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--gitlab-include-release-assets", out gitLabIncludeReleaseAssets))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                if (gitLabIncludeReleaseAssets)
                 {
                     gitLabOptionSpecified = true;
                 }
@@ -2098,6 +2159,10 @@ internal static partial class Program
                 gitLabIncludeJobArtifacts,
                 gitLabIncludeJobLogs,
                 gitLabIncludePackages,
+                gitLabIncludeIssues,
+                gitLabIssueState,
+                gitLabIncludeReleases,
+                gitLabIncludeReleaseAssets,
                 gitLabTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,

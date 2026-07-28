@@ -326,6 +326,97 @@ public sealed class CliGitLabScanTests
     }
 
     /// <summary>
+    /// Verifies that native scans can enumerate GitLab issue bodies and comments.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitLabIssuesAndComments()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitLabFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-include-issues",
+            "--gitlab-issue-state",
+            "closed",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"gitlab-issue/willibrandon/picket/7.md\"", result.Stdout);
+        Assert.Contains("\"file\":\"gitlab-issue/willibrandon/picket/7/comments/11.md\"", result.Stdout);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/issues?state=closed", server.RequestTargets);
+        Assert.Contains(
+            "/api/v4/projects/willibrandon%2Fpicket/issues/7/notes?activity_filter=only_comments",
+            server.RequestTargets);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that native scans can enumerate GitLab release descriptions and release assets.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanReadsGitLabReleasesAndAssets()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        using var server = new GitLabFixtureServer("token-12345");
+        string configPath = WriteTokenConfig(root.Path);
+        var environment = new Dictionary<string, string?>
+        {
+            ["PICKET_GITLAB_SOURCE_TEST_TOKEN"] = "gitlab-source-secret",
+        };
+
+        CliResult result = await RunCliWithEnvironmentAsync(
+            root.Path,
+            environment,
+            "scan",
+            "--gitlab-api-endpoint",
+            server.Endpoint.AbsoluteUri,
+            "--gitlab-project",
+            "willibrandon/picket",
+            "--gitlab-include-releases",
+            "--gitlab-include-release-assets",
+            "--gitlab-token-env",
+            "PICKET_GITLAB_SOURCE_TEST_TOKEN",
+            "--allow-non-public-source-endpoints",
+            "--allow-insecure-source-endpoints",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("\"file\":\"gitlab-release/willibrandon/picket/v1.0.0.md\"", result.Stdout);
+        Assert.Contains(
+            "\"file\":\"gitlab-release/willibrandon/picket/v1.0.0/assets/release.zip!release/secret.txt\"",
+            result.Stdout);
+        Assert.Contains("/api/v4/projects/willibrandon%2Fpicket/releases?", server.RequestTargets);
+        Assert.Contains(
+            "/api/v4/projects/willibrandon%2Fpicket/releases/v1.0.0/downloads/release.zip",
+            server.RequestTargets);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stdout);
+        Assert.DoesNotContain("gitlab-source-secret", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that native scan can enumerate projects in a GitLab group.
     /// </summary>
     [TestMethod]

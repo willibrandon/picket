@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -144,6 +145,72 @@ internal sealed class GitLabFixtureServer : IDisposable
         {
             const string PackagesJson = """[{"id":4,"name":"picket-cli","version":"1.0.0","package_type":"generic"}]""";
             await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(PackagesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/issues/7/notes?", StringComparison.Ordinal))
+        {
+            string notesJson = JsonSerializer.Serialize(new[]
+            {
+                new
+                {
+                    id = 11,
+                    body = _content,
+                },
+            });
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(notesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/issues?", StringComparison.Ordinal))
+        {
+            string issuesJson = JsonSerializer.Serialize(new[]
+            {
+                new
+                {
+                    iid = 7,
+                    title = "Fixture issue",
+                    description = _content,
+                    user_notes_count = 1,
+                },
+            });
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(issuesJson), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/releases/v1.0.0/downloads/release.zip", StringComparison.Ordinal))
+        {
+            await WriteResponseAsync(stream, "application/octet-stream", CreateZipBytes("release/secret.txt", _content), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (target.Contains("/api/v4/projects/willibrandon%2Fpicket/releases?", StringComparison.Ordinal))
+        {
+            string assetUrl = new Uri(
+                Endpoint,
+                "projects/willibrandon%2Fpicket/releases/v1.0.0/downloads/release.zip").AbsoluteUri;
+            string releasesJson = JsonSerializer.Serialize(new[]
+            {
+                new
+                {
+                    tag_name = "v1.0.0",
+                    name = "Fixture release",
+                    description = _content,
+                    assets = new
+                    {
+                        links = new[]
+                        {
+                            new
+                            {
+                                id = 5,
+                                name = "release.zip",
+                                direct_asset_url = assetUrl,
+                            },
+                        },
+                    },
+                },
+            });
+            await WriteResponseAsync(stream, "application/json", Encoding.UTF8.GetBytes(releasesJson), cancellationToken).ConfigureAwait(false);
             return;
         }
 

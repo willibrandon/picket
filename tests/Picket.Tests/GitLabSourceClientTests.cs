@@ -168,6 +168,58 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that GitLab issue state filters are normalized and validated.
+    /// </summary>
+    [TestMethod]
+    public void GitLabSourceOptionsNormalizesIssueState()
+    {
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            includeIssues: true,
+            issueState: " CLOSED ");
+
+        Assert.AreEqual("closed", options.IssueState);
+        Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            includeIssues: true,
+            issueState: "merged"));
+    }
+
+    /// <summary>
+    /// Verifies that merge request scans reject issue and release scopes.
+    /// </summary>
+    [TestMethod]
+    public void GitLabSourceOptionsRejectsMergeRequestIssueAndReleaseScopes()
+    {
+        ArgumentException issueException = Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            mergeRequestIid: 42,
+            includeIssues: true));
+        ArgumentException releaseException = Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            mergeRequestIid: 42,
+            includeReleases: true));
+        ArgumentException assetException = Assert.ThrowsExactly<ArgumentException>(() => new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            mergeRequestIid: 42,
+            includeReleaseAssets: true));
+
+        Assert.Contains("issue enumeration", issueException.Message);
+        Assert.Contains("release enumeration", releaseException.Message);
+        Assert.Contains("release asset enumeration", assetException.Message);
+    }
+
+    /// <summary>
     /// Verifies that GitLab repository tree enumeration retries one bounded rate-limit response.
     /// </summary>
     [TestMethod]
@@ -684,6 +736,335 @@ public sealed class GitLabSourceClientTests
     }
 
     /// <summary>
+    /// Verifies that issue enumeration emits issue and comment documents with the requested state filter.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesIncludesIssuesAndComments()
+    {
+        var urls = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            if (url.Contains("/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/issues/7/notes?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "id": 11, "body": "comment-token-12345" }]""");
+            }
+
+            if (url.Contains("/issues?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """[{ "iid": 7, "title": "Credential exposure", "description": "issue-token-12345", "user_notes_count": 1 }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            includeIssues: true,
+            issueState: "closed");
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        string requests = string.Join('\n', urls);
+        Assert.HasCount(2, files);
+        Assert.AreEqual("gitlab-issue/willibrandon/picket/7.md", files[0].DisplayPath);
+        Assert.Contains("issue-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("gitlab-issue/willibrandon/picket/7/comments/11.md", files[1].DisplayPath);
+        Assert.Contains("comment-token-12345", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("/issues?state=closed", requests);
+        Assert.Contains("per_page=100", requests);
+        Assert.Contains("page=1", requests);
+        Assert.Contains("/issues/7/notes?activity_filter=only_comments", requests);
+    }
+
+    /// <summary>
+    /// Verifies that release enumeration emits descriptions, expands assets, and withholds credentials from external asset hosts.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesIncludesReleasesAndExternalAssets()
+    {
+        const string Token = "gitlab-test-token";
+        var urls = new List<string>();
+        var privateTokens = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            urls.Add(url);
+            privateTokens.Add(request.Headers.TryGetValues("PRIVATE-TOKEN", out IEnumerable<string>? values)
+                ? string.Join(" ", values)
+                : string.Empty);
+            if (url.Equals("https://downloads.example/release.zip", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("release/secret.txt", "asset-token-12345"));
+            }
+
+            if (url.Contains("/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "tag_name": "v1.0.0",
+                        "name": "First release",
+                        "description": "release-token-12345",
+                        "assets": {
+                          "links": [
+                            {
+                              "id": 5,
+                              "name": "release.zip",
+                              "direct_asset_url": "https://downloads.example/release.zip"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                    """);
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            Token,
+            includeReleases: true,
+            includeReleaseAssets: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(2, files);
+        Assert.AreEqual("gitlab-release/willibrandon/picket/v1.0.0.md", files[0].DisplayPath);
+        Assert.Contains("release-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual(
+            "gitlab-release/willibrandon/picket/v1.0.0/assets/release.zip!release/secret.txt",
+            files[1].DisplayPath);
+        Assert.AreEqual("asset-token-12345", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+        Assert.Contains("https://downloads.example/release.zip", string.Join('\n', urls));
+        int externalRequestIndex = urls.IndexOf("https://downloads.example/release.zip");
+        Assert.IsGreaterThanOrEqualTo(0, externalRequestIndex);
+        Assert.IsEmpty(privateTokens[externalRequestIndex]);
+        Assert.Contains(Token, string.Join('\n', privateTokens));
+    }
+
+    /// <summary>
+    /// Verifies that synthetic GitLab issue documents honor the remote file byte cap.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesAppliesByteCapToIssues()
+    {
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/issues?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "iid": 7, "description": "long-issue-token", "user_notes_count": 0 }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            maxFileBytes: 8,
+            warningSink: warnings.Add,
+            includeIssues: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.Contains(
+            "GitLab file byte limit skipped gitlab-issue/willibrandon/picket/7.md",
+            string.Join('\n', warnings));
+    }
+
+    /// <summary>
+    /// Verifies that group enumeration applies issue and release scopes to each selected project.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateGroupRepositoryFilesIncludesIssuesAndReleases()
+    {
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/groups/team%2Fplatform/projects?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """[{ "id": 321, "path_with_namespace": "team/platform/api", "default_branch": "main" }]""");
+            }
+
+            if (url.Contains("/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/issues?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "iid": 8, "description": "group-issue-token", "user_notes_count": 0 }]""");
+            }
+
+            if (url.Contains("/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "tag_name": "v2.0.0", "description": "group-release-token" }]""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabGroupSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "team/platform",
+            "gitlab-test-token",
+            includeIssues: true,
+            issueState: "opened",
+            includeReleases: true);
+
+        List<SourceFile> files = await client.EnumerateGroupRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(2, files);
+        Assert.AreEqual("gitlab-issue/team/platform/api/8.md", files[0].DisplayPath);
+        Assert.Contains("group-issue-token", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+        Assert.AreEqual("gitlab-release/team/platform/api/v2.0.0.md", files[1].DisplayPath);
+        Assert.Contains("group-release-token", Encoding.UTF8.GetString(files[1].ReadAllBytes()));
+    }
+
+    /// <summary>
+    /// Verifies that release asset enumeration falls back to the release links API and normalizes display paths.
+    /// </summary>
+    [TestMethod]
+    public async Task EnumerateRepositoryFilesUsesReleaseLinksFallback()
+    {
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Equals("https://downloads.example/asset.zip", StringComparison.Ordinal))
+            {
+                return BytesResponse(CreateZipBytes("secret.txt", "fallback-token-12345"));
+            }
+
+            if (url.Contains("/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/releases/v1%2F..%2Fx/assets/links?", StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """[{ "id": 9, "name": "../unsafe\\asset.zip", "url": "https://downloads.example/asset.zip" }]""");
+            }
+
+            if (url.Contains("/releases?", StringComparison.Ordinal))
+            {
+                return JsonResponse("""[{ "tag_name": "v1/../x", "description": "release-token" }]""");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            includeReleaseAssets: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.HasCount(1, files);
+        Assert.Contains("/assets/_/unsafe/asset.zip!secret.txt", files[0].DisplayPath);
+        Assert.DoesNotContain("/../", files[0].DisplayPath);
+        Assert.AreEqual("fallback-token-12345", Encoding.UTF8.GetString(files[0].ReadAllBytes()));
+    }
+
+    /// <summary>
+    /// Verifies that issue enumeration stops at the shared GitLab pagination safety limit.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task EnumerateRepositoryFilesStopsIssuePaginationAtSafetyLimit()
+    {
+        int issueRequests = 0;
+        var warnings = new List<string>();
+        using var httpClient = new HttpClient(new FakeHttpMessageHandler(request =>
+        {
+            string url = request.RequestUri!.ToString();
+            if (url.Contains("/repository/tree?", StringComparison.Ordinal))
+            {
+                return JsonResponse("[]");
+            }
+
+            if (url.Contains("/issues?", StringComparison.Ordinal))
+            {
+                issueRequests++;
+                return JsonResponseWithNextPage("[]");
+            }
+
+            if (url.Contains("/projects/willibrandon%2Fpicket", StringComparison.Ordinal))
+            {
+                return JsonResponse("""{"default_branch":"main"}""");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var client = new GitLabSourceClient(httpClient);
+        var options = new GitLabSourceOptions(
+            GitLabSourceOptions.CreateDefaultEndpoint(),
+            "willibrandon/picket",
+            "gitlab-test-token",
+            warningSink: warnings.Add,
+            includeIssues: true);
+
+        List<SourceFile> files = await client.EnumerateRepositoryFilesAsync(options, TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(files);
+        Assert.AreEqual(1000, issueRequests);
+        Assert.Contains(
+            "GitLab project willibrandon/picket issue enumeration stopped at the pagination safety limit",
+            string.Join('\n', warnings));
+    }
+
+    /// <summary>
     /// Verifies that job enumeration can include logs and expanded artifact archives.
     /// </summary>
     [TestMethod]
@@ -1040,6 +1421,13 @@ public sealed class GitLabSourceClientTests
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
+    }
+
+    private static HttpResponseMessage JsonResponseWithNextPage(string json)
+    {
+        HttpResponseMessage response = JsonResponse(json);
+        response.Headers.Add("X-Next-Page", "next");
+        return response;
     }
 
     private static HttpResponseMessage OversizedJsonMetadataResponse()

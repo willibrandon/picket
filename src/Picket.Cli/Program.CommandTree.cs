@@ -997,6 +997,10 @@ internal static partial class Program
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-job-artifacts"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-job-logs"));
         command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-packages"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-issues"));
+        command.Options.Add(CreateChoiceValueOption(commandName, "--gitlab-issue-state", "all|opened|closed", "all", "opened", "closed"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-releases"));
+        command.Options.Add(CreateFlagOption(commandName, "--gitlab-include-release-assets"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gitlab-api-endpoint", "uri"));
     }
