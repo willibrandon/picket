@@ -129,6 +129,11 @@ public sealed class ScanRequest(
     public bool EnableNativeDetectors { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether native prefilter and post-match predicates are evaluated.
+    /// </summary>
+    public bool EnableNativePredicates { get; init; }
+
+    /// <summary>
     /// Gets the coordinate system used by findings produced by this request.
     /// </summary>
     public FindingPositionKind PositionKind { get; init; }

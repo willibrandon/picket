@@ -518,6 +518,7 @@ internal static partial class Program
             {
                 BlobSha256 = blobSha256,
                 EnableNativeDetectors = true,
+                EnableNativePredicates = true,
                 EnableRandomnessScoring = true,
                 PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
                 SourceStartColumn = sourceStartColumn,
@@ -560,6 +561,7 @@ internal static partial class Program
         {
             BlobSha256 = blobSha256,
             EnableNativeDetectors = nativeMode,
+            EnableNativePredicates = nativeMode,
             EnableRandomnessScoring = nativeMode,
             PositionKind = nativeMode
                 ? FindingPositionKind.UnicodeCodePointsExclusive

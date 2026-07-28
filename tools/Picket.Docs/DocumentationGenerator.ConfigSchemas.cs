@@ -162,6 +162,7 @@ internal sealed partial class DocumentationGenerator
         builder.AppendLine("- Each allowlist must include at least one of `commits`, `paths`, `regexes`, or `stopwords`.");
         builder.AppendLine("- Every `[[rules.required]]` ID must refer to another configured rule.");
         builder.AppendLine("- Picket-native `picket-*` rules require both `examples` and `negativeExamples` during `picket rules check`.");
+        builder.AppendLine("- Native `prefilter` and `filter` expressions use a closed, resource-limited field and operator set; strict compatibility scans preserve but do not evaluate them.");
         builder.AppendLine();
     }
 
@@ -170,6 +171,8 @@ internal sealed partial class DocumentationGenerator
         return
         [
             ("minVersion", "string", "strict + native", "Accepted Gitleaks-compatible version gate. A leading `v` is allowed."),
+            ("prefilter", "string", "native", "Global bounded source predicate. A result of `true` skips the source."),
+            ("filter", "string", "native", "Global bounded finding predicate. A result of `true` suppresses the candidate."),
         ];
     }
 
@@ -196,6 +199,8 @@ internal sealed partial class DocumentationGenerator
             ("entropy", "number", "strict + native", "Minimum Shannon entropy threshold. The comparison is strict `>`."),
             ("randomnessThreshold", "number", "native", "Minimum deterministic randomness score from `0.0` through `1.0`. Zero disables score filtering."),
             ("detector", "string", "native", "Stable built-in structured detector name. The regex and keywords remain the candidate prefilter."),
+            ("prefilter", "string", "native", "Bounded source predicate. A result of `true` skips this rule for the source."),
+            ("filter", "string", "native", "Bounded finding predicate. A result of `true` suppresses this rule's candidate."),
             ("keywords", "string[]", "strict + native", "Literal prefilter terms for the rule."),
             ("tags", "string[]", "strict + native", "Rule tags copied into findings and reports."),
             ("skipReport", "bool", "strict + native", "Runs the rule but omits matching findings from reports."),
@@ -258,7 +263,9 @@ internal sealed partial class DocumentationGenerator
             "GITLEAKS_CONFIG",
             "GITLEAKS_CONFIG_TOML",
             ".gitleaks.toml",
-            "key.Equals(\"minVersion\", StringComparison.Ordinal)",
+            "case \"minVersion\":",
+            "case \"prefilter\":",
+            "case \"filter\":",
             "table.Equals(\"extend\", StringComparison.Ordinal)",
             "table.Equals(\"rules\", StringComparison.Ordinal)",
             "table.Equals(\"allowlists\", StringComparison.Ordinal)",

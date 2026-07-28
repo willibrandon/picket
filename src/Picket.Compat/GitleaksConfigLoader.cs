@@ -159,6 +159,10 @@ public static class GitleaksConfigLoader
         bool randomnessThresholdSet = false;
         string detector = string.Empty;
         bool detectorSet = false;
+        string rulePrefilter = string.Empty;
+        bool rulePrefilterSet = false;
+        string ruleFilter = string.Empty;
+        bool ruleFilterSet = false;
         bool skipReport = false;
         IReadOnlyList<string> keywords = [];
         IReadOnlyList<string> tags = [];
@@ -173,6 +177,10 @@ public static class GitleaksConfigLoader
         IReadOnlyList<string> examples = [];
         IReadOnlyList<string> negativeExamples = [];
         string minVersion = string.Empty;
+        string globalPrefilter = string.Empty;
+        bool globalPrefilterSet = false;
+        string globalFilter = string.Empty;
+        bool globalFilterSet = false;
         string allowlistDescription = string.Empty;
         AllowlistCondition allowlistCondition = AllowlistCondition.Or;
         List<string> allowlistCommits = [];
@@ -219,6 +227,10 @@ public static class GitleaksConfigLoader
                     randomnessThresholdSet = false;
                     detector = string.Empty;
                     detectorSet = false;
+                    rulePrefilter = string.Empty;
+                    rulePrefilterSet = false;
+                    ruleFilter = string.Empty;
+                    ruleFilterSet = false;
                     skipReport = false;
                     keywords = [];
                     tags = [];
@@ -330,9 +342,19 @@ public static class GitleaksConfigLoader
 
             if (section.Length == 0)
             {
-                if (key.Equals("minVersion", StringComparison.Ordinal))
+                switch (key)
                 {
-                    minVersion = ParseString(value, sourceName, key);
+                    case "minVersion":
+                        minVersion = ParseString(value, sourceName, key);
+                        break;
+                    case "prefilter":
+                        globalPrefilter = ParseString(value, sourceName, key);
+                        globalPrefilterSet = true;
+                        break;
+                    case "filter":
+                        globalFilter = ParseString(value, sourceName, key);
+                        globalFilterSet = true;
+                        break;
                 }
 
                 continue;
@@ -448,6 +470,14 @@ public static class GitleaksConfigLoader
                     detector = ParseString(value, sourceName, key);
                     detectorSet = true;
                     break;
+                case "prefilter":
+                    rulePrefilter = ParseString(value, sourceName, key);
+                    rulePrefilterSet = true;
+                    break;
+                case "filter":
+                    ruleFilter = ParseString(value, sourceName, key);
+                    ruleFilterSet = true;
+                    break;
                 case "keywords":
                     keywords = ParseStringArray(value, sourceName, key);
                     break;
@@ -503,7 +533,11 @@ public static class GitleaksConfigLoader
 
         List<SecretRule> loadedRules = CreateRules();
         ValidateRequiredRules(loadedRules);
-        return new RuleSet(loadedRules, globalAllowlists);
+        return new RuleSet(
+            loadedRules,
+            globalAllowlists,
+            prefilter: globalPrefilter,
+            filter: globalFilter);
 
         void StartAllowlist(string scope)
         {
@@ -677,7 +711,11 @@ public static class GitleaksConfigLoader
                 randomnessThreshold,
                 randomnessThresholdSet,
                 detector,
-                detectorSet));
+                detectorSet,
+                rulePrefilter,
+                rulePrefilterSet,
+                ruleFilter,
+                ruleFilterSet));
             ruleAllowlists = [];
             ruleRequiredRules = [];
             hasRule = false;
@@ -746,6 +784,15 @@ public static class GitleaksConfigLoader
             rules = [.. mergedRules.Values.OrderBy(rule => rule.Id, StringComparer.Ordinal)];
             ValidateRuleCount();
             globalAllowlists.AddRange(extendedRuleSet.Allowlists);
+            if (!globalPrefilterSet)
+            {
+                globalPrefilter = extendedRuleSet.Prefilter;
+            }
+
+            if (!globalFilterSet)
+            {
+                globalFilter = extendedRuleSet.Filter;
+            }
         }
 
         void ValidateRuleCount()
@@ -817,6 +864,24 @@ public static class GitleaksConfigLoader
     private static string ReadMultilineValue(string[] lines, ref int lineIndex, string initialValue)
     {
         var value = new StringBuilder(initialValue);
+        if (TryGetUnterminatedMultilineStringDelimiter(initialValue, out string delimiter))
+        {
+            while (lineIndex + 1 < lines.Length)
+            {
+                lineIndex++;
+                value.Append('\n');
+                value.Append(lines[lineIndex]);
+                if (ContainsClosingMultilineStringDelimiter(
+                    lines[lineIndex],
+                    delimiter))
+                {
+                    break;
+                }
+            }
+
+            return value.ToString();
+        }
+
         if (!TryGetArrayContinuationState(initialValue, out int arrayDepth, out int stringMode))
         {
             return value.ToString();
@@ -840,8 +905,49 @@ public static class GitleaksConfigLoader
 
     private static bool ValueContinues(string value)
     {
-        return TryGetArrayContinuationState(value, out int arrayDepth, out _)
+        return TryGetUnterminatedMultilineStringDelimiter(value, out _)
+            || TryGetArrayContinuationState(value, out int arrayDepth, out _)
             && arrayDepth > 0;
+    }
+
+    private static bool TryGetUnterminatedMultilineStringDelimiter(
+        string value,
+        out string delimiter)
+    {
+        string trimmed = value.TrimStart();
+        delimiter = trimmed.StartsWith("'''", StringComparison.Ordinal)
+            ? "'''"
+            : trimmed.StartsWith("\"\"\"", StringComparison.Ordinal)
+                ? "\"\"\""
+                : string.Empty;
+        return delimiter.Length != 0
+            && !ContainsClosingMultilineStringDelimiter(
+                trimmed[delimiter.Length..],
+                delimiter);
+    }
+
+    private static bool ContainsClosingMultilineStringDelimiter(
+        string value,
+        string delimiter)
+    {
+        int searchIndex = 0;
+        while (searchIndex <= value.Length - delimiter.Length)
+        {
+            int index = value.IndexOf(delimiter, searchIndex, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            if (delimiter[0] == '\'' || !IsEscaped(value, index))
+            {
+                return true;
+            }
+
+            searchIndex = index + delimiter.Length;
+        }
+
+        return false;
     }
 
     private static bool TryGetArrayContinuationState(string value, out int arrayDepth, out int stringMode)
@@ -985,12 +1091,15 @@ public static class GitleaksConfigLoader
         value = value.Trim();
         if (value.StartsWith("'''", StringComparison.Ordinal) && value.EndsWith("'''", StringComparison.Ordinal) && value.Length >= 6)
         {
-            return value[3..^3];
+            return RemoveInitialMultilineNewline(value[3..^3]);
         }
 
         if (value.StartsWith("\"\"\"", StringComparison.Ordinal) && value.EndsWith("\"\"\"", StringComparison.Ordinal) && value.Length >= 6)
         {
-            return UnescapeBasicString(value[3..^3], sourceName, key);
+            return UnescapeBasicString(
+                RemoveInitialMultilineNewline(value[3..^3]),
+                sourceName,
+                key);
         }
 
         if (value.StartsWith('\'') && value.EndsWith('\'') && value.Length >= 2)
@@ -1004,6 +1113,11 @@ public static class GitleaksConfigLoader
         }
 
         throw new InvalidDataException($"{sourceName}: '{key}' must be a TOML string");
+    }
+
+    private static string RemoveInitialMultilineNewline(string value)
+    {
+        return value.StartsWith('\n') ? value[1..] : value;
     }
 
     private static List<string> ParseStringArray(string value, string sourceName, string key)
@@ -1375,6 +1489,11 @@ public static class GitleaksConfigLoader
             $"embedded Gitleaks config {EmbeddedGitleaksConfig.SourceVersion} ({EmbeddedGitleaksConfig.SourceCommit})",
             MaxExtendDepth,
             null);
-        return new RuleSet(ruleSet.Rules, ruleSet.Allowlists, regexesPrevalidated: true);
+        return new RuleSet(
+            ruleSet.Rules,
+            ruleSet.Allowlists,
+            regexesPrevalidated: true,
+            prefilter: ruleSet.Prefilter,
+            filter: ruleSet.Filter);
     }
 }

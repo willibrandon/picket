@@ -19,6 +19,16 @@ public static class GitleaksConfigWriter
         ArgumentNullException.ThrowIfNull(ruleSet);
 
         var builder = new StringBuilder();
+        if (ruleSet.Prefilter.Length != 0)
+        {
+            AppendString(builder, "prefilter", ruleSet.Prefilter);
+        }
+
+        if (ruleSet.Filter.Length != 0)
+        {
+            AppendString(builder, "filter", ruleSet.Filter);
+        }
+
         for (int i = 0; i < ruleSet.Allowlists.Count; i++)
         {
             AppendSeparator(builder);
@@ -64,6 +74,16 @@ public static class GitleaksConfigWriter
             if (rule.Detector.Length != 0)
             {
                 AppendString(builder, "detector", rule.Detector);
+            }
+
+            if (rule.Prefilter.Length != 0)
+            {
+                AppendString(builder, "prefilter", rule.Prefilter);
+            }
+
+            if (rule.Filter.Length != 0)
+            {
+                AppendString(builder, "filter", rule.Filter);
             }
 
             AppendStringArray(builder, "keywords", rule.Keywords);

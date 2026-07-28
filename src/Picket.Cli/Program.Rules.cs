@@ -141,7 +141,7 @@ internal static partial class Program
             RuleSet ruleSet = nativeMode
                 ? PicketConfigLoader.LoadRuleSet(configPath, source, [.. additionalRulePacks])
                 : GitleaksConfigLoader.LoadRuleSet(configPath, source);
-            ValidateRulesWithScout(ruleSet);
+            ValidateRulesWithScout(ruleSet, nativeMode);
             if (printConfig)
             {
                 Console.Out.Write(GitleaksConfigWriter.Write(ruleSet));
@@ -367,7 +367,7 @@ internal static partial class Program
             RuleSet ruleSet = nativeMode
                 ? PicketConfigLoader.LoadRuleSet(configPath, source, [.. additionalRulePacks])
                 : GitleaksConfigLoader.LoadRuleSet(configPath, source);
-            ValidateRulesWithScout(ruleSet);
+            ValidateRulesWithScout(ruleSet, nativeMode);
             RuleSet selectedRuleSet = FilterEnabledRules(ruleSet, [ruleId]);
             if (printConfig)
             {
@@ -387,6 +387,7 @@ internal static partial class Program
                 enableCSharpStringConcatenation: nativeMode)
             {
                 EnableNativeDetectors = nativeMode,
+                EnableNativePredicates = nativeMode,
                 EnableRandomnessScoring = nativeMode,
                 PositionKind = nativeMode
                     ? FindingPositionKind.UnicodeCodePointsExclusive
@@ -440,14 +441,30 @@ internal static partial class Program
             throw new InvalidDataException($"Requested rule {missingRuleId} not found in rules");
         }
 
-        return new RuleSet(enabledRules, ruleSet.Allowlists, ruleSet.RegexesPrevalidated);
+        return new RuleSet(
+            enabledRules,
+            ruleSet.Allowlists,
+            ruleSet.RegexesPrevalidated,
+            ruleSet.Prefilter,
+            ruleSet.Filter);
     }
 
-    static void ValidateRulesWithScout(RuleSet ruleSet)
+    static void ValidateRulesWithScout(
+        RuleSet ruleSet,
+        bool validateNativePredicates)
     {
         HashSet<string> ruleIds = ValidateUniqueRuleIds(ruleSet.Rules);
         ValidateRuleQuality(ruleSet, ruleIds);
-        CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(new RuleSet(ruleSet.Rules, ruleSet.Allowlists));
+        CompiledRuleSet compiledRuleSet = CompiledRuleSet.Compile(new RuleSet(
+            ruleSet.Rules,
+            ruleSet.Allowlists,
+            prefilter: ruleSet.Prefilter,
+            filter: ruleSet.Filter));
+        if (validateNativePredicates)
+        {
+            compiledRuleSet.ValidateNativePredicates();
+        }
+
         ValidateRuleExamples(ruleSet.Rules, compiledRuleSet);
     }
 
@@ -703,6 +720,7 @@ internal static partial class Program
             compiledRuleSet)
         {
             EnableNativeDetectors = true,
+            EnableNativePredicates = true,
             EnableRandomnessScoring = true,
             PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
         });

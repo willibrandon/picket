@@ -1357,6 +1357,11 @@ internal static partial class Program
                 : GitleaksConfigLoader.LoadRuleSet(configPath, source);
             ruleSet = FilterEnabledRules(ruleSet, enabledRuleIds);
             rules = CompiledRuleSet.Compile(ruleSet);
+            if (nativeConfig)
+            {
+                rules.ValidateNativePredicates();
+            }
+
             return true;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or NotSupportedException or ArgumentException)

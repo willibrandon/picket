@@ -12,7 +12,7 @@ public sealed class SecretScanner
     /// <summary>
     /// Gets the stable version of matching behavior that participates in cache and checkpoint identities.
     /// </summary>
-    public const string MatchingBehaviorVersion = "picket.matching.v7";
+    public const string MatchingBehaviorVersion = "picket.matching.v8";
 
     private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
 
@@ -26,6 +26,15 @@ public sealed class SecretScanner
         long? maxTargetBytes = GetEffectiveMaxTargetBytes(request);
         Func<bool>? isCancellationRequested = CreateCancellationPredicate(request);
         if (IsCancellationRequested(isCancellationRequested))
+        {
+            return [];
+        }
+
+        var predicateContext = new NativePredicateEvaluationContext(
+            request.FileName,
+            request.SymlinkFile);
+        if (request.EnableNativePredicates
+            && request.RuleSet.NativePrefilter?.Evaluate(predicateContext) == true)
         {
             return [];
         }
@@ -79,7 +88,9 @@ public sealed class SecretScanner
             findings,
             requiredFindingsByRuleId,
             request.EnableNativeDetectors,
+            request.EnableNativePredicates,
             request.EnableRandomnessScoring,
+            predicateContext,
             isCancellationRequested);
 
         if (request.MaxDecodeDepth == 0
@@ -118,7 +129,9 @@ public sealed class SecretScanner
                 findings,
                 requiredFindingsByRuleId,
                 request.EnableNativeDetectors,
+                request.EnableNativePredicates,
                 request.EnableRandomnessScoring,
+                predicateContext,
                 isCancellationRequested);
             if (IsTooLargeForContentScan(decoded.Bytes.Length, maxTargetBytes)
                 || IsCancellationRequested(isCancellationRequested))
@@ -280,7 +293,9 @@ public sealed class SecretScanner
         List<Finding> findings,
         Dictionary<string, List<Finding>>? requiredFindingsByRuleId,
         bool enableNativeDetectors,
+        bool enableNativePredicates,
         bool enableRandomnessScoring,
+        NativePredicateEvaluationContext predicateContext,
         Func<bool>? isCancellationRequested)
     {
         ReadOnlySpan<byte> regexSourceInput = input;
@@ -301,6 +316,12 @@ public sealed class SecretScanner
             if (IsCancellationRequested(isCancellationRequested))
             {
                 return;
+            }
+
+            if (enableNativePredicates
+                && compiledRule.NativePrefilter?.Evaluate(predicateContext) == true)
+            {
+                continue;
             }
 
             List<CompiledAllowlist> globalAllowlists = GetGlobalAllowlists(ruleSet, compiledRule);
@@ -328,6 +349,16 @@ public sealed class SecretScanner
                 includeSkipReport,
                 enableRandomnessScoring,
                 isCancellationRequested);
+            if (enableNativePredicates && ruleFindings.Count != 0)
+            {
+                ruleFindings = ApplyNativeFilters(
+                    ruleFindings,
+                    ruleSet.NativeFilter,
+                    compiledRule.NativeFilter,
+                    compiledRule.Rule,
+                    predicateContext);
+            }
+
             requiredRuleFindings?.AddRange(ruleFindings);
             if (!compiledRule.Rule.SkipReport)
             {
@@ -339,6 +370,46 @@ public sealed class SecretScanner
                 return;
             }
         }
+    }
+
+    private static List<Finding> ApplyNativeFilters(
+        List<Finding> findings,
+        NativePredicateProgram? globalFilter,
+        NativePredicateProgram? ruleFilter,
+        SecretRule rule,
+        NativePredicateEvaluationContext sourceContext)
+    {
+        if (globalFilter is null && ruleFilter is null)
+        {
+            return findings;
+        }
+
+        List<Finding>? retainedFindings = null;
+        for (int i = 0; i < findings.Count; i++)
+        {
+            Finding finding = findings[i];
+            NativePredicateEvaluationContext findingContext =
+                sourceContext.WithFinding(finding, rule);
+            bool suppress = globalFilter?.Evaluate(findingContext) == true
+                || ruleFilter?.Evaluate(findingContext) == true;
+            if (suppress)
+            {
+                if (retainedFindings is null)
+                {
+                    retainedFindings = new List<Finding>(findings.Count - 1);
+                    for (int precedingIndex = 0; precedingIndex < i; precedingIndex++)
+                    {
+                        retainedFindings.Add(findings[precedingIndex]);
+                    }
+                }
+
+                continue;
+            }
+
+            retainedFindings?.Add(finding);
+        }
+
+        return retainedFindings ?? findings;
     }
 
     private static List<Finding> ScanCompiledRule(

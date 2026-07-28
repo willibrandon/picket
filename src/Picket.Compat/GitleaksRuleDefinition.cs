@@ -28,7 +28,11 @@ internal sealed class GitleaksRuleDefinition(
     double randomnessThreshold = 0,
     bool randomnessThresholdSet = false,
     string detector = "",
-    bool detectorSet = false)
+    bool detectorSet = false,
+    string prefilter = "",
+    bool prefilterSet = false,
+    string filter = "",
+    bool filterSet = false)
 {
     internal string Id { get; } = id ?? string.Empty;
 
@@ -80,6 +84,14 @@ internal sealed class GitleaksRuleDefinition(
 
     internal bool DetectorSet { get; } = detectorSet;
 
+    internal string Prefilter { get; } = prefilter ?? string.Empty;
+
+    internal bool PrefilterSet { get; } = prefilterSet;
+
+    internal string Filter { get; } = filter ?? string.Empty;
+
+    internal bool FilterSet { get; } = filterSet;
+
     internal static GitleaksRuleDefinition FromRule(SecretRule rule)
     {
         return new GitleaksRuleDefinition(
@@ -107,7 +119,11 @@ internal sealed class GitleaksRuleDefinition(
             rule.RandomnessThreshold,
             randomnessThresholdSet: true,
             detector: rule.Detector,
-            detectorSet: true);
+            detectorSet: true,
+            prefilter: rule.Prefilter,
+            prefilterSet: true,
+            filter: rule.Filter,
+            filterSet: true);
     }
 
     internal GitleaksRuleDefinition MergeWithBase(SecretRule baseRule)
@@ -137,7 +153,11 @@ internal sealed class GitleaksRuleDefinition(
             RandomnessThresholdSet ? RandomnessThreshold : baseRule.RandomnessThreshold,
             randomnessThresholdSet: true,
             detector: DetectorSet ? Detector : baseRule.Detector,
-            detectorSet: true);
+            detectorSet: true,
+            prefilter: PrefilterSet ? Prefilter : baseRule.Prefilter,
+            prefilterSet: true,
+            filter: FilterSet ? Filter : baseRule.Filter,
+            filterSet: true);
     }
 
     internal SecretRule ToRule(string sourceName)
@@ -189,7 +209,9 @@ internal sealed class GitleaksRuleDefinition(
             examples: Examples,
             negativeExamples: NegativeExamples,
             randomnessThreshold: RandomnessThreshold,
-            detector: Detector);
+            detector: Detector,
+            prefilter: Prefilter,
+            filter: Filter);
     }
 
     internal static string CreateMissingIdMessage(string description, string pattern, string pathPattern)
@@ -313,6 +335,10 @@ internal sealed class GitleaksRuleDefinition(
             RandomnessThreshold,
             RandomnessThresholdSet,
             Detector,
-            DetectorSet);
+            DetectorSet,
+            Prefilter,
+            PrefilterSet,
+            Filter,
+            FilterSet);
     }
 }

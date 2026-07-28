@@ -26,6 +26,8 @@ namespace Picket.Rules;
 /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
 /// <param name="randomnessThreshold">The minimum native randomness score required for a finding. Zero disables score filtering.</param>
 /// <param name="detector">The optional built-in structured detector name.</param>
+/// <param name="prefilter">The optional native source predicate that skips this rule when it evaluates to <see langword="true" />.</param>
+/// <param name="filter">The optional native finding predicate that suppresses this rule's candidate when it evaluates to <see langword="true" />.</param>
 public sealed class SecretRule(
     string id,
     string description,
@@ -49,7 +51,9 @@ public sealed class SecretRule(
     IReadOnlyList<string>? examples = null,
     IReadOnlyList<string>? negativeExamples = null,
     double randomnessThreshold = 0,
-    string detector = "")
+    string detector = "",
+    string prefilter = "",
+    string filter = "")
 {
     /// <summary>
     /// Gets the stable rule identifier.
@@ -167,6 +171,16 @@ public sealed class SecretRule(
     public string Detector { get; } = RequireDetector(detector);
 
     /// <summary>
+    /// Gets the optional native source predicate that skips this rule when it evaluates to <see langword="true" />.
+    /// </summary>
+    public string Prefilter { get; } = prefilter ?? string.Empty;
+
+    /// <summary>
+    /// Gets the optional native finding predicate that suppresses this rule's candidate when it evaluates to <see langword="true" />.
+    /// </summary>
+    public string Filter { get; } = filter ?? string.Empty;
+
+    /// <summary>
     /// Creates a rule and normalizes optional collection arguments.
     /// </summary>
     /// <param name="id">The stable rule identifier.</param>
@@ -192,6 +206,8 @@ public sealed class SecretRule(
     /// <param name="negativeExamples">Negative examples that must not produce findings for this rule during rule QA.</param>
     /// <param name="randomnessThreshold">The minimum native randomness score required for a finding. Zero disables score filtering.</param>
     /// <param name="detector">The optional built-in structured detector name.</param>
+    /// <param name="prefilter">The optional native source predicate that skips this rule when it evaluates to <see langword="true" />.</param>
+    /// <param name="filter">The optional native finding predicate that suppresses this rule's candidate when it evaluates to <see langword="true" />.</param>
     /// <returns>The created rule.</returns>
     public static SecretRule Create(
         string id,
@@ -216,7 +232,9 @@ public sealed class SecretRule(
         IReadOnlyList<string>? examples = null,
         IReadOnlyList<string>? negativeExamples = null,
         double randomnessThreshold = 0,
-        string detector = "")
+        string detector = "",
+        string prefilter = "",
+        string filter = "")
     {
         return new SecretRule(
             id,
@@ -241,7 +259,9 @@ public sealed class SecretRule(
             examples ?? [],
             negativeExamples ?? [],
             randomnessThreshold,
-            detector);
+            detector,
+            prefilter,
+            filter);
     }
 
     private static string RequireText(string value)

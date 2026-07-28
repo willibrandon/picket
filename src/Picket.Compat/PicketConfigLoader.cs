@@ -109,7 +109,12 @@ public static class PicketConfigLoader
         RuleSet ruleSet = GitleaksConfigLoader.FromToml(
             EmbeddedPicketConfig.Toml,
             $"embedded Picket config {EmbeddedPicketConfig.SourceVersion}");
-        return new RuleSet(ruleSet.Rules, ruleSet.Allowlists, regexesPrevalidated: true);
+        return new RuleSet(
+            ruleSet.Rules,
+            ruleSet.Allowlists,
+            regexesPrevalidated: true,
+            prefilter: ruleSet.Prefilter,
+            filter: ruleSet.Filter);
     }
 
     private static RuleSet LoadEmbeddedExperimentalRuleSet()
@@ -129,7 +134,11 @@ public static class PicketConfigLoader
     private static RuleSet LoadEmbeddedRulePack(string toml, string sourceVersion)
     {
         RuleSet ruleSet = GitleaksConfigLoader.FromToml(toml, $"embedded Picket config {sourceVersion}");
-        return new RuleSet(ruleSet.Rules, regexesPrevalidated: true);
+        return new RuleSet(
+            ruleSet.Rules,
+            regexesPrevalidated: true,
+            prefilter: ruleSet.Prefilter,
+            filter: ruleSet.Filter);
     }
 
     private static RuleSet AddBuiltInRulePacks(RuleSet ruleSet, string[] additionalBuiltInRulePacks)
@@ -154,12 +163,21 @@ public static class PicketConfigLoader
             }
         }
 
-        return new RuleSet(rules, ruleSet.Allowlists, regexesPrevalidated);
+        return new RuleSet(
+            rules,
+            ruleSet.Allowlists,
+            regexesPrevalidated,
+            ruleSet.Prefilter,
+            ruleSet.Filter);
     }
 
     private static RuleSet SelectRulePack(RuleSet ruleSet, string rulePackName)
     {
         List<SecretRule> rules = [.. ruleSet.Rules.Where(rule => rule.RulePack.Equals(rulePackName, StringComparison.Ordinal))];
-        return new RuleSet(rules, regexesPrevalidated: ruleSet.RegexesPrevalidated);
+        return new RuleSet(
+            rules,
+            regexesPrevalidated: ruleSet.RegexesPrevalidated,
+            prefilter: ruleSet.Prefilter,
+            filter: ruleSet.Filter);
     }
 }

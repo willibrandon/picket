@@ -49,6 +49,7 @@ internal static partial class Program
                 isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
             {
                 EnableNativeDetectors = nativeMode,
+                EnableNativePredicates = nativeMode,
                 EnableRandomnessScoring = nativeMode,
                 PositionKind = nativeMode
                     ? FindingPositionKind.UnicodeCodePointsExclusive

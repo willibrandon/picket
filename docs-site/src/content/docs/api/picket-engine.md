@@ -55,6 +55,7 @@ Represents a rule set with precompiled Scout regexes and keyword prefilters.
 
 - `Compile(RuleSet rules)` - Compiles a source rule set.
 - `IsGlobalPathAllowed(string path)` - Returns a value indicating whether a global Gitleaks path allowlist matches the supplied path.
+- `ValidateNativePredicates()` - Compiles and validates all configured native prefilter and post-match predicates.
 
 ### Properties
 
@@ -351,6 +352,7 @@ Initializes a new scan request and compiles the supplied source rules.
 - `Commit` - Gets the git commit SHA used for commit allowlists and fingerprints, or an empty string.
 - `EnableCSharpStringConcatenation` - Gets a value indicating whether native scans evaluate deterministic C# string-literal concatenations as derived input.
 - `EnableNativeDetectors` - Gets a value indicating whether rules may execute built-in native structured detectors.
+- `EnableNativePredicates` - Gets a value indicating whether native prefilter and post-match predicates are evaluated.
 - `EnableRandomnessScoring` - Gets a value indicating whether native scans calculate and apply deterministic randomness scores.
 - `FileName` - Gets the logical file name used in reports and fingerprints, or an empty string for stdin compatibility.
 - `IgnoreGitleaksAllow` - Gets a value indicating whether inline gitleaks:allow suppression comments are ignored.
