@@ -727,7 +727,7 @@ Native source support:
 - stdin,
 - archives,
 - GitHub repos, orgs, users, PRs, issues, gists, releases, and Actions artifacts,
-- GitLab groups/projects/MRs/snippets/artifacts,
+- GitLab groups, projects, merge requests, issues, releases, snippets, artifacts, and packages,
 - Hugging Face models, datasets, Spaces, storage buckets, discussions, and pull requests,
 - Gitea repositories,
 - Bitbucket Cloud and Bitbucket Data Center repositories,
@@ -877,6 +877,9 @@ Implemented GitLab entry points:
 | Project job artifacts | `--gitlab-project`, `--gitlab-include-job-artifacts` | Lists project jobs with `per_page=100`, downloads jobs that advertise an artifact archive, and expands archive entries through Picket archive limits. Job artifacts are additive to project and group repository scans and cannot be combined with merge request source-head scans. |
 | Pipeline job logs and artifacts | `--gitlab-project`, `--gitlab-pipeline-id`, `--gitlab-include-job-logs`, `--gitlab-include-job-artifacts` | Lists jobs through the selected pipeline's jobs API and downloads trace logs or artifact archives for that pipeline only. Pipeline-scoped scans are project-scoped and cannot be combined with group or merge request scans. |
 | Generic package files | `--gitlab-project` or `--gitlab-group`, `--gitlab-include-packages` | Lists generic packages with `package_type=generic`, lists each package's files, downloads each package file through the generic package registry endpoint, and expands archive files through Picket archive limits. Package files are additive to project and group repository scans and cannot be combined with merge request source-head scans. |
+| Project issues and comments | `--gitlab-project` or `--gitlab-group`, `--gitlab-include-issues`, `--gitlab-issue-state` | Lists `all`, `opened`, or `closed` issues and comment-only notes with `per_page=100`. Descriptions and comments become bounded synthetic Markdown scan targets. Issue scanning is additive to project and group repository scans and cannot be combined with merge request source-head scans. |
+| Project releases | `--gitlab-project` or `--gitlab-group`, `--gitlab-include-releases` | Lists releases with `per_page=100` and converts release descriptions into bounded synthetic Markdown scan targets. Release scanning is additive to project and group repository scans and cannot be combined with merge request source-head scans. |
+| Release assets | `--gitlab-project` or `--gitlab-group`, `--gitlab-include-release-assets` | Downloads release links returned by GitLab and expands archive content through Picket archive limits. Release assets are an independent scope and cannot be combined with merge request source-head scans. |
 
 GitLab API flow:
 
@@ -891,6 +894,9 @@ GitLab API flow:
 | Project jobs | Lists project jobs with `per_page=100`, follows GitLab REST pagination, and downloads trace logs or job artifact archives only when their explicit flags are set. |
 | Pipeline jobs | Lists jobs for one project pipeline with `per_page=100`, follows GitLab REST pagination, and downloads trace logs or job artifact archives only when their explicit flags are set. |
 | Generic package files | Lists project packages with `package_type=generic` and `per_page=100`, lists package files through the packages API, then downloads each file through the generic package registry route documented by GitLab. |
+| Project issues | Lists issues with the selected state and `per_page=100`, then lists notes with `activity_filter=only_comments` and `per_page=100` when comments are present. |
+| Project releases | Lists releases with `per_page=100` and reads embedded asset links when available. |
+| Release links | Falls back to the release links API with `per_page=100` when a release response does not embed a links array. |
 
 GitLab source safety rules:
 
@@ -903,12 +909,12 @@ GitLab source safety rules:
 - Provider metadata JSON responses are capped at 10 decimal MB and skipped with a warning when the cap is exceeded.
 - A positive `--max-target-megabytes` value overrides the default remote cap.
 - Zero keeps its local-scan compatibility meaning, but remote GitLab sources reject zero because remote HTTP bodies are always bounded.
-- Oversized tree entries are skipped before download when GitLab returns a size.
-- Oversized tree entries, job artifacts, and package files are skipped before download when GitLab returns a size.
+- Oversized tree entries, job artifacts, and package files are skipped before download when GitLab returns a size. Synthetic issue, comment, and release documents are checked after UTF-8 encoding. Release assets are capped before and during streaming.
 - GitLab job artifact and generic package file downloads may redirect to signed HTTPS locations. Picket follows those redirects without forwarding the `PRIVATE-TOKEN` header and still uses connect-time endpoint guarding.
-- GitLab job artifact and generic package archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
+- Release assets on the exact configured API authority may receive `PRIVATE-TOKEN`. External release links and every redirected request are unauthenticated.
+- GitLab job artifact, generic package, and release asset archives use `--max-archive-depth`, `--max-archive-entries`, `--max-archive-megabytes`, `--max-archive-ratio`, and `--max-target-megabytes`.
 
-GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, project snippet, project job, pipeline job, job trace, initial job artifact, package-list, package-file-list, and initial generic package file requests. Least-privilege group project, project repository, merge request, snippet, pipeline, job, and generic package file enumeration requires read-only repository/API and package-registry access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
+GitLab credentials are read from the environment and sent as `PRIVATE-TOKEN` request headers for group project, project repository, merge request source, issue, issue note, release, release-link, project snippet, project job, pipeline job, job trace, initial job artifact, package-list, package-file-list, initial generic package file, and same-authority release asset requests. Least-privilege enumeration requires read-only repository/API and package-registry access appropriate to the selected GitLab instance. Write, maintainer, owner, registry-write, runner, and token-administration scopes are not part of the scanner test contract.
 
 Gitea source support is native Picket behavior, not Gitleaks compatibility behavior.
 

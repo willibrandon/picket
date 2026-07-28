@@ -30,6 +30,12 @@ Scan a Hugging Face model, dataset, Space, or bucket with a read-only token stor
 picket scan --huggingface-model owner/model --huggingface-token-env HF_TOKEN --report-format jsonl --redact=100
 ```
 
+Scan GitLab issues, comments, releases, and release assets:
+
+```powershell
+picket scan --gitlab-project owner/project --gitlab-include-issues --gitlab-include-releases --gitlab-include-release-assets --gitlab-token-env GITLAB_TOKEN --report-format jsonl --redact=100
+```
+
 ## CI Integrations
 
 Use the [Picket Secret Scanner](https://github.com/marketplace/actions/picket-secret-scanner) GitHub Action:
