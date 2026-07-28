@@ -230,7 +230,7 @@ not alter the pinned Gitleaks `openai-api-key` rule.
 
 ## Native Provider Format Review
 
-Provider-prefixed native coverage was reviewed on 2026-07-27. New rules require
+Provider-prefixed native coverage was reviewed through 2026-07-28. New rules require
 provider format evidence, synthetic positive and negative examples, and offline
 structural validation. Context-only and undocumented opaque formats remain out of
 the default pack until their precision can be demonstrated.
@@ -238,6 +238,8 @@ the default pack until their precision can be demonstrated.
 Primary provider references:
 
 - Buildkite token security: `https://buildkite.com/docs/platform/security/tokens`
+- Cast AI API access keys: `https://docs.cast.ai/docs/api-access`
+- Cast AI service accounts: `https://docs.cast.ai/docs/how-to-creating-service-accounts`
 - Docker Hub personal access tokens: `https://docs.docker.com/security/access-tokens/`
 - Docker Hub organization access tokens: `https://docs.docker.com/enterprise/security/access-tokens/`
 - LangSmith account and API key administration: `https://docs.langchain.com/langsmith/administration-overview`
@@ -247,6 +249,12 @@ Primary provider references:
 - Tailscale key and secret management: `https://tailscale.com/docs/reference/key-secret-management`
 - Vercel token formats and secret scanning: `https://vercel.com/changelog/new-token-formats-and-secret-scanning`
 - Vercel app access and refresh tokens: `https://vercel.com/docs/sign-in-with-vercel/tokens`
+
+The Cast AI key shape was confirmed from a sanitized provider fixture. Official
+documentation establishes organization scope, inherited permissions, one-time
+display, and `X-API-Key` transport. It does not document a safe read-only
+validation operation, so Picket performs structural validation offline and does
+not contact Cast AI.
 
 ## Provider Revocation References
 

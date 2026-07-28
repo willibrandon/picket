@@ -2,7 +2,7 @@ namespace Picket.Compat;
 
 internal static class EmbeddedPicketConfig
 {
-    internal const string SourceVersion = "picket-2026-07-27";
+    internal const string SourceVersion = "picket-2026-07-28";
 
     internal static string Toml { get; } = CreateToml();
 
@@ -24,6 +24,18 @@ internal static class EmbeddedPicketConfig
         string buildkitePortalSecret = CreateExample("bkps_", CreateExampleBody(64));
         string buildkitePortalToken = CreateExample("bkpat_", CreateExampleBody(54));
         string buildkiteUserAccessToken = CreateExample("bkua_", CreateLowerAlphaNumericExampleBody(53));
+        string castAiApiKey = CreateExample(
+            "castai",
+            "_v1_",
+            CreateLowerAlphaNumericExampleBody(64),
+            "_",
+            CreateLowerAlphaNumericExampleBody(8));
+        string castAiUppercaseNegativeExample = CreateExample(
+            "castai",
+            "_v1_A",
+            CreateLowerAlphaNumericExampleBody(63),
+            "_",
+            CreateLowerAlphaNumericExampleBody(8));
         string claudeCodeSessionUrl = CreateExample(
             "https://claude.ai/code/session_",
             CreateAlphaNumericExampleBody(24));
@@ -225,6 +237,25 @@ negativeExamples = [
     "BUILDKITE_PACKAGE_TOKEN=bkpt_too_short",
     "BUILDKITE_PORTAL_TOKEN=bkpat_too_short",
     "BUILDKITE_PORTAL_SECRET=bkps_too_short",
+]
+
+[[rules]]
+id = "picket-cast-ai-api-key"
+description = "Detected a Cast AI API key."
+regex = '''\b(castai_v1_[a-z0-9]{64}_[a-z0-9]{8})\b'''
+secretGroup = 1
+keywords = ["castai_v1_"]
+tags = ["picket", "cast-ai", "api-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Cast AI"
+documentationUrl = "https://docs.cast.ai/docs/api-access"
+validation = ["offline:cast-ai-api-key"]
+examples = ["CASTAI_API_KEY={{castAiApiKey}}"]
+negativeExamples = [
+    "CASTAI_API_KEY=castai_v1_too_short",
+    "CASTAI_API_KEY={{castAiUppercaseNegativeExample}}",
 ]
 
 [[rules]]

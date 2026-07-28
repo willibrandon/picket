@@ -500,6 +500,7 @@ internal static partial class Program
             "offline:azure-storage-connection-string" => ruleId.Equals("picket-azure-storage-connection-string", StringComparison.Ordinal),
             "offline:buildkite-token" => ruleId is "picket-buildkite-service-token"
                 or "picket-buildkite-user-access-token",
+            "offline:cast-ai-api-key" => ruleId.Equals("picket-cast-ai-api-key", StringComparison.Ordinal),
             "offline:claude-code-session-url" => ruleId.Equals("picket-claude-code-session-url", StringComparison.Ordinal),
             "offline:codex-access-token" => ruleId.Equals("picket-openai-codex-access-token", StringComparison.Ordinal),
             "offline:codex-refresh-token" => ruleId.Equals("picket-openai-codex-refresh-token", StringComparison.Ordinal),
