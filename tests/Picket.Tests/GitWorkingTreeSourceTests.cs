@@ -236,6 +236,35 @@ public sealed class GitWorkingTreeSourceTests
     }
 
     /// <summary>
+    /// Verifies repository selection works when a caller path contains a symbolic-link
+    /// ancestor such as macOS /var resolving to /private/var.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    public async Task EnumerateSupportsRepositoryPathThroughSymbolicLinkAncestor()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        await InitializeGitRepositoryAsync(root.Path).ConfigureAwait(false);
+        File.WriteAllText(Path.Combine(root.Path, "untracked.txt"), "token-111\n");
+        string aliasPath = Path.Combine(
+            Path.GetDirectoryName(root.Path)!,
+            string.Concat("picket-git-alias-", Guid.NewGuid().ToString("N")));
+        Directory.CreateSymbolicLink(aliasPath, root.Path);
+        try
+        {
+            IReadOnlyList<SourceFile> files = GitWorkingTreeSource.Enumerate(
+                new GitWorkingTreeScanOptions(aliasPath));
+
+            SourceFile file = Assert.ContainsSingle(files);
+            AssertSource(file, "untracked.txt", "git-untracked", "token-111\n");
+        }
+        finally
+        {
+            Directory.Delete(aliasPath);
+        }
+    }
+
+    /// <summary>
     /// Verifies pre-requested cancellation performs no source enumeration.
     /// </summary>
     [TestMethod]

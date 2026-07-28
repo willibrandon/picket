@@ -67,21 +67,29 @@ public static class GitWorkingTreeSource
             options,
             workingDirectory,
             ["rev-parse", "--show-toplevel"],
-            failureMessage: $"path is not inside a Git working tree: {options.Root}").Trim();
+            failureMessage: $"path is not inside a Git working tree: {options.Root}");
+        repositoryRoot = TrimGitLineEnding(repositoryRoot);
         if (repositoryRoot.Length == 0)
         {
             throw new InvalidOperationException($"path is not inside a Git working tree: {options.Root}");
         }
 
         repositoryRoot = Path.GetFullPath(repositoryRoot);
-        if (!IsPathWithinRoot(repositoryRoot, options.Root))
+        string prefix = TrimGitLineEnding(RunGitText(
+            options,
+            workingDirectory,
+            ["rev-parse", "--show-prefix"],
+            failureMessage: $"could not resolve the selected Git path: {options.Root}"));
+        string pathspec;
+        if (isFile)
         {
-            throw new InvalidOperationException($"selected path is outside the Git working tree: {options.Root}");
+            pathspec = string.Concat(prefix, Path.GetFileName(options.Root));
+        }
+        else
+        {
+            pathspec = prefix.Length == 0 ? "." : prefix.TrimEnd('/');
         }
 
-        string pathspec = Path.GetRelativePath(repositoryRoot, options.Root)
-            .Replace(Path.DirectorySeparatorChar, '/')
-            .Replace(Path.AltDirectorySeparatorChar, '/');
         return (repositoryRoot, pathspec);
     }
 
@@ -545,6 +553,20 @@ public static class GitWorkingTreeSource
     private static string CreateGitFailureMessage(int exitCode, string stderr)
     {
         return stderr.Length == 0 ? $"Git exited with code {exitCode}" : stderr;
+    }
+
+    private static string TrimGitLineEnding(string value)
+    {
+        if (value.EndsWith('\n'))
+        {
+            value = value[..^1];
+            if (value.EndsWith('\r'))
+            {
+                value = value[..^1];
+            }
+        }
+
+        return value;
     }
 
     private static string CreateContainedFullPath(string repositoryRoot, string displayPath)
