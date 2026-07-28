@@ -353,7 +353,7 @@ public sealed class CliKnownSecretVerificationTests
     public async Task VerifySecretRequiresStandardInputOrEnvironmentVariable()
     {
         CliResult result = await RunCliAsync(
-            standardInput: null,
+            standardInput: string.Empty,
             environment: null,
             "verify",
             "secret",

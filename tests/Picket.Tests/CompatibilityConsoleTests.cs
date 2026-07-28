@@ -290,7 +290,7 @@ public sealed partial class CompatibilityConsoleTests
             """);
 
         (int exitCode, byte[] stdoutBytes, byte[] stderrBytes) = await RunCliWithInputBytesAsync(
-            "clé=secret123",
+            Encoding.UTF8.GetBytes("clé=secret123"),
             "stdin",
             "--config",
             configPath,
@@ -444,7 +444,7 @@ public sealed partial class CompatibilityConsoleTests
     }
 
     private async Task<(int ExitCode, byte[] Stdout, byte[] Stderr)> RunCliWithInputBytesAsync(
-        string standardInput,
+        byte[] standardInput,
         params string[] arguments)
     {
         using var process = new Process();
@@ -472,8 +472,8 @@ public sealed partial class CompatibilityConsoleTests
         using var stderr = new MemoryStream();
         Task stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(stdout, cancellationToken);
         Task stderrTask = process.StandardError.BaseStream.CopyToAsync(stderr, cancellationToken);
-        await process.StandardInput.WriteAsync(standardInput.AsMemory(), cancellationToken).ConfigureAwait(false);
-        await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
+        await process.StandardInput.BaseStream.WriteAsync(standardInput, cancellationToken).ConfigureAwait(false);
+        await process.StandardInput.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
         process.StandardInput.Close();
         await Task.WhenAll(
             stdoutTask,
