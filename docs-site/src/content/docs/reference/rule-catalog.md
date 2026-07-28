@@ -16,18 +16,18 @@ Positive and negative example values are intentionally summarized as counts rath
 | Catalog | Rules | Notes |
 |---|---:|---|
 | Gitleaks-compatible default | 222 | Embedded strict-compatibility rules used by Gitleaks-compatible commands. |
-| Picket-native additions | 30 | All built-in native rules, including opt-in packs. |
-| `picket-default` | 25 | High-confidence rules enabled by the native default profile. |
+| Picket-native additions | 45 | All built-in native rules, including opt-in packs. |
+| `picket-default` | 40 | High-confidence rules enabled by the native default profile. |
 | `picket-strict` | 3 | Broader opt-in rules with medium-confidence heuristics. |
 | `picket-experimental` | 2 | Opt-in detectors under active tuning. |
 
 **Native providers**
 
-AWS, Anthropic, Azure, Database, Docker, GCP, GitHub, Groq, HTTP, JWK, Kubernetes, MCP, OpenAI, Sourcegraph, npm, xAI
+AWS, Anthropic, Azure, Buildkite, Database, Docker, GCP, GitHub, Groq, HTTP, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI
 
 **Native validation templates**
 
-live:github-rest-user-v1, offline:anthropic-oauth-token, offline:aws-access-key-pair, offline:azure-storage-connection-string, offline:claude-code-session-url, offline:codex-access-token, offline:codex-refresh-token, offline:database-connection-url, offline:docker-registry-auth, offline:gcp-api-key, offline:gcp-service-account-key-json, offline:github-app-token, offline:github-classic-token, offline:github-fine-grained-pat, offline:groq-api-key, offline:jwk-private-key, offline:kubernetes-secret, offline:mcp-server-credential, offline:npm-auth-token, offline:npm-basic-auth, offline:openai-api-key, offline:sourcegraph-access-token, offline:xai-api-key
+live:github-rest-user-v1, offline:anthropic-oauth-token, offline:aws-access-key-pair, offline:azure-storage-connection-string, offline:buildkite-token, offline:claude-code-session-url, offline:codex-access-token, offline:codex-refresh-token, offline:database-connection-url, offline:docker-hub-access-token, offline:docker-registry-auth, offline:gcp-api-key, offline:gcp-service-account-key-json, offline:github-app-token, offline:github-classic-token, offline:github-fine-grained-pat, offline:groq-api-key, offline:jwk-private-key, offline:kubernetes-secret, offline:langsmith-api-key, offline:mcp-server-credential, offline:npm-auth-token, offline:npm-basic-auth, offline:nvidia-api-key, offline:openai-api-key, offline:openrouter-api-key, offline:replicate-api-token, offline:sourcegraph-access-token, offline:tailscale-api-key, offline:vercel-token, offline:xai-api-key
 
 **Native revocation templates**
 
@@ -92,6 +92,26 @@ Enabled by the native default profile.
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>picket-buildkite-service-token</code><span>Buildkite</span>
+    </div>
+    <p class="reference-summary-description">Detected a Buildkite agent, package, or portal token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 7/7</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:buildkite-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: agent, buildkite, package, picket, portal, token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-buildkite-user-access-token</code><span>Buildkite</span>
+    </div>
+    <p class="reference-summary-description">Detected a Buildkite user access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:buildkite-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: access-token, buildkite, picket, user</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>picket-database-connection-url</code><span>Database</span>
     </div>
     <p class="reference-summary-description">Detected a database connection URL with embedded user credentials.</p>
@@ -99,6 +119,26 @@ Enabled by the native default profile.
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:database-connection-url</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: connection-string, connection-url, database, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-docker-hub-organization-access-token</code><span>Docker</span>
+    </div>
+    <p class="reference-summary-description">Detected a Docker Hub organization access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:docker-hub-access-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: access-token, docker, docker-hub, organization, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-docker-hub-personal-access-token</code><span>Docker</span>
+    </div>
+    <p class="reference-summary-description">Detected a Docker Hub personal access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:docker-hub-access-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: docker, docker-hub, personal-access-token, picket</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -212,6 +252,26 @@ Enabled by the native default profile.
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>picket-langsmith-personal-access-token</code><span>LangSmith</span>
+    </div>
+    <p class="reference-summary-description">Detected a LangSmith personal access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:langsmith-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: langchain, langsmith, personal-access-token, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-langsmith-service-key</code><span>LangSmith</span>
+    </div>
+    <p class="reference-summary-description">Detected a LangSmith service key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:langsmith-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: langchain, langsmith, picket, service-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>picket-mcp-server-credential</code><span>MCP</span>
     </div>
     <p class="reference-summary-description">Detected a credential in a Model Context Protocol server configuration.</p>
@@ -219,6 +279,16 @@ Enabled by the native default profile.
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:mcp-server-credential</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: credential, json, mcp, picket, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-nvidia-api-key</code><span>NVIDIA</span>
+    </div>
+    <p class="reference-summary-description">Detected an NVIDIA API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:nvidia-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, ngc, nim, nvidia, picket</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -252,6 +322,26 @@ Enabled by the native default profile.
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>picket-openrouter-api-key</code><span>OpenRouter</span>
+    </div>
+    <p class="reference-summary-description">Detected an OpenRouter API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:openrouter-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: ai, api-key, openrouter, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-replicate-api-token</code><span>Replicate</span>
+    </div>
+    <p class="reference-summary-description">Detected a Replicate API token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:replicate-api-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: ai, api-token, picket, replicate</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>picket-sourcegraph-access-token</code><span>Sourcegraph</span>
     </div>
     <p class="reference-summary-description">Detected a Sourcegraph access token.</p>
@@ -259,6 +349,66 @@ Enabled by the native default profile.
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:sourcegraph-access-token</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: access-token, picket, sourcegraph</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-tailscale-api-key</code><span>Tailscale</span>
+    </div>
+    <p class="reference-summary-description">Detected a Tailscale API access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:tailscale-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, network, picket, tailscale</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-vercel-ai-gateway-key</code><span>Vercel</span>
+    </div>
+    <p class="reference-summary-description">Detected a Vercel AI Gateway API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:vercel-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: ai-gateway, api-key, picket, vercel</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-vercel-app-access-token</code><span>Vercel</span>
+    </div>
+    <p class="reference-summary-description">Detected a Vercel app access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:vercel-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: access-token, app, picket, vercel</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-vercel-app-refresh-token</code><span>Vercel</span>
+    </div>
+    <p class="reference-summary-description">Detected a Vercel app refresh token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:vercel-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: app, picket, refresh-token, vercel</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-vercel-integration-token</code><span>Vercel</span>
+    </div>
+    <p class="reference-summary-description">Detected a Vercel integration token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:vercel-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: integration, picket, token, vercel</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-vercel-personal-access-token</code><span>Vercel</span>
+    </div>
+    <p class="reference-summary-description">Detected a Vercel personal access token.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:vercel-token</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: personal-access-token, picket, vercel</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">

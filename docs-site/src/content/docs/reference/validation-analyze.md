@@ -55,6 +55,13 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:buildkite-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Buildkite</span><span>2 rules</span></p>
+    <p class="reference-summary-detail">picket-buildkite-service-token, picket-buildkite-user-access-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:claude-code-session-url</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>Anthropic</span><span>1 rule</span></p>
@@ -80,6 +87,13 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
     </div>
     <p class="reference-summary-meta"><span>Database</span><span>1 rule</span></p>
     <p class="reference-summary-detail">picket-database-connection-url</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:docker-hub-access-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Docker</span><span>2 rules</span></p>
+    <p class="reference-summary-detail">picket-docker-hub-organization-access-token, picket-docker-hub-personal-access-token</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -146,6 +160,13 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:langsmith-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>LangSmith</span><span>2 rules</span></p>
+    <p class="reference-summary-detail">picket-langsmith-personal-access-token, picket-langsmith-service-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:mcp-server-credential</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>MCP</span><span>1 rule</span></p>
@@ -167,6 +188,13 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:nvidia-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>NVIDIA</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-nvidia-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:openai-api-key</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
@@ -174,10 +202,38 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:openrouter-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>OpenRouter</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-openrouter-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:replicate-api-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Replicate</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-replicate-api-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:sourcegraph-access-token</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>Sourcegraph</span><span>1 rule</span></p>
     <p class="reference-summary-detail">picket-sourcegraph-access-token</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:tailscale-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Tailscale</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-tailscale-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:vercel-token</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Vercel</span><span>5 rules</span></p>
+    <p class="reference-summary-detail">picket-vercel-ai-gateway-key, picket-vercel-app-access-token, picket-vercel-app-refresh-token, picket-vercel-integration-token, picket-vercel-personal-access-token</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -232,7 +288,7 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 
 | Severity | Confidence | Rules | Providers |
 |---|---|---:|---|
-| `critical` | `high` | 25 | AWS, Anthropic, Azure, Database, Docker, GCP, GitHub, Groq, JWK, Kubernetes, MCP, OpenAI, Sourcegraph, npm, xAI |
+| `critical` | `high` | 40 | AWS, Anthropic, Azure, Buildkite, Database, Docker, GCP, GitHub, Groq, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI |
 | `critical` | `low` | 1 | HTTP |
 | `critical` | `medium` | 3 | Azure, Database, HTTP |
 | `high` | `low` | 1 | HTTP |

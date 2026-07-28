@@ -2,7 +2,7 @@ namespace Picket.Compat;
 
 internal static class EmbeddedPicketConfig
 {
-    internal const string SourceVersion = "picket-2026-07-19";
+    internal const string SourceVersion = "picket-2026-07-27";
 
     internal static string Toml { get; } = CreateToml();
 
@@ -16,6 +16,14 @@ internal static class EmbeddedPicketConfig
             "MDEyMzQ1Njc4OUFCQ0RFRkdISktMTU5PUFFS",
             "U1RVVldYWVoxMjM0NTY3ODlBQkNERUZHSElK",
             "S0xNTk9QUVJTVA==");
+        string buildkiteAgentJobToken = CreateExample("bkaj_", CreateExampleBody(333));
+        string buildkiteAgentRegistrationToken = CreateExample("bkar_", CreateExampleBody(73));
+        string buildkiteAgentSessionToken = CreateExample("bkaa_", CreateExampleBody(75));
+        string buildkiteClusterToken = CreateExample("bkct_", CreateExampleBody(73));
+        string buildkitePackageToken = CreateExample("bkpt_", CreateExampleBody(199));
+        string buildkitePortalSecret = CreateExample("bkps_", CreateExampleBody(64));
+        string buildkitePortalToken = CreateExample("bkpat_", CreateExampleBody(54));
+        string buildkiteUserAccessToken = CreateExample("bkua_", CreateLowerAlphaNumericExampleBody(53));
         string claudeCodeSessionUrl = CreateExample(
             "https://claude.ai/code/session_",
             CreateAlphaNumericExampleBody(24));
@@ -44,6 +52,8 @@ internal static class EmbeddedPicketConfig
             "{\"settings\":{\"auth\":\"",
             dockerCredential,
             "\"}}");
+        string dockerHubOrganizationAccessToken = CreateExample("dckr_oat_", CreateExampleBody(32));
+        string dockerHubPersonalAccessToken = CreateExample("dckr_pat_", CreateExampleBody(27));
         string googleApiKey = CreateExample("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
         string groqApiKey = CreateExample("gsk_", CreateAlphaNumericExampleBody(48));
         string gcpPrivateKey = CreateExample(
@@ -88,6 +98,16 @@ internal static class EmbeddedPicketConfig
             jwkPrivateParameter,
             "\",\"e\":\"AQAB\"}");
         string kubernetesSecret = Convert.ToBase64String("picket-kubernetes-password"u8);
+        string langSmithPersonalAccessToken = CreateExample(
+            "lsv2_pt_",
+            CreateLowerHexExampleBody(32),
+            "_",
+            CreateLowerHexExampleBody(10));
+        string langSmithServiceKey = CreateExample(
+            "lsv2_sk_",
+            CreateLowerHexExampleBody(32),
+            "_",
+            CreateLowerHexExampleBody(10));
         string mcpServerCredential = CreateExample(
             "mcp_",
             "a8F2kL9mQ4xT7vN1zR6pW3cY",
@@ -105,7 +125,16 @@ internal static class EmbeddedPicketConfig
         string npmBasicCredential = Convert.ToBase64String("picket-user:picket-password"u8);
         string npmPassword = Convert.ToBase64String("picket-password"u8);
         string npmToken = CreateExample("npm_", CreateExampleBody(36));
+        string nvidiaApiKey = CreateExample("nvapi-", CreateExampleBody(64));
         string openAiApiKey = CreateExample("sk-proj-", CreateExampleBody(96));
+        string openRouterApiKey = CreateExample("sk-or-v1-", CreateLowerHexExampleBody(64));
+        string replicateApiToken = CreateExample("r8_", CreateAlphaNumericExampleBody(37));
+        string tailscaleApiKey = CreateExample("tskey-api-", CreateExampleBody(32));
+        string vercelAiGatewayKey = CreateExample("vck_", CreateExampleBody(56));
+        string vercelAppAccessToken = CreateExample("vca_", CreateExampleBody(56));
+        string vercelAppRefreshToken = CreateExample("vcr_", CreateExampleBody(56));
+        string vercelIntegrationToken = CreateExample("vci_", CreateExampleBody(56));
+        string vercelPersonalAccessToken = CreateExample("vcp_", CreateExampleBody(56));
         string xAiApiKey = CreateExample("xai-", CreateAlphaNumericExampleBody(80));
 
         return $$"""
@@ -141,6 +170,262 @@ negativeExamples = [
 [[rules]]
 id = "square-access-token"
 randomnessThreshold = 0.6
+
+[[rules]]
+id = "picket-buildkite-user-access-token"
+description = "Detected a Buildkite user access token."
+regex = '''\b(bkua_(?:[a-z0-9]{40}|[a-z0-9]{53}))(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["bkua_"]
+tags = ["picket", "buildkite", "user", "access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Buildkite"
+documentationUrl = "https://buildkite.com/docs/platform/security/tokens"
+validation = ["offline:buildkite-token"]
+examples = ["BUILDKITE_API_TOKEN={{buildkiteUserAccessToken}}"]
+negativeExamples = ["BUILDKITE_API_TOKEN=bkua_too_short"]
+
+[[rules]]
+id = "picket-buildkite-service-token"
+description = "Detected a Buildkite agent, package, or portal token."
+regex = '''\b(bkaa_[A-Za-z0-9_-]{75}|bkaj_[A-Za-z0-9_-]{333}|bkar_[A-Za-z0-9_-]{73}|bkct_[A-Za-z0-9_-]{73}|bkpt_[A-Za-z0-9_-]{199}|bkpat_[A-Za-z0-9_-]{54}|bkps_[A-Za-z0-9_-]{64})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["bkaa_", "bkaj_", "bkar_", "bkct_", "bkpt_", "bkpat_", "bkps_"]
+tags = ["picket", "buildkite", "agent", "package", "portal", "token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Buildkite"
+documentationUrl = "https://buildkite.com/docs/platform/security/tokens"
+validation = ["offline:buildkite-token"]
+examples = [
+    "BUILDKITE_AGENT_SESSION_TOKEN={{buildkiteAgentSessionToken}}",
+    "BUILDKITE_AGENT_JOB_TOKEN={{buildkiteAgentJobToken}}",
+    "BUILDKITE_AGENT_REGISTRATION_TOKEN={{buildkiteAgentRegistrationToken}}",
+    "BUILDKITE_CLUSTER_TOKEN={{buildkiteClusterToken}}",
+    "BUILDKITE_PACKAGE_TOKEN={{buildkitePackageToken}}",
+    "BUILDKITE_PORTAL_TOKEN={{buildkitePortalToken}}",
+    "BUILDKITE_PORTAL_SECRET={{buildkitePortalSecret}}",
+]
+negativeExamples = [
+    "BUILDKITE_AGENT_SESSION_TOKEN=bkaa_too_short",
+    "BUILDKITE_AGENT_JOB_TOKEN=bkaj_too_short",
+    "BUILDKITE_AGENT_REGISTRATION_TOKEN=bkar_too_short",
+    "BUILDKITE_CLUSTER_TOKEN=bkct_too_short",
+    "BUILDKITE_PACKAGE_TOKEN=bkpt_too_short",
+    "BUILDKITE_PORTAL_TOKEN=bkpat_too_short",
+    "BUILDKITE_PORTAL_SECRET=bkps_too_short",
+]
+
+[[rules]]
+id = "picket-docker-hub-personal-access-token"
+description = "Detected a Docker Hub personal access token."
+regex = '''\b(dckr_pat_[A-Za-z0-9_-]{27})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["dckr_pat_"]
+tags = ["picket", "docker", "docker-hub", "personal-access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Docker"
+documentationUrl = "https://docs.docker.com/security/access-tokens/"
+validation = ["offline:docker-hub-access-token"]
+examples = ["DOCKERHUB_TOKEN={{dockerHubPersonalAccessToken}}"]
+negativeExamples = ["DOCKERHUB_TOKEN=dckr_pat_too_short"]
+
+[[rules]]
+id = "picket-docker-hub-organization-access-token"
+description = "Detected a Docker Hub organization access token."
+regex = '''\b(dckr_oat_[A-Za-z0-9_-]{32})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["dckr_oat_"]
+tags = ["picket", "docker", "docker-hub", "organization", "access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Docker"
+documentationUrl = "https://docs.docker.com/enterprise/security/access-tokens/"
+validation = ["offline:docker-hub-access-token"]
+examples = ["DOCKERHUB_ORGANIZATION_TOKEN={{dockerHubOrganizationAccessToken}}"]
+negativeExamples = ["DOCKERHUB_ORGANIZATION_TOKEN=dckr_oat_too_short"]
+
+[[rules]]
+id = "picket-langsmith-personal-access-token"
+description = "Detected a LangSmith personal access token."
+regex = '''\b(lsv2_pt_[0-9A-Fa-f]{32}_[0-9A-Fa-f]{10})\b'''
+secretGroup = 1
+keywords = ["lsv2_pt_"]
+tags = ["picket", "langchain", "langsmith", "personal-access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "LangSmith"
+documentationUrl = "https://docs.langchain.com/langsmith/administration-overview"
+validation = ["offline:langsmith-api-key"]
+examples = ["LANGSMITH_API_KEY={{langSmithPersonalAccessToken}}"]
+negativeExamples = ["LANGSMITH_API_KEY=lsv2_pt_0123456789abcdef_too_short"]
+
+[[rules]]
+id = "picket-langsmith-service-key"
+description = "Detected a LangSmith service key."
+regex = '''\b(lsv2_sk_[0-9A-Fa-f]{32}_[0-9A-Fa-f]{10})\b'''
+secretGroup = 1
+keywords = ["lsv2_sk_"]
+tags = ["picket", "langchain", "langsmith", "service-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "LangSmith"
+documentationUrl = "https://docs.langchain.com/langsmith/administration-overview"
+validation = ["offline:langsmith-api-key"]
+examples = ["LANGSMITH_API_KEY={{langSmithServiceKey}}"]
+negativeExamples = ["LANGSMITH_API_KEY=lsv2_sk_0123456789abcdef_too_short"]
+
+[[rules]]
+id = "picket-nvidia-api-key"
+description = "Detected an NVIDIA API key."
+regex = '''\b(nvapi-[A-Za-z0-9_-]{60,70})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["nvapi-"]
+tags = ["picket", "nvidia", "ngc", "nim", "api-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "NVIDIA"
+documentationUrl = "https://docs.nvidia.com/nemo/retriever/latest/extraction/api-keys/"
+validation = ["offline:nvidia-api-key"]
+examples = ["NVIDIA_API_KEY={{nvidiaApiKey}}"]
+negativeExamples = ["NVIDIA_API_KEY=nvapi-too-short"]
+
+[[rules]]
+id = "picket-openrouter-api-key"
+description = "Detected an OpenRouter API key."
+regex = '''\b(sk-or-v1-[0-9a-f]{64})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["sk-or-v1-"]
+tags = ["picket", "openrouter", "ai", "api-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "OpenRouter"
+documentationUrl = "https://openrouter.ai/docs/guides/overview/auth/management-api-keys"
+validation = ["offline:openrouter-api-key"]
+examples = ["OPENROUTER_API_KEY={{openRouterApiKey}}"]
+negativeExamples = ["OPENROUTER_API_KEY=sk-or-v1-too-short"]
+
+[[rules]]
+id = "picket-replicate-api-token"
+description = "Detected a Replicate API token."
+regex = '''\b(r8_[A-Za-z0-9]{37})\b'''
+secretGroup = 1
+keywords = ["r8_"]
+tags = ["picket", "replicate", "ai", "api-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Replicate"
+documentationUrl = "https://replicate.com/docs/topics/security/api-tokens/"
+validation = ["offline:replicate-api-token"]
+examples = ["REPLICATE_API_TOKEN={{replicateApiToken}}"]
+negativeExamples = ["REPLICATE_API_TOKEN=r8_too_short"]
+
+[[rules]]
+id = "picket-tailscale-api-key"
+description = "Detected a Tailscale API access token."
+regex = '''\b(tskey-api-[A-Za-z0-9_-]{20,36})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["tskey-api-"]
+tags = ["picket", "tailscale", "network", "api-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Tailscale"
+documentationUrl = "https://tailscale.com/docs/reference/key-secret-management"
+validation = ["offline:tailscale-api-key"]
+examples = ["TAILSCALE_API_KEY={{tailscaleApiKey}}"]
+negativeExamples = ["TAILSCALE_API_KEY=tskey-api-too-short"]
+
+[[rules]]
+id = "picket-vercel-personal-access-token"
+description = "Detected a Vercel personal access token."
+regex = '''\b(vcp_[A-Za-z0-9_-]{56})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["vcp_"]
+tags = ["picket", "vercel", "personal-access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Vercel"
+documentationUrl = "https://vercel.com/changelog/new-token-formats-and-secret-scanning"
+validation = ["offline:vercel-token"]
+examples = ["VERCEL_TOKEN={{vercelPersonalAccessToken}}"]
+negativeExamples = ["VERCEL_TOKEN=vcp_too_short"]
+
+[[rules]]
+id = "picket-vercel-integration-token"
+description = "Detected a Vercel integration token."
+regex = '''\b(vci_[A-Za-z0-9_-]{56})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["vci_"]
+tags = ["picket", "vercel", "integration", "token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Vercel"
+documentationUrl = "https://vercel.com/changelog/new-token-formats-and-secret-scanning"
+validation = ["offline:vercel-token"]
+examples = ["VERCEL_INTEGRATION_TOKEN={{vercelIntegrationToken}}"]
+negativeExamples = ["VERCEL_INTEGRATION_TOKEN=vci_too_short"]
+
+[[rules]]
+id = "picket-vercel-app-access-token"
+description = "Detected a Vercel app access token."
+regex = '''\b(vca_[A-Za-z0-9_-]{56})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["vca_"]
+tags = ["picket", "vercel", "app", "access-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Vercel"
+documentationUrl = "https://vercel.com/docs/sign-in-with-vercel/tokens"
+validation = ["offline:vercel-token"]
+examples = ["VERCEL_APP_ACCESS_TOKEN={{vercelAppAccessToken}}"]
+negativeExamples = ["VERCEL_APP_ACCESS_TOKEN=vca_too_short"]
+
+[[rules]]
+id = "picket-vercel-app-refresh-token"
+description = "Detected a Vercel app refresh token."
+regex = '''\b(vcr_[A-Za-z0-9_-]{56})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["vcr_"]
+tags = ["picket", "vercel", "app", "refresh-token"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Vercel"
+documentationUrl = "https://vercel.com/docs/sign-in-with-vercel/tokens"
+validation = ["offline:vercel-token"]
+examples = ["VERCEL_APP_REFRESH_TOKEN={{vercelAppRefreshToken}}"]
+negativeExamples = ["VERCEL_APP_REFRESH_TOKEN=vcr_too_short"]
+
+[[rules]]
+id = "picket-vercel-ai-gateway-key"
+description = "Detected a Vercel AI Gateway API key."
+regex = '''\b(vck_[A-Za-z0-9_-]{56})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["vck_"]
+tags = ["picket", "vercel", "ai-gateway", "api-key"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "Vercel"
+documentationUrl = "https://vercel.com/changelog/new-token-formats-and-secret-scanning"
+validation = ["offline:vercel-token"]
+examples = ["AI_GATEWAY_API_KEY={{vercelAiGatewayKey}}"]
+negativeExamples = ["AI_GATEWAY_API_KEY=vck_too_short"]
 
 [[rules]]
 id = "picket-anthropic-oauth-access-token"
@@ -582,6 +867,30 @@ negativeExamples = ["ghr_invalid"]
     private static string CreateAlphaNumericExampleBody(int length)
     {
         const string Alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        return string.Create(length, Alphabet, static (span, alphabet) =>
+        {
+            for (int i = 0; i < span.Length; i++)
+            {
+                span[i] = alphabet[i % alphabet.Length];
+            }
+        });
+    }
+
+    private static string CreateLowerAlphaNumericExampleBody(int length)
+    {
+        const string Alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+        return string.Create(length, Alphabet, static (span, alphabet) =>
+        {
+            for (int i = 0; i < span.Length; i++)
+            {
+                span[i] = alphabet[i % alphabet.Length];
+            }
+        });
+    }
+
+    private static string CreateLowerHexExampleBody(int length)
+    {
+        const string Alphabet = "0123456789abcdef";
         return string.Create(length, Alphabet, static (span, alphabet) =>
         {
             for (int i = 0; i < span.Length; i++)

@@ -102,10 +102,12 @@ Supported validation template identifiers are:
 - `offline:aws-access-key-id`
 - `offline:aws-access-key-pair`
 - `offline:azure-storage-connection-string`
+- `offline:buildkite-token`
 - `offline:claude-code-session-url`
 - `offline:codex-access-token`
 - `offline:codex-refresh-token`
 - `offline:database-connection-url`
+- `offline:docker-hub-access-token`
 - `offline:docker-registry-auth`
 - `offline:gcp-api-key`
 - `offline:gcp-service-account-key-json`
@@ -117,12 +119,18 @@ Supported validation template identifiers are:
 - `offline:jwt`
 - `offline:jwt-base64`
 - `offline:kubernetes-secret`
+- `offline:langsmith-api-key`
 - `offline:mcp-server-credential`
 - `offline:npm-auth-token`
 - `offline:npm-basic-auth`
+- `offline:nvidia-api-key`
 - `offline:openai-api-key`
+- `offline:openrouter-api-key`
 - `offline:private-key-envelope`
+- `offline:replicate-api-token`
 - `offline:sourcegraph-access-token`
+- `offline:tailscale-api-key`
+- `offline:vercel-token`
 - `offline:xai-api-key`
 - `live:github-rest-user-v1`
 
