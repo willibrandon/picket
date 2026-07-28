@@ -485,7 +485,7 @@ public static class CredentialAnalyzer
         return credentialType switch
         {
             "GitLab personal access token" => [
-                "curl --request DELETE --header \"PRIVATE-TOKEN: <gitlab-admin-token>\" \"https://gitlab.example.com/api/v4/personal_access_tokens/<token-id>\""
+                "picket revoke gitlab --credential-env PICKET_GITLAB_CREDENTIAL --confirm-revocation"
             ],
             "GitLab deploy token" => [
                 "curl --request DELETE --header \"PRIVATE-TOKEN: <gitlab-admin-token>\" \"https://gitlab.example.com/api/v4/projects/<project-id>/deploy_tokens/<deploy-token-id>\"",

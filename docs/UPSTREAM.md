@@ -279,10 +279,12 @@ references. These controls do not alter the embedded strict Gitleaks config.
 ## Provider Revocation References
 
 Native analysis and direct revocation behavior are based on provider
-documentation reviewed on 2026-07-13:
+documentation reviewed on 2026-07-28:
 
 - GitHub credential revocation API: `https://docs.github.com/en/rest/credentials/revoke`
 - GitHub token expiration and revocation: `https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/token-expiration-and-revocation`
+- GitLab personal access token API: `https://docs.gitlab.com/api/personal_access_tokens/#self-revoke`
+- GitLab personal access token revocation: `https://docs.gitlab.com/user/profile/personal_access_tokens/#revoke-a-personal-access-token`
 - AWS IAM `update-access-key`: `https://docs.aws.amazon.com/cli/latest/reference/iam/update-access-key.html`
 - AWS IAM `delete-access-key`: `https://docs.aws.amazon.com/cli/latest/reference/iam/delete-access-key.html`
 - AWS IAM access-key rotation workflow: `https://docs.aws.amazon.com/IAM/latest/UserGuide/id-credentials-access-keys-update.html`

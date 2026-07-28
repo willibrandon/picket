@@ -158,6 +158,17 @@ Use the grouped index to jump to the workflow you need.
       </li>
     </ul>
   </section>
+  <section class="cli-command-group">
+    <p class="cli-command-group-title">Other</p>
+    <ul class="cli-command-list">
+      <li>
+        <a class="cli-command-link" href="#picket-revoke-gitlab">
+          <code>picket revoke gitlab</code>
+          <span>Self-revoke an exposed GitLab personal access token.</span>
+        </a>
+      </li>
+    </ul>
+  </section>
 </div>
 
 ## Command Reference
@@ -1943,6 +1954,108 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>seconds</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Stop waiting for the GitHub revocation response after this many seconds. [default: 10]</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+### picket revoke gitlab
+
+<div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket revoke gitlab</code>
+    <span class="cli-command-badge">Command</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Command arguments</dd>
+    </div>
+  </dl>
+  <p class="cli-command-summary">Self-revoke an exposed GitLab personal access token.</p>
+  <div class="cli-usage-list">
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage</p>
+      <pre class="cli-usage-code"><code>picket revoke gitlab [options]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--credential-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Read the GitLab personal access token from this environment variable; the value never appears in command arguments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--confirm-revocation</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Required</td>
+              <td data-label="Description">Confirm the irreversible self-revocation request.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this full GitLab personal access token self-revocation endpoint instead of https://gitlab.com/api/v4/personal_access_tokens/self.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--gitlab-api-proxy</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this HTTPS proxy for the GitLab revocation request.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow a guarded GitLab revocation endpoint that resolves to a non-public address.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>seconds</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop waiting for the GitLab revocation response after this many seconds. [default: 10]</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>

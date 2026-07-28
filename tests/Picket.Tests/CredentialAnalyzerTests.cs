@@ -211,7 +211,9 @@ public sealed class CredentialAnalyzerTests
         Assert.Contains("resourceType=personal-access-token", analysis.Evidence);
         Assert.Contains("Review token scopes", string.Join('\n', analysis.RecommendedActions));
         Assert.IsTrue(analysis.RevocationAvailable);
-        Assert.Contains("personal_access_tokens/<token-id>", string.Join('\n', analysis.RevocationCommands));
+        Assert.Contains(
+            "picket revoke gitlab --credential-env PICKET_GITLAB_CREDENTIAL --confirm-revocation",
+            analysis.RevocationCommands);
         Assert.Contains("Identify the owning GitLab user", string.Join('\n', analysis.RevocationGuidance));
         Assert.DoesNotContain(token, string.Join('\n', analysis.RevocationCommands));
         Assert.DoesNotContain(token, string.Join('\n', analysis.Evidence));

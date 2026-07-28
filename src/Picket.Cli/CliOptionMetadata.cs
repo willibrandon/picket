@@ -41,6 +41,20 @@ internal static class CliOptionMetadata
             };
         }
 
+        if (command.Equals("picket revoke gitlab", StringComparison.Ordinal))
+        {
+            return key switch
+            {
+                "--allow-non-public-endpoints" => "Allow a guarded GitLab revocation endpoint that resolves to a non-public address.",
+                "--confirm-revocation" => "Confirm the irreversible self-revocation request.",
+                "--credential-env" => "Read the GitLab personal access token from this environment variable; the value never appears in command arguments.",
+                "--gitlab-api-endpoint" => "Use this full GitLab personal access token self-revocation endpoint instead of https://gitlab.com/api/v4/personal_access_tokens/self.",
+                "--gitlab-api-proxy" => "Use this HTTPS proxy for the GitLab revocation request.",
+                "--timeout" => "Stop waiting for the GitLab revocation response after this many seconds.",
+                _ => "GitLab personal access token revocation option.",
+            };
+        }
+
         if (command.Equals("picket verify secret", StringComparison.Ordinal))
         {
             switch (key)

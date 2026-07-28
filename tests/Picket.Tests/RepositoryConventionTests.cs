@@ -1601,6 +1601,31 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that irreversible provider clients can only be constructed by the explicit revoke command.
+    /// </summary>
+    [TestMethod]
+    public void CredentialRevokersRemainConfinedToExplicitRevokeCommand()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string sourceRoot = Path.Combine(repositoryRoot, "src");
+        string[] sourceFiles = Directory.GetFiles(sourceRoot, "*.cs", SearchOption.AllDirectories);
+        foreach (string sourceFile in sourceFiles)
+        {
+            string source = File.ReadAllText(sourceFile);
+            if (source.Contains("new GitHubCredentialRevoker(", StringComparison.Ordinal)
+                || source.Contains("new GitLabPersonalAccessTokenRevoker(", StringComparison.Ordinal))
+            {
+                string relativePath = Path.GetRelativePath(repositoryRoot, sourceFile).Replace('\\', '/');
+                Assert.AreEqual("src/Picket.Cli/Program.Revoke.cs", relativePath);
+            }
+        }
+
+        string revokeSource = ReadRepositoryFile("src/Picket.Cli/Program.Revoke.cs");
+        Assert.Contains("new GitHubCredentialRevoker(", revokeSource);
+        Assert.Contains("new GitLabPersonalAccessTokenRevoker(", revokeSource);
+    }
+
+    /// <summary>
     /// Verifies that remote source clients use the bounded metadata JSON reader.
     /// </summary>
     [TestMethod]

@@ -254,6 +254,65 @@ internal static partial class Program
             parseResult.GetValue(allowNonPublicEndpointsOption),
             cancellationToken));
         command.Subcommands.Add(githubCommand);
+
+        var gitLabCommand = new Command("gitlab", "Self-revoke an exposed GitLab personal access token.")
+        {
+            TreatUnmatchedTokensAsErrors = true,
+        };
+        var gitLabCredentialEnvironmentOption = new Option<string>("--credential-env")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke gitlab", "--credential-env"),
+            HelpName = "name",
+            Required = true,
+        };
+        var gitLabConfirmOption = new Option<bool>("--confirm-revocation")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke gitlab", "--confirm-revocation"),
+            Required = true,
+        };
+        var gitLabEndpointOption = new Option<string?>("--gitlab-api-endpoint")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke gitlab", "--gitlab-api-endpoint"),
+            HelpName = "uri",
+        };
+        var gitLabProxyOption = new Option<string?>("--gitlab-api-proxy")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke gitlab", "--gitlab-api-proxy"),
+            HelpName = "uri",
+        };
+        var gitLabAllowNonPublicEndpointsOption = new Option<bool>("--allow-non-public-endpoints")
+        {
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke gitlab", "--allow-non-public-endpoints"),
+        };
+        var gitLabTimeoutOption = new Option<int>("--timeout")
+        {
+            DefaultValueFactory = _ => 10,
+            Description = CliOptionMetadata.GetOptionDescription("picket revoke gitlab", "--timeout"),
+            HelpName = "seconds",
+        };
+        gitLabTimeoutOption.Validators.Add(result =>
+        {
+            if (result.GetValueOrDefault<int>() <= 0)
+            {
+                result.AddError("--timeout must be greater than zero");
+            }
+        });
+
+        gitLabCommand.Options.Add(gitLabCredentialEnvironmentOption);
+        gitLabCommand.Options.Add(gitLabConfirmOption);
+        gitLabCommand.Options.Add(gitLabEndpointOption);
+        gitLabCommand.Options.Add(gitLabProxyOption);
+        gitLabCommand.Options.Add(gitLabAllowNonPublicEndpointsOption);
+        gitLabCommand.Options.Add(gitLabTimeoutOption);
+        gitLabCommand.SetAction((parseResult, cancellationToken) => RunGitLabRevocationAsync(
+            parseResult.GetValue(gitLabCredentialEnvironmentOption)!,
+            parseResult.GetValue(gitLabConfirmOption),
+            parseResult.GetValue(gitLabEndpointOption),
+            parseResult.GetValue(gitLabProxyOption),
+            parseResult.GetValue(gitLabTimeoutOption),
+            parseResult.GetValue(gitLabAllowNonPublicEndpointsOption),
+            cancellationToken));
+        command.Subcommands.Add(gitLabCommand);
         return command;
     }
 

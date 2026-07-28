@@ -161,6 +161,29 @@ The GitHub workflow has these boundaries:
 
 An accepted result exits `0`, a rejected or locally blocked result exits `1`, and an indeterminate provider outcome exits `2`. Invalid command input also exits nonzero without contacting GitHub. The command reports acceptance rather than claiming completed revocation because GitHub's documented success response is `202 Accepted`. See the [GitHub credential revocation API](https://docs.github.com/en/rest/credentials/revoke) for the provider contract.
 
+`picket revoke gitlab` self-revokes one exposed GitLab personal access token:
+
+```text
+picket revoke gitlab --credential-env EXPOSED_GITLAB_TOKEN --confirm-revocation
+```
+
+Run `picket analyze` first to preview the provider-specific revocation command and incident-response guidance without contacting GitLab.
+
+The token can use GitLab's default `glpat-` prefix or an instance-specific custom prefix. Picket validates that the value can be carried safely in an HTTP header without assuming a fixed prefix. The named variable must already exist in the process environment; Picket does not accept the token as a command argument.
+
+The GitLab workflow has these boundaries:
+
+- default endpoint: `https://gitlab.com/api/v4/personal_access_tokens/self`,
+- request authentication: the exposed token is sent only in the `PRIVATE-TOKEN` header,
+- request limit: one token and one request per command invocation,
+- endpoint policy: HTTPS, preflight and connect-time address checks, non-public addresses blocked by default, no user info/query/fragment in endpoint overrides, an exact `/api/v4/personal_access_tokens/self` path suffix, and no automatic redirects,
+- proxy policy: optional HTTPS proxy with no user info/query/fragment,
+- retry policy: none,
+- response handling: `204` confirms revocation, provider client errors are rejected, redirects are blocked, and transport failures, timeouts, unexpected success responses, and server errors are indeterminate,
+- output: fixed non-secret reasons only; the token and provider response body are not logged, cached, or included in diagnostics.
+
+An accepted result exits `0`, a rejected or locally blocked result exits `1`, and an indeterminate provider outcome exits `2`. Invalid command input exits nonzero before a request is sent. GitLab documents self-revocation as irreversible and immediately invalidating. See the [GitLab personal access tokens API](https://docs.gitlab.com/api/personal_access_tokens/#self-revoke) for the provider contract.
+
 ## Reporting
 
 Native report writers expose validation state in Picket JSON, JSONL, SARIF, CSV, JUnit, HTML, TOON, and GitLab code-quality outputs where the format supports it. Gitleaks-compatible report writers preserve the compatibility schema and do not add Picket-native validation fields.
