@@ -79,20 +79,22 @@ internal static partial class Program
 
             try
             {
-                fileFindings[resultIndex] = ScanSourceFileForParallelBatch(
-                    file,
-                    rules,
-                    picketIgnore,
-                    ignoreGitleaksAllow,
-                    maxDecodeDepth,
-                    maxTargetBytes,
-                    nativeMode,
-                    timeoutTimestamp,
-                    scanCache,
-                    diagnosticsSession,
-                    metrics,
-                    out stoppedFiles[resultIndex],
-                    cancellationToken);
+                fileFindings[resultIndex] = ApplySourceProvenance(
+                    ScanSourceFileForParallelBatch(
+                        file,
+                        rules,
+                        picketIgnore,
+                        ignoreGitleaksAllow,
+                        maxDecodeDepth,
+                        maxTargetBytes,
+                        nativeMode,
+                        timeoutTimestamp,
+                        scanCache,
+                        diagnosticsSession,
+                        metrics,
+                        out stoppedFiles[resultIndex],
+                        cancellationToken),
+                    file);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {

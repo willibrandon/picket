@@ -698,6 +698,7 @@ Dedup skips duplicate matching work where rule and decoder semantics make it saf
 Native source support:
 
 - filesystem,
+- staged index, unstaged working-tree, and untracked Git changes,
 - git history,
 - stdin,
 - archives,
@@ -710,6 +711,12 @@ Native source support:
 - Docker/OCI images and tarballs.
 
 Every remote source requires an auth, pagination, retry, rate-limit, checkpoint, permission, and redaction model. Provider endpoint overrides are required for enterprise/self-hosted use.
+
+`picket scan --git-changes <path>` is a local native source mode. It scans staged snapshots from the Git index, unstaged tracked-file snapshots from the working tree, and untracked non-ignored files in one deterministic pass. Unchanged and deleted files are excluded. Renames, copies, type changes, and unmerged files are included when readable. A selected path can be the working tree, a nested directory, or one changed file; report paths remain repository-relative.
+
+Index and working-tree snapshots are scanned independently because their content can differ. Findings unique to one snapshot retain `git-index` or `git-worktree` provenance. Matching stable findings are paired by occurrence and emitted once with current working-tree coordinates and `git-index+worktree` provenance. Untracked findings use `git-untracked`. This native pairing never changes strict Gitleaks reports. Pre-commit hooks remain staged-only because they inspect exactly what will be committed.
+
+Git's standard ignore sources filter untracked files. `--no-ignore` includes Git-ignored untracked files and disables native ignore-file handling. Rule path allowlists, `.picketignore`, explicit ignore files, source byte limits, archive limits, timeout, cancellation, cache, and checkpoint behavior otherwise apply as they do to native filesystem sources. Symbolic links are scanned as link text without following their targets.
 
 Remote scan checkpointing is explicit native behavior through `--checkpoint <path>`. Picket binds a checkpoint to both the matching-behavior fingerprint and a SHA-256 manifest of the complete ordered source snapshot. Native source files use that deterministic path order whether checkpointing is enabled or not. A retry re-enumerates the source and verifies the manifest before restoring any prior finding. Source or scanner changes fail closed; `--checkpoint-reset` is the explicit instruction to discard incompatible state and start again.
 
@@ -1086,7 +1093,7 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 
 The full-screen console is an operator interface, not a marketing screen. Dashboard is the leftmost tab and the default initial view for empty launches, restored scans, and explicit reports. `-t, --tab <1-6>` selects the initial Dashboard, Scan, Findings, Rules, Files, or Logs tab by one-based position. Dashboard presents the current report summary, severity and validation counts, scan timing and status, and top-rule and top-file tables. Run scan remains available in the header and through `Ctrl+R`. The Scan page is for setting up and running a scan: target inputs, command preview, status, exit code, scan timing, report path, result count summary, and an output-availability signal. The Logs page owns captured scanner output and semantically distinguishes errors, warnings, and active search matches. The Findings page owns row triage: filtering, selected-row focus, severity, validation state, finding details, and finding-specific yank text. Its table remains visible at narrow terminal sizes; a constrained draggable side detail pane is used only when enough width exists, with a compact detail strip below the table otherwise. Details expose commit and author when present and place randomness metadata after decision-relevant fields. Fingerprints stay in details and yank text instead of consuming a table column. This prevents the Scan page from becoming a duplicate findings browser while still making the next action obvious after a scan completes. It favors readable scanner-console density, stable row keys, clear focus, keyboard navigation, and text labels over decorative graphics.
 
-The scanner console also has a native scan workspace. The workspace covers local paths, local container archives, remote registry images, source hosts, and object stores. Profile, config, ignore behavior, verification, result filters, limits, redaction, and report controls are grouped into Source, Output, Validation, and Limits sections.
+The scanner console also has a native scan workspace. The workspace covers local paths, pending Git changes, local container archives, remote registry images, source hosts, and object stores. Profile, config, ignore behavior, verification, result filters, limits, redaction, and report controls are grouped into Source, Output, Validation, and Limits sections.
 
 The scan workspace defaults its generated report to a stable path under the operating system temporary directory, outside the scanned checkout. Explicit report paths remain supported.
 

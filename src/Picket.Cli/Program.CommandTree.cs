@@ -86,6 +86,7 @@ internal static partial class Program
         command.Options.Add(CreateValueOption("picket scan", "--gitleaks-ignore-path", "path", "-i"));
         command.Options.Add(CreateFlagOption("picket scan", "--ignore-gitleaks-allow"));
         command.Options.Add(CreateFlagOption("picket scan", "--follow-symlinks"));
+        command.Options.Add(CreateFlagOption("picket scan", "--git-changes"));
         command.Options.Add(CreateValueOption("picket scan", "--report-template", "path"));
         AddScanLimitOptions(command, "picket scan", includeMaxDecodeDepth: true, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, "picket scan");

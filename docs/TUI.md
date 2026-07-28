@@ -66,7 +66,7 @@ The default report path is under the operating system temporary directory rather
 
 The workspace keeps the normal path short: choose a target, check the command preview, press Run scan, then jump to Findings when row triage is needed. It exposes commonly changed options directly:
 
-- local path, local container archive, remote registry image, source-host target, or object-store target,
+- local filesystem path, pending Git changes, local container archive, remote registry image, source-host target, or object-store target,
 - profile and config,
 - ignore behavior,
 - verification mode,
@@ -78,7 +78,7 @@ The workspace keeps the normal path short: choose a target, check the command pr
 
 The Scan page groups controls into Source, Output, Validation, and Limits sections so the default view stays readable while every scan option remains reachable. Source-host providers use a compact picker so every provider name stays visible without widening the settings pane.
 
-For source-host, object-store, container archive, and registry targets, the Output page can pass a checkpoint path to the CLI. The reset toggle is available beside it and requires a non-empty checkpoint path. Local filesystem scans do not show these controls because checkpointing is a native source-provider workflow. The report and checkpoint paths must differ.
+For Git changes, source-host, object-store, container archive, and registry targets, the Output page can pass a checkpoint path to the CLI. The reset toggle is available beside it and requires a non-empty checkpoint path. Local filesystem scans do not show these controls because checkpointing is a native source-provider workflow. The report and checkpoint paths must differ.
 
 Container targets include Docker archives, OCI image-layout archives, and remote registry images. The registry mode exposes the image reference, endpoint overrides, environment-variable credential names, platform filter, aggregate image cap, and source endpoint policy controls. All container modes use the shared archive and target-size limits from the Limits section.
 

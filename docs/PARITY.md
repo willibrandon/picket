@@ -150,6 +150,26 @@ as deliberate.
   `NativeScanDecodesSmallUtf16File`,
   `NativeFragmentedScanDecodesUtf16WithoutChangingCompatibility`.
 
+## Native Git Working-Tree Changes
+
+- **Upstream behavior:** Gitleaks exposes staged compatibility scanning but does
+  not combine staged, unstaged, and untracked snapshots in one command.
+- **Picket behavior:** `picket scan --git-changes <path>` scans the Git index,
+  unstaged working-tree files, and untracked non-ignored files. Shared stable
+  findings are paired by occurrence and retain explicit combined provenance.
+  Strict compatibility commands and hooks keep staged-only behavior.
+- **Mode/profile affected:** Picket-native `scan`.
+- **Reason:** Developers need one deterministic review of pending work without
+  conflating it with the exact staged content enforced by pre-commit hooks.
+- **User impact:** A changed file can produce separate index and working-tree
+  findings when its snapshots differ. Native reports identify `git-index`,
+  `git-worktree`, `git-untracked`, or `git-index+worktree` provenance.
+- **Test name:** `NativeGitChangesScanMergesSharedFindingsAndPreservesUniqueSnapshots`,
+  `NativeGitChangesScanPreservesRepeatedFindingOccurrences`,
+  `CompatibilityStagedScanRemainsStagedOnly`.
+- **Migration guidance:** Use `picket git --staged` or installed hooks to guard
+  the next commit. Use `picket scan --git-changes .` to review all pending work.
+
 ## Git Log Option Guard
 
 - **Upstream behavior:** Gitleaks forwards `--log-opts` tokens to `git log`

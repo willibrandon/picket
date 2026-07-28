@@ -1037,6 +1037,9 @@ internal static class PicketTuiApp
     {
         return scan.TargetMode switch
         {
+            PicketTuiScanTargetMode.GitChanges => string.Concat(
+                "Git changes ",
+                string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath),
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", scan.GitHubTargetDisplayValue),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstNonEmpty(
                 scan.AzureDevOpsRepository,

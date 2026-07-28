@@ -153,7 +153,8 @@ public static class ReportFindingReader
             GetString(element, "blobSha256"),
             GetStringArray(element, "decodePath"),
             GetRandomness(element),
-            GetPositionKind(element));
+            GetPositionKind(element),
+            provenanceType: GetProvenanceType(element));
         finding = parsedFinding.WithNativeFingerprint(GetString(element, "fingerprint"));
         return true;
     }
@@ -167,6 +168,14 @@ public static class ReportFindingReader
             "unicodeCodePointsExclusive" => FindingPositionKind.UnicodeCodePointsExclusive,
             _ => throw new InvalidDataException($"unsupported finding position kind '{value}'"),
         };
+    }
+
+    private static string GetProvenanceType(JsonElement element)
+    {
+        return element.TryGetProperty("provenance", out JsonElement provenance)
+            && provenance.ValueKind == JsonValueKind.Object
+            ? GetString(provenance, "type")
+            : string.Empty;
     }
 
     private static SecretRandomnessAssessment? GetRandomness(JsonElement element)

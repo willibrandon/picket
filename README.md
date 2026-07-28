@@ -18,6 +18,12 @@ dotnet tool install --global Picket.Tui.Cli
 
 The release archives are direct Native AOT executable downloads. The dotnet tool packages are RID-specific Native AOT NuGet tool packages selected by the .NET CLI during install for Windows, Linux, and macOS x64/Arm64.
 
+Scan staged, unstaged, and untracked non-ignored Git changes together:
+
+```powershell
+picket scan --git-changes . --report-format jsonl --redact=100
+```
+
 ## CI Integrations
 
 Use the [Picket Secret Scanner](https://github.com/marketplace/actions/picket-secret-scanner) GitHub Action:

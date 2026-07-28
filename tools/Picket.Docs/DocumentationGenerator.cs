@@ -19,6 +19,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         ["CACHE"] = 50,
         ["PERFORMANCE"] = 60,
         ["EMBEDDING"] = 70,
+        ["GIT_CHANGES"] = 80,
         ["ACTION"] = 100,
         ["AZURE_DEVOPS"] = 110,
         ["GITHUB"] = 120,

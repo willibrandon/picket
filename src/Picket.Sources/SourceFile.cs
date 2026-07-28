@@ -22,6 +22,18 @@ public sealed class SourceFile(string fullPath, string displayPath, string symli
         _content = content ?? throw new ArgumentNullException(nameof(content));
     }
 
+    internal SourceFile(
+        string fullPath,
+        string displayPath,
+        string symlinkDisplayPath,
+        byte[] content,
+        string provenanceType)
+        : this(fullPath, displayPath, symlinkDisplayPath)
+    {
+        _content = content ?? throw new ArgumentNullException(nameof(content));
+        ProvenanceType = NormalizeOptionalText(provenanceType);
+    }
+
     /// <summary>
     /// Gets the full filesystem path.
     /// </summary>
@@ -36,6 +48,11 @@ public sealed class SourceFile(string fullPath, string displayPath, string symli
     /// Gets the normalized symlink path used in reports, or an empty string.
     /// </summary>
     public string SymlinkDisplayPath { get; } = NormalizeOptionalDisplayPath(symlinkDisplayPath);
+
+    /// <summary>
+    /// Gets the native source provenance type, or an empty string when the scanner derives it.
+    /// </summary>
+    public string ProvenanceType { get; } = string.Empty;
 
     /// <summary>
     /// Gets the source content length in bytes.
@@ -87,5 +104,10 @@ public sealed class SourceFile(string fullPath, string displayPath, string symli
     private static string NormalizeOptionalDisplayPath(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : NormalizeDisplayPath(value);
+    }
+
+    private static string NormalizeOptionalText(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 }

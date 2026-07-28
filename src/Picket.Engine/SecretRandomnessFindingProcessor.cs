@@ -113,7 +113,9 @@ public static class SecretRandomnessFindingProcessor
             finding.BlobSha256,
             finding.DecodePath,
             assessment,
-            finding.PositionKind);
+            finding.PositionKind,
+            finding.RequiredFindings,
+            finding.ProvenanceType);
         return copy.WithNativeFingerprint(finding.NativeFingerprint);
     }
 }

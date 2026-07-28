@@ -1343,7 +1343,9 @@ public static class OfflineSecretValidator
             finding.BlobSha256,
             finding.DecodePath,
             finding.Randomness,
-            finding.PositionKind);
+            finding.PositionKind,
+            finding.RequiredFindings,
+            finding.ProvenanceType);
         return copy.WithNativeFingerprint(finding.NativeFingerprint);
     }
 

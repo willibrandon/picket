@@ -18,7 +18,10 @@ public sealed class GitleaksFindingRedactorTests
     [TestMethod]
     public void RedactFullyReplacesSecret()
     {
-        Finding finding = CreateFinding("line containing secret", "secret");
+        Finding finding = CreateFinding(
+            "line containing secret",
+            "secret",
+            provenanceType: "git-index");
 
         Finding redacted = GitleaksFindingRedactor.Redact(finding, 100);
 
@@ -28,6 +31,7 @@ public sealed class GitleaksFindingRedactorTests
         Assert.AreEqual("https://github.com/example/repo/blob/commit/secret.txt#L1", redacted.Link);
         Assert.AreEqual("2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b", redacted.SecretSha256);
         Assert.AreEqual("307aa91418c6be9b60a0de3bd843a2e3f206061b0674fc6171ad91025f1c0cb3", redacted.MatchSha256);
+        Assert.AreEqual("git-index", redacted.ProvenanceType);
     }
 
     /// <summary>
@@ -393,7 +397,8 @@ public sealed class GitleaksFindingRedactorTests
         string match,
         string secret,
         string line = "",
-        IReadOnlyList<string>? decodePath = null)
+        IReadOnlyList<string>? decodePath = null,
+        string provenanceType = "")
     {
         return new Finding(
             "rule",
@@ -416,7 +421,8 @@ public sealed class GitleaksFindingRedactorTests
             "secret.txt:rule:1",
             line,
             link: "https://github.com/example/repo/blob/commit/secret.txt#L1",
-            decodePath: decodePath);
+            decodePath: decodePath,
+            provenanceType: provenanceType);
     }
 
     private static string CreateSha256(string value)

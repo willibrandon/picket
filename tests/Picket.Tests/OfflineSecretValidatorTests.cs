@@ -137,7 +137,10 @@ public sealed class OfflineSecretValidatorTests
     [TestMethod]
     public void ValidateRecognizesGitHubClassicTokenShape()
     {
-        Finding finding = CreateFinding("github-pat", CreateGitHubPat());
+        Finding finding = CreateFinding(
+            "github-pat",
+            CreateGitHubPat(),
+            provenanceType: "git-worktree");
 
         SecretValidationResult result = OfflineSecretValidator.Validate(finding);
 
@@ -429,16 +432,24 @@ public sealed class OfflineSecretValidatorTests
     [TestMethod]
     public void AnnotateAddsValidationState()
     {
-        Finding finding = CreateFinding("github-pat", CreateGitHubPat());
+        Finding finding = CreateFinding(
+            "github-pat",
+            CreateGitHubPat(),
+            provenanceType: "git-worktree");
 
         Finding annotated = OfflineSecretValidator.Annotate(finding);
 
         Assert.AreEqual(finding.RuleID, annotated.RuleID);
         Assert.AreEqual(finding.Secret, annotated.Secret);
         Assert.AreEqual("structurally-valid", annotated.ValidationState);
+        Assert.AreEqual("git-worktree", annotated.ProvenanceType);
     }
 
-    private static Finding CreateFinding(string ruleId, string secret, string? match = null)
+    private static Finding CreateFinding(
+        string ruleId,
+        string secret,
+        string? match = null,
+        string provenanceType = "")
     {
         match ??= secret;
         return new Finding(
@@ -459,7 +470,8 @@ public sealed class OfflineSecretValidatorTests
             string.Empty,
             string.Empty,
             [],
-            "secret.txt:rule:1");
+            "secret.txt:rule:1",
+            provenanceType: provenanceType);
     }
 
     private static string CreateAwsAccessKeyId()

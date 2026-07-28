@@ -819,6 +819,27 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies the scan workspace exposes native Git changes with its local path and checkpoint.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsGitChangesArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.GitChanges);
+        scan.SetLocalPath("src");
+        scan.SetCheckpointPath("picket-results/git-changes.checkpoint");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--git-changes", arguments);
+        Assert.Contains("src", arguments);
+        Assert.Contains("--checkpoint", arguments);
+        Assert.Contains("picket-results/git-changes.checkpoint", arguments);
+    }
+
+    /// <summary>
     /// Verifies that the scan workspace groups targets so the TUI selector stays readable.
     /// </summary>
     [TestMethod]
@@ -829,7 +850,13 @@ public sealed class PicketTuiTests
 
         Assert.AreEqual(PicketTuiScanTargetCategory.Local, scan.TargetCategory);
         Assert.HasCount(4, PicketTuiScanWorkspace.TargetCategoryLabels);
-        Assert.HasCount(1, scan.ActiveTargetModeLabels);
+        Assert.HasCount(2, scan.ActiveTargetModeLabels);
+        Assert.Contains("Git changes", scan.ActiveTargetModeLabels);
+
+        scan.SetTargetModeByCategoryIndex(1);
+
+        Assert.AreEqual(PicketTuiScanTargetMode.GitChanges, scan.TargetMode);
+        Assert.AreEqual(1, scan.TargetModeIndex);
 
         scan.SetTargetCategoryByIndex((int)PicketTuiScanTargetCategory.ObjectStore);
 
@@ -2832,7 +2859,7 @@ public sealed class PicketTuiTests
     /// </summary>
     [TestMethod]
     [DataRow(1, 2, "ButtonNode,TabPanelNode,EditorNode,TableNode`1,TableNode`1")]
-    [DataRow(2, 1, "TabPanelNode,ButtonNode,ToggleSwitchNode,ToggleSwitchNode,TextBoxNode,SplitterNode")]
+    [DataRow(2, 1, "TabPanelNode,ButtonNode,ToggleSwitchNode,ToggleSwitchNode,ToggleSwitchNode,TextBoxNode,SplitterNode")]
     [DataRow(3, 3, "ButtonNode,TabPanelNode,TextBoxNode,TableNode`1,DragBarPanelNode,EditorNode")]
     [DataRow(4, 2, "ButtonNode,TabPanelNode,TableNode`1")]
     [DataRow(5, 2, "ButtonNode,TabPanelNode,TableNode`1")]
@@ -2990,14 +3017,18 @@ public sealed class PicketTuiTests
         Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
             .WaitUntil(
-                _ => app?.FocusedNode is TextBoxNode,
+                s => app?.FocusedNode is TextBoxNode
+                    && s.ContainsText("Dashboard")
+                    && s.ContainsText("Logs"),
                 TimeSpan.FromSeconds(5),
-                "Logs search to receive focus")
+                "Logs view to render with search focus")
             .Key(Hex1bKey.Escape)
             .WaitUntil(
-                _ => app?.FocusedNode is EditorNode,
+                s => app?.FocusedNode is EditorNode
+                    && s.ContainsText("Dashboard")
+                    && s.ContainsText("Logs"),
                 TimeSpan.FromSeconds(5),
-                "Logs output to receive focus")
+                "Logs view to render with output focus")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);

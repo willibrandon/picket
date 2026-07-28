@@ -11,6 +11,11 @@ internal enum PicketTuiScanTargetMode
     Local = 0,
 
     /// <summary>
+    /// Scan staged, unstaged, and untracked changes in a local Git working tree.
+    /// </summary>
+    GitChanges = 13,
+
+    /// <summary>
     /// Scan a GitHub source through native source enumeration.
     /// </summary>
     GitHub = 1,

@@ -20,6 +20,8 @@ internal static partial class Program
         bool allowReportInput = false,
         NativeSourceProvider? sourceFileProvider = null,
         Func<IReadOnlyList<Finding>, string?, List<string>, string?, string?, IReadOnlyDictionary<string, CredentialAnalysisMetadata>?, bool>? nativeResultWriter = null,
+        bool sourceUsesLocalIgnoreFiles = false,
+        bool mergeGitChangeFindings = false,
         CancellationToken cancellationToken = default)
     {
         if (ContainsHelp(args))
@@ -595,12 +597,24 @@ internal static partial class Program
         }
         else
         {
-            if (!TryLoadPicketIgnore(nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? loadedPicketIgnore))
+            if (sourceUsesLocalIgnoreFiles)
             {
-                return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
-            }
+                if (!TryLoadPicketIgnore(root, nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? loadedPicketIgnore))
+                {
+                    return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
+                }
 
-            picketIgnore = loadedPicketIgnore;
+                picketIgnore = loadedPicketIgnore;
+            }
+            else
+            {
+                if (!TryLoadPicketIgnore(nativeIgnorePaths, respectNativeIgnoreFiles, out PicketIgnore? loadedPicketIgnore))
+                {
+                    return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
+                }
+
+                picketIgnore = loadedPicketIgnore;
+            }
             try
             {
                 files = RemoteScanManifest.OrderFiles(sourceFileProvider(
@@ -688,7 +702,7 @@ internal static partial class Program
                         throw new InvalidDataException("Checkpoint ended before its recorded low-water mark.");
                     }
 
-                    findings.AddRange(restoredFindings);
+                    findings.AddRange(ApplySourceProvenance(restoredFindings, sourceFile));
                     diagnosticsSession?.RecordScanInput();
                 }
 
@@ -821,7 +835,8 @@ internal static partial class Program
                             break;
                         }
 
-                        findings.AddRange(fragmentFindings);
+                        IReadOnlyList<Finding> fragmentSourceFindings = ApplySourceProvenance(fragmentFindings, file);
+                        findings.AddRange(fragmentSourceFindings);
                         continue;
                     }
 
@@ -847,8 +862,9 @@ internal static partial class Program
                     if (scanCache is not null && scanCache.TryRead(input, file.DisplayPath, file.SymlinkDisplayPath, out List<Finding>? cachedFindings))
                     {
                         diagnosticsSession?.RecordCacheHit();
-                        findings.AddRange(cachedFindings);
-                        scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, cachedFindings);
+                        IReadOnlyList<Finding> cachedSourceFindings = ApplySourceProvenance(cachedFindings, file);
+                        findings.AddRange(cachedSourceFindings);
+                        scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, cachedSourceFindings);
                         continue;
                     }
 
@@ -888,14 +904,15 @@ internal static partial class Program
                         scannedFindings = AnnotateFindingsForNativeCache(scannedFindings);
                     }
 
-                    findings.AddRange(scannedFindings);
+                    IReadOnlyList<Finding> scannedSourceFindings = ApplySourceProvenance(scannedFindings, file);
+                    findings.AddRange(scannedSourceFindings);
                     if (scanCache is not null)
                     {
                         scanCache.Write(input, file.DisplayPath, scannedFindings);
                         diagnosticsSession?.RecordCacheWrite();
                     }
 
-                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, scannedFindings);
+                    scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, scannedSourceFindings);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -910,8 +927,11 @@ internal static partial class Program
             WritePicketIgnoreStaleWarnings(picketIgnore);
         }
 
+        IReadOnlyList<Finding> completedFindings = mergeGitChangeFindings
+            ? MergeGitChangeFindings(findings)
+            : findings;
         return CompleteFindingsRun(
-            findings,
+            completedFindings,
             rules,
             baseline,
             gitleaksIgnore,

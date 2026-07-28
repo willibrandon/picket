@@ -11,6 +11,7 @@ const projectDocsSidebar = [
   { label: "Native Scan Cache", slug: "generated/cache" },
   { label: "Performance", slug: "generated/performance" },
   { label: "Embedding Picket", slug: "generated/embedding" },
+  { label: "Git Changes", slug: "generated/git-changes" },
   { label: "GitHub Action", slug: "generated/action" },
   { label: "Azure DevOps", slug: "generated/azure-devops" },
   { label: "GitHub", slug: "generated/github" },
