@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Let `picket tui` reuse its scanner executable and let standalone `picket-tui` resolve Windows global-tool shims.
+
 ## 0.2.1
 
 - Preserve Unicode banner glyphs in attached Windows consoles while keeping redirected output BOM-free UTF-8.
