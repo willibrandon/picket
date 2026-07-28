@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Preserve Unicode banner glyphs in attached Windows consoles while keeping redirected output BOM-free UTF-8.
+
 ## 0.2.0
 
 - Scan staged, unstaged, and untracked Git changes, UTF-16 input, and composite decoded evidence.
