@@ -12,6 +12,28 @@ This ledger records intentional differences from the pinned Gitleaks reference.
 Each entry must have an oracle or regression test before the behavior is treated
 as deliberate.
 
+## Native Contextual Predicates
+
+- **Upstream behavior:** The pinned Gitleaks config schema has allowlists but
+  does not provide source and finding expression predicates.
+- **Picket behavior:** Native configs can define bounded global and per-rule
+  `prefilter` and `filter` expressions over a closed field set. Strict
+  Gitleaks-compatible scans preserve those config fields but leave them inert.
+- **Mode/profile affected:** Picket-native `scan`, `rules check`, `rules test`,
+  and compatibility commands only when `--profile picket` is selected.
+- **Reason:** Native rule packs need deterministic contextual false-positive
+  controls without introducing a scripting runtime or changing compatibility
+  allowlist semantics.
+- **User impact:** A native predicate can skip a source, skip one rule, or
+  suppress a candidate. The same config field does not change strict scan
+  results.
+- **Test name:** `GlobalPrefilterAppliesOnlyWhenNativePredicatesAreEnabled`,
+  `NativeFilterRunsBeforeRequiredRuleCorrelation`,
+  `NativeScanEvaluatesPredicatesWithoutAffectingCompatibilityScan`.
+- **Migration guidance:** Continue using Gitleaks allowlists for strict
+  compatibility. Use predicates only in configs intended for Picket-native
+  scans.
+
 ## Diagnostics Output
 
 - **Upstream behavior:** Gitleaks `--diagnostics=cpu,mem,trace` writes Go

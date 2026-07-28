@@ -16,10 +16,14 @@ internal sealed class CompiledRule(
     string regexContext,
     string pathRegexContext)
 {
+    private readonly Lock _nativePredicateCompilationLock = new();
     private readonly Lock _regexCompilationLock = new();
     private readonly string _pattern = rule.Pattern;
     private readonly string _pathPattern = rule.PathPattern;
     private readonly bool _deferRegexCompilation = deferRegexCompilation;
+    private bool _nativePredicatesCompiled;
+    private NativePredicateProgram? _nativeFilter;
+    private NativePredicateProgram? _nativePrefilter;
     private ByteRegex? _regex = regex;
     private ByteRegex? _pathRegex = pathRegex;
 
@@ -42,6 +46,50 @@ internal sealed class CompiledRule(
     internal bool UsesGcpServiceAccountKeyMatcher { get; } = usesGcpServiceAccountKeyMatcher;
 
     internal bool AppliesGlobalAllowlists { get; } = appliesGlobalAllowlists;
+
+    internal NativePredicateProgram? NativePrefilter
+    {
+        get
+        {
+            CompileNativePredicates();
+            return _nativePrefilter;
+        }
+    }
+
+    internal NativePredicateProgram? NativeFilter
+    {
+        get
+        {
+            CompileNativePredicates();
+            return _nativeFilter;
+        }
+    }
+
+    internal void CompileNativePredicates()
+    {
+        if (Volatile.Read(ref _nativePredicatesCompiled))
+        {
+            return;
+        }
+
+        lock (_nativePredicateCompilationLock)
+        {
+            if (_nativePredicatesCompiled)
+            {
+                return;
+            }
+
+            _nativePrefilter = NativePredicateCompiler.CompileOptional(
+                Rule.Prefilter,
+                allowFindingFields: false,
+                $"{Rule.Id}: prefilter");
+            _nativeFilter = NativePredicateCompiler.CompileOptional(
+                Rule.Filter,
+                allowFindingFields: true,
+                $"{Rule.Id}: filter");
+            Volatile.Write(ref _nativePredicatesCompiled, true);
+        }
+    }
 
     private ByteRegex? GetRegex(ref ByteRegex? regex, string pattern, string context)
     {

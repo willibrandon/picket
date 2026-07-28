@@ -467,7 +467,7 @@ Picket implements the Gitleaks TOML schema:
 - Strict compatibility keeps Gitleaks/Viper local `[extend] path` behavior: absolute paths are accepted and relative paths resolve from the process current working directory. This is a trusted config boundary, not scan-root confinement.
 - `extend.url`: parsed and ignored in strict compatibility mode because local Gitleaks has an unimplemented URL extender. Native mode may warn.
 - `[[rules]]`: `id`, `description`, `regex`, `path`, `secretGroup`, `entropy`, `keywords`, `tags`, `skipReport`, allowlists, and required/composite rules.
-- Native rule metadata: `randomnessThreshold`, `detector`, `severity`, `confidence`, `rulePack`, `provider`, `documentationUrl`, `validation`, `revocation`, `deprecated`, `examples`, and `negativeExamples`.
+- Native rule controls and metadata: `randomnessThreshold`, `detector`, `prefilter`, `filter`, `severity`, `confidence`, `rulePack`, `provider`, `documentationUrl`, `validation`, `revocation`, `deprecated`, `examples`, and `negativeExamples`. Top-level native configs may also define global `prefilter` and `filter` expressions.
 - Allowlists: global and per-rule, plural and deprecated singular forms, `condition`, `commits`, `paths`, `regexTarget`, `regexes`, `stopwords`, and `targetRules`.
 - Validation: Picket emits the same config errors Gitleaks emits for empty allowlists, mixed singular/plural allowlists, duplicate IDs, missing regex/path, invalid capture groups, and invalid extend combinations.
 
@@ -511,7 +511,11 @@ Compatibility matching reproduces Gitleaks' observable algorithm:
 
 Strict compatibility positions use one-based UTF-8 byte columns with inclusive end positions, matching Gitleaks. Native positions use one-based Unicode code-point columns with exclusive end positions. Every native finding records its `positionKind`; required-rule `withinColumns` constraints apply only when both findings begin on the same source line. Composite native findings resolve required evidence after all enabled decoding passes complete, so evidence discovered through different decode paths can correlate while proximity remains anchored to remapped original-source positions.
 
-Picket-native modes can add richer confidence scoring, structured detectors, and cross-rule correlation, but compatibility mode does not. A native structured rule still requires a bounded regex and keyword prefilter. After that prefilter selects the rule, its named detector uses a shared per-input JSON, YAML, or npmrc index and returns exact evidence spans without reparsing the input for every structured rule.
+Picket-native modes can add richer confidence scoring, structured detectors, contextual predicates, and cross-rule correlation, but compatibility mode does not. Native `prefilter` expressions can read only the logical source path and symbolic-link path. Native `filter` expressions can additionally read a closed set of finding positions, evidence, decode metadata, scoring metadata, tags, and rule metadata. A true prefilter skips its scope; a true filter suppresses its candidate. Global and per-rule filters run before required-rule correlation so suppressed evidence cannot satisfy a composite rule. Strict Gitleaks-compatible scans parse and preserve these fields but do not compile or evaluate them.
+
+Contextual predicates use a closed, typed, short-circuit expression grammar rather than a general-purpose scripting runtime. Expression bytes, tokens, parenthesis depth, instructions, literals, compiled Scout regexes, evaluation stack, dynamic strings, and list items are bounded. Runtime evidence that exceeds an evaluation limit produces `false`, so a limit cannot suppress a finding. The evaluator has no filesystem, environment, network, reflection, or dynamic-code surface and remains Native AOT compatible. Predicate source participates in rule-set fingerprints, and predicate-bearing rule sets use full logical-path cache addressing.
+
+A native structured rule still requires a bounded regex and keyword prefilter. After that prefilter selects the rule, its named detector uses a shared per-input JSON, YAML, or npmrc index and returns exact evidence spans without reparsing the input for every structured rule.
 
 ### 7.6 Fingerprints, Ignores, Baselines
 

@@ -209,6 +209,7 @@ internal static partial class Program
             cancellationToken: cancellationToken)
         {
             EnableNativeDetectors = nativeMode,
+            EnableNativePredicates = nativeMode,
             EnableRandomnessScoring = nativeMode,
             PositionKind = nativeMode
                 ? FindingPositionKind.UnicodeCodePointsExclusive

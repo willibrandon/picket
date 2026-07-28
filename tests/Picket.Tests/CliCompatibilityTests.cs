@@ -5069,6 +5069,50 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies native scans evaluate predicates while strict compatibility scans leave them inert.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanEvaluatesPredicatesWithoutAffectingCompatibilityScan()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            filter = 'true'
+
+            [[rules]]
+            id = "token"
+            regex = '''token-[0-9]+'''
+            """);
+        File.WriteAllText(
+            Path.Combine(root.Path, "secret.txt"),
+            "token-12345");
+
+        CliResult nativeResult = await RunCliAsync(
+            "scan",
+            root.Path,
+            "-c",
+            configPath,
+            "-f",
+            "jsonl",
+            "-r",
+            "-").ConfigureAwait(false);
+        CliResult strictResult = await RunCliAsync(
+            "dir",
+            root.Path,
+            "-c",
+            configPath,
+            "-r",
+            "-").ConfigureAwait(false);
+
+        Assert.AreEqual(0, nativeResult.ExitCode);
+        Assert.IsEmpty(nativeResult.Stdout);
+        Assert.AreEqual(1, strictResult.ExitCode);
+        Assert.Contains("\"Secret\": \"token-12345\"", strictResult.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that rules check rejects invalid Gitleaks-compatible configs.
     /// </summary>
     [TestMethod]

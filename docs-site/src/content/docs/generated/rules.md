@@ -58,6 +58,8 @@ Supported rule fields:
 - `entropy`: minimum Shannon entropy. `0` disables entropy filtering.
 - `randomnessThreshold`: minimum native `p(random)` score from `0.0` through `1.0`. `0` disables score filtering. See [Randomness Scoring](randomness.md).
 - `detector`: stable built-in structured detector name. The regex and keywords remain the candidate prefilter; the detector parses the selected input and returns exact evidence spans.
+- `prefilter`: optional native source predicate. A result of `true` skips the source for a top-level predicate or skips the owning rule for a rule predicate.
+- `filter`: optional native finding predicate. A result of `true` suppresses the candidate.
 - `keywords`: case-insensitive prefilter terms.
 - `tags`: classification labels.
 - `skipReport`: run supporting detection without reporting normal findings.
@@ -111,6 +113,107 @@ assignments without restricting the value alphabet. The
 randomness threshold. This keeps generated values containing punctuation or
 ordinary stopwords detectable without broadening the compatibility-derived
 generic API-key rule.
+
+## Contextual Predicates
+
+`prefilter` and `filter` are Picket-native controls. Strict Gitleaks-compatible
+commands parse and preserve these fields but never validate or evaluate them.
+Use `picket rules check`, `picket rules test`, or a native scan to validate
+predicate syntax.
+
+A top-level `prefilter` runs once for each source before rule regexes run. A
+rule `prefilter` runs before its owning rule. A top-level `filter` applies to
+every candidate finding, while a rule `filter` applies only to candidates from
+that rule. Filters run after finding metadata and optional randomness scoring
+are available and before required-rule correlation. When both global and rule
+filters exist, either one can suppress the candidate.
+
+The expression grammar is deliberately closed:
+
+- boolean operators: `!`, `&&`, and `||`
+- grouping with parentheses
+- equality operators: `==` and `!=`
+- numeric operators: `<`, `<=`, `>`, and `>=`
+- string operators: `contains`, `starts_with`, and `ends_with`
+- Scout-backed regex search with `matches`; its right operand must be a string
+  literal and is compiled once during rule validation
+- finite numeric, boolean, single-quoted string, and double-quoted string
+  literals
+
+`!` binds before comparisons, comparisons bind before `&&`, and `&&` binds
+before `||`. Boolean evaluation short-circuits. String comparisons and string
+operators are ordinal and case-sensitive. For string-list fields, `contains`
+tests exact list membership.
+
+Prefilters can read:
+
+| Field | Type | Value |
+|---|---|---|
+| `source.path` | string | Logical source path stored in findings |
+| `source.symlink` | string | Symbolic-link display path, or an empty string |
+
+Filters can read those source fields plus:
+
+| Field | Type |
+|---|---|
+| `finding.rule_id` | string |
+| `finding.description` | string |
+| `finding.match` | string |
+| `finding.secret` | string |
+| `finding.line` | string |
+| `finding.start_line` | number |
+| `finding.end_line` | number |
+| `finding.start_column` | number |
+| `finding.end_column` | number |
+| `finding.entropy` | number |
+| `finding.randomness_score` | number |
+| `finding.decode_depth` | number |
+| `finding.is_decoded` | boolean |
+| `finding.tags` | string list |
+| `finding.decode_path` | string list |
+| `finding.severity` | string |
+| `finding.confidence` | string |
+| `finding.rule_pack` | string |
+| `finding.provider` | string |
+
+Example:
+
+```toml
+prefilter = 'source.path starts_with "vendor/"'
+
+[[rules]]
+id = "sample-token"
+description = "Sample token"
+regex = '''token-[0-9]+'''
+keywords = ["token"]
+prefilter = 'source.path ends_with ".generated.cs"'
+filter = '''
+finding.provider == "example" &&
+finding.secret matches "^token-0+$"
+'''
+```
+
+Predicate compilation rejects expressions that exceed any of these limits:
+
+| Resource | Limit |
+|---|---:|
+| Expression text | 4,096 UTF-8 bytes |
+| Tokens | 256 |
+| Parenthesis nesting | 16 |
+| Compiled instructions | 512 |
+| String literal | 1,024 UTF-8 bytes |
+| Compiled regexes | 32 |
+
+Evaluation uses a 64-value stack, accepts at most 65,536 characters from one
+dynamic string, and examines at most 256 items from a string list. If source
+or finding data exceeds an evaluation limit, the expression returns `false`.
+This fail-open behavior prevents a resource-limit condition from hiding a
+finding. Predicates have no field, operator, or function that can access the
+filesystem, environment, network, reflection, or runtime code generation.
+
+Predicate source participates in the compiled rule-set fingerprint.
+Predicate-bearing rule sets use path-sensitive native cache addressing so a
+result cannot be reused for another logical source path.
 
 Supported validation template identifiers are:
 
@@ -226,6 +329,8 @@ Every required rule ID must exist, and a rule must not require itself.
 - required positive and negative examples for Picket-native rules.
 - keyword prefilters for Picket-native content rules.
 - known built-in detector names and detector-compatible native rules.
+- native predicate syntax, field availability, operand types, regexes, and
+  resource limits.
 - obvious Picket-native regex performance hazards such as unbounded `.*` or `.+` spans outside character classes.
 - positive and negative examples without printing example contents in diagnostics.
 - validation and revocation template identifiers supported by the current verifier/analyzer.

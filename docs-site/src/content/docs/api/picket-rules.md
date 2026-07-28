@@ -90,7 +90,9 @@ Immutable collection of secret detection rules.
 RuleSet(
     IReadOnlyList<SecretRule> rules,
     IReadOnlyList<SecretAllowlist> allowlists,
-    bool regexesPrevalidated
+    bool regexesPrevalidated,
+    string prefilter,
+    string filter
 )
 ```
 
@@ -100,6 +102,8 @@ Immutable collection of secret detection rules.
 ### Properties
 
 - `Allowlists` - Gets global allowlists used to suppress findings.
+- `Filter` - Gets the optional native finding predicate that suppresses a candidate when it evaluates to .
+- `Prefilter` - Gets the optional native source predicate that skips the complete source when it evaluates to .
 - `RegexesPrevalidated` - Gets a value indicating whether rule and allowlist regexes are already validated and can be compiled lazily.
 - `Rules` - Gets the rules in deterministic evaluation order.
 
@@ -211,7 +215,9 @@ SecretRule(
     IReadOnlyList<string> examples,
     IReadOnlyList<string> negativeExamples,
     double randomnessThreshold,
-    string detector
+    string detector,
+    string prefilter,
+    string filter
 )
 ```
 
@@ -246,7 +252,9 @@ Create(
     IReadOnlyList<string> examples,
     IReadOnlyList<string> negativeExamples,
     double randomnessThreshold,
-    string detector
+    string detector,
+    string prefilter,
+    string filter
 )
 ```
 
@@ -263,11 +271,13 @@ Creates a rule and normalizes optional collection arguments.
 - `DocumentationUrl` - Gets the rule documentation or remediation URL.
 - `Entropy` - Gets the minimum Shannon entropy required for the secret. Zero disables entropy filtering.
 - `Examples` - Gets positive examples that must produce findings for this rule during rule QA.
+- `Filter` - Gets the optional native finding predicate that suppresses this rule's candidate when it evaluates to .
 - `Id` - Gets the stable rule identifier.
 - `Keywords` - Gets case-insensitive keywords used for candidate prefiltering.
 - `NegativeExamples` - Gets negative examples that must not produce findings for this rule during rule QA.
 - `PathPattern` - Gets the optional path regex pattern in the compatibility dialect.
 - `Pattern` - Gets the content regex pattern in the compatibility dialect. Empty means path-only.
+- `Prefilter` - Gets the optional native source predicate that skips this rule when it evaluates to .
 - `Provider` - Gets the owning provider or credential family.
 - `RandomnessThreshold` - Gets the minimum native randomness score required for a finding. Zero disables score filtering.
 - `RequiredRules` - Gets supporting rules required before a primary finding is reported.

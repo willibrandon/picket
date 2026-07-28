@@ -13,7 +13,11 @@ namespace Picket.Engine;
 public sealed class CompiledRuleSet(RuleSet rules)
 {
     private const string LowerHex = "0123456789abcdef";
+    private readonly Lock _nativePredicateCompilationLock = new();
     private readonly Dictionary<string, double>? _randomnessThresholds = CreateRandomnessThresholds(rules);
+    private bool _nativePredicatesCompiled;
+    private NativePredicateProgram? _nativeFilter;
+    private NativePredicateProgram? _nativePrefilter;
 
     /// <summary>
     /// Gets the source rules in deterministic evaluation order.
@@ -38,6 +42,24 @@ public sealed class CompiledRuleSet(RuleSet rules)
         "[[allowlists]]");
 
     internal bool HasRandomnessThresholds => _randomnessThresholds is not null;
+
+    internal NativePredicateProgram? NativePrefilter
+    {
+        get
+        {
+            ValidateNativePredicates();
+            return _nativePrefilter;
+        }
+    }
+
+    internal NativePredicateProgram? NativeFilter
+    {
+        get
+        {
+            ValidateNativePredicates();
+            return _nativeFilter;
+        }
+    }
 
     /// <summary>
     /// Returns a value indicating whether a global Gitleaks path allowlist matches the supplied path.
@@ -78,6 +100,40 @@ public sealed class CompiledRuleSet(RuleSet rules)
         }
 
         CompileDeferredAllowlists(Allowlists);
+    }
+
+    /// <summary>
+    /// Compiles and validates all configured native prefilter and post-match predicates.
+    /// </summary>
+    public void ValidateNativePredicates()
+    {
+        if (Volatile.Read(ref _nativePredicatesCompiled))
+        {
+            return;
+        }
+
+        lock (_nativePredicateCompilationLock)
+        {
+            if (_nativePredicatesCompiled)
+            {
+                return;
+            }
+
+            _nativePrefilter = NativePredicateCompiler.CompileOptional(
+                rules.Prefilter,
+                allowFindingFields: false,
+                "global prefilter");
+            _nativeFilter = NativePredicateCompiler.CompileOptional(
+                rules.Filter,
+                allowFindingFields: true,
+                "global filter");
+            foreach (CompiledRule compiledRule in CompiledRules)
+            {
+                compiledRule.CompileNativePredicates();
+            }
+
+            Volatile.Write(ref _nativePredicatesCompiled, true);
+        }
     }
 
     internal bool TryGetRandomnessThreshold(string ruleId, out double threshold)
@@ -162,20 +218,30 @@ public sealed class CompiledRuleSet(RuleSet rules)
 
     private static bool CreateUsesPathSensitiveMatching(RuleSet rules)
     {
-        if (HasPathAllowlist(rules.Allowlists))
+        if (HasPathAllowlist(rules.Allowlists)
+            || HasNativePredicate(rules.Prefilter)
+            || HasNativePredicate(rules.Filter))
         {
             return true;
         }
 
         foreach (SecretRule rule in rules.Rules)
         {
-            if (rule.PathPattern.Length != 0 || HasPathAllowlist(rule.Allowlists))
+            if (rule.PathPattern.Length != 0
+                || HasPathAllowlist(rule.Allowlists)
+                || HasNativePredicate(rule.Prefilter)
+                || HasNativePredicate(rule.Filter))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static bool HasNativePredicate(string expression)
+    {
+        return !string.IsNullOrWhiteSpace(expression);
     }
 
     private static bool HasPathAllowlist(IReadOnlyList<SecretAllowlist> allowlists)
@@ -196,9 +262,11 @@ public sealed class CompiledRuleSet(RuleSet rules)
         ArgumentNullException.ThrowIfNull(rules);
 
         var builder = new StringBuilder();
-        AppendValue(builder, "picket.ruleset.v3");
+        AppendValue(builder, "picket.ruleset.v4");
         AppendValue(builder, GitleaksRegexCompiler.DialectVersion);
         AppendValue(builder, rules.RegexesPrevalidated ? "prevalidated" : "compile");
+        AppendValue(builder, rules.Prefilter);
+        AppendValue(builder, rules.Filter);
         AppendAllowlists(builder, rules.Allowlists);
         for (int i = 0; i < rules.Rules.Count; i++)
         {
@@ -210,6 +278,8 @@ public sealed class CompiledRuleSet(RuleSet rules)
             AppendValue(builder, rule.Entropy.ToString("G17", CultureInfo.InvariantCulture));
             AppendValue(builder, rule.RandomnessThreshold.ToString("G17", CultureInfo.InvariantCulture));
             AppendValue(builder, rule.Detector);
+            AppendValue(builder, rule.Prefilter);
+            AppendValue(builder, rule.Filter);
             AppendValue(builder, rule.PathPattern);
             AppendValues(builder, rule.Keywords);
             AppendValues(builder, rule.Tags);
