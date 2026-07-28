@@ -3733,6 +3733,46 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies native small-file scans decode BOM-marked UTF-16 without changing strict binary detection.
+    /// </summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task NativeScanDecodesSmallUtf16File(bool bigEndian)
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string sourcePath = Path.Combine(root.Path, "secret.txt");
+        File.WriteAllBytes(
+            sourcePath,
+            EncodeUtf16WithBom("heading\né token-12345", bigEndian));
+
+        CliResult compatible = await RunCliAsync(
+            "dir",
+            sourcePath,
+            "-c",
+            configPath,
+            "-f",
+            "json",
+            "-r",
+            "-").ConfigureAwait(false);
+        CliResult native = await RunCliAsync(
+            "scan",
+            sourcePath,
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, compatible.ExitCode);
+        Assert.AreEqual("[]\n", compatible.Stdout.ReplaceLineEndings("\n"));
+        Assert.AreEqual(1, native.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", native.Stdout);
+        Assert.Contains("\"startLine\":2", native.Stdout);
+        Assert.Contains("\"startColumn\":3", native.Stdout);
+    }
+
+    /// <summary>
     /// Verifies that strict scans preserve Gitleaks hard boundaries while native overlap recovers a split finding.
     /// </summary>
     [TestMethod]
@@ -3765,6 +3805,54 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"ruleId\":\"token\"", reportLines[0]);
         Assert.Contains("\"startColumn\":124996", reportLines[0]);
         Assert.Contains($"\"blobSha256\":\"{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content)))}\"", reportLines[0]);
+    }
+
+    /// <summary>
+    /// Verifies native fragmented scans decode UTF-16 while strict directory scans preserve byte behavior.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeFragmentedScanDecodesUtf16WithoutChangingCompatibility()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string sourcePath = Path.Combine(root.Path, "large.txt");
+        string reportPath = Path.Combine(root.Path, "report.jsonl");
+        string content = string.Concat(
+            new string('é', 62_497),
+            "a",
+            "token-12345",
+            new string('z', 32));
+        byte[] sourceBytes = EncodeUtf16WithBom(content, bigEndian: false);
+        File.WriteAllBytes(sourcePath, sourceBytes);
+
+        CliResult compatible = await RunCliAsync(
+            "dir",
+            sourcePath,
+            "-c",
+            configPath,
+            "-f",
+            "json",
+            "-r",
+            "-").ConfigureAwait(false);
+        CliResult native = await RunCliAsync(
+            "scan",
+            sourcePath,
+            "-c",
+            configPath,
+            "--report-format",
+            "jsonl",
+            "--report-path",
+            reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(0, compatible.ExitCode);
+        Assert.AreEqual("[]\n", compatible.Stdout.ReplaceLineEndings("\n"));
+        Assert.AreEqual(1, native.ExitCode);
+        string report = File.ReadAllText(reportPath);
+        Assert.Contains("\"ruleId\":\"token\"", report);
+        Assert.Contains("\"startColumn\":62499", report);
+        Assert.Contains(
+            $"\"blobSha256\":\"{Convert.ToHexStringLower(SHA256.HashData(sourceBytes))}\"",
+            report);
     }
 
     /// <summary>
@@ -4298,6 +4386,45 @@ public sealed class CliCompatibilityTests
         Assert.Contains("\"validationState\":\"unknown\"", result.Stdout);
         Assert.DoesNotContain("\"RuleID\"", result.Stdout);
         Assert.IsEmpty(result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies native standard-input scans decode BOM-marked UTF-16 without changing strict behavior.
+    /// </summary>
+    [TestMethod]
+    public async Task StdinProfilePicketDecodesUtf16()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        byte[] input = EncodeUtf16WithBom("é token-12345", bigEndian: true);
+
+        CliResult compatible = await RunCliWithInputBytesAsync(
+            input,
+            "stdin",
+            "-c",
+            configPath,
+            "-f",
+            "json",
+            "-r",
+            "-").ConfigureAwait(false);
+        CliResult native = await RunCliWithInputBytesAsync(
+            input,
+            "stdin",
+            "--profile",
+            "picket",
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, compatible.ExitCode);
+        Assert.AreEqual("[]\n", compatible.Stdout.ReplaceLineEndings("\n"));
+        Assert.AreEqual(1, native.ExitCode);
+        Assert.Contains("\"ruleId\":\"token\"", native.Stdout);
+        Assert.Contains("\"startColumn\":3", native.Stdout);
+        Assert.Contains(
+            $"\"blobSha256\":\"{Convert.ToHexStringLower(SHA256.HashData(input))}\"",
+            native.Stdout);
     }
 
     /// <summary>
@@ -5667,6 +5794,17 @@ public sealed class CliCompatibilityTests
         return configPath;
     }
 
+    private static byte[] EncodeUtf16WithBom(string value, bool bigEndian)
+    {
+        var encoding = new UnicodeEncoding(bigEndian, byteOrderMark: true, throwOnInvalidBytes: true);
+        byte[] preamble = encoding.GetPreamble();
+        byte[] content = encoding.GetBytes(value);
+        var result = new byte[preamble.Length + content.Length];
+        preamble.CopyTo(result, 0);
+        content.CopyTo(result, preamble.Length);
+        return result;
+    }
+
     private static string WriteGitHubPatConfig(string root, string fileName = "gitleaks.toml")
     {
         string configPath = Path.Combine(root, fileName);
@@ -6086,6 +6224,17 @@ public sealed class CliCompatibilityTests
         return await RunCliWithInputFromDirectoryAsync(GetRepositoryRoot(), standardInput, arguments).ConfigureAwait(false);
     }
 
+    private static async Task<CliResult> RunCliWithInputBytesAsync(
+        byte[] standardInput,
+        params string[] arguments)
+    {
+        return await RunCliWithInputBytesFromDirectoryAsync(
+            GetRepositoryRoot(),
+            standardInput,
+            environment: null,
+            arguments).ConfigureAwait(false);
+    }
+
     private static async Task<CliResult> RunCliWithInputFromDirectoryAsync(string workingDirectory, string? standardInput, params string[] arguments)
     {
         return await RunCliWithInputFromDirectoryAsync(workingDirectory, standardInput, environment: null, arguments).ConfigureAwait(false);
@@ -6094,6 +6243,22 @@ public sealed class CliCompatibilityTests
     private static async Task<CliResult> RunCliWithInputFromDirectoryAsync(
         string workingDirectory,
         string? standardInput,
+        IReadOnlyDictionary<string, string?>? environment,
+        params string[] arguments)
+    {
+        byte[]? standardInputBytes = standardInput is null
+            ? null
+            : Encoding.UTF8.GetBytes(standardInput);
+        return await RunCliWithInputBytesFromDirectoryAsync(
+            workingDirectory,
+            standardInputBytes,
+            environment,
+            arguments).ConfigureAwait(false);
+    }
+
+    private static async Task<CliResult> RunCliWithInputBytesFromDirectoryAsync(
+        string workingDirectory,
+        byte[]? standardInput,
         IReadOnlyDictionary<string, string?>? environment,
         params string[] arguments)
     {
@@ -6133,8 +6298,8 @@ public sealed class CliCompatibilityTests
         process.Start();
         if (standardInput is not null)
         {
-            await process.StandardInput.WriteAsync(standardInput).ConfigureAwait(false);
-            await process.StandardInput.FlushAsync().ConfigureAwait(false);
+            await process.StandardInput.BaseStream.WriteAsync(standardInput).ConfigureAwait(false);
+            await process.StandardInput.BaseStream.FlushAsync().ConfigureAwait(false);
             process.StandardInput.Close();
         }
 

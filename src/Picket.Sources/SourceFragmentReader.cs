@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Text;
 
 namespace Picket.Sources;
 
@@ -23,8 +24,11 @@ public sealed class SourceFragmentReader : IDisposable
     public const int DefaultMaxPeekBytes = 25_000;
 
     private readonly int _bufferSize;
+    private readonly byte[] _carry = new byte[3];
     private readonly bool _leaveOpen;
     private readonly int _maxPeekBytes;
+    private readonly bool _useUnicodeCodePointColumns;
+    private int _carryLength;
     private Stream? _stream;
     private int _nextColumn = 1;
     private int _nextLine = 1;
@@ -37,15 +41,22 @@ public sealed class SourceFragmentReader : IDisposable
     /// <param name="bufferSize">The primary fragment size in bytes.</param>
     /// <param name="maxPeekBytes">The maximum bytes read beyond the primary fragment while seeking a safe boundary.</param>
     /// <param name="leaveOpen">A value indicating whether disposing this reader leaves <paramref name="stream" /> open.</param>
+    /// <param name="useUnicodeCodePointColumns">A value indicating whether columns are counted as UTF-8 code points.</param>
     public SourceFragmentReader(
         Stream stream,
         int bufferSize = DefaultBufferSize,
         int maxPeekBytes = DefaultMaxPeekBytes,
-        bool leaveOpen = false)
+        bool leaveOpen = false,
+        bool useUnicodeCodePointColumns = false)
     {
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(bufferSize);
         ArgumentOutOfRangeException.ThrowIfNegative(maxPeekBytes);
+        if (useUnicodeCodePointColumns)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(bufferSize, 4);
+        }
+
         if (!stream.CanRead)
         {
             throw new ArgumentException("The source stream must be readable.", nameof(stream));
@@ -56,6 +67,7 @@ public sealed class SourceFragmentReader : IDisposable
         _bufferSize = bufferSize;
         _maxPeekBytes = maxPeekBytes;
         _leaveOpen = leaveOpen;
+        _useUnicodeCodePointColumns = useUnicodeCodePointColumns;
     }
 
     /// <summary>
@@ -71,7 +83,7 @@ public sealed class SourceFragmentReader : IDisposable
         byte[] buffer = ArrayPool<byte>.Shared.Rent(checked(_bufferSize + _maxPeekBytes));
         try
         {
-            int length = ReadPrimary(buffer, cancellationToken);
+            int length = ReadPrimary(buffer, cancellationToken, out bool reachedEnd);
             if (length == 0)
             {
                 ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
@@ -80,7 +92,12 @@ public sealed class SourceFragmentReader : IDisposable
 
             if (length == _bufferSize && !EndsAtSafeBoundary(buffer.AsSpan(0, length)))
             {
-                length = ReadToSafeBoundary(buffer, length, cancellationToken);
+                length = ReadToSafeBoundary(buffer, length, cancellationToken, ref reachedEnd);
+            }
+
+            if (_useUnicodeCodePointColumns && !reachedEnd)
+            {
+                length = PreserveIncompleteUtf8Suffix(buffer, length);
             }
 
             var fragment = new SourceFragment(buffer, length, _nextOffset, _nextLine, _nextColumn);
@@ -104,6 +121,9 @@ public sealed class SourceFragmentReader : IDisposable
         {
             stream?.Dispose();
         }
+
+        _carry.AsSpan().Clear();
+        _carryLength = 0;
     }
 
     private static bool EndsAtSafeBoundary(ReadOnlySpan<byte> content)
@@ -135,15 +155,22 @@ public sealed class SourceFragmentReader : IDisposable
         return value is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r';
     }
 
-    private int ReadPrimary(byte[] buffer, CancellationToken cancellationToken)
+    private int ReadPrimary(
+        byte[] buffer,
+        CancellationToken cancellationToken,
+        out bool reachedEnd)
     {
-        int length = 0;
+        reachedEnd = false;
+        int length = _carryLength;
+        _carry.AsSpan(0, _carryLength).CopyTo(buffer);
+        _carryLength = 0;
         while (length < _bufferSize)
         {
             cancellationToken.ThrowIfCancellationRequested();
             int read = _stream!.Read(buffer, length, _bufferSize - length);
             if (read == 0)
             {
+                reachedEnd = true;
                 break;
             }
 
@@ -153,7 +180,71 @@ public sealed class SourceFragmentReader : IDisposable
         return length;
     }
 
-    private int ReadToSafeBoundary(byte[] buffer, int length, CancellationToken cancellationToken)
+    private int PreserveIncompleteUtf8Suffix(byte[] buffer, int length)
+    {
+        if (length == 0)
+        {
+            return 0;
+        }
+
+        int sequenceStart = length - 1;
+        while (sequenceStart > 0
+            && IsUtf8ContinuationByte(buffer[sequenceStart])
+            && length - sequenceStart < 4)
+        {
+            sequenceStart--;
+        }
+
+        int expectedLength = GetUtf8SequenceLength(buffer[sequenceStart]);
+        int actualLength = length - sequenceStart;
+        if (expectedLength <= actualLength || expectedLength == 1)
+        {
+            return length;
+        }
+
+        for (int i = sequenceStart + 1; i < length; i++)
+        {
+            if (!IsUtf8ContinuationByte(buffer[i]))
+            {
+                return length;
+            }
+        }
+
+        _carryLength = actualLength;
+        buffer.AsSpan(sequenceStart, actualLength).CopyTo(_carry);
+        return sequenceStart;
+    }
+
+    private static bool IsUtf8ContinuationByte(byte value)
+    {
+        return (value & 0xC0) == 0x80;
+    }
+
+    private static int GetUtf8SequenceLength(byte value)
+    {
+        if (value < 0x80)
+        {
+            return 1;
+        }
+
+        if ((value & 0xE0) == 0xC0)
+        {
+            return 2;
+        }
+
+        if ((value & 0xF0) == 0xE0)
+        {
+            return 3;
+        }
+
+        return (value & 0xF8) == 0xF0 ? 4 : 1;
+    }
+
+    private int ReadToSafeBoundary(
+        byte[] buffer,
+        int length,
+        CancellationToken cancellationToken,
+        ref bool reachedEnd)
     {
         int newlineCount = CountTrailingNewlines(buffer.AsSpan(0, length));
         while (length - _bufferSize < _maxPeekBytes)
@@ -162,6 +253,7 @@ public sealed class SourceFragmentReader : IDisposable
             int value = _stream!.ReadByte();
             if (value < 0)
             {
+                reachedEnd = true;
                 break;
             }
 
@@ -193,6 +285,15 @@ public sealed class SourceFragmentReader : IDisposable
             {
                 _nextLine++;
                 _nextColumn = 1;
+            }
+            else if (_useUnicodeCodePointColumns)
+            {
+                OperationStatus status = Rune.DecodeFromUtf8(content[i..], out _, out int bytesConsumed);
+                _nextColumn++;
+                if (status == OperationStatus.Done)
+                {
+                    i += bytesConsumed - 1;
+                }
             }
             else
             {

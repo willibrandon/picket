@@ -12,7 +12,7 @@ public sealed class SecretScanner
     /// <summary>
     /// Gets the stable version of matching behavior that participates in cache and checkpoint identities.
     /// </summary>
-    public const string MatchingBehaviorVersion = "picket.matching.v6";
+    public const string MatchingBehaviorVersion = "picket.matching.v7";
 
     private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
 
@@ -23,7 +23,6 @@ public sealed class SecretScanner
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        ReadOnlySpan<byte> originalInput = request.Input.Span;
         long? maxTargetBytes = GetEffectiveMaxTargetBytes(request);
         Func<bool>? isCancellationRequested = CreateCancellationPredicate(request);
         if (IsCancellationRequested(isCancellationRequested))
@@ -31,9 +30,29 @@ public sealed class SecretScanner
             return [];
         }
 
+        bool isNativeUtf16 = request.PositionKind == FindingPositionKind.UnicodeCodePointsExclusive
+            && Utf16BomTranscoder.HasBom(request.Input.Span);
+        if (isNativeUtf16
+            && IsTooLargeForContentScan(request.Input.Length, maxTargetBytes))
+        {
+            return [];
+        }
+
+        var blobIdentity = new SourceBlobIdentity(request.Input, request.BlobSha256);
+        bool canceled = false;
+        using Utf16BomBuffer? utf16Input =
+            isNativeUtf16
+                ? Utf16BomTranscoder.Create(request.Input.Span, isCancellationRequested, out canceled)
+                : null;
+        if (canceled)
+        {
+            return [];
+        }
+
+        ReadOnlyMemory<byte> scanInput = utf16Input is null ? request.Input : utf16Input.Memory;
+        ReadOnlySpan<byte> originalInput = scanInput.Span;
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
         byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
-        var blobIdentity = new SourceBlobIdentity(request.Input, request.BlobSha256);
         SourceLineIndex originalLineIndex = SourceLineIndex.Create(
             originalInput,
             request.SourceStartLine,

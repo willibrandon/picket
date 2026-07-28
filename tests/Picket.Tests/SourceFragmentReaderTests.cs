@@ -89,6 +89,29 @@ public sealed class SourceFragmentReaderTests
     }
 
     /// <summary>
+    /// Verifies native fragment boundaries preserve complete UTF-8 scalars and code-point columns.
+    /// </summary>
+    [TestMethod]
+    public void ReadNextTracksUnicodeCodePointColumnsAcrossHardBoundary()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("é😀x"));
+        using var reader = new SourceFragmentReader(
+            stream,
+            bufferSize: 5,
+            maxPeekBytes: 0,
+            useUnicodeCodePointColumns: true);
+
+        using SourceFragment first = reader.ReadNext(TestContext.CancellationToken)!;
+        using SourceFragment second = reader.ReadNext(TestContext.CancellationToken)!;
+
+        Assert.AreEqual("é", Encoding.UTF8.GetString(first.Content.Span));
+        Assert.AreEqual("😀x", Encoding.UTF8.GetString(second.Content.Span));
+        Assert.AreEqual(2, second.StartOffset);
+        Assert.AreEqual(1, second.StartLine);
+        Assert.AreEqual(2, second.StartColumn);
+    }
+
+    /// <summary>
     /// Verifies that cancellation is observed before another fragment is read.
     /// </summary>
     [TestMethod]

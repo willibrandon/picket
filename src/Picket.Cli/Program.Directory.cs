@@ -832,7 +832,7 @@ internal static partial class Program
                         continue;
                     }
 
-                    if (LooksBinary(input))
+                    if (LooksBinary(input, allowUtf16Bom: nativeMode))
                     {
                         scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
                         continue;

@@ -3,6 +3,7 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -103,6 +104,86 @@ public sealed class SecretScannerTests
         Assert.AreEqual(4, nativeFinding.StartColumn);
         Assert.AreEqual(15, nativeFinding.EndColumn);
         Assert.AreEqual(FindingPositionKind.UnicodeCodePointsExclusive, nativeFinding.PositionKind);
+    }
+
+    /// <summary>
+    /// Verifies native scans decode BOM-marked UTF-16 while strict compatibility keeps byte semantics.
+    /// </summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void ScanDecodesBomMarkedUtf16OnlyInNativeMode(bool bigEndian)
+    {
+        const string Content = "heading\né 😀 token-12345\n";
+        byte[] input = EncodeUtf16WithBom(Content, bigEndian);
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> compatibilityFindings = SecretScanner.Scan(
+            new ScanRequest(input, "secret.txt", rules));
+        Finding nativeFinding = Assert.ContainsSingle(SecretScanner.Scan(
+            new ScanRequest(input, "secret.txt", rules)
+            {
+                PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
+            }));
+
+        Assert.IsEmpty(compatibilityFindings);
+        Assert.AreEqual("token-12345", nativeFinding.Match);
+        Assert.AreEqual("token-12345", nativeFinding.Secret);
+        Assert.AreEqual(2, nativeFinding.StartLine);
+        Assert.AreEqual(5, nativeFinding.StartColumn);
+        Assert.AreEqual(16, nativeFinding.EndColumn);
+        Assert.AreEqual("é 😀 token-12345", nativeFinding.Line);
+        Assert.AreEqual(
+            Convert.ToHexStringLower(SHA256.HashData(input)),
+            nativeFinding.BlobSha256);
+    }
+
+    /// <summary>
+    /// Verifies malformed UTF-16 is replaced without hiding valid content that follows it.
+    /// </summary>
+    [TestMethod]
+    public void ScanReplacesMalformedUtf16AndContinues()
+    {
+        byte[] suffix = Encoding.Unicode.GetBytes("\ntoken-12345");
+        var input = new byte[suffix.Length + 4];
+        input[0] = 0xFF;
+        input[1] = 0xFE;
+        input[2] = 0x00;
+        input[3] = 0xD8;
+        suffix.CopyTo(input, 4);
+        CompiledRuleSet rules = CompileTokenRule();
+
+        Finding finding = Assert.ContainsSingle(SecretScanner.Scan(
+            new ScanRequest(input, "secret.txt", rules)
+            {
+                PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
+            }));
+
+        Assert.AreEqual(2, finding.StartLine);
+        Assert.AreEqual(1, finding.StartColumn);
+        Assert.AreEqual("token-12345", finding.Line);
+    }
+
+    /// <summary>
+    /// Verifies native size limits apply to original UTF-16 bytes before transcoding.
+    /// </summary>
+    [TestMethod]
+    public void ScanAppliesTargetLimitBeforeUtf16Transcoding()
+    {
+        byte[] input = EncodeUtf16WithBom("token-12345", bigEndian: false);
+        CompiledRuleSet rules = CompileTokenRule();
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(
+            new ScanRequest(
+                input,
+                "secret.txt",
+                rules,
+                maxTargetBytes: Encoding.UTF8.GetByteCount("token-12345"))
+            {
+                PositionKind = FindingPositionKind.UnicodeCodePointsExclusive,
+            });
+
+        Assert.IsEmpty(findings);
     }
 
     /// <summary>
@@ -1549,6 +1630,17 @@ public sealed class SecretScannerTests
                 "Token",
                 "token-[0-9]+"),
         ]));
+    }
+
+    private static byte[] EncodeUtf16WithBom(string value, bool bigEndian)
+    {
+        var encoding = new UnicodeEncoding(bigEndian, byteOrderMark: true, throwOnInvalidBytes: true);
+        byte[] preamble = encoding.GetPreamble();
+        byte[] content = encoding.GetBytes(value);
+        var result = new byte[preamble.Length + content.Length];
+        preamble.CopyTo(result, 0);
+        content.CopyTo(result, preamble.Length);
+        return result;
     }
 
     private static string PercentEncode(ReadOnlySpan<byte> value)
