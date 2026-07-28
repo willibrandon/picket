@@ -30,6 +30,12 @@ Use the grouped index to jump to the workflow you need.
         </a>
       </li>
       <li>
+        <a class="cli-command-link" href="#picket-verify-secret">
+          <code>picket verify secret</code>
+          <span>Verify one known secret without placing it in process arguments.</span>
+        </a>
+      </li>
+      <li>
         <a class="cli-command-link" href="#picket-analyze">
           <code>picket analyze</code>
           <span>Write incident-response analysis for detected findings.</span>
@@ -1204,8 +1210,12 @@ Use the grouped index to jump to the workflow you need.
   <div class="cli-usage-list">
     <div class="cli-usage-block">
       <p class="cli-section-label">Usage</p>
-      <pre class="cli-usage-code"><code>picket verify [&lt;path&gt;] [options]</code></pre>
+      <pre class="cli-usage-code"><code>picket verify [&lt;path&gt;] [command] [options]</code></pre>
     </div>
+  </div>
+  <div class="cli-info-block">
+    <p class="cli-section-label">Commands</p>
+    <p>secret Verify one known secret without placing it in process arguments.</p>
   </div>
   <div class="cli-reference-tables">
     <div class="cli-reference-table-block">
@@ -1412,6 +1422,154 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Write diagnostics artifacts to this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+### picket verify secret
+
+<div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket verify secret</code>
+    <span class="cli-command-badge">Scan and triage</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>Standard input or named environment variable</dd>
+    </div>
+    <div>
+      <dt>Validation</dt>
+      <dd>Live</dd>
+    </div>
+  </dl>
+  <p class="cli-command-summary">Verify one known secret without placing it in process arguments.</p>
+  <div class="cli-usage-list">
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage</p>
+      <pre class="cli-usage-code"><code>picket verify secret [options]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>--rule-id</code></td>
+              <td data-label="Value"><code>id</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Validate the credential as this supported rule.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--provider</code></td>
+              <td data-label="Value"><code>provider</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Select a live-validation provider and infer the credential rule from its syntax.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--secret-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the credential from this environment variable instead of standard input; the value never appears in command arguments.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--cache-dir</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Cache non-secret live-validation results in this directory.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Override the GitHub API endpoint used by live validation and GitHub source enumeration when no source endpoint is supplied.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--github-api-proxy</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this HTTPS proxy for live GitHub API requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-tls-mode</code></td>
+              <td data-label="Value"><code>mode</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Choose the TLS policy for live provider requests.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-provider-rate-limit-ms</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-max-requests</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound provider requests per command. The default is 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-max-requests-per-provider</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound requests for any one provider. The default is 25.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Allow guarded live validation endpoints that are not public internet addresses.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--timeout</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Stop direct verification after this many seconds. Use 0 to rely on provider request timeouts.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>

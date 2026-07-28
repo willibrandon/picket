@@ -27,10 +27,16 @@ internal static partial class Program
 
         RootCommand rootCommand = CreateRootCommand(normalizedArgs);
         ParseResult parseResult = rootCommand.Parse(normalizedArgs, s_commandLineParserConfiguration);
+        if (parseResult.CommandResult.Command.Name.Equals("secret", StringComparison.Ordinal))
+        {
+            rootCommand = CreateRootCommand(normalizedArgs, includeVerifyPath: false);
+            parseResult = rootCommand.Parse(normalizedArgs, s_commandLineParserConfiguration);
+        }
+
         return parseResult.InvokeAsync();
     }
 
-    private static RootCommand CreateRootCommand(string[] args)
+    private static RootCommand CreateRootCommand(string[] args, bool includeVerifyPath = true)
     {
         var rootCommand = new RootCommand("Scan code, repositories, artifacts, and cloud sources for secrets.")
         {
@@ -39,7 +45,7 @@ internal static partial class Program
 
         AddRecursiveCompatibilityOptions(rootCommand);
         rootCommand.Subcommands.Add(CreateScanCommand(args));
-        rootCommand.Subcommands.Add(CreateVerifyCommand(args));
+        rootCommand.Subcommands.Add(CreateVerifyCommand(args, includeVerifyPath));
         rootCommand.Subcommands.Add(CreateAnalyzeCommand(args));
         rootCommand.Subcommands.Add(CreateRevokeCommand());
         rootCommand.Subcommands.Add(CreateBaselineCommand(args));
@@ -94,7 +100,7 @@ internal static partial class Program
         return command;
     }
 
-    private static Command CreateVerifyCommand(string[] args)
+    private static Command CreateVerifyCommand(string[] args, bool includePath)
     {
         Command command = CreateForwardingCommand(
             "verify",
@@ -102,13 +108,65 @@ internal static partial class Program
             args,
             1,
             static forwardedArgs => Task.FromResult(RunVerify(forwardedArgs)));
-        AddOptionalArgument(command, "picket verify", "path");
+        if (includePath)
+        {
+            AddOptionalArgument(command, "picket verify", "path");
+        }
+
         AddNativeReportOptions(command, "picket verify", "json|jsonl|csv|junit|html|gitlab|sarif|toon");
         AddCacheOptions(command, "picket verify");
         AddLiveVerificationOptions(command, "picket verify", includeModeSwitches: true);
         AddResultFilterOptions(command, "picket verify");
         AddScanLimitOptions(command, "picket verify", includeMaxDecodeDepth: false, includeArchiveSizeLimits: true);
         AddDiagnosticsOptions(command, "picket verify");
+        Command secretCommand = CreateVerifySecretCommand(args, command);
+        command.Subcommands.Add(secretCommand);
+        return command;
+    }
+
+    private static Command CreateVerifySecretCommand(string[] args, Command parentCommand)
+    {
+        var command = new Command("secret", "Verify one known secret without placing it in process arguments.")
+        {
+            TreatUnmatchedTokensAsErrors = HasHelpToken(args),
+        };
+        Option<string?> ruleIdOption = CreateValueOption("picket verify secret", "--rule-id", "id");
+        Option<string?> providerOption = CreateChoiceValueOption("picket verify secret", "--provider", "provider", "github");
+        Option<string?> secretEnvironmentOption = CreateValueOption("picket verify secret", "--secret-env", "name");
+        Option<string?> cacheDirectoryOption = CreateValueOption("picket verify secret", "--cache-dir", "path");
+        Option<string?> timeoutOption = CreateValueOption("picket verify secret", "--timeout", "n");
+        command.Options.Add(ruleIdOption);
+        command.Options.Add(providerOption);
+        command.Options.Add(secretEnvironmentOption);
+        command.Options.Add(cacheDirectoryOption);
+        var liveOptions = AddLiveVerificationOptions(
+            command,
+            "picket verify secret",
+            includeModeSwitches: false);
+        command.Options.Add(timeoutOption);
+
+        (Option<string?> Option, Option<string?>? ParentOption)[] valueOptions =
+        [
+            (ruleIdOption, null),
+            (providerOption, null),
+            (secretEnvironmentOption, null),
+            (cacheDirectoryOption, GetCommandOption<string?>(parentCommand, "--cache-dir")),
+            (liveOptions.GitHubApiEndpoint, GetCommandOption<string?>(parentCommand, "--github-api-endpoint")),
+            (liveOptions.GitHubApiProxy, GetCommandOption<string?>(parentCommand, "--github-api-proxy")),
+            (liveOptions.LiveTlsMode, GetCommandOption<string?>(parentCommand, "--live-tls-mode")),
+            (liveOptions.LiveRateLimitMilliseconds, GetCommandOption<string?>(parentCommand, "--live-rate-limit-ms")),
+            (liveOptions.LiveProviderRateLimitMilliseconds, GetCommandOption<string?>(parentCommand, "--live-provider-rate-limit-ms")),
+            (liveOptions.LiveMaxRequests, GetCommandOption<string?>(parentCommand, "--live-max-requests")),
+            (liveOptions.LiveMaxRequestsPerProvider, GetCommandOption<string?>(parentCommand, "--live-max-requests-per-provider")),
+            (timeoutOption, GetCommandOption<string?>(parentCommand, "--timeout")),
+        ];
+        command.SetAction((parseResult, cancellationToken) => RunVerifySecretAsync(
+            GetVerifySecretForwardedArgs(
+                parseResult,
+                valueOptions,
+                liveOptions.AllowNonPublicEndpoints,
+                GetCommandOption<bool>(parentCommand, "--allow-non-public-endpoints")),
+            cancellationToken));
         return command;
     }
 
@@ -582,6 +640,58 @@ internal static partial class Program
         return [.. forwardedArgs];
     }
 
+    private static string[] GetVerifySecretForwardedArgs(
+        ParseResult parseResult,
+        (Option<string?> Option, Option<string?>? ParentOption)[] valueOptions,
+        Option<bool> allowNonPublicEndpointsOption,
+        Option<bool> parentAllowNonPublicEndpointsOption)
+    {
+        var forwardedArgs = new List<string>((valueOptions.Length * 2) + 1);
+        foreach ((Option<string?> Option, Option<string?>? ParentOption) valueOption in valueOptions)
+        {
+            Option<string?>? option = parseResult.GetResult(valueOption.Option) is { Implicit: false }
+                ? valueOption.Option
+                : valueOption.ParentOption;
+            if (option is null || parseResult.GetResult(option) is not { Implicit: false })
+            {
+                continue;
+            }
+
+            forwardedArgs.Add(option.Name);
+            string? value = parseResult.GetValue(option);
+            if (value is not null)
+            {
+                forwardedArgs.Add(value);
+            }
+        }
+
+        Option<bool>? selectedAllowNonPublicEndpointsOption =
+            parseResult.GetResult(allowNonPublicEndpointsOption) is { Implicit: false }
+                ? allowNonPublicEndpointsOption
+                : parentAllowNonPublicEndpointsOption;
+        if (parseResult.GetResult(selectedAllowNonPublicEndpointsOption) is { Implicit: false })
+        {
+            forwardedArgs.Add(parseResult.GetValue(selectedAllowNonPublicEndpointsOption)
+                ? selectedAllowNonPublicEndpointsOption.Name
+                : string.Concat(selectedAllowNonPublicEndpointsOption.Name, "=false"));
+        }
+
+        return [.. forwardedArgs];
+    }
+
+    private static Option<T> GetCommandOption<T>(Command command, string name)
+    {
+        foreach (Option option in command.Options)
+        {
+            if (option.Name.Equals(name, StringComparison.Ordinal))
+            {
+                return (Option<T>)option;
+            }
+        }
+
+        throw new InvalidOperationException($"Command option is not registered: {name}");
+    }
+
     private static void AddRecursiveCompatibilityOptions(Command command)
     {
         Option<string?> logLevelOption = CreateValueOption("picket", "--log-level", "level", "-l");
@@ -631,7 +741,18 @@ internal static partial class Program
         command.Options.Add(CreateChoiceValueOption(commandName, "--cache-mode", "mode", "raw", "secret-hash-only"));
     }
 
-    private static void AddLiveVerificationOptions(Command command, string commandName, bool includeModeSwitches)
+    private static (
+        Option<string?> GitHubApiEndpoint,
+        Option<string?> GitHubApiProxy,
+        Option<string?> LiveTlsMode,
+        Option<string?> LiveRateLimitMilliseconds,
+        Option<string?> LiveProviderRateLimitMilliseconds,
+        Option<string?> LiveMaxRequests,
+        Option<string?> LiveMaxRequestsPerProvider,
+        Option<bool> AllowNonPublicEndpoints) AddLiveVerificationOptions(
+            Command command,
+            string commandName,
+            bool includeModeSwitches)
     {
         if (includeModeSwitches)
         {
@@ -639,14 +760,31 @@ internal static partial class Program
             command.Options.Add(CreateFlagOption(commandName, "--live"));
         }
 
-        command.Options.Add(CreateValueOption(commandName, "--github-api-endpoint", "uri"));
-        command.Options.Add(CreateValueOption(commandName, "--github-api-proxy", "uri"));
-        command.Options.Add(CreateChoiceValueOption(commandName, "--live-tls-mode", "mode", "system", "tls12-plus"));
-        command.Options.Add(CreateValueOption(commandName, "--live-rate-limit-ms", "n"));
-        command.Options.Add(CreateValueOption(commandName, "--live-provider-rate-limit-ms", "n"));
-        command.Options.Add(CreateValueOption(commandName, "--live-max-requests", "n"));
-        command.Options.Add(CreateValueOption(commandName, "--live-max-requests-per-provider", "n"));
-        command.Options.Add(CreateFlagOption(commandName, "--allow-non-public-endpoints"));
+        Option<string?> githubApiEndpointOption = CreateValueOption(commandName, "--github-api-endpoint", "uri");
+        Option<string?> githubApiProxyOption = CreateValueOption(commandName, "--github-api-proxy", "uri");
+        Option<string?> liveTlsModeOption = CreateChoiceValueOption(commandName, "--live-tls-mode", "mode", "system", "tls12-plus");
+        Option<string?> liveRateLimitMillisecondsOption = CreateValueOption(commandName, "--live-rate-limit-ms", "n");
+        Option<string?> liveProviderRateLimitMillisecondsOption = CreateValueOption(commandName, "--live-provider-rate-limit-ms", "n");
+        Option<string?> liveMaxRequestsOption = CreateValueOption(commandName, "--live-max-requests", "n");
+        Option<string?> liveMaxRequestsPerProviderOption = CreateValueOption(commandName, "--live-max-requests-per-provider", "n");
+        Option<bool> allowNonPublicEndpointsOption = CreateFlagOption(commandName, "--allow-non-public-endpoints");
+        command.Options.Add(githubApiEndpointOption);
+        command.Options.Add(githubApiProxyOption);
+        command.Options.Add(liveTlsModeOption);
+        command.Options.Add(liveRateLimitMillisecondsOption);
+        command.Options.Add(liveProviderRateLimitMillisecondsOption);
+        command.Options.Add(liveMaxRequestsOption);
+        command.Options.Add(liveMaxRequestsPerProviderOption);
+        command.Options.Add(allowNonPublicEndpointsOption);
+        return (
+            githubApiEndpointOption,
+            githubApiProxyOption,
+            liveTlsModeOption,
+            liveRateLimitMillisecondsOption,
+            liveProviderRateLimitMillisecondsOption,
+            liveMaxRequestsOption,
+            liveMaxRequestsPerProviderOption,
+            allowNonPublicEndpointsOption);
     }
 
     private static void AddGitHubSourceOptions(Command command, string commandName)

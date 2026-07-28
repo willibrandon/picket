@@ -113,6 +113,29 @@ Before additional providers can be enabled in the CLI, each validator also requi
 
 Provider requests must use `Picket.Security` endpoint checks to block loopback, private, link-local, metadata-service, reserved, and non-public redirect targets by default. Redirects are disabled unless a provider implements explicit target re-checking before following. Responses must be size-limited and redacted before diagnostics.
 
+### Direct Known-Secret Verification
+
+`picket verify secret` checks one credential without placing its value in the process argument list. Supply exactly one selector:
+
+- `--provider github` infers the supported GitHub token rule from the credential prefix.
+- `--rule-id <id>` selects a supported GitHub live-validation rule explicitly.
+
+By default, the command reads the credential from redirected standard input and removes one trailing line ending. `--secret-env <name>` reads the value from the named environment variable instead. Both input paths reject empty values and values longer than 65,536 characters.
+
+```powershell
+$env:PICKET_SECRET | picket verify secret --provider github
+picket verify secret --provider github --secret-env PICKET_SECRET
+```
+
+```bash
+printf '%s\n' "$PICKET_SECRET" | picket verify secret --provider github
+picket verify secret --provider github --secret-env PICKET_SECRET
+```
+
+The command uses the same endpoint guard, proxy and TLS policy, rate limits, request budgets, retries, timeout, and authenticated validation cache as other live verification. Its `picket.validation.v1` JSON output contains only validation state, provider, rule ID, non-secret reason, identity, scopes, reachable resources, and evidence. It never includes the credential, match text, source line, or secret hash.
+
+An `active` result exits `0`. `inactive`, `invalid`, and `test-credential` exit `1`. Indeterminate states such as `unknown`, `skipped`, and `error`, plus direct-verification validation or operational failures, exit `2`.
+
 ## Explicit Revocation
 
 `picket revoke github` submits exposed GitHub credentials to GitHub's credential revocation API. The workflow is intentionally separate from live verification and analysis:

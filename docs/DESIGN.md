@@ -651,6 +651,7 @@ Offline validation:
 Live verification:
 
 - opt-in via `--verify` or `picket verify`,
+- `picket verify secret` reads one known credential from standard input or a named environment variable, requires an explicit rule or provider selector, and never accepts the credential as an argument,
 - result states: `active`, `inactive`, `unknown`, `skipped`, `error`,
 - result filters: `--results`, `--only-verified` compatibility aliases,
 - request cache and persistent cache with rule/config/version invalidation,
@@ -666,6 +667,8 @@ Live verification:
 - SSRF protection blocking loopback, private, link-local, metadata-service, and non-public redirect targets by default,
 - max response length and redaction,
 - audit events showing which provider endpoints were contacted.
+
+Direct known-secret verification reuses the same endpoint policy, TLS and proxy controls, pacing, request budgets, retries, timeout, and authenticated cache. Input is bounded to 65,536 characters. The command emits one secret-free `picket.validation.v1` JSON object and uses exit code `0` for `active`, `1` for `inactive`, `invalid`, or `test-credential`, and `2` for indeterminate or operational results.
 
 ### 8.5 Revocation
 
