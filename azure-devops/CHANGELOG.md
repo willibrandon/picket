@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Scan staged, unstaged, and untracked Git changes, UTF-16 input, and composite decoded evidence.
+- Add Hugging Face repositories plus GitLab issue, comment, release, and release-asset sources.
+- Add bounded coding-agent guards, direct secret verification, GitLab revocation, and live-validation request budgets.
+- Expand native provider rules, contextual predicates, false-positive handling, and randomness scoring.
+
 ## 0.1.13
 
 - Add Gitleaks-compatible banners, verbose finding output, log-level filtering, and scan summaries.

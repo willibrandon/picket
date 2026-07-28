@@ -1,6 +1,6 @@
 {
   "name": "picket-azure-devops-extension",
-  "version": "0.1.13",
+  "version": "0.2.0",
   "private": true,
   "description": "Packaging tools for the Picket Azure DevOps extension.",
   "license": "MIT",
