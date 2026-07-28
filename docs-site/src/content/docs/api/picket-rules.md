@@ -61,6 +61,7 @@ Defines the stable names of Picket's built-in structured detectors.
 - `KubernetesSecret` - Gets the detector for Kubernetes Secret YAML documents.
 - `McpServerCredentials` - Gets the detector for credentials in Model Context Protocol server configurations.
 - `NpmCredentials` - Gets the detector for npm configuration credentials.
+- `PasswordAssignment` - Gets the detector for generated password assignments.
 
 ## PicketRulePackNames
 

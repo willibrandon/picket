@@ -43,6 +43,22 @@ public sealed class NativeStructuredDetectorTests
     }
 
     /// <summary>
+    /// Verifies that the generated-password rule uses the bounded assignment detector and its calibrated threshold.
+    /// </summary>
+    [TestMethod]
+    public void EmbeddedGeneratedPasswordRuleUsesAssignmentDetector()
+    {
+        SecretRule rule = PicketConfigLoader.LoadDefaultRuleSet().Rules.Single(
+            static candidate => candidate.Id.Equals("picket-generated-password", StringComparison.Ordinal));
+
+        Assert.AreEqual(PicketBuiltInDetectorNames.PasswordAssignment, rule.Detector);
+        Assert.AreEqual(0.6, rule.RandomnessThreshold);
+        Assert.HasCount(2, rule.Keywords);
+        Assert.Contains("password", rule.Keywords);
+        Assert.Contains("passwd", rule.Keywords);
+    }
+
+    /// <summary>
     /// Verifies that Codex access tokens are read from the tokens object.
     /// </summary>
     [TestMethod]
@@ -363,6 +379,170 @@ public sealed class NativeStructuredDetectorTests
 
         Assert.HasCount(1, findings);
         Assert.AreEqual("picket-password", findings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that password assignments preserve punctuation and source positions.
+    /// </summary>
+    [TestMethod]
+    public void PasswordAssignmentDetectorFindsPunctuationAndPreservesPosition()
+    {
+        const string secret = "G7!qZ@2#vN$8%kR^4&mT*9?xP";
+        const string input = "setting = true\ndatabasePassword: \"G7!qZ@2#vN$8%kR^4&mT*9?xP\"\n";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule(
+                "picket-generated-password",
+                "password",
+                PicketBuiltInDetectorNames.PasswordAssignment));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual(secret, findings[0].Secret);
+        Assert.AreEqual(2, findings[0].StartLine);
+        Assert.AreEqual(1, findings[0].StartColumn);
+        Assert.Contains("structured:assignment", findings[0].Tags);
+        Assert.Contains("generated-password", findings[0].Tags);
+    }
+
+    /// <summary>
+    /// Verifies that password assignment placeholders are not detector matches.
+    /// </summary>
+    /// <param name="value">The placeholder assignment value.</param>
+    [TestMethod]
+    [DataRow("${DATABASE_PASSWORD}")]
+    [DataRow("%DATABASE_PASSWORD%")]
+    [DataRow("{{ .credential }}")]
+    [DataRow("<password-from-vault>")]
+    public void PasswordAssignmentDetectorRejectsPlaceholders(string value)
+    {
+        string input = $"password = \"{value}\"";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule(
+                "picket-generated-password",
+                "password",
+                PicketBuiltInDetectorNames.PasswordAssignment));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that only password-shaped assignment names are detector candidates.
+    /// </summary>
+    [TestMethod]
+    public void PasswordAssignmentDetectorRejectsUnrelatedAssignments()
+    {
+        const string input = "passwordPolicy = \"G7!qZ@2#vN$8%kR^4&mT*9?xP\"";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule(
+                "picket-generated-password",
+                "password",
+                PicketBuiltInDetectorNames.PasswordAssignment));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that password assignment value-length boundaries are inclusive.
+    /// </summary>
+    /// <param name="length">The assignment value length.</param>
+    /// <param name="expected">A value indicating whether the detector should produce a match.</param>
+    [TestMethod]
+    [DataRow(11, false)]
+    [DataRow(12, true)]
+    [DataRow(512, true)]
+    [DataRow(513, false)]
+    public void PasswordAssignmentDetectorHonorsValueLengthBounds(int length, bool expected)
+    {
+        string input = $"password = \"{new string('A', length)}\"";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule(
+                "picket-generated-password",
+                "password",
+                PicketBuiltInDetectorNames.PasswordAssignment));
+
+        if (expected)
+        {
+            Assert.HasCount(1, findings);
+            Assert.HasCount(length, findings[0].Secret);
+        }
+        else
+        {
+            Assert.IsEmpty(findings);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the assignment delimiter search is bounded.
+    /// </summary>
+    /// <param name="paddingLength">The number of spaces before the assignment delimiter.</param>
+    /// <param name="expected">A value indicating whether the detector should produce a match.</param>
+    [TestMethod]
+    [DataRow(31, true)]
+    [DataRow(32, false)]
+    public void PasswordAssignmentDetectorHonorsDelimiterDistance(int paddingLength, bool expected)
+    {
+        string input = $"password{new string(' ', paddingLength)}= \"A7f9Q2v8Lm4Kx6Np3Rt5Yw7Bc9De1FgH\"";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule(
+                "picket-generated-password",
+                "password",
+                PicketBuiltInDetectorNames.PasswordAssignment));
+
+        if (expected)
+        {
+            Assert.HasCount(1, findings);
+        }
+        else
+        {
+            Assert.IsEmpty(findings);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an unterminated quoted assignment is rejected.
+    /// </summary>
+    [TestMethod]
+    public void PasswordAssignmentDetectorRejectsUnterminatedQuotedValue()
+    {
+        const string input = "password = \"A7f9Q2v8Lm4Kx6Np3Rt5Yw7Bc9De1FgH";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule(
+                "picket-generated-password",
+                "password",
+                PicketBuiltInDetectorNames.PasswordAssignment));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
+    /// Verifies that the common passwd key alias is detected.
+    /// </summary>
+    [TestMethod]
+    public void PasswordAssignmentDetectorFindsPasswdAlias()
+    {
+        const string secret = "A7f9Q2v8Lm4Kx6Np3Rt5Yw7Bc9De1FgH";
+        const string input = "database_passwd = \"A7f9Q2v8Lm4Kx6Np3Rt5Yw7Bc9De1FgH\"";
+
+        IReadOnlyList<Finding> findings = Scan(
+            input,
+            CreateRule(
+                "picket-generated-password",
+                "passwd",
+                PicketBuiltInDetectorNames.PasswordAssignment));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual(secret, findings[0].Secret);
     }
 
     private static SecretRule CreateRule(string id, string keyword, string detector, string? pattern = null)

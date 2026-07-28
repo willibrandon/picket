@@ -33,6 +33,7 @@ internal sealed class NativeDetectorScanContext
                 or PicketBuiltInDetectorNames.McpServerCredentials => FindJsonMatches(rule, input, isCancellationRequested),
             PicketBuiltInDetectorNames.NpmCredentials => FindNpmMatches(rule, input, isCancellationRequested),
             PicketBuiltInDetectorNames.KubernetesSecret => FindKubernetesMatches(input, isCancellationRequested),
+            PicketBuiltInDetectorNames.PasswordAssignment => NativePasswordAssignmentDetector.Find(input, isCancellationRequested),
             _ => [],
         };
         _matchesByRuleId.Add(rule.Id, matches);

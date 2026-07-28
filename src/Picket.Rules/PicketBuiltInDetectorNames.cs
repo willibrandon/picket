@@ -41,6 +41,11 @@ public static class PicketBuiltInDetectorNames
     public const string NpmCredentials = "npm-credentials";
 
     /// <summary>
+    /// Gets the detector for generated password assignments.
+    /// </summary>
+    public const string PasswordAssignment = "password-assignment";
+
+    /// <summary>
     /// Returns whether a name identifies a built-in detector.
     /// </summary>
     /// <param name="name">The detector name.</param>
@@ -55,6 +60,7 @@ public static class PicketBuiltInDetectorNames
             or JwkPrivateKey
             or KubernetesSecret
             or McpServerCredentials
-            or NpmCredentials;
+            or NpmCredentials
+            or PasswordAssignment;
     }
 }

@@ -16,14 +16,14 @@ Positive and negative example values are intentionally summarized as counts rath
 | Catalog | Rules | Notes |
 |---|---:|---|
 | Gitleaks-compatible default | 222 | Embedded strict-compatibility rules used by Gitleaks-compatible commands. |
-| Picket-native additions | 49 | All built-in native rules, including opt-in packs. |
-| `picket-default` | 44 | High-confidence rules enabled by the native default profile. |
+| Picket-native additions | 50 | All built-in native rules, including opt-in packs. |
+| `picket-default` | 45 | High-confidence rules enabled by the native default profile. |
 | `picket-strict` | 3 | Broader opt-in rules with medium-confidence heuristics. |
 | `picket-experimental` | 2 | Opt-in detectors under active tuning. |
 
 **Native providers**
 
-AWS, Anthropic, Azure, Buildkite, Cast AI, Database, Docker, GCP, GitHub, Groq, HTTP, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI
+AWS, Anthropic, Azure, Buildkite, Cast AI, Database, Docker, GCP, GitHub, Groq, HTTP, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Password, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI
 
 **Native validation templates**
 
@@ -255,7 +255,7 @@ Enabled by the native default profile.
       <code>picket-kubernetes-secret</code><span>Kubernetes</span>
     </div>
     <p class="reference-summary-description">Detected a value in a Kubernetes Secret resource.</p>
-    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/2</span></p>
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:kubernetes-secret</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: kubernetes, picket, secret, structured, yaml</p>
@@ -369,6 +369,16 @@ Enabled by the native default profile.
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:openrouter-api-key</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: ai, api-key, openrouter, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-generated-password</code><span>Password</span>
+    </div>
+    <p class="reference-summary-description">Detected a likely generated password in an assignment.</p>
+    <p class="reference-summary-meta"><span>Severity <code>high</code></span><span>Confidence <code>medium</code></span><span>Examples 2/3</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: assignment, generated, password, picket</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">

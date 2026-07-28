@@ -22,6 +22,7 @@ Generated from XML documentation for `Picket.Engine`.
 - [NativeNpmCredentialDetector](#nativenpmcredentialdetector) - Produces credential spans from parsed npm configuration assignments.
 - [NativeNpmrcIndex](#nativenpmrcindex) - Parses bounded npm configuration assignments without interpolation.
 - [NativeNpmrcProperty](#nativenpmrcproperty) - Represents one bounded npm configuration assignment.
+- [NativePasswordAssignmentDetector](#nativepasswordassignmentdetector) - Finds bounded password assignments without constraining the password alphabet.
 - [NativeYamlContainerFrame](#nativeyamlcontainerframe) - Tracks one YAML mapping or sequence while consuming parser events.
 - [NativeYamlIndex](#nativeyamlindex) - Indexes YAML mappings through the low-level event API without alias expansion.
 - [NativeYamlMapping](#nativeyamlmapping) - Represents one YAML mapping in the event index.
@@ -233,6 +234,12 @@ Represents one bounded npm configuration assignment.
 ### Constructors
 
 - `NativeNpmrcProperty(string, string, string, int, int)` - Represents one bounded npm configuration assignment.
+
+## NativePasswordAssignmentDetector
+
+`Picket.Engine.NativePasswordAssignmentDetector`
+
+Finds bounded password assignments without constraining the password alphabet.
 
 ## NativeYamlContainerFrame
 

@@ -435,7 +435,7 @@ public sealed class GitleaksConfigLoaderTests
             List<string> picketRuleIds = [.. picketDefault.Rules.Select(rule => rule.Id)];
 
             Assert.HasCount(222, gitleaksDefault.Rules);
-            Assert.HasCount(258, picketDefault.Rules);
+            Assert.HasCount(259, picketDefault.Rules);
             Assert.Contains("aws-access-token", gitleaksRuleIds);
             Assert.Contains("aws-access-token", picketRuleIds);
             Assert.Contains("picket-cast-ai-api-key", picketRuleIds);

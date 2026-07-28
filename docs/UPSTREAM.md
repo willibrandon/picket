@@ -256,6 +256,26 @@ display, and `X-API-Key` transport. It does not document a safe read-only
 validation operation, so Picket performs structural validation offline and does
 not contact Cast AI.
 
+## Native False-Positive References
+
+Native contextual suppression was reviewed on 2026-07-28 against these primary
+references:
+
+- Supabase API key types:
+  `https://supabase.com/docs/guides/getting-started/api-keys`
+- Stripe API key types:
+  `https://docs.stripe.com/keys`
+- Cargo git dependency revisions:
+  `https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html`
+- Cargo directory-source checksums:
+  `https://doc.rust-lang.org/nightly/nightly-rustc/cargo/sources/directory/struct.Checksum.html`
+- External Secrets Operator templates:
+  `https://external-secrets.io/main/guides/templating/`
+
+The native profile suppresses only documented publishable key shapes, exact
+Cargo checksum or revision contexts, and complete external-secret template
+references. These controls do not alter the embedded strict Gitleaks config.
+
 ## Provider Revocation References
 
 Native analysis and direct revocation behavior are based on provider
