@@ -55,6 +55,7 @@ internal static partial class Program
         rootCommand.Subcommands.Add(CreateStdinCommand(args));
         rootCommand.Subcommands.Add(CreateRulesCommand(args));
         rootCommand.Subcommands.Add(CreateHooksCommand(args));
+        rootCommand.Subcommands.Add(CreateAgentCommand(args));
         rootCommand.Subcommands.Add(CreateViewCommand(args));
         rootCommand.Subcommands.Add(CreateTuiCommand(args));
         rootCommand.Subcommands.Add(CreateVersionCommand(args));
@@ -515,6 +516,30 @@ internal static partial class Program
         installCommand.Options.Add(CreateValueOption("picket hooks install", "--max-target-megabytes", "n"));
         installCommand.Options.Add(CreateRedactOption("picket hooks install"));
         command.Subcommands.Add(installCommand);
+        return command;
+    }
+
+    private static Command CreateAgentCommand(string[] args)
+    {
+        var command = new Command("agent", "Coding-agent security hooks.")
+        {
+            TreatUnmatchedTokensAsErrors = true,
+        };
+        Command guardCommand = CreateForwardingCommand(
+            "guard",
+            "Inspect one Codex or Claude hook event from standard input.",
+            args,
+            2,
+            static (forwardedArgs, cancellationToken) => RunAgentGuardAsync(forwardedArgs, cancellationToken));
+        guardCommand.Options.Add(CreateValueOption("picket agent guard", "--config", "path", "-c"));
+        guardCommand.Options.Add(CreateChoiceValueOption(
+            "picket agent guard",
+            "--rule-pack",
+            "name",
+            PicketRulePackNames.Strict,
+            PicketRulePackNames.Experimental));
+        guardCommand.Options.Add(CreateValueOption("picket agent guard", "--max-input-megabytes", "n"));
+        command.Subcommands.Add(guardCommand);
         return command;
     }
 
@@ -1337,6 +1362,7 @@ internal static partial class Program
             || command.Equals("protect", StringComparison.OrdinalIgnoreCase)
             || command.Equals("rules", StringComparison.OrdinalIgnoreCase)
             || command.Equals("hooks", StringComparison.OrdinalIgnoreCase)
+            || command.Equals("agent", StringComparison.OrdinalIgnoreCase)
             || command.Equals("git", StringComparison.OrdinalIgnoreCase)
             || command.Equals("version", StringComparison.OrdinalIgnoreCase)
             || IsDirectoryCommand(command);
@@ -1345,6 +1371,7 @@ internal static partial class Program
     private static bool IsKnownGroupedCommand(string command)
     {
         return command.Equals("baseline", StringComparison.Ordinal)
+            || command.Equals("agent", StringComparison.Ordinal)
             || command.Equals("cache", StringComparison.Ordinal)
             || command.Equals("revoke", StringComparison.Ordinal)
             || command.Equals("rules", StringComparison.Ordinal)
@@ -1355,6 +1382,7 @@ internal static partial class Program
     {
         return command switch
         {
+            "agent" => subcommand.Equals("guard", StringComparison.OrdinalIgnoreCase),
             "baseline" => subcommand.Equals("create", StringComparison.OrdinalIgnoreCase),
             "cache" => subcommand.Equals("stats", StringComparison.OrdinalIgnoreCase)
                 || subcommand.Equals("prune", StringComparison.OrdinalIgnoreCase)

@@ -95,6 +95,18 @@ documentation reviewed on 2026-07-07:
 - System.CommandLine command-line design guidance: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/design-guidance`
 - System.CommandLine 2.0.0-beta5+ migration guide: `https://learn.microsoft.com/en-us/dotnet/standard/commandline/migration-guide-2.0.0-beta5`
 
+## Coding Agent Hook References
+
+Coding-agent guard behavior is based on the provider hook contracts reviewed on
+2026-07-28:
+
+- Codex hooks: `https://learn.chatgpt.com/docs/hooks`
+- Claude Code hooks: `https://code.claude.com/docs/en/hooks`
+
+Both providers send command-hook input as JSON on standard input. Their
+`PreToolUse` and `UserPromptSubmit` hooks interpret exit code `2` as a blocking
+result and surface standard error as the reason.
+
 ## Gitleaks Compatibility
 
 The embedded strict-compatibility default config in

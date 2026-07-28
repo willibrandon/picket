@@ -1173,6 +1173,7 @@ Picket ships:
 
 - MIT `picket-action`,
 - Azure DevOps pipeline task and marketplace extension,
+- Codex and Claude coding-agent guards,
 - pre-commit, pre-push, and pre-receive hooks,
 - `picket-tui` interactive report triage companion,
 - Docker images,
@@ -1183,6 +1184,8 @@ Picket ships:
 Managed hooks use the public `picket git` workflow. Pre-commit scans staged additions before the commit is created, pre-push scans outgoing commit ranges before the remote ref changes, and pre-receive scans received ranges while Git quarantine objects are available and before server refs change. Findings fail with a dedicated exit code and a redacted, terminal-safe summary capped at 20 rule/path/line entries; push and receive summaries also include abbreviated commit IDs. Scanner or configuration failures fail closed with a distinct operational message.
 
 Installation asks Git for its effective hook directory so normal repositories, nested worktree paths, bare repositories, linked worktrees, and `core.hooksPath` use Git's own path semantics. Local hooks are developer feedback and can be skipped through Git's standard `--no-verify` behavior; CI and server-side pre-receive hooks provide central enforcement.
+
+`picket agent guard` reads one bounded Codex or Claude hook envelope from standard input. `UserPromptSubmit` scans the submitted `prompt`; `PreToolUse` scans each string value under `tool_input` independently. Session identifiers, transcript paths, working directories, and other envelope metadata are outside the scanned payload. The guard uses native rules, decoding, predicates, and offline structural validation without constructing source providers or live validators. Exit `0` allows the operation. Findings and any condition that prevents complete inspection return exit `2`, which both hosts interpret as a block. Standard output remains empty, and standard error is limited to fixed secret-free reasons or a bounded list of sanitized rule identifiers.
 
 The GitHub Action supports annotations, SARIF upload, fetch-depth guidance, baseline and native-ignore handling, validation-result filtering, cache restore/save, least-privilege permissions, summary output, and explicit fail modes. Generated reports and cache data default beneath the runner temporary directory so scanning the checkout cannot ingest output from an earlier run; explicit paths remain supported.
 
@@ -1541,6 +1544,7 @@ Required before v1:
 - `docs/OBJECT_STORES.md`: object-store source enumeration and permission guidance,
 - `docs/MARKETPLACES.md`: GitHub Marketplace and Azure DevOps Marketplace packaging, release, and rollback guidance,
 - `docs/HOOKS.md`: local and server-side Git hook behavior,
+- `docs/CODING_AGENT_GUARDS.md`: Codex and Claude prompt and tool-input hook behavior,
 - `docs/PERFORMANCE.md`: benchmark and oracle comparison process,
 - `docs/RELEASE.md`: Native AOT publish profiles and release artifact guidance,
 - `docs/EMBEDDING.md`: library API guide,

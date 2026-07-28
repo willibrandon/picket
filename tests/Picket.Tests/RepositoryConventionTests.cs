@@ -40,6 +40,7 @@ public sealed partial class RepositoryConventionTests
         "{ label: \"Bitbucket\", slug: \"generated/bitbucket\" }",
         "{ label: \"Object Stores\", slug: \"generated/object-stores\" }",
         "{ label: \"Container Images\", slug: \"generated/containers\" }",
+        "{ label: \"Coding Agent Guards\", slug: \"generated/coding-agent-guards\" }",
         "{ label: \"Git Hooks\", slug: \"generated/hooks\" }",
         "{ label: \"Terminal UI\", slug: \"generated/tui\" }",
         "{ label: \"Marketplaces\", slug: \"generated/marketplaces\" }",
@@ -1714,6 +1715,7 @@ public sealed partial class RepositoryConventionTests
         string objectStores = ReadRepositoryFile("docs/OBJECT_STORES.md");
         string marketplaces = ReadRepositoryFile("docs/MARKETPLACES.md");
         string hooks = ReadRepositoryFile("docs/HOOKS.md");
+        string codingAgentGuards = ReadRepositoryFile("docs/CODING_AGENT_GUARDS.md");
         string release = ReadRepositoryFile("docs/RELEASE.md");
         string embedding = ReadRepositoryFile("docs/EMBEDDING.md");
         string docsSiteConfig = ReadRepositoryFile("docs-site/astro.config.mjs");
@@ -1861,6 +1863,15 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket could not complete the scan", hooks);
         Assert.Contains("core.hooksPath", hooks);
         Assert.Contains("--no-verify", hooks);
+        Assert.Contains("picket agent guard", codingAgentGuards);
+        Assert.Contains("PreToolUse", codingAgentGuards);
+        Assert.Contains("UserPromptSubmit", codingAgentGuards);
+        Assert.Contains("1,000,000 bytes", codingAgentGuards);
+        Assert.Contains("4,096", codingAgentGuards);
+        Assert.Contains("exit `2`", codingAgentGuards);
+        Assert.Contains(".codex/hooks.json", codingAgentGuards);
+        Assert.Contains(".claude/settings.json", codingAgentGuards);
+        Assert.Contains("secret values are never printed", codingAgentGuards);
         Assert.Contains("BenchmarkDotNet", performance);
         Assert.Contains("benchmarks/Picket.Benchmarks", performance);
         Assert.Contains("tests/fixtures/github-secret-scanning", performance);
@@ -1881,6 +1892,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Native AOT Hosts", embedding);
         Assert.Contains("base: \"/picket\"", docsSiteConfig);
         Assert.Contains("generated/tui", docsSiteConfig);
+        Assert.Contains("generated/coding-agent-guards", docsSiteConfig);
         Assert.Contains("generated/upstream", docsSiteConfig);
         Assert.Contains("docs:generate", docsSitePackage);
         Assert.Contains("docs:check", docsSitePackage);
@@ -1956,6 +1968,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("class=\"cli-command-detail-header\"", cliReference);
         Assert.Contains("class=\"cli-reference-table\"", cliReference);
         Assert.Contains("<code class=\"cli-command-name\">picket analyze</code>", cliReference);
+        Assert.Contains("<code class=\"cli-command-name\">picket agent guard</code>", cliReference);
         Assert.Contains("<code class=\"cli-command-name\">picket revoke github</code>", cliReference);
         Assert.Contains("<dd>Offline or live</dd>", cliReference);
         Assert.DoesNotContain("<dd>Offline</dd>", cliReference);

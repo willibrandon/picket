@@ -58,6 +58,10 @@ Azure Pipelines can install [Picket from the Visual Studio Marketplace](https://
 
 See [GitHub Action](https://github.com/willibrandon/picket/blob/main/docs/ACTION.md) and [Azure DevOps](https://github.com/willibrandon/picket/blob/main/docs/AZURE_DEVOPS.md) for permissions, inputs, reports, and failure behavior.
 
+## Coding Agent Guards
+
+`picket agent guard` inspects Codex and Claude `PreToolUse` and `UserPromptSubmit` hook events from standard input. It returns `0` for clean input and `2` to block findings or input that could not be safely inspected. See [Coding Agent Guards](https://github.com/willibrandon/picket/blob/main/docs/CODING_AGENT_GUARDS.md) for setup.
+
 ## Libraries
 
 Picket publishes these embeddable packages:

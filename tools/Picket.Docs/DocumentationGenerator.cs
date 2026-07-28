@@ -30,6 +30,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         ["BITBUCKET"] = 150,
         ["OBJECT_STORES"] = 160,
         ["CONTAINERS"] = 170,
+        ["CODING_AGENT_GUARDS"] = 175,
         ["HOOKS"] = 180,
         ["TUI"] = 190,
         ["MARKETPLACES"] = 220,
@@ -746,6 +747,13 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             renderedCommands,
             commandSummaries,
             ["picket rules check", "picket rules test"]);
+        AppendCliCommandGroup(
+            builder,
+            "Coding-agent guards",
+            availableCommands,
+            renderedCommands,
+            commandSummaries,
+            ["picket agent guard"]);
         AppendCliCommandGroup(
             builder,
             "Maintenance",
@@ -1471,6 +1479,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "picket revoke github" => "Credential revocation",
             "picket baseline create" or "picket view" or "picket tui" => "Reports and baselines",
             "picket rules check" or "picket rules test" => "Rules",
+            "picket agent guard" => "Coding-agent guards",
             "picket cache stats" or "picket cache prune" or "picket cache export" or "picket cache import" or "picket hooks install" => "Maintenance",
             "picket git" or "picket dir" or "picket stdin" or "picket version" => "Compatibility",
             _ => "Command",
@@ -1493,6 +1502,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             "picket stdin" => "Standard input",
             "picket rules check" => "Optional rule source",
             "picket rules test" => "Rule ID and sample input",
+            "picket agent guard" => "One Codex or Claude hook envelope on standard input",
             "picket hooks install" => "Optional hook name",
             "picket view" => "Required report path",
             "picket tui" => "Optional report path",
@@ -1507,6 +1517,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         {
             "picket verify" or "picket analyze" => "Offline or live",
             "picket verify secret" => "Live",
+            "picket agent guard" => "Local only",
             _ => string.Empty,
         };
     }

@@ -95,6 +95,17 @@ Use the grouped index to jump to the workflow you need.
     </ul>
   </section>
   <section class="cli-command-group">
+    <p class="cli-command-group-title">Coding-agent guards</p>
+    <ul class="cli-command-list">
+      <li>
+        <a class="cli-command-link" href="#picket-agent-guard">
+          <code>picket agent guard</code>
+          <span>Inspect one Codex or Claude hook event from standard input.</span>
+        </a>
+      </li>
+    </ul>
+  </section>
+  <section class="cli-command-group">
     <p class="cli-command-group-title">Maintenance</p>
     <ul class="cli-command-list">
       <li>
@@ -3907,6 +3918,94 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Set the redaction percentage used for baseline matching. Hook summaries always omit secret values.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-?, -h, --help</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Show help and usage information</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-l, --log-level</code></td>
+              <td data-label="Value"><code>level</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Set the log level.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>-v, --verbose</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Enable verbose logging.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-color</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Disable colored console output.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--no-banner</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Suppress the startup banner.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+### picket agent guard
+
+<div class="cli-command-detail">
+  <div class="cli-command-detail-header">
+    <code class="cli-command-name">picket agent guard</code>
+    <span class="cli-command-badge">Coding-agent guards</span>
+  </div>
+  <dl class="cli-command-facts">
+    <div>
+      <dt>Input</dt>
+      <dd>One Codex or Claude hook envelope on standard input</dd>
+    </div>
+    <div>
+      <dt>Validation</dt>
+      <dd>Local only</dd>
+    </div>
+  </dl>
+  <p class="cli-command-summary">Inspect one Codex or Claude hook event from standard input.</p>
+  <div class="cli-usage-list">
+    <div class="cli-usage-block">
+      <p class="cli-section-label">Usage</p>
+      <pre class="cli-usage-code"><code>picket agent guard [options]</code></pre>
+    </div>
+  </div>
+  <div class="cli-reference-tables">
+    <div class="cli-reference-table-block">
+      <p class="cli-section-label">Options</p>
+      <div class="cli-reference-table-wrapper">
+        <table class="cli-reference-table">
+          <thead>
+            <tr><th>Option</th><th>Value</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Option"><code>-c, --config</code></td>
+              <td data-label="Value"><code>path</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Load a config file.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--rule-pack</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional, repeatable</td>
+              <td data-label="Description">Add an opt-in built-in rule pack. Values: picket-strict or picket-experimental. Repeat to add both.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--max-input-megabytes</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit the coding-agent hook envelope to this many decimal megabytes. The default is 1 and the maximum is 64.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>-?, -h, --help</code></td>
