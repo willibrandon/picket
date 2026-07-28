@@ -169,6 +169,8 @@ withinLines = 3
 withinColumns = 80
 ```
 
+Picket resolves required evidence after the original input and all enabled decoding passes have been scanned. A primary finding can therefore be satisfied by supporting evidence discovered through base64, hex, percent, Unicode, or other recursive decoding. Line and column proximity always use positions remapped to the original source. Supporting rules with `skipReport = true` participate in the composite match without producing their own top-level findings.
+
 Every required rule ID must exist, and a rule must not require itself.
 
 ## Validation

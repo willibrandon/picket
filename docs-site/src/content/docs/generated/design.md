@@ -516,7 +516,7 @@ Compatibility matching reproduces Gitleaks' observable algorithm:
 - allowlists run in the same order and against the same targets,
 - skipped rules and `skipReport` follow Gitleaks.
 
-Strict compatibility positions use one-based UTF-8 byte columns with inclusive end positions, matching Gitleaks. Native positions use one-based Unicode code-point columns with exclusive end positions. Every native finding records its `positionKind`; required-rule `withinColumns` constraints apply only when both findings begin on the same source line.
+Strict compatibility positions use one-based UTF-8 byte columns with inclusive end positions, matching Gitleaks. Native positions use one-based Unicode code-point columns with exclusive end positions. Every native finding records its `positionKind`; required-rule `withinColumns` constraints apply only when both findings begin on the same source line. Composite native findings resolve required evidence after all enabled decoding passes complete, so evidence discovered through different decode paths can correlate while proximity remains anchored to remapped original-source positions.
 
 Picket-native modes can add richer confidence scoring, structured detectors, and cross-rule correlation, but compatibility mode does not. A native structured rule still requires a bounded regex and keyword prefilter. After that prefilter selects the rule, its named detector uses a shared per-input JSON, YAML, or npmrc index and returns exact evidence spans without reparsing the input for every structured rule.
 
