@@ -51,8 +51,13 @@ internal static partial class Program
         return diagnosticsSession.TryComplete(exitCode, Console.Error) ? exitCode : 1;
     }
 
-    static bool LooksBinary(ReadOnlySpan<byte> input)
+    static bool LooksBinary(ReadOnlySpan<byte> input, bool allowUtf16Bom = false)
     {
+        if (allowUtf16Bom && Utf16BomTranscoder.HasBom(input))
+        {
+            return false;
+        }
+
         int length = Math.Min(input.Length, BinaryProbeLength);
         for (int i = 0; i < length; i++)
         {

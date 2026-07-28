@@ -3,6 +3,7 @@ using Picket.Sources;
 using Picket.Store;
 using System.Buffers;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace Picket;
 
@@ -35,7 +36,25 @@ internal static partial class Program
         }
 
         using Stream stream = file.OpenRead();
-        using var reader = new SourceFragmentReader(stream);
+        string blobSha256 = string.Empty;
+        if (picketIgnore.ContentHashCount != 0 || scanCache is not null)
+        {
+            blobSha256 = ComputeSourceStreamSha256(stream, timeoutTimestamp, out stopped, cancellationToken);
+            if (stopped || picketIgnore.TryIgnoreContentHash(blobSha256))
+            {
+                return [];
+            }
+
+            stream.Position = 0;
+        }
+
+        using IncrementalHash scannedHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        using Stream? nativeStream = nativeMode
+            ? new Utf16BomTranscodingStream(stream, scannedHash, leaveOpen: true)
+            : null;
+        using var reader = new SourceFragmentReader(
+            nativeStream ?? stream,
+            useUnicodeCodePointColumns: nativeMode);
         SourceFragment? firstFragment = reader.ReadNext(cancellationToken);
         try
         {
@@ -45,20 +64,6 @@ internal static partial class Program
                     SourceFragmentReader.DefaultBufferSize)]))
             {
                 return [];
-            }
-
-            string blobSha256 = string.Empty;
-            if (picketIgnore.ContentHashCount != 0 || scanCache is not null)
-            {
-                long resumeOffset = firstFragment?.Content.Length ?? 0;
-                stream.Position = 0;
-                blobSha256 = ComputeSourceStreamSha256(stream, timeoutTimestamp, out stopped, cancellationToken);
-                if (stopped || picketIgnore.TryIgnoreContentHash(blobSha256))
-                {
-                    return [];
-                }
-
-                stream.Position = resumeOffset;
             }
 
             diagnosticsSession?.RecordScanInput();
@@ -74,7 +79,6 @@ internal static partial class Program
                 diagnosticsSession?.RecordCacheMiss();
             }
 
-            using IncrementalHash scannedHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             List<Finding> findings;
             HashSet<int>? forceCutLines = null;
             HashSet<int>? forceCutAllowedLines = null;
@@ -111,7 +115,6 @@ internal static partial class Program
                     maxDecodeDepth,
                     maxTargetBytes: null,
                     blobSha256,
-                    scannedHash,
                     forceCutLines,
                     forceCutAllowedLines,
                     timeoutTimestamp,
@@ -201,14 +204,20 @@ internal static partial class Program
         CancellationToken cancellationToken)
     {
         stopped = false;
-        var limitedStream = nativeMode && maxTargetBytes.HasValue
+        using MaxLengthReadStream? limitedStream = nativeMode && maxTargetBytes.HasValue
             ? new MaxLengthReadStream(stream, maxTargetBytes.Value)
             : null;
-        using var reader = new SourceFragmentReader(limitedStream ?? stream, leaveOpen: true);
+        using IncrementalHash scannedHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        using Stream? nativeStream = nativeMode
+            ? new Utf16BomTranscodingStream(limitedStream ?? stream, scannedHash, leaveOpen: true)
+            : null;
+        using var reader = new SourceFragmentReader(
+            nativeStream ?? limitedStream ?? stream,
+            leaveOpen: true,
+            useUnicodeCodePointColumns: nativeMode);
         SourceFragment? firstFragment = reader.ReadNext(cancellationToken);
         try
         {
-            using IncrementalHash scannedHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             List<Finding> findings;
             HashSet<int>? forceCutLines = null;
             HashSet<int>? forceCutAllowedLines = null;
@@ -245,7 +254,6 @@ internal static partial class Program
                     maxDecodeDepth,
                     maxTargetBytes: null,
                     blobSha256: string.Empty,
-                    scannedHash,
                     forceCutLines,
                     forceCutAllowedLines,
                     timeoutTimestamp,
@@ -370,7 +378,6 @@ internal static partial class Program
         int maxDecodeDepth,
         long? maxTargetBytes,
         string blobSha256,
-        IncrementalHash scannedHash,
         HashSet<int> forceCutLines,
         HashSet<int> forceCutAllowedLines,
         long timeoutTimestamp,
@@ -394,7 +401,6 @@ internal static partial class Program
             {
                 using (fragment)
                 {
-                    scannedHash.AppendData(fragment.Content.Span);
                     RecordForceCutLine(fragment, forceCutLines);
                     if (!ignoreGitleaksAllow)
                     {
@@ -751,6 +757,11 @@ internal static partial class Program
             else
             {
                 column++;
+                OperationStatus status = Rune.DecodeFromUtf8(content[i..], out _, out int bytesConsumed);
+                if (status == OperationStatus.Done)
+                {
+                    i += bytesConsumed - 1;
+                }
             }
         }
     }

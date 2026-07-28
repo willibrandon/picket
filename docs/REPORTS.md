@@ -58,6 +58,8 @@ Native reports can include:
 
 Source-line evidence is bounded for pathological filesystem lines that exceed the scanner's fragment limit. In that case, location fields still identify the complete source position, and native scans check `gitleaks:allow` against the complete logical line without materializing that unbounded line in memory.
 
+For BOM-marked UTF-16 LE and BE input, native report evidence is decoded text and native columns count Unicode code points. `blobSha256` continues to identify the complete original encoded byte sequence, including its byte-order mark. Strict compatibility reports retain Gitleaks byte and binary-file behavior.
+
 Native findings use `positionKind` to make their coordinates unambiguous. `UnicodeCodePointsExclusive` means one-based Unicode code-point columns with an exclusive end position. `GitleaksUtf8BytesInclusive` means one-based UTF-8 byte columns with an inclusive end position and is used for findings produced under the compatibility contract.
 
 SARIF 2.1.0 permits only `unicodeCodePoints` and `utf16CodeUnits` for `run.columnKind`; it has no UTF-8 byte-column value. Native SARIF writes native coordinates with `columnKind: unicodeCodePoints`. For compatibility-origin findings it preserves line ranges and the Picket `positionKind` property but omits columns rather than mislabeling byte offsets. Reports containing both coordinate systems use separate runs. Strict Gitleaks-compatible SARIF output remains governed by the pinned Gitleaks oracle.

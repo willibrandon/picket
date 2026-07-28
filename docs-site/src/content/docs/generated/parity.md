@@ -140,6 +140,24 @@ as deliberate.
 - **Migration guidance:** Use strict compatibility commands for Gitleaks byte
   parity. Use native `scan` when source-code literal normalization is desired.
 
+## Native UTF-16 Input
+
+- **Upstream behavior:** Gitleaks treats BOM-marked UTF-16 files as binary when
+  its NUL-byte probe applies.
+- **Picket behavior:** Native scans decode BOM-marked UTF-16 LE and BE with
+  replacement fallback for malformed code units. Strict compatibility keeps
+  Gitleaks binary-file behavior.
+- **Mode/profile affected:** Picket-native filesystem, baseline, and standard
+  input scans.
+- **Reason:** Source files and generated configuration can use UTF-16 while
+  native report coordinates still require decoded Unicode positions.
+- **User impact:** Native scans can produce findings from UTF-16 sources.
+  Report evidence is decoded text, while size limits and `blobSha256` use the
+  original encoded bytes.
+- **Test name:** `ScanDecodesBomMarkedUtf16OnlyInNativeMode`,
+  `NativeScanDecodesSmallUtf16File`,
+  `NativeFragmentedScanDecodesUtf16WithoutChangingCompatibility`.
+
 ## Git Log Option Guard
 
 - **Upstream behavior:** Gitleaks forwards `--log-opts` tokens to `git log`

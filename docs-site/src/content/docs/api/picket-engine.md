@@ -36,6 +36,8 @@ Generated from XML documentation for `Picket.Engine`.
 - [ShannonEntropy](#shannonentropy) - Computes Shannon entropy over byte data.
 - [SourcePosition](#sourceposition) - Represents a Gitleaks-compatible source line and column.
 - [StableFindingFingerprint](#stablefindingfingerprint) - Creates stable Picket-native finding fingerprints.
+- [Utf16BomBuffer](#utf16bombuffer) - Owns a pooled UTF-8 buffer produced from BOM-marked UTF-16 input.
+- [Utf16BomTranscoder](#utf16bomtranscoder) - Transcodes BOM-marked UTF-16 input into pooled UTF-8 storage.
 - [Utf8OffsetTracker](#utf8offsettracker) - Converts monotonically increasing UTF-16 indices to UTF-8 byte offsets without a per-character map.
 
 ## CompiledRuleSet
@@ -519,6 +521,35 @@ Creates stable Picket-native finding fingerprints.
 ### Methods
 
 - `Create(Finding finding)` - Creates a versioned stable fingerprint for a finding.
+
+## Utf16BomBuffer
+
+`Picket.Engine.Utf16BomBuffer`
+
+Owns a pooled UTF-8 buffer produced from BOM-marked UTF-16 input.
+
+### Constructors
+
+- `Utf16BomBuffer(byte[], int)` - Owns a pooled UTF-8 buffer produced from BOM-marked UTF-16 input.
+
+### Methods
+
+- `Dispose()` - Clears and returns the owned buffer to the shared pool.
+
+### Properties
+
+- `Memory` - Gets the transcoded UTF-8 content.
+
+## Utf16BomTranscoder
+
+`Picket.Engine.Utf16BomTranscoder`
+
+Transcodes BOM-marked UTF-16 input into pooled UTF-8 storage.
+
+### Methods
+
+- `Create(ReadOnlySpan<byte> input, Func<bool> isCancellationRequested, out bool canceled)` - Creates a pooled UTF-8 buffer for BOM-marked UTF-16 input.
+- `HasBom(ReadOnlySpan<byte>)` - Determines whether input begins with a UTF-16 byte-order mark.
 
 ## Utf8OffsetTracker
 

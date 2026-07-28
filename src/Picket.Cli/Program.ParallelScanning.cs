@@ -173,7 +173,8 @@ internal static partial class Program
 
         stopped = false;
         byte[] input = file.ReadAllBytes();
-        if (picketIgnore.TryIgnoreContentHash(input) || LooksBinary(input))
+        if (picketIgnore.TryIgnoreContentHash(input)
+            || LooksBinary(input, allowUtf16Bom: nativeMode))
         {
             return [];
         }
