@@ -77,6 +77,68 @@ internal static partial class Program
         }
     }
 
+    private static async Task<int> RunGitLabRevocationAsync(
+        string credentialEnvironmentVariable,
+        bool confirmRevocation,
+        string? endpointValue,
+        string? proxyEndpointValue,
+        int timeoutSeconds,
+        bool allowNonPublicEndpoints,
+        CancellationToken cancellationToken)
+    {
+        if (!confirmRevocation)
+        {
+            Console.Error.WriteLine("GitLab personal access token revocation is irreversible; pass --confirm-revocation to continue");
+            return 1;
+        }
+
+        if (!TryReadRevocationCredential(credentialEnvironmentVariable, out string credential))
+        {
+            return UnknownFlagExitCode;
+        }
+
+        if (!TryParseOptionalAbsoluteUri(endpointValue, "--gitlab-api-endpoint", out Uri? endpoint) ||
+            !TryParseOptionalAbsoluteUri(proxyEndpointValue, "--gitlab-api-proxy", out Uri? proxyEndpoint))
+        {
+            return NativeOperationalExitCode;
+        }
+
+        GitLabPersonalAccessTokenRevokerOptions options = GitLabPersonalAccessTokenRevokerOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions
+        {
+            AllowNonPublicAddresses = allowNonPublicEndpoints,
+        };
+        options.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        if (proxyEndpoint is not null)
+        {
+            EndpointGuardResult proxyGuardResult = EndpointGuard.Evaluate(proxyEndpoint, options.EndpointGuardOptions);
+            if (!proxyGuardResult.IsAllowed)
+            {
+                Console.Error.WriteLine($"blocked GitLab revocation proxy endpoint: {proxyGuardResult.Message}");
+                return 1;
+            }
+        }
+
+        try
+        {
+            if (endpoint is not null)
+            {
+                options.CredentialEndpoint = endpoint;
+            }
+
+            options.ProxyEndpoint = proxyEndpoint;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine($"invalid GitLab revocation endpoint configuration: {ex.Message}");
+            return UnknownFlagExitCode;
+        }
+
+        using var revoker = new GitLabPersonalAccessTokenRevoker(options);
+        CredentialRevocationResult result = await revoker.RevokeAsync(credential, cancellationToken).ConfigureAwait(false);
+        return WriteGitLabRevocationResult(result);
+    }
+
     private static bool TryParseOptionalAbsoluteUri(string? value, string optionName, out Uri? uri)
     {
         uri = null;
@@ -137,12 +199,55 @@ internal static partial class Program
         return true;
     }
 
+    private static bool TryReadRevocationCredential(
+        string environmentVariable,
+        out string credential)
+    {
+        credential = string.Empty;
+        if (string.IsNullOrWhiteSpace(environmentVariable))
+        {
+            Console.Error.WriteLine("--credential-env requires a non-empty environment variable name");
+            return false;
+        }
+
+        string? value = Environment.GetEnvironmentVariable(environmentVariable);
+        if (string.IsNullOrEmpty(value))
+        {
+            Console.Error.WriteLine($"credential environment variable is not set or empty: {environmentVariable}");
+            return false;
+        }
+
+        credential = value;
+        return true;
+    }
+
     private static int WriteRevocationResult(CredentialRevocationResult result)
     {
         switch (result.State)
         {
             case CredentialRevocationState.Accepted:
                 Console.Out.WriteLine($"GitHub accepted {result.CredentialCount} credential(s) for revocation.");
+                return 0;
+            case CredentialRevocationState.Rejected:
+                Console.Error.WriteLine($"revocation rejected: {result.Reason}");
+                return 1;
+            case CredentialRevocationState.Indeterminate:
+                Console.Error.WriteLine($"revocation outcome is indeterminate: {result.Reason}");
+                return IndeterminateRevocationExitCode;
+            case CredentialRevocationState.Blocked:
+                Console.Error.WriteLine($"revocation blocked: {result.Reason}");
+                return 1;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(result));
+        }
+    }
+
+    private static int WriteGitLabRevocationResult(CredentialRevocationResult result)
+    {
+        switch (result.State)
+        {
+            case CredentialRevocationState.Accepted:
+                Console.Out.WriteLine("GitLab revoked the personal access token.");
                 return 0;
             case CredentialRevocationState.Rejected:
                 Console.Error.WriteLine($"revocation rejected: {result.Reason}");

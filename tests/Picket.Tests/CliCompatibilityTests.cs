@@ -1540,6 +1540,134 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that GitLab revocation help explains self-revocation and environment-only token input.
+    /// </summary>
+    [TestMethod]
+    public async Task GitLabRevocationHelpExplainsSafetyBoundary()
+    {
+        CliResult result = await RunCliAsync("revoke", "gitlab", "--help").ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("picket revoke gitlab", result.Stdout);
+        Assert.Contains("Self-revoke", result.Stdout);
+        Assert.Contains("--credential-env", result.Stdout);
+        Assert.Contains("value never appears in command arguments", result.Stdout);
+        Assert.Contains("--confirm-revocation", result.Stdout);
+        Assert.Contains("--gitlab-api-endpoint", result.Stdout);
+        Assert.Contains("--gitlab-api-proxy", result.Stdout);
+        Assert.Contains("--timeout", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies that GitLab revocation cannot run without explicit confirmation.
+    /// </summary>
+    [TestMethod]
+    public async Task GitLabRevocationRequiresExplicitConfirmation()
+    {
+        string credential = CreateGitLabPatFixture();
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { ["PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL"] = credential },
+            "revoke",
+            "gitlab",
+            "--credential-env",
+            "PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("--confirm-revocation", string.Concat(result.Stdout, result.Stderr));
+        Assert.DoesNotContain(credential, result.Stdout);
+        Assert.DoesNotContain(credential, result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that a missing GitLab token variable is named without exposing any token value.
+    /// </summary>
+    [TestMethod]
+    public async Task GitLabRevocationReportsMissingCredentialEnvironmentVariable()
+    {
+        const string Variable = "PICKET_TEST_MISSING_GITLAB_REVOCATION_CREDENTIAL";
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { [Variable] = null },
+            "revoke",
+            "gitlab",
+            "--credential-env",
+            Variable,
+            "--confirm-revocation").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains(Variable, result.Stderr);
+        Assert.Contains("not set or empty", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that invalid GitLab token values are rejected locally and never echoed.
+    /// </summary>
+    [TestMethod]
+    public async Task GitLabRevocationRejectsMalformedCredentialWithoutEchoingIt()
+    {
+        const string Credential = "not a valid header value";
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { ["PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL"] = Credential },
+            "revoke",
+            "gitlab",
+            "--credential-env",
+            "PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL",
+            "--confirm-revocation",
+            "--gitlab-api-endpoint",
+            "https://8.8.8.8/api/v4/personal_access_tokens/self").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("not a valid GitLab personal access token value", result.Stderr);
+        Assert.DoesNotContain(Credential, result.Stdout);
+        Assert.DoesNotContain(Credential, result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that GitLab endpoint overrides cannot redirect the token to an unrelated API path.
+    /// </summary>
+    [TestMethod]
+    public async Task GitLabRevocationRejectsUnrelatedEndpointPath()
+    {
+        string credential = CreateGitLabPatFixture();
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { ["PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL"] = credential },
+            "revoke",
+            "gitlab",
+            "--credential-env",
+            "PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL",
+            "--confirm-revocation",
+            "--gitlab-api-endpoint",
+            "https://gitlab.example.test/api/v4/projects/1").ConfigureAwait(false);
+
+        Assert.AreEqual(126, result.ExitCode);
+        Assert.Contains("personal_access_tokens/self", result.Stderr);
+        Assert.DoesNotContain(credential, result.Stdout);
+        Assert.DoesNotContain(credential, result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that revocation rejects a non-public proxy before contacting GitLab.
+    /// </summary>
+    [TestMethod]
+    public async Task GitLabRevocationBlocksNonPublicProxyBeforeRequest()
+    {
+        string credential = CreateGitLabPatFixture();
+        CliResult result = await RunCliWithEnvironmentAsync(
+            new Dictionary<string, string?> { ["PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL"] = credential },
+            "revoke",
+            "gitlab",
+            "--credential-env",
+            "PICKET_TEST_GITLAB_REVOCATION_CREDENTIAL",
+            "--confirm-revocation",
+            "--gitlab-api-proxy",
+            "https://10.0.0.5/").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("blocked GitLab revocation proxy endpoint", result.Stderr);
+        Assert.DoesNotContain(credential, result.Stdout);
+        Assert.DoesNotContain(credential, result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that root help advertises the command index instead of every command option.
     /// </summary>
     [TestMethod]
@@ -6134,6 +6262,11 @@ public sealed class CliCompatibilityTests
     private static string CreateGitHubPatFixture()
     {
         return CreateGitHubClassicTokenFixture("ghp_");
+    }
+
+    private static string CreateGitLabPatFixture()
+    {
+        return "glpat-0123456789abcdefghij";
     }
 
     private static string CreateGitHubClassicTokenFixture(string prefix)
