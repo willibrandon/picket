@@ -12,7 +12,7 @@ public sealed class SecretScanner
     /// <summary>
     /// Gets the stable version of matching behavior that participates in cache and checkpoint identities.
     /// </summary>
-    public const string MatchingBehaviorVersion = "picket.matching.v5";
+    public const string MatchingBehaviorVersion = "picket.matching.v6";
 
     private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
 
@@ -40,6 +40,8 @@ public sealed class SecretScanner
             request.SourceStartColumn,
             request.PositionKind);
         var findings = new List<Finding>();
+        Dictionary<string, List<Finding>>? requiredFindingsByRuleId =
+            CreateRequiredFindingsByRuleId(request.RuleSet);
 
         ScanPass(
             originalInput,
@@ -56,6 +58,7 @@ public sealed class SecretScanner
             request.SymlinkFile,
             blobIdentity,
             findings,
+            requiredFindingsByRuleId,
             request.EnableNativeDetectors,
             request.EnableRandomnessScoring,
             isCancellationRequested);
@@ -64,7 +67,7 @@ public sealed class SecretScanner
             || IsTooLargeForContentScan(originalInput.Length, maxTargetBytes)
             || IsCancellationRequested(isCancellationRequested))
         {
-            return CompleteScan(request, findings);
+            return CompleteScan(request, findings, requiredFindingsByRuleId);
         }
 
         DecodedInput current = DecodedInput.CreateOriginal(originalInput);
@@ -94,6 +97,7 @@ public sealed class SecretScanner
                 request.SymlinkFile,
                 blobIdentity,
                 findings,
+                requiredFindingsByRuleId,
                 request.EnableNativeDetectors,
                 request.EnableRandomnessScoring,
                 isCancellationRequested);
@@ -106,15 +110,38 @@ public sealed class SecretScanner
             current = decoded;
         }
 
-        return CompleteScan(request, findings);
+        return CompleteScan(request, findings, requiredFindingsByRuleId);
     }
 
-    private static List<Finding> CompleteScan(ScanRequest request, List<Finding> findings)
+    private static List<Finding> CompleteScan(
+        ScanRequest request,
+        List<Finding> findings,
+        Dictionary<string, List<Finding>>? requiredFindingsByRuleId)
     {
+        List<Finding> resolvedFindings = ResolveRequiredFindings(
+            findings,
+            request.RuleSet,
+            requiredFindingsByRuleId);
         List<Finding> completedFindings = request.EnableRandomnessScoring
-            ? SecretRandomnessFindingProcessor.Apply(findings, request.RuleSet)
-            : findings;
+            ? SecretRandomnessFindingProcessor.Apply(resolvedFindings, request.RuleSet)
+            : resolvedFindings;
         return ApplyGitleaksGenericRulePrecedence(completedFindings);
+    }
+
+    private static Dictionary<string, List<Finding>>? CreateRequiredFindingsByRuleId(
+        CompiledRuleSet ruleSet)
+    {
+        Dictionary<string, List<Finding>>? requiredFindingsByRuleId = null;
+        foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
+        {
+            foreach (SecretRequiredRule requiredRule in compiledRule.Rule.RequiredRules)
+            {
+                requiredFindingsByRuleId ??= new Dictionary<string, List<Finding>>(StringComparer.Ordinal);
+                requiredFindingsByRuleId.TryAdd(requiredRule.Id, []);
+            }
+        }
+
+        return requiredFindingsByRuleId;
     }
 
     internal static List<Finding> ApplyGitleaksGenericRulePrecedence(List<Finding> findings)
@@ -232,6 +259,7 @@ public sealed class SecretScanner
         string symlinkFile,
         SourceBlobIdentity blobIdentity,
         List<Finding> findings,
+        Dictionary<string, List<Finding>>? requiredFindingsByRuleId,
         bool enableNativeDetectors,
         bool enableRandomnessScoring,
         Func<bool>? isCancellationRequested)
@@ -257,6 +285,9 @@ public sealed class SecretScanner
             }
 
             List<CompiledAllowlist> globalAllowlists = GetGlobalAllowlists(ruleSet, compiledRule);
+            List<Finding>? requiredRuleFindings = null;
+            bool includeSkipReport = requiredFindingsByRuleId is not null
+                && requiredFindingsByRuleId.TryGetValue(compiledRule.Rule.Id, out requiredRuleFindings);
             List<Finding> ruleFindings = ScanCompiledRule(
                 input,
                 regexSourceInput,
@@ -275,35 +306,15 @@ public sealed class SecretScanner
                 blobIdentity,
                 compiledRule,
                 detectorContext,
-                includeSkipReport: false,
+                includeSkipReport,
                 enableRandomnessScoring,
                 isCancellationRequested);
-            if (compiledRule.Rule.RequiredRules.Count != 0)
+            requiredRuleFindings?.AddRange(ruleFindings);
+            if (!compiledRule.Rule.SkipReport)
             {
-                ruleFindings = FilterRequiredFindings(
-                    ruleFindings,
-                    input,
-                    regexSourceInput,
-                    regexInput,
-                    originalInput,
-                    originalLineIndex,
-                    decodedInput,
-                    fileName,
-                    fileNameBytes,
-                    windowsFileNameBytes,
-                    ruleSet,
-                    ignoreGitleaksAllow,
-                    commit,
-                    maxTargetBytes,
-                    symlinkFile,
-                    blobIdentity,
-                    compiledRule,
-                    detectorContext,
-                    enableRandomnessScoring,
-                    isCancellationRequested);
+                findings.AddRange(ruleFindings);
             }
 
-            findings.AddRange(ruleFindings);
             if (IsCancellationRequested(isCancellationRequested))
             {
                 return;
@@ -501,96 +512,50 @@ public sealed class SecretScanner
         return findings;
     }
 
-    private static List<Finding> FilterRequiredFindings(
-        List<Finding> primaryFindings,
-        ReadOnlySpan<byte> input,
-        ReadOnlySpan<byte> regexSourceInput,
-        GitleaksRegexInput? regexInput,
-        ReadOnlySpan<byte> originalInput,
-        SourceLineIndex originalLineIndex,
-        DecodedInput? decodedInput,
-        string fileName,
-        ReadOnlySpan<byte> fileNameBytes,
-        ReadOnlySpan<byte> windowsFileNameBytes,
+    private static List<Finding> ResolveRequiredFindings(
+        List<Finding> findings,
         CompiledRuleSet ruleSet,
-        bool ignoreGitleaksAllow,
-        string commit,
-        long? maxTargetBytes,
-        string symlinkFile,
-        SourceBlobIdentity blobIdentity,
-        CompiledRule primaryRule,
-        NativeDetectorScanContext? detectorContext,
-        bool enableRandomnessScoring,
-        Func<bool>? isCancellationRequested)
+        Dictionary<string, List<Finding>>? requiredFindingsByRuleId)
     {
-        if (primaryFindings.Count == 0 || IsCancellationRequested(isCancellationRequested))
+        if (findings.Count == 0 || requiredFindingsByRuleId is null)
         {
-            return primaryFindings;
+            return findings;
         }
 
-        var requiredFindingsByRuleId = new Dictionary<string, List<Finding>>(StringComparer.Ordinal);
-        foreach (SecretRequiredRule requiredRule in primaryRule.Rule.RequiredRules)
+        var requiredRulesByRuleId =
+            new Dictionary<string, IReadOnlyList<SecretRequiredRule>>(StringComparer.Ordinal);
+        foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
         {
-            if (requiredFindingsByRuleId.ContainsKey(requiredRule.Id))
+            if (compiledRule.Rule.RequiredRules.Count != 0)
             {
+                requiredRulesByRuleId.TryAdd(
+                    compiledRule.Rule.Id,
+                    compiledRule.Rule.RequiredRules);
+            }
+        }
+
+        var resolvedFindings = new List<Finding>(findings.Count);
+        foreach (Finding finding in findings)
+        {
+            if (!requiredRulesByRuleId.TryGetValue(
+                finding.RuleID,
+                out IReadOnlyList<SecretRequiredRule>? requiredRules))
+            {
+                resolvedFindings.Add(finding);
                 continue;
             }
 
-            CompiledRule? compiledRequiredRule = FindCompiledRule(ruleSet, requiredRule.Id);
-            requiredFindingsByRuleId.Add(
-                requiredRule.Id,
-                compiledRequiredRule is null
-                    ? []
-                    : ScanCompiledRule(
-                        input,
-                        regexSourceInput,
-                        regexInput,
-                        originalInput,
-                        originalLineIndex,
-                        decodedInput,
-                        fileName,
-                        fileNameBytes,
-                        windowsFileNameBytes,
-                        GetGlobalAllowlists(ruleSet, compiledRequiredRule),
-                        ignoreGitleaksAllow,
-                        commit,
-                        maxTargetBytes,
-                        symlinkFile,
-                        blobIdentity,
-                        compiledRequiredRule,
-                        detectorContext,
-                        includeSkipReport: true,
-                        enableRandomnessScoring,
-                        isCancellationRequested));
-        }
-
-        var filteredFindings = new List<Finding>(primaryFindings.Count);
-        foreach (Finding primaryFinding in primaryFindings)
-        {
             if (TryCollectRequiredFindings(
-                primaryFinding,
-                primaryRule.Rule.RequiredRules,
+                finding,
+                requiredRules,
                 requiredFindingsByRuleId,
                 out List<RequiredFinding>? requiredFindings))
             {
-                filteredFindings.Add(primaryFinding.WithRequiredFindings(requiredFindings));
+                resolvedFindings.Add(finding.WithRequiredFindings(requiredFindings));
             }
         }
 
-        return filteredFindings;
-    }
-
-    private static CompiledRule? FindCompiledRule(CompiledRuleSet ruleSet, string ruleId)
-    {
-        foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
-        {
-            if (compiledRule.Rule.Id.Equals(ruleId, StringComparison.Ordinal))
-            {
-                return compiledRule;
-            }
-        }
-
-        return null;
+        return resolvedFindings;
     }
 
     private static bool TryCollectRequiredFindings(

@@ -779,6 +779,107 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that an original-pass finding can use required evidence exposed by decoding.
+    /// </summary>
+    [TestMethod]
+    public void ScanReportsCompositeFindingWithRequiredEvidenceFromDecodedPass()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("c2VjcmV0 dXNlcm5hbWU9ImFsaWNlIg==");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "primary-rule",
+                "Primary Rule",
+                "c2VjcmV0",
+                requiredRules: [new SecretRequiredRule("username-rule", withinColumns: 20)]),
+            SecretRule.Create(
+                "username-rule",
+                "Username Rule",
+                "username=\"([^\"]+)\"",
+                skipReport: true),
+        ]);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "secret.txt",
+            sourceRules,
+            maxDecodeDepth: 1));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("primary-rule", findings[0].RuleID);
+        Assert.AreEqual(1, findings[0].StartLine);
+        Assert.AreEqual(1, findings[0].StartColumn);
+        Assert.AreEqual("secret.txt:primary-rule:1", findings[0].Fingerprint);
+        Assert.IsEmpty(findings[0].DecodePath);
+        Assert.HasCount(1, findings[0].RequiredFindings);
+        Assert.AreEqual("username-rule", findings[0].RequiredFindings[0].RuleID);
+        Assert.AreEqual(1, findings[0].RequiredFindings[0].StartLine);
+        Assert.AreEqual("alice", findings[0].RequiredFindings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that required evidence can satisfy a composite finding after recursive decoding.
+    /// </summary>
+    [TestMethod]
+    public void ScanReportsCompositeFindingWithRequiredEvidenceFromRecursiveDecodedPass()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("c2VjcmV0 ZFhObGNtNWhiV1U5SW1Gc2FXTmxJZz09");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "primary-rule",
+                "Primary Rule",
+                "c2VjcmV0",
+                requiredRules: [new SecretRequiredRule("username-rule", withinColumns: 20)]),
+            SecretRule.Create(
+                "username-rule",
+                "Username Rule",
+                "username=\"([^\"]+)\"",
+                skipReport: true),
+        ]);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "secret.txt",
+            sourceRules,
+            maxDecodeDepth: 2));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("primary-rule", findings[0].RuleID);
+        Assert.HasCount(1, findings[0].RequiredFindings);
+        Assert.AreEqual("username-rule", findings[0].RequiredFindings[0].RuleID);
+        Assert.AreEqual(1, findings[0].RequiredFindings[0].StartLine);
+        Assert.AreEqual("alice", findings[0].RequiredFindings[0].Secret);
+    }
+
+    /// <summary>
+    /// Verifies that cross-pass required evidence uses its original source column for proximity.
+    /// </summary>
+    [TestMethod]
+    public void ScanSuppressesCrossPassRequiredEvidenceOutsideOriginalColumnProximity()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("c2VjcmV0 dXNlcm5hbWU9ImFsaWNlIg==");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "primary-rule",
+                "Primary Rule",
+                "c2VjcmV0",
+                requiredRules: [new SecretRequiredRule("username-rule", withinColumns: 8)]),
+            SecretRule.Create(
+                "username-rule",
+                "Username Rule",
+                "username=\"([^\"]+)\"",
+                skipReport: true),
+        ]);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(
+            input,
+            "secret.txt",
+            sourceRules,
+            maxDecodeDepth: 1));
+
+        Assert.IsEmpty(findings);
+    }
+
+    /// <summary>
     /// Verifies that required supporting rules honor line proximity.
     /// </summary>
     [TestMethod]
