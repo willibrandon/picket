@@ -3017,14 +3017,18 @@ public sealed class PicketTuiTests
         Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
         Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
             .WaitUntil(
-                _ => app?.FocusedNode is TextBoxNode,
+                s => app?.FocusedNode is TextBoxNode
+                    && s.ContainsText("Dashboard")
+                    && s.ContainsText("Logs"),
                 TimeSpan.FromSeconds(5),
-                "Logs search to receive focus")
+                "Logs view to render with search focus")
             .Key(Hex1bKey.Escape)
             .WaitUntil(
-                _ => app?.FocusedNode is EditorNode,
+                s => app?.FocusedNode is EditorNode
+                    && s.ContainsText("Dashboard")
+                    && s.ContainsText("Logs"),
                 TimeSpan.FromSeconds(5),
-                "Logs output to receive focus")
+                "Logs view to render with output focus")
             .Build()
             .ApplyAsync(terminal, TestContext.CancellationToken)
             .ConfigureAwait(false);
