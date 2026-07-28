@@ -141,6 +141,18 @@ internal sealed class PicketTuiProcessScanExecutor : IPicketTuiScanExecutor
     /// <returns>The absolute scanner path or the expected side-by-side path when no scanner is installed.</returns>
     internal static string ResolvePicketPath()
     {
+        return ResolvePicketPath(AppContext.BaseDirectory);
+    }
+
+    /// <summary>
+    /// Resolves the scanner relative to a specific TUI installation directory.
+    /// </summary>
+    /// <param name="installationDirectory">The directory containing the TUI executable.</param>
+    /// <returns>The absolute scanner path or the expected side-by-side path when no scanner is installed.</returns>
+    internal static string ResolvePicketPath(string installationDirectory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(installationDirectory);
+
         string executableName = OperatingSystem.IsWindows() ? "picket.exe" : "picket";
         string? configuredPath = Environment.GetEnvironmentVariable("PICKET_SCANNER");
         if (!string.IsNullOrWhiteSpace(configuredPath))
@@ -156,13 +168,13 @@ internal sealed class PicketTuiProcessScanExecutor : IPicketTuiScanExecutor
             }
         }
 
-        string besideTui = Path.Combine(AppContext.BaseDirectory, executableName);
+        string besideTui = Path.Combine(Path.GetFullPath(installationDirectory), executableName);
         if (File.Exists(besideTui))
         {
             return besideTui;
         }
 
-        if (TryFindCommandOnPath(executableName, out string resolvedPath))
+        if (TryFindCommandOnPath("picket", out string resolvedPath))
         {
             return resolvedPath;
         }
@@ -210,6 +222,13 @@ internal sealed class PicketTuiProcessScanExecutor : IPicketTuiScanExecutor
             if (!Path.IsPathFullyQualified(directory))
             {
                 continue;
+            }
+
+            string exactCandidate = Path.Combine(directory, command);
+            if (File.Exists(exactCandidate))
+            {
+                resolvedPath = Path.GetFullPath(exactCandidate);
+                return true;
             }
 
             for (int j = 0; j < extensions.Length; j++)
