@@ -209,6 +209,25 @@ Primary format and provider references reviewed for this work:
 - npmrc configuration: `https://docs.npmjs.com/cli/v11/configuring-npm/npmrc`
 - SARIF 2.1.0 `columnKind`: `https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#def_columnKind`
 
+### OpenAI API-Key Identity Review
+
+The native OpenAI API-key rule was split on 2026-07-27 into legacy, project,
+project service-account, and organization-admin identities. The accepted token
+language is unchanged because OpenAI does not publish a normative secret alphabet
+or length. The split reflects documented privilege and management boundaries:
+
+- project keys and project service accounts:
+  `https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects`
+- user-owned API-key permissions:
+  `https://help.openai.com/en/articles/8867743-assign-api-key-permissions`
+- organization admin keys:
+  `https://help.openai.com/en/articles/9687866-admin-and-audit-logs-api-for-the-api-platform`
+
+The former `picket-openai-api-key` identity remains the canonical v1 fingerprint
+input for all four families. Existing native baselines with that rule ID also
+match the corresponding family-specific finding. This migration behavior does
+not alter the pinned Gitleaks `openai-api-key` rule.
+
 ## Native Provider Format Review
 
 Provider-prefixed native coverage was reviewed on 2026-07-27. New rules require

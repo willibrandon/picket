@@ -30,6 +30,48 @@ public sealed class GitleaksBaselineTests
     }
 
     /// <summary>
+    /// Verifies that a baseline written before the OpenAI rule split suppresses each migrated family.
+    /// </summary>
+    /// <param name="ruleId">The privilege-specific OpenAI rule identifier.</param>
+    /// <param name="description">The privilege-specific OpenAI rule description.</param>
+    [TestMethod]
+    [DataRow("picket-openai-admin-api-key", "Detected an OpenAI organization admin API key.")]
+    [DataRow("picket-openai-legacy-api-key", "Detected a legacy OpenAI API key.")]
+    [DataRow("picket-openai-project-api-key", "Detected an OpenAI project API key.")]
+    [DataRow("picket-openai-service-account-api-key", "Detected an OpenAI project service-account API key.")]
+    public void FilterSuppressesMigratedOpenAiApiKeyFamily(string ruleId, string description)
+    {
+        Finding finding = CreateFinding(ruleId: ruleId, description: description);
+        Finding baselineFinding = CreateFinding(
+            ruleId: "picket-openai-api-key",
+            description: "Detected an OpenAI API key.");
+        var baseline = new GitleaksBaseline([baselineFinding]);
+
+        IReadOnlyList<Finding> filtered = baseline.Filter([finding]);
+
+        Assert.IsEmpty(filtered);
+    }
+
+    /// <summary>
+    /// Verifies that privilege-specific OpenAI rule identities do not suppress one another.
+    /// </summary>
+    [TestMethod]
+    public void FilterKeepsDifferentOpenAiApiKeyFamilies()
+    {
+        Finding finding = CreateFinding(
+            ruleId: "picket-openai-admin-api-key",
+            description: "Detected an OpenAI organization admin API key.");
+        Finding baselineFinding = CreateFinding(
+            ruleId: "picket-openai-project-api-key",
+            description: "Detected an OpenAI project API key.");
+        var baseline = new GitleaksBaseline([baselineFinding]);
+
+        IReadOnlyList<Finding> filtered = baseline.Filter([finding]);
+
+        Assert.HasCount(1, filtered);
+    }
+
+    /// <summary>
     /// Verifies that unredacted baseline suppression compares the match and secret fields.
     /// </summary>
     [TestMethod]
@@ -261,11 +303,13 @@ public sealed class GitleaksBaselineTests
         string matchSha256 = "",
         string fingerprint = "fingerprint",
         IReadOnlyList<string>? tags = null,
-        double entropy = 3.25)
+        double entropy = 3.25,
+        string ruleId = "rule",
+        string description = "description")
     {
         return new Finding(
-            "rule",
-            "description",
+            ruleId,
+            description,
             1,
             1,
             2,

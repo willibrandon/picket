@@ -11,6 +11,7 @@ public static class StableFindingFingerprint
     private const string Prefix = "picket:v1:";
     private const string Version = "picket.finding.fingerprint.v1";
     private const string LowerHex = "0123456789abcdef";
+    private const string LegacyOpenAiApiKeyRuleId = "picket-openai-api-key";
 
     /// <summary>
     /// Creates a versioned stable fingerprint for a finding.
@@ -29,18 +30,29 @@ public static class StableFindingFingerprint
         string locationPath = NormalizeLocationPath(finding.SymlinkFile.Length == 0 ? finding.File : finding.SymlinkFile);
         string secretHash = CreateSecretOrMatchHash(finding);
         string decodePath = string.Join('\0', finding.DecodePath);
+        string ruleId = GetFingerprintRuleId(finding.RuleID);
         string material = string.Concat(
             Version,
             "\0",
             locationPath,
             "\0",
-            finding.RuleID,
+            ruleId,
             "\0",
             secretHash,
             "\0",
             decodePath);
 
         return string.Concat(Prefix, CreateSha256(material));
+    }
+
+    private static string GetFingerprintRuleId(string ruleId)
+    {
+        return ruleId is "picket-openai-admin-api-key"
+            or "picket-openai-legacy-api-key"
+            or "picket-openai-project-api-key"
+            or "picket-openai-service-account-api-key"
+            ? LegacyOpenAiApiKeyRuleId
+            : ruleId;
     }
 
     private static bool IsValid(string fingerprint)

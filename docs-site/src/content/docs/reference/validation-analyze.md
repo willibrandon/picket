@@ -195,10 +195,31 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
-      <code>offline:openai-api-key</code><span>Offline structural validation</span>
+      <code>offline:openai-admin-api-key</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
-    <p class="reference-summary-detail">picket-openai-api-key</p>
+    <p class="reference-summary-detail">picket-openai-admin-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:openai-legacy-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-openai-legacy-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:openai-project-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-openai-project-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>offline:openai-service-account-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>OpenAI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-openai-service-account-api-key</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -288,7 +309,7 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 
 | Severity | Confidence | Rules | Providers |
 |---|---|---:|---|
-| `critical` | `high` | 40 | AWS, Anthropic, Azure, Buildkite, Database, Docker, GCP, GitHub, Groq, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI |
+| `critical` | `high` | 43 | AWS, Anthropic, Azure, Buildkite, Database, Docker, GCP, GitHub, Groq, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI |
 | `critical` | `low` | 1 | HTTP |
 | `critical` | `medium` | 3 | Azure, Database, HTTP |
 | `high` | `low` | 1 | HTTP |

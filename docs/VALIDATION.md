@@ -38,13 +38,14 @@ Current offline coverage includes:
 - GCP API key prefix, length, and alphabet checks.
 - GCP service account key JSON structure, project ID, private key ID, private-key envelope, service account email, and token URI checks.
 - GitHub classic, OAuth, refresh, app, stateless app installation, and fine-grained token shape checks.
-- Groq, OpenAI, and xAI API key prefix, length, and alphabet checks.
+- Groq and xAI API key prefix, length, and alphabet checks.
 - private JWK parameter checks within complete RSA, EC, or OKP key objects.
 - JWT and Base64-wrapped JWT segment, header, payload, algorithm, and signature-shape checks.
 - Kubernetes Secret values selected from bounded YAML structure without alias expansion.
 - LangSmith personal and service key prefix, segmented length, and hexadecimal alphabet checks.
 - credential-bearing MCP server environment values selected from `mcpServers.<server>.env`, excluding environment-variable references.
 - NVIDIA, OpenRouter, Replicate, and Tailscale credential prefix, length, and alphabet checks.
+- OpenAI legacy, project, project service-account, and organization-admin API key family checks.
 - npm token and decoded basic credential checks from bounded npmrc assignments, excluding interpolation.
 - private-key envelope checks.
 - Sourcegraph `sgp_` access token shape checks.

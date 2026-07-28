@@ -14,6 +14,8 @@ public sealed class GitleaksBaseline(
     IReadOnlyList<Finding> findings,
     GitleaksBaselineComparisonMode comparisonMode = GitleaksBaselineComparisonMode.Exact)
 {
+    private const string LegacyOpenAiApiKeyDescription = "Detected an OpenAI API key.";
+    private const string LegacyOpenAiApiKeyRuleId = "picket-openai-api-key";
     private const string LowerHex = "0123456789abcdef";
 
     private readonly IReadOnlyList<Finding> _findings = findings ?? throw new ArgumentNullException(nameof(findings));
@@ -250,8 +252,7 @@ public sealed class GitleaksBaseline(
         bool portableEvidenceMatches = comparisonMode == GitleaksBaselineComparisonMode.PortableLineEndings
             && HasMatchingPortableEvidence(finding, baselineFinding);
 
-        return finding.RuleID == baselineFinding.RuleID
-            && finding.Description == baselineFinding.Description
+        return HasMatchingRuleIdentity(finding, baselineFinding)
             && finding.StartLine == baselineFinding.StartLine
             && finding.EndLine == baselineFinding.EndLine
             && finding.StartColumn == baselineFinding.StartColumn
@@ -264,6 +265,26 @@ public sealed class GitleaksBaseline(
             && finding.Date == baselineFinding.Date
             && finding.Message == baselineFinding.Message
             && (finding.Entropy == baselineFinding.Entropy || portableEvidenceMatches);
+    }
+
+    private static bool HasMatchingRuleIdentity(Finding finding, Finding baselineFinding)
+    {
+        if (finding.RuleID == baselineFinding.RuleID)
+        {
+            return finding.Description == baselineFinding.Description;
+        }
+
+        if (baselineFinding.RuleID != LegacyOpenAiApiKeyRuleId
+            || baselineFinding.Description != LegacyOpenAiApiKeyDescription)
+        {
+            return false;
+        }
+
+        return (finding.RuleID, finding.Description) is
+            ("picket-openai-admin-api-key", "Detected an OpenAI organization admin API key.")
+            or ("picket-openai-legacy-api-key", "Detected a legacy OpenAI API key.")
+            or ("picket-openai-project-api-key", "Detected an OpenAI project API key.")
+            or ("picket-openai-service-account-api-key", "Detected an OpenAI project service-account API key.");
     }
 
     private static bool HasMatchingEvidence(Finding finding, Finding baselineFinding)

@@ -126,7 +126,15 @@ internal static class EmbeddedPicketConfig
         string npmPassword = Convert.ToBase64String("picket-password"u8);
         string npmToken = CreateExample("npm_", CreateExampleBody(36));
         string nvidiaApiKey = CreateExample("nvapi-", CreateExampleBody(64));
-        string openAiApiKey = CreateExample("sk-proj-", CreateExampleBody(96));
+        string openAiAdminApiKey = CreateExample("sk-admin-", CreateExampleBody(96));
+        string openAiLegacyApiKey = CreateExample(
+            "sk-",
+            CreateAlphaNumericExampleBody(20),
+            "T3BlbkFJ",
+            CreateAlphaNumericExampleBody(20));
+        string openAiLegacyNegativeExample = string.Concat("sk-", "T3Bl", "bkFJ", "-too-short");
+        string openAiProjectApiKey = CreateExample("sk-proj-", CreateExampleBody(96));
+        string openAiServiceAccountApiKey = CreateExample("sk-svcacct-", CreateExampleBody(96));
         string openRouterApiKey = CreateExample("sk-or-v1-", CreateLowerHexExampleBody(64));
         string replicateApiToken = CreateExample("r8_", CreateAlphaNumericExampleBody(37));
         string tailscaleApiKey = CreateExample("tskey-api-", CreateExampleBody(32));
@@ -508,20 +516,68 @@ examples = ["XAI_API_KEY={{xAiApiKey}}"]
 negativeExamples = ["XAI_API_KEY=xai-too-short"]
 
 [[rules]]
-id = "picket-openai-api-key"
-description = "Detected an OpenAI API key."
-regex = '''\b(sk-(?:(?:proj|svcacct|admin)-[A-Za-z0-9_-]{40,512}|[A-Za-z0-9]{20,48}T3BlbkFJ[A-Za-z0-9]{20,48}))(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+id = "picket-openai-legacy-api-key"
+description = "Detected a legacy OpenAI API key."
+regex = '''\b(sk-[A-Za-z0-9]{20,48}T3BlbkFJ[A-Za-z0-9]{20,48})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
 secretGroup = 1
-keywords = ["sk-proj-", "sk-svcacct-", "sk-admin-", "T3BlbkFJ"]
-tags = ["picket", "openai", "chatgpt", "api-key"]
+keywords = ["T3BlbkFJ"]
+tags = ["picket", "openai", "api-key", "legacy"]
 severity = "critical"
 confidence = "high"
 rulePack = "picket-default"
 provider = "OpenAI"
 documentationUrl = "https://platform.openai.com/docs/api-reference/authentication"
-validation = ["offline:openai-api-key"]
-examples = ["OPENAI_API_KEY={{openAiApiKey}}"]
+validation = ["offline:openai-legacy-api-key"]
+examples = ["OPENAI_API_KEY={{openAiLegacyApiKey}}"]
+negativeExamples = ["OPENAI_API_KEY={{openAiLegacyNegativeExample}}"]
+
+[[rules]]
+id = "picket-openai-project-api-key"
+description = "Detected an OpenAI project API key."
+regex = '''\b(sk-proj-[A-Za-z0-9_-]{40,512})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["sk-proj-"]
+tags = ["picket", "openai", "api-key", "project"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "OpenAI"
+documentationUrl = "https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects"
+validation = ["offline:openai-project-api-key"]
+examples = ["OPENAI_API_KEY={{openAiProjectApiKey}}"]
 negativeExamples = ["OPENAI_API_KEY=sk-proj-placeholder"]
+
+[[rules]]
+id = "picket-openai-service-account-api-key"
+description = "Detected an OpenAI project service-account API key."
+regex = '''\b(sk-svcacct-[A-Za-z0-9_-]{40,512})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["sk-svcacct-"]
+tags = ["picket", "openai", "api-key", "project", "service-account"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "OpenAI"
+documentationUrl = "https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects"
+validation = ["offline:openai-service-account-api-key"]
+examples = ["OPENAI_API_KEY={{openAiServiceAccountApiKey}}"]
+negativeExamples = ["OPENAI_API_KEY=sk-svcacct-placeholder"]
+
+[[rules]]
+id = "picket-openai-admin-api-key"
+description = "Detected an OpenAI organization admin API key."
+regex = '''\b(sk-admin-[A-Za-z0-9_-]{40,512})(?:[\x60'"\s;,&?#]|\\[nr]|$)'''
+secretGroup = 1
+keywords = ["sk-admin-"]
+tags = ["picket", "openai", "admin", "api-key", "organization"]
+severity = "critical"
+confidence = "high"
+rulePack = "picket-default"
+provider = "OpenAI"
+documentationUrl = "https://help.openai.com/en/articles/9687866-admin-and-audit-logs-api-for-the-api-platform"
+validation = ["offline:openai-admin-api-key"]
+examples = ["OPENAI_ADMIN_KEY={{openAiAdminApiKey}}"]
+negativeExamples = ["OPENAI_ADMIN_KEY=sk-admin-placeholder"]
 
 [[rules]]
 id = "picket-openai-codex-access-token"

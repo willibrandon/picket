@@ -12,6 +12,14 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class NativeProviderRuleTests
 {
+    private static readonly string[] s_openAiApiKeyRuleIds =
+    [
+        "picket-openai-admin-api-key",
+        "picket-openai-legacy-api-key",
+        "picket-openai-project-api-key",
+        "picket-openai-service-account-api-key",
+    ];
+
     /// <summary>
     /// Verifies that every modern provider rule accepts its positive examples and rejects its negative examples.
     /// </summary>
@@ -34,9 +42,12 @@ public sealed class NativeProviderRuleTests
     [DataRow("picket-npm-auth-token")]
     [DataRow("picket-npm-basic-auth")]
     [DataRow("picket-nvidia-api-key")]
-    [DataRow("picket-openai-api-key")]
+    [DataRow("picket-openai-admin-api-key")]
     [DataRow("picket-openai-codex-access-token")]
     [DataRow("picket-openai-codex-refresh-token")]
+    [DataRow("picket-openai-legacy-api-key")]
+    [DataRow("picket-openai-project-api-key")]
+    [DataRow("picket-openai-service-account-api-key")]
     [DataRow("picket-openrouter-api-key")]
     [DataRow("picket-replicate-api-token")]
     [DataRow("picket-tailscale-api-key")]
@@ -71,6 +82,24 @@ public sealed class NativeProviderRuleTests
                 finding => finding.RuleID.Equals(ruleId, StringComparison.Ordinal),
                 findings,
                 $"Negative example {i + 1} matched {ruleId}.");
+        }
+    }
+
+    /// <summary>
+    /// Verifies that each OpenAI API-key example maps to exactly one privilege-specific native rule.
+    /// </summary>
+    [TestMethod]
+    public void OpenAiApiKeyFamiliesAreMutuallyExclusive()
+    {
+        List<SecretRule> rules = [.. s_openAiApiKeyRuleIds.Select(GetNativeRule)];
+        var ruleSet = new RuleSet(rules);
+
+        for (int i = 0; i < rules.Count; i++)
+        {
+            IReadOnlyList<Finding> findings = Scan(ruleSet, rules[i].Examples[0]);
+
+            Assert.HasCount(1, findings, rules[i].Id);
+            Assert.AreEqual(rules[i].Id, findings[0].RuleID);
         }
     }
 
@@ -132,10 +161,15 @@ public sealed class NativeProviderRuleTests
 
     private static IReadOnlyList<Finding> Scan(SecretRule rule, string input)
     {
+        return Scan(new RuleSet([rule]), input);
+    }
+
+    private static IReadOnlyList<Finding> Scan(RuleSet rules, string input)
+    {
         return SecretScanner.Scan(new ScanRequest(
             Encoding.UTF8.GetBytes(input),
             "fixture.txt",
-            new RuleSet([rule]),
+            rules,
             maxDecodeDepth: 0)
         {
             EnableNativeDetectors = true,

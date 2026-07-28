@@ -104,9 +104,21 @@ public static class OfflineSecretValidator
                 "nvapi-",
                 60,
                 70),
-            "picket-openai-api-key" => ValidateOpenAiApiKey(secret),
+            "picket-openai-admin-api-key" => ValidateOpenAiPrefixedApiKey(
+                secret,
+                "OpenAI organization admin API key",
+                "sk-admin-"),
             "picket-openai-codex-access-token" => ValidateOpaqueJwt(secret, "Codex access token"),
             "picket-openai-codex-refresh-token" => ValidateCodexRefreshToken(secret),
+            "picket-openai-legacy-api-key" => ValidateOpenAiLegacyApiKey(secret),
+            "picket-openai-project-api-key" => ValidateOpenAiPrefixedApiKey(
+                secret,
+                "OpenAI project API key",
+                "sk-proj-"),
+            "picket-openai-service-account-api-key" => ValidateOpenAiPrefixedApiKey(
+                secret,
+                "OpenAI project service-account API key",
+                "sk-svcacct-"),
             "picket-openrouter-api-key" => ValidateLowerHexCredential(
                 secret,
                 "OpenRouter API key",
@@ -623,44 +635,54 @@ public static class OfflineSecretValidator
         return StructurallyValid("valid npm password shape");
     }
 
-    private static SecretValidationResult ValidateOpenAiApiKey(string secret)
+    private static SecretValidationResult ValidateOpenAiLegacyApiKey(string secret)
     {
-        int prefixLength = secret.StartsWith("sk-proj-", StringComparison.Ordinal)
-            ? "sk-proj-".Length
-            : secret.StartsWith("sk-svcacct-", StringComparison.Ordinal)
-                ? "sk-svcacct-".Length
-                : secret.StartsWith("sk-admin-", StringComparison.Ordinal)
-                    ? "sk-admin-".Length
-                    : 0;
-        if (prefixLength != 0)
+        const string Marker = "T3BlbkFJ";
+        const string Prefix = "sk-";
+        if (!secret.StartsWith(Prefix, StringComparison.Ordinal))
         {
-            int bodyLength = secret.Length - prefixLength;
-            if (bodyLength is < 40 or > 512)
-            {
-                return Invalid("invalid OpenAI API key length");
-            }
-
-            for (int i = prefixLength; i < secret.Length; i++)
-            {
-                if (!IsBase64UrlCharacter(secret[i]))
-                {
-                    return Invalid("invalid OpenAI API key alphabet");
-                }
-            }
-
-            return StructurallyValid("valid OpenAI API key shape");
+            return Invalid("invalid legacy OpenAI API key prefix");
         }
 
-        if (!secret.StartsWith("sk-", StringComparison.Ordinal)
-            || !secret.Contains("T3BlbkFJ", StringComparison.Ordinal)
-            || secret.Length is < 51 or > 107)
+        int markerIndex = secret.IndexOf(Marker, Prefix.Length, StringComparison.Ordinal);
+        if (markerIndex < 0)
         {
-            return Invalid("invalid OpenAI API key shape");
+            return Invalid("invalid legacy OpenAI API key shape");
         }
 
-        return HasAsciiAlphaNumericSuffix(secret, 3)
-            ? StructurallyValid("valid OpenAI API key shape")
-            : Invalid("invalid OpenAI API key alphabet");
+        int leftLength = markerIndex - Prefix.Length;
+        int rightLength = secret.Length - markerIndex - Marker.Length;
+        if (leftLength is < 20 or > 48
+            || rightLength is < 20 or > 48)
+        {
+            return Invalid("invalid legacy OpenAI API key shape");
+        }
+
+        for (int i = Prefix.Length; i < markerIndex; i++)
+        {
+            if (!IsAsciiAlphaNumeric(secret[i]))
+            {
+                return Invalid("invalid legacy OpenAI API key alphabet");
+            }
+        }
+
+        for (int i = markerIndex + Marker.Length; i < secret.Length; i++)
+        {
+            if (!IsAsciiAlphaNumeric(secret[i]))
+            {
+                return Invalid("invalid legacy OpenAI API key alphabet");
+            }
+        }
+
+        return StructurallyValid("valid legacy OpenAI API key shape");
+    }
+
+    private static SecretValidationResult ValidateOpenAiPrefixedApiKey(
+        string secret,
+        string credentialName,
+        string prefix)
+    {
+        return ValidateBase64UrlCredential(secret, credentialName, prefix, 40, 512);
     }
 
     private static SecretValidationResult ValidateOpaqueJwt(string secret, string credentialName)
