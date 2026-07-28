@@ -629,6 +629,13 @@ Native profiles combine:
 
 `p(random)` is implemented by the versioned `picket-random-v1` logistic model described in [Randomness Scoring](randomness.md). Its deterministic synthetic corpus, independent holdout metrics, fixed coefficients, six-decimal quantization, stable thresholds, and reproduction command are committed with the scanner. Native rules opt into suppression with an explicit `randomnessThreshold`; rules without one receive explainable report metadata without losing findings. Strict Gitleaks compatibility never runs or applies this model.
 
+Cl100k BPE token density and mean token rank remain evaluation-only. The
+committed [BPE randomness evaluation](bpe-evaluation.md) found no detection
+lift, a likely-structured recall regression, and material runtime, memory,
+startup, and Native AOT size costs. Tokenizer packages are not part of the
+shipping dependency graph. A future candidate must clear the predeclared
+holdout quality gate before distribution cost is considered.
+
 ### 8.4 Verification
 
 Picket supports two classes of validation.

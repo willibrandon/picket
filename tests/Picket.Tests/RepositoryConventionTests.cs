@@ -2200,7 +2200,7 @@ public sealed partial class RepositoryConventionTests
     {
         string root = FindRepositoryRoot();
         string[] scripts = [.. EnumerateFileBasedAppFiles(root).Order(StringComparer.Ordinal)];
-        Assert.HasCount(14, scripts);
+        Assert.HasCount(16, scripts);
 
         foreach (string scriptPath in scripts)
         {
@@ -2492,6 +2492,74 @@ public sealed partial class RepositoryConventionTests
         finally
         {
             s_fileBasedAppBuildLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Verifies the reproducible BPE evaluation matches the reviewed rejection decision.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    [Timeout(300000, CooperativeCancellation = true)]
+    public async Task BpeRandomnessEvaluationMatchesReviewedDecision()
+    {
+        const string ScriptPath = "scripts/Evaluate-BpeRandomness.cs";
+        await BuildFileBasedAppAsync(ScriptPath).ConfigureAwait(false);
+        await s_fileBasedAppBuildLock.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        try
+        {
+            using Process process = CreateFileBasedAppProcess(ScriptPath, noBuild: true);
+            process.StartInfo.ArgumentList.Add("--verify");
+
+            Assert.IsTrue(process.Start(), "Could not start BPE randomness evaluation.");
+            (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(
+                process,
+                TestContext.CancellationToken).ConfigureAwait(false);
+
+            Assert.AreEqual(0, process.ExitCode, string.Concat(stdout, stderr));
+            Assert.Contains("baseline", stdout);
+            Assert.Contains("  likely-structured recall: 0.906250", stdout);
+            Assert.Contains("candidate", stdout);
+            Assert.Contains("  likely-structured recall: 0.875000", stdout);
+            Assert.Contains("decision: reject", stdout);
+
+            using Process invalidProcess = CreateFileBasedAppProcess(ScriptPath, noBuild: true);
+            invalidProcess.StartInfo.ArgumentList.Add("--unknown");
+            Assert.IsTrue(invalidProcess.Start(), "Could not start BPE randomness evaluation with invalid arguments.");
+            (string invalidStdout, string invalidStderr) = await WaitForExitAndReadOutputAsync(
+                invalidProcess,
+                TestContext.CancellationToken).ConfigureAwait(false);
+
+            Assert.AreEqual(2, invalidProcess.ExitCode, invalidStdout);
+            Assert.Contains("usage:", invalidStderr);
+        }
+        finally
+        {
+            s_fileBasedAppBuildLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that BPE evaluation dependencies do not enter the shipping dependency graph.
+    /// </summary>
+    [TestMethod]
+    public void BpeEvaluationDependenciesRemainScriptOnly()
+    {
+        string root = FindRepositoryRoot();
+        string centralPackages = ReadRepositoryFile("Directory.Packages.props");
+        string evaluation = ReadRepositoryFile("scripts/Evaluate-BpeRandomness.cs");
+
+        Assert.DoesNotContain("Microsoft.ML.Tokenizers", centralPackages);
+        Assert.Contains("#:package Microsoft.ML.Tokenizers.Data.Cl100kBase@2.0.0", evaluation);
+        foreach (string projectPath in Directory.EnumerateFiles(
+            Path.Combine(root, "src"),
+            "*.csproj",
+            SearchOption.AllDirectories))
+        {
+            Assert.DoesNotContain(
+                "Microsoft.ML.Tokenizers",
+                File.ReadAllText(projectPath),
+                Path.GetRelativePath(root, projectPath));
         }
     }
 
