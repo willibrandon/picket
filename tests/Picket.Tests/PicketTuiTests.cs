@@ -906,8 +906,9 @@ public sealed class PicketTuiTests
         scan.SetTargetModeByCategoryIndex(5);
 
         Assert.AreEqual(PicketTuiScanTargetMode.BitbucketDataCenter, scan.TargetMode);
-        Assert.HasCount(6, scan.ActiveTargetModeLabels);
+        Assert.HasCount(7, scan.ActiveTargetModeLabels);
         Assert.Contains("Bitbucket Data Center", scan.ActiveTargetModeLabels);
+        Assert.Contains("Hugging Face", scan.ActiveTargetModeLabels);
     }
 
     /// <summary>
@@ -1449,6 +1450,95 @@ public sealed class PicketTuiTests
         scan.SetGitHubTokenEnvironmentVariable("PICKET_GITHUB_SECRET_SCANNING_PAT");
 
         Assert.AreEqual("Ready to scan", scan.Status);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Hugging Face repository arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsHuggingFaceRepositoryArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.HuggingFace);
+        scan.SetHuggingFaceResourceKindByIndex((int)PicketTuiHuggingFaceResourceKind.Dataset);
+        scan.SetHuggingFaceResourceId("owner/dataset");
+        scan.SetHuggingFaceRevision("main");
+        scan.SetHuggingFaceTokenEnvironmentVariable("HF_TOKEN");
+        scan.SetHuggingFaceEndpoint("https://huggingface.example");
+        scan.SetIncludeHuggingFaceDiscussions(true);
+        scan.SetAllowNonPublicSourceEndpoints(true);
+        scan.SetAllowInsecureSourceEndpoints(true);
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--huggingface-dataset", arguments);
+        Assert.Contains("owner/dataset", arguments);
+        Assert.Contains("--huggingface-ref", arguments);
+        Assert.Contains("main", arguments);
+        Assert.Contains("--huggingface-token-env", arguments);
+        Assert.Contains("HF_TOKEN", arguments);
+        Assert.Contains("--huggingface-endpoint", arguments);
+        Assert.Contains("https://huggingface.example", arguments);
+        Assert.Contains("--huggingface-include-discussions", arguments);
+        Assert.Contains("--allow-non-public-source-endpoints", arguments);
+        Assert.Contains("--allow-insecure-source-endpoints", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace builds Hugging Face bucket arguments.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceBuildsHuggingFaceBucketArguments()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.HuggingFace);
+        scan.SetHuggingFaceResourceKindByIndex((int)PicketTuiHuggingFaceResourceKind.Bucket);
+        scan.SetHuggingFaceResourceId("owner/bucket");
+        scan.SetHuggingFaceBucketPrefix("models/");
+        scan.SetHuggingFaceTokenEnvironmentVariable("HF_TOKEN");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsTrue(built, error);
+        Assert.Contains("--huggingface-bucket", arguments);
+        Assert.Contains("owner/bucket", arguments);
+        Assert.Contains("--huggingface-bucket-prefix", arguments);
+        Assert.Contains("models/", arguments);
+        Assert.DoesNotContain("--huggingface-ref", arguments);
+        Assert.DoesNotContain("--huggingface-pull-request", arguments);
+        Assert.DoesNotContain("--huggingface-include-discussions", arguments);
+    }
+
+    /// <summary>
+    /// Verifies that changing Hugging Face resource kinds clears settings that no longer apply.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceClearsHuggingFaceSettingsWhenResourceKindChanges()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+
+        scan.SetTargetMode((int)PicketTuiScanTargetMode.HuggingFace);
+        scan.SetHuggingFaceResourceId("owner/bucket");
+        scan.SetHuggingFaceTokenEnvironmentVariable("HF_TOKEN");
+        scan.SetHuggingFaceRevision("main");
+        scan.SetHuggingFacePullRequest("7");
+        scan.SetIncludeHuggingFaceDiscussions(true);
+        scan.SetHuggingFaceResourceKindByIndex((int)PicketTuiHuggingFaceResourceKind.Bucket);
+
+        Assert.IsEmpty(scan.HuggingFaceRevision);
+        Assert.IsEmpty(scan.HuggingFacePullRequest);
+        Assert.IsFalse(scan.IncludeHuggingFaceDiscussions);
+
+        scan.SetHuggingFaceBucketPrefix("models/");
+        scan.SetHuggingFaceResourceKindByIndex((int)PicketTuiHuggingFaceResourceKind.Model);
+
+        Assert.IsEmpty(scan.HuggingFaceBucketPrefix);
     }
 
     /// <summary>
@@ -3478,6 +3568,46 @@ public sealed class PicketTuiTests
         Assert.Contains("sources", PicketTuiScanWorkspace.GitHubRepositoryTypes);
         Assert.Contains("owner", PicketTuiScanWorkspace.GitHubRepositoryTypes);
         Assert.Contains("member", PicketTuiScanWorkspace.GitHubRepositoryTypes);
+    }
+
+    /// <summary>
+    /// Verifies that Hugging Face source controls expose resource, revision, discussion, and endpoint settings.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleRendersHuggingFaceSourceControls()
+    {
+        PicketTuiState state = CreateState();
+        state.SetView(PicketTuiView.Scan);
+        state.ScanWorkspace.SetTargetMode((int)PicketTuiScanTargetMode.HuggingFace);
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 140, height: 38);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(s => s.ContainsText("Discussions"), TimeSpan.FromSeconds(5), "Hugging Face controls to render")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("Hugging Face", screenText);
+        Assert.Contains("Resource", screenText);
+        Assert.Contains("Model", screenText);
+        Assert.Contains("Token env", screenText);
+        Assert.Contains("Revision", screenText);
+        Assert.Contains("Pull request", screenText);
+        Assert.Contains("Discussions", screenText);
+        Assert.Contains("Non-public", screenText);
+        Assert.Contains("HTTP", screenText);
     }
 
     /// <summary>

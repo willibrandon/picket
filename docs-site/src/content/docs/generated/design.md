@@ -736,6 +736,7 @@ Native source support:
 - archives,
 - GitHub repos, orgs, users, PRs, issues, gists, releases, and Actions artifacts,
 - GitLab groups/projects/MRs/snippets/artifacts,
+- Hugging Face models, datasets, Spaces, storage buckets, discussions, and pull requests,
 - Gitea repositories,
 - Bitbucket Cloud and Bitbucket Data Center repositories,
 - Azure DevOps Services and Azure DevOps Server sources, including Azure Repos Git repositories, projects, organizations, pull requests, wiki repositories, build artifacts, pipeline logs, release artifacts, and Azure Artifacts NuGet packages where APIs expose them safely,
@@ -1091,6 +1092,14 @@ GitHub source safety rules:
 
 GitHub credentials use least-privilege read scopes. Repository enumeration requires Metadata Read plus Contents Read. Hosted GitHub Secret Protection oracle capture requires Secret scanning alerts Read plus Metadata Read. Write, administration, workflow, security-event upload, and secret write scopes are not part of the scanner test contract.
 
+Hugging Face source support is native Picket behavior, not Gitleaks compatibility behavior.
+
+Models, datasets, and Spaces are selected independently and resolve `main` or `--huggingface-ref` to an immutable commit SHA before recursive tree enumeration and file download. `--huggingface-pull-request` uses the provider's `refs/pr/<number>` revision and scans the selected pull request metadata and comments as synthetic Markdown. `--huggingface-include-discussions` adds repository discussion text and comments. Storage buckets are selected through `--huggingface-bucket`, may be narrowed with `--huggingface-bucket-prefix`, and use returned Xet content hashes as object identities because buckets are mutable and non-versioned.
+
+Hugging Face metadata is capped at 10 decimal MB. Tree and discussion pagination stop at 1,000 pages. File bodies use the 100 decimal MB remote default or a positive `--max-target-megabytes` override, enforced during streaming. Archives use the native archive depth, entry, decompressed-byte, compression-ratio, and per-target limits. Endpoint checks run before the first request and at connection time. HTTPS is required by default. Automatic and multi-hop redirects are rejected; one allowed HTTPS file redirect may be followed without forwarding the bearer token. Pagination links stay on the configured endpoint, while public Hub downloads may use Hugging Face content hosts and custom endpoints may use only their host or subdomains.
+
+Hugging Face credentials are read from the environment variable named by `--huggingface-token-env` and sent only in the `Authorization` header. Read-only or resource-scoped fine-grained tokens are sufficient for selected public, private, or gated resources. Write and administration permissions are not required.
+
 Azure DevOps source support is native Picket behavior, not Gitleaks compatibility behavior. Pipeline task defaults scan the job's checked-out workspace unless the user explicitly opts into remote enumeration.
 
 Supported Azure DevOps scopes are project- and organization-scoped Azure Repos, branch and pull-request source heads including returned fork repositories, wiki backing repositories, build artifacts, build logs, classic release build artifacts, and Azure Artifacts NuGet packages. Package scanning is explicit through `--azure-devops-include-packages`; optional feed, package, and version selectors narrow the scan, and the latest package version is used when no version is selected. Other Azure Artifacts protocols remain separate until their documented transfer mechanisms can satisfy the same bounded-download and credential rules.
@@ -1125,7 +1134,7 @@ Native reports include stable rule metadata, redacted and hashed secret represen
 
 The full-screen console is an operator interface, not a marketing screen. Dashboard is the leftmost tab and the default initial view for empty launches, restored scans, and explicit reports. `-t, --tab <1-6>` selects the initial Dashboard, Scan, Findings, Rules, Files, or Logs tab by one-based position. Dashboard presents the current report summary, severity and validation counts, scan timing and status, and top-rule and top-file tables. Run scan remains available in the header and through `Ctrl+R`. The Scan page is for setting up and running a scan: target inputs, command preview, status, exit code, scan timing, report path, result count summary, and an output-availability signal. The Logs page owns captured scanner output and semantically distinguishes errors, warnings, and active search matches. The Findings page owns row triage: filtering, selected-row focus, severity, validation state, finding details, and finding-specific yank text. Its table remains visible at narrow terminal sizes; a constrained draggable side detail pane is used only when enough width exists, with a compact detail strip below the table otherwise. Details expose commit and author when present and place randomness metadata after decision-relevant fields. Fingerprints stay in details and yank text instead of consuming a table column. This prevents the Scan page from becoming a duplicate findings browser while still making the next action obvious after a scan completes. It favors readable scanner-console density, stable row keys, clear focus, keyboard navigation, and text labels over decorative graphics.
 
-The scanner console also has a native scan workspace. The workspace covers local paths, pending Git changes, local container archives, remote registry images, source hosts, and object stores. Profile, config, ignore behavior, verification, result filters, limits, redaction, and report controls are grouped into Source, Output, Validation, and Limits sections.
+The scanner console also has a native scan workspace. The workspace covers local paths, pending Git changes, local container archives, remote registry images, source hosts including Hugging Face repositories and buckets, and object stores. Profile, config, ignore behavior, verification, result filters, limits, redaction, and report controls are grouped into Source, Output, Validation, and Limits sections.
 
 The scan workspace defaults its generated report to a stable path under the operating system temporary directory, outside the scanned checkout. Explicit report paths remain supported.
 
@@ -1521,6 +1530,7 @@ Required before v1:
 - `docs/ACTION.md`: CI action behavior and security posture,
 - `docs/GITHUB.md`: GitHub source enumeration, hosted-alert oracle capture, and permission guidance,
 - `docs/GITLAB.md`: GitLab source enumeration and permission guidance,
+- `docs/HUGGING_FACE.md`: Hugging Face repository, bucket, discussion, pull request, and permission guidance,
 - `docs/AZURE_DEVOPS.md`: Azure DevOps task, source enumeration, artifact scanning, and marketplace behavior,
 - `docs/OBJECT_STORES.md`: object-store source enumeration and permission guidance,
 - `docs/MARKETPLACES.md`: GitHub Marketplace and Azure DevOps Marketplace packaging, release, and rollback guidance,

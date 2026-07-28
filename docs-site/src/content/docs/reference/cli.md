@@ -626,6 +626,66 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Use this GitLab API endpoint for native source enumeration.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--huggingface-model</code></td>
+              <td data-label="Value"><code>owner/name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Hugging Face model repository.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-dataset</code></td>
+              <td data-label="Value"><code>owner/name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Hugging Face dataset repository.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-space</code></td>
+              <td data-label="Value"><code>owner/name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Hugging Face Space repository.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-bucket</code></td>
+              <td data-label="Value"><code>owner/name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Hugging Face storage bucket.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-ref</code></td>
+              <td data-label="Value"><code>ref</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Hugging Face branch, tag, or commit.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-pull-request</code></td>
+              <td data-label="Value"><code>number</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan this Hugging Face pull request.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-include-discussions</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Include Hugging Face repository discussions.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-bucket-prefix</code></td>
+              <td data-label="Value"><code>prefix</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit Hugging Face bucket enumeration to objects under this prefix.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-token-env</code></td>
+              <td data-label="Value"><code>name</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Read the Hugging Face user access token from this environment variable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--huggingface-endpoint</code></td>
+              <td data-label="Value"><code>uri</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Use this Hugging Face Hub endpoint for native source enumeration.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--bitbucket-repository</code></td>
               <td data-label="Value"><code>workspace/repo</code></td>
               <td data-label="Required">Optional</td>

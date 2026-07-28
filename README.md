@@ -24,6 +24,12 @@ Scan staged, unstaged, and untracked non-ignored Git changes together:
 picket scan --git-changes . --report-format jsonl --redact=100
 ```
 
+Scan a Hugging Face model, dataset, Space, or bucket with a read-only token stored in an environment variable:
+
+```powershell
+picket scan --huggingface-model owner/model --huggingface-token-env HF_TOKEN --report-format jsonl --redact=100
+```
+
 ## CI Integrations
 
 Use the [Picket Secret Scanner](https://github.com/marketplace/actions/picket-secret-scanner) GitHub Action:

@@ -96,6 +96,8 @@ For Azure DevOps targets, the workspace includes endpoint, organization, project
 
 For GitLab targets, the workspace includes project and group selectors, ref, merge request, pipeline ID, token environment variable, API endpoint override, subgroup/snippet/job artifact/job log/package toggles, and explicit source endpoint policy toggles.
 
+For Hugging Face targets, the workspace selects a model, dataset, Space, or storage bucket. Repository targets accept a revision or pull request and can include discussions. Bucket targets accept an optional path prefix. The token is read from the named environment variable, and endpoint policy overrides remain explicit.
+
 For Gitea targets, the workspace includes repository, organization, user, ref, pull request, issue state, release, Actions artifact, Actions run, generic package, token environment variable, API endpoint, and explicit source endpoint policy controls.
 
 Bitbucket Cloud and Bitbucket Data Center are separate targets. Cloud exposes repository and workspace scopes, project filtering, refs, pull requests, downloads, pipeline logs, snippets, Cloud credential modes, and an optional Cloud API endpoint. Data Center exposes its required REST API base path, project key, optional repository slug, ref or pull request, bearer or Basic credential environment variables, and source endpoint policy controls.

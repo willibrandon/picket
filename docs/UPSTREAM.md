@@ -325,6 +325,26 @@ Native GitLab group project, project repository, merge request source, project s
 - GitLab repository files API: `https://docs.gitlab.com/api/repository_files/`
 - GitLab REST pagination: `https://docs.gitlab.com/api/rest/#pagination`
 
+## Hugging Face Source References
+
+Native Hugging Face model, dataset, Space, storage bucket, discussion, and pull
+request enumeration is based on Hugging Face Hub documentation and the official
+`huggingface_hub` client implementation reviewed on 2026-07-28:
+
+- Hub API endpoints: `https://huggingface.co/docs/hub/api`
+- Hub repositories: `https://huggingface.co/docs/hub/repositories`
+- Pull requests and discussions: `https://huggingface.co/docs/hub/repositories-pull-requests-discussions`
+- Storage buckets: `https://huggingface.co/docs/hub/storage-buckets`
+- User access tokens: `https://huggingface.co/docs/hub/security-tokens`
+- Official client: `https://github.com/huggingface/huggingface_hub`
+
+Picket follows the official client's repository metadata, recursive tree,
+resolve-download, discussion, pull-request ref, bucket tree, and bucket resolve
+routes. Repository revisions are resolved to commit SHAs before enumeration.
+Bucket paths use returned Xet hashes for content identity. Bearer credentials
+are read from an environment variable and are removed from allowed file
+redirects.
+
 ## Gitea Source References
 
 Native Gitea repository, Actions artifact, and generic package file source enumeration is

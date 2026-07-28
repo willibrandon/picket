@@ -23,6 +23,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_githubIssueStates = ["all", "open", "closed"];
     private static readonly string[] s_githubRepositoryTypes = ["all", "public", "private", "forks", "sources", "owner", "member"];
     private static readonly string[] s_githubScopeLabels = ["Repository", "Organization", "User", "Gist", "My gists", "User gists"];
+    private static readonly string[] s_huggingFaceResourceKindLabels = ["Model", "Dataset", "Space", "Bucket"];
     private static readonly string[] s_reportFormats = ["jsonl", "json", "sarif", "html", "csv", "junit", "gitlab", "toon"];
     private static readonly string[] s_resultFilterDisplayLabels = ["all", "unknown", "valid", "test", "invalid", "active", "inactive", "skipped", "error"];
     private static readonly string[] s_resultFilters = ["all", "unknown", "structurally-valid", "test-credential", "invalid", "active", "inactive", "skipped", "error"];
@@ -31,7 +32,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string s_defaultReportDirectory = Path.Combine(Path.GetTempPath(), DefaultReportDirectoryName, "reports");
     private static readonly string[] s_localTargetModeLabels = ["Filesystem", "Git changes"];
     private static readonly string[] s_objectStoreTargetModeLabels = ["S3", "GCS", "Azure Blob"];
-    private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "Bitbucket Data Center"];
+    private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "Bitbucket Data Center", "Hugging Face"];
     private static readonly string[] s_targetCategoryLabels = ["Local", "Source host", "Object store", "Container"];
     private readonly List<string> _capturedOutputLines = [];
     private readonly IPicketTuiScanExecutor _executor;
@@ -85,6 +86,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selectable GitHub source scopes.
     /// </summary>
     internal static IReadOnlyList<string> GitHubScopeLabels => s_githubScopeLabels;
+
+    /// <summary>
+    /// Gets the selectable Hugging Face resource kinds.
+    /// </summary>
+    internal static IReadOnlyList<string> HuggingFaceResourceKindLabels => s_huggingFaceResourceKindLabels;
 
     /// <summary>
     /// Gets the selectable report formats.
@@ -269,6 +275,46 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the GitHub source API endpoint.
     /// </summary>
     internal string GitHubSourceApiEndpoint { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the selected Hugging Face resource kind.
+    /// </summary>
+    internal PicketTuiHuggingFaceResourceKind HuggingFaceResourceKind { get; private set; }
+
+    /// <summary>
+    /// Gets the Hugging Face resource identifier.
+    /// </summary>
+    internal string HuggingFaceResourceId { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional Hugging Face revision.
+    /// </summary>
+    internal string HuggingFaceRevision { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional Hugging Face pull request number.
+    /// </summary>
+    internal string HuggingFacePullRequest { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether Hugging Face discussions are included.
+    /// </summary>
+    internal bool IncludeHuggingFaceDiscussions { get; private set; }
+
+    /// <summary>
+    /// Gets the optional Hugging Face bucket path prefix.
+    /// </summary>
+    internal string HuggingFaceBucketPrefix { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the Hugging Face token environment variable name.
+    /// </summary>
+    internal string HuggingFaceTokenEnvironmentVariable { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the optional Hugging Face endpoint.
+    /// </summary>
+    internal string HuggingFaceEndpoint { get; private set; } = string.Empty;
 
     /// <summary>
     /// Gets the Azure DevOps Services or Server endpoint.
@@ -985,6 +1031,7 @@ internal sealed class PicketTuiScanWorkspace
         PicketTuiScanTargetMode.Gitea => 3,
         PicketTuiScanTargetMode.Bitbucket => 4,
         PicketTuiScanTargetMode.BitbucketDataCenter => 5,
+        PicketTuiScanTargetMode.HuggingFace => 6,
         PicketTuiScanTargetMode.S3 => 0,
         PicketTuiScanTargetMode.Gcs => 1,
         PicketTuiScanTargetMode.AzureBlob => 2,
@@ -1013,6 +1060,11 @@ internal sealed class PicketTuiScanWorkspace
     /// Gets the selected GitHub source scope index.
     /// </summary>
     internal int GitHubScopeIndex => (int)GitHubScope;
+
+    /// <summary>
+    /// Gets the selected Hugging Face resource kind index.
+    /// </summary>
+    internal int HuggingFaceResourceKindIndex => (int)HuggingFaceResourceKind;
 
     /// <summary>
     /// Gets the selected Azure DevOps token kind index.
@@ -1102,6 +1154,7 @@ internal sealed class PicketTuiScanWorkspace
             11 => PicketTuiScanTargetMode.RegistryImage,
             12 => PicketTuiScanTargetMode.BitbucketDataCenter,
             13 => PicketTuiScanTargetMode.GitChanges,
+            14 => PicketTuiScanTargetMode.HuggingFace,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -1121,6 +1174,7 @@ internal sealed class PicketTuiScanWorkspace
                 3 => PicketTuiScanTargetMode.Gitea,
                 4 => PicketTuiScanTargetMode.Bitbucket,
                 5 => PicketTuiScanTargetMode.BitbucketDataCenter,
+                6 => PicketTuiScanTargetMode.HuggingFace,
                 _ => PicketTuiScanTargetMode.GitHub,
             },
             PicketTuiScanTargetCategory.ObjectStore => index switch
@@ -1377,6 +1431,100 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetGitHubSourceApiEndpoint(string value)
     {
         GitHubSourceApiEndpoint = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the Hugging Face resource kind by index.
+    /// </summary>
+    /// <param name="index">The selected resource kind index.</param>
+    internal void SetHuggingFaceResourceKindByIndex(int index)
+    {
+        HuggingFaceResourceKind = (PicketTuiHuggingFaceResourceKind)Math.Clamp(
+            index,
+            0,
+            s_huggingFaceResourceKindLabels.Length - 1);
+        if (HuggingFaceResourceKind == PicketTuiHuggingFaceResourceKind.Bucket)
+        {
+            HuggingFaceRevision = string.Empty;
+            HuggingFacePullRequest = string.Empty;
+            IncludeHuggingFaceDiscussions = false;
+        }
+        else
+        {
+            HuggingFaceBucketPrefix = string.Empty;
+        }
+
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the Hugging Face resource identifier.
+    /// </summary>
+    /// <param name="value">The resource identifier.</param>
+    internal void SetHuggingFaceResourceId(string value)
+    {
+        HuggingFaceResourceId = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the optional Hugging Face revision.
+    /// </summary>
+    /// <param name="value">The revision.</param>
+    internal void SetHuggingFaceRevision(string value)
+    {
+        HuggingFaceRevision = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the optional Hugging Face pull request number.
+    /// </summary>
+    /// <param name="value">The pull request number.</param>
+    internal void SetHuggingFacePullRequest(string value)
+    {
+        HuggingFacePullRequest = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets whether Hugging Face discussions are included.
+    /// </summary>
+    /// <param name="value">The include state.</param>
+    internal void SetIncludeHuggingFaceDiscussions(bool value)
+    {
+        IncludeHuggingFaceDiscussions = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the optional Hugging Face bucket path prefix.
+    /// </summary>
+    /// <param name="value">The bucket path prefix.</param>
+    internal void SetHuggingFaceBucketPrefix(string value)
+    {
+        HuggingFaceBucketPrefix = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the Hugging Face token environment variable name.
+    /// </summary>
+    /// <param name="value">The token environment variable name.</param>
+    internal void SetHuggingFaceTokenEnvironmentVariable(string value)
+    {
+        HuggingFaceTokenEnvironmentVariable = value;
+        MarkConfigurationChanged();
+    }
+
+    /// <summary>
+    /// Sets the optional Hugging Face endpoint.
+    /// </summary>
+    /// <param name="value">The endpoint URI.</param>
+    internal void SetHuggingFaceEndpoint(string value)
+    {
+        HuggingFaceEndpoint = value;
         MarkConfigurationChanged();
     }
 
@@ -2116,6 +2264,7 @@ internal sealed class PicketTuiScanWorkspace
             or PicketTuiScanTargetMode.Gitea
             or PicketTuiScanTargetMode.Bitbucket
             or PicketTuiScanTargetMode.BitbucketDataCenter
+            or PicketTuiScanTargetMode.HuggingFace
             or PicketTuiScanTargetMode.S3
             or PicketTuiScanTargetMode.Gcs
             or PicketTuiScanTargetMode.AzureBlob
@@ -2689,6 +2838,15 @@ internal sealed class PicketTuiScanWorkspace
                 AddOptionalValue(arguments, "--github-token-env", GitHubTokenEnvironmentVariable);
                 AddOptionalValue(arguments, "--github-source-api-endpoint", GitHubSourceApiEndpoint);
                 break;
+            case PicketTuiScanTargetMode.HuggingFace:
+                AddOptionalValue(arguments, GetHuggingFaceResourceOption(), HuggingFaceResourceId);
+                AddOptionalValue(arguments, "--huggingface-ref", HuggingFaceRevision);
+                AddOptionalValue(arguments, "--huggingface-pull-request", HuggingFacePullRequest);
+                AddFlag(arguments, "--huggingface-include-discussions", IncludeHuggingFaceDiscussions);
+                AddOptionalValue(arguments, "--huggingface-bucket-prefix", HuggingFaceBucketPrefix);
+                AddOptionalValue(arguments, "--huggingface-token-env", HuggingFaceTokenEnvironmentVariable);
+                AddOptionalValue(arguments, "--huggingface-endpoint", HuggingFaceEndpoint);
+                break;
             case PicketTuiScanTargetMode.AzureDevOps:
                 AddOptionalValue(arguments, "--azure-devops-endpoint", AzureDevOpsEndpoint);
                 AddOptionalValue(arguments, "--azure-devops-organization", AzureDevOpsOrganization);
@@ -2837,6 +2995,17 @@ internal sealed class PicketTuiScanWorkspace
         AddFlag(arguments, "--github-include-actions-artifacts", IncludeGitHubActionsArtifacts);
     }
 
+    private string GetHuggingFaceResourceOption()
+    {
+        return HuggingFaceResourceKind switch
+        {
+            PicketTuiHuggingFaceResourceKind.Dataset => "--huggingface-dataset",
+            PicketTuiHuggingFaceResourceKind.Space => "--huggingface-space",
+            PicketTuiHuggingFaceResourceKind.Bucket => "--huggingface-bucket",
+            _ => "--huggingface-model",
+        };
+    }
+
     private string BuildTargetDescription()
     {
         return TargetMode switch
@@ -2847,6 +3016,7 @@ internal sealed class PicketTuiScanWorkspace
             PicketTuiScanTargetMode.OciArchive => string.Concat("OCI archive ", FirstConfigured(OciArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.RegistryImage => string.Concat("Registry image ", FirstConfigured(RegistryImage, RegistryEndpoint, string.Empty)),
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", GitHubTargetDisplayValue),
+            PicketTuiScanTargetMode.HuggingFace => string.Concat("Hugging Face ", FirstConfigured(HuggingFaceResourceId, HuggingFaceRevision, HuggingFaceEndpoint)),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstConfigured(AzureDevOpsRepository, AzureDevOpsFeed, FirstConfigured(AzureDevOpsProject, AzureDevOpsOrganization, AzureDevOpsEndpoint))),
             PicketTuiScanTargetMode.GitLab => string.Concat("GitLab ", FirstConfigured(GitLabProject, GitLabGroup, string.Empty)),
             PicketTuiScanTargetMode.Gitea => string.Concat("Gitea ", FirstConfigured(GiteaRepository, GiteaOrganization, GiteaUser)),
@@ -2888,7 +3058,8 @@ internal sealed class PicketTuiScanWorkspace
                 or PicketTuiScanTargetMode.GitLab
                 or PicketTuiScanTargetMode.Gitea
                 or PicketTuiScanTargetMode.Bitbucket
-                or PicketTuiScanTargetMode.BitbucketDataCenter => PicketTuiScanTargetCategory.SourceHost,
+                or PicketTuiScanTargetMode.BitbucketDataCenter
+                or PicketTuiScanTargetMode.HuggingFace => PicketTuiScanTargetCategory.SourceHost,
             PicketTuiScanTargetMode.S3
                 or PicketTuiScanTargetMode.Gcs
                 or PicketTuiScanTargetMode.AzureBlob => PicketTuiScanTargetCategory.ObjectStore,
@@ -2942,6 +3113,11 @@ internal sealed class PicketTuiScanWorkspace
         }
 
         if (TargetMode == PicketTuiScanTargetMode.GitHub && !ValidateGitHub(out error))
+        {
+            return false;
+        }
+
+        if (TargetMode == PicketTuiScanTargetMode.HuggingFace && !ValidateHuggingFace(out error))
         {
             return false;
         }
@@ -3099,6 +3275,7 @@ internal sealed class PicketTuiScanWorkspace
             && ValidateOptionalNonNegativeInteger(RegistryMaxImageMegabytes, "--registry-max-image-megabytes", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GitLabMergeRequest, "--gitlab-merge-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GitLabPipelineId, "--gitlab-pipeline-id", min: 1, max: int.MaxValue, out error)
+            && ValidateOptionalNonNegativeInteger(HuggingFacePullRequest, "--huggingface-pull-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaPullRequest, "--gitea-pull-request", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(GiteaActionsRunId, "--gitea-actions-run-id", min: 1, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(BitbucketPullRequest, "--bitbucket-pull-request", min: 1, max: int.MaxValue, out error)
@@ -3184,6 +3361,47 @@ internal sealed class PicketTuiScanWorkspace
             return false;
         }
 
+        return true;
+    }
+
+    private bool ValidateHuggingFace(out string error)
+    {
+        if (string.IsNullOrWhiteSpace(HuggingFaceResourceId))
+        {
+            error = "Hugging Face scans require a model, dataset, Space, or bucket ID such as owner/name.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(HuggingFaceTokenEnvironmentVariable))
+        {
+            error = "Token env required: enter the variable name containing your Hugging Face token.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(HuggingFaceRevision)
+            && !string.IsNullOrWhiteSpace(HuggingFacePullRequest))
+        {
+            error = "Hugging Face scans accept either a revision or pull request, not both.";
+            return false;
+        }
+
+        if (HuggingFaceResourceKind == PicketTuiHuggingFaceResourceKind.Bucket
+            && (!string.IsNullOrWhiteSpace(HuggingFaceRevision)
+                || !string.IsNullOrWhiteSpace(HuggingFacePullRequest)
+                || IncludeHuggingFaceDiscussions))
+        {
+            error = "Hugging Face bucket scans support a path prefix, but not revisions, pull requests, or discussions.";
+            return false;
+        }
+
+        if (HuggingFaceResourceKind != PicketTuiHuggingFaceResourceKind.Bucket
+            && !string.IsNullOrWhiteSpace(HuggingFaceBucketPrefix))
+        {
+            error = "Hugging Face bucket prefixes require the Bucket resource kind.";
+            return false;
+        }
+
+        error = string.Empty;
         return true;
     }
 

@@ -25,6 +25,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         ["AZURE_DEVOPS"] = 110,
         ["GITHUB"] = 120,
         ["GITLAB"] = 130,
+        ["HUGGING_FACE"] = 135,
         ["GITEA"] = 140,
         ["BITBUCKET"] = 150,
         ["OBJECT_STORES"] = 160,
