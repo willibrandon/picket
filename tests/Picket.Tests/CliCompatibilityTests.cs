@@ -5200,7 +5200,7 @@ public sealed class CliCompatibilityTests
             PicketRulePackNames.Experimental).ConfigureAwait(false);
 
         Assert.AreEqual(0, result.ExitCode, result.Stderr);
-        Assert.Contains("rules ok: 259 rules", result.Stdout);
+        Assert.Contains("rules ok: 262 rules", result.Stdout);
         Assert.IsEmpty(result.Stderr);
     }
 

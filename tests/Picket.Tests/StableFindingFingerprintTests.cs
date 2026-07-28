@@ -62,6 +62,23 @@ public sealed class StableFindingFingerprintTests
         Assert.AreEqual(StableFindingFingerprint.Create(logical), StableFindingFingerprint.Create(symlink));
     }
 
+    /// <summary>
+    /// Verifies that split OpenAI key-family rules preserve the former v1 fingerprint identity.
+    /// </summary>
+    /// <param name="ruleId">The privilege-specific OpenAI rule identifier.</param>
+    [TestMethod]
+    [DataRow("picket-openai-admin-api-key")]
+    [DataRow("picket-openai-legacy-api-key")]
+    [DataRow("picket-openai-project-api-key")]
+    [DataRow("picket-openai-service-account-api-key")]
+    public void CreatePreservesLegacyOpenAiApiKeyIdentity(string ruleId)
+    {
+        Finding legacy = CreateFinding(ruleId: "picket-openai-api-key");
+        Finding migrated = CreateFinding(ruleId: ruleId);
+
+        Assert.AreEqual(StableFindingFingerprint.Create(legacy), StableFindingFingerprint.Create(migrated));
+    }
+
     private static Finding CreateFinding(
         string ruleId = "rule",
         string file = "src/app.txt",

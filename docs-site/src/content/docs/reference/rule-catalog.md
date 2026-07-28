@@ -16,8 +16,8 @@ Positive and negative example values are intentionally summarized as counts rath
 | Catalog | Rules | Notes |
 |---|---:|---|
 | Gitleaks-compatible default | 222 | Embedded strict-compatibility rules used by Gitleaks-compatible commands. |
-| Picket-native additions | 45 | All built-in native rules, including opt-in packs. |
-| `picket-default` | 40 | High-confidence rules enabled by the native default profile. |
+| Picket-native additions | 48 | All built-in native rules, including opt-in packs. |
+| `picket-default` | 43 | High-confidence rules enabled by the native default profile. |
 | `picket-strict` | 3 | Broader opt-in rules with medium-confidence heuristics. |
 | `picket-experimental` | 2 | Opt-in detectors under active tuning. |
 
@@ -27,7 +27,7 @@ AWS, Anthropic, Azure, Buildkite, Database, Docker, GCP, GitHub, Groq, HTTP, JWK
 
 **Native validation templates**
 
-live:github-rest-user-v1, offline:anthropic-oauth-token, offline:aws-access-key-pair, offline:azure-storage-connection-string, offline:buildkite-token, offline:claude-code-session-url, offline:codex-access-token, offline:codex-refresh-token, offline:database-connection-url, offline:docker-hub-access-token, offline:docker-registry-auth, offline:gcp-api-key, offline:gcp-service-account-key-json, offline:github-app-token, offline:github-classic-token, offline:github-fine-grained-pat, offline:groq-api-key, offline:jwk-private-key, offline:kubernetes-secret, offline:langsmith-api-key, offline:mcp-server-credential, offline:npm-auth-token, offline:npm-basic-auth, offline:nvidia-api-key, offline:openai-api-key, offline:openrouter-api-key, offline:replicate-api-token, offline:sourcegraph-access-token, offline:tailscale-api-key, offline:vercel-token, offline:xai-api-key
+live:github-rest-user-v1, offline:anthropic-oauth-token, offline:aws-access-key-pair, offline:azure-storage-connection-string, offline:buildkite-token, offline:claude-code-session-url, offline:codex-access-token, offline:codex-refresh-token, offline:database-connection-url, offline:docker-hub-access-token, offline:docker-registry-auth, offline:gcp-api-key, offline:gcp-service-account-key-json, offline:github-app-token, offline:github-classic-token, offline:github-fine-grained-pat, offline:groq-api-key, offline:jwk-private-key, offline:kubernetes-secret, offline:langsmith-api-key, offline:mcp-server-credential, offline:npm-auth-token, offline:npm-basic-auth, offline:nvidia-api-key, offline:openai-admin-api-key, offline:openai-legacy-api-key, offline:openai-project-api-key, offline:openai-service-account-api-key, offline:openrouter-api-key, offline:replicate-api-token, offline:sourcegraph-access-token, offline:tailscale-api-key, offline:vercel-token, offline:xai-api-key
 
 **Native revocation templates**
 
@@ -292,13 +292,13 @@ Enabled by the native default profile.
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
-      <code>picket-openai-api-key</code><span>OpenAI</span>
+      <code>picket-openai-admin-api-key</code><span>OpenAI</span>
     </div>
-    <p class="reference-summary-description">Detected an OpenAI API key.</p>
+    <p class="reference-summary-description">Detected an OpenAI organization admin API key.</p>
     <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
-    <p class="reference-summary-detail"><strong>Validation</strong>: offline:openai-api-key</p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:openai-admin-api-key</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
-    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, chatgpt, openai, picket</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: admin, api-key, openai, organization, picket</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
@@ -319,6 +319,36 @@ Enabled by the native default profile.
     <p class="reference-summary-detail"><strong>Validation</strong>: offline:codex-refresh-token</p>
     <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
     <p class="reference-summary-detail"><strong>Tags</strong>: codex, oauth, openai, picket, refresh-token, structured</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-openai-legacy-api-key</code><span>OpenAI</span>
+    </div>
+    <p class="reference-summary-description">Detected a legacy OpenAI API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:openai-legacy-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, legacy, openai, picket</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-openai-project-api-key</code><span>OpenAI</span>
+    </div>
+    <p class="reference-summary-description">Detected an OpenAI project API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:openai-project-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, openai, picket, project</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
+      <code>picket-openai-service-account-api-key</code><span>OpenAI</span>
+    </div>
+    <p class="reference-summary-description">Detected an OpenAI project service-account API key.</p>
+    <p class="reference-summary-meta"><span>Severity <code>critical</code></span><span>Confidence <code>high</code></span><span>Examples 1/1</span></p>
+    <p class="reference-summary-detail"><strong>Validation</strong>: offline:openai-service-account-api-key</p>
+    <p class="reference-summary-detail"><strong>Revocation</strong>: -</p>
+    <p class="reference-summary-detail"><strong>Tags</strong>: api-key, openai, picket, project, service-account</p>
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">

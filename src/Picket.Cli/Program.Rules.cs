@@ -523,7 +523,12 @@ internal static partial class Program
             "offline:npm-auth-token" => ruleId.Equals("picket-npm-auth-token", StringComparison.Ordinal),
             "offline:npm-basic-auth" => ruleId.Equals("picket-npm-basic-auth", StringComparison.Ordinal),
             "offline:nvidia-api-key" => ruleId.Equals("picket-nvidia-api-key", StringComparison.Ordinal),
-            "offline:openai-api-key" => ruleId.Equals("picket-openai-api-key", StringComparison.Ordinal),
+            "offline:openai-admin-api-key" => ruleId.Equals("picket-openai-admin-api-key", StringComparison.Ordinal),
+            "offline:openai-legacy-api-key" => ruleId.Equals("picket-openai-legacy-api-key", StringComparison.Ordinal),
+            "offline:openai-project-api-key" => ruleId.Equals("picket-openai-project-api-key", StringComparison.Ordinal),
+            "offline:openai-service-account-api-key" => ruleId.Equals(
+                "picket-openai-service-account-api-key",
+                StringComparison.Ordinal),
             "offline:openrouter-api-key" => ruleId.Equals("picket-openrouter-api-key", StringComparison.Ordinal),
             "offline:private-key-envelope" => ruleId.Equals("private-key", StringComparison.Ordinal),
             "offline:replicate-api-token" => ruleId.Equals("picket-replicate-api-token", StringComparison.Ordinal),
