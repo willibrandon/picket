@@ -116,7 +116,9 @@ internal static partial class Program
             finding.BlobSha256,
             finding.DecodePath,
             finding.Randomness,
-            finding.PositionKind);
+            finding.PositionKind,
+            finding.RequiredFindings,
+            finding.ProvenanceType);
         return mapped.WithNativeFingerprint(finding.NativeFingerprint);
     }
 

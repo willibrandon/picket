@@ -118,7 +118,8 @@ public static class GitleaksFindingRedactor
             finding.DecodePath,
             randomness: null,
             positionKind: finding.PositionKind,
-            requiredFindings: finding.RequiredFindings);
+            requiredFindings: finding.RequiredFindings,
+            provenanceType: finding.ProvenanceType);
         return redacted.WithNativeFingerprint(nativeFingerprint);
     }
 
@@ -154,7 +155,8 @@ public static class GitleaksFindingRedactor
             finding.DecodePath,
             randomness: null,
             positionKind: finding.PositionKind,
-            requiredFindings: finding.RequiredFindings);
+            requiredFindings: finding.RequiredFindings,
+            provenanceType: finding.ProvenanceType);
         return redacted.WithNativeFingerprint(nativeFingerprint);
     }
 

@@ -80,7 +80,7 @@ When scan diagnostics are enabled with `--diagnostics cpu`, `--diagnostics mem`,
 
 The scan cache and a scan checkpoint solve different problems. `--cache-dir` reuses matching work for unchanged blobs across completed scans. `--checkpoint <path>` preserves the consecutive work completed by one native source scan so an interrupted invocation can produce a complete report when retried.
 
-Checkpointing is available only when `picket scan` uses a native source option such as `--github-repository`, `--s3-bucket`, `--registry-image`, `--docker-archive`, or `--oci-archive`.
+Checkpointing is available only when `picket scan` uses a native source option such as `--git-changes`, `--github-repository`, `--s3-bucket`, `--registry-image`, `--docker-archive`, or `--oci-archive`.
 
 ```powershell
 picket scan --github-repository willibrandon/picket --github-token-env PICKET_GITHUB_SOURCE_TOKEN --checkpoint .picket/github.checkpoint --report-format jsonl --report-path picket-results/github.jsonl --redact=100

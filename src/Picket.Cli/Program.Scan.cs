@@ -137,6 +137,8 @@ internal static partial class Program
         bool containerArchiveOptionSpecified = false;
         bool githubApiEndpointSpecified = false;
         bool githubSourceOptionSpecified = false;
+        bool gitChangesOptionSpecified = false;
+        bool gitChangesRespectIgnoreFiles = true;
         bool liveProviderOptionSpecified = false;
         string ociArchivePath = string.Empty;
         Uri? registryAuthenticationEndpoint = null;
@@ -166,6 +168,28 @@ internal static partial class Program
                 }
 
                 source = sourceValue.Length == 0 ? "." : sourceValue;
+                continue;
+            }
+
+            if (IsGitChangesFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--git-changes", out gitChangesOptionSpecified))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                continue;
+            }
+
+            if (IsNoIgnoreFlag(arg))
+            {
+                if (!TryReadBooleanFlag(arg, "--no-ignore", out bool disableIgnore))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                gitChangesRespectIgnoreFiles = !disableIgnore;
+                forwardedArgs.Add(arg);
                 continue;
             }
 
@@ -1661,6 +1685,7 @@ internal static partial class Program
         sourceProviderCount += bitbucketOptionSpecified ? 1 : 0;
         sourceProviderCount += containerArchiveOptionSpecified ? 1 : 0;
         sourceProviderCount += gcsOptionSpecified ? 1 : 0;
+        sourceProviderCount += gitChangesOptionSpecified ? 1 : 0;
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
         sourceProviderCount += giteaOptionSpecified ? 1 : 0;
         sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
@@ -1680,6 +1705,11 @@ internal static partial class Program
         {
             Console.Error.WriteLine("scan accepts only one native source provider at a time");
             return NativeOperationalExitCode;
+        }
+
+        if (gitChangesOptionSpecified)
+        {
+            sourceFileProvider = CreateGitChangesSourceProvider(gitChangesRespectIgnoreFiles);
         }
 
         if (remoteSourceOptionSpecified && HasZeroMegabytesFlag(args, "--max-target-megabytes"))
@@ -1933,6 +1963,8 @@ internal static partial class Program
                     minimumRequestIntervalPerProvider)
                 : null,
             sourceFileProvider: sourceFileProvider,
+            sourceUsesLocalIgnoreFiles: gitChangesOptionSpecified,
+            mergeGitChangeFindings: gitChangesOptionSpecified,
             cancellationToken: cancellationToken);
     }
 

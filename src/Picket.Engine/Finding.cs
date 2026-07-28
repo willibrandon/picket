@@ -31,6 +31,7 @@ namespace Picket.Engine;
 /// <param name="randomness">The native randomness assessment, or <see langword="null" />.</param>
 /// <param name="positionKind">The coordinate system used by the finding's source positions.</param>
 /// <param name="requiredFindings">The supporting findings that satisfied composite rule requirements, or <see langword="null" />.</param>
+/// <param name="provenanceType">The native source provenance type, or an empty string when derived from compatibility fields.</param>
 public sealed class Finding(
     string ruleID,
     string description,
@@ -59,7 +60,8 @@ public sealed class Finding(
     IReadOnlyList<string>? decodePath = null,
     SecretRandomnessAssessment? randomness = null,
     FindingPositionKind positionKind = FindingPositionKind.GitleaksUtf8BytesInclusive,
-    IReadOnlyList<RequiredFinding>? requiredFindings = null)
+    IReadOnlyList<RequiredFinding>? requiredFindings = null,
+    string provenanceType = "")
 {
     /// <summary>
     /// Gets the rule identifier.
@@ -206,6 +208,11 @@ public sealed class Finding(
     public IReadOnlyList<RequiredFinding> RequiredFindings { get; } = requiredFindings ?? [];
 
     /// <summary>
+    /// Gets the native source provenance type, or an empty string when derived from compatibility fields.
+    /// </summary>
+    public string ProvenanceType { get; } = NormalizeProvenanceType(provenanceType);
+
+    /// <summary>
     /// Gets the stable Picket-native fingerprint captured before evidence redaction, or an empty string.
     /// </summary>
     public string NativeFingerprint { get; private init; } = string.Empty;
@@ -240,7 +247,8 @@ public sealed class Finding(
             DecodePath,
             Randomness,
             PositionKind,
-            RequiredFindings)
+            RequiredFindings,
+            ProvenanceType)
         {
             NativeFingerprint = NativeFingerprint,
         };
@@ -276,7 +284,8 @@ public sealed class Finding(
             DecodePath,
             Randomness,
             PositionKind,
-            RequiredFindings)
+            RequiredFindings,
+            ProvenanceType)
         {
             NativeFingerprint = nativeFingerprint,
         };
@@ -312,9 +321,52 @@ public sealed class Finding(
             DecodePath,
             Randomness,
             PositionKind,
-            requiredFindings)
+            requiredFindings,
+            ProvenanceType)
         {
             NativeFingerprint = NativeFingerprint,
         };
+    }
+
+    internal Finding WithProvenanceType(string provenanceType)
+    {
+        return new Finding(
+            RuleID,
+            Description,
+            StartLine,
+            EndLine,
+            StartColumn,
+            EndColumn,
+            Match,
+            Secret,
+            File,
+            SymlinkFile,
+            Commit,
+            Entropy,
+            Author,
+            Email,
+            Date,
+            Message,
+            Tags,
+            Fingerprint,
+            Line,
+            Link,
+            SecretSha256,
+            MatchSha256,
+            ValidationState,
+            BlobSha256,
+            DecodePath,
+            Randomness,
+            PositionKind,
+            RequiredFindings,
+            provenanceType)
+        {
+            NativeFingerprint = NativeFingerprint,
+        };
+    }
+
+    private static string NormalizeProvenanceType(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 }

@@ -7,7 +7,7 @@ namespace Picket;
 
 internal static class RemoteScanManifest
 {
-    private static readonly byte[] s_schema = Encoding.UTF8.GetBytes("picket.remote-source-manifest.v1");
+    private static readonly byte[] s_schema = Encoding.UTF8.GetBytes("picket.remote-source-manifest.v2");
 
     internal static List<CheckpointSourceFile> CreateFiles(IReadOnlyList<SourceFile> files)
     {
@@ -41,6 +41,7 @@ internal static class RemoteScanManifest
             CheckpointSourceFile file = files[i];
             AppendText(hash, file.SourceFile.DisplayPath);
             AppendText(hash, file.SourceFile.SymlinkDisplayPath);
+            AppendText(hash, file.SourceFile.ProvenanceType);
             AppendText(hash, file.BlobSha256);
         }
 
@@ -55,7 +56,13 @@ internal static class RemoteScanManifest
             return pathComparison;
         }
 
-        return StringComparer.Ordinal.Compare(left.SymlinkDisplayPath, right.SymlinkDisplayPath);
+        int symlinkComparison = StringComparer.Ordinal.Compare(left.SymlinkDisplayPath, right.SymlinkDisplayPath);
+        if (symlinkComparison != 0)
+        {
+            return symlinkComparison;
+        }
+
+        return StringComparer.Ordinal.Compare(left.ProvenanceType, right.ProvenanceType);
     }
 
     private static void AppendText(IncrementalHash hash, string value)

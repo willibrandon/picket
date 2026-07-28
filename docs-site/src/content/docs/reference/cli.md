@@ -1059,6 +1059,12 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Follow symlinks while scanning directories.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--git-changes</code></td>
+              <td data-label="Value"><code>flag</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Scan staged, unstaged, and untracked non-ignored changes in the selected Git working tree.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--report-template</code></td>
               <td data-label="Value"><code>path</code></td>
               <td data-label="Required">Optional</td>

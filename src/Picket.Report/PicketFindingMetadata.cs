@@ -148,6 +148,10 @@ internal static class PicketFindingMetadata
 
     internal static string CreateProvenanceType(Finding finding)
     {
-        return finding.Commit.Length == 0 ? "filesystem" : "git";
+        return finding.ProvenanceType.Length != 0
+            ? finding.ProvenanceType
+            : finding.Commit.Length == 0
+                ? "filesystem"
+                : "git";
     }
 }

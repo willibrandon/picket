@@ -145,6 +145,7 @@ internal static class CliOptionMetadata
             "--github-token-env" => "Read the GitHub source enumeration token from this environment variable.",
             "--github-user" => "Scan public repositories for this GitHub user through native source enumeration.",
             "--github-user-gists" => "Scan public GitHub gists for this user.",
+            "--git-changes" => "Scan staged, unstaged, and untracked non-ignored changes in the selected Git working tree.",
             "--gitea-api-endpoint" => "Use this Gitea API endpoint for native source enumeration.",
             "--gitea-actions-run-id" => "Limit Gitea Actions artifact scanning to this run ID.",
             "--gitea-generic-package-file" => "Limit Gitea generic package scanning to this file.",

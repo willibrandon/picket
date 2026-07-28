@@ -29,7 +29,7 @@ internal sealed class PicketTuiScanWorkspace
     private static readonly string[] s_scanSettingPages = ["Source", "Output", "Validation", "Limits"];
     private static readonly string[] s_containerTargetModeLabels = ["Docker archive", "OCI archive", "Registry"];
     private static readonly string s_defaultReportDirectory = Path.Combine(Path.GetTempPath(), DefaultReportDirectoryName, "reports");
-    private static readonly string[] s_localTargetModeLabels = ["Local"];
+    private static readonly string[] s_localTargetModeLabels = ["Filesystem", "Git changes"];
     private static readonly string[] s_objectStoreTargetModeLabels = ["S3", "GCS", "Azure Blob"];
     private static readonly string[] s_sourceHostTargetModeLabels = ["GitHub", "Azure DevOps", "GitLab", "Gitea", "Bitbucket", "Bitbucket Data Center"];
     private static readonly string[] s_targetCategoryLabels = ["Local", "Source host", "Object store", "Container"];
@@ -968,6 +968,7 @@ internal sealed class PicketTuiScanWorkspace
     internal int TargetModeIndex => TargetMode switch
     {
         PicketTuiScanTargetMode.Local => 0,
+        PicketTuiScanTargetMode.GitChanges => 1,
         PicketTuiScanTargetMode.GitHub => 0,
         PicketTuiScanTargetMode.AzureDevOps => 1,
         PicketTuiScanTargetMode.GitLab => 2,
@@ -1090,6 +1091,7 @@ internal sealed class PicketTuiScanWorkspace
             10 => PicketTuiScanTargetMode.OciArchive,
             11 => PicketTuiScanTargetMode.RegistryImage,
             12 => PicketTuiScanTargetMode.BitbucketDataCenter,
+            13 => PicketTuiScanTargetMode.GitChanges,
             _ => PicketTuiScanTargetMode.Local,
         };
     }
@@ -1123,7 +1125,9 @@ internal sealed class PicketTuiScanWorkspace
                 2 => PicketTuiScanTargetMode.RegistryImage,
                 _ => PicketTuiScanTargetMode.DockerArchive,
             },
-            _ => PicketTuiScanTargetMode.Local,
+            _ => index == 1
+                ? PicketTuiScanTargetMode.GitChanges
+                : PicketTuiScanTargetMode.Local,
         };
     }
 
@@ -2632,6 +2636,10 @@ internal sealed class PicketTuiScanWorkspace
             case PicketTuiScanTargetMode.Local:
                 arguments.Add(LocalPath.Trim());
                 break;
+            case PicketTuiScanTargetMode.GitChanges:
+                arguments.Add("--git-changes");
+                arguments.Add(LocalPath.Trim());
+                break;
             case PicketTuiScanTargetMode.DockerArchive:
                 AddOptionalValue(arguments, "--docker-archive", DockerArchivePath);
                 break;
@@ -2806,6 +2814,7 @@ internal sealed class PicketTuiScanWorkspace
         return TargetMode switch
         {
             PicketTuiScanTargetMode.Local => string.Concat("local ", LocalPath),
+            PicketTuiScanTargetMode.GitChanges => string.Concat("Git changes ", LocalPath),
             PicketTuiScanTargetMode.DockerArchive => string.Concat("Docker archive ", FirstConfigured(DockerArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.OciArchive => string.Concat("OCI archive ", FirstConfigured(OciArchivePath, string.Empty, string.Empty)),
             PicketTuiScanTargetMode.RegistryImage => string.Concat("Registry image ", FirstConfigured(RegistryImage, RegistryEndpoint, string.Empty)),
@@ -2865,7 +2874,8 @@ internal sealed class PicketTuiScanWorkspace
     private bool Validate(out string error)
     {
         error = string.Empty;
-        if (TargetMode == PicketTuiScanTargetMode.Local && string.IsNullOrWhiteSpace(LocalPath))
+        if (TargetMode is PicketTuiScanTargetMode.Local or PicketTuiScanTargetMode.GitChanges
+            && string.IsNullOrWhiteSpace(LocalPath))
         {
             error = "Local scans require a path.";
             return false;
@@ -3019,7 +3029,7 @@ internal sealed class PicketTuiScanWorkspace
 
         if (!string.IsNullOrWhiteSpace(CheckpointPath) && TargetMode == PicketTuiScanTargetMode.Local)
         {
-            error = "Checkpointing requires a source-host, object-store, container archive, or registry target.";
+            error = "Checkpointing requires Git changes, a source host, an object store, a container archive, or a registry target.";
             return false;
         }
 

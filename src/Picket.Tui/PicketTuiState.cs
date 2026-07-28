@@ -1642,6 +1642,9 @@ internal sealed class PicketTuiState
     {
         return scan.TargetMode switch
         {
+            PicketTuiScanTargetMode.GitChanges => string.Concat(
+                "Git changes ",
+                string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath),
             PicketTuiScanTargetMode.GitHub => scan.GitHubTargetDisplayValue,
             PicketTuiScanTargetMode.AzureDevOps => FirstNonEmpty(
                 scan.AzureDevOpsRepository,

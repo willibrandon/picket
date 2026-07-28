@@ -100,7 +100,8 @@ Finding(
     IReadOnlyList<string> decodePath,
     SecretRandomnessAssessment randomness,
     FindingPositionKind positionKind,
-    IReadOnlyList<RequiredFinding> requiredFindings
+    IReadOnlyList<RequiredFinding> requiredFindings,
+    string provenanceType
 )
 ```
 
@@ -128,6 +129,7 @@ Represents a detected secret finding using the Gitleaks-compatible field model.
 - `Message` - Gets the git commit message, or an empty string.
 - `NativeFingerprint` - Gets the stable Picket-native fingerprint captured before evidence redaction, or an empty string.
 - `PositionKind` - Gets the coordinate system used by the finding's source positions.
+- `ProvenanceType` - Gets the native source provenance type, or an empty string when derived from compatibility fields.
 - `Randomness` - Gets the native randomness assessment, or when scoring was not enabled.
 - `RequiredFindings` - Gets the supporting findings that satisfied composite rule requirements.
 - `RuleID` - Gets the rule identifier.

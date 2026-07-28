@@ -82,6 +82,31 @@ public sealed class ReportFindingReaderTests
     }
 
     /// <summary>
+    /// Verifies Picket reports preserve explicit native source provenance.
+    /// </summary>
+    [TestMethod]
+    public void TryReadPreservesPicketSourceProvenance()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        Finding finding = CreateFinding(
+            "picket-rule",
+            "auth.py",
+            "secret-value",
+            provenanceType: "git-index+worktree");
+        string reportPath = WriteReport(
+            root.Path,
+            "report.jsonl",
+            PicketJsonlReportWriter.Write([finding]));
+
+        bool read = ReportFindingReader.TryRead(reportPath, out List<Finding>? findings);
+
+        Assert.IsTrue(read);
+        Assert.IsNotNull(findings);
+        Finding readFinding = Assert.ContainsSingle(findings);
+        Assert.AreEqual("git-index+worktree", readFinding.ProvenanceType);
+    }
+
+    /// <summary>
     /// Verifies out-of-range randomness scores make a report invalid without escaping exceptions.
     /// </summary>
     [TestMethod]
@@ -277,7 +302,12 @@ public sealed class ReportFindingReaderTests
         return reportPath;
     }
 
-    private static Finding CreateFinding(string ruleId, string file, string secret, bool includeRandomness = false)
+    private static Finding CreateFinding(
+        string ruleId,
+        string file,
+        string secret,
+        bool includeRandomness = false,
+        string provenanceType = "")
     {
         return new Finding(
             ruleId,
@@ -299,6 +329,7 @@ public sealed class ReportFindingReaderTests
             ["tag"],
             $"{file}:{ruleId}:1",
             $"line containing {secret}",
-            randomness: includeRandomness ? SecretRandomnessScorer.Assess(secret) : null);
+            randomness: includeRandomness ? SecretRandomnessScorer.Assess(secret) : null,
+            provenanceType: provenanceType);
     }
 }
