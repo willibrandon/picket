@@ -236,6 +236,7 @@ internal static class CliOptionMetadata
             "--max-archive-megabytes" => "Limit uncompressed archive size.",
             "--max-archive-ratio" => "Limit archive expansion ratio.",
             "--max-decode-depth" => "Limit recursive decoding passes.",
+            "--max-input-megabytes" => "Limit the coding-agent hook envelope to this many decimal megabytes. The default is 1 and the maximum is 64.",
             "--max-target-megabytes" => "Skip files larger than this size.",
             "--no-banner" => "Suppress the startup banner.",
             "--no-color" => "Disable colored console output.",

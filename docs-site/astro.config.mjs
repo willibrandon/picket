@@ -21,6 +21,7 @@ const projectDocsSidebar = [
   { label: "Bitbucket", slug: "generated/bitbucket" },
   { label: "Object Stores", slug: "generated/object-stores" },
   { label: "Container Images", slug: "generated/containers" },
+  { label: "Coding Agent Guards", slug: "generated/coding-agent-guards" },
   { label: "Git Hooks", slug: "generated/hooks" },
   { label: "Terminal UI", slug: "generated/tui" },
   { label: "Marketplaces", slug: "generated/marketplaces" },
