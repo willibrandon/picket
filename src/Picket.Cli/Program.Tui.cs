@@ -135,12 +135,39 @@ internal static partial class Program
             };
         }
 
+        SetTuiScannerPath(startInfo);
         for (int i = 0; i < args.Length; i++)
         {
             startInfo.ArgumentList.Add(args[i]);
         }
 
         return startInfo;
+    }
+
+    private static void SetTuiScannerPath(ProcessStartInfo startInfo)
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("PICKET_SCANNER")))
+        {
+            return;
+        }
+
+        string? processPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(processPath)
+            || !Path.IsPathFullyQualified(processPath)
+            || !File.Exists(processPath))
+        {
+            return;
+        }
+
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (!Path.GetFileNameWithoutExtension(processPath).Equals("picket", comparison))
+        {
+            return;
+        }
+
+        startInfo.Environment["PICKET_SCANNER"] = Path.GetFullPath(processPath);
     }
 
     private static string ResolveTuiCompanionPath()

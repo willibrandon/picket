@@ -7,6 +7,7 @@ using Hex1b.Widgets;
 using Picket.Report;
 using Picket.Tui;
 using System.Diagnostics;
+using System.Text;
 
 namespace Picket.Tests;
 
@@ -762,6 +763,52 @@ public sealed class PicketTuiTests
                 Directory.SetCurrentDirectory(previousDirectory);
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that the scan executor resolves and launches a Windows global-tool command shim.
+    /// </summary>
+    [TestMethod]
+    [DoNotParallelize]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    public async Task ScanExecutorLaunchesWindowsGlobalToolCommandShim()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string shimPath = Path.Combine(temp.Path, "picket.cmd");
+        File.WriteAllText(
+            shimPath,
+            "@echo off\r\necho scanner-shim %*\r\nexit /b 0\r\n",
+            Encoding.ASCII);
+        string tuiDirectory = Path.Combine(temp.Path, "tui");
+        Directory.CreateDirectory(tuiDirectory);
+        string resolvedPath;
+        lock (s_editorEnvironmentLock)
+        {
+            string? previousPath = Environment.GetEnvironmentVariable("PATH");
+            string? previousScanner = Environment.GetEnvironmentVariable("PICKET_SCANNER");
+            try
+            {
+                Environment.SetEnvironmentVariable("PATH", temp.Path);
+                Environment.SetEnvironmentVariable("PICKET_SCANNER", null);
+                resolvedPath = PicketTuiProcessScanExecutor.ResolvePicketPath(tuiDirectory);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PICKET_SCANNER", previousScanner);
+                Environment.SetEnvironmentVariable("PATH", previousPath);
+            }
+        }
+
+        Assert.AreEqual(shimPath, resolvedPath, StringComparer.OrdinalIgnoreCase);
+        var executor = new PicketTuiProcessScanExecutor(resolvedPath);
+        PicketTuiScanExecutionResult result = await executor.RunAsync(
+            ["scan", "."],
+            Path.Combine(temp.Path, "picket.jsonl"),
+            static _ => { },
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.Contains("scanner-shim scan .", result.StandardOutput);
     }
 
     /// <summary>
