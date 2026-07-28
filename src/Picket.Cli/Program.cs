@@ -24,6 +24,8 @@ internal static partial class Program
 
     private static async Task<int> Main(string[] args)
     {
+        ConsoleEncodingConfigurator.Configure();
+
         try
         {
             return await RunCommandLineAsync(args).ConfigureAwait(false);

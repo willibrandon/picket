@@ -6,7 +6,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Hex1b" GeneratePathProperty="true" />
     <PackageReference Include="ZstdSharp.Port" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(PkgHex1b)\runtimes\win-arm64\native\hex1bpty.exe"
+          Link="hex1bpty-win-arm64.exe"
+          CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('$(PkgHex1b)\runtimes\win-arm64\native\hex1bpty.exe')" />
+    <None Include="$(PkgHex1b)\runtimes\win-x64\native\hex1bpty.exe"
+          Link="hex1bpty-win-x64.exe"
+          CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('$(PkgHex1b)\runtimes\win-x64\native\hex1bpty.exe')" />
   </ItemGroup>
 
   <ItemGroup>
