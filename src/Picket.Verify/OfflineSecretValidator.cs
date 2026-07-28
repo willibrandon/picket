@@ -66,8 +66,22 @@ public static class OfflineSecretValidator
             "picket-anthropic-oauth-refresh-token" => ValidateAnthropicOAuthToken(secret, "sk-ant-ort01-"),
             "picket-aws-access-key-pair" => ValidateAwsAccessKeyPair(finding.Match, secret),
             "picket-azure-storage-connection-string" => ValidateAzureStorageConnectionString(finding.Match, secret),
+            "picket-buildkite-service-token" => ValidateBuildkiteServiceToken(secret),
+            "picket-buildkite-user-access-token" => ValidateBuildkiteUserAccessToken(secret),
             "picket-claude-code-session-url" => ValidateClaudeCodeSessionUrl(secret),
             "picket-database-connection-url" => ValidateDatabaseConnectionUrl(secret),
+            "picket-docker-hub-organization-access-token" => ValidateBase64UrlCredential(
+                secret,
+                "Docker Hub organization access token",
+                "dckr_oat_",
+                32,
+                32),
+            "picket-docker-hub-personal-access-token" => ValidateBase64UrlCredential(
+                secret,
+                "Docker Hub personal access token",
+                "dckr_pat_",
+                27,
+                27),
             "picket-docker-registry-auth" => ValidateBasicCredential(secret, "Docker registry"),
             "picket-gcp-service-account-key" => ValidateGcpServiceAccountKey(secret),
             "picket-github-app-token" => ValidateGitHubAppToken(secret),
@@ -79,13 +93,42 @@ public static class OfflineSecretValidator
             "picket-groq-api-key" => ValidateGroqApiKey(secret),
             "picket-jwk-private-key" => ValidateJwkPrivateKey(secret),
             "picket-kubernetes-secret" => ValidateStructuredSecret(secret, "Kubernetes Secret"),
+            "picket-langsmith-personal-access-token" => ValidateLangSmithApiKey(secret, "lsv2_pt_"),
+            "picket-langsmith-service-key" => ValidateLangSmithApiKey(secret, "lsv2_sk_"),
             "picket-mcp-server-credential" => ValidateStructuredSecret(secret, "MCP server credential"),
             "picket-npm-auth-token" => ValidateNpmAuthToken(secret),
             "picket-npm-basic-auth" => ValidateNpmBasicCredential(secret),
+            "picket-nvidia-api-key" => ValidateBase64UrlCredential(
+                secret,
+                "NVIDIA API key",
+                "nvapi-",
+                60,
+                70),
             "picket-openai-api-key" => ValidateOpenAiApiKey(secret),
             "picket-openai-codex-access-token" => ValidateOpaqueJwt(secret, "Codex access token"),
             "picket-openai-codex-refresh-token" => ValidateCodexRefreshToken(secret),
+            "picket-openrouter-api-key" => ValidateLowerHexCredential(
+                secret,
+                "OpenRouter API key",
+                "sk-or-v1-",
+                64),
+            "picket-replicate-api-token" => ValidateAlphaNumericCredential(
+                secret,
+                "Replicate API token",
+                "r8_",
+                37),
             "picket-sourcegraph-access-token" => ValidateSourcegraphAccessToken(secret),
+            "picket-tailscale-api-key" => ValidateBase64UrlCredential(
+                secret,
+                "Tailscale API key",
+                "tskey-api-",
+                20,
+                36),
+            "picket-vercel-ai-gateway-key" => ValidateVercelToken(secret, "vck_"),
+            "picket-vercel-app-access-token" => ValidateVercelToken(secret, "vca_"),
+            "picket-vercel-app-refresh-token" => ValidateVercelToken(secret, "vcr_"),
+            "picket-vercel-integration-token" => ValidateVercelToken(secret, "vci_"),
+            "picket-vercel-personal-access-token" => ValidateVercelToken(secret, "vcp_"),
             "picket-xai-api-key" => ValidateXAiApiKey(secret),
             "private-key" => ValidatePrivateKeyEnvelope(finding.Match),
             _ => Unknown(),
@@ -234,6 +277,55 @@ public static class OfflineSecretValidator
         return StructurallyValid("valid Anthropic OAuth token shape");
     }
 
+    private static SecretValidationResult ValidateAlphaNumericCredential(
+        string secret,
+        string credentialName,
+        string prefix,
+        int bodyLength)
+    {
+        if (secret.Length != prefix.Length + bodyLength
+            || !secret.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return Invalid($"invalid {credentialName} shape");
+        }
+
+        for (int i = prefix.Length; i < secret.Length; i++)
+        {
+            if (!IsAsciiAlphaNumeric(secret[i]))
+            {
+                return Invalid($"invalid {credentialName} alphabet");
+            }
+        }
+
+        return StructurallyValid($"valid {credentialName} shape");
+    }
+
+    private static SecretValidationResult ValidateBase64UrlCredential(
+        string secret,
+        string credentialName,
+        string prefix,
+        int minimumBodyLength,
+        int maximumBodyLength)
+    {
+        int bodyLength = secret.Length - prefix.Length;
+        if (bodyLength < minimumBodyLength
+            || bodyLength > maximumBodyLength
+            || !secret.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return Invalid($"invalid {credentialName} shape");
+        }
+
+        for (int i = prefix.Length; i < secret.Length; i++)
+        {
+            if (!IsBase64UrlCharacter(secret[i]))
+            {
+                return Invalid($"invalid {credentialName} alphabet");
+            }
+        }
+
+        return StructurallyValid($"valid {credentialName} shape");
+    }
+
     private static SecretValidationResult ValidateBasicCredential(string secret, string provider)
     {
         int separator = secret.IndexOf(':');
@@ -245,6 +337,83 @@ public static class OfflineSecretValidator
         }
 
         return StructurallyValid($"valid {provider} basic credential shape");
+    }
+
+    private static SecretValidationResult ValidateBuildkiteServiceToken(string secret)
+    {
+        int expectedBodyLength;
+        int prefixLength;
+        if (secret.StartsWith("bkaa_", StringComparison.Ordinal))
+        {
+            expectedBodyLength = 75;
+            prefixLength = 5;
+        }
+        else if (secret.StartsWith("bkaj_", StringComparison.Ordinal))
+        {
+            expectedBodyLength = 333;
+            prefixLength = 5;
+        }
+        else if (secret.StartsWith("bkar_", StringComparison.Ordinal)
+            || secret.StartsWith("bkct_", StringComparison.Ordinal))
+        {
+            expectedBodyLength = 73;
+            prefixLength = 5;
+        }
+        else if (secret.StartsWith("bkpt_", StringComparison.Ordinal))
+        {
+            expectedBodyLength = 199;
+            prefixLength = 5;
+        }
+        else if (secret.StartsWith("bkpat_", StringComparison.Ordinal))
+        {
+            expectedBodyLength = 54;
+            prefixLength = 6;
+        }
+        else if (secret.StartsWith("bkps_", StringComparison.Ordinal))
+        {
+            expectedBodyLength = 64;
+            prefixLength = 5;
+        }
+        else
+        {
+            return Invalid("invalid Buildkite service token prefix");
+        }
+
+        if (secret.Length != prefixLength + expectedBodyLength)
+        {
+            return Invalid("invalid Buildkite service token shape");
+        }
+
+        for (int i = prefixLength; i < secret.Length; i++)
+        {
+            if (!IsBase64UrlCharacter(secret[i]))
+            {
+                return Invalid("invalid Buildkite service token alphabet");
+            }
+        }
+
+        return StructurallyValid("valid Buildkite service token shape");
+    }
+
+    private static SecretValidationResult ValidateBuildkiteUserAccessToken(string secret)
+    {
+        const string Prefix = "bkua_";
+        int bodyLength = secret.Length - Prefix.Length;
+        if (bodyLength is not (40 or 53)
+            || !secret.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            return Invalid("invalid Buildkite user access token shape");
+        }
+
+        for (int i = Prefix.Length; i < secret.Length; i++)
+        {
+            if (!IsLowerAsciiAlphaNumeric(secret[i]))
+            {
+                return Invalid("invalid Buildkite user access token alphabet");
+            }
+        }
+
+        return StructurallyValid("valid Buildkite user access token shape");
     }
 
     private static SecretValidationResult ValidateClaudeCodeSessionUrl(string secret)
@@ -396,6 +565,39 @@ public static class OfflineSecretValidator
         return StructurallyValid("valid private JWK parameter shape");
     }
 
+    private static SecretValidationResult ValidateLangSmithApiKey(string secret, string prefix)
+    {
+        const int FirstSegmentLength = 32;
+        const int SecondSegmentLength = 10;
+        int separator = prefix.Length + FirstSegmentLength;
+        if (secret.Length != separator + 1 + SecondSegmentLength
+            || !secret.StartsWith(prefix, StringComparison.Ordinal)
+            || secret[separator] != '_'
+            || !IsHexSegment(secret.AsSpan(prefix.Length, FirstSegmentLength))
+            || !IsHexSegment(secret.AsSpan(separator + 1, SecondSegmentLength)))
+        {
+            return Invalid("invalid LangSmith API key shape");
+        }
+
+        return StructurallyValid("valid LangSmith API key shape");
+    }
+
+    private static SecretValidationResult ValidateLowerHexCredential(
+        string secret,
+        string credentialName,
+        string prefix,
+        int bodyLength)
+    {
+        if (secret.Length != prefix.Length + bodyLength
+            || !secret.StartsWith(prefix, StringComparison.Ordinal)
+            || !IsLowerHexSegment(secret.AsSpan(prefix.Length)))
+        {
+            return Invalid($"invalid {credentialName} shape");
+        }
+
+        return StructurallyValid($"valid {credentialName} shape");
+    }
+
     private static SecretValidationResult ValidateNpmAuthToken(string secret)
     {
         if (secret.Length < 8 || ContainsAsciiControlOrWhitespace(secret))
@@ -499,6 +701,11 @@ public static class OfflineSecretValidator
         }
 
         return StructurallyValid($"valid {credentialName} value");
+    }
+
+    private static SecretValidationResult ValidateVercelToken(string secret, string prefix)
+    {
+        return ValidateBase64UrlCredential(secret, "Vercel token", prefix, 56, 56);
     }
 
     private static SecretValidationResult ValidateXAiApiKey(string secret)
@@ -787,6 +994,19 @@ public static class OfflineSecretValidator
         for (int i = 0; i < value.Length; i++)
         {
             if (!IsHexCharacter(value[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsLowerHexSegment(ReadOnlySpan<char> value)
+    {
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (!IsLowerHexCharacter(value[i]))
             {
                 return false;
             }

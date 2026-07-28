@@ -37,9 +37,11 @@ Current offline coverage includes:
 - AWS access key ID shape and alphabet checks.
 - Native AWS access key pair checks that require a valid access key ID and a 40-character secret access key alphabet.
 - Azure Storage connection-string structure, account name, endpoint suffix, and 512-bit Base64 account-key checks.
+- Buildkite user, agent, package, and portal token prefix, length, and alphabet checks.
 - Claude Code session URL host, path, and identifier checks.
 - Codex OAuth access-token JWT shape and refresh-token structure checks.
 - Database connection URL structure, known database schemes, username, and embedded password checks.
+- Docker Hub personal and organization access token prefix, length, and alphabet checks.
 - Docker registry basic credential checks after bounded Base64 decoding from an `auths` object.
 - GCP API key prefix, length, and alphabet checks.
 - GCP service account key JSON structure, project ID, private key ID, private-key envelope, service account email, and token URI checks.
@@ -48,10 +50,13 @@ Current offline coverage includes:
 - private JWK parameter checks within complete RSA, EC, or OKP key objects.
 - JWT and Base64-wrapped JWT segment, header, payload, algorithm, and signature-shape checks.
 - Kubernetes Secret values selected from bounded YAML structure without alias expansion.
+- LangSmith personal and service key prefix, segmented length, and hexadecimal alphabet checks.
 - credential-bearing MCP server environment values selected from `mcpServers.<server>.env`, excluding environment-variable references.
+- NVIDIA, OpenRouter, Replicate, and Tailscale credential prefix, length, and alphabet checks.
 - npm token and decoded basic credential checks from bounded npmrc assignments, excluding interpolation.
 - private-key envelope checks.
 - Sourcegraph `sgp_` access token shape checks.
+- Vercel personal, integration, app access, app refresh, and AI Gateway credential prefix, length, and alphabet checks.
 - common test, dummy, fake, placeholder, repeated-character, and repeated-pattern suppression signals.
 
 Native rule metadata can list supported validation templates with stable identifiers such as `offline:gcp-api-key` or `live:github-rest-user-v1`. These identifiers document available capability and appear in rich native rule catalogs; they do not enable live provider calls unless the user selects an explicit live-verification command or flag.

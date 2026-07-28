@@ -638,6 +638,7 @@ Offline validation:
 - checksum and format validation,
 - JWT structural and cryptographic checks where public keys are already available or explicitly configured,
 - provider-specific token checks that require no network,
+- high-confidence native provider rules require a provider-issued prefix, reviewed format evidence, positive and negative examples, official documentation metadata, and deterministic offline validation,
 - enabled by default in native profiles when it cannot exfiltrate data.
 
 Live verification:

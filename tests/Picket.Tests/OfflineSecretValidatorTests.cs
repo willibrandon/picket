@@ -202,6 +202,36 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that malformed values for native provider-prefixed rules are rejected rather than treated as unknown.
+    /// </summary>
+    /// <param name="ruleId">The native provider rule identifier.</param>
+    [TestMethod]
+    [DataRow("picket-buildkite-service-token")]
+    [DataRow("picket-buildkite-user-access-token")]
+    [DataRow("picket-docker-hub-organization-access-token")]
+    [DataRow("picket-docker-hub-personal-access-token")]
+    [DataRow("picket-langsmith-personal-access-token")]
+    [DataRow("picket-langsmith-service-key")]
+    [DataRow("picket-nvidia-api-key")]
+    [DataRow("picket-openrouter-api-key")]
+    [DataRow("picket-replicate-api-token")]
+    [DataRow("picket-tailscale-api-key")]
+    [DataRow("picket-vercel-ai-gateway-key")]
+    [DataRow("picket-vercel-app-access-token")]
+    [DataRow("picket-vercel-app-refresh-token")]
+    [DataRow("picket-vercel-integration-token")]
+    [DataRow("picket-vercel-personal-access-token")]
+    public void ValidateRejectsMalformedNativeProviderCredential(string ruleId)
+    {
+        Finding finding = CreateFinding(ruleId, "Z9q2V7m4N8p6R3t5");
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.Invalid, result.State);
+        Assert.AreEqual("invalid", result.ReportValue);
+    }
+
+    /// <summary>
     /// Verifies that JWT header, payload, and signature structure is validated offline.
     /// </summary>
     [TestMethod]

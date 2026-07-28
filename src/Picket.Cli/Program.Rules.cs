@@ -498,10 +498,14 @@ internal static partial class Program
             "offline:aws-access-key-id" => ruleId.Equals("aws-access-token", StringComparison.Ordinal),
             "offline:aws-access-key-pair" => ruleId.Equals("picket-aws-access-key-pair", StringComparison.Ordinal),
             "offline:azure-storage-connection-string" => ruleId.Equals("picket-azure-storage-connection-string", StringComparison.Ordinal),
+            "offline:buildkite-token" => ruleId is "picket-buildkite-service-token"
+                or "picket-buildkite-user-access-token",
             "offline:claude-code-session-url" => ruleId.Equals("picket-claude-code-session-url", StringComparison.Ordinal),
             "offline:codex-access-token" => ruleId.Equals("picket-openai-codex-access-token", StringComparison.Ordinal),
             "offline:codex-refresh-token" => ruleId.Equals("picket-openai-codex-refresh-token", StringComparison.Ordinal),
             "offline:database-connection-url" => ruleId.Equals("picket-database-connection-url", StringComparison.Ordinal),
+            "offline:docker-hub-access-token" => ruleId is "picket-docker-hub-organization-access-token"
+                or "picket-docker-hub-personal-access-token",
             "offline:docker-registry-auth" => ruleId.Equals("picket-docker-registry-auth", StringComparison.Ordinal),
             "offline:gcp-api-key" => ruleId is "gcp-api-key" or "picket-google-api-key",
             "offline:gcp-service-account-key-json" => ruleId.Equals("picket-gcp-service-account-key", StringComparison.Ordinal),
@@ -513,12 +517,23 @@ internal static partial class Program
             "offline:jwt" => ruleId.Equals("jwt", StringComparison.Ordinal),
             "offline:jwt-base64" => ruleId.Equals("jwt-base64", StringComparison.Ordinal),
             "offline:kubernetes-secret" => ruleId.Equals("picket-kubernetes-secret", StringComparison.Ordinal),
+            "offline:langsmith-api-key" => ruleId is "picket-langsmith-personal-access-token"
+                or "picket-langsmith-service-key",
             "offline:mcp-server-credential" => ruleId.Equals("picket-mcp-server-credential", StringComparison.Ordinal),
             "offline:npm-auth-token" => ruleId.Equals("picket-npm-auth-token", StringComparison.Ordinal),
             "offline:npm-basic-auth" => ruleId.Equals("picket-npm-basic-auth", StringComparison.Ordinal),
+            "offline:nvidia-api-key" => ruleId.Equals("picket-nvidia-api-key", StringComparison.Ordinal),
             "offline:openai-api-key" => ruleId.Equals("picket-openai-api-key", StringComparison.Ordinal),
+            "offline:openrouter-api-key" => ruleId.Equals("picket-openrouter-api-key", StringComparison.Ordinal),
             "offline:private-key-envelope" => ruleId.Equals("private-key", StringComparison.Ordinal),
+            "offline:replicate-api-token" => ruleId.Equals("picket-replicate-api-token", StringComparison.Ordinal),
             "offline:sourcegraph-access-token" => ruleId.Equals("picket-sourcegraph-access-token", StringComparison.Ordinal),
+            "offline:tailscale-api-key" => ruleId.Equals("picket-tailscale-api-key", StringComparison.Ordinal),
+            "offline:vercel-token" => ruleId is "picket-vercel-ai-gateway-key"
+                or "picket-vercel-app-access-token"
+                or "picket-vercel-app-refresh-token"
+                or "picket-vercel-integration-token"
+                or "picket-vercel-personal-access-token",
             "offline:xai-api-key" => ruleId.Equals("picket-xai-api-key", StringComparison.Ordinal),
             "live:github-rest-user-v1" => ContainsRuleId(s_githubLiveTokenRuleIds, ruleId),
             _ => false,

@@ -209,6 +209,26 @@ Primary format and provider references reviewed for this work:
 - npmrc configuration: `https://docs.npmjs.com/cli/v11/configuring-npm/npmrc`
 - SARIF 2.1.0 `columnKind`: `https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#def_columnKind`
 
+## Native Provider Format Review
+
+Provider-prefixed native coverage was reviewed on 2026-07-27. New rules require
+provider format evidence, synthetic positive and negative examples, and offline
+structural validation. Context-only and undocumented opaque formats remain out of
+the default pack until their precision can be demonstrated.
+
+Primary provider references:
+
+- Buildkite token security: `https://buildkite.com/docs/platform/security/tokens`
+- Docker Hub personal access tokens: `https://docs.docker.com/security/access-tokens/`
+- Docker Hub organization access tokens: `https://docs.docker.com/enterprise/security/access-tokens/`
+- LangSmith account and API key administration: `https://docs.langchain.com/langsmith/administration-overview`
+- NVIDIA authentication and API keys: `https://docs.nvidia.com/nemo/retriever/latest/extraction/api-keys/`
+- OpenRouter management API keys: `https://openrouter.ai/docs/guides/overview/auth/management-api-keys`
+- Replicate API tokens: `https://replicate.com/docs/topics/security/api-tokens/`
+- Tailscale key and secret management: `https://tailscale.com/docs/reference/key-secret-management`
+- Vercel token formats and secret scanning: `https://vercel.com/changelog/new-token-formats-and-secret-scanning`
+- Vercel app access and refresh tokens: `https://vercel.com/docs/sign-in-with-vercel/tokens`
+
 ## Provider Revocation References
 
 Native analysis and direct revocation behavior are based on provider
