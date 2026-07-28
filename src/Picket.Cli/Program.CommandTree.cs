@@ -644,6 +644,8 @@ internal static partial class Program
         command.Options.Add(CreateChoiceValueOption(commandName, "--live-tls-mode", "mode", "system", "tls12-plus"));
         command.Options.Add(CreateValueOption(commandName, "--live-rate-limit-ms", "n"));
         command.Options.Add(CreateValueOption(commandName, "--live-provider-rate-limit-ms", "n"));
+        command.Options.Add(CreateValueOption(commandName, "--live-max-requests", "n"));
+        command.Options.Add(CreateValueOption(commandName, "--live-max-requests-per-provider", "n"));
         command.Options.Add(CreateFlagOption(commandName, "--allow-non-public-endpoints"));
     }
 

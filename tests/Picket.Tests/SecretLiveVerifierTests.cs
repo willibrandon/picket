@@ -189,6 +189,91 @@ public sealed class SecretLiveVerifierTests
     }
 
     /// <summary>
+    /// Verifies that persistent-cache hits do not consume the outbound request budget.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncDoesNotChargePersistentCacheHitsToRequestBudget()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        SecretValidationCache cache = SecretValidationCache.Open(temp.Path, "rules:v1");
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MinimumRequestIntervalPerProvider = TimeSpan.Zero;
+        options.MaxProviderRequests = 1;
+        options.MaxRequestsPerProvider = 1;
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active, "provider accepted token"));
+        Finding cachedFinding = CreateFinding(CreateGitHubClassicToken("ghp_"));
+        Finding uncachedFinding = CreateFinding(CreateGitHubClassicToken("gho_"));
+        SecretValidationCacheKey cacheKey = SecretValidationCacheKey.FromFinding(
+            validator.Provider,
+            validator.Version,
+            cachedFinding,
+            validator.Endpoint);
+        cache.Write(
+            cacheKey,
+            new SecretValidationResult(SecretValidationState.Inactive, "cached inactive result"),
+            DateTimeOffset.UtcNow.AddMinutes(5));
+        var verifier = new SecretLiveVerifier([validator], cache, options);
+
+        SecretValidationResult cached = await verifier.VerifyAsync(
+            cachedFinding,
+            TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult uncached = await verifier.VerifyAsync(
+            uncachedFinding,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Inactive, cached.State);
+        Assert.Contains("cacheHit=persistent", cached.Evidence);
+        Assert.AreEqual(SecretValidationState.Active, uncached.State);
+        Assert.Contains("providerContacted=true", uncached.Evidence);
+        Assert.AreEqual(1, validator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that request-cache hits do not consume the outbound request budget.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncDoesNotChargeRequestCacheHitsToRequestBudget()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MinimumRequestIntervalPerProvider = TimeSpan.Zero;
+        options.MaxProviderRequests = 2;
+        options.MaxRequestsPerProvider = 2;
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active, "provider accepted token"));
+        Finding firstFinding = CreateFinding(CreateGitHubClassicToken("ghp_"));
+        Finding secondFinding = CreateFinding(CreateGitHubClassicToken("gho_"));
+        var verifier = new SecretLiveVerifier([validator], options: options);
+
+        SecretValidationResult first = await verifier.VerifyAsync(
+            firstFinding,
+            TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult cached = await verifier.VerifyAsync(
+            firstFinding,
+            TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult second = await verifier.VerifyAsync(
+            secondFinding,
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Active, first.State);
+        Assert.Contains("providerContacted=true", first.Evidence);
+        Assert.AreEqual(SecretValidationState.Active, cached.State);
+        Assert.Contains("cacheHit=request", cached.Evidence);
+        Assert.Contains("providerContacted=false", cached.Evidence);
+        Assert.AreEqual(SecretValidationState.Active, second.State);
+        Assert.Contains("providerContacted=true", second.Evidence);
+        Assert.AreEqual(2, validator.VerifyCount);
+    }
+
+    /// <summary>
     /// Verifies that a persistent cache entry cannot bypass the active endpoint policy.
     /// </summary>
     [TestMethod]
@@ -443,6 +528,174 @@ public sealed class SecretLiveVerifierTests
 
         Assert.AreEqual(1, firstValidator.VerifyCount);
         Assert.AreEqual(1, secondValidator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that the global request budget stops additional provider calls.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncStopsAtGlobalRequestBudget()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MinimumRequestIntervalPerProvider = TimeSpan.Zero;
+        options.MaxProviderRequests = 1;
+        options.MaxRequestsPerProvider = 10;
+        var firstValidator = new FakeSecretLiveValidator(
+            "first",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            finding => finding.RuleID.Equals("first-rule", StringComparison.Ordinal));
+        var secondValidator = new FakeSecretLiveValidator(
+            "second",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            finding => finding.RuleID.Equals("second-rule", StringComparison.Ordinal));
+        var verifier = new SecretLiveVerifier([firstValidator, secondValidator], options: options);
+        string blockedSecret = CreateGitHubClassicToken("gho_");
+
+        SecretValidationResult first = await verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("ghp_"), "first-rule"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult blocked = await verifier.VerifyAsync(
+            CreateFinding(blockedSecret, "second-rule"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Active, first.State);
+        Assert.AreEqual(SecretValidationState.Error, blocked.State);
+        Assert.AreEqual("live verification request budget exhausted", blocked.Reason);
+        Assert.Contains("requestBudget=exhausted:global", blocked.Evidence);
+        Assert.Contains("providerContacted=false", blocked.Evidence);
+        Assert.DoesNotContain(blockedSecret, blocked.Reason);
+        Assert.DoesNotContain(blockedSecret, string.Join('\n', blocked.Evidence));
+        Assert.AreEqual(1, firstValidator.VerifyCount);
+        Assert.AreEqual(0, secondValidator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that the per-provider request budget does not affect another provider.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncStopsAtPerProviderRequestBudget()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MinimumRequestIntervalPerProvider = TimeSpan.Zero;
+        options.MaxProviderRequests = 10;
+        options.MaxRequestsPerProvider = 1;
+        var firstValidator = new FakeSecretLiveValidator(
+            "first",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            finding => !finding.RuleID.Equals("second-rule", StringComparison.Ordinal));
+        var secondValidator = new FakeSecretLiveValidator(
+            "second",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active),
+            finding => finding.RuleID.Equals("second-rule", StringComparison.Ordinal));
+        var verifier = new SecretLiveVerifier([firstValidator, secondValidator], options: options);
+
+        await verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("ghp_"), "first-one"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult blocked = await verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("gho_"), "first-two"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+        SecretValidationResult otherProvider = await verifier.VerifyAsync(
+            CreateFinding(CreateGitHubClassicToken("ghr_"), "second-rule"),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Error, blocked.State);
+        Assert.AreEqual("live verification request budget exhausted for provider", blocked.Reason);
+        Assert.Contains("requestBudget=exhausted:provider", blocked.Evidence);
+        Assert.Contains("providerContacted=false", blocked.Evidence);
+        Assert.AreEqual(SecretValidationState.Active, otherProvider.State);
+        Assert.AreEqual(1, firstValidator.VerifyCount);
+        Assert.AreEqual(1, secondValidator.VerifyCount);
+    }
+
+    /// <summary>
+    /// Verifies that concurrent callers cannot overrun a request budget.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public async Task VerifyAsyncReservesRequestBudgetAtomically()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+        options.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        options.MaxConcurrentProviderRequests = 16;
+        options.MaxConcurrentRequestsPerProvider = 16;
+        options.MinimumRequestIntervalPerProvider = TimeSpan.Zero;
+        options.MaxProviderRequests = 1;
+        options.MaxRequestsPerProvider = 1;
+        var validator = new FakeSecretLiveValidator(
+            "fake",
+            "v1",
+            new Uri("https://127.0.0.1/user"),
+            new SecretValidationResult(SecretValidationState.Active));
+        var verifier = new SecretLiveVerifier([validator], options: options);
+        var requests = new Task<SecretValidationResult>[16];
+        for (int i = 0; i < requests.Length; i++)
+        {
+            requests[i] = verifier.VerifyAsync(
+                CreateFinding(string.Concat("candidate-", i)),
+                TestContext.CancellationToken).AsTask();
+        }
+
+        SecretValidationResult[] results = await Task.WhenAll(requests).ConfigureAwait(false);
+
+        Assert.AreEqual(1, validator.VerifyCount);
+        Assert.HasCount(1, results.Where(result => result.State == SecretValidationState.Active));
+        Assert.HasCount(15, results.Where(result => result.Reason.Contains("budget exhausted", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    /// Verifies that each retry consumes a separate outbound request permit.
+    /// </summary>
+    [TestMethod]
+    public async Task VerifyAsyncChargesRetriesToRequestBudget()
+    {
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        GitHubSecretLiveValidatorOptions validatorOptions = GitHubSecretLiveValidatorOptions.CreateDefault();
+        validatorOptions.UserEndpoint = new Uri("https://127.0.0.1/user");
+        validatorOptions.RetryDelay = TimeSpan.Zero;
+        validatorOptions.SetMessageHandlerFactory(() => handler);
+        SecretLiveVerifierOptions verifierOptions = SecretLiveVerifierOptions.CreateDefault();
+        verifierOptions.EndpointGuardOptions = new EndpointGuardOptions { AllowNonPublicAddresses = true };
+        verifierOptions.MinimumRequestIntervalPerProvider = TimeSpan.Zero;
+        verifierOptions.MaxProviderRequests = 1;
+        verifierOptions.MaxRequestsPerProvider = 10;
+        using var verifier = new SecretLiveVerifier(
+            [new GitHubSecretLiveValidator(validatorOptions)],
+            options: verifierOptions);
+
+        SecretValidationResult result = await verifier.VerifyAsync(
+            CreateFinding(),
+            TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.AreEqual(SecretValidationState.Error, result.State);
+        Assert.AreEqual("live verification request budget exhausted", result.Reason);
+        Assert.Contains("requestBudget=exhausted:global", result.Evidence);
+        Assert.Contains("providerContacted=true", result.Evidence);
+        Assert.AreEqual(1, handler.RequestCount);
+    }
+
+    /// <summary>
+    /// Verifies the conservative default request ceilings and positive-value validation.
+    /// </summary>
+    [TestMethod]
+    public void RequestBudgetOptionsHaveBoundedPositiveDefaults()
+    {
+        SecretLiveVerifierOptions options = SecretLiveVerifierOptions.CreateDefault();
+
+        Assert.AreEqual(100, options.MaxProviderRequests);
+        Assert.AreEqual(25, options.MaxRequestsPerProvider);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => options.MaxProviderRequests = 0);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => options.MaxRequestsPerProvider = 0);
     }
 
     /// <summary>

@@ -238,6 +238,54 @@ This page is generated from `action.yml`.
   </article>
   <article class="reference-card">
     <div class="reference-card-heading">
+      <code>verify</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Enable opt-in live provider verification.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>live-max-requests</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Maximum outbound live-verification requests per scan.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>100</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>live-max-requests-per-provider</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Maximum outbound live-verification requests for any one provider per scan.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>25</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
       <code>upload-sarif</code><span>Input</span>
     </div>
     <p class="reference-card-description">Upload the SARIF report through GitHub code scanning.</p>

@@ -13,6 +13,8 @@ internal static partial class Program
         GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
         bool liveVerification = false;
         bool providerOptionSpecified = false;
+        int? maxProviderRequests = null;
+        int? maxRequestsPerProvider = null;
         TimeSpan? minimumRequestInterval = null;
         TimeSpan? minimumRequestIntervalPerProvider = null;
         string? source = null;
@@ -125,6 +127,30 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsLiveMaxRequestsFlag(arg))
+            {
+                if (!TryReadPositiveIntFlag(args, ref i, "--live-max-requests", out int value))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                maxProviderRequests = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
+            if (IsLiveMaxRequestsPerProviderFlag(arg))
+            {
+                if (!TryReadPositiveIntFlag(args, ref i, "--live-max-requests-per-provider", out int value))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                maxRequestsPerProvider = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicProviderEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
@@ -163,7 +189,9 @@ internal static partial class Program
                     githubApiTlsMode,
                     allowNonPublicProviderEndpoints,
                     minimumRequestInterval,
-                    minimumRequestIntervalPerProvider)
+                    minimumRequestIntervalPerProvider,
+                    maxProviderRequests,
+                    maxRequestsPerProvider)
                 : null,
             allowReportInput: true);
     }
@@ -177,6 +205,8 @@ internal static partial class Program
         GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
         bool liveVerification = false;
         bool providerOptionSpecified = false;
+        int? maxProviderRequests = null;
+        int? maxRequestsPerProvider = null;
         TimeSpan? minimumRequestInterval = null;
         TimeSpan? minimumRequestIntervalPerProvider = null;
         string? source = null;
@@ -289,6 +319,30 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsLiveMaxRequestsFlag(arg))
+            {
+                if (!TryReadPositiveIntFlag(args, ref i, "--live-max-requests", out int value))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                maxProviderRequests = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
+            if (IsLiveMaxRequestsPerProviderFlag(arg))
+            {
+                if (!TryReadPositiveIntFlag(args, ref i, "--live-max-requests-per-provider", out int value))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                maxRequestsPerProvider = value;
+                providerOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicProviderEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
@@ -327,7 +381,9 @@ internal static partial class Program
                     githubApiTlsMode,
                     allowNonPublicProviderEndpoints,
                     minimumRequestInterval,
-                    minimumRequestIntervalPerProvider)
+                    minimumRequestIntervalPerProvider,
+                    maxProviderRequests,
+                    maxRequestsPerProvider)
                 : null,
             allowReportInput: true,
             nativeResultWriter: TryWriteAnalysisReports);

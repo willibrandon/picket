@@ -778,6 +778,8 @@ public sealed class PicketTuiTests
         scan.SetLocalPath("src");
         scan.SetReportPath(reportPath);
         scan.SetVerify(true);
+        scan.SetLiveMaxRequests("40");
+        scan.SetLiveMaxRequestsPerProvider("10");
         scan.SetStrictRulePack(true);
         scan.SetExperimentalRulePack(true);
         scan.SetOnlyVerified(true);
@@ -796,6 +798,10 @@ public sealed class PicketTuiTests
         Assert.Contains("scan", arguments);
         Assert.Contains("src", arguments);
         Assert.Contains("--verify", arguments);
+        Assert.Contains("--live-max-requests", arguments);
+        Assert.Contains("40", arguments);
+        Assert.Contains("--live-max-requests-per-provider", arguments);
+        Assert.Contains("10", arguments);
         Assert.HasCount(2, arguments.Where(static argument => argument == "--rule-pack").ToArray());
         Assert.Contains("picket-strict", arguments);
         Assert.Contains("picket-experimental", arguments);
@@ -816,6 +822,24 @@ public sealed class PicketTuiTests
         Assert.Contains("30", arguments);
         Assert.Contains("--report-path", arguments);
         Assert.Contains(reportPath, arguments);
+    }
+
+    /// <summary>
+    /// Verifies that the scan workspace rejects non-positive live request budgets.
+    /// </summary>
+    [TestMethod]
+    public void ScanWorkspaceRejectsNonPositiveLiveRequestBudget()
+    {
+        PicketTuiState state = CreateState();
+        PicketTuiScanWorkspace scan = state.ScanWorkspace;
+        scan.SetVerify(true);
+        scan.SetLiveMaxRequestsPerProvider("0");
+
+        bool built = scan.TryBuildArguments(out List<string> arguments, out string error);
+
+        Assert.IsFalse(built);
+        Assert.IsEmpty(arguments);
+        Assert.Contains("--live-max-requests-per-provider requires an integer from 1", error);
     }
 
     /// <summary>
@@ -3366,6 +3390,8 @@ public sealed class PicketTuiTests
         Assert.Contains("Results", screenText);
         Assert.Contains("Result value", screenText);
         Assert.Contains("Verify", screenText);
+        Assert.Contains("Live request budget", screenText);
+        Assert.Contains("Per provider", screenText);
     }
 
     /// <summary>

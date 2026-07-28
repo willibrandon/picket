@@ -11,7 +11,8 @@ namespace Picket.Verify;
 /// Verifies GitHub token findings by calling the GitHub REST API.
 /// </summary>
 /// <param name="options">The GitHub validator options.</param>
-public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? options = null) : ISecretLiveValidator, IDisposable
+public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? options = null)
+    : ISecretLiveRequestGatedValidator, ISecretLiveValidator, IDisposable
 {
     private const string VersionValue = "github-rest-user-v1";
     private readonly GitHubSecretLiveValidatorOptions _options = options ?? GitHubSecretLiveValidatorOptions.CreateDefault();
@@ -66,6 +67,22 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
     /// <returns>The live validation result.</returns>
     public async ValueTask<SecretValidationResult> VerifyAsync(Finding finding, CancellationToken cancellationToken)
     {
+        return await VerifyAsync(finding, requestGate: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    ValueTask<SecretValidationResult> ISecretLiveRequestGatedValidator.VerifyAsync(
+        Finding finding,
+        ISecretLiveRequestGate requestGate,
+        CancellationToken cancellationToken)
+    {
+        return VerifyAsync(finding, requestGate, cancellationToken);
+    }
+
+    private async ValueTask<SecretValidationResult> VerifyAsync(
+        Finding finding,
+        ISecretLiveRequestGate? requestGate,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(finding);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -80,9 +97,9 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
             try
             {
                 using HttpRequestMessage request = CreateRequest(secret);
-                using HttpResponseMessage response = await _client.SendAsync(
+                using HttpResponseMessage response = await SendAsync(
                     request,
-                    HttpCompletionOption.ResponseHeadersRead,
+                    requestGate,
                     cancellationToken).ConfigureAwait(false);
 
                 string responseBody = await ReadSmallResponseAsync(response, cancellationToken).ConfigureAwait(false);
@@ -115,6 +132,27 @@ public sealed class GitHubSecretLiveValidator(GitHubSecretLiveValidatorOptions? 
                 return AddRetryEvidence(CreateTransientErrorResult("GitHub verification request failed"), attempt);
             }
         }
+    }
+
+    private ValueTask<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        ISecretLiveRequestGate? requestGate,
+        CancellationToken cancellationToken)
+    {
+        if (requestGate is null)
+        {
+            return new ValueTask<HttpResponseMessage>(_client.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken));
+        }
+
+        return requestGate.ExecuteAsync(
+            requestCancellationToken => new ValueTask<HttpResponseMessage>(_client.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                requestCancellationToken)),
+            cancellationToken);
     }
 
     /// <summary>

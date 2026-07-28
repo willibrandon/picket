@@ -242,6 +242,38 @@ Version: `1.0.5`
   </article>
   <article class="reference-card">
     <div class="reference-card-heading">
+      <code>liveMaxRequests</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Maximum outbound live-verification requests per scan.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>100</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>liveMaxRequestsPerProvider</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Maximum outbound live-verification requests for any one provider per scan.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>true</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd><code>25</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
       <code>annotations</code><span>boolean</span>
     </div>
     <p class="reference-card-description">Emit safe Azure DevOps log issues for findings with source locations.</p>

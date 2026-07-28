@@ -96,6 +96,41 @@ test("createPicketArguments forwards the native ignore path", () => {
     ["--ignore-path", ".picketignore"]);
 });
 
+test("createPicketArguments bounds live verification requests", () => {
+  const inputs = {
+    target: ".",
+    profile: "picket",
+    rulePacks: [],
+    redact: 100,
+    cache: false,
+    onlyVerified: false,
+    verify: true,
+    liveMaxRequests: 40,
+    liveMaxRequestsPerProvider: 10,
+    extraArgs: []
+  };
+
+  const args = task.createPicketArguments(inputs, new Map());
+
+  assert.ok(args.includes("--verify"));
+  assert.deepEqual(
+    args.slice(args.indexOf("--live-max-requests"), args.indexOf("--live-max-requests") + 2),
+    ["--live-max-requests", "40"]);
+  assert.deepEqual(
+    args.slice(args.indexOf("--live-max-requests-per-provider"), args.indexOf("--live-max-requests-per-provider") + 2),
+    ["--live-max-requests-per-provider", "10"]);
+});
+
+test("readInputs rejects a zero live request budget", () => {
+  withEnvironment({
+    INPUT_liveMaxRequests: "0"
+  }, () => {
+    assert.throws(
+      () => task.readInputs(),
+      /liveMaxRequests must be between 1 and/);
+  });
+});
+
 test("readInputs rejects package selectors when package scanning is disabled", () => {
   withEnvironment({
     INPUT_azureDevOpsIncludePackages: "false",

@@ -70,6 +70,7 @@ Live provider calls are opt-in behavior for `picket scan --verify`, `picket veri
 - `ISecretLiveValidator` describes one provider validator, its endpoint, provider ID, version, and support check.
 - `SecretLiveVerifier` chooses the first supporting validator, evaluates the endpoint guard before the validator runs, honors cancellation, and returns `skipped` when no validator supports a finding.
 - `SecretLiveVerifierOptions` limits live provider concurrency to four total provider requests and one request per provider by default, spaces requests to the same provider by one second by default, and can also enforce a global request interval.
+- Each verifier permits at most 100 outbound requests in total and 25 to any one provider by default. Every HTTP attempt, including a retry, consumes both budgets. Request-cache and persistent-cache hits, unsupported findings, and endpoint-policy rejections do not consume them.
 - `SecretValidationCache` stores live results with rule/provider/config fingerprint invalidation, expiration, authenticated entries, owner-only file permissions on Unix-like systems and Windows, and atomic writes.
 - `SecretValidationCacheKey` is built from provider, validator version, rule ID, endpoint, and a SHA-256 secret hash. It rejects raw secret material where a hash is required.
 - Cache files store fingerprints, report states, expiration, non-secret reasons, and non-secret analysis metadata such as provider identity, scopes, resources, and evidence. They do not store raw secrets, raw matches, or endpoint query strings.
@@ -86,6 +87,7 @@ The first provider validator is GitHub:
 - proxy override: `--github-api-proxy <https-uri>`, intended for enterprise and CI egress environments and rejected when the URI uses HTTP or includes user info, query, or fragment data,
 - TLS mode override: `--live-tls-mode system|tls12-plus`, where `system` uses platform defaults and `tls12-plus` restricts provider requests to TLS 1.2 or TLS 1.3; certificate validation is not bypassed,
 - rate-limit overrides: `--live-provider-rate-limit-ms <n>` changes the same-provider minimum interval and `--live-rate-limit-ms <n>` changes the global minimum interval; `0` disables the selected interval,
+- request-budget overrides: `--live-max-requests <n>` changes the global ceiling and `--live-max-requests-per-provider <n>` changes the per-provider ceiling; both require a positive value,
 - default endpoint policy: HTTPS required and non-public addresses blocked,
 - explicit non-public endpoint escape hatch: `--allow-non-public-endpoints`,
 - transient `408`, `500`, `502`, `503`, and `504` responses and transport timeouts/failures are retried once by default,
@@ -93,6 +95,7 @@ The first provider validator is GitHub:
 - `401 Unauthorized` maps to `inactive`,
 - automatic HTTP redirects are disabled; redirect responses map to `error`,
 - `403 Forbidden`, `429 Too Many Requests`, other unexpected statuses, request failures, and endpoint-policy failures map to `error`.
+- request-budget exhaustion maps to `error`, reports whether the global or per-provider budget was exhausted, never includes candidate secret material, and does not enter either validation cache,
 - HTTP responses include non-secret `httpStatus` evidence for audit and troubleshooting.
 
 Before additional providers can be enabled in the CLI, each validator also requires a threat-model entry with:

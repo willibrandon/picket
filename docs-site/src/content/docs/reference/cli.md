@@ -333,6 +333,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--live-max-requests</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound provider requests per command. The default is 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-max-requests-per-provider</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound requests for any one provider. The default is 25.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
@@ -1324,6 +1336,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Description">Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.</td>
             </tr>
             <tr>
+              <td data-label="Option"><code>--live-max-requests</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound provider requests per command. The default is 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-max-requests-per-provider</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound requests for any one provider. The default is 25.</td>
+            </tr>
+            <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>
               <td data-label="Value"><code>flag</code></td>
               <td data-label="Required">Optional</td>
@@ -1581,6 +1605,18 @@ Use the grouped index to jump to the workflow you need.
               <td data-label="Value"><code>n</code></td>
               <td data-label="Required">Optional</td>
               <td data-label="Description">Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-max-requests</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound provider requests per command. The default is 100.</td>
+            </tr>
+            <tr>
+              <td data-label="Option"><code>--live-max-requests-per-provider</code></td>
+              <td data-label="Value"><code>n</code></td>
+              <td data-label="Required">Optional</td>
+              <td data-label="Description">Limit live verification to this many outbound requests for any one provider. The default is 25.</td>
             </tr>
             <tr>
               <td data-label="Option"><code>--allow-non-public-endpoints</code></td>

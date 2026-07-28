@@ -73,6 +73,16 @@ internal static partial class Program
             verifierOptions.MinimumRequestIntervalPerProvider = configuration.MinimumRequestIntervalPerProvider.Value;
         }
 
+        if (configuration.MaxProviderRequests.HasValue)
+        {
+            verifierOptions.MaxProviderRequests = configuration.MaxProviderRequests.Value;
+        }
+
+        if (configuration.MaxRequestsPerProvider.HasValue)
+        {
+            verifierOptions.MaxRequestsPerProvider = configuration.MaxRequestsPerProvider.Value;
+        }
+
         SecretValidationCache? validationCache = null;
         if (!string.IsNullOrWhiteSpace(cacheDir))
         {
