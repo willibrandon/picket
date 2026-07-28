@@ -666,6 +666,10 @@ internal static class PicketTuiApp
             [
                 BuildGitHubSourceFields(ctx, scan),
             ],
+            PicketTuiScanTargetMode.HuggingFace =>
+            [
+                BuildHuggingFaceSourceFields(ctx, scan),
+            ],
             PicketTuiScanTargetMode.AzureDevOps =>
             [
                 BuildAzureDevOpsSourceFields(ctx, scan),
@@ -828,6 +832,59 @@ internal static class PicketTuiApp
                 BuildBooleanField(right, "Non-public", scan.AllowNonPublicSourceEndpoints, scan.SetAllowNonPublicSourceEndpoints),
                 BuildBooleanField(right, "HTTP", scan.AllowInsecureSourceEndpoints, scan.SetAllowInsecureSourceEndpoints),
             ]).FillWidth(),
+        ]).FillWidth();
+    }
+
+    private static HStackWidget BuildHuggingFaceSourceFields<TParent>(WidgetContext<TParent> ctx, PicketTuiScanWorkspace scan)
+        where TParent : Hex1bWidget
+    {
+        return ctx.HStack(h => [
+            h.VStack(left =>
+            {
+                var fields = new List<Hex1bWidget>
+                {
+                    BuildPickerField(left, "Resource", PicketTuiScanWorkspace.HuggingFaceResourceKindLabels, scan.HuggingFaceResourceKindIndex, scan.SetHuggingFaceResourceKindByIndex),
+                    BuildTextField(left, "Resource ID", scan.HuggingFaceResourceId, scan.SetHuggingFaceResourceId),
+                    BuildTextField(left, "Token env", scan.HuggingFaceTokenEnvironmentVariable, scan.SetHuggingFaceTokenEnvironmentVariable),
+                    BuildTextField(left, "Endpoint", scan.HuggingFaceEndpoint, scan.SetHuggingFaceEndpoint),
+                };
+                if (scan.HuggingFaceResourceKind == PicketTuiHuggingFaceResourceKind.Bucket)
+                {
+                    fields.Add(BuildTextField(left, "Prefix", scan.HuggingFaceBucketPrefix, scan.SetHuggingFaceBucketPrefix));
+                }
+                else
+                {
+                    fields.Add(BuildTextField(left, "Revision", scan.HuggingFaceRevision, scan.SetHuggingFaceRevision));
+                    fields.Add(BuildTextField(left, "Pull request", scan.HuggingFacePullRequest, scan.SetHuggingFacePullRequest));
+                }
+
+                return [.. fields];
+            }).FillWidth(),
+            h.Text("      "),
+            h.VStack(right =>
+            {
+                var fields = new List<Hex1bWidget>();
+                if (scan.HuggingFaceResourceKind != PicketTuiHuggingFaceResourceKind.Bucket)
+                {
+                    fields.Add(BuildBooleanField(
+                        right,
+                        "Discussions",
+                        scan.IncludeHuggingFaceDiscussions,
+                        scan.SetIncludeHuggingFaceDiscussions));
+                }
+
+                fields.Add(BuildBooleanField(
+                    right,
+                    "Non-public",
+                    scan.AllowNonPublicSourceEndpoints,
+                    scan.SetAllowNonPublicSourceEndpoints));
+                fields.Add(BuildBooleanField(
+                    right,
+                    "HTTP",
+                    scan.AllowInsecureSourceEndpoints,
+                    scan.SetAllowInsecureSourceEndpoints));
+                return [.. fields];
+            }).FillWidth(),
         ]).FillWidth();
     }
 
@@ -1044,6 +1101,11 @@ internal static class PicketTuiApp
                 "Git changes ",
                 string.IsNullOrWhiteSpace(scan.LocalPath) ? "." : scan.LocalPath),
             PicketTuiScanTargetMode.GitHub => string.Concat("GitHub ", scan.GitHubTargetDisplayValue),
+            PicketTuiScanTargetMode.HuggingFace => string.Concat("Hugging Face ", FirstNonEmpty(
+                scan.HuggingFaceResourceId,
+                scan.HuggingFaceRevision,
+                scan.HuggingFaceEndpoint,
+                "not selected")),
             PicketTuiScanTargetMode.AzureDevOps => string.Concat("Azure DevOps ", FirstNonEmpty(
                 scan.AzureDevOpsRepository,
                 scan.AzureDevOpsFeed,

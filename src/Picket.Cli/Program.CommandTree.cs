@@ -79,6 +79,7 @@ internal static partial class Program
         AddGitHubSourceOptions(command, "picket scan");
         AddGiteaSourceOptions(command, "picket scan");
         AddGitLabSourceOptions(command, "picket scan");
+        AddHuggingFaceSourceOptions(command, "picket scan");
         AddBitbucketSourceOptions(command, "picket scan");
         AddBitbucketDataCenterSourceOptions(command, "picket scan");
         AddAzureBlobSourceOptions(command, "picket scan");
@@ -968,6 +969,20 @@ internal static partial class Program
         command.Options.Add(CreateValueOption(commandName, "--gcs-prefix", "prefix"));
         command.Options.Add(CreateValueOption(commandName, "--gcs-token-env", "name"));
         command.Options.Add(CreateValueOption(commandName, "--gcs-user-project", "project"));
+    }
+
+    private static void AddHuggingFaceSourceOptions(Command command, string commandName)
+    {
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-model", "owner/name"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-dataset", "owner/name"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-space", "owner/name"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-bucket", "owner/name"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-ref", "ref"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-pull-request", "number"));
+        command.Options.Add(CreateFlagOption(commandName, "--huggingface-include-discussions"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-bucket-prefix", "prefix"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-token-env", "name"));
+        command.Options.Add(CreateValueOption(commandName, "--huggingface-endpoint", "uri"));
     }
 
     private static void AddGitLabSourceOptions(Command command, string commandName)

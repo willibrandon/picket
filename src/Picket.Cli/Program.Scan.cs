@@ -119,6 +119,17 @@ internal static partial class Program
         string gcsPrefix = string.Empty;
         string? gcsTokenEnvironmentVariable = null;
         string gcsUserProject = string.Empty;
+        string huggingFaceBucket = string.Empty;
+        string huggingFaceBucketPrefix = string.Empty;
+        string huggingFaceDataset = string.Empty;
+        Uri? huggingFaceEndpoint = null;
+        bool huggingFaceIncludeDiscussions = false;
+        string huggingFaceModel = string.Empty;
+        bool huggingFaceOptionSpecified = false;
+        int huggingFacePullRequestNumber = 0;
+        string huggingFaceRef = string.Empty;
+        string huggingFaceSpace = string.Empty;
+        string? huggingFaceTokenEnvironmentVariable = null;
         Uri? s3Endpoint = null;
         string s3Bucket = string.Empty;
         bool s3OptionSpecified = false;
@@ -1242,6 +1253,133 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsHuggingFaceModelFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--huggingface-model", out string? model))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceModel = model;
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceDatasetFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--huggingface-dataset", out string? dataset))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceDataset = dataset;
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceSpaceFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--huggingface-space", out string? space))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceSpace = space;
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceBucketFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--huggingface-bucket", out string? bucket))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceBucket = bucket;
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceRefFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--huggingface-ref", out string? revision))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceRef = revision;
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFacePullRequestFlag(arg))
+            {
+                if (!TryReadPositiveIntFlag(
+                    args,
+                    ref i,
+                    "--huggingface-pull-request",
+                    out huggingFacePullRequestNumber))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceIncludeDiscussionsFlag(arg))
+            {
+                if (!TryReadBooleanFlag(
+                    arg,
+                    "--huggingface-include-discussions",
+                    out huggingFaceIncludeDiscussions))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceBucketPrefixFlag(arg))
+            {
+                if (!TryReadStringFlag(args, ref i, "--huggingface-bucket-prefix", out string? prefix))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceBucketPrefix = prefix;
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceTokenEnvironmentVariableFlag(arg))
+            {
+                if (!TryReadStringFlag(
+                    args,
+                    ref i,
+                    "--huggingface-token-env",
+                    out huggingFaceTokenEnvironmentVariable))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
+            if (IsHuggingFaceEndpointFlag(arg))
+            {
+                if (!TryReadUriFlag(args, ref i, "--huggingface-endpoint", out huggingFaceEndpoint))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                huggingFaceOptionSpecified = true;
+                continue;
+            }
+
             if (IsS3BucketFlag(arg))
             {
                 if (!TryReadStringFlag(args, ref i, "--s3-bucket", out string? bucket))
@@ -1692,7 +1830,7 @@ internal static partial class Program
             return NativeOperationalExitCode;
         }
 
-        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketDataCenterOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !registryOptionSpecified && !s3OptionSpecified)
+        if (sourceEndpointPolicySpecified && !azureBlobOptionSpecified && !azureDevOpsOptionSpecified && !bitbucketDataCenterOptionSpecified && !bitbucketOptionSpecified && !gcsOptionSpecified && !githubSourceOptionSpecified && !giteaOptionSpecified && !gitLabOptionSpecified && !huggingFaceOptionSpecified && !registryOptionSpecified && !s3OptionSpecified)
         {
             Console.Error.WriteLine("source endpoint policy options require a remote source option");
             return NativeOperationalExitCode;
@@ -1715,6 +1853,7 @@ internal static partial class Program
         sourceProviderCount += githubSourceOptionSpecified ? 1 : 0;
         sourceProviderCount += giteaOptionSpecified ? 1 : 0;
         sourceProviderCount += gitLabOptionSpecified ? 1 : 0;
+        sourceProviderCount += huggingFaceOptionSpecified ? 1 : 0;
         sourceProviderCount += registryOptionSpecified ? 1 : 0;
         sourceProviderCount += s3OptionSpecified ? 1 : 0;
         bool remoteSourceOptionSpecified = azureBlobOptionSpecified
@@ -1725,6 +1864,7 @@ internal static partial class Program
             || githubSourceOptionSpecified
             || giteaOptionSpecified
             || gitLabOptionSpecified
+            || huggingFaceOptionSpecified
             || registryOptionSpecified
             || s3OptionSpecified;
         if (sourceProviderCount > 1)
@@ -1824,6 +1964,25 @@ internal static partial class Program
                 gcsPrefix,
                 gcsTokenEnvironmentVariable,
                 gcsUserProject,
+                allowNonPublicSourceEndpoints,
+                allowInsecureSourceEndpoints,
+                out sourceFileProvider))
+        {
+            return NativeOperationalExitCode;
+        }
+
+        if (huggingFaceOptionSpecified
+            && !TryCreateHuggingFaceSourceProvider(
+                huggingFaceEndpoint,
+                huggingFaceModel,
+                huggingFaceDataset,
+                huggingFaceSpace,
+                huggingFaceBucket,
+                huggingFaceRef,
+                huggingFacePullRequestNumber,
+                huggingFaceIncludeDiscussions,
+                huggingFaceBucketPrefix,
+                huggingFaceTokenEnvironmentVariable,
                 allowNonPublicSourceEndpoints,
                 allowInsecureSourceEndpoints,
                 out sourceFileProvider))

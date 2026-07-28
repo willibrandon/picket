@@ -35,6 +35,7 @@ public sealed partial class RepositoryConventionTests
         "{ label: \"Azure DevOps\", slug: \"generated/azure-devops\" }",
         "{ label: \"GitHub\", slug: \"generated/github\" }",
         "{ label: \"GitLab\", slug: \"generated/gitlab\" }",
+        "{ label: \"Hugging Face\", slug: \"generated/hugging-face\" }",
         "{ label: \"Gitea\", slug: \"generated/gitea\" }",
         "{ label: \"Bitbucket\", slug: \"generated/bitbucket\" }",
         "{ label: \"Object Stores\", slug: \"generated/object-stores\" }",
@@ -75,6 +76,7 @@ public sealed partial class RepositoryConventionTests
         "src/Picket.Sources/GiteaSourceClient.cs",
         "src/Picket.Sources/GitHubSourceClient.cs",
         "src/Picket.Sources/GitLabSourceClient.cs",
+        "src/Picket.Sources/HuggingFaceSourceClient.cs",
     ];
     private static readonly string[] s_remoteXmlSourceClientFiles =
     [
@@ -92,6 +94,7 @@ public sealed partial class RepositoryConventionTests
         "src/Picket.Cli/Program.Gitea.cs",
         "src/Picket.Cli/Program.GitHub.cs",
         "src/Picket.Cli/Program.GitLab.cs",
+        "src/Picket.Cli/Program.HuggingFace.cs",
         "src/Picket.Cli/Program.S3.cs",
     ];
     private static readonly SemaphoreSlim s_fileBasedAppBuildLock = new(1, 1);

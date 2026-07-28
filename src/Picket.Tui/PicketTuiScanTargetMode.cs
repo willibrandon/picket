@@ -16,6 +16,11 @@ internal enum PicketTuiScanTargetMode
     GitChanges = 13,
 
     /// <summary>
+    /// Scan a Hugging Face model, dataset, Space, or bucket.
+    /// </summary>
+    HuggingFace = 14,
+
+    /// <summary>
     /// Scan a GitHub source through native source enumeration.
     /// </summary>
     GitHub = 1,

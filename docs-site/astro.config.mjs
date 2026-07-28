@@ -16,6 +16,7 @@ const projectDocsSidebar = [
   { label: "Azure DevOps", slug: "generated/azure-devops" },
   { label: "GitHub", slug: "generated/github" },
   { label: "GitLab", slug: "generated/gitlab" },
+  { label: "Hugging Face", slug: "generated/hugging-face" },
   { label: "Gitea", slug: "generated/gitea" },
   { label: "Bitbucket", slug: "generated/bitbucket" },
   { label: "Object Stores", slug: "generated/object-stores" },
