@@ -64,8 +64,10 @@ Current utilities:
 
 | App | Purpose |
 | --- | --- |
+| `Benchmark-BpeRandomness.cs` | Benchmark the existing randomness scorer against the evaluated Cl100k token-density and token-rank candidate. |
 | `Build-ZstandardMusl.cs` | Build the pinned decompression-only zstandard runtime used by musl release artifacts. |
 | `Calibrate-RandomnessModel.cs` | Reproduce and verify the native randomness model coefficients and holdout metrics. |
+| `Evaluate-BpeRandomness.cs` | Reproduce and verify the reviewed BPE randomness evaluation without adding tokenizer packages to shipped projects. |
 | `Capture-UpstreamPins.cs` | Refresh or print upstream reference clone pins. |
 | `Capture-GitleaksOracle.cs` | Capture pinned Gitleaks oracle reports. |
 | `Capture-CompatibilityOracle.cs` | Capture side-by-side Gitleaks/Picket oracle bundles. |

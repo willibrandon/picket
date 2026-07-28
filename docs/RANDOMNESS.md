@@ -44,6 +44,13 @@ dotnet run --file ./scripts/Calibrate-RandomnessModel.cs -- --verify
 
 Changing the corpus, features, coefficients, sampling rules, quantization, or thresholds requires a new model identifier and updated fixtures.
 
+Cl100k token density and mean token rank were evaluated as candidate features
+and rejected. They did not improve accuracy, likely-random precision, or
+likely-random recall, reduced likely-structured recall, and imposed substantial
+runtime and Native AOT distribution costs. See
+[BPE Randomness Evaluation](bpe-evaluation.md) for the reproducible quality
+gate, measurements, and decision.
+
 ## Thresholds
 
 Scores use stable inclusive classifications:
