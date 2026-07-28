@@ -62,6 +62,13 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
   </article>
   <article class="reference-summary-card">
     <div class="reference-summary-heading">
+      <code>offline:cast-ai-api-key</code><span>Offline structural validation</span>
+    </div>
+    <p class="reference-summary-meta"><span>Cast AI</span><span>1 rule</span></p>
+    <p class="reference-summary-detail">picket-cast-ai-api-key</p>
+  </article>
+  <article class="reference-summary-card">
+    <div class="reference-summary-heading">
       <code>offline:claude-code-session-url</code><span>Offline structural validation</span>
     </div>
     <p class="reference-summary-meta"><span>Anthropic</span><span>1 rule</span></p>
@@ -309,7 +316,7 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 
 | Severity | Confidence | Rules | Providers |
 |---|---|---:|---|
-| `critical` | `high` | 43 | AWS, Anthropic, Azure, Buildkite, Database, Docker, GCP, GitHub, Groq, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI |
+| `critical` | `high` | 44 | AWS, Anthropic, Azure, Buildkite, Cast AI, Database, Docker, GCP, GitHub, Groq, JWK, Kubernetes, LangSmith, MCP, NVIDIA, OpenAI, OpenRouter, Replicate, Sourcegraph, Tailscale, Vercel, npm, xAI |
 | `critical` | `low` | 1 | HTTP |
 | `critical` | `medium` | 3 | Azure, Database, HTTP |
 | `high` | `low` | 1 | HTTP |

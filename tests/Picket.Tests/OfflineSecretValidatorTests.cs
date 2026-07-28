@@ -173,6 +173,52 @@ public sealed class OfflineSecretValidatorTests
     }
 
     /// <summary>
+    /// Verifies that the exact segmented Cast AI API key shape validates offline.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRecognizesCastAiApiKeyShape()
+    {
+        Finding finding = CreateFinding("picket-cast-ai-api-key", CreateCastAiApiKey());
+
+        SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+        Assert.AreEqual(SecretValidationState.StructurallyValid, result.State);
+        Assert.AreEqual("structurally-valid", result.ReportValue);
+    }
+
+    /// <summary>
+    /// Verifies that Cast AI validation rejects wrong lengths, separators, and alphabets.
+    /// </summary>
+    [TestMethod]
+    public void ValidateRejectsMalformedCastAiApiKeyShapes()
+    {
+        const string FirstSegment = "2cb5a70064f60ba2f5507bcbb02938a5a0483bf2a9742d08c5c274c827c9f6ea";
+        const string SecondSegment = "aabb92b5";
+        string prefix = string.Concat("castai", "_v1_");
+        string[] invalidSecrets =
+        [
+            string.Concat(prefix, FirstSegment[..^1], "_", SecondSegment),
+            string.Concat(prefix, FirstSegment, "_", SecondSegment[..^1]),
+            string.Concat(prefix, "A", FirstSegment[1..], "_", SecondSegment),
+            string.Concat(prefix, FirstSegment, "-", SecondSegment),
+            string.Concat(prefix, FirstSegment, "_", SecondSegment[..^1], "!"),
+        ];
+
+        for (int i = 0; i < invalidSecrets.Length; i++)
+        {
+            Finding finding = CreateFinding("picket-cast-ai-api-key", invalidSecrets[i]);
+
+            SecretValidationResult result = OfflineSecretValidator.Validate(finding);
+
+            Assert.AreEqual(
+                SecretValidationState.Invalid,
+                result.State,
+                $"Malformed case {i + 1} produced {result.State}: {result.Reason}");
+            Assert.AreEqual("invalid", result.ReportValue);
+        }
+    }
+
+    /// <summary>
     /// Verifies that Codex refresh-token validation requires the provider-specific shape.
     /// </summary>
     [TestMethod]
@@ -208,6 +254,7 @@ public sealed class OfflineSecretValidatorTests
     [TestMethod]
     [DataRow("picket-buildkite-service-token")]
     [DataRow("picket-buildkite-user-access-token")]
+    [DataRow("picket-cast-ai-api-key")]
     [DataRow("picket-docker-hub-organization-access-token")]
     [DataRow("picket-docker-hub-personal-access-token")]
     [DataRow("picket-langsmith-personal-access-token")]
@@ -521,6 +568,16 @@ public sealed class OfflineSecretValidatorTests
     private static string CreateAwsSecretAccessKey()
     {
         return string.Concat("Tg0pz8Jii8hkLx4+", "PnUisM8GmKs3a2", "DK+9qz/lie");
+    }
+
+    private static string CreateCastAiApiKey()
+    {
+        return string.Concat(
+            "castai",
+            "_v1_",
+            "2cb5a70064f60ba2f5507bcbb02938a5a0483bf2a9742d08c5c274c827c9f6ea",
+            "_",
+            "aabb92b5");
     }
 
     private static string CreateGitHubPat()

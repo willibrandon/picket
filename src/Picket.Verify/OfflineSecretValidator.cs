@@ -68,6 +68,7 @@ public static class OfflineSecretValidator
             "picket-azure-storage-connection-string" => ValidateAzureStorageConnectionString(finding.Match, secret),
             "picket-buildkite-service-token" => ValidateBuildkiteServiceToken(secret),
             "picket-buildkite-user-access-token" => ValidateBuildkiteUserAccessToken(secret),
+            "picket-cast-ai-api-key" => ValidateCastAiApiKey(secret),
             "picket-claude-code-session-url" => ValidateClaudeCodeSessionUrl(secret),
             "picket-database-connection-url" => ValidateDatabaseConnectionUrl(secret),
             "picket-docker-hub-organization-access-token" => ValidateBase64UrlCredential(
@@ -426,6 +427,24 @@ public static class OfflineSecretValidator
         }
 
         return StructurallyValid("valid Buildkite user access token shape");
+    }
+
+    private static SecretValidationResult ValidateCastAiApiKey(string secret)
+    {
+        const string Prefix = "castai_v1_";
+        const int FirstSegmentLength = 64;
+        const int SecondSegmentLength = 8;
+        int separator = Prefix.Length + FirstSegmentLength;
+        if (secret.Length != separator + 1 + SecondSegmentLength
+            || !secret.StartsWith(Prefix, StringComparison.Ordinal)
+            || secret[separator] != '_'
+            || !IsLowerAsciiAlphaNumericSegment(secret.AsSpan(Prefix.Length, FirstSegmentLength))
+            || !IsLowerAsciiAlphaNumericSegment(secret.AsSpan(separator + 1, SecondSegmentLength)))
+        {
+            return Invalid("invalid Cast AI API key shape");
+        }
+
+        return StructurallyValid("valid Cast AI API key shape");
     }
 
     private static SecretValidationResult ValidateClaudeCodeSessionUrl(string secret)
@@ -1029,6 +1048,19 @@ public static class OfflineSecretValidator
         for (int i = 0; i < value.Length; i++)
         {
             if (!IsLowerHexCharacter(value[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsLowerAsciiAlphaNumericSegment(ReadOnlySpan<char> value)
+    {
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (!IsLowerAsciiAlphaNumeric(value[i]))
             {
                 return false;
             }

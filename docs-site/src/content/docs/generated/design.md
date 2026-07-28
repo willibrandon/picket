@@ -584,7 +584,7 @@ Native mode adds stricter archive-safety controls: decompressed byte caps, entry
 Picket ships separate rule packs:
 
 - `gitleaks`: exact compatibility rules,
-- `picket-default`: high-confidence modern coverage for Anthropic and Claude Code credentials, OpenAI API and Codex credentials, Groq and xAI keys, AWS key pairs, Azure Storage connection strings, database URLs, Google API keys and service-account keys, Sourcegraph tokens, GitHub token families, Docker registry auth, private JWKs, Kubernetes Secrets, MCP server environment credentials, and npm credentials,
+- `picket-default`: high-confidence modern coverage for Anthropic and Claude Code credentials, OpenAI API and Codex credentials, Cast AI, Groq, and xAI keys, AWS key pairs, Azure Storage connection strings, database URLs, Google API keys and service-account keys, Sourcegraph tokens, GitHub token families, Docker registry auth, private JWKs, Kubernetes Secrets, MCP server environment credentials, and npm credentials,
 - `picket-strict`: broader coverage with more aggressive heuristics,
 - `picket-experimental`: new detectors under active tuning,
 - organization-local packs.

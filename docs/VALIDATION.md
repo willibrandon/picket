@@ -30,6 +30,7 @@ Current offline coverage includes:
 - Native AWS access key pair checks that require a valid access key ID and a 40-character secret access key alphabet.
 - Azure Storage connection-string structure, account name, endpoint suffix, and 512-bit Base64 account-key checks.
 - Buildkite user, agent, package, and portal token prefix, length, and alphabet checks.
+- Cast AI API key prefix, segmented length, separator, and lowercase alphanumeric alphabet checks.
 - Claude Code session URL host, path, and identifier checks.
 - Codex OAuth access-token JWT shape and refresh-token structure checks.
 - Database connection URL structure, known database schemes, username, and embedded password checks.

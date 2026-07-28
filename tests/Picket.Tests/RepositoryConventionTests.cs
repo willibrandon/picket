@@ -1985,14 +1985,16 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Rule Catalog", ruleCatalog);
         Assert.Contains("Gitleaks-compatible default", ruleCatalog);
         Assert.Contains("Picket-native additions", ruleCatalog);
-        Assert.Contains("`picket-default` | 43", ruleCatalog);
+        Assert.Contains("`picket-default` | 44", ruleCatalog);
         Assert.Contains("`picket-strict` | 3", ruleCatalog);
         Assert.Contains("`picket-experimental` | 2", ruleCatalog);
         Assert.Contains("picket-aws-access-key-pair", ruleCatalog);
+        Assert.Contains("picket-cast-ai-api-key", ruleCatalog);
         Assert.Contains("picket-strict-basic-authorization", ruleCatalog);
         Assert.Contains("picket-experimental-bearer-token", ruleCatalog);
         Assert.Contains("picket-github-fine-grained-personal-access-token", ruleCatalog);
         Assert.Contains("offline:aws-access-key-pair", ruleCatalog);
+        Assert.Contains("offline:cast-ai-api-key", ruleCatalog);
         Assert.Contains("live:github-rest-user-v1", ruleCatalog);
         Assert.Contains("revocation:github-credentials-api", ruleCatalog);
         Assert.Contains("Gitleaks-Compatible Rules", ruleCatalog);

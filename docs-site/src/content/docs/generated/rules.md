@@ -36,7 +36,7 @@ File-backed config loads, including `[extend] path`, are capped at 10 MiB per fi
 
 In strict compatibility mode, `[extend] path` follows the pinned Gitleaks/Viper local-file behavior: absolute paths are accepted, and relative paths resolve from the process current working directory. Picket keeps that behavior for compatibility, with the byte cap, extend-depth cap, and cycle detection described above. Treat configs with local `extend.path` values as trusted scanner configuration rather than as scan-root-confined input.
 
-The embedded native default combines `gitleaks` with the high-confidence `picket-default` pack. Current native defaults include Anthropic OAuth and Claude Code session credentials; legacy, project, project service-account, and organization-admin OpenAI API keys; OpenAI Codex OAuth credentials; Groq and xAI keys; AWS key pairs; Azure Storage connection strings; credentialed database URLs; Google API keys and GCP service-account keys; Sourcegraph tokens; GitHub token families; Docker registry auth; private JWKs; Kubernetes Secrets; MCP server environment credentials; and npm tokens and basic credentials. Provider-specific fields receive offline structural validation where a deterministic validator exists.
+The embedded native default combines `gitleaks` with the high-confidence `picket-default` pack. Current native defaults include Anthropic OAuth and Claude Code session credentials; legacy, project, project service-account, and organization-admin OpenAI API keys; OpenAI Codex OAuth credentials; Cast AI, Groq, and xAI keys; AWS key pairs; Azure Storage connection strings; credentialed database URLs; Google API keys and GCP service-account keys; Sourcegraph tokens; GitHub token families; Docker registry auth; private JWKs; Kubernetes Secrets; MCP server environment credentials; and npm tokens and basic credentials. Provider-specific fields receive offline structural validation where a deterministic validator exists.
 
 The database URL rule requires a known database scheme, a username, and an embedded password; passwordless URLs are skipped. Native GitHub token rules replace inherited Gitleaks GitHub token rules so native scans emit Picket-owned IDs and metadata without duplicate findings. The native Sourcegraph rule replaces the inherited broad Sourcegraph rule so native scans do not report arbitrary 40-hex commit IDs as access tokens.
 
@@ -111,6 +111,7 @@ Supported validation template identifiers are:
 - `offline:aws-access-key-pair`
 - `offline:azure-storage-connection-string`
 - `offline:buildkite-token`
+- `offline:cast-ai-api-key`
 - `offline:claude-code-session-url`
 - `offline:codex-access-token`
 - `offline:codex-refresh-token`
@@ -154,6 +155,11 @@ Supported revocation template identifiers are:
 - `revocation:github-credentials-api`
 
 `picket rules check` rejects a template identifier when the current verifier or analyzer cannot honor it for that rule ID.
+
+Cast AI API keys are organization-scoped and inherit their creator's permissions.
+If a key is exposed, delete it in the Cast AI console, create a replacement, and
+update each dependent workload. Prefer a dedicated service account with only the
+permissions required by that workload.
 
 ## Allowlists
 

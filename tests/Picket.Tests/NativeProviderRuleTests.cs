@@ -29,6 +29,7 @@ public sealed class NativeProviderRuleTests
     [DataRow("picket-anthropic-oauth-refresh-token")]
     [DataRow("picket-buildkite-service-token")]
     [DataRow("picket-buildkite-user-access-token")]
+    [DataRow("picket-cast-ai-api-key")]
     [DataRow("picket-claude-code-session-url")]
     [DataRow("picket-docker-hub-organization-access-token")]
     [DataRow("picket-docker-hub-personal-access-token")]
