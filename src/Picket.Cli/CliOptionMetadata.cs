@@ -41,6 +41,23 @@ internal static class CliOptionMetadata
             };
         }
 
+        if (command.Equals("picket verify secret", StringComparison.Ordinal))
+        {
+            switch (key)
+            {
+                case "--cache-dir":
+                    return "Cache non-secret live-validation results in this directory.";
+                case "--provider":
+                    return "Select a live-validation provider and infer the credential rule from its syntax.";
+                case "--rule-id":
+                    return "Validate the credential as this supported rule.";
+                case "--secret-env":
+                    return "Read the credential from this environment variable instead of standard input; the value never appears in command arguments.";
+                case "--timeout":
+                    return "Stop direct verification after this many seconds. Use 0 to rely on provider request timeouts.";
+            }
+        }
+
         if (command.Equals("picket hooks install", StringComparison.Ordinal)
             && key.Equals("--redact", StringComparison.Ordinal))
         {

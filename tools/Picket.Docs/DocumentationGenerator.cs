@@ -470,13 +470,13 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     private void AddCliReferenceHelpBlocks(List<List<string>> helpBlocks, string[] command, string helpOutput)
     {
         List<string> subcommands = ReadCliHelpCommandNames(helpOutput);
+        if (command.Length != 0 && (subcommands.Count == 0 || HasCliArguments(helpOutput)))
+        {
+            helpBlocks.Add(CreateCliHelpBlock(command, helpOutput));
+        }
+
         if (subcommands.Count == 0)
         {
-            if (command.Length != 0)
-            {
-                helpBlocks.Add(CreateCliHelpBlock(command, helpOutput));
-            }
-
             return;
         }
 
@@ -485,6 +485,12 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             string[] childCommand = [.. command, subcommand];
             AddCliReferenceHelpBlocks(helpBlocks, childCommand, ReadCliHelpOutput(childCommand));
         }
+    }
+
+    private static bool HasCliArguments(string helpOutput)
+    {
+        string normalizedOutput = NormalizeLineEndings(helpOutput);
+        return normalizedOutput.Contains("\nArguments:\n", StringComparison.Ordinal);
     }
 
     private void BuildCliReferenceProject()
@@ -717,7 +723,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
             availableCommands,
             renderedCommands,
             commandSummaries,
-            ["picket scan", "picket verify", "picket analyze"]);
+            ["picket scan", "picket verify", "picket verify secret", "picket analyze"]);
         AppendCliCommandGroup(
             builder,
             "Credential revocation",
@@ -1460,7 +1466,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
     {
         return command switch
         {
-            "picket scan" or "picket verify" or "picket analyze" => "Scan and triage",
+            "picket scan" or "picket verify" or "picket verify secret" or "picket analyze" => "Scan and triage",
             "picket revoke github" => "Credential revocation",
             "picket baseline create" or "picket view" or "picket tui" => "Reports and baselines",
             "picket rules check" or "picket rules test" => "Rules",
@@ -1476,6 +1482,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         {
             "picket scan" => "Optional filesystem path",
             "picket verify" => "Optional report or scan path",
+            "picket verify secret" => "Standard input or named environment variable",
             "picket analyze" => "Optional report or scan path",
             "picket revoke github" => "Required credential environment variable names",
             "picket baseline create" => "Optional filesystem path",
@@ -1498,6 +1505,7 @@ internal sealed partial class DocumentationGenerator(string repositoryRoot)
         return command switch
         {
             "picket verify" or "picket analyze" => "Offline or live",
+            "picket verify secret" => "Live",
             _ => string.Empty,
         };
     }
