@@ -56,6 +56,13 @@ internal static class PicketGitHubActionApp
         string summaryEnabled = GetActionInput("PICKET_SUMMARY", "true").Trim().ToLowerInvariant();
         string validationResults = GetActionInput("PICKET_RESULTS");
         string onlyVerified = GetActionInput("PICKET_ONLY_VERIFIED", "false").Trim().ToLowerInvariant();
+        string verify = GetActionInput("PICKET_VERIFY", "false").Trim().ToLowerInvariant();
+        int liveMaxRequests = ConvertToStrictlyPositiveInt(
+            GetActionInput("PICKET_LIVE_MAX_REQUESTS", "100"),
+            "live-max-requests");
+        int liveMaxRequestsPerProvider = ConvertToStrictlyPositiveInt(
+            GetActionInput("PICKET_LIVE_MAX_REQUESTS_PER_PROVIDER", "25"),
+            "live-max-requests-per-provider");
         string annotationsEnabled = GetActionInput("PICKET_ANNOTATIONS", "true");
         int annotationLimit = ConvertToPositiveInt(GetActionInput("PICKET_ANNOTATION_LIMIT", "50"), "annotation-limit");
         string redact = GetActionInput("PICKET_REDACT", "100");
@@ -70,6 +77,7 @@ internal static class PicketGitHubActionApp
         RequireValueInSet("cache-mode", cacheMode, ["secret-hash-only", "raw"], "cache-mode must be secret-hash-only or raw.");
         RequireValueInSet("summary", summaryEnabled, ["true", "false"], "summary must be true or false.");
         RequireValueInSet("only-verified", onlyVerified, ["true", "false"], "only-verified must be true or false.");
+        RequireValueInSet("verify", verify, ["true", "false"], "verify must be true or false.");
         if (onlyVerified.Equals("true", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(validationResults))
         {
             WriteError("Invalid validation filter", "results and only-verified cannot both be set.");
@@ -123,6 +131,19 @@ internal static class PicketGitHubActionApp
         {
             arguments.Add("--results");
             arguments.Add(validationResults);
+        }
+
+        if (verify.Equals("true", StringComparison.OrdinalIgnoreCase))
+        {
+            arguments.Add("--verify");
+            AddOptionalValueOption(
+                arguments,
+                "--live-max-requests",
+                liveMaxRequests.ToString(CultureInfo.InvariantCulture));
+            AddOptionalValueOption(
+                arguments,
+                "--live-max-requests-per-provider",
+                liveMaxRequestsPerProvider.ToString(CultureInfo.InvariantCulture));
         }
 
         AddOptionalValueOption(arguments, "--max-target-megabytes", maxTargetMegabytes);
@@ -260,6 +281,24 @@ internal static class PicketGitHubActionApp
         }
 
         WriteError($"Invalid {name}", $"{name} must be a non-negative integer.");
+        Environment.Exit(1);
+        return 0;
+    }
+
+    /// <summary>
+    /// Converts a required action input to a strictly positive integer.
+    /// </summary>
+    /// <param name="value">The input value.</param>
+    /// <param name="name">The input name used in diagnostics.</param>
+    /// <returns>The parsed value.</returns>
+    private static int ConvertToStrictlyPositiveInt(string value, string name)
+    {
+        if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed) && parsed > 0)
+        {
+            return parsed;
+        }
+
+        WriteError($"Invalid {name}", $"{name} must be a positive integer.");
         Environment.Exit(1);
         return 0;
     }

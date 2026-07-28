@@ -235,6 +235,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("summary", action);
         Assert.Contains("results", action);
         Assert.Contains("only-verified", action);
+        Assert.Contains("live-max-requests", action);
+        Assert.Contains("live-max-requests-per-provider", action);
         Assert.Contains("annotations", action);
         Assert.Contains("annotation-limit", action);
         Assert.Contains("cache-mode", action);
@@ -280,8 +282,12 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("summary must be true or false", helper);
         Assert.Contains("PICKET_RESULTS", helper);
         Assert.Contains("PICKET_ONLY_VERIFIED", helper);
+        Assert.Contains("PICKET_LIVE_MAX_REQUESTS", helper);
+        Assert.Contains("PICKET_LIVE_MAX_REQUESTS_PER_PROVIDER", helper);
         Assert.Contains("--results", helper);
         Assert.Contains("--only-verified", helper);
+        Assert.Contains("--live-max-requests", helper);
+        Assert.Contains("--live-max-requests-per-provider", helper);
         Assert.Contains("--max-target-megabytes", helper);
         Assert.Contains("--timeout", helper);
         Assert.Contains("--max-archive-depth", helper);
@@ -330,6 +336,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("fail-on: never", documentation);
         Assert.Contains("summary", documentation);
         Assert.Contains("only-verified", documentation);
+        Assert.Contains("live-max-requests", documentation);
+        Assert.Contains("live-max-requests-per-provider", documentation);
         Assert.Contains("results", documentation);
         Assert.Contains("annotation-limit", documentation);
         Assert.Contains("cache-mode", documentation);
@@ -945,6 +953,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("baselinePath", inputNames);
         Assert.Contains("ignorePath", inputNames);
         Assert.Contains("redact", inputNames);
+        Assert.Contains("verify", inputNames);
+        Assert.Contains("liveMaxRequests", inputNames);
+        Assert.Contains("liveMaxRequestsPerProvider", inputNames);
         Assert.Contains("cacheMode", inputNames);
         Assert.Contains("azureDevOpsOrganization", inputNames);
         Assert.Contains("azureDevOpsTokenEnv", inputNames);
@@ -987,6 +998,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Picket scan failed before producing findings.", handler);
         Assert.Contains("--azure-devops-token-env", handler);
         Assert.Contains("--rule-pack", handler);
+        Assert.Contains("--live-max-requests", handler);
+        Assert.Contains("--live-max-requests-per-provider", handler);
         Assert.Contains("##vso[task.setvariable", handler);
         Assert.Contains("##vso[task.logissue", handler);
         Assert.Contains("##vso[artifact.upload", handler);
@@ -1008,6 +1021,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("task: PicketScan@1", readme);
         Assert.Contains("picketPath", readme);
         Assert.Contains("ignorePath", readme);
+        Assert.Contains("liveMaxRequests", readme);
+        Assert.Contains("liveMaxRequestsPerProvider", readme);
         Assert.Contains("Supplying `config` replaces Picket's embedded native default rule set.", readme);
         Assert.Contains("failOn: never", readme);
         Assert.Contains("Scanner execution errors still fail the task.", readme);

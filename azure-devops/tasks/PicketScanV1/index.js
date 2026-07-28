@@ -94,6 +94,9 @@ function readInputs() {
 
   const results = getInput("results", "");
   const onlyVerified = getBoolean("onlyVerified", false);
+  const verify = getBoolean("verify", false);
+  const liveMaxRequests = getInteger("liveMaxRequests", 100, 1, Number.MAX_SAFE_INTEGER);
+  const liveMaxRequestsPerProvider = getInteger("liveMaxRequestsPerProvider", 25, 1, Number.MAX_SAFE_INTEGER);
   if (results.length !== 0 && onlyVerified) {
     throw new Error("results and onlyVerified cannot both be set.");
   }
@@ -126,6 +129,9 @@ function readInputs() {
     ignorePath: getOptionalFileInput("ignorePath", target),
     results,
     onlyVerified,
+    verify,
+    liveMaxRequests,
+    liveMaxRequestsPerProvider,
     redact,
     annotations: getBoolean("annotations", true),
     annotationLimit,
@@ -141,7 +147,6 @@ function readInputs() {
     maxArchiveMegabytes: getOptionalNonNegativeInteger("maxArchiveMegabytes"),
     maxArchiveRatio: getOptionalNonNegativeInteger("maxArchiveRatio"),
     timeout: getOptionalNonNegativeInteger("timeout"),
-    verify: getBoolean("verify", false),
     azureDevOpsOrganization: getInput("azureDevOpsOrganization", ""),
     azureDevOpsEndpoint: getInput("azureDevOpsEndpoint", ""),
     azureDevOpsTokenEnv: getInput("azureDevOpsTokenEnv", ""),
@@ -204,6 +209,8 @@ function createPicketArguments(inputs, reportPaths) {
 
   if (inputs.verify) {
     args.push("--verify");
+    addValue(args, "--live-max-requests", inputs.liveMaxRequests);
+    addValue(args, "--live-max-requests-per-provider", inputs.liveMaxRequestsPerProvider);
   }
 
   addValue(args, "--results", inputs.results);

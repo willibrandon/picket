@@ -23,6 +23,8 @@ steps:
 
 Use `picketPath` when the executable is not named `picket` or is not available on `PATH`. Live verification and remote Azure DevOps enumeration are opt-in task inputs.
 
+When `verify` is enabled, `liveMaxRequests` defaults to 100 outbound provider requests per scan and `liveMaxRequestsPerProvider` defaults to 25 for any one provider. Retries consume the budgets; cache hits do not.
+
 `ignorePath` accepts complete `picket:v1:<sha256>` fingerprints copied from native reports and `sha256:<content-sha256>` content-hash entries.
 
 Supplying `config` replaces Picket's embedded native default rule set. `[extend] useDefault = true` restores the Gitleaks default rules, not Picket's complete native default profile.

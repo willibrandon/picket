@@ -63,6 +63,18 @@ inputs:
     description: Keep only structurally valid offline findings and active live-verification findings.
     required: false
     default: "false"
+  verify:
+    description: Enable opt-in live provider verification.
+    required: false
+    default: "false"
+  live-max-requests:
+    description: Maximum outbound live-verification requests per scan.
+    required: false
+    default: "100"
+  live-max-requests-per-provider:
+    description: Maximum outbound live-verification requests for any one provider per scan.
+    required: false
+    default: "25"
   upload-sarif:
     description: Upload the SARIF report through GitHub code scanning.
     required: false
@@ -172,6 +184,9 @@ runs:
         PICKET_SUMMARY: ${{ inputs.summary }}
         PICKET_RESULTS: ${{ inputs.results }}
         PICKET_ONLY_VERIFIED: ${{ inputs.only-verified }}
+        PICKET_VERIFY: ${{ inputs.verify }}
+        PICKET_LIVE_MAX_REQUESTS: ${{ inputs.live-max-requests }}
+        PICKET_LIVE_MAX_REQUESTS_PER_PROVIDER: ${{ inputs.live-max-requests-per-provider }}
         PICKET_ANNOTATIONS: ${{ inputs.annotations }}
         PICKET_ANNOTATION_LIMIT: ${{ inputs.annotation-limit }}
         PICKET_REDACT: ${{ inputs.redact }}

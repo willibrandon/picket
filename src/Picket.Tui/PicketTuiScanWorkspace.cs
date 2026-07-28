@@ -751,6 +751,16 @@ internal sealed class PicketTuiScanWorkspace
     internal bool Verify { get; private set; }
 
     /// <summary>
+    /// Gets the maximum number of outbound live-verification requests.
+    /// </summary>
+    internal string LiveMaxRequests { get; private set; } = "100";
+
+    /// <summary>
+    /// Gets the maximum number of outbound live-verification requests for one provider.
+    /// </summary>
+    internal string LiveMaxRequestsPerProvider { get; private set; } = "25";
+
+    /// <summary>
     /// Gets a value indicating whether only verified findings are emitted.
     /// </summary>
     internal bool OnlyVerified { get; private set; }
@@ -1955,6 +1965,18 @@ internal sealed class PicketTuiScanWorkspace
     internal void SetVerify(bool value) => Verify = value;
 
     /// <summary>
+    /// Sets the maximum number of outbound live-verification requests.
+    /// </summary>
+    /// <param name="value">The global request ceiling.</param>
+    internal void SetLiveMaxRequests(string value) => LiveMaxRequests = value;
+
+    /// <summary>
+    /// Sets the maximum number of outbound live-verification requests for one provider.
+    /// </summary>
+    /// <param name="value">The per-provider request ceiling.</param>
+    internal void SetLiveMaxRequestsPerProvider(string value) => LiveMaxRequestsPerProvider = value;
+
+    /// <summary>
     /// Sets whether only verified findings are emitted.
     /// </summary>
     /// <param name="value">The only-verified state.</param>
@@ -2076,6 +2098,12 @@ internal sealed class PicketTuiScanWorkspace
         AddOptionalValue(arguments, "--ignore-path", IgnorePath);
         AddFlag(arguments, "--no-ignore", NoIgnore);
         AddFlag(arguments, "--verify", Verify);
+        if (Verify)
+        {
+            AddOptionalValue(arguments, "--live-max-requests", LiveMaxRequests);
+            AddOptionalValue(arguments, "--live-max-requests-per-provider", LiveMaxRequestsPerProvider);
+        }
+
         AddFlag(arguments, "--only-verified", OnlyVerified);
         if (!ResultFilter.Equals("all", StringComparison.Ordinal))
         {
@@ -3054,6 +3082,9 @@ internal sealed class PicketTuiScanWorkspace
             ? 1
             : 0;
         return ValidateOptionalNonNegativeInteger(RedactionPercent, "--redact", min: 0, max: 100, out error)
+            && (!Verify
+                || (ValidateOptionalNonNegativeInteger(LiveMaxRequests, "--live-max-requests", min: 1, max: int.MaxValue, out error)
+                    && ValidateOptionalNonNegativeInteger(LiveMaxRequestsPerProvider, "--live-max-requests-per-provider", min: 1, max: int.MaxValue, out error)))
             && ValidateOptionalNonNegativeInteger(MaxTargetMegabytes, "--max-target-megabytes", min: minimumTargetMegabytes, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(MaxArchiveDepth, "--max-archive-depth", min: 0, max: int.MaxValue, out error)
             && ValidateOptionalNonNegativeInteger(MaxArchiveEntries, "--max-archive-entries", min: minimumArchiveLimit, max: int.MaxValue, out error)

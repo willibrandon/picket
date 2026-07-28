@@ -18,6 +18,8 @@ internal static partial class Program
         Uri? githubApiEndpoint = null;
         Uri? githubApiProxyEndpoint = null;
         GitHubSecretLiveValidatorTlsMode? githubApiTlsMode = null;
+        int? maxProviderRequests = null;
+        int? maxRequestsPerProvider = null;
         TimeSpan? minimumRequestInterval = null;
         TimeSpan? minimumRequestIntervalPerProvider = null;
         Uri? bitbucketApiEndpoint = null;
@@ -1646,6 +1648,30 @@ internal static partial class Program
                 continue;
             }
 
+            if (IsLiveMaxRequestsFlag(arg))
+            {
+                if (!TryReadPositiveIntFlag(args, ref i, "--live-max-requests", out int value))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                maxProviderRequests = value;
+                liveProviderOptionSpecified = true;
+                continue;
+            }
+
+            if (IsLiveMaxRequestsPerProviderFlag(arg))
+            {
+                if (!TryReadPositiveIntFlag(args, ref i, "--live-max-requests-per-provider", out int value))
+                {
+                    return NativeOperationalExitCode;
+                }
+
+                maxRequestsPerProvider = value;
+                liveProviderOptionSpecified = true;
+                continue;
+            }
+
             if (IsAllowNonPublicProviderEndpointsFlag(arg))
             {
                 if (!TryReadBooleanFlag(arg, "--allow-non-public-endpoints", out allowNonPublicProviderEndpoints))
@@ -1960,7 +1986,9 @@ internal static partial class Program
                     githubApiTlsMode,
                     allowNonPublicProviderEndpoints,
                     minimumRequestInterval,
-                    minimumRequestIntervalPerProvider)
+                    minimumRequestIntervalPerProvider,
+                    maxProviderRequests,
+                    maxRequestsPerProvider)
                 : null,
             sourceFileProvider: sourceFileProvider,
             sourceUsesLocalIgnoreFiles: gitChangesOptionSpecified,

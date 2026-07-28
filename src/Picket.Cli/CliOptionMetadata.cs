@@ -179,6 +179,8 @@ internal static class CliOptionMetadata
             "--ignore-path" => "Load additional patterns from an ignore file. The value is a file path, not a glob.",
             "--input" => "Read a portable cache archive from this path.",
             "--live" => "Run opt-in live provider verification for supported findings.",
+            "--live-max-requests" => "Limit live verification to this many outbound provider requests per command. The default is 100.",
+            "--live-max-requests-per-provider" => "Limit live verification to this many outbound requests for any one provider. The default is 25.",
             "--live-provider-rate-limit-ms" => "Set the minimum milliseconds between live requests to the same provider. Use 0 to disable.",
             "--live-rate-limit-ms" => "Set the minimum milliseconds between live provider requests across all providers. Use 0 to disable.",
             "--live-tls-mode" => "Choose the TLS policy for live provider requests.",

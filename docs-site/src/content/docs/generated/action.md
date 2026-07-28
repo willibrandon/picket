@@ -54,6 +54,9 @@ jobs:
 | `summary` | `true` | Write the Picket scan job summary. |
 | `results` | empty | Optional comma-separated validation states to keep before reports, annotations, and failure enforcement. |
 | `only-verified` | `false` | Keep only `structurally-valid` offline findings and `active` live-verification findings. Cannot be combined with `results`. |
+| `verify` | `false` | Enable opt-in live provider verification. |
+| `live-max-requests` | `100` | Maximum outbound live-verification requests during one scan. |
+| `live-max-requests-per-provider` | `25` | Maximum outbound live-verification requests to any one provider during one scan. |
 | `upload-sarif` | `false` | Upload `picket.sarif` through GitHub code scanning. |
 | `annotations` | `true` | Emit safe GitHub workflow warning annotations from JSONL findings. |
 | `annotation-limit` | `50` | Maximum number of workflow annotations to emit. Use `0` to disable without changing `annotations`. |
@@ -92,6 +95,8 @@ Supplying `config-path` replaces the embedded native default rule set, including
 The action writes SARIF and JSONL before the final failure-enforcement step. This allows `upload-sarif: true` to publish code scanning results even when `fail-on: findings` is selected.
 
 `results` and `only-verified` filter the Picket scan result set before SARIF, JSONL, annotations, summary counts, and failure enforcement are evaluated. Use `results` for an explicit comma-separated state list such as `active,structurally-valid`, or `only-verified: true` for the standard verified-state shorthand.
+
+`verify: true` permits Picket to submit supported candidate credentials to their provider validation endpoints. Each outbound attempt, including retries, consumes both the global and provider request budgets. Cache hits do not consume either budget. The action rejects non-positive budget values before scanning.
 
 ## CI Matrix Scan
 

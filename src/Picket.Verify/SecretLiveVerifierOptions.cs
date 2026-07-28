@@ -9,6 +9,8 @@ public sealed class SecretLiveVerifierOptions
 {
     internal const int DefaultMaxConcurrentProviderRequests = 4;
     internal const int DefaultMaxConcurrentRequestsPerProvider = 1;
+    internal const int DefaultMaxProviderRequests = 100;
+    internal const int DefaultMaxRequestsPerProvider = 25;
 
     private EndpointGuardOptions _endpointGuardOptions = EndpointGuardOptions.CreateDefault();
     private TimeSpan _activeResultCacheDuration = TimeSpan.FromMinutes(15);
@@ -19,6 +21,8 @@ public sealed class SecretLiveVerifierOptions
     private TimeSpan _minimumRequestIntervalPerProvider = TimeSpan.FromSeconds(1);
     private int _maxConcurrentProviderRequests = DefaultMaxConcurrentProviderRequests;
     private int _maxConcurrentRequestsPerProvider = DefaultMaxConcurrentRequestsPerProvider;
+    private int _maxProviderRequests = DefaultMaxProviderRequests;
+    private int _maxRequestsPerProvider = DefaultMaxRequestsPerProvider;
     private TimeProvider _timeProvider = TimeProvider.System;
     private Action<string>? _warningSink;
 
@@ -120,6 +124,32 @@ public sealed class SecretLiveVerifierOptions
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
             _maxConcurrentRequestsPerProvider = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum number of outbound provider requests allowed during the verifier lifetime.
+    /// </summary>
+    public int MaxProviderRequests
+    {
+        get => _maxProviderRequests;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _maxProviderRequests = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum number of outbound requests allowed for one provider during the verifier lifetime.
+    /// </summary>
+    public int MaxRequestsPerProvider
+    {
+        get => _maxRequestsPerProvider;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _maxRequestsPerProvider = value;
         }
     }
 

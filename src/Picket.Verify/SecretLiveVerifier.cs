@@ -21,10 +21,12 @@ public sealed class SecretLiveVerifier(
     private readonly SecretLiveRequestPacer _globalRequestPacer = CreateRequestPacer(options, perProvider: false);
     private readonly Lock _gate = new();
     private readonly Dictionary<string, SecretLiveRequestPacer> _providerRequestPacers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _providerRequestCounts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SemaphoreSlim> _providerRequestLimiters = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (SecretValidationResult Result, DateTimeOffset ExpiresAt)> _requestCache = new(StringComparer.Ordinal);
     private readonly ISecretLiveValidator[] _validators = ValidateValidators(validators);
     private bool _cacheWriteWarningEmitted;
+    private int _providerRequestCount;
 
     /// <summary>
     /// Verifies a finding with the first provider validator that supports it.
@@ -84,13 +86,14 @@ public sealed class SecretLiveVerifier(
                 }
             }
 
-            SecretValidationResult result = await VerifyWithRateLimitsAsync(validator, finding, cancellationToken).ConfigureAwait(false);
+            (SecretValidationResult result, bool providerContacted, bool cacheResult) =
+                await VerifyProviderAsync(validator, finding, cancellationToken).ConfigureAwait(false);
             SecretValidationResult auditedResult = AddAuditEvidence(
                 result,
                 validator,
                 endpointResult,
-                providerContacted: true);
-            if (_options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
+                providerContacted);
+            if (cacheResult && _options.TryGetCacheDuration(auditedResult.State, out TimeSpan duration))
             {
                 DateTimeOffset expiresAt = now + duration;
                 WriteRequestCache(cacheKey.Fingerprint, auditedResult, expiresAt);
@@ -155,13 +158,20 @@ public sealed class SecretLiveVerifier(
         return validators;
     }
 
-    private async ValueTask<SecretValidationResult> VerifyWithRateLimitsAsync(
-        ISecretLiveValidator validator,
-        Finding finding,
+    internal async ValueTask<T> ExecuteProviderRequestAsync<T>(
+        string provider,
+        Func<CancellationToken, ValueTask<T>> request,
+        Action requestStarted,
         CancellationToken cancellationToken)
     {
-        SemaphoreSlim providerRequestLimiter = GetProviderRequestLimiter(validator.Provider);
-        SecretLiveRequestPacer providerRequestPacer = GetProviderRequestPacer(validator.Provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(requestStarted);
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfRequestBudgetExhausted(provider);
+
+        SemaphoreSlim providerRequestLimiter = GetProviderRequestLimiter(provider);
+        SecretLiveRequestPacer providerRequestPacer = GetProviderRequestPacer(provider);
         await providerRequestLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
         bool globalRequestLimiterAcquired = false;
         try
@@ -170,7 +180,14 @@ public sealed class SecretLiveVerifier(
             globalRequestLimiterAcquired = true;
             await _globalRequestPacer.WaitAsync(cancellationToken).ConfigureAwait(false);
             await providerRequestPacer.WaitAsync(cancellationToken).ConfigureAwait(false);
-            return await validator.VerifyAsync(finding, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!TryReserveProviderRequest(provider, out bool providerBudgetExhausted))
+            {
+                throw new SecretLiveRequestBudgetExceededException(providerBudgetExhausted);
+            }
+
+            requestStarted();
+            return await request(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -180,6 +197,74 @@ public sealed class SecretLiveVerifier(
             }
 
             providerRequestLimiter.Release();
+        }
+    }
+
+    private async ValueTask<(SecretValidationResult Result, bool ProviderContacted, bool CacheResult)> VerifyProviderAsync(
+        ISecretLiveValidator validator,
+        Finding finding,
+        CancellationToken cancellationToken)
+    {
+        var requestGate = new SecretLiveRequestGate(this, validator.Provider);
+        try
+        {
+            SecretValidationResult result = validator is ISecretLiveRequestGatedValidator gatedValidator
+                ? await gatedValidator.VerifyAsync(finding, requestGate, cancellationToken).ConfigureAwait(false)
+                : await requestGate.ExecuteAsync(
+                    requestCancellationToken => validator.VerifyAsync(finding, requestCancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            return (result, requestGate.RequestCount != 0, true);
+        }
+        catch (SecretLiveRequestBudgetExceededException exception)
+        {
+            string budget = exception.IsProviderBudget ? "provider" : "global";
+            var result = new SecretValidationResult(
+                SecretValidationState.Error,
+                exception.Message,
+                evidence: [string.Concat("requestBudget=exhausted:", budget)],
+                isPersistentCacheable: false);
+            return (result, requestGate.RequestCount != 0, false);
+        }
+    }
+
+    private bool TryReserveProviderRequest(string provider, out bool providerBudgetExhausted)
+    {
+        lock (_gate)
+        {
+            if (_providerRequestCount >= _options.MaxProviderRequests)
+            {
+                providerBudgetExhausted = false;
+                return false;
+            }
+
+            _providerRequestCounts.TryGetValue(provider, out int providerRequestCount);
+            if (providerRequestCount >= _options.MaxRequestsPerProvider)
+            {
+                providerBudgetExhausted = true;
+                return false;
+            }
+
+            _providerRequestCount++;
+            _providerRequestCounts[provider] = providerRequestCount + 1;
+            providerBudgetExhausted = false;
+            return true;
+        }
+    }
+
+    private void ThrowIfRequestBudgetExhausted(string provider)
+    {
+        lock (_gate)
+        {
+            if (_providerRequestCount >= _options.MaxProviderRequests)
+            {
+                throw new SecretLiveRequestBudgetExceededException(providerBudget: false);
+            }
+
+            if (_providerRequestCounts.TryGetValue(provider, out int providerRequestCount)
+                && providerRequestCount >= _options.MaxRequestsPerProvider)
+            {
+                throw new SecretLiveRequestBudgetExceededException(providerBudget: true);
+            }
         }
     }
 

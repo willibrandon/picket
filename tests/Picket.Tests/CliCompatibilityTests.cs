@@ -884,6 +884,43 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
+    /// Verifies that scan request-budget options require explicit live verification.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRequestBudgetRequiresVerify()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "--live-max-requests",
+            "10").ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ExitCode);
+        Assert.Contains("live provider options require --verify", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that live request budgets must contain at least one request.
+    /// </summary>
+    [TestMethod]
+    public async Task NativeScanRejectsZeroLiveRequestBudget()
+    {
+        using TempDirectory root = TempDirectory.Create();
+
+        CliResult result = await RunCliAsync(
+            "scan",
+            root.Path,
+            "--verify",
+            "--live-max-requests-per-provider",
+            "0").ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ExitCode);
+        Assert.Contains("--live-max-requests-per-provider requires a positive integer value", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies that scan provider TLS options require explicit live verification.
     /// </summary>
     [TestMethod]
@@ -1142,6 +1179,10 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live-tls-mode", result.Stdout);
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
+        Assert.Contains("--live-max-requests", result.Stdout);
+        Assert.Contains("--live-max-requests-per-provider", result.Stdout);
+        Assert.Contains("The default is 100.", result.Stdout);
+        Assert.Contains("The default is 25.", result.Stdout);
         Assert.Contains("--results", result.Stdout);
         Assert.Contains("--only-verified", result.Stdout);
         Assert.Contains("--max-target-megabytes", result.Stdout);
@@ -1382,6 +1423,8 @@ public sealed class CliCompatibilityTests
         Assert.Contains("--live-tls-mode", result.Stdout);
         Assert.Contains("--live-rate-limit-ms", result.Stdout);
         Assert.Contains("--live-provider-rate-limit-ms", result.Stdout);
+        Assert.Contains("--live-max-requests", result.Stdout);
+        Assert.Contains("--live-max-requests-per-provider", result.Stdout);
         Assert.Contains("--results", result.Stdout);
         Assert.Contains("--only-verified", result.Stdout);
         Assert.Contains("json|jsonl|text", result.Stdout);
@@ -1579,6 +1622,8 @@ public sealed class CliCompatibilityTests
         Assert.AreEqual(0, result.ExitCode);
         Assert.Contains("picket scan [<path>] [options]", result.Stdout);
         Assert.Contains("--github-api-endpoint", result.Stdout);
+        Assert.Contains("--live-max-requests", result.Stdout);
+        Assert.Contains("--live-max-requests-per-provider", result.Stdout);
         Assert.Contains("--max-target-megabytes", result.Stdout);
         Assert.Contains("--redact", result.Stdout);
         Assert.DoesNotContain("Additional Arguments", result.Stdout);

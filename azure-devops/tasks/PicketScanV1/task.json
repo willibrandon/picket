@@ -137,6 +137,22 @@
       "helpMarkDown": "Enable opt-in live provider verification."
     },
     {
+      "name": "liveMaxRequests",
+      "type": "string",
+      "label": "Live request limit",
+      "defaultValue": "100",
+      "required": true,
+      "helpMarkDown": "Maximum outbound live-verification requests per scan."
+    },
+    {
+      "name": "liveMaxRequestsPerProvider",
+      "type": "string",
+      "label": "Live request limit per provider",
+      "defaultValue": "25",
+      "required": true,
+      "helpMarkDown": "Maximum outbound live-verification requests for any one provider per scan."
+    },
+    {
       "name": "annotations",
       "type": "boolean",
       "label": "Annotations",

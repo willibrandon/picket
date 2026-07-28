@@ -250,6 +250,23 @@ internal static partial class Program
         return false;
     }
 
+    static bool TryReadPositiveIntFlag(string[] args, ref int index, string longName, out int value)
+    {
+        if (!TryReadIntFlag(args, ref index, longName, out value))
+        {
+            return false;
+        }
+
+        if (value > 0)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine($"{longName} requires a positive integer value");
+        value = 0;
+        return false;
+    }
+
     static bool TryReadNonNegativeMillisecondsFlag(string[] args, ref int index, string longName, out TimeSpan value)
     {
         if (TryReadNonNegativeIntFlag(args, ref index, longName, out int milliseconds))
@@ -926,6 +943,18 @@ internal static partial class Program
     {
         return arg.Equals("--live-provider-rate-limit-ms", StringComparison.Ordinal)
             || arg.StartsWith("--live-provider-rate-limit-ms=", StringComparison.Ordinal);
+    }
+
+    static bool IsLiveMaxRequestsFlag(string arg)
+    {
+        return arg.Equals("--live-max-requests", StringComparison.Ordinal)
+            || arg.StartsWith("--live-max-requests=", StringComparison.Ordinal);
+    }
+
+    static bool IsLiveMaxRequestsPerProviderFlag(string arg)
+    {
+        return arg.Equals("--live-max-requests-per-provider", StringComparison.Ordinal)
+            || arg.StartsWith("--live-max-requests-per-provider=", StringComparison.Ordinal);
     }
 
     static bool IsAllowNonPublicProviderEndpointsFlag(string arg)
