@@ -66,6 +66,15 @@ internal static class EmbeddedPicketConfig
             "\"}}");
         string dockerHubOrganizationAccessToken = CreateExample("dckr_oat_", CreateExampleBody(32));
         string dockerHubPersonalAccessToken = CreateExample("dckr_pat_", CreateExampleBody(27));
+        const string externalSecretNegativeExample = """
+            apiVersion: external-secrets.io/v1
+            kind: ExternalSecret
+            spec:
+              target:
+                template:
+                  data:
+                    password: "{{ .credential }}"
+            """;
         string googleApiKey = CreateExample("AIza", "SyDabcdefghijklmnopqrstuvwxyz123456");
         string groqApiKey = CreateExample("gsk_", CreateAlphaNumericExampleBody(48));
         string gcpPrivateKey = CreateExample(
@@ -148,6 +157,7 @@ internal static class EmbeddedPicketConfig
         string openAiProjectApiKey = CreateExample("sk-proj-", CreateExampleBody(96));
         string openAiServiceAccountApiKey = CreateExample("sk-svcacct-", CreateExampleBody(96));
         string openRouterApiKey = CreateExample("sk-or-v1-", CreateLowerHexExampleBody(64));
+        const string passwordTemplateReference = "password = \"{{ .credential }}\"";
         string replicateApiToken = CreateExample("r8_", CreateAlphaNumericExampleBody(37));
         string tailscaleApiKey = CreateExample("tskey-api-", CreateExampleBody(32));
         string vercelAiGatewayKey = CreateExample("vck_", CreateExampleBody(56));
@@ -185,6 +195,56 @@ examples = [
 ]
 negativeExamples = [
     "<my-custom-component v-model=\"anyValWithKeyInside\" :followed-by-a-dynamic-attributes-with-at-least-two-dashes=\"true\" />",
+    "SUPABASE_PUBLISHABLE_KEY=\"sb_publishable_7Gk2Vm9Qp4Rx8Ts3Yw6Nc1Hd\"",
+    "STRIPE_PUBLISHABLE_KEY=\"pk_live_7Gk2Vm9Qp4Rx8Ts3Yw6Nc1Hd\"",
+]
+
+[[rules.allowlists]]
+description = "Documented client-side publishable keys"
+regexTarget = "secret"
+regexes = [
+    '''^sb_publishable_[A-Za-z0-9_-]{20,}$''',
+    '''^pk_(?:test|live)_[A-Za-z0-9]{24,}$''',
+]
+
+[[rules.allowlists]]
+description = "Cargo package checksums"
+condition = "and"
+paths = ['''(?:^|[/\\])(?:Cargo\.lock|\.cargo-checksum\.json)$''']
+regexTarget = "line"
+regexes = [
+    '''^[ \t]*checksum[ \t]*=[ \t]*"[0-9a-fA-F]{64}"[ \t]*$''',
+    '''"(?:package|[^"]+)"[ \t]*:[ \t]*"[0-9a-fA-F]{64}"''',
+]
+
+[[rules.allowlists]]
+description = "Cargo git dependency revisions"
+condition = "and"
+paths = ['''(?:^|[/\\])Cargo\.toml(?:\.orig)?$''']
+regexTarget = "line"
+regexes = ['''\brev[ \t]*=[ \t]*"[0-9a-fA-F]{40}"''']
+
+[[rules]]
+id = "picket-generated-password"
+description = "Detected a likely generated password in an assignment."
+regex = '''(?i)(?:password|passwd)[ \t'"`]{0,31}(?:=|:)'''
+keywords = ["password", "passwd"]
+randomnessThreshold = 0.6
+tags = ["picket", "password", "generated", "assignment"]
+severity = "high"
+confidence = "medium"
+rulePack = "picket-default"
+provider = "Password"
+documentationUrl = "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+detector = "password-assignment"
+examples = [
+    "password = \"A7f9Q2hook8Lm4Kx6Np3Rt5Yw7Bc9De1FgH\"",
+    "databasePassword: \"G7!qZ@2#vN$8%kR^4&mT*9?xP\"",
+]
+negativeExamples = [
+    "password = \"correct horse battery staple\"",
+    "password = \"${DATABASE_PASSWORD}\"",
+    '''{{passwordTemplateReference}}''',
 ]
 
 [[rules]]
@@ -688,7 +748,15 @@ documentationUrl = "https://kubernetes.io/docs/concepts/configuration/secret/"
 validation = ["offline:kubernetes-secret"]
 detector = "kubernetes-secret"
 examples = ["apiVersion: v1\ndata:\n  password: {{kubernetesSecret}}\nkind: Secret"]
-negativeExamples = ["apiVersion: v1\ndata:\n  setting: {{kubernetesSecret}}\nkind: ConfigMap"]
+negativeExamples = [
+    "apiVersion: v1\ndata:\n  setting: {{kubernetesSecret}}\nkind: ConfigMap",
+    '''{{externalSecretNegativeExample}}''',
+]
+
+[[rules.allowlists]]
+description = "External secret template references"
+regexTarget = "secret"
+regexes = ['''^\{\{[ \t]*(?:[.]|index[ \t]+[.])[^{}\r\n]*\}\}$''']
 
 [[rules]]
 id = "picket-mcp-server-credential"

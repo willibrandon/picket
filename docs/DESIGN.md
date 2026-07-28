@@ -614,6 +614,10 @@ Native profiles combine:
 - checksum validation where token formats support it,
 - known dummy/test credential suppression,
 - placeholder and fixture detection,
+- exact contextual suppression for documented public keys, generated package
+  checksums, and external-secret template references,
+- bounded password-assignment detection that preserves generated values with
+  punctuation or embedded stopwords,
 - entropy plus deterministic randomness scoring,
 - dependent-rule correlation,
 - severity/confidence thresholds,

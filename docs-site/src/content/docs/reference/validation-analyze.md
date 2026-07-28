@@ -320,6 +320,7 @@ This page is generated from `SecretValidationState`, `SecretValidationResult`, e
 | `critical` | `low` | 1 | HTTP |
 | `critical` | `medium` | 3 | Azure, Database, HTTP |
 | `high` | `low` | 1 | HTTP |
+| `high` | `medium` | 1 | Password |
 
 ## Analyze Risk Mapping
 

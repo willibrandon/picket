@@ -101,8 +101,16 @@ Built-in structured detector identifiers are:
 - `kubernetes-secret`
 - `mcp-server-credentials`
 - `npm-credentials`
+- `password-assignment`
 
 Structured detectors are native-only. JSON, YAML, and npmrc parse products are bounded and shared for one input so multiple rules do not repeatedly parse the same content. Unknown detector names fail config validation.
+
+The `password-assignment` detector recognizes bounded `password` and `passwd`
+assignments without restricting the value alphabet. The
+`picket-generated-password` rule combines that explicit context with a reviewed
+randomness threshold. This keeps generated values containing punctuation or
+ordinary stopwords detectable without broadening the compatibility-derived
+generic API-key rule.
 
 Supported validation template identifiers are:
 
@@ -177,6 +185,13 @@ Supported allowlist fields:
 - `targetRules` for global allowlists only
 
 Deprecated singular allowlist tables cannot be mixed with plural allowlist tables in the same scope.
+
+The native default profile uses exact contextual allowlists for public
+Supabase and Stripe publishable keys, Cargo checksums and revisions, and
+complete Kubernetes external-secret template references. Cargo suppression
+requires both the expected file path and checksum or revision syntax. It does
+not ignore Cargo files as a class. Supabase secret keys and concrete
+Kubernetes Secret values remain reportable.
 
 ## Required Rules
 

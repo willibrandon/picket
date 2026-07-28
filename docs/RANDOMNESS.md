@@ -56,6 +56,14 @@ The native rule field `randomnessThreshold` accepts `0.0` through `1.0`. Zero di
 
 Do not add a threshold to fixed-format or checksum-verifiable rules merely because the field exists. Random digests, generated identifiers, minified symbols, and compressed or encrypted content can score as random without being credentials. Conversely, human-created passwords can be real credentials while scoring as structured.
 
+The native `picket-generated-password` rule uses a `0.6` threshold only after
+the bounded assignment detector has established `password` or `passwd`
+context. This lower, rule-specific boundary retains generated values that use
+multiple punctuation classes. Environment references and template
+placeholders are rejected before scoring, while low-randomness prose remains
+below the threshold. The threshold does not apply to strict compatibility
+scans or other rules.
+
 ## Report Fields
 
 Lossless native JSON, JSON Lines, and SARIF findings include a `randomness` object with:
