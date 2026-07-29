@@ -28,7 +28,7 @@ internal static class PublishLinuxMuslApp
     /// <summary>
     /// Digest-pinned .NET 10 Alpine AOT SDK image used for native linking.
     /// </summary>
-    private const string AotSdkImage = "mcr.microsoft.com/dotnet/sdk@sha256:d8ee39817ca03a3757288e83c37ed73cc969a286c603b827c7cbe33add1c2d1c";
+    private const string AotSdkImage = "mcr.microsoft.com/dotnet/sdk@sha256:804af59ab9617c61c0a7f57d548c76e436d4c32e36c77c006aa8064c608f70fb";
 
     /// <summary>
     /// Supported Linux musl runtime identifiers.
