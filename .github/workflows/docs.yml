@@ -31,7 +31,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6.0.0
         with:
-          dotnet-version: 10.0.301
+          dotnet-version: 10.0.302
 
       - name: Set up pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9

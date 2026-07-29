@@ -34,7 +34,7 @@ jobs:
         with:
           dotnet-version: |
             9.0.x
-            10.0.301
+            10.0.302
 
       - name: Set up pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -146,7 +146,7 @@ jobs:
         with:
           dotnet-version: |
             9.0.x
-            10.0.301
+            10.0.302
 
       - name: Restore
         run: dotnet restore Picket.slnx --locked-mode
@@ -395,7 +395,7 @@ jobs:
         with:
           dotnet-version: |
             9.0.x
-            10.0.301
+            10.0.302
 
       - name: Restore
         run: dotnet restore Picket.slnx --locked-mode
@@ -497,7 +497,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6.0.0
         with:
-          dotnet-version: 10.0.301
+          dotnet-version: 10.0.302
 
       - name: Collect NuGet packages
         shell: pwsh
@@ -682,7 +682,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6.0.0
         with:
-          dotnet-version: 10.0.301
+          dotnet-version: 10.0.302
 
       - name: Install WiX
         shell: pwsh
@@ -1113,7 +1113,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6.0.0
         with:
-          dotnet-version: 10.0.301
+          dotnet-version: 10.0.302
 
       - name: Download release assets
         shell: pwsh
@@ -1683,7 +1683,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6.0.0
         with:
-          dotnet-version: 10.0.301
+          dotnet-version: 10.0.302
 
       - name: Set up Node
         uses: actions/setup-node@v7.0.0

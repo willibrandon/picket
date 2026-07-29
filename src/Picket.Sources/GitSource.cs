@@ -18,7 +18,17 @@ public static class GitSource
     /// <returns>The added patch fragments in git output order.</returns>
     public static IReadOnlyList<GitPatchFragment> Enumerate(GitScanOptions options)
     {
+        var fragments = new List<GitPatchFragment>();
+        _ = Enumerate(options, fragments.Add);
+        return fragments;
+    }
+
+    internal static int Enumerate(
+        GitScanOptions options,
+        Action<GitPatchFragment> fragmentSink)
+    {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(fragmentSink);
 
         using Process process = CreateGitProcess(options);
         try
@@ -34,7 +44,19 @@ public static class GitSource
         }
 
         Task<string> stderrTask = process.StandardError.ReadToEndAsync();
-        List<GitPatchFragment> fragments = ParsePatch(process.StandardOutput.BaseStream, options);
+        int commitCount;
+        try
+        {
+            commitCount = ParsePatch(process.StandardOutput.BaseStream, options, fragmentSink);
+        }
+        catch
+        {
+            TryKill(process);
+            process.WaitForExit();
+            _ = stderrTask.GetAwaiter().GetResult();
+            throw;
+        }
+
         bool cancelled = IsCancellationRequested(options);
         if (cancelled)
         {
@@ -48,7 +70,8 @@ public static class GitSource
             throw new InvalidOperationException(stderr.Length == 0 ? $"git exited with code {process.ExitCode}" : stderr);
         }
 
-        return fragments;
+        WriteGitWarnings(options, stderr);
+        return commitCount;
     }
 
     private static Process CreateGitProcess(GitScanOptions options)
@@ -192,8 +215,22 @@ public static class GitSource
     /// <returns>The parsed added-line fragments.</returns>
     internal static List<GitPatchFragment> ParsePatch(Stream stream, GitScanOptions options)
     {
-        using var reader = new GitPatchLineReader(stream, () => IsCancellationRequested(options));
         var fragments = new List<GitPatchFragment>();
+        _ = ParsePatch(stream, options, fragments.Add);
+        return fragments;
+    }
+
+    internal static int ParsePatch(
+        Stream stream,
+        GitScanOptions options,
+        Action<GitPatchFragment> fragmentSink)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(fragmentSink);
+
+        using var reader = new GitPatchLineReader(stream, () => IsCancellationRequested(options));
+        var commits = new HashSet<string>(StringComparer.Ordinal);
         string commit = string.Empty;
         string author = string.Empty;
         string email = string.Empty;
@@ -208,6 +245,8 @@ public static class GitSource
         bool readingMessage = false;
         bool diffBinaryProcessed = false;
         bool diffDeleted = false;
+        bool previousPatchLineWasAdded = false;
+        bool removeFinalAddedLineEnding = false;
 
         byte[]? rawLine;
         while ((rawLine = reader.ReadLine()) is not null)
@@ -233,6 +272,8 @@ public static class GitSource
                 readingMessage = false;
                 diffBinaryProcessed = false;
                 diffDeleted = false;
+                previousPatchLineWasAdded = false;
+                removeFinalAddedLineEnding = false;
                 continue;
             }
 
@@ -259,6 +300,8 @@ public static class GitSource
                 hunkStartLine = 0;
                 diffBinaryProcessed = false;
                 diffDeleted = false;
+                previousPatchLineWasAdded = false;
+                removeFinalAddedLineEnding = false;
                 continue;
             }
 
@@ -295,10 +338,24 @@ public static class GitSource
             {
                 if (!diffDeleted && !diffBinaryProcessed && diffFilePath is not null)
                 {
-                    AddArchiveFragments(options, fragments, diffFilePath, commit, author, email, date, message);
+                    if (AddArchiveFragments(
+                        options,
+                        fragmentSink,
+                        diffFilePath,
+                        commit,
+                        author,
+                        email,
+                        date,
+                        message)
+                        && commit.Length != 0)
+                    {
+                        commits.Add(commit);
+                    }
+
                     diffBinaryProcessed = true;
                 }
 
+                previousPatchLineWasAdded = false;
                 continue;
             }
 
@@ -306,6 +363,12 @@ public static class GitSource
             {
                 FlushFragment();
                 hunkStartLine = ParseNewStartLineBytes(line);
+                if (!diffDeleted && filePath is not null && commit.Length != 0)
+                {
+                    commits.Add(commit);
+                }
+
+                previousPatchLineWasAdded = false;
                 continue;
             }
 
@@ -315,11 +378,21 @@ public static class GitSource
                 addedLine.CopyTo(addedBytes.GetSpan(addedLine.Length));
                 addedBytes.Advance(addedLine.Length);
                 hasAddedLines = true;
+                previousPatchLineWasAdded = true;
+                removeFinalAddedLineEnding = false;
+                continue;
             }
+
+            if (previousPatchLineWasAdded && IsNoNewlineMarker(line))
+            {
+                removeFinalAddedLineEnding = true;
+            }
+
+            previousPatchLineWasAdded = false;
         }
 
         FlushFragment();
-        return fragments;
+        return commits.Count;
 
         void FlushFragment()
         {
@@ -327,11 +400,19 @@ public static class GitSource
             {
                 addedBytes.Clear();
                 hasAddedLines = false;
+                previousPatchLineWasAdded = false;
+                removeFinalAddedLineEnding = false;
                 return;
             }
 
-            fragments.Add(new GitPatchFragment(
-                addedBytes.WrittenSpan.ToArray(),
+            ReadOnlySpan<byte> input = addedBytes.WrittenSpan;
+            if (removeFinalAddedLineEnding && input.EndsWith("\n"u8))
+            {
+                input = input[..^1];
+            }
+
+            fragmentSink(new GitPatchFragment(
+                input.ToArray(),
                 filePath,
                 hunkStartLine,
                 commit,
@@ -341,12 +422,14 @@ public static class GitSource
                 message));
             addedBytes.Clear();
             hasAddedLines = false;
+            previousPatchLineWasAdded = false;
+            removeFinalAddedLineEnding = false;
         }
     }
 
-    private static void AddArchiveFragments(
+    private static bool AddArchiveFragments(
         GitScanOptions options,
-        List<GitPatchFragment> fragments,
+        Action<GitPatchFragment> fragmentSink,
         string filePath,
         string commit,
         string author,
@@ -356,23 +439,23 @@ public static class GitSource
     {
         if (options.MaxArchiveDepth == 0)
         {
-            return;
+            return false;
         }
 
         if (IsCancellationRequested(options))
         {
-            return;
+            return false;
         }
 
         if (!options.IdentifyArchivesByContent && !ArchiveReader.IsArchivePath(filePath))
         {
-            return;
+            return false;
         }
 
         byte[]? blob = ReadGitBlob(options, commit, filePath);
         if (blob is null || !ArchiveReader.IsArchiveContent(blob))
         {
-            return;
+            return false;
         }
 
         var entries = new List<ArchiveEntry>();
@@ -389,12 +472,12 @@ public static class GitSource
             options.IsCancellationRequested,
             entries))
         {
-            return;
+            return false;
         }
 
         foreach (ArchiveEntry entry in entries)
         {
-            fragments.Add(new GitPatchFragment(
+            fragmentSink(new GitPatchFragment(
                 entry.Content,
                 entry.DisplayPath,
                 1,
@@ -403,6 +486,27 @@ public static class GitSource
                 email,
                 date,
                 message));
+        }
+
+        return entries.Count != 0;
+    }
+
+    private static bool IsNoNewlineMarker(ReadOnlySpan<byte> line)
+    {
+        // Git localizes the marker text, but every supported form starts with "\ ".
+        return line.StartsWith("\\ "u8);
+    }
+
+    private static void WriteGitWarnings(GitScanOptions options, string stderr)
+    {
+        if (stderr.Length == 0 || options.WarningSink is null)
+        {
+            return;
+        }
+
+        foreach (string line in stderr.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            options.WarningSink(line);
         }
     }
 

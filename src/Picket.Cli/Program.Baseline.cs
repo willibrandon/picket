@@ -372,7 +372,7 @@ internal static partial class Program
             Console.Error.WriteLine(TimeoutErrorMessage);
         }
 
-        int parallelScanDegree = GetSourceFileScanDegree(files.Count);
+        int parallelScanDegree = GetScanDegree(files.Count);
         if (!hadScanError)
         {
             bool completed = ScanSourceFiles(

@@ -11,10 +11,10 @@ internal static partial class Program
     private const double MediumMemoryPressureThreshold = 0.70;
     private const int MinimumParallelScanFileCount = 8;
 
-    static int GetSourceFileScanDegree(int fileCount)
+    static int GetScanDegree(int workItemCount)
     {
-        int processorDegree = Math.Min(fileCount, Environment.ProcessorCount);
-        if (fileCount < MinimumParallelScanFileCount || processorDegree <= 1)
+        int processorDegree = Math.Min(workItemCount, Environment.ProcessorCount);
+        if (workItemCount < MinimumParallelScanFileCount || processorDegree <= 1)
         {
             return 1;
         }

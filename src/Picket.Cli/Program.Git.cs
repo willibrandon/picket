@@ -398,23 +398,74 @@ internal static partial class Program
         }
 
         long timeoutTimestamp = CreateTimeoutTimestamp(timeoutSeconds);
-        IReadOnlyList<GitPatchFragment> fragments;
+        GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
+        CreateGitLinkContext(root, staged || preCommit, platform, out string scmPlatform, out string remoteUrl);
+        var findings = new List<Finding>();
+        List<Finding>? streamedHookFindings = hookContext is null || nativeMode ? null : [];
+        SortedDictionary<int, (IReadOnlyList<Finding> Report, IReadOnlyList<Finding> Hook)>?
+            orderedCompatibilityFindings = nativeMode ? null : [];
+        bool timedOut = false;
+        int fragmentCount;
+        int commitCount;
         try
         {
-            fragments = GitSource.Enumerate(new GitScanOptions(
-                root,
-                logOptions: logOptions,
-                staged: staged,
-                preCommit: preCommit,
-                maxArchiveDepth: maxArchiveDepth,
-                maxArchiveEntries: maxArchiveEntries,
-                maxArchiveBytes: maxArchiveBytes,
-                maxArchiveCompressionRatio: maxArchiveCompressionRatio,
-                maxTargetBytes: maxTargetBytes,
-                isPathAllowed: rules.IsGlobalPathAllowed,
-                warningSink: Console.Error.WriteLine,
-                isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
-                identifyArchivesByContent: nativeMode));
+            GitScanOptions sourceOptions = new(
+                    root,
+                    logOptions: logOptions,
+                    staged: staged,
+                    preCommit: preCommit,
+                    maxArchiveDepth: maxArchiveDepth,
+                    maxArchiveEntries: maxArchiveEntries,
+                    maxArchiveBytes: maxArchiveBytes,
+                    maxArchiveCompressionRatio: maxArchiveCompressionRatio,
+                    maxTargetBytes: maxTargetBytes,
+                    isPathAllowed: rules.IsGlobalPathAllowed,
+                    warningSink: Console.Error.WriteLine,
+                    isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
+                    identifyArchivesByContent: nativeMode);
+            (commitCount, fragmentCount, timedOut) = ScanGitFragments(
+                sourceOptions,
+                nativeMode ? 1 : GetScanDegree(int.MaxValue),
+                fragment =>
+                {
+                    IReadOnlyList<Finding> fragmentFindings = ScanGitFragment(
+                        fragment,
+                        rules,
+                        ignoreGitleaksAllow,
+                        maxTargetBytes,
+                        maxDecodeDepth,
+                        nativeMode,
+                        timeoutTimestamp,
+                        scmPlatform,
+                        remoteUrl,
+                        nativeMode ? null : consoleOptions.Metrics,
+                        out bool fragmentTimedOut);
+                    return (fragmentFindings, fragmentTimedOut);
+                },
+                (fragmentIndex, fragmentFindings) =>
+                {
+                    if (nativeMode)
+                    {
+                        findings.AddRange(fragmentFindings);
+                    }
+                    else
+                    {
+                        IReadOnlyList<Finding> filteredFragmentFindings =
+                            baseline.Filter(gitleaksIgnore.Filter(fragmentFindings), redactionPercent);
+                        IReadOnlyList<Finding> hookFragmentFindings = filteredFragmentFindings;
+                        if (redactionPercent > 0)
+                        {
+                            filteredFragmentFindings = GitleaksFindingRedactor.Redact(
+                                filteredFragmentFindings,
+                                redactionPercent);
+                        }
+
+                        orderedCompatibilityFindings!.Add(
+                            fragmentIndex,
+                            (filteredFragmentFindings, hookFragmentFindings));
+                        CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, filteredFragmentFindings);
+                    }
+                });
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException)
         {
@@ -422,40 +473,39 @@ internal static partial class Program
             return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
-        GitleaksIgnore gitleaksIgnore = LoadGitleaksIgnore(gitleaksIgnorePath, root);
-        CreateGitLinkContext(root, staged || preCommit, platform, out string scmPlatform, out string remoteUrl);
-        diagnosticsSession?.RecordScanInputs(fragments.Count);
-        List<Finding> findings = ScanGitFragments(
-            fragments,
-            rules,
-            ignoreGitleaksAllow,
-            maxTargetBytes,
-            maxDecodeDepth,
-            nativeMode,
-            timeoutTimestamp,
-            scmPlatform,
-            remoteUrl,
-            nativeMode ? null : consoleOptions.Metrics,
-            out bool timedOut);
-        timedOut |= IsTimedOut(timeoutTimestamp);
-        IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
-        if (nativeMode)
+        if (orderedCompatibilityFindings is not null)
         {
-            filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
-            filteredFindings = SecretRandomnessFindingProcessor.Apply(filteredFindings, rules);
+            foreach ((IReadOnlyList<Finding> reportFindings, IReadOnlyList<Finding> orderedHookFindings)
+                in orderedCompatibilityFindings.Values)
+            {
+                findings.AddRange(reportFindings);
+                streamedHookFindings?.AddRange(orderedHookFindings);
+            }
         }
 
-        IReadOnlyList<Finding>? hookFindings = hookContext is null ? null : filteredFindings;
-        if (redactionPercent > 0)
+        diagnosticsSession?.RecordScanInputs(fragmentCount);
+        timedOut |= IsTimedOut(timeoutTimestamp);
+        IReadOnlyList<Finding> filteredFindings = findings;
+        IReadOnlyList<Finding>? hookFindings = streamedHookFindings;
+        if (nativeMode)
         {
-            filteredFindings = GitleaksFindingRedactor.Redact(filteredFindings, redactionPercent, requirePartialMask: nativeMode);
+            filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
+            filteredFindings = OfflineSecretValidator.AnnotateAll(filteredFindings);
+            filteredFindings = SecretRandomnessFindingProcessor.Apply(filteredFindings, rules);
+            hookFindings = hookContext is null ? null : filteredFindings;
+            if (redactionPercent > 0)
+            {
+                filteredFindings = GitleaksFindingRedactor.Redact(
+                    filteredFindings,
+                    redactionPercent,
+                    requirePartialMask: true);
+            }
         }
 
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
         if (!nativeMode)
         {
-            CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, filteredFindings);
-            CompatibilityConsoleWriter.WriteGitCommitCount(consoleOptions, CountGitCommits(fragments));
+            CompatibilityConsoleWriter.WriteGitCommitCount(consoleOptions, commitCount);
             CompatibilityConsoleWriter.WriteSummary(consoleOptions, filteredFindings, partialScan: timedOut);
         }
 

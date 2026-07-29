@@ -635,7 +635,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Build-ZstandardMusl.cs", releaseWorkflow);
         Assert.Contains("Publish-LinuxMusl.cs", ciWorkflow);
         Assert.Contains("Publish-LinuxMusl.cs", releaseWorkflow);
-        Assert.Contains("mcr.microsoft.com/dotnet/sdk@sha256:999d96611287a92e064668b8aec18ee97cd7c2f3e5796d22f1e8b720d944ff69", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
+        Assert.Contains("mcr.microsoft.com/dotnet/sdk@sha256:804af59ab9617c61c0a7f57d548c76e436d4c32e36c77c006aa8064c608f70fb", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
         Assert.Contains("Smoke test Linux musl zstandard scan", ciWorkflow);
         Assert.Contains("Smoke test Linux musl zstandard scan", releaseWorkflow);
         Assert.Contains("musl-tools zstd", ciWorkflow);

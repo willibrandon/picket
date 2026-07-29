@@ -78,6 +78,44 @@ public sealed partial class CompatibilityConsoleTests
     }
 
     /// <summary>
+    /// Verifies colored verbose findings include the same bounded line context as Gitleaks.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task StdinVerboseColorIncludesBoundedLineContext()
+    {
+        const string Prefix = "before-012345678901234567890123456789";
+        const string Secret = "context-secret-12345";
+        const string Suffix = "012345678901234567890123456789-after";
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, ".gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            title = "line context"
+
+            [[rules]]
+            id = "context-secret"
+            description = "context secret"
+            regex = '''context-secret-[0-9]{5}'''
+            keywords = ["context-secret-"]
+            """);
+
+        CliResult result = await RunCliWithInputAsync(
+            string.Concat(Prefix, Secret, Suffix),
+            "stdin",
+            "--verbose",
+            "--no-banner",
+            "--config",
+            configPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains(
+            $"Finding:     ...{Prefix[^20..]}\u001b[1;3;m{Secret}\u001b[0m{Suffix[..20]}...",
+            result.Stdout);
+    }
+
+    /// <summary>
     /// Verifies recursive compatibility options work before the command name.
     /// </summary>
     [TestMethod]

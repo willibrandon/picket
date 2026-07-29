@@ -517,6 +517,8 @@ Contextual predicates use a closed, typed, short-circuit expression grammar rath
 
 A native structured rule still requires a bounded regex and keyword prefilter. After that prefilter selects the rule, its named detector uses a shared per-input JSON, YAML, or npmrc index and returns exact evidence spans without reparsing the input for every structured rule.
 
+Strict Git-history scans parse added-line fragments while `git` is still producing the patch. Matching uses a bounded worker queue whose degree follows effective processor availability and GC memory pressure. Verbose findings are written as fragment scans complete, and successful `git` warnings are preserved on standard error. Compatibility counters follow the pinned Gitleaks source model: commits represented by non-deleted patch files count even when a hunk contains only deletions, and a localized `\ No newline at end of file` marker removes the patch reader's synthetic final line ending from scanned bytes.
+
 ### 7.6 Fingerprints, Ignores, Baselines
 
 Compatibility fingerprints:
