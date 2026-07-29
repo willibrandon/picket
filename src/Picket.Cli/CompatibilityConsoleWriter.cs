@@ -231,14 +231,16 @@ internal static class CompatibilityConsoleWriter
         Finding finding)
     {
         TextWriter writer = Console.Out;
+        string line = finding.Line.Trim();
         string match = finding.Match.Trim();
         string secret = finding.Secret.Trim();
-        string displayMatch = options.NoColor
-            ? match
-            : ColorizeMatch(match, secret);
-        string displaySecret = options.NoColor
-            ? secret
-            : ColorizeSecret(secret);
+        CreateFindingDisplay(
+            options,
+            line,
+            match,
+            secret,
+            out string displayMatch,
+            out string displaySecret);
         WriteField(writer, "Finding:", displayMatch);
         WriteField(writer, "Secret:", displaySecret);
         WriteField(writer, "RuleID:", finding.RuleID);
@@ -277,6 +279,50 @@ internal static class CompatibilityConsoleWriter
 
         WriteRequiredFindings(options, writer, finding.RequiredFindings);
         writer.Write('\n');
+    }
+
+    private static void CreateFindingDisplay(
+        CompatibilityConsoleOptions options,
+        string line,
+        string match,
+        string secret,
+        out string displayMatch,
+        out string displaySecret)
+    {
+        bool isFileMatch = match.StartsWith("file detected:", StringComparison.Ordinal);
+        int matchIndex = line.IndexOf(match, StringComparison.Ordinal);
+        int secretIndex = match.IndexOf(secret, StringComparison.Ordinal);
+        if (options.NoColor || isFileMatch || matchIndex < 0 || secretIndex < 0)
+        {
+            displayMatch = match;
+            displaySecret = secret;
+            return;
+        }
+
+        string prefix = line[..matchIndex];
+        if (matchIndex > 20)
+        {
+            prefix = string.Concat("...", line.AsSpan(matchIndex - 20, 20));
+        }
+
+        prefix = prefix.TrimStart(' ');
+        if (prefix.StartsWith('\n'))
+        {
+            prefix = prefix[1..];
+        }
+
+        int suffixIndex = matchIndex + match.Length;
+        if (line.Length - 1 <= suffixIndex)
+        {
+            suffixIndex = line.Length;
+        }
+
+        ReadOnlySpan<char> suffix = line.AsSpan(suffixIndex);
+        string suffixText = suffix.Length > 20
+            ? string.Concat(suffix[..20], "...")
+            : suffix.ToString();
+        displayMatch = string.Concat(prefix, ColorizeMatch(match, secret), suffixText);
+        displaySecret = ColorizeSecret(secret);
     }
 
     private static void WriteRequiredFindings(

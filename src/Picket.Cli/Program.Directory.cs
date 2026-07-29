@@ -738,7 +738,7 @@ internal static partial class Program
                         consoleOptions.Metrics);
                 }
 
-                int parallelScanDegree = GetSourceFileScanDegree(sourceFileCount - startFileIndex);
+                int parallelScanDegree = GetScanDegree(sourceFileCount - startFileIndex);
                 bool completed = ScanSourceFiles(
                     files,
                     startFileIndex,

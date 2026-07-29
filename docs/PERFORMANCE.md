@@ -264,17 +264,22 @@ therefore include candidate regex compilation on first use. Compilation
 scenarios force every deferred regex so they measure actual Scout compilation,
 not only Picket rule-wrapper and fingerprint construction.
 
-Filesystem and baseline file evaluation is bounded by source count, effective CPU
-availability, and current memory pressure. [`Environment.ProcessorCount`](https://learn.microsoft.com/en-us/dotnet/api/system.environment.processorcount?view=net-10.0)
+Filesystem, baseline file, and strict Git-history fragment evaluation is bounded
+by work-item count, effective CPU availability, and current memory pressure.
+[`Environment.ProcessorCount`](https://learn.microsoft.com/en-us/dotnet/api/system.environment.processorcount?view=net-10.0)
 honors processor affinity and CPU limits. Picket uses
 [`GC.GetGCMemoryInfo()`](https://learn.microsoft.com/en-us/dotnet/api/system.gc.getgcmemoryinfo?view=net-10.0)
 and follows the 70% medium-pressure and 90% high-pressure bands used by
 [`ArrayPool<T>` in the .NET runtime](https://github.com/dotnet/runtime/blob/41ec8890ed351082aecb9ec6da189a450941b18f/src/libraries/System.Private.CoreLib/src/System/Buffers/Utilities.cs#L37-L58).
 Low pressure permits one worker per effective processor, medium pressure halves
-that degree, and high pressure uses one worker. Results are merged in source
-order, so report bytes do not depend on scheduling. Checkpointed scans commit
-serially because a checkpoint low-water mark must always identify a complete
-source-manifest prefix.
+that degree, and high pressure uses one worker. Filesystem and baseline results
+are merged in source order, so their report bytes do not depend on scheduling.
+Strict Git-history scans match Gitleaks' concurrent completion model: added-line
+fragments enter a queue capped at one pending fragment per worker, findings are
+emitted as workers complete, final reports are merged in source order for stable
+compatibility bytes, and the entire patch is never retained. Checkpointed scans
+commit serially because a checkpoint low-water mark must always identify a
+complete source-manifest prefix.
 
 For incremental-scan changes, run with `--cache-dir` and opt-in diagnostics.
 The `cpu.json`, `mem.json`, and `trace.jsonl` artifacts include `scanInputs`,

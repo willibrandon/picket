@@ -456,7 +456,7 @@ This page is generated from `action.yml`.
       </div>
       <div>
         <dt>Default or value</dt>
-        <dd><code>10.0.301</code></dd>
+        <dd><code>10.0.302</code></dd>
       </div>
     </dl>
   </article>

@@ -1,6 +1,7 @@
 using Picket.Sources;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.IO.Pipes;
 using System.Text;
 
 namespace Picket.Tests;
@@ -11,6 +12,11 @@ namespace Picket.Tests;
 [TestClass]
 public sealed class GitSourceTests
 {
+    /// <summary>
+    /// Gets or sets the current test context.
+    /// </summary>
+    public TestContext TestContext { get; set; } = null!;
+
     /// <summary>
     /// Verifies that git history enumeration expands zip archive blobs when archive traversal is enabled.
     /// </summary>
@@ -342,6 +348,169 @@ public sealed class GitSourceTests
         Assert.AreEqual("valid.txt", fragments[0].FilePath);
         Assert.AreEqual(7, fragments[0].StartLine);
         Assert.AreEqual("token-valid", Encoding.UTF8.GetString(fragments[0].Input.Span));
+    }
+
+    /// <summary>
+    /// Verifies that patch parsing yields a completed fragment before consuming later patch bytes.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task ParsePatchYieldsFragmentBeforeReadingFollowingPatchBytes()
+    {
+        const string FirstCommit = """
+            commit 0000000000000000000000000000000000000001
+            Author: Picket Test <picket@example.com>
+            Date: 2024-01-01T00:00:00Z
+
+                first
+
+            diff --git a/first.txt b/first.txt
+            --- /dev/null
+            +++ b/first.txt
+            @@ -0,0 +1 @@
+            +token-first
+            commit 0000000000000000000000000000000000000002
+
+            """;
+        const string SecondCommit = """
+            Author: Picket Test <picket@example.com>
+            Date: 2024-01-02T00:00:00Z
+
+                second
+
+            diff --git a/second.txt b/second.txt
+            --- /dev/null
+            +++ b/second.txt
+            @@ -0,0 +1 @@
+            +token-second
+
+            """;
+        string pipeName = $"picket-git-source-{Guid.NewGuid():N}";
+        using var writer = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.Out,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        using var reader = new NamedPipeClientStream(
+            ".",
+            pipeName,
+            PipeDirection.In,
+            PipeOptions.Asynchronous);
+        Task connectionTask = writer.WaitForConnectionAsync(TestContext.CancellationToken);
+        await reader.ConnectAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        await connectionTask.ConfigureAwait(false);
+        var firstFragmentYielded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int secondHalfWritten = 0;
+        Task writeTask = Task.Run(
+            async () =>
+            {
+                await writer.WriteAsync(
+                    Encoding.UTF8.GetBytes(FirstCommit.ReplaceLineEndings("\n")),
+                    TestContext.CancellationToken).ConfigureAwait(false);
+                await writer.FlushAsync(TestContext.CancellationToken).ConfigureAwait(false);
+                await firstFragmentYielded.Task.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+                Interlocked.Exchange(ref secondHalfWritten, 1);
+                await writer.WriteAsync(
+                    Encoding.UTF8.GetBytes(SecondCommit.ReplaceLineEndings("\n")),
+                    TestContext.CancellationToken).ConfigureAwait(false);
+                await writer.FlushAsync(TestContext.CancellationToken).ConfigureAwait(false);
+                writer.Close();
+            },
+            TestContext.CancellationToken);
+        var fragments = new List<GitPatchFragment>();
+
+        int commitCount = GitSource.ParsePatch(
+            reader,
+            new GitScanOptions("."),
+            fragment =>
+            {
+                if (fragments.Count == 0)
+                {
+                    Assert.AreEqual(0, Volatile.Read(ref secondHalfWritten));
+                    firstFragmentYielded.SetResult();
+                }
+
+                fragments.Add(fragment);
+            });
+        await writeTask.ConfigureAwait(false);
+
+        Assert.HasCount(2, fragments);
+        Assert.AreEqual(2, commitCount);
+        Assert.AreEqual("first.txt", fragments[0].FilePath);
+        Assert.AreEqual("second.txt", fragments[1].FilePath);
+    }
+
+    /// <summary>
+    /// Verifies that commit accounting includes modified-file hunks with no added lines.
+    /// </summary>
+    [TestMethod]
+    public void ParsePatchCountsCommitWithDeletionOnlyHunk()
+    {
+        byte[] patch = Encoding.UTF8.GetBytes(
+            """
+            commit 0000000000000000000000000000000000000001
+            Author: Picket Test <picket@example.com>
+            Date: 2024-01-01T00:00:00Z
+
+                remove line
+
+            diff --git a/modified.txt b/modified.txt
+            --- a/modified.txt
+            +++ b/modified.txt
+            @@ -1 +0,0 @@
+            -removed
+            commit 0000000000000000000000000000000000000002
+            Author: Picket Test <picket@example.com>
+            Date: 2024-01-02T00:00:00Z
+
+                add line
+
+            diff --git a/added.txt b/added.txt
+            --- /dev/null
+            +++ b/added.txt
+            @@ -0,0 +1 @@
+            +token-added
+
+            """.ReplaceLineEndings("\n"));
+        using var stream = new MemoryStream(patch, writable: false);
+        var fragments = new List<GitPatchFragment>();
+
+        int commitCount = GitSource.ParsePatch(stream, new GitScanOptions("."), fragments.Add);
+
+        Assert.AreEqual(2, commitCount);
+        Assert.HasCount(1, fragments);
+        Assert.AreEqual("added.txt", fragments[0].FilePath);
+    }
+
+    /// <summary>
+    /// Verifies that Gitleaks no-newline markers remove the synthetic patch line ending.
+    /// </summary>
+    [TestMethod]
+    public void ParsePatchRemovesAddedLineEndingBeforeNoNewlineMarker()
+    {
+        byte[] patch = Encoding.UTF8.GetBytes(
+            """
+            commit 0000000000000000000000000000000000000001
+            Author: Picket Test <picket@example.com>
+            Date: 2024-01-01T00:00:00Z
+
+                no final newline
+
+            diff --git a/secret.txt b/secret.txt
+            --- /dev/null
+            +++ b/secret.txt
+            @@ -0,0 +1 @@
+            +token-without-newline
+            \ No newline at end of file
+
+            """.ReplaceLineEndings("\n"));
+        using var stream = new MemoryStream(patch, writable: false);
+
+        List<GitPatchFragment> fragments = GitSource.ParsePatch(stream, new GitScanOptions("."));
+
+        Assert.HasCount(1, fragments);
+        Assert.IsTrue(fragments[0].Input.Span.SequenceEqual("token-without-newline"u8));
     }
 
     private static async Task InitializeGitRepositoryAsync(string root)

@@ -1,6 +1,8 @@
 using Picket.Engine;
 using Picket.Sources;
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 
 namespace Picket;
 
@@ -13,8 +15,8 @@ internal static partial class Program
             || command.Equals("directory", StringComparison.OrdinalIgnoreCase);
     }
 
-    static List<Finding> ScanGitFragments(
-        IReadOnlyList<GitPatchFragment> fragments,
+    static List<Finding> ScanGitFragment(
+        GitPatchFragment fragment,
         CompiledRuleSet rules,
         bool ignoreGitleaksAllow,
         long? maxTargetBytes,
@@ -26,63 +28,147 @@ internal static partial class Program
         CompatibilityScanMetrics? metrics,
         out bool timedOut)
     {
-        timedOut = false;
-        var findings = new List<Finding>();
-        foreach (GitPatchFragment fragment in fragments)
+        if (IsTimedOut(timeoutTimestamp))
         {
-            if (IsTimedOut(timeoutTimestamp))
-            {
-                timedOut = true;
-                break;
-            }
+            timedOut = true;
+            return [];
+        }
 
-            metrics?.AddBytes(fragment.Input.Length);
-            IReadOnlyList<Finding> fragmentFindings = SecretScanner.Scan(new ScanRequest(
-                fragment.Input,
-                fragment.FilePath,
-                rules,
-                ignoreGitleaksAllow,
-                fragment.Commit,
-                maxDecodeDepth,
-                maxTargetBytes,
-                useGitleaksMaxTargetSemantics: !nativeMode,
-                isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
-            {
-                EnableNativeDetectors = nativeMode,
-                EnableNativePredicates = nativeMode,
-                EnableRandomnessScoring = nativeMode,
-                PositionKind = nativeMode
-                    ? FindingPositionKind.UnicodeCodePointsExclusive
-                    : FindingPositionKind.GitleaksUtf8BytesInclusive,
-            });
-            if (IsTimedOut(timeoutTimestamp))
-            {
-                timedOut = true;
-                break;
-            }
+        metrics?.AddBytes(fragment.Input.Length);
+        IReadOnlyList<Finding> fragmentFindings = SecretScanner.Scan(new ScanRequest(
+            fragment.Input,
+            fragment.FilePath,
+            rules,
+            ignoreGitleaksAllow,
+            fragment.Commit,
+            maxDecodeDepth,
+            maxTargetBytes,
+            useGitleaksMaxTargetSemantics: !nativeMode,
+            isCancellationRequested: () => IsTimedOut(timeoutTimestamp))
+        {
+            EnableNativeDetectors = nativeMode,
+            EnableNativePredicates = nativeMode,
+            EnableRandomnessScoring = nativeMode,
+            PositionKind = nativeMode
+                ? FindingPositionKind.UnicodeCodePointsExclusive
+                : FindingPositionKind.GitleaksUtf8BytesInclusive,
+        });
+        if (IsTimedOut(timeoutTimestamp))
+        {
+            timedOut = true;
+            return [];
+        }
 
-            foreach (Finding finding in fragmentFindings)
-            {
-                findings.Add(MapGitFinding(finding, fragment, scmPlatform, remoteUrl));
-            }
+        timedOut = false;
+        var findings = new List<Finding>(fragmentFindings.Count);
+        foreach (Finding finding in fragmentFindings)
+        {
+            findings.Add(MapGitFinding(finding, fragment, scmPlatform, remoteUrl));
         }
 
         return findings;
     }
 
-    static int CountGitCommits(IReadOnlyList<GitPatchFragment> fragments)
+    static (int CommitCount, int FragmentCount, bool TimedOut) ScanGitFragments(
+        GitScanOptions sourceOptions,
+        int maxDegreeOfParallelism,
+        Func<GitPatchFragment, (IReadOnlyList<Finding> Findings, bool TimedOut)> fragmentScanner,
+        Action<int, IReadOnlyList<Finding>> findingsSink)
     {
-        var commits = new HashSet<string>(StringComparer.Ordinal);
-        for (int i = 0; i < fragments.Count; i++)
+        ArgumentNullException.ThrowIfNull(sourceOptions);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxDegreeOfParallelism, 1);
+        ArgumentNullException.ThrowIfNull(fragmentScanner);
+        ArgumentNullException.ThrowIfNull(findingsSink);
+
+        if (maxDegreeOfParallelism == 1)
         {
-            string commit = fragments[i].Commit;
-            if (commit.Length != 0)
-            {
-                commits.Add(commit);
-            }
+            int sequentialFragmentCount = 0;
+            bool timedOut = false;
+            int sequentialCommitCount = GitSource.Enumerate(
+                sourceOptions,
+                fragment =>
+                {
+                    int fragmentIndex = sequentialFragmentCount++;
+                    (IReadOnlyList<Finding> findings, bool fragmentTimedOut) = fragmentScanner(fragment);
+                    timedOut |= fragmentTimedOut;
+                    if (!fragmentTimedOut)
+                    {
+                        findingsSink(fragmentIndex, findings);
+                    }
+                });
+            return (sequentialCommitCount, sequentialFragmentCount, timedOut);
         }
 
-        return commits.Count;
+        using var fragments =
+            new BlockingCollection<(int Index, GitPatchFragment Fragment)>(maxDegreeOfParallelism);
+        object findingsLock = new();
+        Exception? workerException = null;
+        int timedOutFlag = 0;
+        var workers = new List<Task>(maxDegreeOfParallelism);
+
+        void StartWorker()
+        {
+            workers.Add(Task.Run(
+                () =>
+                {
+                    foreach ((int fragmentIndex, GitPatchFragment fragment) in fragments.GetConsumingEnumerable())
+                    {
+                        if (Volatile.Read(ref workerException) is not null)
+                        {
+                            continue;
+                        }
+
+                        try
+                        {
+                            (IReadOnlyList<Finding> findings, bool fragmentTimedOut) = fragmentScanner(fragment);
+                            if (fragmentTimedOut)
+                            {
+                                Interlocked.Exchange(ref timedOutFlag, 1);
+                                continue;
+                            }
+
+                            lock (findingsLock)
+                            {
+                                findingsSink(fragmentIndex, findings);
+                            }
+                        }
+                        catch (Exception exception)
+                        {
+                            Interlocked.CompareExchange(ref workerException, exception, null);
+                        }
+                    }
+                }));
+        }
+
+        int fragmentCount = 0;
+        int commitCount;
+        try
+        {
+            commitCount = GitSource.Enumerate(
+                sourceOptions,
+                fragment =>
+                {
+                    int fragmentIndex = fragmentCount++;
+                    if (workers.Count < maxDegreeOfParallelism)
+                    {
+                        StartWorker();
+                    }
+
+                    fragments.Add((fragmentIndex, fragment));
+                });
+        }
+        finally
+        {
+            fragments.CompleteAdding();
+            Task.WaitAll([.. workers]);
+        }
+
+        if (workerException is not null)
+        {
+            ExceptionDispatchInfo.Throw(workerException);
+        }
+
+        return (commitCount, fragmentCount, timedOutFlag != 0);
     }
 
     static Finding MapGitFinding(Finding finding, GitPatchFragment fragment, string scmPlatform, string remoteUrl)

@@ -65,7 +65,7 @@ jobs:
         with:
           dotnet-version: |
             9.0.x
-            10.0.301
+            10.0.302
 
       - name: Restore
         run: dotnet restore Picket.slnx

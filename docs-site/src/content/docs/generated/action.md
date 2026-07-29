@@ -67,7 +67,7 @@ jobs:
 | `max-archive-entries` | empty | Optional maximum number of files extracted from archives. Use `0` to disable. |
 | `max-archive-megabytes` | empty | Optional maximum decompressed archive payload in decimal MB. |
 | `max-archive-ratio` | empty | Optional maximum archive expansion ratio. Use `0` to disable. |
-| `dotnet-version` | `10.0.301` | .NET SDK version used by the source-based action. |
+| `dotnet-version` | `10.0.302` | .NET SDK version used by the source-based action. |
 | `setup-dotnet` | `true` | Install the configured SDK before restoring and running Picket. |
 
 Supplying `config-path` replaces the embedded native default rule set, including Picket-owned high-confidence rules. `[extend] useDefault = true` restores the Gitleaks default rules, not Picket's complete native default profile. Review the resolved rule set with `picket rules check --print-config` before using a custom config as a required CI gate; otherwise the scan can cover fewer credential types than the default Action configuration.
