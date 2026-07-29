@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- Stream Git-history findings during scans, align commit and byte accounting with Gitleaks, and reduce runtime through bounded parallel matching.
+
 ## 0.2.2
 
 - Let `picket tui` reuse its scanner executable and let standalone `picket-tui` resolve Windows global-tool shims.
