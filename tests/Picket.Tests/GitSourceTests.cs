@@ -385,7 +385,7 @@ public sealed class GitSourceTests
             +token-second
 
             """;
-        string pipeName = $"picket-git-source-{Guid.NewGuid():N}";
+        string pipeName = string.Concat("pgs-", Guid.NewGuid().ToString("N")[..12]);
         using var writer = new NamedPipeServerStream(
             pipeName,
             PipeDirection.Out,
