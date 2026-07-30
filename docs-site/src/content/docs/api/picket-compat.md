@@ -14,6 +14,7 @@ Generated from XML documentation for `Picket.Compat`.
 - [GitleaksBaselineComparisonMode](#gitleaksbaselinecomparisonmode) - Specifies how findings are compared with a Gitleaks baseline.
 - [GitleaksConfigLoader](#gitleaksconfigloader) - Loads Gitleaks-compatible rule configuration.
 - [GitleaksConfigWriter](#gitleaksconfigwriter) - Writes resolved Gitleaks-compatible rule sets as deterministic TOML.
+- [GitleaksDurationFormatter](#gitleaksdurationformatter) - Formats elapsed durations using the rounding and display contract used by Gitleaks.
 - [GitleaksIgnore](#gitleaksignore) - Represents Gitleaks-compatible fingerprint ignore entries.
 - [PicketConfigLoader](#picketconfigloader) - Loads Picket-native rule configuration while preserving the Gitleaks-compatible rule schema.
 
@@ -72,6 +73,16 @@ Writes resolved Gitleaks-compatible rule sets as deterministic TOML.
 ### Methods
 
 - `Write(RuleSet ruleSet)` - Writes a resolved rule set as deterministic TOML.
+
+## GitleaksDurationFormatter
+
+`Picket.Compat.GitleaksDurationFormatter`
+
+Formats elapsed durations using the rounding and display contract used by Gitleaks.
+
+### Methods
+
+- `Format(TimeSpan duration)` - Formats an elapsed duration using three significant decimal positions and Go duration units.
 
 ## GitleaksIgnore
 
