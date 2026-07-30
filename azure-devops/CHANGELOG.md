@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- Match Gitleaks handling of Git diagnostics and elapsed-time summaries.
+
 ## 0.2.3
 
 - Stream Git-history findings during scans, align commit and byte accounting with Gitleaks, and reduce runtime through bounded parallel matching.
