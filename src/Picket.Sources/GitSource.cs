@@ -11,6 +11,15 @@ namespace Picket.Sources;
 /// </summary>
 public static class GitSource
 {
+    private static readonly string[] s_benignGitWarningFragments =
+    [
+        "exhaustive rename detection was skipped",
+        "inexact rename detection was skipped",
+        "you may want to set your diff.renameLimit",
+        "See \"git help gc\" for manual housekeeping",
+        "Auto packing the repository in background for optimum performance",
+    ];
+
     /// <summary>
     /// Enumerates added git patch fragments selected by the supplied options.
     /// </summary>
@@ -43,7 +52,7 @@ public static class GitSource
             throw new InvalidOperationException("could not start git", exception);
         }
 
-        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+        Task<string> stderrTask = ReadGitStandardErrorAsync(process.StandardError, options.WarningSink);
         int commitCount;
         try
         {
@@ -65,13 +74,44 @@ public static class GitSource
 
         process.WaitForExit();
         string stderr = stderrTask.GetAwaiter().GetResult().Trim();
-        if (!cancelled && process.ExitCode != 0)
+        if (!cancelled && (process.ExitCode != 0 || stderr.Length != 0))
         {
             throw new InvalidOperationException(stderr.Length == 0 ? $"git exited with code {process.ExitCode}" : stderr);
         }
 
-        WriteGitWarnings(options, stderr);
         return commitCount;
+    }
+
+    /// <summary>
+    /// Streams recognized non-fatal Git diagnostics to the warning sink and returns all other stderr text.
+    /// </summary>
+    /// <param name="stderr">The Git standard error reader.</param>
+    /// <param name="warningSink">The optional sink for recognized non-fatal diagnostics.</param>
+    /// <returns>The unrecognized standard error text.</returns>
+    internal static async Task<string> ReadGitStandardErrorAsync(
+        TextReader stderr,
+        Action<string>? warningSink)
+    {
+        ArgumentNullException.ThrowIfNull(stderr);
+
+        var errors = new StringBuilder();
+        while (await stderr.ReadLineAsync().ConfigureAwait(false) is string line)
+        {
+            if (IsBenignGitWarning(line))
+            {
+                warningSink?.Invoke(line);
+                continue;
+            }
+
+            if (errors.Length != 0)
+            {
+                errors.Append('\n');
+            }
+
+            errors.Append(line);
+        }
+
+        return errors.ToString();
     }
 
     private static Process CreateGitProcess(GitScanOptions options)
@@ -497,17 +537,17 @@ public static class GitSource
         return line.StartsWith("\\ "u8);
     }
 
-    private static void WriteGitWarnings(GitScanOptions options, string stderr)
+    private static bool IsBenignGitWarning(string line)
     {
-        if (stderr.Length == 0 || options.WarningSink is null)
+        for (int i = 0; i < s_benignGitWarningFragments.Length; i++)
         {
-            return;
+            if (line.Contains(s_benignGitWarningFragments[i], StringComparison.Ordinal))
+            {
+                return true;
+            }
         }
 
-        foreach (string line in stderr.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
-        {
-            options.WarningSink(line);
-        }
+        return false;
     }
 
     private static byte[]? ReadGitBlob(GitScanOptions options, string commit, string filePath)

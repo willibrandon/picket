@@ -315,6 +315,93 @@ public sealed class GitSourceTests
     }
 
     /// <summary>
+    /// Verifies that recognized Git diagnostics are emitted before the standard error stream closes.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task ReadGitStandardErrorStreamsRecognizedWarnings()
+    {
+        const string FirstWarning = "warning: exhaustive rename detection was skipped due to too many files.";
+        const string RemainingWarnings = """
+            warning: inexact rename detection was skipped due to too many files.
+            warning: you may want to set your diff.renameLimit variable to at least 2123 and retry the command.
+            Auto packing the repository in background for optimum performance.
+            See "git help gc" for manual housekeeping.
+
+            """;
+        string pipeName = string.Concat("pgs-", Guid.NewGuid().ToString("N")[..12]);
+        using var writer = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.Out,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        using var reader = new NamedPipeClientStream(
+            ".",
+            pipeName,
+            PipeDirection.In,
+            PipeOptions.Asynchronous);
+        Task connectionTask = writer.WaitForConnectionAsync(TestContext.CancellationToken);
+        await reader.ConnectAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        await connectionTask.ConfigureAwait(false);
+        using var stderr = new StreamReader(reader, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+        var firstWarningReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var warnings = new List<string>();
+        Task<string> readTask = GitSource.ReadGitStandardErrorAsync(
+            stderr,
+            warning =>
+            {
+                warnings.Add(warning);
+                firstWarningReceived.TrySetResult();
+            });
+
+        await writer.WriteAsync(
+            Encoding.UTF8.GetBytes(string.Concat(FirstWarning, '\n')),
+            TestContext.CancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        await firstWarningReceived.Task.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsFalse(readTask.IsCompleted);
+
+        await writer.WriteAsync(
+            Encoding.UTF8.GetBytes(RemainingWarnings.ReplaceLineEndings("\n")),
+            TestContext.CancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(TestContext.CancellationToken).ConfigureAwait(false);
+        writer.Close();
+        string errors = await readTask.WaitAsync(TestContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.IsEmpty(errors);
+        Assert.HasCount(5, warnings);
+        Assert.AreEqual(FirstWarning, warnings[0]);
+        Assert.Contains("diff.renameLimit", warnings[2]);
+        Assert.StartsWith("Auto packing", warnings[3]);
+        Assert.StartsWith("See \"git help gc\"", warnings[4]);
+    }
+
+    /// <summary>
+    /// Verifies that unrecognized Git diagnostics remain errors instead of being downgraded to warnings.
+    /// </summary>
+    [TestMethod]
+    public async Task ReadGitStandardErrorReturnsUnrecognizedLines()
+    {
+        const string Input = """
+            fatal: unable to read object
+            warning: exhaustive rename detection was skipped due to too many files.
+            fatal: invalid object
+            """;
+        using var stderr = new StringReader(Input.ReplaceLineEndings("\n"));
+        var warnings = new List<string>();
+
+        string errors = await GitSource.ReadGitStandardErrorAsync(stderr, warnings.Add).ConfigureAwait(false);
+
+        Assert.HasCount(1, warnings);
+        Assert.Contains("exhaustive rename detection", warnings[0]);
+        Assert.AreEqual(
+            "fatal: unable to read object\nfatal: invalid object",
+            errors);
+    }
+
+    /// <summary>
     /// Verifies a malformed hunk does not abort parsing of a later valid patch fragment.
     /// </summary>
     [TestMethod]
