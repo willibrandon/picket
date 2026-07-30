@@ -1,3 +1,4 @@
+using Picket.Compat;
 using Picket.Engine;
 using System.Diagnostics;
 using System.Globalization;
@@ -54,7 +55,7 @@ internal static class CompatibilityConsoleWriter
             WriteLog(
                 options,
                 CompatibilityLogLevel.Info,
-                $"{bytesMessage} in {FormatDuration(Stopwatch.GetElapsedTime(options.StartTimestamp))}");
+                $"{bytesMessage} in {GitleaksDurationFormatter.Format(Stopwatch.GetElapsedTime(options.StartTimestamp))}");
             WriteLog(
                 options,
                 findings.Count == 0 ? CompatibilityLogLevel.Info : CompatibilityLogLevel.Warn,
@@ -68,7 +69,7 @@ internal static class CompatibilityConsoleWriter
         WriteLog(
             options,
             CompatibilityLogLevel.Warn,
-            $"partial scan completed in {FormatDuration(Stopwatch.GetElapsedTime(options.StartTimestamp))}");
+            $"partial scan completed in {GitleaksDurationFormatter.Format(Stopwatch.GetElapsedTime(options.StartTimestamp))}");
         WriteLog(
             options,
             CompatibilityLogLevel.Warn,
@@ -80,6 +81,11 @@ internal static class CompatibilityConsoleWriter
     internal static void WriteUnknownLogLevel(string value)
     {
         WriteColoredLog(CompatibilityLogLevel.Warn, $"unknown log level: {value}");
+    }
+
+    internal static void WriteWarning(CompatibilityConsoleOptions options, string message)
+    {
+        WriteLog(options, CompatibilityLogLevel.Warn, message);
     }
 
     internal static void WriteVerboseFindings(
@@ -132,44 +138,6 @@ internal static class CompatibilityConsoleWriter
         }
 
         return $"{formatted} {unit}";
-    }
-
-    private static string FormatDuration(TimeSpan duration)
-    {
-        double totalNanoseconds = duration.TotalNanoseconds;
-        if (totalNanoseconds < 1_000)
-        {
-            return $"{Math.Round(totalNanoseconds, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture)}ns";
-        }
-
-        if (totalNanoseconds < 1_000_000)
-        {
-            return FormatDurationValue(totalNanoseconds / 1_000, "µs");
-        }
-
-        if (totalNanoseconds < 1_000_000_000)
-        {
-            return FormatDurationValue(totalNanoseconds / 1_000_000, "ms");
-        }
-
-        if (duration.TotalSeconds < 60)
-        {
-            return FormatDurationValue(duration.TotalSeconds, "s");
-        }
-
-        return duration.ToString("g", CultureInfo.InvariantCulture);
-    }
-
-    private static string FormatDurationValue(double value, string suffix)
-    {
-        double scale = value switch
-        {
-            >= 100 => 1,
-            >= 10 => 0.1,
-            _ => 0.01,
-        };
-        double rounded = Math.Round(value / scale, MidpointRounding.AwayFromZero) * scale;
-        return string.Concat(rounded.ToString("0.##", CultureInfo.InvariantCulture), suffix);
     }
 
     private static bool IsEnabled(

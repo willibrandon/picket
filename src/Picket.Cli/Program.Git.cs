@@ -420,7 +420,9 @@ internal static partial class Program
                     maxArchiveCompressionRatio: maxArchiveCompressionRatio,
                     maxTargetBytes: maxTargetBytes,
                     isPathAllowed: rules.IsGlobalPathAllowed,
-                    warningSink: Console.Error.WriteLine,
+                    warningSink: nativeMode
+                        ? Console.Error.WriteLine
+                        : warning => CompatibilityConsoleWriter.WriteWarning(consoleOptions, warning),
                     isCancellationRequested: () => IsTimedOut(timeoutTimestamp),
                     identifyArchivesByContent: nativeMode);
             (commitCount, fragmentCount, timedOut) = ScanGitFragments(
