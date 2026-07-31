@@ -277,12 +277,22 @@ public sealed class DirectorySource
     {
         try
         {
-            return fileSystemInfo.ResolveLinkTarget(returnFinalTarget: true);
+            FileSystemInfo? target = fileSystemInfo.ResolveLinkTarget(returnFinalTarget: true);
+            if (target is not null)
+            {
+                return target;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+        }
+
+        if (!UnixSymbolicLink.TryResolveFinalTarget(fileSystemInfo.FullName, out string targetPath))
+        {
             return null;
         }
+
+        return Directory.Exists(targetPath) ? new DirectoryInfo(targetPath) : new FileInfo(targetPath);
     }
 
     private static bool ShouldSupplementFileSymlinks(DirectoryScanOptions options)
@@ -479,7 +489,7 @@ public sealed class DirectorySource
                     continue;
                 }
 
-                FileSystemInfo? target = pathInfo.ResolveLinkTarget(returnFinalTarget: true);
+                FileSystemInfo? target = TryResolveLinkTarget(pathInfo);
                 if (target is null)
                 {
                     resolvedPath = string.Empty;
