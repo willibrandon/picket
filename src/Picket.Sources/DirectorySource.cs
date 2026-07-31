@@ -61,12 +61,18 @@ public sealed class DirectorySource
                 break;
             }
 
+            string scanFullPath = entry.FullPath;
+            bool resolvedFileSymlink = false;
             if (!entry.IsFile)
             {
-                continue;
+                if (!options.FollowSymbolicLinks || !TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
+                {
+                    continue;
+                }
+
+                resolvedFileSymlink = true;
             }
 
-            string scanFullPath = entry.FullPath;
             string displayPath = CreateDisplayPath(options, entry.FullPath);
             string symlinkDisplayPath = string.Empty;
             if (IsPathOrAncestorAllowed(options.IsPathAllowed, pathAllowlistCache, displayPath))
@@ -74,14 +80,14 @@ public sealed class DirectorySource
                 continue;
             }
 
-            if (entry.IsSymbolicLink)
+            if (resolvedFileSymlink || entry.IsSymbolicLink)
             {
                 if (!options.FollowSymbolicLinks)
                 {
                     continue;
                 }
 
-                if (!TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
+                if (!resolvedFileSymlink && !TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
                 {
                     continue;
                 }
