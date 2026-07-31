@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "picket",
   "name": "Picket",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "publisher": "willibrandon",
   "galleryFlags": [
     "Public"
