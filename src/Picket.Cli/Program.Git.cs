@@ -427,7 +427,7 @@ internal static partial class Program
                     identifyArchivesByContent: nativeMode);
             (commitCount, fragmentCount, timedOut) = ScanGitFragments(
                 sourceOptions,
-                nativeMode ? 1 : GetScanDegree(int.MaxValue),
+                nativeMode ? 1 : GetScanDegree(int.MaxValue, diagnosticsSession),
                 fragment =>
                 {
                     IReadOnlyList<Finding> fragmentFindings = ScanGitFragment(

@@ -6,35 +6,11 @@ namespace Picket;
 
 internal static partial class Program
 {
-    // Match the GC pressure bands used by ArrayPool in dotnet/runtime.
-    private const double HighMemoryPressureThreshold = 0.90;
-    private const double MediumMemoryPressureThreshold = 0.70;
-    private const int MinimumParallelScanFileCount = 8;
-
-    static int GetScanDegree(int workItemCount)
+    static int GetScanDegree(int workItemCount, CompatibilityDiagnosticsSession? diagnosticsSession)
     {
-        int processorDegree = Math.Min(workItemCount, Environment.ProcessorCount);
-        if (workItemCount < MinimumParallelScanFileCount || processorDegree <= 1)
-        {
-            return 1;
-        }
-
-        GCMemoryInfo memoryInfo = GC.GetGCMemoryInfo();
-        long highMemoryLoadThreshold = memoryInfo.HighMemoryLoadThresholdBytes;
-        if (highMemoryLoadThreshold <= 0)
-        {
-            return processorDegree;
-        }
-
-        double memoryPressure = (double)memoryInfo.MemoryLoadBytes / highMemoryLoadThreshold;
-        if (memoryPressure >= HighMemoryPressureThreshold)
-        {
-            return 1;
-        }
-
-        return memoryPressure >= MediumMemoryPressureThreshold
-            ? Math.Max(1, (processorDegree + 1) / 2)
-            : processorDegree;
+        ScanParallelismDecision decision = ScanParallelismPolicy.Create(workItemCount);
+        diagnosticsSession?.RecordScanParallelism(decision);
+        return decision.WorkerCount;
     }
 
     static bool ScanSourceFiles(

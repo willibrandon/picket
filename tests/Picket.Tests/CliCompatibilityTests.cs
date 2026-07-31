@@ -143,9 +143,21 @@ public sealed class CliCompatibilityTests
             Assert.AreEqual(expectedFiles[fileIndex], actualFiles[fileIndex]);
         }
 
-        string diagnostics = File.ReadAllText(Path.Combine(diagnosticsPath, "cpu.json"));
-        Assert.Contains($"\"scanInputs\": {FileCount}", diagnostics);
-        Assert.Contains($"\"findings\": {FileCount}", diagnostics);
+        using JsonDocument diagnostics = JsonDocument.Parse(File.ReadAllText(Path.Combine(diagnosticsPath, "cpu.json")));
+        JsonElement diagnosticsRoot = diagnostics.RootElement;
+        Assert.AreEqual(FileCount, diagnosticsRoot.GetProperty("scanInputs").GetInt32());
+        Assert.AreEqual(FileCount, diagnosticsRoot.GetProperty("findings").GetInt32());
+        int effectiveProcessorCount = diagnosticsRoot.GetProperty("effectiveProcessorCount").GetInt32();
+        int scanWorkerCount = diagnosticsRoot.GetProperty("scanWorkers").GetInt32();
+        long scanMemoryLoadBytes = diagnosticsRoot.GetProperty("scanMemoryLoadBytes").GetInt64();
+        long scanHighMemoryLoadThresholdBytes = diagnosticsRoot.GetProperty("scanHighMemoryLoadThresholdBytes").GetInt64();
+        long scanMemoryHeadroomBytes = diagnosticsRoot.GetProperty("scanMemoryHeadroomBytes").GetInt64();
+        Assert.IsGreaterThanOrEqualTo(1, effectiveProcessorCount);
+        Assert.IsGreaterThanOrEqualTo(1, scanWorkerCount);
+        Assert.IsLessThanOrEqualTo(Math.Min(FileCount, effectiveProcessorCount), scanWorkerCount);
+        Assert.IsGreaterThanOrEqualTo(0, scanMemoryLoadBytes);
+        Assert.IsGreaterThanOrEqualTo(0, scanHighMemoryLoadThresholdBytes);
+        Assert.AreEqual(Math.Max(0, scanHighMemoryLoadThresholdBytes - scanMemoryLoadBytes), scanMemoryHeadroomBytes);
     }
 
     /// <summary>
