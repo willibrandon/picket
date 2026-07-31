@@ -15,14 +15,6 @@
         "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
       }
     },
-    "net10.0/win-x64": {
-      "System.IO.FileSystem.AccessControl": {
-        "type": "Direct",
-        "requested": "[5.0.0, )",
-        "resolved": "5.0.0",
-        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
-      }
-    },
     "net9.0": {
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
@@ -30,14 +22,6 @@
         "resolved": "9.0.18",
         "contentHash": "ztGVXB28bi8SeplFmAx+4MkqP1ieA4UNzj/M3qyyz5tLa37Ln8x8LuaXdxzzoOdaucjQBKXSdCMFSbpQaNGIEg=="
       },
-      "System.IO.FileSystem.AccessControl": {
-        "type": "Direct",
-        "requested": "[5.0.0, )",
-        "resolved": "5.0.0",
-        "contentHash": "SxHB3nuNrpptVk+vZ/F+7OHEpoHUIKKMl02bUmYHQr1r+glbZQxs7pRtsf4ENO29TVm2TH3AEeep2fJcy92oYw=="
-      }
-    },
-    "net9.0/win-x64": {
       "System.IO.FileSystem.AccessControl": {
         "type": "Direct",
         "requested": "[5.0.0, )",

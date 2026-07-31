@@ -27,14 +27,6 @@
         "contentHash": "BpQLIV4HtklLEkCkCjepKTxxy/dcBNSrEfh5LPcIjpPaN2Cmuwg1TUVCWhn5zGn4z3Aur6V9taWdvn+BJzmEhw=="
       }
     },
-    "net10.0/win-x64": {
-      "ZstdNet": {
-        "type": "Direct",
-        "requested": "[1.5.7, )",
-        "resolved": "1.5.7",
-        "contentHash": "BpQLIV4HtklLEkCkCjepKTxxy/dcBNSrEfh5LPcIjpPaN2Cmuwg1TUVCWhn5zGn4z3Aur6V9taWdvn+BJzmEhw=="
-      }
-    },
     "net9.0": {
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
@@ -54,14 +46,6 @@
         "resolved": "0.4.8",
         "contentHash": "9qOJekYn/iD47dHWq3gkt7Wg5L/60+DkIm7hupHx9Y0htyFoSPW0PeIobuTcpA4AJadcUYz13celWCWFugfC8g=="
       },
-      "ZstdNet": {
-        "type": "Direct",
-        "requested": "[1.5.7, )",
-        "resolved": "1.5.7",
-        "contentHash": "BpQLIV4HtklLEkCkCjepKTxxy/dcBNSrEfh5LPcIjpPaN2Cmuwg1TUVCWhn5zGn4z3Aur6V9taWdvn+BJzmEhw=="
-      }
-    },
-    "net9.0/win-x64": {
       "ZstdNet": {
         "type": "Direct",
         "requested": "[1.5.7, )",

@@ -32,7 +32,6 @@
         "contentHash": "x8AbS4ZNzM7Wh+IXboKcLPXiVJVPlqiSNK7/VxaAXOXjavcuhxlk0rAOCbIERIZtoh5w16Qb+OnINrGezpnpwg=="
       }
     },
-    "net10.0/win-x64": {},
     "net9.0": {
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
@@ -63,7 +62,6 @@
         "resolved": "3.13.0",
         "contentHash": "x8AbS4ZNzM7Wh+IXboKcLPXiVJVPlqiSNK7/VxaAXOXjavcuhxlk0rAOCbIERIZtoh5w16Qb+OnINrGezpnpwg=="
       }
-    },
-    "net9.0/win-x64": {}
+    }
   }
 }
