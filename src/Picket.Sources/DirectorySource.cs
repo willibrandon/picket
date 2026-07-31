@@ -101,7 +101,7 @@ public sealed class DirectorySource
                     continue;
                 }
 
-                displayPath = CreateDisplayPath(options, scanFullPath);
+                displayPath = CreateResolvedDisplayPath(options, scanFullPath);
             }
             else if (options.FollowSymbolicLinks
                 && !TryResolveFollowedFile(options, entry.FullPath, displayPath, out scanFullPath, out displayPath, out symlinkDisplayPath))
@@ -336,7 +336,7 @@ public sealed class DirectorySource
                 supplementalFiles,
                 options,
                 targetPath,
-                CreateDisplayPath(options, targetPath),
+                CreateResolvedDisplayPath(options, targetPath),
                 symlinkDisplayPath);
             if (supplementalFiles.Count == 0)
             {
@@ -464,7 +464,7 @@ public sealed class DirectorySource
         }
 
         resolvedFullPath = finalPath;
-        displayPath = CreateDisplayPath(options, finalPath);
+        displayPath = CreateResolvedDisplayPath(options, finalPath);
         symlinkDisplayPath = originalDisplayPath;
         return true;
     }
@@ -570,6 +570,11 @@ public sealed class DirectorySource
 
     private static bool IsPathWithinRoot(string root, string path)
     {
+        return TryGetRelativePathWithinRoot(root, path, out _);
+    }
+
+    private static bool TryGetRelativePathWithinRoot(string root, string path, out string relativePath)
+    {
         string fullRoot;
         string fullPath;
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
@@ -577,6 +582,7 @@ public sealed class DirectorySource
             if (!UnixSymbolicLink.TryCanonicalizeExistingPath(root, out fullRoot)
                 || !UnixSymbolicLink.TryCanonicalizeExistingPath(path, out fullPath))
             {
+                relativePath = string.Empty;
                 return false;
             }
         }
@@ -586,8 +592,32 @@ public sealed class DirectorySource
             fullPath = Path.GetFullPath(path);
         }
 
-        fullRoot = EnsureTrailingDirectorySeparator(fullRoot);
-        return fullPath.StartsWith(fullRoot, PathComparison);
+        if (fullPath.Equals(fullRoot, PathComparison))
+        {
+            relativePath = ".";
+            return true;
+        }
+
+        if (!fullPath.StartsWith(EnsureTrailingDirectorySeparator(fullRoot), PathComparison))
+        {
+            relativePath = string.Empty;
+            return false;
+        }
+
+        relativePath = Path.GetRelativePath(fullRoot, fullPath);
+        return true;
+    }
+
+    private static string CreateResolvedDisplayPath(DirectoryScanOptions options, string fullPath)
+    {
+        if (options.PreserveSourcePaths && options.SourcePathIsFullyQualified)
+        {
+            return CreateDisplayPath(options, fullPath);
+        }
+
+        return TryGetRelativePathWithinRoot(options.Root, fullPath, out string relativePath)
+            ? CreateDisplayPath(options, Path.Combine(options.Root, relativePath))
+            : CreateDisplayPath(options, fullPath);
     }
 
     private static string EnsureTrailingDirectorySeparator(string path)

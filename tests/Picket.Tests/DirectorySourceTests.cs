@@ -247,7 +247,7 @@ public sealed class DirectorySourceTests
             Assert.HasCount(2, followedFiles);
             Assert.IsNotNull(symlinkFile);
             Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
-            Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
+            Assert.AreEqual(GetExpectedResolvedPath(targetPath), symlinkFile.FullPath);
             Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
         }
         finally
@@ -315,8 +315,7 @@ public sealed class DirectorySourceTests
             Assert.HasCount(2, files);
             Assert.IsNotNull(symlinkFile);
             Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
-            Assert.IsTrue(UnixSymbolicLink.TryCanonicalizeExistingPath(targetPath, out string canonicalTargetPath));
-            Assert.AreEqual(canonicalTargetPath, symlinkFile.FullPath);
+            Assert.AreEqual(GetExpectedResolvedPath(targetPath), symlinkFile.FullPath);
         }
         finally
         {
@@ -372,7 +371,7 @@ public sealed class DirectorySourceTests
 
             Assert.IsNotNull(symlinkFile);
             Assert.AreEqual("target/secret.txt", symlinkFile.DisplayPath);
-            Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
+            Assert.AreEqual(GetExpectedResolvedPath(targetPath), symlinkFile.FullPath);
             Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
         }
         finally
@@ -975,6 +974,13 @@ public sealed class DirectorySourceTests
         string path = Path.Combine(Path.GetTempPath(), "picket-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static string GetExpectedResolvedPath(string path)
+    {
+        return UnixSymbolicLink.TryCanonicalizeExistingPath(path, out string canonicalPath)
+            ? canonicalPath
+            : Path.GetFullPath(path);
     }
 
     private static void WriteZipFile(string path, params (string Name, string Content)[] entries)
