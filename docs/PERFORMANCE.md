@@ -284,15 +284,18 @@ boundary. Process wall-clock measurements still include all startup and config
 work.
 
 Filesystem, baseline file, and strict Git-history fragment evaluation is bounded
-by work-item count, effective CPU availability, and current memory pressure.
+by work-item count, effective CPU availability, and current memory headroom.
 [`Environment.ProcessorCount`](https://learn.microsoft.com/en-us/dotnet/api/system.environment.processorcount?view=net-10.0)
 honors processor affinity and CPU limits. Picket uses
 [`GC.GetGCMemoryInfo()`](https://learn.microsoft.com/en-us/dotnet/api/system.gc.getgcmemoryinfo?view=net-10.0)
-and follows the 70% medium-pressure and 90% high-pressure bands used by
-[`ArrayPool<T>` in the .NET runtime](https://github.com/dotnet/runtime/blob/41ec8890ed351082aecb9ec6da189a450941b18f/src/libraries/System.Private.CoreLib/src/System/Buffers/Utilities.cs#L37-L58).
-Low pressure permits one worker per effective processor, medium pressure halves
-that degree, and high pressure uses one worker. Filesystem and baseline results
-are merged in source order, so their report bytes do not depend on scheduling.
+to measure the bytes remaining below the GC high-memory-load threshold. Each
+worker requires 64 MiB of that headroom, and the selected degree is the lowest
+of the work-item, processor, and memory limits. This absolute budget avoids
+serializing scans merely because a large-memory host has crossed a relative
+pressure percentage while retaining a conservative reserve for each worker.
+Small workloads use one worker, and unavailable GC metrics fall back to the
+processor and work-item limits. Filesystem and baseline results are merged in
+source order, so their report bytes do not depend on scheduling.
 Strict Git-history scans match Gitleaks' concurrent completion model: added-line
 fragments enter a queue capped at one pending fragment per worker, findings are
 emitted as workers complete, final reports are merged in source order for stable
@@ -302,8 +305,11 @@ complete source-manifest prefix.
 
 For incremental-scan changes, run with `--cache-dir` and opt-in diagnostics.
 The `cpu.json`, `mem.json`, and `trace.jsonl` artifacts include `scanInputs`,
-`findings`, `cacheHits`, `cacheMisses`, and `cacheWrites` counters, which are the
-preferred evidence for cache hit-rate changes.
+`findings`, `cacheHits`, `cacheMisses`, and `cacheWrites` counters. Parallel
+filesystem scans also record `effectiveProcessorCount`, `scanWorkers`,
+`scanMemoryLoadBytes`, `scanHighMemoryLoadThresholdBytes`, and
+`scanMemoryHeadroomBytes`. These fields are the preferred evidence for cache
+hit-rate and worker-selection changes.
 
 ## Large Local Files
 

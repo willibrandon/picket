@@ -1,3 +1,4 @@
+using Picket.Sources;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Sockets;
@@ -31,7 +32,12 @@ internal sealed class CompatibilityDiagnosticsSession
     private CompatibilityDiagnosticsHttpServer? _httpServer;
     private bool _completed;
     private int _findingCount;
+    private int _effectiveProcessorCount;
+    private long _scanHighMemoryLoadThresholdBytes;
     private int _scanInputCount;
+    private long _scanMemoryHeadroomBytes;
+    private long _scanMemoryLoadBytes;
+    private int _scanWorkerCount;
 
     private CompatibilityDiagnosticsSession(string command, string outputDirectory, bool writeHttp, bool writeCpu, bool writeMemory, bool writeTrace)
     {
@@ -223,6 +229,15 @@ internal sealed class CompatibilityDiagnosticsSession
     internal void RecordScanInputs(int count)
     {
         Interlocked.Add(ref _scanInputCount, count);
+    }
+
+    internal void RecordScanParallelism(ScanParallelismDecision decision)
+    {
+        Interlocked.Exchange(ref _effectiveProcessorCount, decision.EffectiveProcessorCount);
+        Interlocked.Exchange(ref _scanWorkerCount, decision.WorkerCount);
+        Interlocked.Exchange(ref _scanMemoryLoadBytes, decision.MemoryLoadBytes);
+        Interlocked.Exchange(ref _scanHighMemoryLoadThresholdBytes, decision.HighMemoryLoadThresholdBytes);
+        Interlocked.Exchange(ref _scanMemoryHeadroomBytes, decision.MemoryHeadroomBytes);
     }
 
     private bool TryStartHttp(TextWriter error)
@@ -430,6 +445,15 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendNumber(builder, "cacheHits", Volatile.Read(ref _cacheHitCount));
         AppendNumber(builder, "cacheMisses", Volatile.Read(ref _cacheMissCount));
         AppendNumber(builder, "cacheWrites", Volatile.Read(ref _cacheWriteCount));
+        int scanWorkerCount = Volatile.Read(ref _scanWorkerCount);
+        if (scanWorkerCount > 0)
+        {
+            AppendNumber(builder, "effectiveProcessorCount", Volatile.Read(ref _effectiveProcessorCount));
+            AppendNumber(builder, "scanWorkers", scanWorkerCount);
+            AppendNumber(builder, "scanMemoryLoadBytes", Volatile.Read(ref _scanMemoryLoadBytes));
+            AppendNumber(builder, "scanHighMemoryLoadThresholdBytes", Volatile.Read(ref _scanHighMemoryLoadThresholdBytes));
+            AppendNumber(builder, "scanMemoryHeadroomBytes", Volatile.Read(ref _scanMemoryHeadroomBytes));
+        }
     }
 
     private void AppendInlineScanCounters(StringBuilder builder)
@@ -439,6 +463,15 @@ internal sealed class CompatibilityDiagnosticsSession
         AppendInlineNumber(builder, "cacheHits", Volatile.Read(ref _cacheHitCount));
         AppendInlineNumber(builder, "cacheMisses", Volatile.Read(ref _cacheMissCount));
         AppendInlineNumber(builder, "cacheWrites", Volatile.Read(ref _cacheWriteCount));
+        int scanWorkerCount = Volatile.Read(ref _scanWorkerCount);
+        if (scanWorkerCount > 0)
+        {
+            AppendInlineNumber(builder, "effectiveProcessorCount", Volatile.Read(ref _effectiveProcessorCount));
+            AppendInlineNumber(builder, "scanWorkers", scanWorkerCount);
+            AppendInlineNumber(builder, "scanMemoryLoadBytes", Volatile.Read(ref _scanMemoryLoadBytes));
+            AppendInlineNumber(builder, "scanHighMemoryLoadThresholdBytes", Volatile.Read(ref _scanHighMemoryLoadThresholdBytes));
+            AppendInlineNumber(builder, "scanMemoryHeadroomBytes", Volatile.Read(ref _scanMemoryHeadroomBytes));
+        }
     }
 
     private void AppendTraceEvent(StringBuilder builder, string name, DateTimeOffset timestamp, double elapsedMilliseconds, int exitCode, bool includeScanCounters = false)
