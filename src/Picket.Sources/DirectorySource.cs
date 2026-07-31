@@ -275,6 +275,13 @@ public sealed class DirectorySource
 
     private static FileSystemInfo? TryResolveLinkTarget(FileSystemInfo fileSystemInfo)
     {
+        if (UnixSymbolicLink.TryResolveFinalTarget(fileSystemInfo.FullName, out string nativeTargetPath))
+        {
+            return Directory.Exists(nativeTargetPath)
+                ? new DirectoryInfo(nativeTargetPath)
+                : new FileInfo(nativeTargetPath);
+        }
+
         try
         {
             FileSystemInfo? target = fileSystemInfo.ResolveLinkTarget(returnFinalTarget: true);
@@ -287,12 +294,7 @@ public sealed class DirectorySource
         {
         }
 
-        if (!UnixSymbolicLink.TryResolveFinalTarget(fileSystemInfo.FullName, out string targetPath))
-        {
-            return null;
-        }
-
-        return Directory.Exists(targetPath) ? new DirectoryInfo(targetPath) : new FileInfo(targetPath);
+        return null;
     }
 
     private static bool ShouldSupplementFileSymlinks(DirectoryScanOptions options)
@@ -376,26 +378,29 @@ public sealed class DirectorySource
                 break;
             }
 
-            FileSystemInfo[] entries;
+            string[] entries;
             try
             {
-                entries = new DirectoryInfo(current.TraversalPath).GetFileSystemInfos();
+                entries = Directory.GetFileSystemEntries(current.TraversalPath);
             }
             catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
             {
                 continue;
             }
 
-            Array.Sort(entries, static (left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
+            Array.Sort(entries, StringComparer.Ordinal);
             for (int index = entries.Length - 1; index >= 0; index--)
             {
-                FileSystemInfo entry = entries[index];
-                FileSystemInfo? target = TryResolveLinkTarget(entry);
+                string entryPath = entries[index];
+                FileSystemInfo entryInfo = Directory.Exists(entryPath) && !File.Exists(entryPath)
+                    ? new DirectoryInfo(entryPath)
+                    : new FileInfo(entryPath);
+                FileSystemInfo? target = TryResolveLinkTarget(entryInfo);
                 if (target is not null && File.Exists(target.FullName))
                 {
                     if (IsPathWithinRoot(options.Root, target.FullName))
                     {
-                        symlinkPaths.Add(Path.GetFullPath(entry.FullName));
+                        symlinkPaths.Add(Path.GetFullPath(entryPath));
                     }
 
                     continue;
@@ -403,13 +408,13 @@ public sealed class DirectorySource
 
                 bool isDirectory = target is not null
                     ? Directory.Exists(target.FullName)
-                    : entry is DirectoryInfo || (entry.Attributes & FileAttributes.Directory) != 0;
+                    : Directory.Exists(entryPath);
                 if (!isDirectory)
                 {
                     continue;
                 }
 
-                string canonicalPath = target?.FullName ?? Path.Combine(current.CanonicalPath, entry.Name);
+                string canonicalPath = target?.FullName ?? Path.Combine(current.CanonicalPath, Path.GetFileName(entryPath));
                 if (!IsPathWithinRoot(options.Root, canonicalPath) || current.Ancestors.Contains(canonicalPath))
                 {
                     continue;
@@ -419,7 +424,7 @@ public sealed class DirectorySource
                 {
                     canonicalPath,
                 };
-                pending.Push((entry.FullName, canonicalPath, childAncestors));
+                pending.Push((entryPath, canonicalPath, childAncestors));
             }
         }
 
