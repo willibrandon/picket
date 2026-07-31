@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6
+
+- Keep directory scans parallel on memory-loaded hosts when sufficient memory headroom remains.
+
 ## 0.2.5
 
 - Improve strict directory scan throughput and align file-type, path, symbolic-link, and live verbose output behavior with Gitleaks.
