@@ -103,8 +103,9 @@ public sealed class CliCompatibilityTests
     {
         const int FileCount = 32;
         using TempDirectory root = TempDirectory.Create();
-        string configPath = WriteTokenConfig(root.Path);
-        string diagnosticsPath = Path.Combine(root.Path, "diagnostics");
+        using TempDirectory controls = TempDirectory.Create();
+        string configPath = WriteTokenConfig(controls.Path);
+        string diagnosticsPath = Path.Combine(controls.Path, "diagnostics");
         var expectedFiles = new string[FileCount];
         for (int fileIndex = 0; fileIndex < FileCount; fileIndex++)
         {

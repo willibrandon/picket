@@ -125,7 +125,7 @@ public sealed class DirectorySource
         {
             string scanFullPath = options.Root;
             string symlinkDisplayPath = string.Empty;
-            if (IsSymbolicLink(options.Root))
+            if (IsSymbolicLink(fileInfo))
             {
                 if (!options.FollowSymbolicLinks || !TryResolveSymlinkFile(options.Root, out scanFullPath))
                 {
@@ -235,9 +235,10 @@ public sealed class DirectorySource
         return displayPath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
     }
 
-    private static bool IsSymbolicLink(string path)
+    private static bool IsSymbolicLink(FileSystemInfo fileSystemInfo)
     {
-        return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        return fileSystemInfo.LinkTarget is not null
+            || (fileSystemInfo.Attributes & FileAttributes.ReparsePoint) != 0;
     }
 
     private static bool TryResolveSymlinkFile(string path, out string fullPath)
@@ -310,13 +311,13 @@ public sealed class DirectorySource
             {
                 current = Path.Combine(current, parts[i]);
                 bool isLastPart = i == parts.Length - 1;
-                if (!IsSymbolicLink(current))
+                FileSystemInfo pathInfo = isLastPart ? new FileInfo(current) : new DirectoryInfo(current);
+                if (!IsSymbolicLink(pathInfo))
                 {
                     continue;
                 }
 
-                FileSystemInfo linkInfo = isLastPart ? new FileInfo(current) : new DirectoryInfo(current);
-                FileSystemInfo? target = linkInfo.ResolveLinkTarget(returnFinalTarget: true);
+                FileSystemInfo? target = pathInfo.ResolveLinkTarget(returnFinalTarget: true);
                 if (target is null)
                 {
                     resolvedPath = string.Empty;
