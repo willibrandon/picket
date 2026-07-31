@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5
+
+- Improve strict directory scan throughput and align file-type, path, symbolic-link, and live verbose output behavior with Gitleaks.
+
 ## 0.2.4
 
 - Match Gitleaks handling of Git diagnostics and elapsed-time summaries.

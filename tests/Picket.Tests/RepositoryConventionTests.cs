@@ -920,7 +920,7 @@ public sealed partial class RepositoryConventionTests
         JsonElement extensionRoot = extension.RootElement;
         Assert.AreEqual("picket", extensionRoot.GetProperty("id").GetString());
         Assert.AreEqual("willibrandon", extensionRoot.GetProperty("publisher").GetString());
-        Assert.AreEqual("0.2.4", extensionRoot.GetProperty("version").GetString());
+        Assert.AreEqual("0.2.5", extensionRoot.GetProperty("version").GetString());
         HashSet<string> galleryFlags = [.. extensionRoot
             .GetProperty("galleryFlags")
             .EnumerateArray()
@@ -1036,7 +1036,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("secret-hash-only", privacy);
         Assert.Contains("agent `3.220.0` or newer", compatibility);
         Assert.Contains("`linux-musl-arm64`", compatibility);
-        Assert.Contains("## 0.2.4", changelog);
+        Assert.Contains("## 0.2.5", changelog);
         Assert.Contains("PicketScan@1", azureDevOps);
         Assert.Contains("azure-devops/tasks/PicketScanV1/task.json", azureDevOps);
         Assert.Contains("Scanner exit code `2` identifies an incomplete or failed native scan and always fails the task", azureDevOps);
@@ -1424,7 +1424,7 @@ public sealed partial class RepositoryConventionTests
         XElement props = ReadProjectFile("Directory.Build.props");
         string targets = ReadRepositoryFile("Directory.Build.targets");
 
-        AssertProjectProperty(props, "VersionPrefix", "0.2.4");
+        AssertProjectProperty(props, "VersionPrefix", "0.2.5");
         AssertProjectProperty(props, "Authors", "willibrandon");
         AssertProjectProperty(props, "PackageLicenseExpression", "MIT");
         AssertProjectProperty(props, "PackageProjectUrl", "https://github.com/willibrandon/picket");
