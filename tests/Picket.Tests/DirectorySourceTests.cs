@@ -231,7 +231,9 @@ public sealed class DirectorySourceTests
         string root = CreateTempDirectory();
         try
         {
-            string targetPath = Path.Combine(root, "target.txt");
+            string targetDirectory = Path.Combine(root, ".hidden");
+            Directory.CreateDirectory(targetDirectory);
+            string targetPath = Path.Combine(targetDirectory, "target.txt");
             string linkPath = Path.Combine(root, "link.txt");
             File.WriteAllText(targetPath, "token-12345");
             File.CreateSymbolicLink(linkPath, targetPath);
@@ -241,8 +243,10 @@ public sealed class DirectorySourceTests
             SourceFile? symlinkFile = followedFiles.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
 
             Assert.DoesNotContain("link.txt", defaultFiles.Select(file => file.SymlinkDisplayPath));
+            Assert.HasCount(1, defaultFiles);
+            Assert.HasCount(2, followedFiles);
             Assert.IsNotNull(symlinkFile);
-            Assert.AreEqual("target.txt", symlinkFile.DisplayPath);
+            Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
             Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
             Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
         }

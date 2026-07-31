@@ -53,6 +53,9 @@ public sealed class DirectorySource
         Dictionary<string, bool>? pathAllowlistCache = options.IsPathAllowed is null
             ? null
             : new Dictionary<string, bool>(StringComparer.Ordinal);
+        HashSet<string>? yieldedFileSymlinkPaths = ShouldSupplementFileSymlinks(options)
+            ? new HashSet<string>(PathComparer)
+            : null;
         var walker = new FileWalker(CreateWalkerOptions(options));
         foreach (FileWalkEntry entry in walker.Enumerate(options.Root))
         {
@@ -106,7 +109,17 @@ public sealed class DirectorySource
                 continue;
             }
 
+            if (symlinkDisplayPath.Length != 0)
+            {
+                yieldedFileSymlinkPaths?.Add(Path.GetFullPath(entry.FullPath));
+            }
+
             AddSourceFile(sourceFiles, options, scanFullPath, displayPath, symlinkDisplayPath);
+        }
+
+        if (yieldedFileSymlinkPaths is not null)
+        {
+            AddMissingFileSymlinks(sourceFiles, options, pathAllowlistCache, yieldedFileSymlinkPaths);
         }
 
         return sourceFiles;
@@ -243,27 +256,170 @@ public sealed class DirectorySource
 
     private static bool IsSymbolicLink(FileSystemInfo fileSystemInfo)
     {
-        return fileSystemInfo.LinkTarget is not null
+        return TryResolveLinkTarget(fileSystemInfo) is not null
             || (fileSystemInfo.Attributes & FileAttributes.ReparsePoint) != 0;
     }
 
     private static bool TryResolveSymlinkFile(string path, out string fullPath)
     {
-        try
+        FileSystemInfo? target = TryResolveLinkTarget(new FileInfo(path));
+        if (target is not null && File.Exists(target.FullName))
         {
-            FileSystemInfo? target = new FileInfo(path).ResolveLinkTarget(returnFinalTarget: true);
-            if (target is not null && File.Exists(target.FullName))
-            {
-                fullPath = target.FullName;
-                return true;
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+            fullPath = target.FullName;
+            return true;
         }
 
         fullPath = string.Empty;
         return false;
+    }
+
+    private static FileSystemInfo? TryResolveLinkTarget(FileSystemInfo fileSystemInfo)
+    {
+        try
+        {
+            return fileSystemInfo.ResolveLinkTarget(returnFinalTarget: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static bool ShouldSupplementFileSymlinks(DirectoryScanOptions options)
+    {
+        return options.FollowSymbolicLinks
+            && !options.IgnoreHidden
+            && !options.ReadPicketIgnoreFiles
+            && !options.ReadIgnoreFiles
+            && !options.ReadGitIgnoreFiles
+            && !options.ReadGlobalGitIgnore
+            && !options.ReadParentIgnoreFiles
+            && options.IgnoreFilePaths.Count == 0;
+    }
+
+    private static void AddMissingFileSymlinks(
+        List<SourceFile> sourceFiles,
+        DirectoryScanOptions options,
+        Dictionary<string, bool>? pathAllowlistCache,
+        HashSet<string> yieldedFileSymlinkPaths)
+    {
+        foreach (string symlinkPath in EnumerateFollowedFileSymlinkPaths(options))
+        {
+            if (yieldedFileSymlinkPaths.Contains(symlinkPath)
+                || !TryResolveSymlinkFile(symlinkPath, out string targetPath)
+                || !IsPathWithinRoot(options.Root, targetPath))
+            {
+                continue;
+            }
+
+            string symlinkDisplayPath = CreateDisplayPath(options, symlinkPath);
+            if (IsPathOrAncestorAllowed(options.IsPathAllowed, pathAllowlistCache, symlinkDisplayPath)
+                || (options.MaxTargetBytes.HasValue && new FileInfo(targetPath).Length > options.MaxTargetBytes.Value))
+            {
+                continue;
+            }
+
+            var supplementalFiles = new List<SourceFile>();
+            AddSourceFile(
+                supplementalFiles,
+                options,
+                targetPath,
+                CreateDisplayPath(options, targetPath),
+                symlinkDisplayPath);
+            if (supplementalFiles.Count == 0)
+            {
+                continue;
+            }
+
+            int insertionIndex = sourceFiles.FindIndex(file => StringComparer.Ordinal.Compare(
+                GetTraversalDisplayPath(file),
+                symlinkDisplayPath) > 0);
+            if (insertionIndex < 0)
+            {
+                sourceFiles.AddRange(supplementalFiles);
+            }
+            else
+            {
+                sourceFiles.InsertRange(insertionIndex, supplementalFiles);
+            }
+
+            yieldedFileSymlinkPaths.Add(symlinkPath);
+        }
+    }
+
+    private static List<string> EnumerateFollowedFileSymlinkPaths(DirectoryScanOptions options)
+    {
+        string rootPath = Path.GetFullPath(options.Root);
+        FileSystemInfo? rootTarget = TryResolveLinkTarget(new DirectoryInfo(rootPath));
+        string canonicalRoot = rootTarget?.FullName ?? rootPath;
+        var rootAncestors = new HashSet<string>(PathComparer)
+        {
+            canonicalRoot,
+        };
+        var pending = new Stack<(string TraversalPath, string CanonicalPath, HashSet<string> Ancestors)>();
+        pending.Push((rootPath, canonicalRoot, rootAncestors));
+        var symlinkPaths = new List<string>();
+        while (pending.TryPop(out (string TraversalPath, string CanonicalPath, HashSet<string> Ancestors) current))
+        {
+            if (IsCancellationRequested(options))
+            {
+                break;
+            }
+
+            FileSystemInfo[] entries;
+            try
+            {
+                entries = new DirectoryInfo(current.TraversalPath).GetFileSystemInfos();
+            }
+            catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            Array.Sort(entries, static (left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
+            for (int index = entries.Length - 1; index >= 0; index--)
+            {
+                FileSystemInfo entry = entries[index];
+                FileSystemInfo? target = TryResolveLinkTarget(entry);
+                if (target is not null && File.Exists(target.FullName))
+                {
+                    if (IsPathWithinRoot(options.Root, target.FullName))
+                    {
+                        symlinkPaths.Add(Path.GetFullPath(entry.FullName));
+                    }
+
+                    continue;
+                }
+
+                bool isDirectory = target is not null
+                    ? Directory.Exists(target.FullName)
+                    : entry is DirectoryInfo || (entry.Attributes & FileAttributes.Directory) != 0;
+                if (!isDirectory)
+                {
+                    continue;
+                }
+
+                string canonicalPath = target?.FullName ?? Path.Combine(current.CanonicalPath, entry.Name);
+                if (!IsPathWithinRoot(options.Root, canonicalPath) || current.Ancestors.Contains(canonicalPath))
+                {
+                    continue;
+                }
+
+                var childAncestors = new HashSet<string>(current.Ancestors, PathComparer)
+                {
+                    canonicalPath,
+                };
+                pending.Push((entry.FullName, canonicalPath, childAncestors));
+            }
+        }
+
+        symlinkPaths.Sort(StringComparer.Ordinal);
+        return symlinkPaths;
+    }
+
+    private static string GetTraversalDisplayPath(SourceFile file)
+    {
+        return file.SymlinkDisplayPath.Length == 0 ? file.DisplayPath : file.SymlinkDisplayPath;
     }
 
     private static bool TryResolveFollowedFile(
@@ -414,6 +570,10 @@ public sealed class DirectorySource
     private static StringComparison PathComparison => OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
+
+    private static StringComparer PathComparer => OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
 
     private static bool IsCancellationRequested(DirectoryScanOptions options)
     {
