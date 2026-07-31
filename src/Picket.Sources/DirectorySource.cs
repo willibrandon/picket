@@ -570,8 +570,23 @@ public sealed class DirectorySource
 
     private static bool IsPathWithinRoot(string root, string path)
     {
-        string fullRoot = EnsureTrailingDirectorySeparator(Path.GetFullPath(root));
-        string fullPath = Path.GetFullPath(path);
+        string fullRoot;
+        string fullPath;
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            if (!UnixSymbolicLink.TryCanonicalizeExistingPath(root, out fullRoot)
+                || !UnixSymbolicLink.TryCanonicalizeExistingPath(path, out fullPath))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            fullRoot = Path.GetFullPath(root);
+            fullPath = Path.GetFullPath(path);
+        }
+
+        fullRoot = EnsureTrailingDirectorySeparator(fullRoot);
         return fullPath.StartsWith(fullRoot, PathComparison);
     }
 

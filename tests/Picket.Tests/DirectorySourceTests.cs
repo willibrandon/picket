@@ -288,6 +288,43 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies equivalent Unix path aliases do not make an in-root file symlink appear to escape the scan root.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    public void EnumerateAcceptsSymlinkTargetThroughEquivalentRootAlias()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string realRootPath = Path.Combine(root, "real");
+            string aliasRootPath = Path.Combine(root, "alias");
+            string targetDirectory = Path.Combine(realRootPath, ".hidden");
+            Directory.CreateDirectory(targetDirectory);
+            Directory.CreateSymbolicLink(aliasRootPath, realRootPath);
+            string targetPath = Path.Combine(targetDirectory, "target.txt");
+            string aliasTargetPath = Path.Combine(aliasRootPath, ".hidden", "target.txt");
+            string linkPath = Path.Combine(realRootPath, "link.txt");
+            File.WriteAllText(targetPath, "token-12345");
+            File.CreateSymbolicLink(linkPath, aliasTargetPath);
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(
+                new DirectoryScanOptions(realRootPath, followSymbolicLinks: true));
+            SourceFile? symlinkFile = files.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
+
+            Assert.HasCount(2, files);
+            Assert.IsNotNull(symlinkFile);
+            Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
+            Assert.IsTrue(UnixSymbolicLink.TryCanonicalizeExistingPath(targetPath, out string canonicalTargetPath));
+            Assert.AreEqual(canonicalTargetPath, symlinkFile.FullPath);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies followed directory symlinks do not escape the scan root.
     /// </summary>
     [TestMethod]

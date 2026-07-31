@@ -8,7 +8,6 @@ namespace Picket.Sources;
 /// </summary>
 internal static unsafe partial class UnixSymbolicLink
 {
-    private const int MaxLinkDepth = 64;
     private const int ReadLinkBufferSize = 4096;
 
     /// <summary>
@@ -25,30 +24,46 @@ internal static unsafe partial class UnixSymbolicLink
             return false;
         }
 
-        string currentPath = Path.GetFullPath(path);
-        var visitedPaths = new HashSet<string>(StringComparer.Ordinal);
-        for (int depth = 0; depth < MaxLinkDepth; depth++)
+        string fullPath = Path.GetFullPath(path);
+        if (!TryReadTarget(fullPath, out _))
         {
-            if (!TryReadTarget(currentPath, out string linkTarget))
-            {
-                targetPath = depth == 0 ? string.Empty : currentPath;
-                return depth != 0;
-            }
-
-            if (!visitedPaths.Add(currentPath))
-            {
-                break;
-            }
-
-            string? parentPath = Path.GetDirectoryName(currentPath);
-            currentPath = Path.GetFullPath(
-                Path.IsPathFullyQualified(linkTarget)
-                    ? linkTarget
-                    : Path.Combine(parentPath ?? Path.DirectorySeparatorChar.ToString(), linkTarget));
+            targetPath = string.Empty;
+            return false;
         }
 
-        targetPath = string.Empty;
-        return false;
+        return TryCanonicalizeExistingPath(fullPath, out targetPath);
+    }
+
+    /// <summary>
+    /// Tries to resolve every symbolic-link component in an existing Unix path.
+    /// </summary>
+    /// <param name="path">The existing file or directory path.</param>
+    /// <param name="canonicalPath">Receives the canonical fully qualified path.</param>
+    /// <returns><see langword="true" /> when the path can be canonicalized.</returns>
+    internal static bool TryCanonicalizeExistingPath(string path, out string canonicalPath)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            canonicalPath = string.Empty;
+            return false;
+        }
+
+        nint resolvedPath = RealPath(Path.GetFullPath(path), 0);
+        if (resolvedPath == 0)
+        {
+            canonicalPath = string.Empty;
+            return false;
+        }
+
+        try
+        {
+            canonicalPath = Marshal.PtrToStringUTF8(resolvedPath) ?? string.Empty;
+            return canonicalPath.Length != 0;
+        }
+        finally
+        {
+            Free(resolvedPath);
+        }
     }
 
     private static bool TryReadTarget(string path, out string target)
@@ -71,4 +86,14 @@ internal static unsafe partial class UnixSymbolicLink
         SetLastError = true,
         StringMarshalling = StringMarshalling.Utf8)]
     private static partial nint ReadLink(string path, byte* buffer, nuint bufferLength);
+
+    [LibraryImport(
+        "libc",
+        EntryPoint = "realpath",
+        SetLastError = true,
+        StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint RealPath(string path, nint resolvedPath);
+
+    [LibraryImport("libc", EntryPoint = "free")]
+    private static partial void Free(nint pointer);
 }
