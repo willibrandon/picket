@@ -1,4 +1,5 @@
 using Picket.Sources;
+using Scout.IO.Ignore;
 using System.IO.Compression;
 using System.Text;
 using ZstdSharp;
@@ -241,10 +242,26 @@ public sealed class DirectorySourceTests
             IReadOnlyList<SourceFile> defaultFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root));
             IReadOnlyList<SourceFile> followedFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root, followSymbolicLinks: true));
             SourceFile? symlinkFile = followedFiles.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
+            bool nativeResolved = UnixSymbolicLink.TryResolveFinalTarget(linkPath, out string nativeTargetPath);
+            FileWalkEntry[] walkerEntries =
+            [
+                .. new FileWalker(new FileWalkerOptions
+                {
+                    FollowSymbolicLinks = true,
+                    IgnoreHidden = false,
+                    Sort = FileWalkSort.FullPath,
+                }).Enumerate(root),
+            ];
+            string diagnostic = string.Join(
+                Environment.NewLine,
+                $"native resolved: {nativeResolved} -> {nativeTargetPath}",
+                $"directory entries: {string.Join(", ", Directory.GetFileSystemEntries(root))}",
+                $"walker entries: {string.Join(", ", walkerEntries.Select(static entry => $"{entry.FullPath}|file={entry.IsFile}|link={entry.IsSymbolicLink}"))}",
+                $"source entries: {string.Join(", ", followedFiles.Select(static file => $"{file.FullPath}|display={file.DisplayPath}|link={file.SymlinkDisplayPath}"))}");
 
             Assert.DoesNotContain("link.txt", defaultFiles.Select(file => file.SymlinkDisplayPath));
             Assert.HasCount(1, defaultFiles);
-            Assert.HasCount(2, followedFiles);
+            Assert.HasCount(2, followedFiles, diagnostic);
             Assert.IsNotNull(symlinkFile);
             Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
             Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
