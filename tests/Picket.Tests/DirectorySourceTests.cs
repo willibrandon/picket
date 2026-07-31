@@ -1,5 +1,4 @@
 using Picket.Sources;
-using Scout.IO.Ignore;
 using System.IO.Compression;
 using System.Text;
 using ZstdSharp;
@@ -242,30 +241,45 @@ public sealed class DirectorySourceTests
             IReadOnlyList<SourceFile> defaultFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root));
             IReadOnlyList<SourceFile> followedFiles = DirectorySource.Enumerate(new DirectoryScanOptions(root, followSymbolicLinks: true));
             SourceFile? symlinkFile = followedFiles.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
-            bool nativeResolved = UnixSymbolicLink.TryResolveFinalTarget(linkPath, out string nativeTargetPath);
-            FileWalkEntry[] walkerEntries =
-            [
-                .. new FileWalker(new FileWalkerOptions
-                {
-                    FollowSymbolicLinks = true,
-                    IgnoreHidden = false,
-                    Sort = FileWalkSort.FullPath,
-                }).Enumerate(root),
-            ];
-            string diagnostic = string.Join(
-                Environment.NewLine,
-                $"native resolved: {nativeResolved} -> {nativeTargetPath}",
-                $"directory entries: {string.Join(", ", Directory.GetFileSystemEntries(root))}",
-                $"walker entries: {string.Join(", ", walkerEntries.Select(static entry => $"{entry.FullPath}|file={entry.IsFile}|link={entry.IsSymbolicLink}"))}",
-                $"source entries: {string.Join(", ", followedFiles.Select(static file => $"{file.FullPath}|display={file.DisplayPath}|link={file.SymlinkDisplayPath}"))}");
 
             Assert.DoesNotContain("link.txt", defaultFiles.Select(file => file.SymlinkDisplayPath));
             Assert.HasCount(1, defaultFiles);
-            Assert.HasCount(2, followedFiles, diagnostic);
+            Assert.HasCount(2, followedFiles);
             Assert.IsNotNull(symlinkFile);
             Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
             Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
             Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a scan root reached through a symbolic-link ancestor retains its selected path boundary.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateSupportsRootPathThroughSymbolicLinkAncestor()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string realParentPath = Path.Combine(root, "real");
+            string realRootPath = Path.Combine(realParentPath, "scan");
+            string aliasParentPath = Path.Combine(root, "alias");
+            Directory.CreateDirectory(realRootPath);
+            Directory.CreateSymbolicLink(aliasParentPath, realParentPath);
+            File.WriteAllText(Path.Combine(realRootPath, "secret.txt"), "token-12345");
+
+            string aliasRootPath = Path.Combine(aliasParentPath, "scan");
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(
+                new DirectoryScanOptions(aliasRootPath, followSymbolicLinks: true));
+
+            SourceFile file = Assert.ContainsSingle(files);
+            Assert.AreEqual("secret.txt", file.DisplayPath);
+            Assert.AreEqual(string.Empty, file.SymlinkDisplayPath);
+            Assert.AreEqual("token-12345", Encoding.UTF8.GetString(file.ReadAllBytes()));
         }
         finally
         {

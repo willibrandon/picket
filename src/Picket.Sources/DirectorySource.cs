@@ -448,7 +448,7 @@ public sealed class DirectorySource
         resolvedFullPath = fullPath;
         displayPath = originalDisplayPath;
         symlinkDisplayPath = string.Empty;
-        if (!TryResolvePathThroughSymlinks(fullPath, out string finalPath))
+        if (!TryResolvePathThroughSymlinks(options.Root, fullPath, out string finalPath))
         {
             return false;
         }
@@ -469,20 +469,20 @@ public sealed class DirectorySource
         return true;
     }
 
-    private static bool TryResolvePathThroughSymlinks(string path, out string resolvedPath)
+    private static bool TryResolvePathThroughSymlinks(string rootPath, string path, out string resolvedPath)
     {
         try
         {
+            string fullRootPath = Path.GetFullPath(rootPath);
             string fullPath = Path.GetFullPath(path);
-            string? root = Path.GetPathRoot(fullPath);
-            if (string.IsNullOrEmpty(root))
+            if (!IsPathWithinRoot(fullRootPath, fullPath))
             {
                 resolvedPath = string.Empty;
                 return false;
             }
 
-            string current = root;
-            string relativePath = fullPath[root.Length..];
+            string current = fullRootPath;
+            string relativePath = Path.GetRelativePath(fullRootPath, fullPath);
             string[] parts = relativePath.Split(s_pathSeparators, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < parts.Length; i++)
             {
