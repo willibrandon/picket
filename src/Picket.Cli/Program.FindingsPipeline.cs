@@ -35,7 +35,8 @@ internal static partial class Program
         int exitCode,
         bool hadScanError,
         Action? successfulRunCallback = null,
-        CompatibilityConsoleOptions? consoleOptions = null)
+        CompatibilityConsoleOptions? consoleOptions = null,
+        bool verboseFindingsAlreadyWritten = false)
     {
         IReadOnlyList<Finding> filteredFindings = baseline.Filter(gitleaksIgnore.Filter(findings), redactionPercent);
         if (nativeMode)
@@ -87,7 +88,11 @@ internal static partial class Program
         diagnosticsSession?.RecordFindingCount(filteredFindings.Count);
         if (consoleOptions is not null)
         {
-            CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, filteredFindings);
+            if (!verboseFindingsAlreadyWritten)
+            {
+                CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, filteredFindings);
+            }
+
             CompatibilityConsoleWriter.WriteSummary(consoleOptions, filteredFindings, hadScanError);
         }
 

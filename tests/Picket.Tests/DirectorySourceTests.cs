@@ -137,6 +137,44 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that path allowlists reuse decisions for shared directory ancestry.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateCachesSharedAncestorPathAllowlistDecisions()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string sharedDirectory = Path.Combine(root, "shared");
+            Directory.CreateDirectory(sharedDirectory);
+            File.WriteAllText(Path.Combine(sharedDirectory, "first.txt"), "token-12345");
+            File.WriteAllText(Path.Combine(sharedDirectory, "second.txt"), "token-23456");
+            File.WriteAllText(Path.Combine(root, "keep.txt"), "token-34567");
+            var pathChecks = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            bool IsPathAllowed(string path)
+            {
+                pathChecks[path] = pathChecks.GetValueOrDefault(path) + 1;
+                return path == "shared";
+            }
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                isPathAllowed: IsPathAllowed));
+
+            Assert.HasCount(1, files);
+            Assert.AreEqual("keep.txt", files[0].DisplayPath);
+            Assert.AreEqual(1, pathChecks["shared"]);
+            Assert.AreEqual(1, pathChecks["shared/first.txt"]);
+            Assert.AreEqual(1, pathChecks["shared/second.txt"]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that invalid Scout patterns in explicit ignore files use the source-enumeration exception contract.
     /// </summary>
     [TestMethod]
@@ -193,7 +231,9 @@ public sealed class DirectorySourceTests
         string root = CreateTempDirectory();
         try
         {
-            string targetPath = Path.Combine(root, "target.txt");
+            string targetDirectory = Path.Combine(root, ".hidden");
+            Directory.CreateDirectory(targetDirectory);
+            string targetPath = Path.Combine(targetDirectory, "target.txt");
             string linkPath = Path.Combine(root, "link.txt");
             File.WriteAllText(targetPath, "token-12345");
             File.CreateSymbolicLink(linkPath, targetPath);
@@ -203,10 +243,79 @@ public sealed class DirectorySourceTests
             SourceFile? symlinkFile = followedFiles.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
 
             Assert.DoesNotContain("link.txt", defaultFiles.Select(file => file.SymlinkDisplayPath));
+            Assert.HasCount(1, defaultFiles);
+            Assert.HasCount(2, followedFiles);
             Assert.IsNotNull(symlinkFile);
-            Assert.AreEqual("target.txt", symlinkFile.DisplayPath);
-            Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
+            Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
+            Assert.AreEqual(GetExpectedResolvedPath(targetPath), symlinkFile.FullPath);
             Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a scan root reached through a symbolic-link ancestor retains its selected path boundary.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateSupportsRootPathThroughSymbolicLinkAncestor()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string realParentPath = Path.Combine(root, "real");
+            string realRootPath = Path.Combine(realParentPath, "scan");
+            string aliasParentPath = Path.Combine(root, "alias");
+            Directory.CreateDirectory(realRootPath);
+            Directory.CreateSymbolicLink(aliasParentPath, realParentPath);
+            File.WriteAllText(Path.Combine(realRootPath, "secret.txt"), "token-12345");
+
+            string aliasRootPath = Path.Combine(aliasParentPath, "scan");
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(
+                new DirectoryScanOptions(aliasRootPath, followSymbolicLinks: true));
+
+            SourceFile file = Assert.ContainsSingle(files);
+            Assert.AreEqual("secret.txt", file.DisplayPath);
+            Assert.AreEqual(string.Empty, file.SymlinkDisplayPath);
+            Assert.AreEqual("token-12345", Encoding.UTF8.GetString(file.ReadAllBytes()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies equivalent Unix path aliases do not make an in-root file symlink appear to escape the scan root.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Exclude, OperatingSystems.Windows)]
+    public void EnumerateAcceptsSymlinkTargetThroughEquivalentRootAlias()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string realRootPath = Path.Combine(root, "real");
+            string aliasRootPath = Path.Combine(root, "alias");
+            string targetDirectory = Path.Combine(realRootPath, ".hidden");
+            Directory.CreateDirectory(targetDirectory);
+            Directory.CreateSymbolicLink(aliasRootPath, realRootPath);
+            string targetPath = Path.Combine(targetDirectory, "target.txt");
+            string aliasTargetPath = Path.Combine(aliasRootPath, ".hidden", "target.txt");
+            string linkPath = Path.Combine(realRootPath, "link.txt");
+            File.WriteAllText(targetPath, "token-12345");
+            File.CreateSymbolicLink(linkPath, aliasTargetPath);
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(
+                new DirectoryScanOptions(realRootPath, followSymbolicLinks: true));
+            SourceFile? symlinkFile = files.FirstOrDefault(file => file.SymlinkDisplayPath == "link.txt");
+
+            Assert.HasCount(2, files);
+            Assert.IsNotNull(symlinkFile);
+            Assert.AreEqual(".hidden/target.txt", symlinkFile.DisplayPath);
+            Assert.AreEqual(GetExpectedResolvedPath(targetPath), symlinkFile.FullPath);
         }
         finally
         {
@@ -262,7 +371,7 @@ public sealed class DirectorySourceTests
 
             Assert.IsNotNull(symlinkFile);
             Assert.AreEqual("target/secret.txt", symlinkFile.DisplayPath);
-            Assert.AreEqual(Path.GetFullPath(targetPath), symlinkFile.FullPath);
+            Assert.AreEqual(GetExpectedResolvedPath(targetPath), symlinkFile.FullPath);
             Assert.AreEqual("token-12345", Encoding.UTF8.GetString(symlinkFile.ReadAllBytes()));
         }
         finally
@@ -865,6 +974,13 @@ public sealed class DirectorySourceTests
         string path = Path.Combine(Path.GetTempPath(), "picket-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static string GetExpectedResolvedPath(string path)
+    {
+        return UnixSymbolicLink.TryCanonicalizeExistingPath(path, out string canonicalPath)
+            ? canonicalPath
+            : Path.GetFullPath(path);
     }
 
     private static void WriteZipFile(string path, params (string Name, string Content)[] entries)

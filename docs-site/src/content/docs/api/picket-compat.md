@@ -15,6 +15,7 @@ Generated from XML documentation for `Picket.Compat`.
 - [GitleaksConfigLoader](#gitleaksconfigloader) - Loads Gitleaks-compatible rule configuration.
 - [GitleaksConfigWriter](#gitleaksconfigwriter) - Writes resolved Gitleaks-compatible rule sets as deterministic TOML.
 - [GitleaksDurationFormatter](#gitleaksdurationformatter) - Formats elapsed durations using the rounding and display contract used by Gitleaks.
+- [GitleaksFileTypeClassifier](#gitleaksfiletypeclassifier) - Classifies file prefixes using the application MIME boundary from the h2non/filetype version pinned by Gitleaks.
 - [GitleaksIgnore](#gitleaksignore) - Represents Gitleaks-compatible fingerprint ignore entries.
 - [PicketConfigLoader](#picketconfigloader) - Loads Picket-native rule configuration while preserving the Gitleaks-compatible rule schema.
 
@@ -83,6 +84,16 @@ Formats elapsed durations using the rounding and display contract used by Gitlea
 ### Methods
 
 - `Format(TimeSpan duration)` - Formats an elapsed duration using three significant decimal positions and Go duration units.
+
+## GitleaksFileTypeClassifier
+
+`Picket.Compat.GitleaksFileTypeClassifier`
+
+Classifies file prefixes using the application MIME boundary from the h2non/filetype version pinned by Gitleaks.
+
+### Methods
+
+- `IsApplication(ReadOnlySpan<byte> input)` - Determines whether the input matches a file type whose top-level MIME type is application.
 
 ## GitleaksIgnore
 

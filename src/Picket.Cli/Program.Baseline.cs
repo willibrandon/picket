@@ -392,6 +392,7 @@ internal static partial class Program
                 diagnosticsSession,
                 findings,
                 metrics: null,
+                findingSink: null,
                 out bool stopped,
                 out Exception? scanError,
                 CancellationToken.None);

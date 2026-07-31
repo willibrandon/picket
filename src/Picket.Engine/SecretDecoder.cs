@@ -117,7 +117,8 @@ internal static class SecretDecoder
                 continue;
             }
 
-            if (TryDecodeUnicode(input, position, out EncodingMatch unicodeMatch))
+            if (input[position] is (byte)'U' or (byte)'\\'
+                && TryDecodeUnicode(input, position, out EncodingMatch unicodeMatch))
             {
                 matches.Add(unicodeMatch);
                 position = unicodeMatch.End;

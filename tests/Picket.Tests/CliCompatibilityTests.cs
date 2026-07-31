@@ -3,6 +3,7 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using Picket.Verify;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
@@ -102,8 +103,9 @@ public sealed class CliCompatibilityTests
     {
         const int FileCount = 32;
         using TempDirectory root = TempDirectory.Create();
-        string configPath = WriteTokenConfig(root.Path);
-        string diagnosticsPath = Path.Combine(root.Path, "diagnostics");
+        using TempDirectory controls = TempDirectory.Create();
+        string configPath = WriteTokenConfig(controls.Path);
+        string diagnosticsPath = Path.Combine(controls.Path, "diagnostics");
         var expectedFiles = new string[FileCount];
         for (int fileIndex = 0; fileIndex < FileCount; fileIndex++)
         {
@@ -112,9 +114,11 @@ public sealed class CliCompatibilityTests
             File.WriteAllText(Path.Combine(root.Path, fileName), $"token-{fileIndex:D5}");
         }
 
-        CliResult result = await RunCliAsync(
-            "dir",
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
             root.Path,
+            null,
+            "dir",
+            ".",
             "-c",
             configPath,
             "--exit-code",
@@ -154,7 +158,17 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "csv", "-r", "-").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "-f",
+            "csv",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("RuleID,Commit,File,SymlinkFile,Secret,Match,StartLine,EndLine,StartColumn,EndColumn,Author,Message,Date,Email,Fingerprint,Tags\n", result.Stdout);
@@ -172,7 +186,15 @@ public sealed class CliCompatibilityTests
         string reportPath = Path.Combine(root.Path, "report.csv");
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", reportPath).ConfigureAwait(false);
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "-r",
+            reportPath).ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.IsEmpty(result.Stdout);
@@ -189,7 +211,17 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "junit", "-r", "-").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "-f",
+            "junit",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", result.Stdout);
@@ -208,7 +240,17 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "token-12345");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-f", "sarif", "-r", "-").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "-f",
+            "sarif",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\"", result.Stdout);
@@ -3010,7 +3052,15 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(Path.Combine(root.Path, "ignored.txt"), "token-12345");
         File.WriteAllText(Path.Combine(root.Path, "git-ignored.txt"), "token-23456");
 
-        CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"File\": \"ignored.txt\"", result.Stdout);
@@ -3644,9 +3694,11 @@ public sealed class CliCompatibilityTests
             "{{ range . -}}{{ .RuleID }}|{{ .File }}|{{ quote .Secret }}|{{ .Line }}\n{{ end -}}");
         File.WriteAllText(Path.Combine(root.Path, "secret.txt"), "prefix token-12345 suffix");
 
-        CliResult result = await RunCliAsync(
-            "dir",
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
             root.Path,
+            null,
+            "dir",
+            ".",
             "-c",
             configPath,
             "--report-template",
@@ -3870,10 +3922,44 @@ public sealed class CliCompatibilityTests
     }
 
     /// <summary>
-    /// Verifies that directory scans skip files that look binary.
+    /// Verifies that an absolute compatibility source produces absolute report paths.
     /// </summary>
     [TestMethod]
-    public async Task DirectoryScanSkipsBinaryFiles()
+    public async Task DirectoryScanPreservesAbsoluteSourcePath()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = WriteTokenConfig(root.Path);
+        string sourcePath = Path.Combine(root.Path, "secret.txt");
+        File.WriteAllText(sourcePath, "token-12345");
+
+        CliResult result = await RunCliAsync(
+            "dir",
+            root.Path,
+            "-c",
+            configPath,
+            "--no-banner",
+            "--no-color",
+            "-f",
+            "json",
+            "-r",
+            "-").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        using JsonDocument report = JsonDocument.Parse(result.Stdout);
+        JsonElement[] findings = [.. report.RootElement.EnumerateArray()];
+        Assert.HasCount(1, findings);
+        string expectedPath = sourcePath.Replace('\\', '/');
+        Assert.AreEqual(expectedPath, findings[0].GetProperty("File").GetString());
+        Assert.AreEqual(
+            $"{expectedPath}:token:1",
+            findings[0].GetProperty("Fingerprint").GetString());
+    }
+
+    /// <summary>
+    /// Verifies that NUL bytes alone do not trigger Gitleaks application MIME skipping.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanDoesNotTreatNulAsApplicationMimeType()
     {
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
@@ -3884,8 +3970,100 @@ public sealed class CliCompatibilityTests
 
         CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
 
-        Assert.AreEqual(0, result.ExitCode);
-        Assert.AreEqual("[]\n", result.Stdout);
+        Assert.AreEqual(1, result.ExitCode);
+        using JsonDocument report = JsonDocument.Parse(result.Stdout);
+        JsonElement[] findings = [.. report.RootElement.EnumerateArray()];
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("token", findings[0].GetProperty("RuleID").GetString());
+        Assert.AreEqual("token-12345", findings[0].GetProperty("Secret").GetString());
+    }
+
+    /// <summary>
+    /// Verifies that binary classification does not suppress path-only findings.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanKeepsPathOnlyFindingForBinaryFile()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string sourcePath = Path.Combine(root.Path, "source");
+        Directory.CreateDirectory(sourcePath);
+        string configPath = WritePkcs12PathOnlyConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.json");
+        File.WriteAllBytes(Path.Combine(sourcePath, "certificate.pfx"), [0, 1, 2, 3, 65, 66, 67]);
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            sourcePath,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "--no-banner",
+            "--no-color",
+            "-v",
+            "-f",
+            "json",
+            "-r",
+            reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        JsonElement[] findings = [.. report.RootElement.EnumerateArray()];
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("pkcs12-file", findings[0].GetProperty("RuleID").GetString());
+        Assert.AreEqual("file detected: certificate.pfx", findings[0].GetProperty("Match").GetString());
+        Assert.AreEqual("certificate.pfx", findings[0].GetProperty("File").GetString());
+        Assert.AreEqual(0, findings[0].GetProperty("StartLine").GetInt32());
+        Assert.Contains("INF scanned ~7 bytes (7 bytes)", result.Stderr);
+    }
+
+    /// <summary>
+    /// Verifies that fragmented binary files retain path-only findings and whole-file byte accounting.
+    /// </summary>
+    [TestMethod]
+    public async Task DirectoryScanKeepsPathOnlyFindingForFragmentedBinaryFile()
+    {
+        const int FileLength = 250_007;
+        using TempDirectory root = TempDirectory.Create();
+        string sourcePath = Path.Combine(root.Path, "source");
+        Directory.CreateDirectory(sourcePath);
+        string configPath = WritePkcs12PathOnlyConfig(root.Path);
+        string reportPath = Path.Combine(root.Path, "report.json");
+        var content = new byte[FileLength];
+        for (int index = 1; index < content.Length; index++)
+        {
+            content[index] = index % 2 == 0 ? (byte)'\n' : (byte)'x';
+        }
+
+        File.WriteAllBytes(Path.Combine(sourcePath, "certificate.pfx"), content);
+
+        CliResult result = await RunCliWithInputFromDirectoryAsync(
+            sourcePath,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "--no-banner",
+            "--no-color",
+            "-v",
+            "-f",
+            "json",
+            "-r",
+            reportPath).ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        JsonElement[] findings = [.. report.RootElement.EnumerateArray()];
+        Assert.IsNotEmpty(findings);
+        foreach (JsonElement finding in findings)
+        {
+            Assert.AreEqual("pkcs12-file", finding.GetProperty("RuleID").GetString());
+            Assert.AreEqual("file detected: certificate.pfx", finding.GetProperty("Match").GetString());
+            Assert.AreEqual("certificate.pfx", finding.GetProperty("File").GetString());
+        }
+
+        Assert.Contains("INF scanned ~250007 bytes (250.01 KB)", result.Stderr);
     }
 
     /// <summary>
@@ -3894,11 +4072,15 @@ public sealed class CliCompatibilityTests
     [TestMethod]
     public async Task DirectoryScanLimitsBinaryProbeToCompatiblePrimaryFragment()
     {
+        const int SkippablePayloadLength = 100_000;
         using TempDirectory root = TempDirectory.Create();
         string configPath = WriteTokenConfig(root.Path);
-        byte[] content = new byte[100_001 + " token-12345".Length];
-        content.AsSpan(0, 100_000).Fill((byte)'a');
-        Encoding.UTF8.GetBytes(" token-12345", content.AsSpan(100_001));
+        byte[] content = new byte[8 + SkippablePayloadLength + 4 + " token-12345".Length];
+        BinaryPrimitives.WriteUInt32LittleEndian(content, 0x184D2A50);
+        BinaryPrimitives.WriteUInt32LittleEndian(content.AsSpan(4), SkippablePayloadLength);
+        content.AsSpan(8, SkippablePayloadLength).Fill((byte)'a');
+        Convert.FromHexString("28B52FFD").CopyTo(content, 8 + SkippablePayloadLength);
+        Encoding.UTF8.GetBytes(" token-12345", content.AsSpan(12 + SkippablePayloadLength));
         File.WriteAllBytes(Path.Combine(root.Path, "large.txt"), content);
 
         CliResult result = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
@@ -4082,8 +4264,25 @@ public sealed class CliCompatibilityTests
         File.WriteAllText(targetPath, "token-12345");
         File.CreateSymbolicLink(linkPath, targetPath);
 
-        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
-        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--follow-symlinks", "-r", "-").ConfigureAwait(false);
+        CliResult disabled = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "-r",
+            "-").ConfigureAwait(false);
+        CliResult enabled = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "--follow-symlinks",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(1, disabled.ExitCode);
         Assert.DoesNotContain("\"SymlinkFile\": \"link.txt\"", disabled.Stdout);
@@ -4141,8 +4340,25 @@ public sealed class CliCompatibilityTests
         string configPath = WriteTokenConfig(root.Path);
         WriteZipFile(Path.Combine(root.Path, "secrets.zip"), ("nested/secret.txt", "token-12345"));
 
-        CliResult disabled = await RunCliAsync("dir", root.Path, "-c", configPath, "-r", "-").ConfigureAwait(false);
-        CliResult enabled = await RunCliAsync("dir", root.Path, "-c", configPath, "--max-archive-depth=1", "-r", "-").ConfigureAwait(false);
+        CliResult disabled = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "-r",
+            "-").ConfigureAwait(false);
+        CliResult enabled = await RunCliWithInputFromDirectoryAsync(
+            root.Path,
+            null,
+            "dir",
+            ".",
+            "-c",
+            configPath,
+            "--max-archive-depth=1",
+            "-r",
+            "-").ConfigureAwait(false);
 
         Assert.AreEqual(0, disabled.ExitCode);
         Assert.AreEqual("[]\n", disabled.Stdout);
@@ -5024,7 +5240,10 @@ public sealed class CliCompatibilityTests
 
         Assert.AreEqual(1, result.ExitCode);
         Assert.Contains("\"Commit\": \"\"", result.Stdout);
-        Assert.Contains("\"Fingerprint\": \"secret.txt:token:1\"", result.Stdout);
+        string expectedPath = Path.Combine(root.Path, "secret.txt")
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace(Path.AltDirectorySeparatorChar, '/');
+        Assert.Contains($"\"Fingerprint\": \"{expectedPath}:token:1\"", result.Stdout);
     }
 
     /// <summary>
@@ -6127,6 +6346,20 @@ public sealed class CliCompatibilityTests
             [[rules]]
             id = "path-secret"
             path = '''secret\.txt$'''
+            """);
+        return configPath;
+    }
+
+    private static string WritePkcs12PathOnlyConfig(string root)
+    {
+        string configPath = Path.Combine(root, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "pkcs12-file"
+            description = "Found a PKCS #12 file."
+            path = '''(?i)(?:^|/)[^/]+\.p(?:12|fx)$'''
             """);
         return configPath;
     }

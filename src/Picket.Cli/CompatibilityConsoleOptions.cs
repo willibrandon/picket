@@ -17,7 +17,12 @@ internal sealed class CompatibilityConsoleOptions
 
     internal bool NoColor { get; set; }
 
-    internal long StartTimestamp { get; }
+    internal long StartTimestamp { get; private set; }
 
     internal bool Verbose { get; set; }
+
+    internal void RestartTiming()
+    {
+        StartTimestamp = Stopwatch.GetTimestamp();
+    }
 }

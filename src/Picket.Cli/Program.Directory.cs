@@ -502,6 +502,13 @@ internal static partial class Program
             return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
+        if (!nativeMode)
+        {
+            rules.CompileDeferredRegexes();
+            consoleOptions.RestartTiming();
+            rules.PrepareKeywordPrefilter();
+        }
+
         if (allowReportInput && File.Exists(root) && ReportFindingReader.TryRead(root, out List<Finding>? reportInputFindings))
         {
             string reportInputRoot = Path.GetDirectoryName(Path.GetFullPath(root)) ?? ".";
@@ -589,7 +596,8 @@ internal static partial class Program
                 ignoreFilePaths: respectNativeIgnoreFiles ? nativeIgnorePaths : [],
                 warningSink: Console.Error.WriteLine,
                 isCancellationRequested: () => IsScanStopped(timeoutTimestamp, cancellationToken),
-                identifyArchivesByContent: nativeMode);
+                identifyArchivesByContent: nativeMode,
+                preserveSourcePaths: !nativeMode);
             if (!TryEnumerateDirectorySource(directoryScanOptions, out files))
             {
                 return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
@@ -641,6 +649,26 @@ internal static partial class Program
             return CompleteRun(GetOperationalExitCode(nativeMode), diagnosticsSession);
         }
 
+        Action<IReadOnlyList<Finding>>? compatibilityFindingSink = null;
+        if (!nativeMode && consoleOptions.Verbose)
+        {
+            object consoleLock = new();
+            compatibilityFindingSink = sourceFindings =>
+            {
+                lock (consoleLock)
+                {
+                    IReadOnlyList<Finding> visibleFindings =
+                        baseline.Filter(gitleaksIgnore.Filter(sourceFindings), redactionPercent);
+                    if (redactionPercent > 0)
+                    {
+                        visibleFindings = GitleaksFindingRedactor.Redact(visibleFindings, redactionPercent);
+                    }
+
+                    CompatibilityConsoleWriter.WriteVerboseFindings(consoleOptions, visibleFindings);
+                }
+            };
+        }
+
         List<CheckpointSourceFile>? checkpointFiles = null;
         RemoteScanCheckpoint? openedCheckpoint = null;
         if (!string.IsNullOrWhiteSpace(checkpointPath))
@@ -669,9 +697,16 @@ internal static partial class Program
 
         using RemoteScanCheckpoint? scanCheckpoint = openedCheckpoint;
 
-        string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath);
-        string? configDisplayPath = CreateControlFileDisplayPath(root, ResolveConfigControlPath(configPath, root));
-        List<string?> reportDisplayPaths = CreateControlFileDisplayPaths(root, reportPath, reportPaths);
+        string? baselineDisplayPath = CreateControlFileDisplayPath(root, baselinePath, preserveSourcePath: !nativeMode);
+        string? configDisplayPath = CreateControlFileDisplayPath(
+            root,
+            ResolveConfigControlPath(configPath, root),
+            preserveSourcePath: !nativeMode);
+        List<string?> reportDisplayPaths = CreateControlFileDisplayPaths(
+            root,
+            reportPath,
+            reportPaths,
+            preserveSourcePath: !nativeMode);
         List<string?> nativeIgnoreDisplayPaths = respectNativeIgnoreFiles
             ? CreateControlFileDisplayPaths(root, reportPath: null, nativeIgnorePaths)
             : [];
@@ -702,7 +737,10 @@ internal static partial class Program
                         throw new InvalidDataException("Checkpoint ended before its recorded low-water mark.");
                     }
 
-                    findings.AddRange(ApplySourceProvenance(restoredFindings, sourceFile));
+                    IReadOnlyList<Finding> restoredSourceFindings =
+                        ApplySourceProvenance(restoredFindings, sourceFile);
+                    findings.AddRange(restoredSourceFindings);
+                    compatibilityFindingSink?.Invoke(restoredSourceFindings);
                     diagnosticsSession?.RecordScanInput();
                 }
 
@@ -757,6 +795,7 @@ internal static partial class Program
                     diagnosticsSession,
                     findings,
                     nativeMode ? null : consoleOptions.Metrics,
+                    compatibilityFindingSink,
                     out bool stopped,
                     out Exception? scanError,
                     cancellationToken);
@@ -837,6 +876,7 @@ internal static partial class Program
 
                         IReadOnlyList<Finding> fragmentSourceFindings = ApplySourceProvenance(fragmentFindings, file);
                         findings.AddRange(fragmentSourceFindings);
+                        compatibilityFindingSink?.Invoke(fragmentSourceFindings);
                         continue;
                     }
 
@@ -847,7 +887,7 @@ internal static partial class Program
                         continue;
                     }
 
-                    if (LooksBinary(input, allowUtf16Bom: nativeMode))
+                    if (ShouldSkipFileContent(input, nativeMode))
                     {
                         scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, []);
                         continue;
@@ -864,6 +904,7 @@ internal static partial class Program
                         diagnosticsSession?.RecordCacheHit();
                         IReadOnlyList<Finding> cachedSourceFindings = ApplySourceProvenance(cachedFindings, file);
                         findings.AddRange(cachedSourceFindings);
+                        compatibilityFindingSink?.Invoke(cachedSourceFindings);
                         scanCheckpoint?.AppendCompletedFile(file.DisplayPath, file.SymlinkDisplayPath, input, cachedSourceFindings);
                         continue;
                     }
@@ -907,6 +948,7 @@ internal static partial class Program
 
                     IReadOnlyList<Finding> scannedSourceFindings = ApplySourceProvenance(scannedFindings, file);
                     findings.AddRange(scannedSourceFindings);
+                    compatibilityFindingSink?.Invoke(scannedSourceFindings);
                     if (scanCache is not null)
                     {
                         scanCache.Write(input, file.DisplayPath, scannedFindings);
@@ -954,7 +996,8 @@ internal static partial class Program
             scanCheckpoint is null
                 ? null
                 : () => CompleteRemoteScanCheckpoint(scanCheckpoint),
-            nativeMode ? null : consoleOptions);
+            nativeMode ? null : consoleOptions,
+            verboseFindingsAlreadyWritten: compatibilityFindingSink is not null);
     }
 
     private static void AddCompatibilityControlFileBytes(

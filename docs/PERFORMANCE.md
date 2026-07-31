@@ -19,6 +19,12 @@ Run the report writer benchmarks with:
 dotnet run -c Release --project benchmarks/Picket.Benchmarks -- --filter "*ReportWriterBenchmarks*"
 ```
 
+Run the strict compatibility regex-component benchmarks with:
+
+```powershell
+dotnet run -c Release --project benchmarks/Picket.Benchmarks -- --filter "*GitleaksRegexPipelineBenchmarks*"
+```
+
 Current benchmark scenarios cover:
 
 - native default rules over the embedded Gitleaks config,
@@ -32,6 +38,8 @@ Current benchmark scenarios cover:
   Gitleaks-compatible rules,
 - complete native default, strict Gitleaks-compatible, and mapped GitHub-alert
   regex compilation, including deferred rule, path, and allowlist regexes,
+- direct Scout candidate-regex searches and the complete retained-finding
+  compatibility pipeline over the same representative input,
 - compatibility JSON report writer throughput,
 - native JSON, JSON Lines, SARIF, HTML, and TOON report writer throughput across
   deterministic 1, 100, and 1000 finding report sizes.
@@ -264,6 +272,17 @@ therefore include candidate regex compilation on first use. Compilation
 scenarios force every deferred regex so they measure actual Scout compilation,
 not only Picket rule-wrapper and fingerprint construction.
 
+Each scan pass searches configured rule keywords once with a shared Scout
+Aho-Corasick automaton and maps overlapping matches back to candidate rules.
+Rules without keywords remain unconditional. Before parallel filesystem work
+starts, Picket compiles every deferred rule, path, and allowlist regex and builds
+the shared keyword prefilter so the first worker does not serialize the other
+workers behind lazy initialization. Strict compatibility directory timing
+excludes config and regex compilation, then includes keyword-prefilter
+construction, traversal, and matching, following the upstream directory command
+boundary. Process wall-clock measurements still include all startup and config
+work.
+
 Filesystem, baseline file, and strict Git-history fragment evaluation is bounded
 by work-item count, effective CPU availability, and current memory pressure.
 [`Environment.ProcessorCount`](https://learn.microsoft.com/en-us/dotnet/api/system.environment.processorcount?view=net-10.0)
@@ -353,6 +372,14 @@ Scout is a dependency through NuGet packages. If profiling attributes a
 material bottleneck to a Scout package, capture a minimal reproducer, benchmark
 or trace, exact package version, command line, input shape, and expected impact.
 Open a concise Scout issue with that evidence.
+
+Scout `0.4.8` resolved the capture-throughput regression tracked during the
+2026-07-31 compatibility scan investigation. On the same Short
+`GitleaksRegexPipelineBenchmarks` job, `ScoutRegexCapturesOnly` improved from
+35.55 ms with `0.4.7` to 22.18 ms with `0.4.8`, and
+`PicketCompatibilityPipeline` improved from 34.36 ms to 20.07 ms. The full
+default job measured 22.11 ms and 19.73 ms respectively after the Picket path
+filtering changes. The retained match counts were identical.
 
 If the Scout bottleneck is critical enough to block Picket's feature-complete
 path, pause Picket implementation work and fix Scout first. Non-critical Scout

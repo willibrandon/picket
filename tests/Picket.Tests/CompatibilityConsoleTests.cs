@@ -350,6 +350,159 @@ public sealed partial class CompatibilityConsoleTests
     }
 
     /// <summary>
+    /// Verifies directory findings are written while later files are still being scanned.
+    /// </summary>
+    [TestMethod]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task DirectoryVerboseFindingsAreStreamedBeforeScanCompletes()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string targetPath = Path.Combine(root.Path, "target");
+        Directory.CreateDirectory(targetPath);
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "streaming-rule"
+            description = "Detects the streaming fixture."
+            regex = '''token=([A-Za-z0-9]+)'''
+            secretGroup = 1
+            """);
+        File.WriteAllText(Path.Combine(targetPath, "a-secret.txt"), "token=streaming123");
+        using (FileStream padding = File.Create(Path.Combine(targetPath, "z-padding.bin")))
+        {
+            padding.SetLength(64L * 1024 * 1024);
+        }
+
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo(GetCliExecutablePath())
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            WorkingDirectory = GetRepositoryRoot(),
+        };
+        foreach (string argument in new[]
+        {
+            "dir",
+            targetPath,
+            "--config",
+            configPath,
+            "--verbose",
+            "--no-banner",
+            "--no-color",
+        })
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        process.StartInfo.Environment.Remove("GITLEAKS_CONFIG");
+        process.StartInfo.Environment.Remove("GITLEAKS_CONFIG_TOML");
+        process.StartInfo.Environment.Remove("PICKET_CONFIG");
+        process.StartInfo.Environment.Remove("PICKET_CONFIG_TOML");
+
+        var elapsed = Stopwatch.StartNew();
+        process.Start();
+        CancellationToken cancellationToken = TestContext.CancellationToken;
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        var outputLines = new List<string>();
+        TimeSpan? firstFindingTime = null;
+        while (await process.StandardOutput.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            outputLines.Add(line);
+            if (firstFindingTime is null && line.StartsWith("Finding:", StringComparison.Ordinal))
+            {
+                firstFindingTime = elapsed.Elapsed;
+            }
+        }
+
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        string stderr = await stderrTask.ConfigureAwait(false);
+        elapsed.Stop();
+
+        Assert.AreEqual(1, process.ExitCode);
+        Assert.IsNotNull(firstFindingTime);
+        Assert.IsLessThan(
+            elapsed.Elapsed * 0.80,
+            firstFindingTime.Value,
+            $"The first finding arrived after {firstFindingTime.Value.TotalMilliseconds:F0} ms of a {elapsed.Elapsed.TotalMilliseconds:F0} ms scan.");
+        Assert.HasCount(
+            1,
+            outputLines.Where(static line => line.StartsWith("Finding:", StringComparison.Ordinal)).ToList());
+        Assert.Contains("leaks found: 1", stderr);
+    }
+
+    /// <summary>
+    /// Verifies native JSON remains readable when written to an attached Windows console.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task WindowsAttachedConsoleWritesReadableNativeJson()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string configPath = Path.Combine(root.Path, "picket.toml");
+        string targetPath = Path.Combine(root.Path, "harmless.txt");
+        string scriptPath = Path.Combine(root.Path, "console-test.cmd");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "test-rule"
+            description = "Detects a value absent from the fixture."
+            regex = '''not-present'''
+            """);
+        File.WriteAllText(targetPath, "harmless");
+        File.WriteAllText(
+            scriptPath,
+            $"""
+            @echo off
+            chcp 437 >nul
+            "{GetCliExecutablePath()}" scan "{targetPath}" --config "{configPath}" --report-format json
+            chcp
+            pause >nul
+            """);
+
+        CancellationToken cancellationToken = TestContext.CancellationToken;
+        await using Hex1bTerminal terminal = Hex1bTerminal.CreateBuilder()
+            .WithPtyProcess(options =>
+            {
+                options.FileName = "cmd.exe";
+                options.Arguments = ["/d", "/q", "/c", scriptPath];
+                options.WorkingDirectory = GetRepositoryRoot();
+                options.WindowsPtyMode = WindowsPtyMode.RequireProxy;
+                options.WindowsPtyHostPath = GetHex1bPtyHostPath();
+            })
+            .WithHeadless()
+            .WithDimensions(160, 20)
+            .Build();
+
+        Task<int> runTask = terminal.RunAsync(cancellationToken);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(
+                s => s.ContainsText("\"schema\":\"picket.report.v1\"") && s.ContainsText("437"),
+                TimeSpan.FromSeconds(15),
+                "native JSON and preserved code page")
+            .Build()
+            .ApplyAsync(terminal, cancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Type("q")
+            .Build()
+            .ApplyAsync(terminal, cancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        string screenText = snapshot.GetScreenText();
+
+        Assert.AreEqual(0, exitCode);
+        Assert.Contains("\"schema\":\"picket.report.v1\"", screenText);
+        Assert.DoesNotContain("≻", screenText);
+        Assert.Contains("437", screenText);
+    }
+
+    /// <summary>
     /// Verifies verbose composite findings identify the supporting rule evidence.
     /// </summary>
     [TestMethod]

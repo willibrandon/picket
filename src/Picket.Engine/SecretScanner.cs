@@ -39,6 +39,17 @@ public sealed class SecretScanner
             return [];
         }
 
+        byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
+        byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
+        if (IsCommitOrPathAllowed(
+            request.RuleSet.Allowlists,
+            fileNameBytes,
+            windowsFileNameBytes,
+            request.Commit))
+        {
+            return [];
+        }
+
         bool isNativeUtf16 = request.PositionKind == FindingPositionKind.UnicodeCodePointsExclusive
             && Utf16BomTranscoder.HasBom(request.Input.Span);
         if (isNativeUtf16
@@ -60,8 +71,6 @@ public sealed class SecretScanner
 
         ReadOnlyMemory<byte> scanInput = utf16Input is null ? request.Input : utf16Input.Memory;
         ReadOnlySpan<byte> originalInput = scanInput.Span;
-        byte[] fileNameBytes = Encoding.UTF8.GetBytes(request.FileName);
-        byte[] windowsFileNameBytes = CreateWindowsFileNameBytes(request.FileName);
         SourceLineIndex originalLineIndex = SourceLineIndex.Create(
             originalInput,
             request.SourceStartLine,
@@ -311,15 +320,35 @@ public sealed class SecretScanner
             ? new NativeDetectorScanContext()
             : null;
 
-        foreach (CompiledRule compiledRule in ruleSet.CompiledRules)
+        int ruleCount = ruleSet.CompiledRules.Count;
+        Span<bool> keywordCandidates = ruleCount <= 512
+            ? stackalloc bool[ruleCount]
+            : new bool[ruleCount];
+        ruleSet.KeywordPrefilter.PopulateCandidates(input, keywordCandidates);
+        for (int ruleIndex = 0; ruleIndex < ruleCount; ruleIndex++)
         {
+            CompiledRule compiledRule = ruleSet.CompiledRules[ruleIndex];
             if (IsCancellationRequested(isCancellationRequested))
             {
                 return;
             }
 
+            if (!keywordCandidates[ruleIndex])
+            {
+                continue;
+            }
+
             if (enableNativePredicates
                 && compiledRule.NativePrefilter?.Evaluate(predicateContext) == true)
+            {
+                continue;
+            }
+
+            if (IsCommitOrPathAllowed(
+                compiledRule.Allowlists,
+                fileNameBytes,
+                windowsFileNameBytes,
+                commit))
             {
                 continue;
             }
@@ -489,30 +518,27 @@ public sealed class SecretScanner
 
         if (detectorContext is not null && compiledRule.Rule.Detector.Length != 0)
         {
-            if (compiledRule.Prefilter.IsCandidate(input))
+            ByteRegex detectorRegex = compiledRule.Regex ?? throw new InvalidOperationException("Structured detector prefilter regex was not compiled.");
+            if (detectorRegex.IsMatch(input))
             {
-                ByteRegex regex = compiledRule.Regex ?? throw new InvalidOperationException("Structured detector prefilter regex was not compiled.");
-                if (regex.FindCaptures(input, 0) is not null)
-                {
-                    ScanNativeDetectorRule(
-                        regexSourceInput,
-                        originalInput,
-                        originalLineIndex,
-                        decodedInput,
-                        fileName,
-                        fileNameBytes,
-                        windowsFileNameBytes,
-                        globalAllowlists,
-                        ignoreGitleaksAllow,
-                        commit,
-                        symlinkFile,
-                        blobIdentity,
-                        compiledRule,
-                        detectorContext,
-                        findings,
-                        enableRandomnessScoring,
-                        isCancellationRequested);
-                }
+                ScanNativeDetectorRule(
+                    regexSourceInput,
+                    originalInput,
+                    originalLineIndex,
+                    decodedInput,
+                    fileName,
+                    fileNameBytes,
+                    windowsFileNameBytes,
+                    globalAllowlists,
+                    ignoreGitleaksAllow,
+                    commit,
+                    symlinkFile,
+                    blobIdentity,
+                    compiledRule,
+                    detectorContext,
+                    findings,
+                    enableRandomnessScoring,
+                    isCancellationRequested);
             }
 
             return findings;
@@ -520,64 +546,7 @@ public sealed class SecretScanner
 
         if (compiledRule.UsesAwsCredentialPairMatcher)
         {
-            if (compiledRule.Prefilter.IsCandidate(input))
-            {
-                ScanAwsCredentialPairRule(
-                    input,
-                    regexSourceInput,
-                    regexInput,
-                    originalInput,
-                    originalLineIndex,
-                    decodedInput,
-                    fileName,
-                    fileNameBytes,
-                    windowsFileNameBytes,
-                    globalAllowlists,
-                    ignoreGitleaksAllow,
-                    commit,
-                    symlinkFile,
-                    blobIdentity,
-                    compiledRule,
-                    findings,
-                    enableRandomnessScoring,
-                    isCancellationRequested);
-            }
-
-            return findings;
-        }
-
-        if (compiledRule.UsesGcpServiceAccountKeyMatcher)
-        {
-            if (compiledRule.Prefilter.IsCandidate(input))
-            {
-                ScanGcpServiceAccountKeyRule(
-                    input,
-                    regexSourceInput,
-                    regexInput,
-                    originalInput,
-                    originalLineIndex,
-                    decodedInput,
-                    fileName,
-                    fileNameBytes,
-                    windowsFileNameBytes,
-                    globalAllowlists,
-                    ignoreGitleaksAllow,
-                    commit,
-                    symlinkFile,
-                    blobIdentity,
-                    compiledRule,
-                    findings,
-                    enableRandomnessScoring,
-                    isCancellationRequested);
-            }
-
-            return findings;
-        }
-
-        if (compiledRule.Prefilter.IsCandidate(input))
-        {
-            ByteRegex regex = compiledRule.Regex ?? throw new InvalidOperationException("Content rule regex was not compiled.");
-            ScanRule(
+            ScanAwsCredentialPairRule(
                 input,
                 regexSourceInput,
                 regexInput,
@@ -593,11 +562,59 @@ public sealed class SecretScanner
                 symlinkFile,
                 blobIdentity,
                 compiledRule,
-                regex,
                 findings,
                 enableRandomnessScoring,
                 isCancellationRequested);
+
+            return findings;
         }
+
+        if (compiledRule.UsesGcpServiceAccountKeyMatcher)
+        {
+            ScanGcpServiceAccountKeyRule(
+                input,
+                regexSourceInput,
+                regexInput,
+                originalInput,
+                originalLineIndex,
+                decodedInput,
+                fileName,
+                fileNameBytes,
+                windowsFileNameBytes,
+                globalAllowlists,
+                ignoreGitleaksAllow,
+                commit,
+                symlinkFile,
+                blobIdentity,
+                compiledRule,
+                findings,
+                enableRandomnessScoring,
+                isCancellationRequested);
+
+            return findings;
+        }
+
+        ByteRegex contentRegex = compiledRule.Regex ?? throw new InvalidOperationException("Content rule regex was not compiled.");
+        ScanRule(
+            input,
+            regexSourceInput,
+            regexInput,
+            originalInput,
+            originalLineIndex,
+            decodedInput,
+            fileName,
+            fileNameBytes,
+            windowsFileNameBytes,
+            globalAllowlists,
+            ignoreGitleaksAllow,
+            commit,
+            symlinkFile,
+            blobIdentity,
+            compiledRule,
+            contentRegex,
+            findings,
+            enableRandomnessScoring,
+            isCancellationRequested);
 
         return findings;
     }
@@ -1397,6 +1414,47 @@ public sealed class SecretScanner
         return false;
     }
 
+    private static bool IsCommitOrPathAllowed(
+        List<CompiledAllowlist> allowlists,
+        ReadOnlySpan<byte> fileNameBytes,
+        ReadOnlySpan<byte> windowsFileNameBytes,
+        string commit)
+    {
+        if (fileNameBytes.IsEmpty && commit.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (CompiledAllowlist compiledAllowlist in allowlists)
+        {
+            SecretAllowlist allowlist = compiledAllowlist.Allowlist;
+            bool commitAllowed = IsCommitAllowed(allowlist, commit);
+            bool pathAllowed = IsPathAllowed(compiledAllowlist, fileNameBytes, windowsFileNameBytes);
+            if (allowlist.Condition == AllowlistCondition.Or)
+            {
+                if (commitAllowed || pathAllowed)
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (allowlist.RegexPatterns.Count != 0 || allowlist.StopWords.Count != 0)
+            {
+                continue;
+            }
+
+            if (IsConfiguredCheckAllowed(allowlist.Commits.Count, commitAllowed)
+                && IsConfiguredCheckAllowed(allowlist.PathPatterns.Count, pathAllowed))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool IsAllowed(
         CompiledAllowlist compiledAllowlist,
         ReadOnlySpan<byte> fileNameBytes,
@@ -1420,7 +1478,7 @@ public sealed class SecretScanner
 
         if (allowlist.Condition == AllowlistCondition.Or)
         {
-            return commitAllowed || pathAllowed || regexAllowed || stopWordAllowed;
+            return regexAllowed || stopWordAllowed;
         }
 
         return IsConfiguredCheckAllowed(allowlist.Commits.Count, commitAllowed)
@@ -1458,7 +1516,7 @@ public sealed class SecretScanner
     {
         foreach (ByteRegex regex in regexes)
         {
-            if (regex.FindCaptures(input, 0) is not null)
+            if (regex.IsMatch(input))
             {
                 return true;
             }
@@ -1497,13 +1555,13 @@ public sealed class SecretScanner
             return true;
         }
 
-        if (compiledRule.PathRegex.FindCaptures(fileNameBytes, 0) is not null)
+        if (compiledRule.PathRegex.IsMatch(fileNameBytes))
         {
             return true;
         }
 
         return !windowsFileNameBytes.IsEmpty
-            && compiledRule.PathRegex.FindCaptures(windowsFileNameBytes, 0) is not null;
+            && compiledRule.PathRegex.IsMatch(windowsFileNameBytes);
     }
 
     private static bool IsTooLargeForContentScan(int inputLength, long? maxTargetBytes)

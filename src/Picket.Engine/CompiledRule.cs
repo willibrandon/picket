@@ -8,7 +8,6 @@ internal sealed class CompiledRule(
     ByteRegex? regex,
     ByteRegex? pathRegex,
     List<CompiledAllowlist> allowlists,
-    KeywordPrefilter prefilter,
     bool usesAwsCredentialPairMatcher,
     bool usesGcpServiceAccountKeyMatcher,
     bool appliesGlobalAllowlists,
@@ -38,8 +37,6 @@ internal sealed class CompiledRule(
     internal bool UsesExplicitByteMode => _pattern.Contains("(?-u", StringComparison.Ordinal);
 
     internal List<CompiledAllowlist> Allowlists { get; } = allowlists ?? throw new ArgumentNullException(nameof(allowlists));
-
-    internal KeywordPrefilter Prefilter { get; } = prefilter ?? throw new ArgumentNullException(nameof(prefilter));
 
     internal bool UsesAwsCredentialPairMatcher { get; } = usesAwsCredentialPairMatcher;
 

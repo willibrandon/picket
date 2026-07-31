@@ -4,7 +4,6 @@ using Picket.Engine;
 using Picket.Report;
 using Picket.Rules;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace Picket;
 
@@ -248,13 +247,8 @@ internal static partial class Program
         {
             try
             {
-                using var writer = new StreamWriter(
-                    Console.OpenStandardOutput(),
-                    new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-                    bufferSize: 4096,
-                    leaveOpen: true);
-                writer.Write(report);
-                writer.Flush();
+                Console.Out.Write(report);
+                Console.Out.Flush();
                 return true;
             }
             catch (IOException ex)

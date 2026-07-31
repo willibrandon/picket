@@ -12,6 +12,10 @@ Gitleaks default configuration
 https://github.com/gitleaks/gitleaks
 Copyright (c) 2019 Zachary Rice
 
+h2non/filetype compatibility signatures
+https://github.com/h2non/filetype
+Copyright (c) Tomas Aparicio
+
 Hex1b
 https://github.com/hex1b/hex1b
 Copyright (c) 2024 Mitch Denny

@@ -50,6 +50,12 @@ public sealed class DirectorySource
         }
 
         var sourceFiles = new List<SourceFile>();
+        Dictionary<string, bool>? pathAllowlistCache = options.IsPathAllowed is null
+            ? null
+            : new Dictionary<string, bool>(StringComparer.Ordinal);
+        HashSet<string>? yieldedFileSymlinkPaths = ShouldSupplementFileSymlinks(options)
+            ? new HashSet<string>(PathComparer)
+            : null;
         var walker = new FileWalker(CreateWalkerOptions(options));
         foreach (FileWalkEntry entry in walker.Enumerate(options.Root))
         {
@@ -58,27 +64,33 @@ public sealed class DirectorySource
                 break;
             }
 
+            string scanFullPath = entry.FullPath;
+            bool resolvedFileSymlink = false;
             if (!entry.IsFile)
             {
-                continue;
+                if (!options.FollowSymbolicLinks || !TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
+                {
+                    continue;
+                }
+
+                resolvedFileSymlink = true;
             }
 
-            string scanFullPath = entry.FullPath;
-            string displayPath = CreateDisplayPath(options.Root, entry.FullPath);
+            string displayPath = CreateDisplayPath(options, entry.FullPath);
             string symlinkDisplayPath = string.Empty;
-            if (IsPathOrAncestorAllowed(options.IsPathAllowed, displayPath))
+            if (IsPathOrAncestorAllowed(options.IsPathAllowed, pathAllowlistCache, displayPath))
             {
                 continue;
             }
 
-            if (entry.IsSymbolicLink)
+            if (resolvedFileSymlink || entry.IsSymbolicLink)
             {
                 if (!options.FollowSymbolicLinks)
                 {
                     continue;
                 }
 
-                if (!TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
+                if (!resolvedFileSymlink && !TryResolveSymlinkFile(entry.FullPath, out scanFullPath))
                 {
                     continue;
                 }
@@ -89,15 +101,25 @@ public sealed class DirectorySource
                     continue;
                 }
 
-                displayPath = CreateDisplayPath(options.Root, scanFullPath);
+                displayPath = CreateResolvedDisplayPath(options, scanFullPath);
             }
             else if (options.FollowSymbolicLinks
-                && !TryResolveFollowedFile(options.Root, entry.FullPath, displayPath, out scanFullPath, out displayPath, out symlinkDisplayPath))
+                && !TryResolveFollowedFile(options, entry.FullPath, displayPath, out scanFullPath, out displayPath, out symlinkDisplayPath))
             {
                 continue;
             }
 
+            if (symlinkDisplayPath.Length != 0)
+            {
+                yieldedFileSymlinkPaths?.Add(Path.GetFullPath(entry.FullPath));
+            }
+
             AddSourceFile(sourceFiles, options, scanFullPath, displayPath, symlinkDisplayPath);
+        }
+
+        if (yieldedFileSymlinkPaths is not null)
+        {
+            AddMissingFileSymlinks(sourceFiles, options, pathAllowlistCache, yieldedFileSymlinkPaths);
         }
 
         return sourceFiles;
@@ -117,12 +139,12 @@ public sealed class DirectorySource
         }
 
         var sourceFiles = new List<SourceFile>();
-        string displayPath = Path.GetFileName(options.Root);
+        string displayPath = CreateDisplayPath(options, options.Root);
         if (!IsPathAllowed(options.IsPathAllowed, displayPath))
         {
             string scanFullPath = options.Root;
             string symlinkDisplayPath = string.Empty;
-            if (IsSymbolicLink(options.Root))
+            if (IsSymbolicLink(fileInfo))
             {
                 if (!options.FollowSymbolicLinks || !TryResolveSymlinkFile(options.Root, out scanFullPath))
                 {
@@ -211,38 +233,212 @@ public sealed class DirectorySource
         return walkerOptions;
     }
 
-    private static string CreateDisplayPath(string root, string fullPath)
+    private static string CreateDisplayPath(DirectoryScanOptions options, string fullPath)
     {
-        string relativePath = Path.GetRelativePath(root, fullPath);
-        return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+        string displayPath;
+        if (!options.PreserveSourcePaths)
+        {
+            displayPath = File.Exists(options.Root)
+                ? Path.GetFileName(fullPath)
+                : Path.GetRelativePath(options.Root, fullPath);
+        }
+        else if (options.SourcePathIsFullyQualified)
+        {
+            displayPath = Path.GetFullPath(fullPath);
+        }
+        else
+        {
+            displayPath = Path.GetRelativePath(Environment.CurrentDirectory, fullPath);
+        }
+
+        return displayPath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
     }
 
-    private static bool IsSymbolicLink(string path)
+    private static bool IsSymbolicLink(FileSystemInfo fileSystemInfo)
     {
-        return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        return TryResolveLinkTarget(fileSystemInfo) is not null
+            || (fileSystemInfo.Attributes & FileAttributes.ReparsePoint) != 0;
     }
 
     private static bool TryResolveSymlinkFile(string path, out string fullPath)
     {
-        try
+        FileSystemInfo? target = TryResolveLinkTarget(new FileInfo(path));
+        if (target is not null && File.Exists(target.FullName))
         {
-            FileSystemInfo? target = new FileInfo(path).ResolveLinkTarget(returnFinalTarget: true);
-            if (target is not null && File.Exists(target.FullName))
-            {
-                fullPath = target.FullName;
-                return true;
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+            fullPath = target.FullName;
+            return true;
         }
 
         fullPath = string.Empty;
         return false;
     }
 
+    private static FileSystemInfo? TryResolveLinkTarget(FileSystemInfo fileSystemInfo)
+    {
+        if (UnixSymbolicLink.TryResolveFinalTarget(fileSystemInfo.FullName, out string nativeTargetPath))
+        {
+            return Directory.Exists(nativeTargetPath)
+                ? new DirectoryInfo(nativeTargetPath)
+                : new FileInfo(nativeTargetPath);
+        }
+
+        try
+        {
+            FileSystemInfo? target = fileSystemInfo.ResolveLinkTarget(returnFinalTarget: true);
+            if (target is not null)
+            {
+                return target;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        return null;
+    }
+
+    private static bool ShouldSupplementFileSymlinks(DirectoryScanOptions options)
+    {
+        return options.FollowSymbolicLinks
+            && !options.IgnoreHidden
+            && !options.ReadPicketIgnoreFiles
+            && !options.ReadIgnoreFiles
+            && !options.ReadGitIgnoreFiles
+            && !options.ReadGlobalGitIgnore
+            && !options.ReadParentIgnoreFiles
+            && options.IgnoreFilePaths.Count == 0;
+    }
+
+    private static void AddMissingFileSymlinks(
+        List<SourceFile> sourceFiles,
+        DirectoryScanOptions options,
+        Dictionary<string, bool>? pathAllowlistCache,
+        HashSet<string> yieldedFileSymlinkPaths)
+    {
+        foreach (string symlinkPath in EnumerateFollowedFileSymlinkPaths(options))
+        {
+            if (yieldedFileSymlinkPaths.Contains(symlinkPath)
+                || !TryResolveSymlinkFile(symlinkPath, out string targetPath)
+                || !IsPathWithinRoot(options.Root, targetPath))
+            {
+                continue;
+            }
+
+            string symlinkDisplayPath = CreateDisplayPath(options, symlinkPath);
+            if (IsPathOrAncestorAllowed(options.IsPathAllowed, pathAllowlistCache, symlinkDisplayPath)
+                || (options.MaxTargetBytes.HasValue && new FileInfo(targetPath).Length > options.MaxTargetBytes.Value))
+            {
+                continue;
+            }
+
+            var supplementalFiles = new List<SourceFile>();
+            AddSourceFile(
+                supplementalFiles,
+                options,
+                targetPath,
+                CreateResolvedDisplayPath(options, targetPath),
+                symlinkDisplayPath);
+            if (supplementalFiles.Count == 0)
+            {
+                continue;
+            }
+
+            int insertionIndex = sourceFiles.FindIndex(file => StringComparer.Ordinal.Compare(
+                GetTraversalDisplayPath(file),
+                symlinkDisplayPath) > 0);
+            if (insertionIndex < 0)
+            {
+                sourceFiles.AddRange(supplementalFiles);
+            }
+            else
+            {
+                sourceFiles.InsertRange(insertionIndex, supplementalFiles);
+            }
+
+            yieldedFileSymlinkPaths.Add(symlinkPath);
+        }
+    }
+
+    private static List<string> EnumerateFollowedFileSymlinkPaths(DirectoryScanOptions options)
+    {
+        string rootPath = Path.GetFullPath(options.Root);
+        FileSystemInfo? rootTarget = TryResolveLinkTarget(new DirectoryInfo(rootPath));
+        string canonicalRoot = rootTarget?.FullName ?? rootPath;
+        var rootAncestors = new HashSet<string>(PathComparer)
+        {
+            canonicalRoot,
+        };
+        var pending = new Stack<(string TraversalPath, string CanonicalPath, HashSet<string> Ancestors)>();
+        pending.Push((rootPath, canonicalRoot, rootAncestors));
+        var symlinkPaths = new List<string>();
+        while (pending.TryPop(out (string TraversalPath, string CanonicalPath, HashSet<string> Ancestors) current))
+        {
+            if (IsCancellationRequested(options))
+            {
+                break;
+            }
+
+            string[] entries;
+            try
+            {
+                entries = Directory.GetFileSystemEntries(current.TraversalPath);
+            }
+            catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            Array.Sort(entries, StringComparer.Ordinal);
+            for (int index = entries.Length - 1; index >= 0; index--)
+            {
+                string entryPath = entries[index];
+                FileSystemInfo entryInfo = Directory.Exists(entryPath) && !File.Exists(entryPath)
+                    ? new DirectoryInfo(entryPath)
+                    : new FileInfo(entryPath);
+                FileSystemInfo? target = TryResolveLinkTarget(entryInfo);
+                if (target is not null && File.Exists(target.FullName))
+                {
+                    if (IsPathWithinRoot(options.Root, target.FullName))
+                    {
+                        symlinkPaths.Add(Path.GetFullPath(entryPath));
+                    }
+
+                    continue;
+                }
+
+                bool isDirectory = target is not null
+                    ? Directory.Exists(target.FullName)
+                    : Directory.Exists(entryPath);
+                if (!isDirectory)
+                {
+                    continue;
+                }
+
+                string canonicalPath = target?.FullName ?? Path.Combine(current.CanonicalPath, Path.GetFileName(entryPath));
+                if (!IsPathWithinRoot(options.Root, canonicalPath) || current.Ancestors.Contains(canonicalPath))
+                {
+                    continue;
+                }
+
+                var childAncestors = new HashSet<string>(current.Ancestors, PathComparer)
+                {
+                    canonicalPath,
+                };
+                pending.Push((entryPath, canonicalPath, childAncestors));
+            }
+        }
+
+        symlinkPaths.Sort(StringComparer.Ordinal);
+        return symlinkPaths;
+    }
+
+    private static string GetTraversalDisplayPath(SourceFile file)
+    {
+        return file.SymlinkDisplayPath.Length == 0 ? file.DisplayPath : file.SymlinkDisplayPath;
+    }
+
     private static bool TryResolveFollowedFile(
-        string root,
+        DirectoryScanOptions options,
         string fullPath,
         string originalDisplayPath,
         out string resolvedFullPath,
@@ -252,7 +448,7 @@ public sealed class DirectorySource
         resolvedFullPath = fullPath;
         displayPath = originalDisplayPath;
         symlinkDisplayPath = string.Empty;
-        if (!TryResolvePathThroughSymlinks(fullPath, out string finalPath))
+        if (!TryResolvePathThroughSymlinks(options.Root, fullPath, out string finalPath))
         {
             return false;
         }
@@ -262,43 +458,43 @@ public sealed class DirectorySource
             return true;
         }
 
-        if (!IsPathWithinRoot(root, finalPath))
+        if (!IsPathWithinRoot(options.Root, finalPath))
         {
             return false;
         }
 
         resolvedFullPath = finalPath;
-        displayPath = CreateDisplayPath(root, finalPath);
+        displayPath = CreateResolvedDisplayPath(options, finalPath);
         symlinkDisplayPath = originalDisplayPath;
         return true;
     }
 
-    private static bool TryResolvePathThroughSymlinks(string path, out string resolvedPath)
+    private static bool TryResolvePathThroughSymlinks(string rootPath, string path, out string resolvedPath)
     {
         try
         {
+            string fullRootPath = Path.GetFullPath(rootPath);
             string fullPath = Path.GetFullPath(path);
-            string? root = Path.GetPathRoot(fullPath);
-            if (string.IsNullOrEmpty(root))
+            if (!IsPathWithinRoot(fullRootPath, fullPath))
             {
                 resolvedPath = string.Empty;
                 return false;
             }
 
-            string current = root;
-            string relativePath = fullPath[root.Length..];
+            string current = fullRootPath;
+            string relativePath = Path.GetRelativePath(fullRootPath, fullPath);
             string[] parts = relativePath.Split(s_pathSeparators, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < parts.Length; i++)
             {
                 current = Path.Combine(current, parts[i]);
                 bool isLastPart = i == parts.Length - 1;
-                if (!IsSymbolicLink(current))
+                FileSystemInfo pathInfo = isLastPart ? new FileInfo(current) : new DirectoryInfo(current);
+                if (!IsSymbolicLink(pathInfo))
                 {
                     continue;
                 }
 
-                FileSystemInfo linkInfo = isLastPart ? new FileInfo(current) : new DirectoryInfo(current);
-                FileSystemInfo? target = linkInfo.ResolveLinkTarget(returnFinalTarget: true);
+                FileSystemInfo? target = TryResolveLinkTarget(pathInfo);
                 if (target is null)
                 {
                     resolvedPath = string.Empty;
@@ -323,23 +519,48 @@ public sealed class DirectorySource
         return Path.GetFullPath(first).Equals(Path.GetFullPath(second), PathComparison);
     }
 
-    private static bool IsPathOrAncestorAllowed(Func<string, bool>? isPathAllowed, string displayPath)
+    private static bool IsPathOrAncestorAllowed(
+        Func<string, bool>? isPathAllowed,
+        Dictionary<string, bool>? pathAllowlistCache,
+        string displayPath)
     {
-        if (IsPathAllowed(isPathAllowed, displayPath))
+        if (isPathAllowed is null || pathAllowlistCache is null)
+        {
+            return false;
+        }
+
+        if (isPathAllowed(displayPath))
         {
             return true;
         }
 
-        int separatorIndex = displayPath.Length;
-        while ((separatorIndex = displayPath.LastIndexOf('/', separatorIndex - 1)) > 0)
+        int separatorIndex = displayPath.LastIndexOf('/');
+        return separatorIndex > 0
+            && IsDirectoryOrAncestorAllowed(isPathAllowed, pathAllowlistCache, displayPath[..separatorIndex]);
+    }
+
+    private static bool IsDirectoryOrAncestorAllowed(
+        Func<string, bool> isPathAllowed,
+        Dictionary<string, bool> pathAllowlistCache,
+        string directoryPath)
+    {
+        if (pathAllowlistCache.TryGetValue(directoryPath, out bool allowed))
         {
-            if (IsPathAllowed(isPathAllowed, displayPath[..separatorIndex]))
-            {
-                return true;
-            }
+            return allowed;
         }
 
-        return false;
+        allowed = isPathAllowed(directoryPath);
+        int separatorIndex = directoryPath.LastIndexOf('/');
+        if (!allowed && separatorIndex > 0)
+        {
+            allowed = IsDirectoryOrAncestorAllowed(
+                isPathAllowed,
+                pathAllowlistCache,
+                directoryPath[..separatorIndex]);
+        }
+
+        pathAllowlistCache.Add(directoryPath, allowed);
+        return allowed;
     }
 
     private static bool IsPathAllowed(Func<string, bool>? isPathAllowed, string displayPath)
@@ -349,9 +570,54 @@ public sealed class DirectorySource
 
     private static bool IsPathWithinRoot(string root, string path)
     {
-        string fullRoot = EnsureTrailingDirectorySeparator(Path.GetFullPath(root));
-        string fullPath = Path.GetFullPath(path);
-        return fullPath.StartsWith(fullRoot, PathComparison);
+        return TryGetRelativePathWithinRoot(root, path, out _);
+    }
+
+    private static bool TryGetRelativePathWithinRoot(string root, string path, out string relativePath)
+    {
+        string fullRoot;
+        string fullPath;
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            if (!UnixSymbolicLink.TryCanonicalizeExistingPath(root, out fullRoot)
+                || !UnixSymbolicLink.TryCanonicalizeExistingPath(path, out fullPath))
+            {
+                relativePath = string.Empty;
+                return false;
+            }
+        }
+        else
+        {
+            fullRoot = Path.GetFullPath(root);
+            fullPath = Path.GetFullPath(path);
+        }
+
+        if (fullPath.Equals(fullRoot, PathComparison))
+        {
+            relativePath = ".";
+            return true;
+        }
+
+        if (!fullPath.StartsWith(EnsureTrailingDirectorySeparator(fullRoot), PathComparison))
+        {
+            relativePath = string.Empty;
+            return false;
+        }
+
+        relativePath = Path.GetRelativePath(fullRoot, fullPath);
+        return true;
+    }
+
+    private static string CreateResolvedDisplayPath(DirectoryScanOptions options, string fullPath)
+    {
+        if (options.PreserveSourcePaths && options.SourcePathIsFullyQualified)
+        {
+            return CreateDisplayPath(options, fullPath);
+        }
+
+        return TryGetRelativePathWithinRoot(options.Root, fullPath, out string relativePath)
+            ? CreateDisplayPath(options, Path.Combine(options.Root, relativePath))
+            : CreateDisplayPath(options, fullPath);
     }
 
     private static string EnsureTrailingDirectorySeparator(string path)
@@ -364,6 +630,10 @@ public sealed class DirectorySource
     private static StringComparison PathComparison => OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
+
+    private static StringComparer PathComparer => OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
 
     private static bool IsCancellationRequested(DirectoryScanOptions options)
     {

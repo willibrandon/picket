@@ -139,24 +139,31 @@ internal static partial class Program
         }
     }
 
-    static List<string?> CreateControlFileDisplayPaths(string root, string? reportPath, List<string> reportPaths)
+    static List<string?> CreateControlFileDisplayPaths(
+        string root,
+        string? reportPath,
+        List<string> reportPaths,
+        bool preserveSourcePath = false)
     {
         var displayPaths = new List<string?>();
         if (reportPaths.Count == 0)
         {
-            displayPaths.Add(CreateControlFileDisplayPath(root, reportPath));
+            displayPaths.Add(CreateControlFileDisplayPath(root, reportPath, preserveSourcePath));
             return displayPaths;
         }
 
         for (int i = 0; i < reportPaths.Count; i++)
         {
-            displayPaths.Add(CreateControlFileDisplayPath(root, reportPaths[i]));
+            displayPaths.Add(CreateControlFileDisplayPath(root, reportPaths[i], preserveSourcePath));
         }
 
         return displayPaths;
     }
 
-    static string? CreateControlFileDisplayPath(string root, string? path)
+    static string? CreateControlFileDisplayPath(
+        string root,
+        string? path,
+        bool preserveSourcePath = false)
     {
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(root))
         {
@@ -171,7 +178,12 @@ internal static partial class Program
             return null;
         }
 
-        return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+        string displayPath = preserveSourcePath
+            ? Path.IsPathFullyQualified(root)
+                ? Path.GetFullPath(path)
+                : Path.GetRelativePath(Environment.CurrentDirectory, Path.GetFullPath(path))
+            : relativePath;
+        return displayPath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
     }
 
     static bool IsNativeIgnoreFile(SourceFile file)

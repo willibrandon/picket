@@ -691,6 +691,98 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that overlapping keywords activate every owning rule.
+    /// </summary>
+    [TestMethod]
+    public void ScanMatchesOverlappingKeywordsForEveryRule()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("secret-value");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "short-keyword",
+                "Short keyword",
+                "secret-[a-z]+",
+                keywords: ["secret"]),
+            SecretRule.Create(
+                "long-keyword",
+                "Long keyword",
+                "secret-[a-z]+",
+                keywords: ["secret-value"]),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(2, findings);
+        Assert.AreEqual("short-keyword", findings[0].RuleID);
+        Assert.AreEqual("long-keyword", findings[1].RuleID);
+    }
+
+    /// <summary>
+    /// Verifies that shared keyword candidate selection preserves independent rule matches.
+    /// </summary>
+    [TestMethod]
+    public void ScanMatchesIndependentRuleResultsWithSharedKeywordPrefilter()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("marker-value");
+        SecretRule[] sourceRules =
+        [
+            SecretRule.Create(
+                "prefix-owner",
+                "Prefix owner",
+                "marker-[a-z]+",
+                keywords: ["marker"]),
+            SecretRule.Create(
+                "full-value-owner",
+                "Full value owner",
+                "marker-[a-z]+",
+                keywords: ["marker-value"]),
+        ];
+
+        string[] sharedRuleIds =
+        [
+            .. SecretScanner.Scan(new ScanRequest(
+                input,
+                "fixture.txt",
+                CompiledRuleSet.Compile(new RuleSet(sourceRules))))
+                .Select(static finding => finding.RuleID),
+        ];
+        string[] independentRuleIds =
+        [
+            .. sourceRules.SelectMany(rule => SecretScanner.Scan(new ScanRequest(
+                input,
+                "fixture.txt",
+                CompiledRuleSet.Compile(new RuleSet([rule])))))
+                .Select(static finding => finding.RuleID),
+        ];
+
+        Assert.HasCount(sourceRules.Length, independentRuleIds);
+        CollectionAssert.AreEqual(independentRuleIds, sharedRuleIds);
+    }
+
+    /// <summary>
+    /// Verifies that non-ASCII keywords retain invariant case-insensitive matching.
+    /// </summary>
+    [TestMethod]
+    public void ScanMatchesUnicodeKeywordsCaseInsensitively()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("töken secret-12345");
+        RuleSet sourceRules = new([
+            SecretRule.Create(
+                "unicode-keyword",
+                "Unicode keyword",
+                "secret-[0-9]+",
+                keywords: ["TÖKEN"]),
+        ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> findings = SecretScanner.Scan(new ScanRequest(input, "stdin", rules));
+
+        Assert.HasCount(1, findings);
+        Assert.AreEqual("unicode-keyword", findings[0].RuleID);
+    }
+
+    /// <summary>
     /// Verifies that rules without keywords still run.
     /// </summary>
     [TestMethod]
@@ -1239,6 +1331,30 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that per-rule path allowlists suppress matching files before content matching.
+    /// </summary>
+    [TestMethod]
+    public void ScanAppliesRulePathAllowlist()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("key=AKIA1234567890ABCDEF");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([
+            SecretRule.Create(
+                "aws-access-key",
+                "AWS Access Key",
+                "AKIA[0-9A-Z]{16}",
+                allowlists: [
+                    SecretAllowlist.Create(pathPatterns: ["vendor/"]),
+                ]),
+        ]));
+
+        IReadOnlyList<Finding> allowed = SecretScanner.Scan(new ScanRequest(input, "vendor/secret.txt", rules));
+        IReadOnlyList<Finding> detected = SecretScanner.Scan(new ScanRequest(input, "src/secret.txt", rules));
+
+        Assert.IsEmpty(allowed);
+        Assert.HasCount(1, detected);
+    }
+
+    /// <summary>
     /// Verifies that allowlist regexTarget can suppress based on the source line.
     /// </summary>
     [TestMethod]
@@ -1289,6 +1405,60 @@ public sealed class SecretScannerTests
 
         Assert.IsEmpty(allowed);
         Assert.HasCount(1, detected);
+    }
+
+    /// <summary>
+    /// Verifies that global AND allowlists defer finding-dependent checks until after a match.
+    /// </summary>
+    [TestMethod]
+    public void ScanRequiresEveryGlobalAllowlistCheckForAndCondition()
+    {
+        RuleSet sourceRules = new(
+            [
+                SecretRule.Create(
+                    "token",
+                    "Token",
+                    "token-([0-9]+)"),
+            ],
+            [
+                SecretAllowlist.Create(
+                    condition: AllowlistCondition.And,
+                    pathPatterns: [@"\.txt$"],
+                    regexPatterns: ["1234"]),
+            ]);
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        IReadOnlyList<Finding> allowed = SecretScanner.Scan(new ScanRequest(
+            Encoding.UTF8.GetBytes("token-1234"),
+            "secret.txt",
+            rules));
+        IReadOnlyList<Finding> pathOnly = SecretScanner.Scan(new ScanRequest(
+            Encoding.UTF8.GetBytes("token-5678"),
+            "secret.txt",
+            rules));
+        IReadOnlyList<Finding> regexOnly = SecretScanner.Scan(new ScanRequest(
+            Encoding.UTF8.GetBytes("token-1234"),
+            "secret.py",
+            rules));
+
+        Assert.IsEmpty(allowed);
+        Assert.HasCount(1, pathOnly);
+        Assert.HasCount(1, regexOnly);
+    }
+
+    /// <summary>
+    /// Verifies that global path allowlists support long paths and Windows separator patterns.
+    /// </summary>
+    [TestMethod]
+    public void GlobalPathAllowlistMatchesLongWindowsSeparatorPath()
+    {
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet(
+            [SecretRule.Create("token", "Token", "token-[0-9]+")],
+            [SecretAllowlist.Create(pathPatterns: [@"\\generated\\"])]));
+        string longPrefix = new('a', 600);
+
+        Assert.IsTrue(rules.IsGlobalPathAllowed($"{longPrefix}/generated/secret.txt"));
+        Assert.IsFalse(rules.IsGlobalPathAllowed($"{longPrefix}/source/secret.txt"));
     }
 
     /// <summary>

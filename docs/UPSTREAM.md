@@ -25,7 +25,7 @@ clone next to this repository.
 | Project | Version | Commit | Remote |
 |---|---:|---|---|
 | Gitleaks | `v8.30.0-23-g4c232b5` | `4c232b5014f7618360bd992b4c489cb055881c6b` | `https://github.com/gitleaks/gitleaks.git` |
-| Scout | `v0.4.7` | `22104874ba364214bc46b2ce61dd4d2f19a88ce2` | `https://github.com/willibrandon/scout.git` |
+| Scout | `v0.4.8` | `ec29de2629544956e7a70424a3e3c4cf63be4aff` | `https://github.com/willibrandon/scout.git` |
 | TruffleHog | `v3.95.8-1-gf2cd191b9` | `f2cd191b97098913a07522227d2b5e40e57252f4` | `https://github.com/trufflesecurity/trufflehog.git` |
 | Nosey Parker | `v0.24.0-31-g2e6e7f36` | `2e6e7f36ce36619852532bbe698d8cb7a26d2da7` | `https://github.com/praetorian-inc/noseyparker.git` |
 | Kingfisher | `v1.105.0` | `78904df5ea7354a7dc3700e3c41a124524d23083` | `https://github.com/mongodb/kingfisher.git` |
@@ -122,6 +122,12 @@ Resolve `<gitleaks clone>` with `PICKET_GITLEAKS_REPO` or the sibling
 Current Gitleaks code defaults are treated as authoritative when README text and
 implementation disagree. For example, `--max-decode-depth` follows the pinned
 code default of `5`.
+
+Strict directory scans also follow the pinned Gitleaks file reader's
+`h2non/filetype` `v1.1.3` boundary. Only a first-100,000-byte match whose
+top-level MIME type is `application` is skipped as binary; a NUL byte by itself
+does not make a file binary. Reported file paths preserve whether the source
+argument was absolute or working-directory relative.
 
 Expected oracle command shapes:
 

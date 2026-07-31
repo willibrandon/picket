@@ -49,10 +49,10 @@ public class SecretScanBenchmarks
         _nativeGitHubSecretScanningRules = CompiledRuleSet.Compile(_nativeGitHubSecretScanningRuleSet);
         _nativeGoogleApiKeyRule = CompiledRuleSet.Compile(SelectRules(_nativeDefaultRuleSet, "picket-google-api-key"));
         _gitleaksCompatibilityRules = CompiledRuleSet.Compile(_gitleaksCompatibilityRuleSet);
-        _nativeDefaultRules.CompileDeferredRegexes();
-        _nativeGitHubSecretScanningRules.CompileDeferredRegexes();
-        _nativeGoogleApiKeyRule.CompileDeferredRegexes();
-        _gitleaksCompatibilityRules.CompileDeferredRegexes();
+        _nativeDefaultRules.PrepareForScanning();
+        _nativeGitHubSecretScanningRules.PrepareForScanning();
+        _nativeGoogleApiKeyRule.PrepareForScanning();
+        _gitleaksCompatibilityRules.PrepareForScanning();
     }
 
     /// <summary>

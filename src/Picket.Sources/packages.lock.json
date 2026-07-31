@@ -10,15 +10,15 @@
       },
       "Scout.IO.Globbing": {
         "type": "Direct",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "/kUPHDw4vg6RAEyr7hBMpbOblHnbKGr/2Sx04vWff3zc0RiqHsN+hDPXcbIvI+OdRz/AXtLkDpYop5wWiky3Bw=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "KO1c2V+ebFSWD71syib1I7Q+qssRFtK5IMmMUZ3YzN3GcO799lT8RTfJzy9QE6aZXbZp2vDlKtUm9S7kbZFbag=="
       },
       "Scout.IO.Ignore": {
         "type": "Direct",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "hOIHmmNO/2bMSnbjAaDH5Na//9nYqjlFFFyHxwh4RfV6TlohwyhrIsLg6ti3JFp8+whPPh1yjVUHijhqOG9H/Q=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "9qOJekYn/iD47dHWq3gkt7Wg5L/60+DkIm7hupHx9Y0htyFoSPW0PeIobuTcpA4AJadcUYz13celWCWFugfC8g=="
       },
       "ZstdNet": {
         "type": "Direct",
@@ -36,15 +36,15 @@
       },
       "Scout.IO.Globbing": {
         "type": "Direct",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "/kUPHDw4vg6RAEyr7hBMpbOblHnbKGr/2Sx04vWff3zc0RiqHsN+hDPXcbIvI+OdRz/AXtLkDpYop5wWiky3Bw=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "KO1c2V+ebFSWD71syib1I7Q+qssRFtK5IMmMUZ3YzN3GcO799lT8RTfJzy9QE6aZXbZp2vDlKtUm9S7kbZFbag=="
       },
       "Scout.IO.Ignore": {
         "type": "Direct",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "hOIHmmNO/2bMSnbjAaDH5Na//9nYqjlFFFyHxwh4RfV6TlohwyhrIsLg6ti3JFp8+whPPh1yjVUHijhqOG9H/Q=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "9qOJekYn/iD47dHWq3gkt7Wg5L/60+DkIm7hupHx9Y0htyFoSPW0PeIobuTcpA4AJadcUYz13celWCWFugfC8g=="
       },
       "ZstdNet": {
         "type": "Direct",

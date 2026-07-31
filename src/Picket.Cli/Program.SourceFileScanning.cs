@@ -59,9 +59,11 @@ internal static partial class Program
         try
         {
             if (firstFragment is not null
-                && LooksBinary(firstFragment.Content.Span[..Math.Min(
-                    firstFragment.Content.Length,
-                    SourceFragmentReader.DefaultBufferSize)]))
+                && ShouldSkipFileContent(
+                    firstFragment.Content.Span[..Math.Min(
+                        firstFragment.Content.Length,
+                        SourceFragmentReader.DefaultBufferSize)],
+                    nativeMode))
             {
                 return [];
             }

@@ -10,9 +10,9 @@
       },
       "Scout.Text.Regex": {
         "type": "Direct",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "qoMWqqEDjX8kMllOMyWvHMbPUlVBXrmBhsej45U4U6XzHxu5DQfpvqlGR4gU+JgqmthNn/yMYrfjy33dcCPbuw=="
       },
       "SharpYaml": {
         "type": "Direct",
@@ -33,9 +33,9 @@
       },
       "Scout.Text.Regex": {
         "type": "Direct",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "qoMWqqEDjX8kMllOMyWvHMbPUlVBXrmBhsej45U4U6XzHxu5DQfpvqlGR4gU+JgqmthNn/yMYrfjy33dcCPbuw=="
       },
       "SharpYaml": {
         "type": "Direct",
