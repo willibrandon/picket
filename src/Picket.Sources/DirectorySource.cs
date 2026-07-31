@@ -50,6 +50,9 @@ public sealed class DirectorySource
         }
 
         var sourceFiles = new List<SourceFile>();
+        Dictionary<string, bool>? pathAllowlistCache = options.IsPathAllowed is null
+            ? null
+            : new Dictionary<string, bool>(StringComparer.Ordinal);
         var walker = new FileWalker(CreateWalkerOptions(options));
         foreach (FileWalkEntry entry in walker.Enumerate(options.Root))
         {
@@ -64,9 +67,9 @@ public sealed class DirectorySource
             }
 
             string scanFullPath = entry.FullPath;
-            string displayPath = CreateDisplayPath(options.Root, entry.FullPath);
+            string displayPath = CreateDisplayPath(options, entry.FullPath);
             string symlinkDisplayPath = string.Empty;
-            if (IsPathOrAncestorAllowed(options.IsPathAllowed, displayPath))
+            if (IsPathOrAncestorAllowed(options.IsPathAllowed, pathAllowlistCache, displayPath))
             {
                 continue;
             }
@@ -89,10 +92,10 @@ public sealed class DirectorySource
                     continue;
                 }
 
-                displayPath = CreateDisplayPath(options.Root, scanFullPath);
+                displayPath = CreateDisplayPath(options, scanFullPath);
             }
             else if (options.FollowSymbolicLinks
-                && !TryResolveFollowedFile(options.Root, entry.FullPath, displayPath, out scanFullPath, out displayPath, out symlinkDisplayPath))
+                && !TryResolveFollowedFile(options, entry.FullPath, displayPath, out scanFullPath, out displayPath, out symlinkDisplayPath))
             {
                 continue;
             }
@@ -117,7 +120,7 @@ public sealed class DirectorySource
         }
 
         var sourceFiles = new List<SourceFile>();
-        string displayPath = Path.GetFileName(options.Root);
+        string displayPath = CreateDisplayPath(options, options.Root);
         if (!IsPathAllowed(options.IsPathAllowed, displayPath))
         {
             string scanFullPath = options.Root;
@@ -211,10 +214,25 @@ public sealed class DirectorySource
         return walkerOptions;
     }
 
-    private static string CreateDisplayPath(string root, string fullPath)
+    private static string CreateDisplayPath(DirectoryScanOptions options, string fullPath)
     {
-        string relativePath = Path.GetRelativePath(root, fullPath);
-        return relativePath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+        string displayPath;
+        if (!options.PreserveSourcePaths)
+        {
+            displayPath = File.Exists(options.Root)
+                ? Path.GetFileName(fullPath)
+                : Path.GetRelativePath(options.Root, fullPath);
+        }
+        else if (options.SourcePathIsFullyQualified)
+        {
+            displayPath = Path.GetFullPath(fullPath);
+        }
+        else
+        {
+            displayPath = Path.GetRelativePath(Environment.CurrentDirectory, fullPath);
+        }
+
+        return displayPath.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
     }
 
     private static bool IsSymbolicLink(string path)
@@ -242,7 +260,7 @@ public sealed class DirectorySource
     }
 
     private static bool TryResolveFollowedFile(
-        string root,
+        DirectoryScanOptions options,
         string fullPath,
         string originalDisplayPath,
         out string resolvedFullPath,
@@ -262,13 +280,13 @@ public sealed class DirectorySource
             return true;
         }
 
-        if (!IsPathWithinRoot(root, finalPath))
+        if (!IsPathWithinRoot(options.Root, finalPath))
         {
             return false;
         }
 
         resolvedFullPath = finalPath;
-        displayPath = CreateDisplayPath(root, finalPath);
+        displayPath = CreateDisplayPath(options, finalPath);
         symlinkDisplayPath = originalDisplayPath;
         return true;
     }
@@ -323,23 +341,48 @@ public sealed class DirectorySource
         return Path.GetFullPath(first).Equals(Path.GetFullPath(second), PathComparison);
     }
 
-    private static bool IsPathOrAncestorAllowed(Func<string, bool>? isPathAllowed, string displayPath)
+    private static bool IsPathOrAncestorAllowed(
+        Func<string, bool>? isPathAllowed,
+        Dictionary<string, bool>? pathAllowlistCache,
+        string displayPath)
     {
-        if (IsPathAllowed(isPathAllowed, displayPath))
+        if (isPathAllowed is null || pathAllowlistCache is null)
+        {
+            return false;
+        }
+
+        if (isPathAllowed(displayPath))
         {
             return true;
         }
 
-        int separatorIndex = displayPath.Length;
-        while ((separatorIndex = displayPath.LastIndexOf('/', separatorIndex - 1)) > 0)
+        int separatorIndex = displayPath.LastIndexOf('/');
+        return separatorIndex > 0
+            && IsDirectoryOrAncestorAllowed(isPathAllowed, pathAllowlistCache, displayPath[..separatorIndex]);
+    }
+
+    private static bool IsDirectoryOrAncestorAllowed(
+        Func<string, bool> isPathAllowed,
+        Dictionary<string, bool> pathAllowlistCache,
+        string directoryPath)
+    {
+        if (pathAllowlistCache.TryGetValue(directoryPath, out bool allowed))
         {
-            if (IsPathAllowed(isPathAllowed, displayPath[..separatorIndex]))
-            {
-                return true;
-            }
+            return allowed;
         }
 
-        return false;
+        allowed = isPathAllowed(directoryPath);
+        int separatorIndex = directoryPath.LastIndexOf('/');
+        if (!allowed && separatorIndex > 0)
+        {
+            allowed = IsDirectoryOrAncestorAllowed(
+                isPathAllowed,
+                pathAllowlistCache,
+                directoryPath[..separatorIndex]);
+        }
+
+        pathAllowlistCache.Add(directoryPath, allowed);
+        return allowed;
     }
 
     private static bool IsPathAllowed(Func<string, bool>? isPathAllowed, string displayPath)

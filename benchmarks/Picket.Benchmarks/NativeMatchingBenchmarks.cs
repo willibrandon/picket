@@ -39,8 +39,8 @@ public class NativeMatchingBenchmarks
                 secretGroup: 1,
                 keywords: ["token="])]));
         _structuredJsonRules = CompiledRuleSet.Compile(CreateStructuredJsonRuleSet());
-        _capturedMatchRules.CompileDeferredRegexes();
-        _structuredJsonRules.CompileDeferredRegexes();
+        _capturedMatchRules.PrepareForScanning();
+        _structuredJsonRules.PrepareForScanning();
     }
 
     /// <summary>

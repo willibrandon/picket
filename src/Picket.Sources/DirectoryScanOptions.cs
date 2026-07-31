@@ -21,6 +21,7 @@ namespace Picket.Sources;
 /// <param name="maxArchiveCompressionRatio">The maximum archive expansion ratio, or 0 for no cap.</param>
 /// <param name="isCancellationRequested">An optional predicate that stops enumeration when it returns <see langword="true" />.</param>
 /// <param name="identifyArchivesByContent">A value indicating whether archive containers are identified from content instead of Gitleaks-compatible path names.</param>
+/// <param name="preserveSourcePaths">A value indicating whether display paths preserve the source argument's absolute or working-directory-relative form.</param>
 public sealed class DirectoryScanOptions(
     string root,
     long? maxTargetBytes = null,
@@ -39,7 +40,8 @@ public sealed class DirectoryScanOptions(
     Action<string>? warningSink = null,
     int maxArchiveCompressionRatio = ArchiveScanDefaults.DefaultMaxCompressionRatio,
     Func<bool>? isCancellationRequested = null,
-    bool identifyArchivesByContent = false)
+    bool identifyArchivesByContent = false,
+    bool preserveSourcePaths = false)
 {
     private readonly string[] _ignoreFilePaths = RequireIgnoreFilePaths(ignoreFilePaths);
 
@@ -47,6 +49,13 @@ public sealed class DirectoryScanOptions(
     /// Gets the full root path to enumerate.
     /// </summary>
     public string Root { get; } = Path.GetFullPath(RequireRoot(root));
+
+    /// <summary>
+    /// Gets a value indicating whether display paths preserve the source argument's absolute or working-directory-relative form.
+    /// </summary>
+    public bool PreserveSourcePaths { get; } = preserveSourcePaths;
+
+    internal bool SourcePathIsFullyQualified { get; } = Path.IsPathFullyQualified(root);
 
     /// <summary>
     /// Gets the maximum file size to yield, or <see langword="null" /> for no cap.

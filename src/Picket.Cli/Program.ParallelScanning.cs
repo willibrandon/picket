@@ -53,6 +53,7 @@ internal static partial class Program
         CompatibilityDiagnosticsSession? diagnosticsSession,
         List<Finding> findings,
         CompatibilityScanMetrics? metrics,
+        Action<IReadOnlyList<Finding>>? findingSink,
         out bool stopped,
         out Exception? error,
         CancellationToken cancellationToken)
@@ -79,7 +80,7 @@ internal static partial class Program
 
             try
             {
-                fileFindings[resultIndex] = ApplySourceProvenance(
+                IReadOnlyList<Finding> sourceFindings = ApplySourceProvenance(
                     ScanSourceFileForParallelBatch(
                         file,
                         rules,
@@ -95,6 +96,11 @@ internal static partial class Program
                         out stoppedFiles[resultIndex],
                         cancellationToken),
                     file);
+                fileFindings[resultIndex] = sourceFindings;
+                if (sourceFindings.Count != 0)
+                {
+                    findingSink?.Invoke(sourceFindings);
+                }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -111,6 +117,7 @@ internal static partial class Program
         }
         else
         {
+            rules.PrepareForScanning();
             var options = new ParallelOptions
             {
                 MaxDegreeOfParallelism = maxDegreeOfParallelism,
@@ -176,7 +183,7 @@ internal static partial class Program
         stopped = false;
         byte[] input = file.ReadAllBytes();
         if (picketIgnore.TryIgnoreContentHash(input)
-            || LooksBinary(input, allowUtf16Bom: nativeMode))
+            || ShouldSkipFileContent(input, nativeMode))
         {
             return [];
         }

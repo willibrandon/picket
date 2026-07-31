@@ -70,6 +70,15 @@ internal static partial class Program
         return false;
     }
 
+    static bool ShouldSkipFileContent(ReadOnlySpan<byte> input, bool nativeMode)
+    {
+        return nativeMode
+            ? LooksBinary(input, allowUtf16Bom: true)
+            : input.IsEmpty
+                || GitleaksFileTypeClassifier.IsApplication(
+                    input[..Math.Min(input.Length, Sources.SourceFragmentReader.DefaultBufferSize)]);
+    }
+
     static bool TryParseMegabytes(string value, out long? bytes)
     {
         if (!long.TryParse(value, out long megabytes) || megabytes < 0)

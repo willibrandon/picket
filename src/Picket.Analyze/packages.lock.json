@@ -12,7 +12,7 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.2.4, )",
-          "Scout.Text.Regex": "[0.4.7, )",
+          "Scout.Text.Regex": "[0.4.8, )",
           "SharpYaml": "[3.13.0, )"
         }
       },
@@ -21,9 +21,9 @@
       },
       "Scout.Text.Regex": {
         "type": "CentralTransitive",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "qoMWqqEDjX8kMllOMyWvHMbPUlVBXrmBhsej45U4U6XzHxu5DQfpvqlGR4gU+JgqmthNn/yMYrfjy33dcCPbuw=="
       },
       "SharpYaml": {
         "type": "CentralTransitive",
@@ -32,6 +32,7 @@
         "contentHash": "x8AbS4ZNzM7Wh+IXboKcLPXiVJVPlqiSNK7/VxaAXOXjavcuhxlk0rAOCbIERIZtoh5w16Qb+OnINrGezpnpwg=="
       }
     },
+    "net10.0/win-x64": {},
     "net9.0": {
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
@@ -43,7 +44,7 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.2.4, )",
-          "Scout.Text.Regex": "[0.4.7, )",
+          "Scout.Text.Regex": "[0.4.8, )",
           "SharpYaml": "[3.13.0, )"
         }
       },
@@ -52,9 +53,9 @@
       },
       "Scout.Text.Regex": {
         "type": "CentralTransitive",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "qoMWqqEDjX8kMllOMyWvHMbPUlVBXrmBhsej45U4U6XzHxu5DQfpvqlGR4gU+JgqmthNn/yMYrfjy33dcCPbuw=="
       },
       "SharpYaml": {
         "type": "CentralTransitive",
@@ -62,6 +63,7 @@
         "resolved": "3.13.0",
         "contentHash": "x8AbS4ZNzM7Wh+IXboKcLPXiVJVPlqiSNK7/VxaAXOXjavcuhxlk0rAOCbIERIZtoh5w16Qb+OnINrGezpnpwg=="
       }
-    }
+    },
+    "net9.0/win-x64": {}
   }
 }

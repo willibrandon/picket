@@ -1,5 +1,6 @@
 using Picket.Rules;
 using Scout.Text.Regex;
+using System.Buffers;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -13,6 +14,10 @@ namespace Picket.Engine;
 public sealed class CompiledRuleSet(RuleSet rules)
 {
     private const string LowerHex = "0123456789abcdef";
+    private const int MaxStackPathBytes = 512;
+    private readonly Lazy<KeywordPrefilter> _keywordPrefilter = new(
+        () => KeywordPrefilter.Create(rules.Rules),
+        LazyThreadSafetyMode.ExecutionAndPublication);
     private readonly Lock _nativePredicateCompilationLock = new();
     private readonly Dictionary<string, double>? _randomnessThresholds = CreateRandomnessThresholds(rules);
     private bool _nativePredicatesCompiled;
@@ -35,6 +40,8 @@ public sealed class CompiledRuleSet(RuleSet rules)
     public bool UsesPathSensitiveMatching { get; } = CreateUsesPathSensitiveMatching(rules);
 
     internal List<CompiledRule> CompiledRules { get; } = CompileRules(rules);
+
+    internal KeywordPrefilter KeywordPrefilter => _keywordPrefilter.Value;
 
     internal List<CompiledAllowlist> Allowlists { get; } = CompiledAllowlist.Compile(
         rules.Allowlists,
@@ -70,14 +77,40 @@ public sealed class CompiledRuleSet(RuleSet rules)
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        byte[] pathBytes = Encoding.UTF8.GetBytes(path);
-        if (AnyPathRegexMatches(pathBytes))
-        {
-            return true;
-        }
+        int byteCount = Encoding.UTF8.GetByteCount(path);
+        byte[]? rentedBytes = null;
+        Span<byte> pathBytes = byteCount <= MaxStackPathBytes
+            ? stackalloc byte[byteCount]
+            : (rentedBytes = ArrayPool<byte>.Shared.Rent(byteCount));
+        pathBytes = pathBytes[..byteCount];
+        Encoding.UTF8.GetBytes(path, pathBytes);
 
-        byte[] windowsPathBytes = CreateWindowsPathBytes(path);
-        return windowsPathBytes.Length != 0 && AnyPathRegexMatches(windowsPathBytes);
+        try
+        {
+            if (AnyPathRegexMatches(pathBytes))
+            {
+                return true;
+            }
+
+            bool hasForwardSlash = false;
+            for (int index = 0; index < pathBytes.Length; index++)
+            {
+                if (pathBytes[index] == (byte)'/')
+                {
+                    pathBytes[index] = (byte)'\\';
+                    hasForwardSlash = true;
+                }
+            }
+
+            return hasForwardSlash && AnyPathRegexMatches(pathBytes);
+        }
+        finally
+        {
+            if (rentedBytes is not null)
+            {
+                ArrayPool<byte>.Shared.Return(rentedBytes);
+            }
+        }
     }
 
     /// <summary>
@@ -100,6 +133,17 @@ public sealed class CompiledRuleSet(RuleSet rules)
         }
 
         CompileDeferredAllowlists(Allowlists);
+    }
+
+    internal void PrepareForScanning()
+    {
+        CompileDeferredRegexes();
+        _ = KeywordPrefilter;
+    }
+
+    internal void PrepareKeywordPrefilter()
+    {
+        _ = KeywordPrefilter;
     }
 
     /// <summary>
@@ -179,7 +223,6 @@ public sealed class CompiledRuleSet(RuleSet rules)
                 usesAwsCredentialPairMatcher || usesGcpServiceAccountKeyMatcher || deferRegexCompilation ? null : CompileOptionalRegex(rule.Pattern, regexContext),
                 deferRegexCompilation ? null : CompileOptionalRegex(rule.PathPattern, pathRegexContext),
                 CompiledAllowlist.Compile(rule.Allowlists, deferRegexCompilation, $"{rule.Id}: [[rules.allowlists]]"),
-                KeywordPrefilter.Create(rule.Keywords),
                 usesAwsCredentialPairMatcher,
                 usesGcpServiceAccountKeyMatcher,
                 appliesGlobalAllowlists: !IsPicketNativeRulePack(rule.RulePack),
@@ -383,7 +426,7 @@ public sealed class CompiledRuleSet(RuleSet rules)
         {
             foreach (ByteRegex regex in allowlist.PathRegexes)
             {
-                if (regex.FindCaptures(pathBytes, 0) is not null)
+                if (regex.IsMatch(pathBytes))
                 {
                     return true;
                 }
@@ -391,12 +434,5 @@ public sealed class CompiledRuleSet(RuleSet rules)
         }
 
         return false;
-    }
-
-    private static byte[] CreateWindowsPathBytes(string path)
-    {
-        return path.Contains('/')
-            ? Encoding.UTF8.GetBytes(path.Replace('/', '\\'))
-            : [];
     }
 }

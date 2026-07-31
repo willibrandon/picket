@@ -185,7 +185,7 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.2.4, )",
-          "Scout.Text.Regex": "[0.4.7, )",
+          "Scout.Text.Regex": "[0.4.8, )",
           "SharpYaml": "[3.13.0, )"
         }
       },
@@ -208,8 +208,8 @@
       "picket.sources": {
         "type": "Project",
         "dependencies": {
-          "Scout.IO.Globbing": "[0.4.7, )",
-          "Scout.IO.Ignore": "[0.4.7, )",
+          "Scout.IO.Globbing": "[0.4.8, )",
+          "Scout.IO.Ignore": "[0.4.8, )",
           "ZstdNet": "[1.5.7, )"
         }
       },
@@ -236,21 +236,21 @@
       },
       "Scout.IO.Globbing": {
         "type": "CentralTransitive",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "/kUPHDw4vg6RAEyr7hBMpbOblHnbKGr/2Sx04vWff3zc0RiqHsN+hDPXcbIvI+OdRz/AXtLkDpYop5wWiky3Bw=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "KO1c2V+ebFSWD71syib1I7Q+qssRFtK5IMmMUZ3YzN3GcO799lT8RTfJzy9QE6aZXbZp2vDlKtUm9S7kbZFbag=="
       },
       "Scout.IO.Ignore": {
         "type": "CentralTransitive",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "hOIHmmNO/2bMSnbjAaDH5Na//9nYqjlFFFyHxwh4RfV6TlohwyhrIsLg6ti3JFp8+whPPh1yjVUHijhqOG9H/Q=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "9qOJekYn/iD47dHWq3gkt7Wg5L/60+DkIm7hupHx9Y0htyFoSPW0PeIobuTcpA4AJadcUYz13celWCWFugfC8g=="
       },
       "Scout.Text.Regex": {
         "type": "CentralTransitive",
-        "requested": "[0.4.7, )",
-        "resolved": "0.4.7",
-        "contentHash": "AexUrU64NSPzXBQ9S0zI1bkg8sv+oGHZP9hZ1fzfdXLCrjidqu0wFmbP8QxFg7xpSztKnvPeiVqc0sNVfQQuHA=="
+        "requested": "[0.4.8, )",
+        "resolved": "0.4.8",
+        "contentHash": "qoMWqqEDjX8kMllOMyWvHMbPUlVBXrmBhsej45U4U6XzHxu5DQfpvqlGR4gU+JgqmthNn/yMYrfjy33dcCPbuw=="
       },
       "SharpYaml": {
         "type": "CentralTransitive",

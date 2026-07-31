@@ -137,6 +137,44 @@ public sealed class DirectorySourceTests
     }
 
     /// <summary>
+    /// Verifies that path allowlists reuse decisions for shared directory ancestry.
+    /// </summary>
+    [TestMethod]
+    public void EnumerateCachesSharedAncestorPathAllowlistDecisions()
+    {
+        string root = CreateTempDirectory();
+        try
+        {
+            string sharedDirectory = Path.Combine(root, "shared");
+            Directory.CreateDirectory(sharedDirectory);
+            File.WriteAllText(Path.Combine(sharedDirectory, "first.txt"), "token-12345");
+            File.WriteAllText(Path.Combine(sharedDirectory, "second.txt"), "token-23456");
+            File.WriteAllText(Path.Combine(root, "keep.txt"), "token-34567");
+            var pathChecks = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            bool IsPathAllowed(string path)
+            {
+                pathChecks[path] = pathChecks.GetValueOrDefault(path) + 1;
+                return path == "shared";
+            }
+
+            IReadOnlyList<SourceFile> files = DirectorySource.Enumerate(new DirectoryScanOptions(
+                root,
+                isPathAllowed: IsPathAllowed));
+
+            Assert.HasCount(1, files);
+            Assert.AreEqual("keep.txt", files[0].DisplayPath);
+            Assert.AreEqual(1, pathChecks["shared"]);
+            Assert.AreEqual(1, pathChecks["shared/first.txt"]);
+            Assert.AreEqual(1, pathChecks["shared/second.txt"]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that invalid Scout patterns in explicit ignore files use the source-enumeration exception contract.
     /// </summary>
     [TestMethod]

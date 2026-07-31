@@ -1,70 +1,167 @@
+using Picket.Rules;
+using Scout;
 using System.Text;
 
 namespace Picket.Engine;
 
-internal sealed class KeywordPrefilter(List<byte[]> asciiKeywords, List<string> unicodeKeywords)
+internal sealed class KeywordPrefilter
 {
-    private readonly List<byte[]> _asciiKeywords = asciiKeywords ?? throw new ArgumentNullException(nameof(asciiKeywords));
-    private readonly List<string> _unicodeKeywords = unicodeKeywords ?? throw new ArgumentNullException(nameof(unicodeKeywords));
+    private readonly AhoCorasickAutomaton? _asciiAutomaton;
+    private readonly int[][] _asciiRuleIndexes;
+    private readonly int[] _rulesWithoutKeywords;
+    private readonly AhoCorasickAutomaton? _unicodeAutomaton;
+    private readonly int[][] _unicodeRuleIndexes;
 
-    internal static KeywordPrefilter Create(IReadOnlyList<string> keywords)
+    private KeywordPrefilter(
+        AhoCorasickAutomaton? asciiAutomaton,
+        int[][] asciiRuleIndexes,
+        AhoCorasickAutomaton? unicodeAutomaton,
+        int[][] unicodeRuleIndexes,
+        int[] rulesWithoutKeywords)
     {
-        ArgumentNullException.ThrowIfNull(keywords);
-
-        var asciiKeywords = new List<byte[]>(keywords.Count);
-        var unicodeKeywords = new List<string>();
-        foreach (string keyword in keywords)
-        {
-            if (string.IsNullOrEmpty(keyword))
-            {
-                continue;
-            }
-
-            if (IsAscii(keyword))
-            {
-                byte[] encodedKeyword = Encoding.UTF8.GetBytes(keyword);
-                FoldAsciiInPlace(encodedKeyword);
-                asciiKeywords.Add(encodedKeyword);
-            }
-            else
-            {
-                unicodeKeywords.Add(keyword.ToLowerInvariant());
-            }
-        }
-
-        return new KeywordPrefilter(asciiKeywords, unicodeKeywords);
+        _asciiAutomaton = asciiAutomaton;
+        _asciiRuleIndexes = asciiRuleIndexes;
+        _unicodeAutomaton = unicodeAutomaton;
+        _unicodeRuleIndexes = unicodeRuleIndexes;
+        _rulesWithoutKeywords = rulesWithoutKeywords;
     }
 
-    internal bool IsCandidate(ReadOnlySpan<byte> input)
+    internal static KeywordPrefilter Create(IReadOnlyList<SecretRule> rules)
     {
-        if (_asciiKeywords.Count == 0 && _unicodeKeywords.Count == 0)
-        {
-            return true;
-        }
+        ArgumentNullException.ThrowIfNull(rules);
 
-        foreach (byte[] keyword in _asciiKeywords)
+        var asciiMappings = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        var unicodeMappings = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        var rulesWithoutKeywords = new List<int>();
+        for (int ruleIndex = 0; ruleIndex < rules.Count; ruleIndex++)
         {
-            if (ContainsAsciiIgnoreCase(input, keyword))
+            IReadOnlyList<string> keywords = rules[ruleIndex].Keywords;
+            bool hasKeyword = false;
+            for (int keywordIndex = 0; keywordIndex < keywords.Count; keywordIndex++)
             {
-                return true;
+                string keyword = keywords[keywordIndex];
+                if (string.IsNullOrEmpty(keyword))
+                {
+                    continue;
+                }
+
+                hasKeyword = true;
+                string normalizedKeyword = keyword.ToLowerInvariant();
+                Dictionary<string, List<int>> mappings = IsAscii(keyword)
+                    ? asciiMappings
+                    : unicodeMappings;
+                AddRuleMapping(mappings, normalizedKeyword, ruleIndex);
+            }
+
+            if (!hasKeyword)
+            {
+                rulesWithoutKeywords.Add(ruleIndex);
             }
         }
 
-        if (_unicodeKeywords.Count == 0)
+        AhoCorasickAutomaton? asciiAutomaton = BuildAutomaton(
+            asciiMappings,
+            asciiCaseInsensitive: true,
+            out int[][] asciiRuleIndexes);
+        AhoCorasickAutomaton? unicodeAutomaton = BuildAutomaton(
+            unicodeMappings,
+            asciiCaseInsensitive: false,
+            out int[][] unicodeRuleIndexes);
+        return new KeywordPrefilter(
+            asciiAutomaton,
+            asciiRuleIndexes,
+            unicodeAutomaton,
+            unicodeRuleIndexes,
+            [.. rulesWithoutKeywords]);
+    }
+
+    internal void PopulateCandidates(
+        ReadOnlySpan<byte> input,
+        Span<bool> candidates)
+    {
+        candidates.Clear();
+        for (int index = 0; index < _rulesWithoutKeywords.Length; index++)
         {
-            return false;
+            candidates[_rulesWithoutKeywords[index]] = true;
+        }
+
+        PopulateMatches(_asciiAutomaton, _asciiRuleIndexes, input, candidates);
+        if (_unicodeAutomaton is null)
+        {
+            return;
         }
 
         string normalizedInput = Encoding.UTF8.GetString(input).ToLowerInvariant();
-        foreach (string keyword in _unicodeKeywords)
+        int byteCount = Encoding.UTF8.GetByteCount(normalizedInput);
+        byte[] normalizedBytes = GC.AllocateUninitializedArray<byte>(byteCount);
+        Encoding.UTF8.GetBytes(normalizedInput, normalizedBytes);
+        PopulateMatches(_unicodeAutomaton, _unicodeRuleIndexes, normalizedBytes, candidates);
+    }
+
+    private static void AddRuleMapping(
+        Dictionary<string, List<int>> mappings,
+        string keyword,
+        int ruleIndex)
+    {
+        if (!mappings.TryGetValue(keyword, out List<int>? ruleIndexes))
         {
-            if (normalizedInput.Contains(keyword, StringComparison.Ordinal))
-            {
-                return true;
-            }
+            ruleIndexes = [];
+            mappings.Add(keyword, ruleIndexes);
         }
 
-        return false;
+        if (ruleIndexes.Count == 0 || ruleIndexes[^1] != ruleIndex)
+        {
+            ruleIndexes.Add(ruleIndex);
+        }
+    }
+
+    private static AhoCorasickAutomaton? BuildAutomaton(
+        Dictionary<string, List<int>> mappings,
+        bool asciiCaseInsensitive,
+        out int[][] ruleIndexes)
+    {
+        if (mappings.Count == 0)
+        {
+            ruleIndexes = [];
+            return null;
+        }
+
+        var patterns = new List<byte[]>(mappings.Count);
+        ruleIndexes = new int[mappings.Count][];
+        int patternIndex = 0;
+        foreach ((string keyword, List<int> mappedRuleIndexes) in mappings)
+        {
+            patterns.Add(Encoding.UTF8.GetBytes(keyword));
+            ruleIndexes[patternIndex] = [.. mappedRuleIndexes];
+            patternIndex++;
+        }
+
+        return AhoCorasickAutomaton.Create(
+            patterns,
+            AhoCorasickMatchKind.Standard,
+            asciiCaseInsensitive);
+    }
+
+    private static void PopulateMatches(
+        AhoCorasickAutomaton? automaton,
+        int[][] ruleIndexes,
+        ReadOnlySpan<byte> input,
+        Span<bool> candidates)
+    {
+        if (automaton is null)
+        {
+            return;
+        }
+
+        AhoCorasickOverlappingEnumerator enumerator = automaton.EnumerateOverlapping(input);
+        while (enumerator.MoveNext())
+        {
+            int[] matchingRuleIndexes = ruleIndexes[enumerator.Current.PatternId];
+            for (int index = 0; index < matchingRuleIndexes.Length; index++)
+            {
+                candidates[matchingRuleIndexes[index]] = true;
+            }
+        }
     }
 
     private static bool IsAscii(string value)
@@ -78,82 +175,5 @@ internal sealed class KeywordPrefilter(List<byte[]> asciiKeywords, List<string> 
         }
 
         return true;
-    }
-
-    private static bool ContainsAsciiIgnoreCase(ReadOnlySpan<byte> input, ReadOnlySpan<byte> keyword)
-    {
-        if (keyword.IsEmpty)
-        {
-            return true;
-        }
-
-        if (keyword.Length > input.Length)
-        {
-            return false;
-        }
-
-        byte first = keyword[0];
-        byte upperFirst = ToUpperAscii(first);
-        int offset = 0;
-        while (offset <= input.Length - keyword.Length)
-        {
-            int relativeIndex = first == upperFirst
-                ? input[offset..].IndexOf(first)
-                : input[offset..].IndexOfAny(first, upperFirst);
-            if (relativeIndex < 0)
-            {
-                return false;
-            }
-
-            int start = offset + relativeIndex;
-            if (start > input.Length - keyword.Length)
-            {
-                return false;
-            }
-
-            if (StartsWithAsciiIgnoreCase(input[start..], keyword))
-            {
-                return true;
-            }
-
-            offset = start + 1;
-        }
-
-        return false;
-    }
-
-    private static bool StartsWithAsciiIgnoreCase(ReadOnlySpan<byte> input, ReadOnlySpan<byte> keyword)
-    {
-        for (int index = 0; index < keyword.Length; index++)
-        {
-            if (FoldAscii(input[index]) != FoldAscii(keyword[index]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static byte FoldAscii(byte value)
-    {
-        return value is >= (byte)'A' and <= (byte)'Z'
-            ? (byte)(value + 0x20)
-            : value;
-    }
-
-    private static void FoldAsciiInPlace(byte[] value)
-    {
-        for (int index = 0; index < value.Length; index++)
-        {
-            value[index] = FoldAscii(value[index]);
-        }
-    }
-
-    private static byte ToUpperAscii(byte value)
-    {
-        return value is >= (byte)'a' and <= (byte)'z'
-            ? (byte)(value - 0x20)
-            : value;
     }
 }
