@@ -322,10 +322,11 @@ hit-rate and worker-selection changes.
 ## Large Local Files
 
 Local files larger than 100,000 bytes are read through pooled, bounded
-fragments. Strict Gitleaks-compatible commands use a 100,000-byte primary
-fragment and read ahead by at most 25,000 bytes to a blank-line boundary. They
-do not overlap fragments because a hard boundary is part of the pinned
-Gitleaks behavior.
+fragments. Strict Gitleaks-compatible commands reproduce the pinned Go
+buffered reader: primary reads request up to 100,000 bytes, read-ahead consumes
+at most 25,000 bytes through a 4 KiB buffer while seeking a blank-line
+boundary, and buffered remainders become short primary reads. Fragments do not
+overlap.
 
 Binary classification uses only the first 100,000 bytes, before safe-boundary
 read-ahead, matching the compatibility source reader. Binary files therefore
