@@ -112,6 +112,25 @@ public sealed class SourceFragmentReaderTests
     }
 
     /// <summary>
+    /// Verifies that compatibility fragments preserve the pinned Go buffered-reader boundaries.
+    /// </summary>
+    [TestMethod]
+    public void ReadNextPreservesGitleaksBufferedShortReadBoundaries()
+    {
+        byte[] input = GC.AllocateUninitializedArray<byte>(250_000);
+        input.AsSpan().Fill((byte)'x');
+        using var stream = new MemoryStream(input);
+        using var reader = new SourceFragmentReader(stream);
+
+        using SourceFragment first = reader.ReadNext(TestContext.CancellationToken)!;
+        using SourceFragment second = reader.ReadNext(TestContext.CancellationToken)!;
+
+        Assert.AreEqual(125_000, first.Content.Length);
+        Assert.AreEqual(28_672, second.Content.Length);
+        Assert.AreEqual(125_000, second.StartOffset);
+    }
+
+    /// <summary>
     /// Verifies that cancellation is observed before another fragment is read.
     /// </summary>
     [TestMethod]

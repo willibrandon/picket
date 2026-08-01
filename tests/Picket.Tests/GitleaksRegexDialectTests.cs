@@ -261,7 +261,7 @@ public sealed class GitleaksRegexDialectTests
     }
 
     /// <summary>
-    /// Verifies malformed UTF-8 normalization maps matches back to the original line and byte position.
+    /// Verifies malformed UTF-8 matches retain the original line and byte position.
     /// </summary>
     [TestMethod]
     public void ScanMapsMalformedUtf8MatchToOriginalPosition()
@@ -285,6 +285,29 @@ public sealed class GitleaksRegexDialectTests
         Assert.AreEqual(2, finding.EndLine);
         Assert.AreEqual(2, finding.StartColumn);
         Assert.AreEqual(2, finding.EndColumn);
+    }
+
+    /// <summary>
+    /// Verifies malformed UTF-8 scans do not allocate an expanded input buffer.
+    /// </summary>
+    [TestMethod]
+    public void ScanAvoidsMalformedUtf8NormalizationBuffers()
+    {
+        byte[] input = GC.AllocateUninitializedArray<byte>(100_000);
+        input.AsSpan().Fill(0xFF);
+        SecretRule rule = SecretRule.Create("dialect", "Dialect test", "never-match");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([rule]));
+        var request = new ScanRequest(input, "input.txt", rules, maxDecodeDepth: 0);
+        Assert.IsEmpty(SecretScanner.Scan(request));
+
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (int iteration = 0; iteration < 8; iteration++)
+        {
+            Assert.IsEmpty(SecretScanner.Scan(request));
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        Assert.IsLessThan(input.Length, allocated);
     }
 
     private static IReadOnlyList<Finding> Scan(string pattern, string input)

@@ -13,6 +13,8 @@ namespace Picket.Sources;
 /// </remarks>
 public sealed class SourceFragmentReader : IDisposable
 {
+    private const int GitleaksBufferedReaderSize = 4 * 1024;
+
     /// <summary>
     /// Gets the default primary fragment size in bytes.
     /// </summary>
@@ -27,8 +29,11 @@ public sealed class SourceFragmentReader : IDisposable
     private readonly byte[] _carry = new byte[3];
     private readonly bool _leaveOpen;
     private readonly int _maxPeekBytes;
+    private readonly byte[] _readBuffer = new byte[GitleaksBufferedReaderSize];
     private readonly bool _useUnicodeCodePointColumns;
     private int _carryLength;
+    private int _readEnd;
+    private int _readStart;
     private Stream? _stream;
     private int _nextColumn = 1;
     private int _nextLine = 1;
@@ -83,16 +88,17 @@ public sealed class SourceFragmentReader : IDisposable
         byte[] buffer = ArrayPool<byte>.Shared.Rent(checked(_bufferSize + _maxPeekBytes));
         try
         {
-            int length = ReadPrimary(buffer, cancellationToken, out bool reachedEnd);
-            if (length == 0)
+            int primaryLength = ReadPrimary(buffer, cancellationToken, out bool reachedEnd);
+            if (primaryLength == 0)
             {
                 ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
                 return null;
             }
 
-            if (length == _bufferSize && !EndsAtSafeBoundary(buffer.AsSpan(0, length)))
+            int length = primaryLength;
+            if (!EndsAtSafeBoundary(buffer.AsSpan(0, length)))
             {
-                length = ReadToSafeBoundary(buffer, length, cancellationToken, ref reachedEnd);
+                length = ReadToSafeBoundary(buffer, length, primaryLength, cancellationToken, ref reachedEnd);
             }
 
             if (_useUnicodeCodePointColumns && !reachedEnd)
@@ -123,7 +129,10 @@ public sealed class SourceFragmentReader : IDisposable
         }
 
         _carry.AsSpan().Clear();
+        _readBuffer.AsSpan().Clear();
         _carryLength = 0;
+        _readEnd = 0;
+        _readStart = 0;
     }
 
     private static bool EndsAtSafeBoundary(ReadOnlySpan<byte> content)
@@ -164,20 +173,58 @@ public sealed class SourceFragmentReader : IDisposable
         int length = _carryLength;
         _carry.AsSpan(0, _carryLength).CopyTo(buffer);
         _carryLength = 0;
-        while (length < _bufferSize)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            int read = _stream!.Read(buffer, length, _bufferSize - length);
-            if (read == 0)
-            {
-                reachedEnd = true;
-                break;
-            }
-
-            length += read;
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        length += ReadBuffered(buffer.AsSpan(length, _bufferSize - length), out reachedEnd);
 
         return length;
+    }
+
+    private int ReadBuffered(Span<byte> destination, out bool reachedEnd)
+    {
+        reachedEnd = false;
+        if (_readStart < _readEnd)
+        {
+            int length = Math.Min(destination.Length, _readEnd - _readStart);
+            _readBuffer.AsSpan(_readStart, length).CopyTo(destination);
+            _readStart += length;
+            return length;
+        }
+
+        _readStart = 0;
+        _readEnd = 0;
+        if (destination.Length >= _readBuffer.Length)
+        {
+            int length = _stream!.Read(destination);
+            reachedEnd = length == 0;
+            return length;
+        }
+
+        _readEnd = _stream!.Read(_readBuffer);
+        if (_readEnd == 0)
+        {
+            reachedEnd = true;
+            return 0;
+        }
+
+        int copied = Math.Min(destination.Length, _readEnd);
+        _readBuffer.AsSpan(0, copied).CopyTo(destination);
+        _readStart = copied;
+        return copied;
+    }
+
+    private int ReadBufferedByte()
+    {
+        if (_readStart >= _readEnd)
+        {
+            _readStart = 0;
+            _readEnd = _stream!.Read(_readBuffer);
+            if (_readEnd == 0)
+            {
+                return -1;
+            }
+        }
+
+        return _readBuffer[_readStart++];
     }
 
     private int PreserveIncompleteUtf8Suffix(byte[] buffer, int length)
@@ -243,14 +290,15 @@ public sealed class SourceFragmentReader : IDisposable
     private int ReadToSafeBoundary(
         byte[] buffer,
         int length,
+        int primaryLength,
         CancellationToken cancellationToken,
         ref bool reachedEnd)
     {
         int newlineCount = CountTrailingNewlines(buffer.AsSpan(0, length));
-        while (length - _bufferSize < _maxPeekBytes)
+        while (length - primaryLength < _maxPeekBytes)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            int value = _stream!.ReadByte();
+            int value = ReadBufferedByte();
             if (value < 0)
             {
                 reachedEnd = true;

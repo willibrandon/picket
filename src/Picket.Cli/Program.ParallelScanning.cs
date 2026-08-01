@@ -103,24 +103,35 @@ internal static partial class Program
 
         stopped = false;
         error = null;
+        bool failureRecorded = false;
         for (int resultIndex = 0; resultIndex < fileCount; resultIndex++)
         {
             if (fileErrors[resultIndex] is not null)
             {
-                error = fileErrors[resultIndex];
-                return false;
+                if (!failureRecorded)
+                {
+                    error = fileErrors[resultIndex];
+                    failureRecorded = true;
+                }
+
+                continue;
             }
 
             if (stoppedFiles[resultIndex])
             {
-                stopped = true;
-                return false;
+                if (!failureRecorded)
+                {
+                    stopped = true;
+                    failureRecorded = true;
+                }
+
+                continue;
             }
 
             findings.AddRange(fileFindings[resultIndex] ?? []);
         }
 
-        return true;
+        return !failureRecorded;
     }
 
     private static IReadOnlyList<Finding> ScanSourceFileForParallelBatch(

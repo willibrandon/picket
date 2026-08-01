@@ -1654,6 +1654,29 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies a decode pass without candidates does not copy the complete input.
+    /// </summary>
+    [TestMethod]
+    public void ScanReusesOriginalInputWhenNoDecodeCandidateExists()
+    {
+        byte[] input = GC.AllocateUninitializedArray<byte>(100_000);
+        input.AsSpan().Fill((byte)'!');
+        SecretRule rule = SecretRule.Create("decode-allocation", "Decode allocation test", "never-match");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(new RuleSet([rule]));
+        var request = new ScanRequest(input, "input.txt", rules, maxDecodeDepth: 5);
+        Assert.IsEmpty(SecretScanner.Scan(request));
+
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (int iteration = 0; iteration < 8; iteration++)
+        {
+            Assert.IsEmpty(SecretScanner.Scan(request));
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        Assert.IsLessThan(input.Length, allocated);
+    }
+
+    /// <summary>
     /// Verifies decoders accept printable non-ASCII UTF-8 text.
     /// </summary>
     [TestMethod]

@@ -17,6 +17,24 @@ internal static class SecretDecoder
         ArgumentNullException.ThrowIfNull(input);
 
         List<EncodingMatch> matches = FindMatches(input.Bytes, enableCSharpStringConcatenation);
+        return Decode(input, matches);
+    }
+
+    internal static DecodedInput? DecodeOriginal(
+        ReadOnlySpan<byte> input,
+        bool enableCSharpStringConcatenation = false)
+    {
+        List<EncodingMatch> matches = FindMatches(input, enableCSharpStringConcatenation);
+        if (matches.Count == 0)
+        {
+            return null;
+        }
+
+        return Decode(DecodedInput.CreateOriginal(input), matches);
+    }
+
+    private static DecodedInput? Decode(DecodedInput input, List<EncodingMatch> matches)
+    {
         if (matches.Count == 0)
         {
             return null;

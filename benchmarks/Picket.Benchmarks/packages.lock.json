@@ -177,7 +177,7 @@
         "type": "Project",
         "dependencies": {
           "Picket.Rules": "[0.2.6, )",
-          "Scout.Text.Regex": "[0.4.8, )",
+          "Scout.Text.Regex": "[0.5.1, )",
           "SharpYaml": "[3.13.0, )"
         }
       },
@@ -193,9 +193,9 @@
       },
       "Scout.Text.Regex": {
         "type": "CentralTransitive",
-        "requested": "[0.4.8, )",
-        "resolved": "0.4.8",
-        "contentHash": "qoMWqqEDjX8kMllOMyWvHMbPUlVBXrmBhsej45U4U6XzHxu5DQfpvqlGR4gU+JgqmthNn/yMYrfjy33dcCPbuw=="
+        "requested": "[0.5.1, )",
+        "resolved": "0.5.1",
+        "contentHash": "AcZ007bGBq9wSHu0ivT8hLq4ygMTBo7krMhQ9GHVXwS3WPKIGOAC9UiKDPno4HBztuFCkQpIBjopmLkXY69oMw=="
       },
       "SharpYaml": {
         "type": "CentralTransitive",
