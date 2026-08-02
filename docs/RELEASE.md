@@ -106,8 +106,8 @@ wslc run --rm -v ${PWD}:/work picket:dev git . --report-format json --redact=100
 
 For release tags, `.github/workflows/release.yml` validates and publishes `linux/amd64` on an x64 runner and `linux/arm64` on an Arm64 runner, then creates the multi-architecture manifest without emulation. The published tags are:
 
-- `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.2.7`,
-- `ghcr.io/willibrandon/picket:<semver>`, for example `0.2.7`,
+- `ghcr.io/willibrandon/picket:<release-tag>`, for example `v0.2.8`,
+- `ghcr.io/willibrandon/picket:<semver>`, for example `0.2.8`,
 - `ghcr.io/willibrandon/picket:latest` for non-prerelease versions only.
 
 Each architecture image carries BuildKit SBOM and provenance attestations. The immutable version manifests are published only after the GitHub Release exists, and `latest` advances only after both the versioned container and NuGet publication succeed. The image is a scanner distribution surface; it does not change command defaults, compatibility behavior, reports, validation policy, or telemetry policy.
@@ -125,7 +125,7 @@ The generated files are packaged as `picket-<tag>-package-manager-manifests.zip`
 Generate the same files locally from a release checksum file with:
 
 ```powershell
-dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.2.7 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
+dotnet run --file ./scripts/Generate-PackageManagerManifests.cs -- -ReleaseTag v0.2.8 -ChecksumsPath dist/checksums.txt -OutputDirectory artifacts/package-managers -Clean
 ```
 
 The manifests install the Native AOT `picket` and `picket-tui` executables from the RID archives. Homebrew keeps the complete archive payload under `libexec` and writes command wrappers so the bundled zstandard library remains beside both executables. Scoop and WinGet retain the complete portable ZIP payload.
@@ -200,4 +200,4 @@ gh attestation verify <artifact-path> -R willibrandon/picket
 
 Artifact attestations prove repository and workflow provenance but are not Authenticode signatures or Apple notarization. Windows executables and MSIs are currently unsigned, and macOS executables are currently unnotarized, so operating-system reputation checks can still warn on first use. Code signing and notarization require dedicated signing identities and remain a release-channel enhancement; the workflow does not suppress or bypass platform security checks.
 
-The release tag is the source of truth for package versions. Release jobs strip a leading `v` from tags such as `v0.2.7`, pass the resulting SemVer value to `Version` and `PackageVersion`, publish package and symbol files with `--skip-duplicate`, and fail clearly when `NUGET_API_KEY` is missing.
+The release tag is the source of truth for package versions. Release jobs strip a leading `v` from tags such as `v0.2.8`, pass the resulting SemVer value to `Version` and `PackageVersion`, publish package and symbol files with `--skip-duplicate`, and fail clearly when `NUGET_API_KEY` is missing.
