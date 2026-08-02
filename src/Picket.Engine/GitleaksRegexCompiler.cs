@@ -25,6 +25,7 @@ internal static class GitleaksRegexCompiler
     private static readonly ByteRegexOptions s_options = new()
     {
         EngineMode = ByteRegexEngineMode.General,
+        MatchInvalidUtf8 = true,
     };
 
     internal static ByteRegex Compile(string pattern)

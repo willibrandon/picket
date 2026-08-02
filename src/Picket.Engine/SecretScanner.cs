@@ -12,7 +12,7 @@ public sealed class SecretScanner
     /// <summary>
     /// Gets the stable version of matching behavior that participates in cache and checkpoint identities.
     /// </summary>
-    public const string MatchingBehaviorVersion = "picket.matching.v8";
+    public const string MatchingBehaviorVersion = "picket.matching.v9";
 
     private static readonly List<CompiledAllowlist> s_emptyAllowlists = [];
 
@@ -109,13 +109,15 @@ public sealed class SecretScanner
             return CompleteScan(request, findings, requiredFindingsByRuleId);
         }
 
-        DecodedInput current = DecodedInput.CreateOriginal(originalInput);
+        DecodedInput? current = null;
         for (int depth = 0; depth < request.MaxDecodeDepth; depth++)
         {
             bool enableCSharpStringConcatenation = depth == 0
                 && request.EnableCSharpStringConcatenation
                 && IsCSharpSourceFile(request.FileName);
-            DecodedInput? decoded = SecretDecoder.Decode(current, enableCSharpStringConcatenation);
+            DecodedInput? decoded = depth == 0
+                ? SecretDecoder.DecodeOriginal(originalInput, enableCSharpStringConcatenation)
+                : SecretDecoder.Decode(current!, enableCSharpStringConcatenation);
             if (decoded is null)
             {
                 break;
@@ -307,15 +309,6 @@ public sealed class SecretScanner
         NativePredicateEvaluationContext predicateContext,
         Func<bool>? isCancellationRequested)
     {
-        ReadOnlySpan<byte> regexSourceInput = input;
-        GitleaksRegexInput? regexInput = IsTooLargeForContentScan(input.Length, maxTargetBytes)
-            ? null
-            : GitleaksRegexInput.Normalize(input);
-        if (regexInput is not null)
-        {
-            input = regexInput.Bytes;
-        }
-
         NativeDetectorScanContext? detectorContext = enableNativeDetectors
             ? new NativeDetectorScanContext()
             : null;
@@ -359,8 +352,6 @@ public sealed class SecretScanner
                 && requiredFindingsByRuleId.TryGetValue(compiledRule.Rule.Id, out requiredRuleFindings);
             List<Finding> ruleFindings = ScanCompiledRule(
                 input,
-                regexSourceInput,
-                regexInput,
                 originalInput,
                 originalLineIndex,
                 decodedInput,
@@ -443,8 +434,6 @@ public sealed class SecretScanner
 
     private static List<Finding> ScanCompiledRule(
         ReadOnlySpan<byte> input,
-        ReadOnlySpan<byte> regexSourceInput,
-        GitleaksRegexInput? regexInput,
         ReadOnlySpan<byte> originalInput,
         SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
@@ -464,12 +453,6 @@ public sealed class SecretScanner
         Func<bool>? isCancellationRequested)
     {
         var findings = new List<Finding>();
-        if (regexInput is not null && compiledRule.UsesExplicitByteMode)
-        {
-            input = regexSourceInput;
-            regexInput = null;
-        }
-
         if (IsCancellationRequested(isCancellationRequested)
             || (compiledRule.Rule.SkipReport && !includeSkipReport))
         {
@@ -511,7 +494,7 @@ public sealed class SecretScanner
             return findings;
         }
 
-        if (IsTooLargeForContentScan(regexSourceInput.Length, maxTargetBytes))
+        if (IsTooLargeForContentScan(input.Length, maxTargetBytes))
         {
             return findings;
         }
@@ -522,7 +505,7 @@ public sealed class SecretScanner
             if (detectorRegex.IsMatch(input))
             {
                 ScanNativeDetectorRule(
-                    regexSourceInput,
+                    input,
                     originalInput,
                     originalLineIndex,
                     decodedInput,
@@ -548,8 +531,6 @@ public sealed class SecretScanner
         {
             ScanAwsCredentialPairRule(
                 input,
-                regexSourceInput,
-                regexInput,
                 originalInput,
                 originalLineIndex,
                 decodedInput,
@@ -573,8 +554,6 @@ public sealed class SecretScanner
         {
             ScanGcpServiceAccountKeyRule(
                 input,
-                regexSourceInput,
-                regexInput,
                 originalInput,
                 originalLineIndex,
                 decodedInput,
@@ -597,8 +576,6 @@ public sealed class SecretScanner
         ByteRegex contentRegex = compiledRule.Regex ?? throw new InvalidOperationException("Content rule regex was not compiled.");
         ScanRule(
             input,
-            regexSourceInput,
-            regexInput,
             originalInput,
             originalLineIndex,
             decodedInput,
@@ -741,8 +718,6 @@ public sealed class SecretScanner
 
     private static void ScanAwsCredentialPairRule(
         ReadOnlySpan<byte> input,
-        ReadOnlySpan<byte> regexSourceInput,
-        GitleaksRegexInput? regexInput,
         ReadOnlySpan<byte> originalInput,
         SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
@@ -769,7 +744,6 @@ public sealed class SecretScanner
             }
 
             if (!TryMapMatch(
-                regexInput,
                 decodedInput,
                 matchStart,
                 matchEnd,
@@ -783,7 +757,7 @@ public sealed class SecretScanner
             }
 
             ReadOnlySpan<byte> secretBytes = input[secretStart..secretEnd];
-            ReadOnlySpan<byte> entropyBytes = GetEntropyBytes(input, regexSourceInput, regexInput, secretStart, secretEnd);
+            ReadOnlySpan<byte> entropyBytes = input[secretStart..secretEnd];
             double entropy = GitleaksShannonEntropy.Calculate(entropyBytes);
             if (rule.Entropy > 0 && entropy <= rule.Entropy)
             {
@@ -791,7 +765,7 @@ public sealed class SecretScanner
                 continue;
             }
 
-            ReadOnlySpan<byte> reportInput = decodedInput is null && regexInput is null ? input : originalInput;
+            ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
             SourcePosition start = originalLineIndex.FromOffset(reportStart);
             SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> matchBytes = input[matchStart..matchEnd];
@@ -852,8 +826,6 @@ public sealed class SecretScanner
 
     private static void ScanGcpServiceAccountKeyRule(
         ReadOnlySpan<byte> input,
-        ReadOnlySpan<byte> regexSourceInput,
-        GitleaksRegexInput? regexInput,
         ReadOnlySpan<byte> originalInput,
         SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
@@ -880,7 +852,6 @@ public sealed class SecretScanner
             }
 
             if (!TryMapMatch(
-                regexInput,
                 decodedInput,
                 matchStart,
                 matchEnd,
@@ -894,7 +865,7 @@ public sealed class SecretScanner
             }
 
             ReadOnlySpan<byte> secretBytes = input[matchStart..matchEnd];
-            ReadOnlySpan<byte> entropyBytes = GetEntropyBytes(input, regexSourceInput, regexInput, matchStart, matchEnd);
+            ReadOnlySpan<byte> entropyBytes = input[matchStart..matchEnd];
             double entropy = GitleaksShannonEntropy.Calculate(entropyBytes);
             if (rule.Entropy > 0 && entropy <= rule.Entropy)
             {
@@ -902,7 +873,7 @@ public sealed class SecretScanner
                 continue;
             }
 
-            ReadOnlySpan<byte> reportInput = decodedInput is null && regexInput is null ? input : originalInput;
+            ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
             SourcePosition start = originalLineIndex.FromOffset(reportStart);
             SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> lineBytes = ExtractLineSpan(reportInput, reportStart, reportEnd);
@@ -990,7 +961,6 @@ public sealed class SecretScanner
             NativeDetectorMatch match = matches[i];
             if (!IsValidDetectorMatch(match, input.Length)
                 || !TryMapMatch(
-                    regexInput: null,
                     decodedInput,
                     match.MatchStart,
                     match.MatchEnd,
@@ -1065,8 +1035,6 @@ public sealed class SecretScanner
 
     private static void ScanRule(
         ReadOnlySpan<byte> input,
-        ReadOnlySpan<byte> regexSourceInput,
-        GitleaksRegexInput? regexInput,
         ReadOnlySpan<byte> originalInput,
         SourceLineIndex originalLineIndex,
         DecodedInput? decodedInput,
@@ -1104,7 +1072,6 @@ public sealed class SecretScanner
             ReadOnlySpan<byte> matchBytes = TrimLineFeeds(rawMatchBytes, out int trimmedMatchStart);
             int effectiveMatchEnd = match.Start + matchBytes.Length;
             if (!TryMapMatch(
-                regexInput,
                 decodedInput,
                 match.Start,
                 effectiveMatchEnd,
@@ -1125,7 +1092,7 @@ public sealed class SecretScanner
                 rule.SecretGroup,
                 out int secretStart,
                 out int secretEnd);
-            ReadOnlySpan<byte> entropyBytes = GetEntropyBytes(input, regexSourceInput, regexInput, secretStart, secretEnd);
+            ReadOnlySpan<byte> entropyBytes = input[secretStart..secretEnd];
             double entropy = GitleaksShannonEntropy.Calculate(entropyBytes);
             if (rule.Entropy > 0 && entropy <= rule.Entropy)
             {
@@ -1133,7 +1100,7 @@ public sealed class SecretScanner
                 continue;
             }
 
-            ReadOnlySpan<byte> reportInput = decodedInput is null && regexInput is null ? input : originalInput;
+            ReadOnlySpan<byte> reportInput = decodedInput is null ? input : originalInput;
             SourcePosition start = originalLineIndex.FromOffset(reportStart);
             SourcePosition end = originalLineIndex.FromExclusiveEndOffset(reportStart, reportEnd);
             ReadOnlySpan<byte> lineBytes = ExtractLineSpan(reportInput, reportStart, reportEnd);
@@ -1191,24 +1158,7 @@ public sealed class SecretScanner
         }
     }
 
-    private static ReadOnlySpan<byte> GetEntropyBytes(
-        ReadOnlySpan<byte> input,
-        ReadOnlySpan<byte> regexSourceInput,
-        GitleaksRegexInput? regexInput,
-        int secretStart,
-        int secretEnd)
-    {
-        if (regexInput is null)
-        {
-            return input[secretStart..secretEnd];
-        }
-
-        regexInput.MapRange(secretStart, secretEnd, out int sourceStart, out int sourceEnd);
-        return regexSourceInput[sourceStart..sourceEnd];
-    }
-
     private static bool TryMapMatch(
-        GitleaksRegexInput? regexInput,
         DecodedInput? decodedInput,
         int matchStart,
         int matchEnd,
@@ -1217,8 +1167,6 @@ public sealed class SecretScanner
         out IReadOnlyList<string> decodeTags,
         out IReadOnlyList<string> decodePath)
     {
-        regexInput?.MapRange(matchStart, matchEnd, out matchStart, out matchEnd);
-
         if (decodedInput is null)
         {
             reportStart = matchStart;

@@ -434,6 +434,47 @@ public sealed partial class CompatibilityConsoleTests
     }
 
     /// <summary>
+    /// Verifies completed findings remain in a partial directory scan after an earlier file error.
+    /// </summary>
+    [TestMethod]
+    [OSCondition(ConditionMode.Include, OperatingSystems.Windows)]
+    [Timeout(30000, CooperativeCancellation = true)]
+    public async Task DirectoryPartialScanRetainsFindingsAfterFileError()
+    {
+        using TempDirectory root = TempDirectory.Create();
+        string targetPath = Path.Combine(root.Path, "target");
+        Directory.CreateDirectory(targetPath);
+        string configPath = Path.Combine(root.Path, "gitleaks.toml");
+        File.WriteAllText(
+            configPath,
+            """
+            [[rules]]
+            id = "partial-scan-rule"
+            description = "Detects the partial scan fixture."
+            regex = '''token=([A-Za-z0-9]+)'''
+            secretGroup = 1
+            """);
+        string lockedPath = Path.Combine(targetPath, "a-locked.txt");
+        File.WriteAllText(lockedPath, "locked");
+        File.WriteAllText(Path.Combine(targetPath, "z-secret.txt"), "token=partialscan123");
+
+        using var lockedFile = new FileStream(lockedPath, FileMode.Open, FileAccess.Read, FileShare.None);
+        CliResult result = await RunCliWithInputAsync(
+            string.Empty,
+            "dir",
+            targetPath,
+            "--config",
+            configPath,
+            "--verbose",
+            "--no-banner",
+            "--no-color").ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ExitCode);
+        Assert.Contains("Finding:     token=partialscan123", result.Stdout);
+        Assert.Contains("1 leaks found in partial scan", result.Stderr);
+    }
+
+    /// <summary>
     /// Verifies native JSON remains readable when written to an attached Windows console.
     /// </summary>
     [TestMethod]
