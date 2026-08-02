@@ -8,7 +8,7 @@
     <PackageVersion Include="Hex1b" Version="0.165.0" />
     <PackageVersion Include="Scout.IO.Globbing" Version="0.4.8" />
     <PackageVersion Include="Scout.IO.Ignore" Version="0.4.8" />
-    <PackageVersion Include="Scout.Text.Regex" Version="0.5.1" />
+    <PackageVersion Include="Scout.Text.Regex" Version="0.6.0" />
     <PackageVersion Include="System.CommandLine" Version="2.0.9" />
     <PackageVersion Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageVersion Include="SharpYaml" Version="3.13.0" />
