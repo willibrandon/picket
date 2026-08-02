@@ -343,6 +343,28 @@ public sealed class SecretScannerTests
     }
 
     /// <summary>
+    /// Verifies that generic API key match allowlists retain the leftmost match above the DFA threshold.
+    /// </summary>
+    [TestMethod]
+    [Timeout(5000, CooperativeCancellation = true)]
+    public void ScanAppliesGenericApiKeyMatchAllowlistAboveDfaThreshold()
+    {
+        const string Secret = "a1B2c3D4e5F6g7H8";
+        string padding = new(' ', 4096);
+        RuleSet sourceRules = SelectRules(GitleaksConfigLoader.LoadRuleSet(null, "__picket-test__"), "generic-api-key");
+        CompiledRuleSet rules = CompiledRuleSet.Compile(sourceRules);
+
+        byte[] allowedInput = Encoding.UTF8.GetBytes($"{padding}PublicKeyToken={Secret}\"");
+        byte[] detectedInput = Encoding.UTF8.GetBytes($"{padding}ServiceKeyToken={Secret}\"");
+
+        IReadOnlyList<Finding> allowed = SecretScanner.Scan(new ScanRequest(allowedInput, "allowed.txt", rules, maxDecodeDepth: 0));
+        Finding detected = Assert.ContainsSingle(SecretScanner.Scan(new ScanRequest(detectedInput, "detected.txt", rules, maxDecodeDepth: 0)));
+
+        Assert.IsEmpty(allowed);
+        Assert.AreEqual(Secret, detected.Secret);
+    }
+
+    /// <summary>
     /// Verifies that the generic API key rule accepts the canonical API assignment spelling.
     /// </summary>
     [TestMethod]
