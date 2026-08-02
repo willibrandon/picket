@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7
+
+- Match Gitleaks fragment boundaries, retain findings from partial directory scans, and reduce malformed UTF-8 and decoder allocation costs.
+
 ## 0.2.6
 
 - Keep directory scans parallel on memory-loaded hosts when sufficient memory headroom remains.
