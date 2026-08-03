@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.9
+
+- Enable mouse input for full-screen and flow TUI sessions on macOS and other ANSI terminals, and refresh the published performance baseline.
+
 ## 0.2.8
 
 - Restore leftmost generic-rule match spans above the DFA threshold so match-target allowlists remain Gitleaks-compatible.
