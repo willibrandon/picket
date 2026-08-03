@@ -106,7 +106,7 @@ documentation reviewed on 2026-07-07:
 ## Coding Agent Hook References
 
 Coding-agent guard behavior is based on the provider hook contracts reviewed on
-2026-07-28:
+2026-08-03:
 
 - Codex hooks: `https://learn.chatgpt.com/docs/hooks`
 - Claude Code hooks: `https://code.claude.com/docs/en/hooks`
@@ -114,6 +114,13 @@ Coding-agent guard behavior is based on the provider hook contracts reviewed on
 Both providers send command-hook input as JSON on standard input. Their
 `PreToolUse` and `UserPromptSubmit` hooks interpret exit code `2` as a blocking
 result and surface standard error as the reason.
+
+Claude Code uses Git Bash for Windows command hooks when it is available and
+supports selecting PowerShell per hook with `"shell": "powershell"`. Picket's
+Windows global-tool shim is `picket.cmd`, so the documented Windows setup uses
+PowerShell rather than relying on Git Bash to resolve a bare `picket` command.
+The command explicitly exits with `$LASTEXITCODE` because PowerShell otherwise
+maps the native command failure to exit `1`, which Claude Code does not block.
 
 ## Gitleaks Compatibility
 

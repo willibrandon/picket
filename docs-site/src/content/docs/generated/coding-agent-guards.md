@@ -106,7 +106,48 @@ Use `/hooks` to inspect and trust the exact command.
 
 ## Claude Code
 
-Add both hooks to `.claude/settings.json`:
+On Windows, add both hooks to `.claude/settings.json` and select PowerShell for
+each command hook:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "picket agent guard; exit $LASTEXITCODE",
+            "shell": "powershell"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "picket agent guard; exit $LASTEXITCODE",
+            "shell": "powershell"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Claude Code uses Git Bash for command hooks on Windows when Git Bash is
+available. A Windows global .NET tool installation exposes `picket.cmd`, which
+Git Bash does not resolve from the bare `picket` command. Selecting PowerShell
+lets the hook resolve the installed tool and preserves standard input. The
+explicit `exit $LASTEXITCODE` preserves Picket's exit `2`; without it,
+PowerShell returns exit `1`, which Claude Code treats as a non-blocking error.
+
+On macOS and Linux, omit the `shell` property so Claude Code uses its default
+shell:
 
 ```json
 {
