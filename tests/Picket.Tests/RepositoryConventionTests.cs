@@ -1871,6 +1871,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("exit `2`", codingAgentGuards);
         Assert.Contains(".codex/hooks.json", codingAgentGuards);
         Assert.Contains(".claude/settings.json", codingAgentGuards);
+        Assert.Contains("\"shell\": \"powershell\"", codingAgentGuards);
+        Assert.Contains("exit $LASTEXITCODE", codingAgentGuards);
+        Assert.Contains("picket.cmd", codingAgentGuards);
         Assert.Contains("secret values are never printed", codingAgentGuards);
         Assert.Contains("BenchmarkDotNet", performance);
         Assert.Contains("benchmarks/Picket.Benchmarks", performance);
