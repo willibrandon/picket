@@ -165,99 +165,92 @@ history behavior, ignores, and report filtering have actually been aligned.
 Capability-separated measurements remain valid, but they are not presented as
 an equivalent winner/loser comparison.
 
-### Reviewed Baseline: 2026-07-12
+### Reviewed Release Baseline: 2026-08-02
 
-The first reviewed strict-compatibility baseline used Picket commit
-`0b8d4ee45b0caa06db089e7a1bcee1b4dc29f6a4`, Scout packages `0.4.4`, and
-Gitleaks commit `4c232b5014f7618360bd992b4c489cb055881c6b`. The checked-in
-`gitleaks-compatible-tracked` scenario staged 455 tracked files from `src/` and
-`tests/` totaling 4.26 MiB. Its corpus manifest SHA-256 was
-`d241be5cbf2ad33ab0aa2246d317eb30623142cb3a5253470fef8bb27d39b785`.
+The current reviewed baseline uses the Picket `v0.2.8` `release-speed` Windows
+x64 Native AOT executable from commit
+`52c27a3d46b4e1fbea7dac1ca67ce98db76b9a72`, Scout.Text.Regex `0.6.1`,
+and Gitleaks `8.30.1` from commit
+`4c232b5014f7618360bd992b4c489cb055881c6b`. The Picket executable is
+14,984,704 bytes with SHA-256
+`42d6543fbf6d404cef4866d144af2d5605e6ade43f7c597b7233d4309c554755`.
 
-Both scanners produced 30 findings with canonical finding-set SHA-256
-`f698ed7bfd496569085b1655ecc297596d56c34820797597b86540724f4a197e`.
+Every scenario staged the same 630 tracked files from `src/` and `tests/`,
+totaling 5,791,233 bytes. The corpus manifest SHA-256 was
+`dfceda5dbc76f574e7c2fe05cf196370dd3f822fd5a261371db83c85766e59da`.
+The host ran Windows `10.0.26200` on NTFS with an AMD64 Family 26 Model 68
+processor, 32 effective processors, 47.13 GiB of GC-visible memory, .NET
+`10.0.10`, and SDK `10.0.302`. Host-level filesystem caches were not reset, so
+pre-warmup values are not cold OS-cache measurements.
+
+The strict-compatible scenario produced 47 findings from both scanners with
+canonical finding-set SHA-256
+`dc587f66d6cbe7b607b149d660184651d9c449c3d1e68b446b906ae15cabd403`.
 The parity gate passed.
 
-| Tool | Pre-warmup elapsed | Warm elapsed median | Warm CPU median | Warm peak working set median |
-|---|---:|---:|---:|---:|
-| Picket | 594.43 ms | 592.24 ms | 3,375.00 ms | 88.34 MiB |
-| Gitleaks | 1,762.73 ms | 1,704.48 ms | 7,828.12 ms | 88.87 MiB |
+| Tool | Pre-warmup elapsed | Warm elapsed median | Warm elapsed p95 | Warm CPU median | Warm peak working set median |
+|---|---:|---:|---:|---:|---:|
+| Picket | 976.02 ms | 978.48 ms | 1,007.87 ms | 2,750.00 ms | 115.61 MiB |
+| Gitleaks | 687.27 ms | 755.88 ms | 787.35 ms | 2,671.88 ms | 106.73 MiB |
 
-On this scenario and host, Picket's warm elapsed median was 2.88 times faster.
-This is not a claim about other repositories, rules, source modes, or machines.
-The run used Windows `10.0.26200`, NTFS, an AMD64 Family 26 Model 68 processor
-with 32 effective processors, .NET `10.0.9`, and SDK `10.0.301`. Host-level
-filesystem caches were not reset, so the pre-warmup values are not cold OS-cache
-measurements.
+Picket's warm elapsed median was 29.45% higher than Gitleaks in this run. This
+result supersedes the earlier public speed claim and remains scoped to this
+corpus, scanner mode, host, and tool versions.
 
-The `native-cache-tracked` run used Picket commit
-`efa74bf9aca0de74dc150e961f2ac86a2e59d42e` and preserved the same 55
-canonical findings with and without its secret-hash-only cache. The uncached
-warm median was 8,052.54 ms with 104.55 MiB
-peak working set. The cache-hit warm median was 150.51 ms with 32.75 MiB peak
-working set and reported 442 hits, zero misses, and zero writes. These values
-establish a regression baseline for Picket's own incremental mode; they are not
-a competitor comparison.
+The native cache scenario preserved the same 74 canonical findings with and
+without its secret-hash-only cache. Its canonical finding-set SHA-256 was
+`4464003d4be600488e1ff7e83a2bb1b9986183a71e01b4c9ad83faa7a749bdb7`.
+Every warm cache-enabled run reported 614 hits, zero misses, and zero writes.
 
-### Reviewed Capability Baseline: 2026-07-12
+| Cache mode | Pre-warmup elapsed | Warm elapsed median | Warm elapsed p95 | Warm CPU median | Warm peak working set median |
+|---|---:|---:|---:|---:|---:|
+| Disabled | 1,294.18 ms | 1,226.05 ms | 1,262.27 ms | 3,671.88 ms | 144.66 MiB |
+| Secret-hash-only | 1,346.50 ms | 448.31 ms | 453.35 ms | 406.25 ms | 75.00 MiB |
 
-The first reviewed capability-separated baseline used Picket commit
-`a81363ec0d0994b9ab00df3ddfd8a5af1599d855` with Scout packages `0.4.4`,
-TruffleHog commit `f2cd191b97098913a07522227d2b5e40e57252f4`
+The populated cache reduced the warm elapsed median by 63.43%, or 2.73 times,
+while preserving the required canonical finding set.
+
+### Reviewed Capability Baseline: 2026-08-02
+
+The capability-separated scenario used the same Picket binary, TruffleHog
+commit `f2cd191b97098913a07522227d2b5e40e57252f4`
 (`v3.95.8-1-gf2cd191b9`), and Kingfisher commit
-`78904df5ea7354a7dc3700e3c41a124524d23083` (`1.105.0`). The checked-in
-`native-filesystem-competitors` scenario staged 455 tracked files from `src/`
-and `tests/` totaling 4,464,165 bytes. Its corpus manifest SHA-256 was
-`d4db6f3f916ee638591ade8413ec90d63abac8842c81b9ad3a5d2d6ca11e8b11`.
+`78904df5ea7354a7dc3700e3c41a124524d23083` (`1.105.0`).
 
 | Tool | Findings | Pre-warmup elapsed | Warm elapsed median | Warm elapsed p95 | Warm CPU median | Warm peak working set median |
 |---|---:|---:|---:|---:|---:|---:|
-| Picket native | 55 | 8,419.04 ms | 7,920.62 ms | 8,488.61 ms | 25,921.88 ms | 107.52 MiB |
-| TruffleHog filesystem | 30 | 1,362.75 ms | 1,350.40 ms | 1,421.73 ms | 437.50 ms | 116.63 MiB |
-| Kingfisher filesystem | 21 | 258.13 ms | 246.87 ms | 260.31 ms | 453.12 ms | 152.72 MiB |
+| Picket native | 74 | 1,189.39 ms | 1,186.10 ms | 1,197.28 ms | 3,687.50 ms | 146.98 MiB |
+| TruffleHog filesystem | 32 | 1,421.95 ms | 1,407.71 ms | 1,427.26 ms | 421.88 ms | 119.04 MiB |
+| Kingfisher filesystem | 23 | 3,400.38 ms | 226.27 ms | 230.94 ms | 671.88 ms | 184.37 MiB |
 
-The finding sets are not equivalent. Picket exercised its native rules,
-offline filtering, decoding, archive traversal, and ignore behavior;
-TruffleHog and Kingfisher exercised their own defaults with network
-verification and update checks disabled. The scenario therefore has no parity
-group and these timings do not identify a universal winner. They establish a
-repeatable full-capability baseline for later profiling after implementation is
-feature complete.
+The finding sets are not equivalent. Each scanner retained its own built-in
+rules, offline filtering, decoding, archive handling, and ignore behavior. The
+scenario therefore has no parity group and does not establish a universal
+winner.
 
-The run used Windows `10.0.26200`, NTFS, an AMD64 Family 26 Model 68 processor
-with 32 effective processors, 47.13 GiB of GC-visible memory, .NET `10.0.9`, and
-SDK `10.0.301`. Host-level filesystem caches were not reset, so the pre-warmup
-values are not cold OS-cache measurements.
+### Reviewed Report-Writing Baseline: 2026-08-02
 
-### Reviewed Report-Writing Baseline: 2026-07-12
-
-The first end-to-end report fan-out baseline used Picket commit
-`dc7383e6dace5e6e5595558a08dfe4c9c1c84621`, Scout packages `0.4.4`, and the
-`release-speed` Windows x64 Native AOT executable. The executable was
-13,666,816 bytes and identified the same commit in `picket version`. The
-scenario staged 455 committed files from `src/` and `tests/` totaling 4,473,072
-bytes. Its corpus manifest SHA-256 was
-`00d9a1849f40342e86063bfdbc43f368cd8d88016c20813b36ce9976906dc792`.
-
-Both variants produced 55 primary JSON Lines findings with canonical
-finding-set SHA-256
-`3ed86436141af5b83478ad97d2777c3883aa8dadbff8b4efa2b9a4d9a264813a`.
-The fan-out variant also produced three deterministic reports totaling 678,075
-bytes. Their content manifest SHA-256 was
-`fbc8bdc3d0c00ecf966c8c2013645a1fd615a206b97e2c1416541697a52a2ad1`
+Both report-writing variants produced 74 primary JSON Lines findings with
+canonical finding-set SHA-256
+`117d0e72ee8c005c92dfd83cecfa6d7bc4becb29db69647e345ee6be289f29ef`.
+The fan-out variant produced three additional deterministic reports totaling
+862,860 bytes. Their content manifest SHA-256 was
+`86b224dddd1dc59a50b37bee3847be07c9b5f2f5e988ff403a5576ac552e7475`
 in every retained round.
 
 | Report set | Pre-warmup elapsed | Warm elapsed median | Warm elapsed p95 | Warm CPU median | Warm peak working set median |
 |---|---:|---:|---:|---:|---:|
-| JSON Lines | 8,377.18 ms | 8,051.07 ms | 8,186.68 ms | 26,250.00 ms | 101.67 MiB |
-| JSON Lines, SARIF, HTML, and TOON | 8,163.54 ms | 8,181.89 ms | 8,254.22 ms | 26,265.63 ms | 104.28 MiB |
+| JSON Lines | 1,232.57 ms | 1,177.34 ms | 1,198.85 ms | 4,234.38 ms | 144.26 MiB |
+| JSON Lines, SARIF, HTML, and TOON | 1,212.81 ms | 1,195.61 ms | 1,206.32 ms | 4,218.75 ms | 147.14 MiB |
 
-The observed warm-median difference was 130.82 ms, or 1.62% of the JSON Lines
-control. This is an end-to-end repository result, not an isolated writer
-microbenchmark; use `ReportWriterBenchmarks` for allocation and writer-only
-throughput. Host-level filesystem caches were not reset. The host otherwise
-matched the reviewed Windows conditions above: Windows `10.0.26200`, NTFS, 32
-effective processors, .NET `10.0.9`, and SDK `10.0.301`.
+The additional writers increased the warm elapsed median by 18.27 ms, or
+1.55%. This is an end-to-end result; use `ReportWriterBenchmarks` for isolated
+writer throughput and allocations.
+
+The detailed July 12 and July 31 measurements used older Picket commits, Scout
+versions, and smaller corpora. They remain available in repository history but
+are not repeated here because their differing inputs make them unsuitable as a
+direct before-and-after comparison with this release baseline.
 
 Release automation writes `release-artifacts.json` after assembling all final
 payloads. The deterministic manifest records each archive, installer, NuGet
@@ -380,13 +373,21 @@ material bottleneck to a Scout package, capture a minimal reproducer, benchmark
 or trace, exact package version, command line, input shape, and expected impact.
 Open a concise Scout issue with that evidence.
 
-Scout `0.4.8` resolved the capture-throughput regression tracked during the
-2026-07-31 compatibility scan investigation. On the same Short
-`GitleaksRegexPipelineBenchmarks` job, `ScoutRegexCapturesOnly` improved from
-35.55 ms with `0.4.7` to 22.18 ms with `0.4.8`, and
-`PicketCompatibilityPipeline` improved from 34.36 ms to 20.07 ms. The full
-default job measured 22.11 ms and 19.73 ms respectively after the Picket path
-filtering changes. The retained match counts were identical.
+The full `GitleaksRegexPipelineBenchmarks` default job for Picket `v0.2.8` and
+Scout.Text.Regex `0.6.1` measured the current regex paths on .NET `10.0.10`:
+
+| Method | Mean | Managed allocation |
+|---|---:|---:|
+| Keyword candidate selection | 163.7 us | 0 B |
+| Scout search with captures | 63.17 ms | 14,320 B |
+| Scout captures over prepared candidates | 62.61 ms | 14,320 B |
+| Scout find without captures | 62.23 ms | 6,720 B |
+| Scout find then capture | 62.49 ms | 14,320 B |
+| Complete Picket compatibility pipeline | 56.61 ms | 50,792 B |
+
+All four Scout execution paths returned the same raw match count during setup.
+Older package-specific measurements remain in repository history but are not a
+current baseline because the regex implementation and benchmark input changed.
 
 If the Scout bottleneck is critical enough to block Picket's feature-complete
 path, pause Picket implementation work and fix Scout first. Non-critical Scout
