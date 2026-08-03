@@ -2520,6 +2520,39 @@ public sealed class PicketTuiTests
     }
 
     /// <summary>
+    /// Verifies that the full-screen scanner console negotiates mouse tracking with the presentation terminal.
+    /// </summary>
+    [TestMethod]
+    [Timeout(10000, CooperativeCancellation = true)]
+    public async Task Hex1bFullScreenConsoleNegotiatesMouseTracking()
+    {
+        PicketTuiState state = CreateState();
+        using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        await using Hex1bTerminal terminal = CreateHeadlessTerminal(state, width: 120, height: 32);
+
+        Task<int> runTask = terminal.RunAsync(cancellationTokenSource.Token);
+        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
+            .WaitUntil(
+                s => s.MouseProtocolAnyEnabled && s.MouseEncodingSgrEnabled,
+                TimeSpan.FromSeconds(5),
+                "mouse tracking modes to be enabled")
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+        await new Hex1bTerminalInputSequenceBuilder()
+            .Ctrl().Key(Hex1bKey.Q)
+            .Build()
+            .ApplyAsync(terminal, TestContext.CancellationToken)
+            .ConfigureAwait(false);
+
+        int exitCode = await runTask.ConfigureAwait(false);
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsTrue(snapshot.MouseProtocolAnyEnabled);
+        Assert.IsTrue(snapshot.MouseEncodingSgrEnabled);
+    }
+
+    /// <summary>
     /// Verifies that the full-screen scanner console opens a loaded report directly on findings and exits through its keyboard binding.
     /// </summary>
     [TestMethod]
@@ -4193,19 +4226,8 @@ public sealed class PicketTuiTests
         int height,
         Action<Hex1bApp>? appCreated = null)
     {
-        return Hex1bTerminal.CreateBuilder()
-            .WithHex1bApp(
-                options =>
-                {
-                    options.EnableMouse = true;
-                    options.Theme = PicketTuiPalette.CreateTheme();
-                },
-                app =>
-                {
-                    appCreated?.Invoke(app);
-                    return ctx => PicketTuiApp.Build(ctx, state, app);
-                })
-            .WithHeadless()
+        return PicketTuiRunner.CreateTerminalBuilder(state, appCreated)
+            .WithHeadless(TerminalCapabilities.Minimal with { SupportsMouse = true })
             .WithDimensions(width, height)
             .Build();
     }

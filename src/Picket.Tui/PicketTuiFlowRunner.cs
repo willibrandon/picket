@@ -37,6 +37,7 @@ internal static class PicketTuiFlowRunner
         string selectedReportPath = reportPath ?? string.Empty;
 
         await using Hex1bTerminal terminal = Hex1bTerminal.CreateBuilder()
+            .WithMouse()
             .WithScrollback()
             .WithHex1bFlow(async flow =>
             {

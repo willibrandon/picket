@@ -70,17 +70,27 @@ internal static class PicketTuiRunner
         return state;
     }
 
-    private static Hex1bTerminal CreateTerminal(PicketTuiState state)
+    internal static Hex1bTerminalBuilder CreateTerminalBuilder(
+        PicketTuiState state,
+        Action<Hex1bApp>? appCreated = null)
     {
         return Hex1bTerminal.CreateBuilder()
+            .WithMouse()
             .WithHex1bApp(
                 options =>
                 {
-                    options.EnableMouse = true;
                     options.Theme = PicketTuiPalette.CreateTheme();
                 },
-                app => ctx => PicketTuiApp.Build(ctx, state, app))
-            .Build();
+                app =>
+                {
+                    appCreated?.Invoke(app);
+                    return ctx => PicketTuiApp.Build(ctx, state, app);
+                });
+    }
+
+    private static Hex1bTerminal CreateTerminal(PicketTuiState state)
+    {
+        return CreateTerminalBuilder(state).Build();
     }
 
     private static async Task<int> RunTerminalLoopAsync(PicketTuiState state, CancellationToken cancellationToken)
