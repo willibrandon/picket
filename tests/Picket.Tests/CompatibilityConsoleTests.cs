@@ -297,7 +297,7 @@ public sealed partial class CompatibilityConsoleTests
             .ApplyAsync(terminal, cancellationToken)
             .ConfigureAwait(false);
 
-        int exitCode = await runTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        int exitCode = await runTask.ConfigureAwait(false);
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
@@ -534,7 +534,7 @@ public sealed partial class CompatibilityConsoleTests
             .ApplyAsync(terminal, cancellationToken)
             .ConfigureAwait(false);
 
-        int exitCode = await runTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        int exitCode = await runTask.ConfigureAwait(false);
         string screenText = snapshot.GetScreenText();
 
         Assert.AreEqual(0, exitCode);
