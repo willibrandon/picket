@@ -574,7 +574,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("-p:IlcGenerateMstatFile=true", githubWorkflow);
         Assert.Contains("uses: willibrandon/dotsider@v0", githubWorkflow);
         Assert.Contains("target: ${{ steps.native_aot.outputs.target }}", githubWorkflow);
-        Assert.Contains("dotsider-version: v0.24.8", githubWorkflow);
+        Assert.Contains("dotsider-version: v0.24.9", githubWorkflow);
         Assert.Contains("size_budget: max=25mb", githubWorkflow);
         Assert.Contains("size_budget: max=40mb", githubWorkflow);
         Assert.Contains("budgets: ${{ matrix.size_budget }}", githubWorkflow);
@@ -584,14 +584,14 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("actions/download-artifact@v8.0.1", githubWorkflow);
         Assert.Contains("DotsiderSizeCheck@1", azurePipeline);
         Assert.Contains("-p:IlcGenerateMstatFile=true", azurePipeline);
-        Assert.Contains("dotsiderVersion: v0.24.8", azurePipeline);
+        Assert.Contains("dotsiderVersion: v0.24.9", azurePipeline);
         Assert.Contains("budgets: max=25mb", azurePipeline);
         Assert.Contains("artifactName: dotsider-size-check-win-x64", azurePipeline);
         Assert.Contains("baseline: $(sizeCheckBaseline)", azurePipeline);
         Assert.Contains("DownloadPipelineArtifact@2", azurePipeline);
         Assert.Contains("dotsider-size-baseline-win-x64", azurePipeline);
         Assert.Contains("Native AOT Size Validation", documentation);
-        Assert.Contains("Dotsider CLI to `v0.24.8`", documentation);
+        Assert.Contains("Dotsider CLI to `v0.24.9`", documentation);
         Assert.Contains("25 MB for Linux and Windows and 40 MB for macOS", documentation);
         Assert.Contains("checks the current build against its absolute cap", documentation);
         Assert.Contains("separate JSON and Markdown reports for each RID", documentation);
