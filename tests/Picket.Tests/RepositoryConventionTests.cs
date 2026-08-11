@@ -574,19 +574,27 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("-p:IlcGenerateMstatFile=true", githubWorkflow);
         Assert.Contains("uses: willibrandon/dotsider@v0", githubWorkflow);
         Assert.Contains("target: ${{ steps.native_aot.outputs.target }}", githubWorkflow);
-        Assert.Contains("dotsider-version: v0.24.4", githubWorkflow);
+        Assert.Contains("dotsider-version: v0.24.5", githubWorkflow);
         Assert.Contains("size_budget: max=25mb", githubWorkflow);
         Assert.Contains("size_budget: max=40mb", githubWorkflow);
         Assert.Contains("budgets: ${{ matrix.size_budget }}", githubWorkflow);
         Assert.Contains("artifact-name: dotsider-size-check-${{ matrix.rid }}", githubWorkflow);
+        Assert.Contains("baseline: ${{ steps.size_baseline.outputs.path }}", githubWorkflow);
+        Assert.Contains("dotsider-size-baseline-${{ matrix.rid }}", githubWorkflow);
+        Assert.Contains("actions/download-artifact@v8.0.1", githubWorkflow);
         Assert.Contains("DotsiderSizeCheck@1", azurePipeline);
         Assert.Contains("-p:IlcGenerateMstatFile=true", azurePipeline);
-        Assert.Contains("dotsiderVersion: v0.24.4", azurePipeline);
+        Assert.Contains("dotsiderVersion: v0.24.5", azurePipeline);
         Assert.Contains("budgets: max=25mb", azurePipeline);
         Assert.Contains("artifactName: dotsider-size-check-win-x64", azurePipeline);
+        Assert.Contains("baseline: $(sizeCheckBaseline)", azurePipeline);
+        Assert.Contains("DownloadPipelineArtifact@2", azurePipeline);
+        Assert.Contains("dotsider-size-baseline-win-x64", azurePipeline);
         Assert.Contains("Native AOT Size Validation", documentation);
         Assert.Contains("25 MB for Linux and Windows and 40 MB for macOS", documentation);
         Assert.Contains("separate JSON and Markdown reports for each RID", documentation);
+        Assert.Contains("newest baseline from a successful `main` build", documentation);
+        Assert.Contains("current build is never compared with itself", documentation);
         Assert.Contains("not added to release archives", documentation);
     }
 
@@ -830,11 +838,11 @@ public sealed partial class RepositoryConventionTests
         AssertActionReference(workflows, "actions/checkout", "actions/checkout@v7.0.1");
         AssertActionReference(workflows, "actions/configure-pages", "actions/configure-pages@v6.0.0");
         AssertActionReference(workflows, "actions/deploy-pages", "actions/deploy-pages@v5.0.0");
+        AssertActionReference(workflows, "actions/download-artifact", "actions/download-artifact@v8.0.1");
         AssertActionReference(workflows, "actions/setup-dotnet", "actions/setup-dotnet@v6.0.0");
         AssertActionReference(workflows, "actions/setup-node", "actions/setup-node@v7.0.0");
         AssertActionReference(workflows, "actions/upload-artifact", "actions/upload-artifact@v7.0.1");
         AssertActionReference(workflows, "actions/upload-pages-artifact", "actions/upload-pages-artifact@v5.0.0");
-        Assert.DoesNotContain("actions/download-artifact@", workflows);
         Assert.HasCount(6, workflows.Split("node-version: 24", StringSplitOptions.None));
         Assert.DoesNotContain("node-version: 20", workflows);
     }
