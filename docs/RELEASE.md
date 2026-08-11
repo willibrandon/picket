@@ -73,7 +73,7 @@ This is the analyzer gate for Native AOT, trimming, single-file compatibility, a
 
 CI generates an ILC `.mstat` sidecar for the `release-speed` Picket CLI and runs the Dotsider size-check integration against the published executable. The GitHub workflow checks every native RID in its build matrix through Dotsider's moving `v0` action tag and uploads separate JSON and Markdown reports for each RID. The root Azure Pipelines workflow checks its `win-x64` Native AOT build with the `DotsiderSizeCheck@1` Marketplace task.
 
-Both integrations pin the downloaded Dotsider CLI to `v0.24.7`. GitHub enforces absolute caps of 25 MB for Linux and Windows and 40 MB for macOS; Azure enforces 25 MB for its Windows x64 build. The separate macOS cap accounts for the release profile's intentional `StripSymbols=false` workaround while still making a material increase fail CI.
+Both integrations pin the downloaded Dotsider CLI to `v0.24.8`. GitHub enforces absolute caps of 25 MB for Linux and Windows and 40 MB for macOS; Azure enforces 25 MB for its Windows x64 build. The separate macOS cap accounts for the release profile's intentional `StripSymbols=false` workaround while still making a material increase fail CI.
 
 Each successful `main` build publishes the executable and `.mstat` sidecar as a RID-specific baseline. Later runs restore the newest baseline from a successful `main` build before invoking Dotsider, so pull requests report actual regressions. When no retained baseline is available, Dotsider checks the current build against its absolute cap and the next successful `main` build establishes the baseline. The current build is never compared with itself. These baseline sidecars exist only as CI artifacts and are not added to release archives.
 

@@ -185,7 +185,7 @@ jobs:
           baseline: ${{ steps.size_baseline.outputs.path }}
           budgets: ${{ matrix.size_budget }}
           top: '20'
-          dotsider-version: v0.24.7
+          dotsider-version: v0.24.8
           report-directory: ${{ runner.temp }}/dotsider-size-check-${{ matrix.rid }}
           artifact-name: dotsider-size-check-${{ matrix.rid }}
 

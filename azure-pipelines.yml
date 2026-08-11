@@ -110,7 +110,7 @@ steps:
     baseline: $(sizeCheckBaseline)
     budgets: max=25mb
     top: 20
-    dotsiderVersion: v0.24.7
+    dotsiderVersion: v0.24.8
     reportDirectory: $(Build.ArtifactStagingDirectory)\dotsider-size-check
     artifactName: dotsider-size-check-win-x64
 
