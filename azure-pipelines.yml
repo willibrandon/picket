@@ -10,6 +10,7 @@ pool:
 variables:
   buildConfiguration: Release
   cliPublishDirectory: $(Pipeline.Workspace)\picket-cli
+  sizeCheckPublishDirectory: $(Pipeline.Workspace)\picket-size-check
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
@@ -31,6 +32,31 @@ steps:
 
 - pwsh: dotnet test --solution Picket.slnx --configuration $(buildConfiguration) --no-build --verbosity minimal
   displayName: Test
+
+- pwsh: |
+    dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration $(buildConfiguration) --framework net10.0 --runtime win-x64 --no-restore --output "$(sizeCheckPublishDirectory)" -p:PublishProfile=release-speed -p:IlcGenerateMstatFile=true
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+
+    $mstatPath = Join-Path "$(Build.SourcesDirectory)" 'src\Picket.Cli\obj\Release\net10.0\win-x64\native\picket.mstat'
+    if (-not (Test-Path -LiteralPath $mstatPath -PathType Leaf)) {
+        throw "Native AOT publish did not produce the Picket size report: $mstatPath"
+    }
+
+    Copy-Item -LiteralPath $mstatPath -Destination (Join-Path "$(sizeCheckPublishDirectory)" 'picket.mstat')
+  displayName: Publish Native AOT size-check binary
+
+- task: DotsiderSizeCheck@1
+  name: dotsiderSize
+  displayName: Check Native AOT size
+  inputs:
+    target: $(sizeCheckPublishDirectory)\picket.exe
+    budgets: max=25mb
+    top: 20
+    dotsiderVersion: v0.24.2
+    reportDirectory: $(Build.ArtifactStagingDirectory)\dotsider-size-check
+    artifactName: dotsider-size-check-win-x64
 
 - pwsh: >
     dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration $(buildConfiguration) --framework net10.0 --no-restore --output "$(cliPublishDirectory)" -p:PublishAot=false -p:SelfContained=false -p:UseAppHost=true

@@ -77,6 +77,12 @@ Every CI run also publishes `picket` and `picket-tui` with `release-speed` for t
 
 This is the analyzer gate for Native AOT, trimming, single-file compatibility, and RID-specific publish behavior. A normal `dotnet build` is not enough evidence that the shipped executables can be produced.
 
+## Native AOT Size Validation
+
+CI generates an ILC `.mstat` sidecar for the `release-speed` Picket CLI and runs the Dotsider size-check integration against the published executable. The GitHub workflow checks every native RID in its build matrix through Dotsider's moving `v0` action tag and uploads separate JSON and Markdown reports for each RID. The root Azure Pipelines workflow checks its `win-x64` Native AOT build with the `DotsiderSizeCheck@1` Marketplace task.
+
+Both integrations pin the downloaded Dotsider CLI to `v0.24.2` and enforce `max=25mb`. The current Windows x64 executable is approximately 15 MB, leaving cross-platform headroom while still making a material Native AOT size increase fail CI. Size sidecars are generated and copied beside the executable only for these checks; they are not added to release archives.
+
 The Linux jobs install `musl-tools`, build the decompression-only zstandard 1.5.7 runtime from its SHA-256-pinned upstream archive, and pass it to `scripts/Publish-LinuxMusl.cs`. The pinned archive hash matches Meta's published [`zstd-1.5.7.tar.gz.sha256`](https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz.sha256) release asset. The publish app builds both executables and RID-specific tool packages in a digest-pinned Alpine AOT SDK image and rejects an executable unless its ELF interpreter is musl. `Picket.Cli` also fails when `PICKET_ZSTANDARD_MUSL_LIBRARY` does not identify the verified runtime, preventing NuGet's generic Linux asset fallback from placing a glibc library in Alpine artifacts. CI and release jobs then run the published scanner against a generated zstandard-compressed fixture in a digest-pinned .NET runtime-deps Alpine container, so a mislabeled executable, missing library, unloadable runtime, or nonfunctional decompressor fails before packaging.
 
 For a manual musl publish on Linux:

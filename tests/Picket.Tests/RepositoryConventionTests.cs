@@ -562,6 +562,33 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that GitHub and Azure Pipelines enforce the same pinned Native AOT size budget.
+    /// </summary>
+    [TestMethod]
+    public void CiPipelinesEnforceNativeAotSizeBudget()
+    {
+        string githubWorkflow = ReadRepositoryFile(".github/workflows/ci.yml");
+        string azurePipeline = ReadRepositoryFile("azure-pipelines.yml");
+        string documentation = ReadRepositoryFile("docs/RELEASE.md");
+
+        Assert.Contains("-p:IlcGenerateMstatFile=true", githubWorkflow);
+        Assert.Contains("uses: willibrandon/dotsider@v0", githubWorkflow);
+        Assert.Contains("target: ${{ steps.native_aot.outputs.target }}", githubWorkflow);
+        Assert.Contains("dotsider-version: v0.24.2", githubWorkflow);
+        Assert.Contains("budgets: max=25mb", githubWorkflow);
+        Assert.Contains("artifact-name: dotsider-size-check-${{ matrix.rid }}", githubWorkflow);
+        Assert.Contains("DotsiderSizeCheck@1", azurePipeline);
+        Assert.Contains("-p:IlcGenerateMstatFile=true", azurePipeline);
+        Assert.Contains("dotsiderVersion: v0.24.2", azurePipeline);
+        Assert.Contains("budgets: max=25mb", azurePipeline);
+        Assert.Contains("artifactName: dotsider-size-check-win-x64", azurePipeline);
+        Assert.Contains("Native AOT Size Validation", documentation);
+        Assert.Contains("`max=25mb`", documentation);
+        Assert.Contains("separate JSON and Markdown reports for each RID", documentation);
+        Assert.Contains("not added to release archives", documentation);
+    }
+
+    /// <summary>
     /// Verifies that container image packaging follows the release distribution contract.
     /// </summary>
     [TestMethod]

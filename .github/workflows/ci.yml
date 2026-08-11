@@ -88,11 +88,19 @@ jobs:
         run: node --test azure-devops/tasks/PicketScanV1/index.test.js
 
       - name: Publish Native AOT binaries
+        id: native_aot
         shell: pwsh
         run: |
           $publishOutput = Join-Path $env:RUNNER_TEMP "picket-native-${{ matrix.rid }}"
-          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
+          dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration Release -p:PublishProfile=release-speed -p:IlcGenerateMstatFile=true -r ${{ matrix.rid }} --no-restore -o $publishOutput
           dotnet publish src/Picket.Tui.Cli/Picket.Tui.Cli.csproj --configuration Release -p:PublishProfile=release-speed -r ${{ matrix.rid }} --no-restore -o $publishOutput
+
+          $mstatPath = Join-Path $PWD "src/Picket.Cli/obj/Release/net10.0/${{ matrix.rid }}/native/picket.mstat"
+          if (!(Test-Path -LiteralPath $mstatPath -PathType Leaf)) {
+            throw "Native AOT publish did not produce the Picket size report: $mstatPath"
+          }
+
+          Copy-Item -LiteralPath $mstatPath -Destination (Join-Path $publishOutput 'picket.mstat')
 
           $symbolArtifacts = @(
             Get-ChildItem -LiteralPath $publishOutput -Recurse -Force |
@@ -114,6 +122,20 @@ jobs:
           if ($IsWindows -and (Test-Path -LiteralPath (Join-Path $publishOutput 'hex1bpty.exe'))) {
             throw 'Windows publish output contains the unused hex1bpty.exe helper.'
           }
+
+          $executableName = if ($IsWindows) { 'picket.exe' } else { 'picket' }
+          "target=$(Join-Path $publishOutput $executableName)" >> $env:GITHUB_OUTPUT
+
+      - name: Check Native AOT size
+        id: dotsider-size
+        uses: willibrandon/dotsider@v0
+        with:
+          target: ${{ steps.native_aot.outputs.target }}
+          budgets: max=25mb
+          top: '20'
+          dotsider-version: v0.24.2
+          report-directory: ${{ runner.temp }}/dotsider-size-check-${{ matrix.rid }}
+          artifact-name: dotsider-size-check-${{ matrix.rid }}
 
       - name: Test Native AOT compatibility oracles
         shell: pwsh
