@@ -54,7 +54,7 @@ steps:
     target: $(sizeCheckPublishDirectory)\picket.exe
     budgets: max=25mb
     top: 20
-    dotsiderVersion: v0.24.2
+    dotsiderVersion: v0.24.4
     reportDirectory: $(Build.ArtifactStagingDirectory)\dotsider-size-check
     artifactName: dotsider-size-check-win-x64
 

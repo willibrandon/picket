@@ -574,14 +574,14 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("-p:IlcGenerateMstatFile=true", githubWorkflow);
         Assert.Contains("uses: willibrandon/dotsider@v0", githubWorkflow);
         Assert.Contains("target: ${{ steps.native_aot.outputs.target }}", githubWorkflow);
-        Assert.Contains("dotsider-version: v0.24.2", githubWorkflow);
+        Assert.Contains("dotsider-version: v0.24.4", githubWorkflow);
         Assert.Contains("size_budget: max=25mb", githubWorkflow);
         Assert.Contains("size_budget: max=40mb", githubWorkflow);
         Assert.Contains("budgets: ${{ matrix.size_budget }}", githubWorkflow);
         Assert.Contains("artifact-name: dotsider-size-check-${{ matrix.rid }}", githubWorkflow);
         Assert.Contains("DotsiderSizeCheck@1", azurePipeline);
         Assert.Contains("-p:IlcGenerateMstatFile=true", azurePipeline);
-        Assert.Contains("dotsiderVersion: v0.24.2", azurePipeline);
+        Assert.Contains("dotsiderVersion: v0.24.4", azurePipeline);
         Assert.Contains("budgets: max=25mb", azurePipeline);
         Assert.Contains("artifactName: dotsider-size-check-win-x64", azurePipeline);
         Assert.Contains("Native AOT Size Validation", documentation);
