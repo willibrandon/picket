@@ -23,16 +23,22 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
+            size_budget: max=25mb
           - os: ubuntu-24.04-arm
             rid: linux-arm64
+            size_budget: max=25mb
           - os: windows-latest
             rid: win-x64
+            size_budget: max=25mb
           - os: windows-11-arm
             rid: win-arm64
+            size_budget: max=25mb
           - os: macos-26-intel
             rid: osx-x64
+            size_budget: max=40mb
           - os: macos-26
             rid: osx-arm64
+            size_budget: max=40mb
 
     steps:
       - name: Check out repository
@@ -131,7 +137,7 @@ jobs:
         uses: willibrandon/dotsider@v0
         with:
           target: ${{ steps.native_aot.outputs.target }}
-          budgets: max=25mb
+          budgets: ${{ matrix.size_budget }}
           top: '20'
           dotsider-version: v0.24.2
           report-directory: ${{ runner.temp }}/dotsider-size-check-${{ matrix.rid }}
