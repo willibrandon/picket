@@ -11,8 +11,6 @@ variables:
   buildConfiguration: Release
   cliPublishDirectory: $(Pipeline.Workspace)\picket-cli
   sizeCheckPublishDirectory: $(Pipeline.Workspace)\picket-size-check
-  sizeCheckBaselineDirectory: $(Pipeline.Workspace)\picket-size-baseline
-  sizeCheckCurrentBaselineDirectory: $(Pipeline.Workspace)\picket-size-baseline-current
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
@@ -47,79 +45,19 @@ steps:
     }
 
     Copy-Item -LiteralPath $mstatPath -Destination (Join-Path "$(sizeCheckPublishDirectory)" 'picket.mstat')
-
-    New-Item -ItemType Directory -Force -Path "$(sizeCheckCurrentBaselineDirectory)" | Out-Null
-    Copy-Item -LiteralPath (Join-Path "$(sizeCheckPublishDirectory)" 'picket.exe') -Destination "$(sizeCheckCurrentBaselineDirectory)"
-    Copy-Item -LiteralPath (Join-Path "$(sizeCheckPublishDirectory)" 'picket.mstat') -Destination "$(sizeCheckCurrentBaselineDirectory)"
   displayName: Publish Native AOT size-check binary
-
-- pwsh: |
-    Write-Host '##vso[task.setvariable variable=sizeCheckBaselineBuildId]'
-    $headers = @{ Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN" }
-    $buildsUri = "$env:SYSTEM_COLLECTIONURI$env:SYSTEM_TEAMPROJECTID/_apis/build/builds?definitions=$env:SYSTEM_DEFINITIONID&branchName=refs%2Fheads%2Fmain&statusFilter=completed&resultFilter=succeeded&queryOrder=finishTimeDescending&%24top=25&api-version=7.1"
-    $builds = Invoke-RestMethod -Uri $buildsUri -Headers $headers
-    $found = $false
-    foreach ($build in $builds.value) {
-        $artifactsUri = "$env:SYSTEM_COLLECTIONURI$env:SYSTEM_TEAMPROJECTID/_apis/build/builds/$($build.id)/artifacts?api-version=7.1"
-        $artifacts = Invoke-RestMethod -Uri $artifactsUri -Headers $headers
-        if ($artifacts.value.name -contains 'dotsider-size-baseline-win-x64') {
-            Write-Host "Using Native AOT size baseline from build $($build.id)."
-            Write-Host "##vso[task.setvariable variable=sizeCheckBaselineBuildId]$($build.id)"
-            $found = $true
-            break
-        }
-    }
-
-    if (-not $found) {
-        Write-Host 'No successful main-branch size baseline is available; this run will establish one.'
-    }
-  displayName: Find latest Native AOT size baseline
-  env:
-    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-    SYSTEM_COLLECTIONURI: $(System.CollectionUri)
-    SYSTEM_TEAMPROJECTID: $(System.TeamProjectId)
-    SYSTEM_DEFINITIONID: $(System.DefinitionId)
-
-- task: DownloadPipelineArtifact@2
-  displayName: Restore Native AOT size baseline
-  condition: and(succeeded(), ne(variables['sizeCheckBaselineBuildId'], ''))
-  inputs:
-    buildType: specific
-    project: $(System.TeamProjectId)
-    definition: $(System.DefinitionId)
-    buildVersionToDownload: specific
-    pipelineId: $(sizeCheckBaselineBuildId)
-    artifactName: dotsider-size-baseline-win-x64
-    targetPath: $(sizeCheckBaselineDirectory)
-
-- pwsh: |
-    $baseline = Join-Path "$(sizeCheckBaselineDirectory)" 'picket.exe'
-    if (Test-Path -LiteralPath $baseline -PathType Leaf) {
-        Write-Host "##vso[task.setvariable variable=sizeCheckBaseline]$baseline"
-    }
-    else {
-        Write-Host '##vso[task.setvariable variable=sizeCheckBaseline]'
-    }
-  displayName: Resolve Native AOT size baseline
 
 - task: DotsiderSizeCheck@1
   name: dotsiderSize
   displayName: Check Native AOT size
   inputs:
     target: $(sizeCheckPublishDirectory)\picket.exe
-    baseline: $(sizeCheckBaseline)
+    baselineKey: picket-win-x64
     budgets: max=25mb
     top: 20
-    dotsiderVersion: v0.24.9
+    dotsiderVersion: v0.25.0
     reportDirectory: $(Build.ArtifactStagingDirectory)\dotsider-size-check
     artifactName: dotsider-size-check-win-x64
-
-- task: PublishPipelineArtifact@1
-  displayName: Publish Native AOT size baseline
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-  inputs:
-    targetPath: $(sizeCheckCurrentBaselineDirectory)
-    artifactName: dotsider-size-baseline-win-x64
 
 - pwsh: >
     dotnet publish src/Picket.Cli/Picket.Cli.csproj --configuration $(buildConfiguration) --framework net10.0 --no-restore --output "$(cliPublishDirectory)" -p:PublishAot=false -p:SelfContained=false -p:UseAppHost=true
