@@ -574,7 +574,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("-p:IlcGenerateMstatFile=true", githubWorkflow);
         Assert.Contains("uses: willibrandon/dotsider@v0", githubWorkflow);
         Assert.Contains("target: ${{ steps.native_aot.outputs.target }}", githubWorkflow);
-        Assert.Contains("dotsider-version: v0.25.0", githubWorkflow);
+        Assert.Contains("dotsider-version: v0.25.1", githubWorkflow);
         Assert.Contains("size_budget: max=25mb", githubWorkflow);
         Assert.Contains("size_budget: max=40mb", githubWorkflow);
         Assert.Contains("budgets: ${{ matrix.size_budget }}", githubWorkflow);
@@ -586,14 +586,14 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("dotsider-size-baseline-${{ matrix.rid }}", githubWorkflow);
         Assert.Contains("DotsiderSizeCheck@1", azurePipeline);
         Assert.Contains("-p:IlcGenerateMstatFile=true", azurePipeline);
-        Assert.Contains("dotsiderVersion: v0.25.0", azurePipeline);
+        Assert.Contains("dotsiderVersion: v0.25.1", azurePipeline);
         Assert.Contains("budgets: max=25mb", azurePipeline);
         Assert.Contains("artifactName: dotsider-size-check-win-x64", azurePipeline);
         Assert.Contains("baselineKey: picket-win-x64", azurePipeline);
         Assert.DoesNotContain("DownloadPipelineArtifact@2", azurePipeline);
         Assert.DoesNotContain("dotsider-size-baseline-win-x64", azurePipeline);
         Assert.Contains("Native AOT Size Validation", documentation);
-        Assert.Contains("Dotsider CLI to `v0.25.0`", documentation);
+        Assert.Contains("Dotsider CLI to `v0.25.1`", documentation);
         Assert.Contains("25 MB for Linux and Windows and 40 MB for macOS", documentation);
         Assert.Contains("enforces the absolute cap", documentation);
         Assert.Contains("separate JSON and Markdown reports for each RID", documentation);
@@ -1161,9 +1161,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("PicketScan@1", pipeline);
         Assert.Contains("picket.exe", pipeline);
         Assert.Contains("trigger: none", normalizedPipeline);
-        Assert.Contains("pr: none", normalizedPipeline);
+        Assert.Contains("pr:\n- main", normalizedPipeline);
         Assert.DoesNotContain("trigger:\n- main", normalizedPipeline);
-        Assert.DoesNotContain("pr:\n- main", normalizedPipeline);
+        Assert.DoesNotContain("pr: none", normalizedPipeline);
         Assert.Contains("pwsh:", pipeline);
         Assert.DoesNotContain("vmImage:", pipeline);
         Assert.DoesNotContain("chmod +x", pipeline);

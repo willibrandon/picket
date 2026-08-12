@@ -141,7 +141,7 @@ jobs:
           baseline-key: picket-${{ matrix.rid }}
           budgets: ${{ matrix.size_budget }}
           top: '20'
-          dotsider-version: v0.25.0
+          dotsider-version: v0.25.1
           report-directory: ${{ runner.temp }}/dotsider-size-check-${{ matrix.rid }}
           artifact-name: dotsider-size-check-${{ matrix.rid }}
 

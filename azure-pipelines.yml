@@ -1,6 +1,7 @@
 trigger: none
 
-pr: none
+pr:
+- main
 
 pool:
   name: Windows-SelfHosted
@@ -55,7 +56,7 @@ steps:
     baselineKey: picket-win-x64
     budgets: max=25mb
     top: 20
-    dotsiderVersion: v0.25.0
+    dotsiderVersion: v0.25.1
     reportDirectory: $(Build.ArtifactStagingDirectory)\dotsider-size-check
     artifactName: dotsider-size-check-win-x64
 
