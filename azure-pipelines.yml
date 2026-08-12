@@ -1,6 +1,7 @@
 trigger: none
 
-pr: none
+pr:
+- main
 
 pool:
   name: Windows-SelfHosted
