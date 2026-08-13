@@ -13,7 +13,8 @@ internal static partial class Program
         IReadOnlyList<Finding> findings,
         SourceFile sourceFile)
     {
-        if (findings.Count == 0 || sourceFile.ProvenanceType.Length == 0)
+        bool hasFingerprintPath = !sourceFile.FingerprintPath.Equals(sourceFile.DisplayPath, StringComparison.Ordinal);
+        if (findings.Count == 0 || (!hasFingerprintPath && sourceFile.ProvenanceType.Length == 0))
         {
             return findings;
         }
@@ -21,7 +22,18 @@ internal static partial class Program
         var annotated = new List<Finding>(findings.Count);
         for (int index = 0; index < findings.Count; index++)
         {
-            annotated.Add(findings[index].WithProvenanceType(sourceFile.ProvenanceType));
+            Finding finding = findings[index];
+            if (hasFingerprintPath)
+            {
+                finding = finding.WithNativeFingerprint(StableFindingFingerprint.Create(finding, sourceFile.FingerprintPath));
+            }
+
+            if (sourceFile.ProvenanceType.Length != 0)
+            {
+                finding = finding.WithProvenanceType(sourceFile.ProvenanceType);
+            }
+
+            annotated.Add(finding);
         }
 
         return annotated;

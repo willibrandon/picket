@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace Picket.Tests;
 
@@ -80,6 +82,74 @@ public sealed class CliContainerArchiveScanTests
         Assert.Contains("\"ruleId\":\"token\"", result.Stdout);
         Assert.Contains("\"file\":\"oci-archive/image-oci.tar!blobs/sha256/layer!etc/secret.conf\"", result.Stdout);
         Assert.Contains("\"secret\":\"token-67890\"", result.Stdout);
+    }
+
+    /// <summary>
+    /// Verifies equivalent container layers keep the same native fingerprint when their compressed blobs differ.
+    /// </summary>
+    [TestMethod]
+    public async Task ScanKeepsFingerprintStableAcrossEquivalentContainerLayerBlobs()
+    {
+        using TempDirectory temp = TempDirectory.Create();
+        string configPath = WriteTokenConfig(temp.Path);
+        string firstArchivePath = WriteDockerBlobArchive(temp.Path, "first", gzipTimestamp: 0);
+        string secondArchivePath = WriteDockerBlobArchive(temp.Path, "second", gzipTimestamp: 1);
+
+        CliResult first = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            firstArchivePath,
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+        CliResult second = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            secondArchivePath,
+            "-c",
+            configPath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(1, first.ExitCode);
+        Assert.AreEqual(1, second.ExitCode);
+        using JsonDocument firstReport = JsonDocument.Parse(first.Stdout);
+        using JsonDocument secondReport = JsonDocument.Parse(second.Stdout);
+        JsonElement firstFinding = firstReport.RootElement;
+        JsonElement secondFinding = secondReport.RootElement;
+        string firstFile = firstFinding.GetProperty("file").GetString()!;
+        string secondFile = secondFinding.GetProperty("file").GetString()!;
+
+        Assert.AreNotEqual(firstFile, secondFile);
+        Assert.StartsWith("docker-archive/image.tar!blobs/sha256/", firstFile);
+        Assert.EndsWith("!app/settings.txt", firstFile);
+        Assert.StartsWith("docker-archive/image.tar!blobs/sha256/", secondFile);
+        Assert.EndsWith("!app/settings.txt", secondFile);
+        string firstFingerprint = firstFinding.GetProperty("fingerprint").GetString()!;
+        string secondFingerprint = secondFinding.GetProperty("fingerprint").GetString()!;
+        Assert.AreEqual(
+            firstFingerprint,
+            secondFingerprint);
+
+        string ignorePath = Path.Combine(temp.Path, ".picketignore");
+        File.WriteAllText(ignorePath, string.Concat(firstFingerprint, Environment.NewLine));
+        CliResult ignored = await RunCliFromDirectoryAsync(
+            temp.Path,
+            "scan",
+            "--docker-archive",
+            secondArchivePath,
+            "-c",
+            configPath,
+            "--ignore-path",
+            ignorePath,
+            "-f",
+            "jsonl").ConfigureAwait(false);
+
+        Assert.AreEqual(0, ignored.ExitCode);
+        Assert.AreEqual(string.Empty, ignored.Stdout);
     }
 
     /// <summary>
@@ -494,6 +564,26 @@ public sealed class CliContainerArchiveScanTests
             TarTestData.CreateTarBytes(
                 ("manifest.json", Encoding.UTF8.GetBytes("""[{"Layers":["layer/layer.tar"]}]""")),
                 ("layer/layer.tar", layerBytes)));
+        return archivePath;
+    }
+
+    private static string WriteDockerBlobArchive(string root, string directoryName, uint gzipTimestamp)
+    {
+        string archiveDirectory = Path.Combine(root, directoryName);
+        Directory.CreateDirectory(archiveDirectory);
+        string archivePath = Path.Combine(archiveDirectory, "image.tar");
+        byte[] layerTarBytes = TarTestData.CreateTarBytes(("app/settings.txt", Encoding.UTF8.GetBytes("token-12345")));
+        byte[] layerGzipBytes = TarTestData.CreateGzipBytes(layerTarBytes);
+        layerGzipBytes[4] = (byte)gzipTimestamp;
+        layerGzipBytes[5] = (byte)(gzipTimestamp >> 8);
+        layerGzipBytes[6] = (byte)(gzipTimestamp >> 16);
+        layerGzipBytes[7] = (byte)(gzipTimestamp >> 24);
+        string layerDigest = Convert.ToHexStringLower(SHA256.HashData(layerGzipBytes));
+        File.WriteAllBytes(
+            archivePath,
+            TarTestData.CreateTarBytes(
+                ("manifest.json", Encoding.UTF8.GetBytes("[]")),
+                (string.Concat("blobs/sha256/", layerDigest), layerGzipBytes)));
         return archivePath;
     }
 

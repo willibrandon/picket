@@ -27,14 +27,27 @@ public static class StableFindingFingerprint
             return finding.NativeFingerprint;
         }
 
-        string locationPath = NormalizeLocationPath(finding.SymlinkFile.Length == 0 ? finding.File : finding.SymlinkFile);
+        string locationPath = finding.SymlinkFile.Length == 0 ? finding.File : finding.SymlinkFile;
+        return CreateCore(finding, locationPath);
+    }
+
+    internal static string Create(Finding finding, string locationPath)
+    {
+        ArgumentNullException.ThrowIfNull(finding);
+        ArgumentException.ThrowIfNullOrWhiteSpace(locationPath);
+        return CreateCore(finding, locationPath);
+    }
+
+    private static string CreateCore(Finding finding, string locationPath)
+    {
+        string normalizedLocationPath = NormalizeLocationPath(locationPath);
         string secretHash = CreateSecretOrMatchHash(finding);
         string decodePath = string.Join('\0', finding.DecodePath);
         string ruleId = GetFingerprintRuleId(finding.RuleID);
         string material = string.Concat(
             Version,
             "\0",
-            locationPath,
+            normalizedLocationPath,
             "\0",
             ruleId,
             "\0",

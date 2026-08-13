@@ -31,6 +31,8 @@ docker-archive/image.tar!layer/layer.tar!app/settings.txt
 oci-archive/image-oci.tar!blobs/sha256/<digest>!etc/secret.conf
 ```
 
+The report path preserves that provenance, but the native fingerprint uses the logical in-image path. An equivalent layer therefore keeps the same `picket:v1` fingerprint and `.picketignore` entry when another Docker engine recompresses it or assigns a different blob digest.
+
 ## Registry Images
 
 Pass a tagged or digest-pinned image name to `--registry-image`:
