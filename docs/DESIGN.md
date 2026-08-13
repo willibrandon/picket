@@ -763,7 +763,7 @@ Container image scanning is native Picket behavior, not Gitleaks compatibility b
 | OCI image layout | `--oci-archive <path>` | Scans a local OCI image-layout archive. |
 | OCI Distribution registry | `--registry-image <name>` | Pulls one tagged or digest-pinned OCI/Docker image through the registry v2 API. Docker Hub shorthand such as `ubuntu` resolves to `docker.io/library/ubuntu:latest`. |
 
-Picket treats each image as a source envelope. It scans manifests and configs, expands tar, gzip, and zstd layers through the shared archive safety caps, and retains deleted or overwritten content from earlier layers because secret history remains relevant. Local provenance includes the archive and nested layer path, such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`.
+Picket treats each image as a source envelope. It scans manifests and configs, expands tar, gzip, and zstd layers through the shared archive safety caps, and retains deleted or overwritten content from earlier layers because secret history remains relevant. Local provenance includes the archive and nested layer path, such as `docker-archive/image.tar!layer/layer.tar!app/settings.txt`. Native fingerprints use the logical in-image path instead, so changing an archive filename or recompressing an equivalent layer does not invalidate an ignore entry.
 
 Registry options:
 

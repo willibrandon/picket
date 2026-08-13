@@ -4,7 +4,7 @@ namespace Picket.Sources;
 /// Represents a source file selected for scanning.
 /// </summary>
 /// <param name="fullPath">The full filesystem path.</param>
-/// <param name="displayPath">The normalized path used in reports and fingerprints.</param>
+/// <param name="displayPath">The normalized path used in reports and fingerprints unless a source supplies a stable fingerprint path.</param>
 /// <param name="symlinkDisplayPath">The normalized symlink path used in reports, or an empty string.</param>
 public sealed class SourceFile(string fullPath, string displayPath, string symlinkDisplayPath = "")
 {
@@ -14,6 +14,13 @@ public sealed class SourceFile(string fullPath, string displayPath, string symli
         : this(fullPath, displayPath)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
+    }
+
+    internal SourceFile(string fullPath, string displayPath, byte[] content, string fingerprintPath)
+        : this(fullPath, displayPath)
+    {
+        _content = content ?? throw new ArgumentNullException(nameof(content));
+        FingerprintPath = NormalizeDisplayPath(fingerprintPath);
     }
 
     internal SourceFile(string fullPath, string displayPath, string symlinkDisplayPath, byte[] content)
@@ -40,9 +47,14 @@ public sealed class SourceFile(string fullPath, string displayPath, string symli
     public string FullPath { get; } = Path.GetFullPath(RequireText(fullPath));
 
     /// <summary>
-    /// Gets the normalized path used in reports and fingerprints.
+    /// Gets the normalized path used in reports.
     /// </summary>
     public string DisplayPath { get; } = NormalizeDisplayPath(displayPath);
+
+    /// <summary>
+    /// Gets the normalized logical path used in native fingerprints.
+    /// </summary>
+    internal string FingerprintPath { get; } = NormalizeDisplayPath(displayPath);
 
     /// <summary>
     /// Gets the normalized symlink path used in reports, or an empty string.

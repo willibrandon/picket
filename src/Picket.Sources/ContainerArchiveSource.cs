@@ -67,7 +67,8 @@ public static class ContainerArchiveSource
         var files = new List<SourceFile>(entries.Count);
         foreach (ArchiveEntry entry in entries)
         {
-            files.Add(new SourceFile(fullPath, entry.DisplayPath, entry.Content));
+            string fingerprintPath = CreateFingerprintPath(entry.DisplayPath, displayPath, displayPrefix);
+            files.Add(new SourceFile(fullPath, entry.DisplayPath, entry.Content, fingerprintPath));
         }
 
         return files;
@@ -77,5 +78,22 @@ public static class ContainerArchiveSource
     {
         string fileName = Path.GetFileName(fullPath);
         return string.Concat(displayPrefix, "/", fileName).Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+    }
+
+    private static string CreateFingerprintPath(string entryDisplayPath, string archiveDisplayPath, string displayPrefix)
+    {
+        int envelopeSeparatorIndex = archiveDisplayPath.Length;
+        if (entryDisplayPath.Length <= envelopeSeparatorIndex
+            || entryDisplayPath[envelopeSeparatorIndex] != '!')
+        {
+            return entryDisplayPath;
+        }
+
+        int entryStartIndex = envelopeSeparatorIndex + 1;
+        int layerSeparatorIndex = entryDisplayPath.IndexOf('!', envelopeSeparatorIndex + 1);
+        int logicalPathIndex = layerSeparatorIndex < 0 || layerSeparatorIndex == entryDisplayPath.Length - 1
+            ? entryStartIndex
+            : layerSeparatorIndex + 1;
+        return string.Concat(displayPrefix, "/", entryDisplayPath.AsSpan(logicalPathIndex));
     }
 }

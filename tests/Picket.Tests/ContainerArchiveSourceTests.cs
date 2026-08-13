@@ -36,10 +36,15 @@ public sealed class ContainerArchiveSourceTests
         SourceFile? layerFile = files.FirstOrDefault(static file => file.DisplayPath.Equals(
             "docker-archive/image.tar!layer/layer.tar!app/settings.txt",
             StringComparison.Ordinal));
+        SourceFile manifestFile = files.Single(static file => file.DisplayPath.Equals(
+            "docker-archive/image.tar!manifest.json",
+            StringComparison.Ordinal));
 
         Assert.IsNotNull(layerFile);
         Assert.Contains("docker-archive/image.tar!manifest.json", files.Select(static file => file.DisplayPath).ToArray());
         Assert.AreEqual("token-12345", Encoding.UTF8.GetString(layerFile.ReadAllBytes()));
+        Assert.AreEqual("docker-archive/app/settings.txt", layerFile.FingerprintPath);
+        Assert.AreEqual("docker-archive/manifest.json", manifestFile.FingerprintPath);
     }
 
     /// <summary>
@@ -73,6 +78,7 @@ public sealed class ContainerArchiveSourceTests
 
         Assert.IsNotNull(layerFile);
         Assert.AreEqual("token-67890", Encoding.UTF8.GetString(layerFile.ReadAllBytes()));
+        Assert.AreEqual("oci-archive/etc/secret.conf", layerFile.FingerprintPath);
     }
 
     /// <summary>
