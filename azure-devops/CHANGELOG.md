@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.10
+
+- Add managed Native AOT size baselines, refresh packaging policy, and pin the GitHub Action's nested dependencies.
+
 ## 0.2.9
 
 - Enable mouse input for full-screen and flow TUI sessions on macOS and other ANSI terminals, and refresh the published performance baseline.

@@ -294,7 +294,8 @@ public sealed class GitWorkingTreeSourceTests
             () => GitWorkingTreeSource.Enumerate(new GitWorkingTreeScanOptions(root.Path)));
 
         Assert.Contains("not inside a Git working tree", exception.Message);
-        Assert.DoesNotContain(" at ", exception.Message);
+        string normalizedMessage = exception.Message.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.DoesNotContain("\n   at ", normalizedMessage);
     }
 
     private static void AssertSource(SourceFile file, string path, string provenanceType, string content)
