@@ -252,10 +252,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("max-archive-entries", action);
         Assert.Contains("max-archive-megabytes", action);
         Assert.Contains("max-archive-ratio", action);
-        Assert.Contains("actions/cache/restore@v6.1.0", action);
-        Assert.Contains("actions/cache/save@v6.1.0", action);
-        Assert.Contains("github/codeql-action/upload-sarif@v4.37.3", action);
-        Assert.Contains("actions/setup-dotnet@v6.0.0", action);
+        Assert.Contains("actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0", action);
+        Assert.Contains("actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0", action);
+        Assert.Contains("github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3", action);
+        Assert.Contains("actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0", action);
         Assert.Contains("run-picket.cs", action);
         Assert.Contains("dotnet build", action);
         Assert.Contains("dotnet run --file", action);

@@ -146,7 +146,7 @@ runs:
   steps:
     - name: Set up .NET
       if: ${{ inputs.setup-dotnet == 'true' }}
-      uses: actions/setup-dotnet@v6.0.0
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
 
@@ -158,7 +158,7 @@ runs:
     - name: Restore scan cache
       id: cache-restore
       if: ${{ inputs.cache == 'true' }}
-      uses: actions/cache/restore@v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ inputs.cache-path != '' && inputs.cache-path || format('{0}/picket-cache', runner.temp) }}
         key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-{3}', runner.os, inputs.cache-mode, github.ref_name, github.sha) }}
@@ -202,14 +202,14 @@ runs:
 
     - name: Save scan cache
       if: ${{ inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true' }}
-      uses: actions/cache/save@v6.1.0
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ inputs.cache-path != '' && inputs.cache-path || format('{0}/picket-cache', runner.temp) }}
         key: ${{ inputs.cache-key != '' && inputs.cache-key || format('picket-{0}-{1}-{2}-{3}', runner.os, inputs.cache-mode, github.ref_name, github.sha) }}
 
     - name: Upload SARIF
       if: ${{ inputs.upload-sarif == 'true' && steps.run.outputs.sarif-path != '' }}
-      uses: github/codeql-action/upload-sarif@v4.37.3
+      uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
       with:
         sarif_file: ${{ steps.run.outputs.sarif-path }}
 
