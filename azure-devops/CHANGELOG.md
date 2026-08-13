@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.11
+
+- Keep container archive ignore fingerprints stable when Docker engines recompress equivalent image layers.
+
 ## 0.2.10
 
 - Add managed Native AOT size baselines, refresh packaging policy, and pin the GitHub Action's nested dependencies.
