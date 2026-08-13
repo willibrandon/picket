@@ -23,11 +23,11 @@ The top-level tool packages are pointer packages; the matching RID packages cont
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Picket.Compat" Version="0.2.9" />
-  <PackageReference Include="Picket.Engine" Version="0.2.9" />
-  <PackageReference Include="Picket.Report" Version="0.2.9" />
-  <PackageReference Include="Picket.Rules" Version="0.2.9" />
-  <PackageReference Include="Picket.Security" Version="0.2.9" />
+  <PackageReference Include="Picket.Compat" Version="0.2.10" />
+  <PackageReference Include="Picket.Engine" Version="0.2.10" />
+  <PackageReference Include="Picket.Report" Version="0.2.10" />
+  <PackageReference Include="Picket.Rules" Version="0.2.10" />
+  <PackageReference Include="Picket.Security" Version="0.2.10" />
 </ItemGroup>
 ```
 
