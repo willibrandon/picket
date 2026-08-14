@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add mutually exclusive Docker archive, OCI archive, and registry image task inputs with registry authentication, platform, download-limit, and endpoint-policy controls.
+- Preserve workspace scanning as the zero-selector default while avoiding a positional workspace target during native Azure DevOps enumeration.
+
 ## 0.2.11
 
 - Keep container archive ignore fingerprints stable when Docker engines recompress equivalent image layers.

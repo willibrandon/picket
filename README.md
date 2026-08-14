@@ -47,6 +47,8 @@ Use the [Picket Secret Scanner](https://github.com/marketplace/actions/picket-se
     upload-sarif: true
 ```
 
+The Action and Azure Pipelines task can also select a Docker archive, OCI archive, or registry image directly, so image-building jobs keep the same Picket reports, redaction, annotations, cache, and failure policy without a separate CLI scan step.
+
 Azure Pipelines can install [Picket from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=willibrandon.picket) and use the `PicketScan@1` task:
 
 ```yaml
@@ -56,7 +58,7 @@ Azure Pipelines can install [Picket from the Visual Studio Marketplace](https://
     failOn: "findings"
 ```
 
-See [GitHub Action](https://github.com/willibrandon/picket/blob/main/docs/ACTION.md) and [Azure DevOps](https://github.com/willibrandon/picket/blob/main/docs/AZURE_DEVOPS.md) for permissions, inputs, reports, and failure behavior.
+See [GitHub Action](https://github.com/willibrandon/picket/blob/main/docs/ACTION.md) and [Azure DevOps](https://github.com/willibrandon/picket/blob/main/docs/AZURE_DEVOPS.md) for source selection, permissions, inputs, reports, and failure behavior.
 
 ## Coding Agent Guards
 

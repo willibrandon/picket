@@ -10,6 +10,8 @@ sidebar:
 
 Picket native scans can read local Docker/OCI archives and pull exact image references from OCI Distribution registries.
 
+The same sources are available through the [GitHub Action](https://willibrandon.github.io/picket/generated/action/#container-image-sources) and the [Azure DevOps task](https://willibrandon.github.io/picket/generated/azure-devops/#container-image-sources), so CI jobs do not need a separate direct CLI invocation after their normal Picket integration is installed.
+
 ## Local Image Archives
 
 Use `--docker-archive` for an archive produced by `docker save`:

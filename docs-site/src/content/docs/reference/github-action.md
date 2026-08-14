@@ -16,7 +16,7 @@ This page is generated from `action.yml`.
     <div class="reference-card-heading">
       <code>path</code><span>Input</span>
     </div>
-    <p class="reference-card-description">Repository path to scan.</p>
+    <p class="reference-card-description">Repository path to scan. Mutually exclusive with docker-archive, oci-archive, and registry-image. Empty defaults to the GitHub workspace when no other source is selected.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>
@@ -24,7 +24,199 @@ This page is generated from `action.yml`.
       </div>
       <div>
         <dt>Default or value</dt>
-        <dd><code>.</code></dd>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>docker-archive</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Docker image archive produced by docker save. Relative paths resolve from the GitHub workspace.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>oci-archive</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">OCI image-layout archive. Relative paths resolve from the GitHub workspace.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-image</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">OCI or Docker registry image reference, including Docker Hub shorthand.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-endpoint</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional OCI Distribution API endpoint override. Requires registry-image.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-auth-endpoint</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional explicitly trusted cross-host bearer-token endpoint. Requires registry-image.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-token-env</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Environment variable containing a pre-issued registry bearer token. Requires registry-image and cannot be combined with Basic authentication inputs.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-username-env</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Environment variable containing the registry username. Requires registry-image and registry-password-env.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-password-env</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Environment variable containing the registry password or personal access token. Requires registry-image and registry-username-env.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-platform</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional os/architecture[/variant] selector for a multi-platform registry image.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registry-max-image-megabytes</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Optional positive aggregate download cap for unique image manifests, configs, and layers in decimal MB.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>allow-non-public-source-endpoints</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Permit private, loopback, link-local, or otherwise non-public registry endpoint addresses.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>false</code></dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>allow-insecure-source-endpoints</code><span>Input</span>
+    </div>
+    <p class="reference-card-description">Permit HTTP registry endpoints for explicitly trusted environments. Credentials may be sent in cleartext.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default or value</dt>
+        <dd><code>false</code></dd>
       </div>
     </dl>
   </article>

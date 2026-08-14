@@ -273,3 +273,81 @@ jobs:
               throw "Picket scan did not write $fileName."
             }
           }
+
+      - name: Create Docker archive Action fixture
+        if: matrix.os == 'ubuntu-latest'
+        shell: pwsh
+        run: |
+          $buildContext = Join-Path $env:RUNNER_TEMP 'picket-action-container-context'
+          $imageArchive = Join-Path $env:RUNNER_TEMP 'picket-action-image.tar'
+          $configPath = Join-Path $env:RUNNER_TEMP 'picket-action-container.toml'
+          New-Item -ItemType Directory -Force -Path $buildContext | Out-Null
+          Set-Content -LiteralPath (Join-Path $buildContext 'settings.txt') -NoNewline -Encoding utf8NoBOM -Value 'token-12345'
+          Set-Content -LiteralPath (Join-Path $buildContext 'Dockerfile') -Encoding utf8NoBOM -Value @(
+            'FROM scratch',
+            'COPY settings.txt /app/settings.txt'
+          )
+          Set-Content -LiteralPath $configPath -Encoding utf8NoBOM -Value @(
+            '[[rules]]',
+            'id = "action-container-token"',
+            "regex = '''token-[0-9]+'''"
+          )
+
+          & docker build --tag picket-action-fixture:ci $buildContext
+          if ($LASTEXITCODE -ne 0) {
+            throw "Docker fixture build failed with exit code $LASTEXITCODE."
+          }
+
+          & docker save --output $imageArchive picket-action-fixture:ci
+          if ($LASTEXITCODE -ne 0) {
+            throw "Docker fixture export failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Picket Docker archive scan
+        if: matrix.os == 'ubuntu-latest'
+        id: picket-container-scan
+        uses: ./
+        with:
+          docker-archive: ${{ runner.temp }}/picket-action-image.tar
+          config-path: ${{ runner.temp }}/picket-action-container.toml
+          cache: "false"
+          report-directory: ${{ runner.temp }}/picket-container-scan
+          fail-on: never
+          summary: "true"
+          upload-sarif: "false"
+          annotations: "false"
+          redact: "100"
+          max-target-megabytes: "64"
+          max-archive-depth: "2"
+          max-archive-entries: "100000"
+          max-archive-megabytes: "4096"
+          max-archive-ratio: "1000"
+          timeout: "900"
+          setup-dotnet: "false"
+
+      - name: Verify Docker archive Action outputs
+        if: matrix.os == 'ubuntu-latest'
+        shell: pwsh
+        run: |
+          $findings = [int]'${{ steps.picket-container-scan.outputs.findings }}'
+          if ($findings -le 0) {
+            throw 'Picket Docker archive scan reported no findings.'
+          }
+
+          $reportDirectory = Join-Path $env:RUNNER_TEMP 'picket-container-scan'
+          $sarifPath = Join-Path $reportDirectory 'picket.sarif'
+          $jsonlPath = Join-Path $reportDirectory 'picket.jsonl'
+          foreach ($path in @($sarifPath, $jsonlPath)) {
+            if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Picket Docker archive scan did not write $path."
+            }
+          }
+
+          $jsonl = Get-Content -LiteralPath $jsonlPath -Raw
+          if (!$jsonl.Contains('"file":"docker-archive/', [StringComparison]::Ordinal) -or !$jsonl.Contains('!app/settings.txt"', [StringComparison]::Ordinal)) {
+            throw 'Picket Docker archive report did not retain in-image provenance.'
+          }
+
+          if ($jsonl.Contains('token-12345', [StringComparison]::Ordinal)) {
+            throw 'Picket Docker archive report contains an unredacted fixture secret.'
+          }

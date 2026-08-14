@@ -2,6 +2,7 @@
 #:property TargetFramework=net10.0
 #:property PackAsTool=false
 #:include PicketActionFailurePolicy.cs
+#:include PicketActionScanSource.cs
 
 using System.Diagnostics;
 using System.Globalization;
@@ -43,7 +44,19 @@ internal static class PicketGitHubActionApp
     internal static int Run([CallerFilePath] string sourceFilePath = "")
     {
         string actionPath = ResolveActionPath(sourceFilePath);
-        string scanPath = ResolveWorkspacePath(GetActionInput("PICKET_PATH", "."));
+        string scanPath = GetActionInput("PICKET_PATH");
+        string dockerArchive = GetActionInput("PICKET_DOCKER_ARCHIVE");
+        string ociArchive = GetActionInput("PICKET_OCI_ARCHIVE");
+        string registryImage = GetActionInput("PICKET_REGISTRY_IMAGE");
+        string registryEndpoint = GetActionInput("PICKET_REGISTRY_ENDPOINT");
+        string registryAuthenticationEndpoint = GetActionInput("PICKET_REGISTRY_AUTH_ENDPOINT");
+        string registryTokenEnvironmentVariable = GetActionInput("PICKET_REGISTRY_TOKEN_ENV");
+        string registryUsernameEnvironmentVariable = GetActionInput("PICKET_REGISTRY_USERNAME_ENV");
+        string registryPasswordEnvironmentVariable = GetActionInput("PICKET_REGISTRY_PASSWORD_ENV");
+        string registryPlatform = GetActionInput("PICKET_REGISTRY_PLATFORM");
+        string registryMaxImageMegabytes = GetActionInput("PICKET_REGISTRY_MAX_IMAGE_MEGABYTES");
+        string allowNonPublicSourceEndpoints = GetActionInput("PICKET_ALLOW_NON_PUBLIC_SOURCE_ENDPOINTS", "false").Trim().ToLowerInvariant();
+        string allowInsecureSourceEndpoints = GetActionInput("PICKET_ALLOW_INSECURE_SOURCE_ENDPOINTS", "false").Trim().ToLowerInvariant();
         string configPath = GetActionInput("PICKET_CONFIG_PATH");
         string baselinePath = GetActionInput("PICKET_BASELINE_PATH");
         string ignorePath = GetActionInput("PICKET_IGNORE_PATH");
@@ -78,9 +91,40 @@ internal static class PicketGitHubActionApp
         RequireValueInSet("summary", summaryEnabled, ["true", "false"], "summary must be true or false.");
         RequireValueInSet("only-verified", onlyVerified, ["true", "false"], "only-verified must be true or false.");
         RequireValueInSet("verify", verify, ["true", "false"], "verify must be true or false.");
+        RequireValueInSet(
+            "allow-non-public-source-endpoints",
+            allowNonPublicSourceEndpoints,
+            ["true", "false"],
+            "allow-non-public-source-endpoints must be true or false.");
+        RequireValueInSet(
+            "allow-insecure-source-endpoints",
+            allowInsecureSourceEndpoints,
+            ["true", "false"],
+            "allow-insecure-source-endpoints must be true or false.");
         if (onlyVerified.Equals("true", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(validationResults))
         {
             WriteError("Invalid validation filter", "results and only-verified cannot both be set.");
+            return 1;
+        }
+
+        if (!PicketActionScanSource.TryCreate(
+            scanPath,
+            dockerArchive,
+            ociArchive,
+            registryImage,
+            out PicketActionScanSource? scanSource,
+            out string scanSourceError,
+            registryEndpoint,
+            registryAuthenticationEndpoint,
+            registryTokenEnvironmentVariable,
+            registryUsernameEnvironmentVariable,
+            registryPasswordEnvironmentVariable,
+            registryPlatform,
+            registryMaxImageMegabytes,
+            allowNonPublicSourceEndpoints.Equals("true", StringComparison.OrdinalIgnoreCase),
+            allowInsecureSourceEndpoints.Equals("true", StringComparison.OrdinalIgnoreCase)))
+        {
+            WriteError("Invalid scan source", scanSourceError);
             return 1;
         }
 
@@ -98,13 +142,13 @@ internal static class PicketGitHubActionApp
             "--no-restore",
             "--",
             "scan",
-            scanPath,
-            "-r",
-            sarifPath,
-            "-r",
-            jsonlPath,
-            $"--redact={redact}",
         };
+        scanSource.AppendArguments(arguments, ResolveWorkspacePath);
+        arguments.Add("-r");
+        arguments.Add(sarifPath);
+        arguments.Add("-r");
+        arguments.Add(jsonlPath);
+        arguments.Add($"--redact={redact}");
 
         AddOptionalPathOption(arguments, "-c", configPath);
         AddOptionalPathOption(arguments, "-b", baselinePath);

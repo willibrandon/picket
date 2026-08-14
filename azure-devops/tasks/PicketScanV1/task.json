@@ -10,18 +10,98 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 5
+    "Patch": 6
   },
   "minimumAgentVersion": "3.220.0",
-  "instanceNameFormat": "Picket scan $(target)",
+  "instanceNameFormat": "Picket scan",
   "inputs": [
     {
       "name": "target",
       "type": "filePath",
       "label": "Target",
-      "defaultValue": "$(Build.SourcesDirectory)",
-      "required": true,
-      "helpMarkDown": "File, directory, or checked-out repository path to scan."
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "File, directory, or checked-out repository path to scan. Mutually exclusive with container image and remote source inputs. Empty defaults to $(Build.SourcesDirectory) when no other source is selected."
+    },
+    {
+      "name": "dockerArchive",
+      "type": "filePath",
+      "label": "Docker archive",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Docker image archive produced by docker save."
+    },
+    {
+      "name": "ociArchive",
+      "type": "filePath",
+      "label": "OCI archive",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "OCI image-layout archive."
+    },
+    {
+      "name": "registryImage",
+      "type": "string",
+      "label": "Registry image",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "OCI or Docker registry image reference, including Docker Hub shorthand."
+    },
+    {
+      "name": "registryEndpoint",
+      "type": "string",
+      "label": "Registry endpoint",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional OCI Distribution API endpoint override. Requires registryImage."
+    },
+    {
+      "name": "registryAuthEndpoint",
+      "type": "string",
+      "label": "Registry authentication endpoint",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional explicitly trusted cross-host bearer-token endpoint. Requires registryImage."
+    },
+    {
+      "name": "registryTokenEnv",
+      "type": "string",
+      "label": "Registry token environment variable",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Environment variable containing a pre-issued registry bearer token. The token value is not passed on the command line."
+    },
+    {
+      "name": "registryUsernameEnv",
+      "type": "string",
+      "label": "Registry username environment variable",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Environment variable containing the registry username. Requires registryPasswordEnv."
+    },
+    {
+      "name": "registryPasswordEnv",
+      "type": "string",
+      "label": "Registry password environment variable",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Environment variable containing the registry password or personal access token. Requires registryUsernameEnv."
+    },
+    {
+      "name": "registryPlatform",
+      "type": "string",
+      "label": "Registry platform",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional os/architecture[/variant] selector for a multi-platform registry image."
+    },
+    {
+      "name": "registryMaxImageMegabytes",
+      "type": "string",
+      "label": "Max registry image MB",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Optional positive aggregate download cap for unique image manifests, configs, and layers in decimal MB."
     },
     {
       "name": "picketPath",

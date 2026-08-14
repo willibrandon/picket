@@ -1,5 +1,5 @@
 name: Picket Secret Scanner
-description: Scan a repository with Picket and publish SARIF-ready results.
+description: Scan a repository or container image with Picket and publish SARIF-ready results.
 author: willibrandon
 
 branding:
@@ -8,9 +8,57 @@ branding:
 
 inputs:
   path:
-    description: Repository path to scan.
+    description: Repository path to scan. Mutually exclusive with docker-archive, oci-archive, and registry-image. Empty defaults to the GitHub workspace when no other source is selected.
     required: false
-    default: .
+    default: ""
+  docker-archive:
+    description: Docker image archive produced by docker save. Relative paths resolve from the GitHub workspace.
+    required: false
+    default: ""
+  oci-archive:
+    description: OCI image-layout archive. Relative paths resolve from the GitHub workspace.
+    required: false
+    default: ""
+  registry-image:
+    description: OCI or Docker registry image reference, including Docker Hub shorthand.
+    required: false
+    default: ""
+  registry-endpoint:
+    description: Optional OCI Distribution API endpoint override. Requires registry-image.
+    required: false
+    default: ""
+  registry-auth-endpoint:
+    description: Optional explicitly trusted cross-host bearer-token endpoint. Requires registry-image.
+    required: false
+    default: ""
+  registry-token-env:
+    description: Environment variable containing a pre-issued registry bearer token. Requires registry-image and cannot be combined with Basic authentication inputs.
+    required: false
+    default: ""
+  registry-username-env:
+    description: Environment variable containing the registry username. Requires registry-image and registry-password-env.
+    required: false
+    default: ""
+  registry-password-env:
+    description: Environment variable containing the registry password or personal access token. Requires registry-image and registry-username-env.
+    required: false
+    default: ""
+  registry-platform:
+    description: Optional os/architecture[/variant] selector for a multi-platform registry image.
+    required: false
+    default: ""
+  registry-max-image-megabytes:
+    description: Optional positive aggregate download cap for unique image manifests, configs, and layers in decimal MB.
+    required: false
+    default: ""
+  allow-non-public-source-endpoints:
+    description: Permit private, loopback, link-local, or otherwise non-public registry endpoint addresses.
+    required: false
+    default: "false"
+  allow-insecure-source-endpoints:
+    description: Permit HTTP registry endpoints for explicitly trusted environments. Credentials may be sent in cleartext.
+    required: false
+    default: "false"
   config-path:
     description: Optional config path. A custom config replaces Picket's embedded native default rules; extend.useDefault restores only the Gitleaks defaults.
     required: false
@@ -172,6 +220,18 @@ runs:
       working-directory: ${{ github.action_path }}
       env:
         PICKET_PATH: ${{ inputs.path }}
+        PICKET_DOCKER_ARCHIVE: ${{ inputs.docker-archive }}
+        PICKET_OCI_ARCHIVE: ${{ inputs.oci-archive }}
+        PICKET_REGISTRY_IMAGE: ${{ inputs.registry-image }}
+        PICKET_REGISTRY_ENDPOINT: ${{ inputs.registry-endpoint }}
+        PICKET_REGISTRY_AUTH_ENDPOINT: ${{ inputs.registry-auth-endpoint }}
+        PICKET_REGISTRY_TOKEN_ENV: ${{ inputs.registry-token-env }}
+        PICKET_REGISTRY_USERNAME_ENV: ${{ inputs.registry-username-env }}
+        PICKET_REGISTRY_PASSWORD_ENV: ${{ inputs.registry-password-env }}
+        PICKET_REGISTRY_PLATFORM: ${{ inputs.registry-platform }}
+        PICKET_REGISTRY_MAX_IMAGE_MEGABYTES: ${{ inputs.registry-max-image-megabytes }}
+        PICKET_ALLOW_NON_PUBLIC_SOURCE_ENDPOINTS: ${{ inputs.allow-non-public-source-endpoints }}
+        PICKET_ALLOW_INSECURE_SOURCE_ENDPOINTS: ${{ inputs.allow-insecure-source-endpoints }}
         PICKET_CONFIG_PATH: ${{ inputs.config-path }}
         PICKET_BASELINE_PATH: ${{ inputs.baseline-path }}
         PICKET_IGNORE_PATH: ${{ inputs.ignore-path }}

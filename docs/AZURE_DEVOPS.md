@@ -2,10 +2,10 @@
 
 Picket's Azure DevOps support has two layers:
 
-- a pipeline task that scans the checked-out workspace by default,
+- a pipeline task that scans the checked-out workspace, local container archives, or registry images,
 - optional native Azure DevOps source enumeration for repositories, pull requests, wikis, pipeline artifacts and logs, release artifacts, and Azure Artifacts NuGet packages.
 
-The pipeline task is a distribution wrapper around the same Picket CLI behavior used locally and in other CI systems. Remote Azure DevOps enumeration is native Picket behavior and does not change strict Gitleaks-compatible commands.
+The pipeline task is a distribution wrapper around the same Picket CLI behavior used locally and in other CI systems. Container image and remote Azure DevOps enumeration are native Picket behavior and do not change strict Gitleaks-compatible commands.
 
 ## Pipeline Task Contract
 
@@ -37,7 +37,17 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 
 | Input | Default | Description |
 | --- | --- | --- |
-| `target` | `$(Build.SourcesDirectory)` | File, directory, or checked-out repository path to scan. |
+| `target` | `$(Build.SourcesDirectory)` when no source is selected | File, directory, or checked-out repository path to scan. Mutually exclusive with container image and remote Azure DevOps source inputs. |
+| `dockerArchive` | empty | Docker image archive produced by `docker save`. |
+| `ociArchive` | empty | OCI image-layout archive. |
+| `registryImage` | empty | OCI or Docker registry image reference, including Docker Hub shorthand. |
+| `registryEndpoint` | empty | Optional OCI Distribution API endpoint override. Requires `registryImage`. |
+| `registryAuthEndpoint` | empty | Optional explicitly trusted cross-host bearer-token endpoint. Requires `registryImage`. |
+| `registryTokenEnv` | empty | Environment variable containing a pre-issued bearer token. Mutually exclusive with Basic authentication inputs. |
+| `registryUsernameEnv` | empty | Environment variable containing the registry username. Requires `registryPasswordEnv`. |
+| `registryPasswordEnv` | empty | Environment variable containing the registry password or personal access token. Requires `registryUsernameEnv`. |
+| `registryPlatform` | empty | Optional `os/architecture[/variant]` selector for a multi-platform image. |
+| `registryMaxImageMegabytes` | empty | Optional positive aggregate download cap for unique manifests, configs, and layers in decimal MB. |
 | `picketPath` | `picket` | Path to the Picket executable or command name available on `PATH`. |
 | `config` | empty | Optional configuration path. A custom config replaces Picket's embedded native default rules. |
 | `profile` | `picket` | Scan profile. Use `gitleaks` only when strict compatibility behavior is desired. |
@@ -90,11 +100,57 @@ The current task wrapper invokes an existing `picket` executable through the `pi
 | `allowInsecureSourceEndpoints` | `false` | Permit HTTP source endpoints for trusted local tests or explicitly accepted self-hosted environments. |
 | `extraArgs` | empty | Additional CLI arguments appended after validated task inputs. |
 
-The task rejects contradictory inputs before invoking the scanner. Examples include `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support. Optional `config`, `baselinePath`, and `ignorePath` inputs are forwarded only when they name files rather than the checkout directory supplied by an empty Azure Pipelines file-path control.
+The task rejects contradictory inputs before invoking the scanner. Examples include multiple primary sources, registry controls without `registryImage`, mixed or incomplete registry authentication, `results` with `onlyVerified`, invalid redaction percentages, negative archive limits, or report formats that the CLI does not support. Optional `config`, `baselinePath`, and `ignorePath` inputs are forwarded only when they name files rather than the checkout directory supplied by an empty Azure Pipelines file-path control.
 
 Supplying `config` replaces the embedded native default rule set, including Picket-owned high-confidence rules. `[extend] useDefault = true` restores the Gitleaks default rules, not Picket's complete native default profile. Review the resolved rule set with `picket rules check --print-config` before using a custom config as a required pipeline gate.
 
 `ignorePath` accepts the same native entries as `.picketignore`. Copy a complete `picket:v1:<sha256>` fingerprint from a native report to suppress that stable finding, or use `sha256:<content-sha256>` to suppress a complete file by content identity.
+
+## Container Image Sources
+
+`target`, `dockerArchive`, `ociArchive`, `registryImage`, and the Azure DevOps remote enumeration inputs select the primary source. Specify at most one source family. When none is explicit, the task scans `$(Build.SourcesDirectory)`, preserving the original workspace default. The selected source uses the same config, ignore file, rule packs, cache, reports, redaction, annotations, validation filters, and `failOn` policy as a workspace scan.
+
+To scan an image built by the pipeline, export it and give the task the resulting archive:
+
+```yaml
+steps:
+  - script: docker build --tag example-app:ci .
+    displayName: Build application image
+
+  - script: docker save --output "$(Agent.TempDirectory)/example-app.tar" example-app:ci
+    displayName: Export application image
+
+  - task: PicketScan@1
+    inputs:
+      dockerArchive: "$(Agent.TempDirectory)/example-app.tar"
+      ignorePath: "$(Build.SourcesDirectory)/.picketignore"
+      maxTargetMegabytes: "64"
+      maxArchiveDepth: "2"
+      maxArchiveEntries: "100000"
+      maxArchiveMegabytes: "4096"
+      maxArchiveRatio: "1000"
+      timeout: "900"
+      redact: "100"
+      failOn: "findings"
+```
+
+Use `ociArchive` for an OCI image-layout archive. Findings retain their virtual in-image provenance in published reports; task annotations and summaries omit raw match and secret text.
+
+Registry pulls are anonymous unless the task receives authentication environment variable names:
+
+```yaml
+- task: PicketScan@1
+  inputs:
+    registryImage: "ghcr.io/example/private-app@sha256:0123456789abcdef"
+    registryTokenEnv: "PICKET_REGISTRY_TOKEN"
+    registryPlatform: "linux/amd64"
+    registryMaxImageMegabytes: "512"
+    redact: "100"
+  env:
+    PICKET_REGISTRY_TOKEN: $(RegistryToken)
+```
+
+Only `PICKET_REGISTRY_TOKEN`, the environment variable name, enters the Picket argument vector. The secret value remains in the task environment. Choose either `registryTokenEnv` or the complete `registryUsernameEnv` plus `registryPasswordEnv` pair. Public HTTPS registry endpoints are required by default. `allowNonPublicSourceEndpoints` and `allowInsecureSourceEndpoints` remain explicit exceptions for controlled environments and also apply to remote Azure DevOps endpoints. See [Container Images](https://willibrandon.github.io/picket/generated/containers/) for download limits, redirects, digest verification, and endpoint policy.
 
 ## Outputs
 
@@ -239,6 +295,8 @@ The package follows Microsoft's current [extension manifest](https://learn.micro
 The extension can either bundle signed Picket CLI binaries or acquire deterministic release artifacts by version and checksum. Both approaches must use the same scanner behavior, report contracts, and security controls as local CLI execution.
 
 ## Test And Release Gates
+
+The root `azure-pipelines.yml` keeps a Marketplace-installed `PicketScan@1` workspace smoke test and separately runs the checked-out task handler against a real Docker archive. Running the handler from the checkout validates new task inputs before that task version is published. The Windows self-hosted job builds and exports a `FROM scratch` image, scans it with the locally published CLI, and verifies findings, SARIF and JSONL output, in-image provenance, and full secret redaction.
 
 Before publishing the task:
 

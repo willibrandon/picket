@@ -11,6 +11,10 @@ pool:
 variables:
   buildConfiguration: Release
   cliPublishDirectory: $(Pipeline.Workspace)\picket-cli
+  containerArchivePath: $(Pipeline.Workspace)\picket-container-image.tar
+  containerConfigPath: $(Pipeline.Workspace)\picket-container.toml
+  containerFixtureDirectory: $(Pipeline.Workspace)\picket-container-fixture
+  containerReportDirectory: $(Build.ArtifactStagingDirectory)\picket-container
   sizeCheckPublishDirectory: $(Pipeline.Workspace)\picket-size-check
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -24,6 +28,11 @@ steps:
   inputs:
     packageType: sdk
     version: 10.0.302
+
+- task: NodeTool@0
+  displayName: Use Node.js
+  inputs:
+    versionSpec: 24.x
 
 - pwsh: dotnet restore Picket.slnx --locked-mode
   displayName: Restore
@@ -67,6 +76,97 @@ steps:
 - pwsh: |
     & "$(cliPublishDirectory)\picket.exe" version
   displayName: Verify local Picket CLI
+
+- pwsh: |
+    $imageTag = "picket-azure-pipelines-fixture:$(Build.BuildId)"
+    New-Item -ItemType Directory -Force -Path "$(containerFixtureDirectory)" | Out-Null
+    Set-Content -LiteralPath "$(containerFixtureDirectory)\settings.txt" -NoNewline -Encoding utf8NoBOM -Value 'token-12345'
+    Set-Content -LiteralPath "$(containerFixtureDirectory)\Dockerfile" -Encoding utf8NoBOM -Value @(
+        'FROM scratch',
+        'COPY settings.txt /app/settings.txt')
+    Set-Content -LiteralPath "$(containerConfigPath)" -Encoding utf8NoBOM -Value @(
+        '[[rules]]',
+        'id = "azure-pipelines-container-token"',
+        "regex = '''token-[0-9]+'''")
+
+    & docker build --tag $imageTag "$(containerFixtureDirectory)"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker fixture build failed with exit code $LASTEXITCODE."
+    }
+
+    & docker save --output "$(containerArchivePath)" $imageTag
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker fixture export failed with exit code $LASTEXITCODE."
+    }
+  displayName: Create Docker archive task fixture
+
+- pwsh: |
+    node azure-devops/tasks/PicketScanV1/index.js
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+  name: picketContainerScan
+  displayName: Scan Docker archive with checked-out task
+  env:
+    INPUT_DOCKER_ARCHIVE: $(containerArchivePath)
+    INPUT_PICKET_PATH: $(cliPublishDirectory)\picket.exe
+    INPUT_CONFIG: $(containerConfigPath)
+    INPUT_PROFILE: "picket"
+    INPUT_REPORT_FORMATS: "sarif,jsonl"
+    INPUT_REPORT_DIRECTORY: $(containerReportDirectory)
+    INPUT_FAIL_ON: "never"
+    INPUT_REDACT: "100"
+    INPUT_CACHE: "false"
+    INPUT_ANNOTATIONS: "false"
+    INPUT_PUBLISH_SARIF: "false"
+    INPUT_PUBLISH_JSONL: "false"
+    INPUT_PUBLISH_HTML: "false"
+    INPUT_MAX_TARGET_MEGABYTES: "64"
+    INPUT_MAX_ARCHIVE_DEPTH: "2"
+    INPUT_MAX_ARCHIVE_ENTRIES: "100000"
+    INPUT_MAX_ARCHIVE_MEGABYTES: "4096"
+    INPUT_MAX_ARCHIVE_RATIO: "1000"
+    INPUT_TIMEOUT: "900"
+
+- pwsh: |
+    $findings = [int]"$(picketContainerScan.findings)"
+    if ($findings -le 0) {
+        throw 'Picket Docker archive task scan reported no findings.'
+    }
+
+    $sarifPath = "$(containerReportDirectory)\picket.sarif"
+    $jsonlPath = "$(containerReportDirectory)\picket.jsonl"
+    foreach ($path in @($sarifPath, $jsonlPath)) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Missing Picket Docker archive task report: $path"
+        }
+    }
+
+    $jsonl = Get-Content -LiteralPath $jsonlPath -Raw
+    if (-not $jsonl.Contains('"file":"docker-archive/', [StringComparison]::Ordinal) -or -not $jsonl.Contains('!app/settings.txt"', [StringComparison]::Ordinal)) {
+        throw 'Picket Docker archive task report did not retain in-image provenance.'
+    }
+
+    if ($jsonl.Contains('token-12345', [StringComparison]::Ordinal)) {
+        throw 'Picket Docker archive task report contains an unredacted fixture secret.'
+    }
+  displayName: Verify Docker archive task outputs
+
+- pwsh: |
+    $imageTag = "picket-azure-pipelines-fixture:$(Build.BuildId)"
+    & docker image rm --force $imageTag
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Docker fixture image $imageTag was already absent."
+    }
+
+    $global:LASTEXITCODE = 0
+    foreach ($path in @("$(containerArchivePath)", "$(containerConfigPath)", "$(containerFixtureDirectory)")) {
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Force -Recurse
+        }
+    }
+  displayName: Clean Docker archive task fixture
+  condition: always()
 
 - task: PicketScan@1
   name: picketScan

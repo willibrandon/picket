@@ -72,7 +72,20 @@ function main() {
 }
 
 function readInputs() {
-  const target = getInput("target", process.env.BUILD_SOURCESDIRECTORY || ".");
+  const sourceDirectory = process.env.BUILD_SOURCESDIRECTORY || ".";
+  const explicitTarget = getOptionalFileInput("target", sourceDirectory);
+  const dockerArchive = getOptionalFileInput("dockerArchive", sourceDirectory);
+  const ociArchive = getOptionalFileInput("ociArchive", sourceDirectory);
+  const registryImage = getInput("registryImage", "");
+  const registryEndpoint = getInput("registryEndpoint", "");
+  const registryAuthEndpoint = getInput("registryAuthEndpoint", "");
+  const registryTokenEnv = getInput("registryTokenEnv", "");
+  const registryUsernameEnv = getInput("registryUsernameEnv", "");
+  const registryPasswordEnv = getInput("registryPasswordEnv", "");
+  const registryPlatform = getInput("registryPlatform", "");
+  const registryMaxImageMegabytes = getOptionalPositiveInteger("registryMaxImageMegabytes");
+  const allowNonPublicSourceEndpoints = getBoolean("allowNonPublicSourceEndpoints", false);
+  const allowInsecureSourceEndpoints = getBoolean("allowInsecureSourceEndpoints", false);
   const reportFormats = parseList(getInput("reportFormats", "sarif,jsonl,html")).map(format => format.toLowerCase());
   if (reportFormats.length === 0) {
     throw new Error("reportFormats must include at least one report format.");
@@ -104,9 +117,24 @@ function readInputs() {
   const redact = getInteger("redact", 100, 0, 100);
   const annotationLimit = getInteger("annotationLimit", 50, 0, Number.MAX_SAFE_INTEGER);
   const azureDevOpsIncludePackages = getBoolean("azureDevOpsIncludePackages", false);
+  const azureDevOpsOrganization = getInput("azureDevOpsOrganization", "");
+  const azureDevOpsEndpoint = getInput("azureDevOpsEndpoint", "");
+  const azureDevOpsTokenEnv = getInput("azureDevOpsTokenEnv", "");
+  const azureDevOpsProject = getInput("azureDevOpsProject", "");
+  const azureDevOpsRepository = getInput("azureDevOpsRepository", "");
+  const azureDevOpsBranch = getInput("azureDevOpsBranch", "");
+  const azureDevOpsPullRequest = getOptionalPositiveInteger("azureDevOpsPullRequest");
+  const azureDevOpsIncludeWikis = getBoolean("azureDevOpsIncludeWikis", false);
+  const azureDevOpsBuildId = getOptionalPositiveInteger("azureDevOpsBuildId");
+  const azureDevOpsIncludeArtifacts = getBoolean("azureDevOpsIncludeArtifacts", false);
+  const azureDevOpsIncludeLogs = getBoolean("azureDevOpsIncludeLogs", false);
+  const azureDevOpsReleaseId = getOptionalPositiveInteger("azureDevOpsReleaseId");
+  const azureDevOpsIncludeReleaseArtifacts = getBoolean("azureDevOpsIncludeReleaseArtifacts", false);
   const azureDevOpsFeed = getInput("azureDevOpsFeed", "");
   const azureDevOpsPackage = getInput("azureDevOpsPackage", "");
   const azureDevOpsPackageVersion = getInput("azureDevOpsPackageVersion", "");
+  const azureDevOpsMaxArtifactMegabytes = getOptionalPositiveInteger("azureDevOpsMaxArtifactMegabytes");
+  const azureDevOpsMaxLogMegabytes = getOptionalPositiveInteger("azureDevOpsMaxLogMegabytes");
   const azureDevOpsMaxPackageMegabytes = getOptionalPositiveInteger("azureDevOpsMaxPackageMegabytes");
   if (!azureDevOpsIncludePackages && (azureDevOpsFeed || azureDevOpsPackage || azureDevOpsPackageVersion || azureDevOpsMaxPackageMegabytes)) {
     throw new Error("Azure Artifacts feed, package, and package limit settings require azureDevOpsIncludePackages.");
@@ -116,17 +144,82 @@ function readInputs() {
     throw new Error("azureDevOpsPackageVersion requires azureDevOpsPackage.");
   }
 
+  const azureDevOpsSourceSelected = hasAzureDevOpsSource({
+    azureDevOpsOrganization,
+    azureDevOpsEndpoint,
+    azureDevOpsTokenEnv,
+    azureDevOpsProject,
+    azureDevOpsRepository,
+    azureDevOpsBranch,
+    azureDevOpsPullRequest,
+    azureDevOpsIncludeWikis,
+    azureDevOpsBuildId,
+    azureDevOpsIncludeArtifacts,
+    azureDevOpsIncludeLogs,
+    azureDevOpsReleaseId,
+    azureDevOpsIncludeReleaseArtifacts,
+    azureDevOpsIncludePackages,
+    azureDevOpsFeed,
+    azureDevOpsPackage,
+    azureDevOpsPackageVersion,
+    azureDevOpsMaxArtifactMegabytes,
+    azureDevOpsMaxLogMegabytes,
+    azureDevOpsMaxPackageMegabytes
+  });
+  const primarySourceCount = [explicitTarget, dockerArchive, ociArchive, registryImage]
+    .filter(value => value.length !== 0).length + (azureDevOpsSourceSelected ? 1 : 0);
+  if (primarySourceCount > 1) {
+    throw new Error("target, dockerArchive, ociArchive, registryImage, and Azure DevOps source inputs are mutually exclusive; specify exactly one source.");
+  }
+
+  const registryOptionSpecified = [
+    registryEndpoint,
+    registryAuthEndpoint,
+    registryTokenEnv,
+    registryUsernameEnv,
+    registryPasswordEnv,
+    registryPlatform,
+    registryMaxImageMegabytes
+  ].some(value => value !== "");
+  if (registryOptionSpecified && !registryImage) {
+    throw new Error("Registry source options require registryImage.");
+  }
+
+  if ((allowNonPublicSourceEndpoints || allowInsecureSourceEndpoints) && !registryImage && !azureDevOpsSourceSelected) {
+    throw new Error("Source endpoint policy inputs require registryImage or Azure DevOps source inputs.");
+  }
+
+  const tokenSpecified = registryTokenEnv.length !== 0;
+  const usernameSpecified = registryUsernameEnv.length !== 0;
+  const passwordSpecified = registryPasswordEnv.length !== 0;
+  if ((tokenSpecified && (usernameSpecified || passwordSpecified)) || usernameSpecified !== passwordSpecified) {
+    throw new Error("Registry authentication accepts either registryTokenEnv or both registryUsernameEnv and registryPasswordEnv.");
+  }
+
+  const target = primarySourceCount === 0 ? sourceDirectory : explicitTarget;
+
   return {
     target,
+    dockerArchive,
+    ociArchive,
+    registryImage,
+    registryEndpoint,
+    registryAuthEndpoint,
+    registryTokenEnv,
+    registryUsernameEnv,
+    registryPasswordEnv,
+    registryPlatform,
+    registryMaxImageMegabytes,
+    azureDevOpsSourceSelected,
     picketPath: getInput("picketPath", "picket"),
-    config: getOptionalFileInput("config", target),
+    config: getOptionalFileInput("config", sourceDirectory),
     profile: getChoice("profile", "picket", ["picket", "gitleaks"]),
     rulePacks,
     reportFormats,
     reportDirectory: path.resolve(getInput("reportDirectory", defaultReportDirectory())),
     failOn,
-    baselinePath: getOptionalFileInput("baselinePath", target),
-    ignorePath: getOptionalFileInput("ignorePath", target),
+    baselinePath: getOptionalFileInput("baselinePath", sourceDirectory),
+    ignorePath: getOptionalFileInput("ignorePath", sourceDirectory),
     results,
     onlyVerified,
     verify,
@@ -147,29 +240,29 @@ function readInputs() {
     maxArchiveMegabytes: getOptionalNonNegativeInteger("maxArchiveMegabytes"),
     maxArchiveRatio: getOptionalNonNegativeInteger("maxArchiveRatio"),
     timeout: getOptionalNonNegativeInteger("timeout"),
-    azureDevOpsOrganization: getInput("azureDevOpsOrganization", ""),
-    azureDevOpsEndpoint: getInput("azureDevOpsEndpoint", ""),
-    azureDevOpsTokenEnv: getInput("azureDevOpsTokenEnv", ""),
+    azureDevOpsOrganization,
+    azureDevOpsEndpoint,
+    azureDevOpsTokenEnv,
     azureDevOpsTokenKind: getChoice("azureDevOpsTokenKind", "pat", ["pat", "bearer"]),
-    azureDevOpsProject: getInput("azureDevOpsProject", ""),
-    azureDevOpsRepository: getInput("azureDevOpsRepository", ""),
-    azureDevOpsBranch: getInput("azureDevOpsBranch", ""),
-    azureDevOpsPullRequest: getOptionalPositiveInteger("azureDevOpsPullRequest"),
-    azureDevOpsIncludeWikis: getBoolean("azureDevOpsIncludeWikis", false),
-    azureDevOpsBuildId: getOptionalPositiveInteger("azureDevOpsBuildId"),
-    azureDevOpsIncludeArtifacts: getBoolean("azureDevOpsIncludeArtifacts", false),
-    azureDevOpsIncludeLogs: getBoolean("azureDevOpsIncludeLogs", false),
-    azureDevOpsReleaseId: getOptionalPositiveInteger("azureDevOpsReleaseId"),
-    azureDevOpsIncludeReleaseArtifacts: getBoolean("azureDevOpsIncludeReleaseArtifacts", false),
+    azureDevOpsProject,
+    azureDevOpsRepository,
+    azureDevOpsBranch,
+    azureDevOpsPullRequest,
+    azureDevOpsIncludeWikis,
+    azureDevOpsBuildId,
+    azureDevOpsIncludeArtifacts,
+    azureDevOpsIncludeLogs,
+    azureDevOpsReleaseId,
+    azureDevOpsIncludeReleaseArtifacts,
     azureDevOpsIncludePackages,
     azureDevOpsFeed,
     azureDevOpsPackage,
     azureDevOpsPackageVersion,
-    azureDevOpsMaxArtifactMegabytes: getOptionalPositiveInteger("azureDevOpsMaxArtifactMegabytes"),
-    azureDevOpsMaxLogMegabytes: getOptionalPositiveInteger("azureDevOpsMaxLogMegabytes"),
+    azureDevOpsMaxArtifactMegabytes,
+    azureDevOpsMaxLogMegabytes,
     azureDevOpsMaxPackageMegabytes,
-    allowNonPublicSourceEndpoints: getBoolean("allowNonPublicSourceEndpoints", false),
-    allowInsecureSourceEndpoints: getBoolean("allowInsecureSourceEndpoints", false),
+    allowNonPublicSourceEndpoints,
+    allowInsecureSourceEndpoints,
     extraArgs: splitExtraArgs(getInput("extraArgs", ""))
   };
 }
@@ -185,7 +278,28 @@ function createReportPaths(reportDirectory, formats) {
 }
 
 function createPicketArguments(inputs, reportPaths) {
-  const args = ["scan", inputs.target, "--profile", inputs.profile, `--redact=${inputs.redact}`];
+  const args = ["scan"];
+  if (inputs.dockerArchive) {
+    addValue(args, "--docker-archive", inputs.dockerArchive);
+  }
+  else if (inputs.ociArchive) {
+    addValue(args, "--oci-archive", inputs.ociArchive);
+  }
+  else if (inputs.registryImage) {
+    addValue(args, "--registry-image", inputs.registryImage);
+  }
+  else if (!inputs.azureDevOpsSourceSelected && !hasAzureDevOpsSource(inputs)) {
+    args.push(inputs.target || process.env.BUILD_SOURCESDIRECTORY || ".");
+  }
+
+  args.push("--profile", inputs.profile, `--redact=${inputs.redact}`);
+  addValue(args, "--registry-endpoint", inputs.registryEndpoint);
+  addValue(args, "--registry-auth-endpoint", inputs.registryAuthEndpoint);
+  addValue(args, "--registry-token-env", inputs.registryTokenEnv);
+  addValue(args, "--registry-username-env", inputs.registryUsernameEnv);
+  addValue(args, "--registry-password-env", inputs.registryPasswordEnv);
+  addValue(args, "--registry-platform", inputs.registryPlatform);
+  addValue(args, "--registry-max-image-megabytes", inputs.registryMaxImageMegabytes);
 
   addValue(args, "--config", inputs.config);
   addValue(args, "--baseline-path", inputs.baselinePath);
@@ -262,6 +376,30 @@ function addFlag(args, name, enabled) {
   if (enabled) {
     args.push(name);
   }
+}
+
+function hasAzureDevOpsSource(inputs) {
+  return Boolean(
+    inputs.azureDevOpsOrganization
+    || inputs.azureDevOpsEndpoint
+    || inputs.azureDevOpsTokenEnv
+    || inputs.azureDevOpsProject
+    || inputs.azureDevOpsRepository
+    || inputs.azureDevOpsBranch
+    || inputs.azureDevOpsPullRequest
+    || inputs.azureDevOpsIncludeWikis
+    || inputs.azureDevOpsBuildId
+    || inputs.azureDevOpsIncludeArtifacts
+    || inputs.azureDevOpsIncludeLogs
+    || inputs.azureDevOpsReleaseId
+    || inputs.azureDevOpsIncludeReleaseArtifacts
+    || inputs.azureDevOpsIncludePackages
+    || inputs.azureDevOpsFeed
+    || inputs.azureDevOpsPackage
+    || inputs.azureDevOpsPackageVersion
+    || inputs.azureDevOpsMaxArtifactMegabytes
+    || inputs.azureDevOpsMaxLogMegabytes
+    || inputs.azureDevOpsMaxPackageMegabytes);
 }
 
 function countJsonLines(jsonlPath) {

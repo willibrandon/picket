@@ -179,7 +179,9 @@ The docs workflow builds the static site, verifies generated docs are current, a
 
 ## CI Picket Scan Validation
 
-CI runs the local composite action against the repository root on Windows, Linux, and macOS with cache, annotations, and SARIF upload disabled. The scan step keeps the Action summary enabled, uses `fail-on: never` for the repository's intentional test fixtures, and asserts that the action reports at least one finding and writes both `picket.sarif` and `picket.jsonl`.
+CI runs the local composite action against the repository root on Windows, Linux, and macOS with cache, annotations, and SARIF upload disabled. The scan step keeps the Action summary enabled, uses `fail-on: never` for the repository's intentional test fixtures, and asserts that the action reports at least one finding and writes both `picket.sarif` and `picket.jsonl`. The Linux x64 job also builds and exports a real Docker image, scans the archive through the local Action, and verifies reports, in-image provenance, and full redaction.
+
+The self-hosted Windows Azure Pipeline keeps its Marketplace-installed workspace smoke test and invokes the checked-out Azure task handler separately for pre-release input coverage. It builds and exports a real Docker image, scans the archive with the locally published Picket CLI, and verifies findings, SARIF and JSONL output, in-image provenance, and full redaction. This avoids depending on an unpublished Marketplace task version while testing the exact handler committed in the source tree.
 
 ## Runtime Identifiers
 

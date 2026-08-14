@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\.github\actions\PicketActionFailurePolicy.cs" Link="GitHubAction\PicketActionFailurePolicy.cs" />
+    <Compile Include="..\..\.github\actions\PicketActionScanSource.cs" Link="GitHubAction\PicketActionScanSource.cs" />
   </ItemGroup>
 
   <ItemGroup>

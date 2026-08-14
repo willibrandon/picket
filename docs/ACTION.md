@@ -1,6 +1,6 @@
 # GitHub Action
 
-Use the repository root action to scan a checked-out workspace with Picket and publish SARIF-ready output.
+Use the repository root action to scan a checked-out workspace or container image with Picket and publish SARIF-ready output.
 
 ```yaml
 name: Secret scan
@@ -32,7 +32,19 @@ jobs:
 
 | Input | Default | Description |
 | --- | --- | --- |
-| `path` | `.` | Repository-relative or absolute path to scan. |
+| `path` | GitHub workspace | Repository-relative or absolute path to scan. Mutually exclusive with `docker-archive`, `oci-archive`, and `registry-image`. |
+| `docker-archive` | empty | Docker image archive produced by `docker save`. Relative paths resolve from the GitHub workspace. |
+| `oci-archive` | empty | OCI image-layout archive. Relative paths resolve from the GitHub workspace. |
+| `registry-image` | empty | OCI or Docker registry image reference, including Docker Hub shorthand. |
+| `registry-endpoint` | empty | Optional OCI Distribution API endpoint override. Requires `registry-image`. |
+| `registry-auth-endpoint` | empty | Optional explicitly trusted cross-host bearer-token endpoint. Requires `registry-image`. |
+| `registry-token-env` | empty | Environment variable containing a pre-issued bearer token. Mutually exclusive with Basic authentication inputs. |
+| `registry-username-env` | empty | Environment variable containing the registry username. Requires `registry-password-env`. |
+| `registry-password-env` | empty | Environment variable containing the registry password or personal access token. Requires `registry-username-env`. |
+| `registry-platform` | empty | Optional `os/architecture[/variant]` selector for a multi-platform image. |
+| `registry-max-image-megabytes` | empty | Optional positive aggregate download cap for unique manifests, configs, and layers in decimal MB. |
+| `allow-non-public-source-endpoints` | `false` | Permit private, loopback, link-local, or otherwise non-public registry endpoint addresses. |
+| `allow-insecure-source-endpoints` | `false` | Permit HTTP registry endpoints in explicitly trusted environments. Credentials may be sent in cleartext. |
 | `config-path` | empty | Optional configuration path. A custom config replaces Picket's embedded native default rules. |
 | `baseline-path` | empty | Optional Gitleaks-compatible baseline report path. |
 | `ignore-path` | empty | Optional `.picketignore` path containing native stable finding fingerprints or `sha256:` content hashes. |
@@ -66,6 +78,56 @@ Supplying `config-path` replaces the embedded native default rule set, including
 
 `ignore-path` accepts the same native entries as `.picketignore`. Copy a full `picket:v1:<sha256>` fingerprint from a native report to suppress that stable finding, or use `sha256:<content-sha256>` to suppress an entire file by content identity.
 
+## Container Image Sources
+
+`path`, `docker-archive`, `oci-archive`, and `registry-image` are primary source selectors. Specify at most one. When all four are empty, the action scans `github.workspace`, preserving the original repository-scan default. Source selection changes only how Picket obtains bytes; the same config, ignore file, rule packs, cache, reports, redaction, annotations, validation filters, and `fail-on` policy apply afterward.
+
+To scan an image built in the same job, keep the image export local to the runner and pass the archive directly to the action:
+
+```yaml
+- name: Build application image
+  run: docker build --tag example-app:ci .
+
+- name: Export application image
+  run: docker save --output "${{ runner.temp }}/example-app.tar" example-app:ci
+
+- name: Scan application image
+  id: picket
+  uses: willibrandon/picket@main
+  with:
+    docker-archive: ${{ runner.temp }}/example-app.tar
+    ignore-path: .picketignore
+    max-target-megabytes: 64
+    max-archive-depth: 2
+    max-archive-entries: 100000
+    max-archive-megabytes: 4096
+    max-archive-ratio: 1000
+    timeout: 900
+    redact: 100
+    fail-on: findings
+```
+
+Use `oci-archive` instead when the producer writes an OCI image-layout archive. Both archive paths may be absolute or relative to `github.workspace`. Findings retain their virtual in-image provenance in SARIF and JSONL; annotations and summaries never include raw match or secret text.
+
+Registry scans are anonymous unless authentication environment variable names are supplied:
+
+```yaml
+- name: Scan private registry image
+  uses: willibrandon/picket@main
+  env:
+    PICKET_REGISTRY_TOKEN: ${{ secrets.PICKET_REGISTRY_TOKEN }}
+  with:
+    registry-image: ghcr.io/example/private-app@sha256:0123456789abcdef
+    registry-token-env: PICKET_REGISTRY_TOKEN
+    registry-platform: linux/amd64
+    registry-max-image-megabytes: 512
+    redact: 100
+```
+
+The action passes only the environment variable name on the Picket command line; the credential value remains in the step environment. Choose either `registry-token-env` or the complete `registry-username-env` plus `registry-password-env` pair. Mixed or partial authentication is rejected before the scanner starts. Registry-specific controls without `registry-image`, and combinations of multiple primary sources, are also rejected before scanning.
+
+Registry endpoints must be public HTTPS by default. `allow-non-public-source-endpoints` and `allow-insecure-source-endpoints` are explicit exceptions for controlled environments. Review the complete download, redirect, digest-verification, and endpoint policy in [Container Images](https://willibrandon.github.io/picket/generated/containers/).
+
 ## Outputs
 
 | Output | Description |
@@ -92,7 +154,7 @@ The action writes SARIF and JSONL before the final failure-enforcement step. Thi
 
 ## CI Matrix Scan
 
-The repository CI runs the local composite action against the repository root on every CI runner. The matrix scan disables cache, annotations, and SARIF upload, keeps the Action summary enabled, uses `fail-on: never` for the repository's intentional test fixtures, and asserts that at least one finding plus both `picket.sarif` and `picket.jsonl` output files are produced.
+The repository CI runs the local composite action against the repository root on every CI runner. The matrix scan disables cache, annotations, and SARIF upload, keeps the Action summary enabled, uses `fail-on: never` for the repository's intentional test fixtures, and asserts that at least one finding plus both `picket.sarif` and `picket.jsonl` output files are produced. The Linux x64 job also builds a real `FROM scratch` Docker image, exports it with `docker save`, scans it through the Action's `docker-archive` input, and verifies report production, in-image provenance, and full secret redaction.
 
 ## Reports And Caching
 
