@@ -296,7 +296,7 @@ The extension can either bundle signed Picket CLI binaries or acquire determinis
 
 ## Test And Release Gates
 
-The root `azure-pipelines.yml` keeps a Marketplace-installed `PicketScan@1` workspace smoke test and separately runs the checked-out task handler against a real Docker archive. Running the handler from the checkout validates new task inputs before that task version is published. The Windows self-hosted job builds and exports a `FROM scratch` image, scans it with the locally published CLI, and verifies findings, SARIF and JSONL output, in-image provenance, and full secret redaction.
+The root `azure-pipelines.yml` keeps a Marketplace-installed `PicketScan@1` workspace smoke test and separately runs the checked-out task handler against a real Docker archive. Running the handler from the checkout validates new task inputs before that task version is published. The Windows self-hosted job builds and exports a `FROM scratch` image, scans it with the locally published CLI, and verifies findings, SARIF and JSONL output, in-image provenance, and full secret redaction. Because Azure Pipelines removes user-defined variables whose names begin with its reserved `input` prefix, the checked-out-handler step assigns task-style `INPUT_*` variables inside PowerShell instead of declaring them in the YAML `env` mapping. Installed tasks still receive those variables from the Azure task host. See Microsoft's [variable naming restrictions](https://learn.microsoft.com/azure/devops/pipelines/process/variables#variable-naming-restrictions).
 
 Before publishing the task:
 

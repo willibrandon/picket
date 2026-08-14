@@ -101,12 +101,39 @@ steps:
   displayName: Create Docker archive task fixture
 
 - pwsh: |
+    # Azure Pipelines filters YAML variables whose names begin with the reserved INPUT_ prefix.
+    # Assign task-style inputs after PowerShell starts so the checked-out handler sees the same
+    # environment contract that the Azure task host provides to an installed task.
+    $env:INPUT_DOCKER_ARCHIVE = "$(containerArchivePath)"
+    $env:INPUT_PICKET_PATH = "$(cliPublishDirectory)\picket.exe"
+    $env:INPUT_CONFIG = "$(containerConfigPath)"
+    $env:INPUT_PROFILE = 'picket'
+    $env:INPUT_REPORT_FORMATS = 'sarif,jsonl'
+    $env:INPUT_REPORT_DIRECTORY = "$(containerReportDirectory)"
+    $env:INPUT_FAIL_ON = 'never'
+    $env:INPUT_REDACT = '100'
+    $env:INPUT_CACHE = 'false'
+    $env:INPUT_ANNOTATIONS = 'false'
+    $env:INPUT_PUBLISH_SARIF = 'false'
+    $env:INPUT_PUBLISH_JSONL = 'false'
+    $env:INPUT_PUBLISH_HTML = 'false'
+    $env:INPUT_MAX_TARGET_MEGABYTES = '64'
+    $env:INPUT_MAX_ARCHIVE_DEPTH = '2'
+    $env:INPUT_MAX_ARCHIVE_ENTRIES = '100000'
+    $env:INPUT_MAX_ARCHIVE_MEGABYTES = '4096'
+    $env:INPUT_MAX_ARCHIVE_RATIO = '1000'
+    $env:INPUT_TIMEOUT = '900'
+
     $requiredFiles = [ordered]@{
         'Docker archive' = $env:INPUT_DOCKER_ARCHIVE
         'Picket executable' = $env:INPUT_PICKET_PATH
         'Picket config' = $env:INPUT_CONFIG
     }
     foreach ($entry in $requiredFiles.GetEnumerator()) {
+        if ([string]::IsNullOrWhiteSpace($entry.Value)) {
+            throw "$($entry.Key) task input was not assigned."
+        }
+
         if (-not (Test-Path -LiteralPath $entry.Value -PathType Leaf)) {
             throw "$($entry.Key) is unavailable to $([Security.Principal.WindowsIdentity]::GetCurrent().Name): $($entry.Value)"
         }
@@ -130,26 +157,6 @@ steps:
     }
   name: picketContainerScan
   displayName: Scan Docker archive with checked-out task
-  env:
-    INPUT_DOCKER_ARCHIVE: $(containerArchivePath)
-    INPUT_PICKET_PATH: $(cliPublishDirectory)\picket.exe
-    INPUT_CONFIG: $(containerConfigPath)
-    INPUT_PROFILE: "picket"
-    INPUT_REPORT_FORMATS: "sarif,jsonl"
-    INPUT_REPORT_DIRECTORY: $(containerReportDirectory)
-    INPUT_FAIL_ON: "never"
-    INPUT_REDACT: "100"
-    INPUT_CACHE: "false"
-    INPUT_ANNOTATIONS: "false"
-    INPUT_PUBLISH_SARIF: "false"
-    INPUT_PUBLISH_JSONL: "false"
-    INPUT_PUBLISH_HTML: "false"
-    INPUT_MAX_TARGET_MEGABYTES: "64"
-    INPUT_MAX_ARCHIVE_DEPTH: "2"
-    INPUT_MAX_ARCHIVE_ENTRIES: "100000"
-    INPUT_MAX_ARCHIVE_MEGABYTES: "4096"
-    INPUT_MAX_ARCHIVE_RATIO: "1000"
-    INPUT_TIMEOUT: "900"
 
 - pwsh: |
     $findings = [int]"$(picketContainerScan.findings)"

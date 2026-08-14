@@ -1198,7 +1198,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("The secret value remains in the task environment", documentation);
         Assert.Contains("docker save --output \"$(containerArchivePath)\"", pipeline);
         Assert.Contains("node azure-devops/tasks/PicketScanV1/index.js", pipeline);
-        Assert.Contains("INPUT_DOCKER_ARCHIVE: $(containerArchivePath)", pipeline);
+        Assert.Contains("$env:INPUT_DOCKER_ARCHIVE = \"$(containerArchivePath)\"", pipeline);
+        Assert.Contains("reserved INPUT_ prefix", pipeline);
+        Assert.DoesNotContain("INPUT_DOCKER_ARCHIVE: $(containerArchivePath)", pipeline);
+        Assert.Contains("task input was not assigned", pipeline);
         Assert.Contains("Checked-out task preflight passed", pipeline);
         Assert.Contains("Checked-out Picket task handler failed with exit code", pipeline);
         Assert.Contains("Picket Docker archive task report did not retain in-image provenance.", pipeline);
