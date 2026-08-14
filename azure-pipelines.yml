@@ -101,9 +101,32 @@ steps:
   displayName: Create Docker archive task fixture
 
 - pwsh: |
-    node azure-devops/tasks/PicketScanV1/index.js
+    $requiredFiles = [ordered]@{
+        'Docker archive' = $env:INPUT_DOCKER_ARCHIVE
+        'Picket executable' = $env:INPUT_PICKET_PATH
+        'Picket config' = $env:INPUT_CONFIG
+    }
+    foreach ($entry in $requiredFiles.GetEnumerator()) {
+        if (-not (Test-Path -LiteralPath $entry.Value -PathType Leaf)) {
+            throw "$($entry.Key) is unavailable to $([Security.Principal.WindowsIdentity]::GetCurrent().Name): $($entry.Value)"
+        }
+    }
+
+    $archiveLength = (Get-Item -LiteralPath $env:INPUT_DOCKER_ARCHIVE).Length
+    if ($archiveLength -le 0) {
+        throw 'Docker archive task fixture is empty.'
+    }
+
+    $nodeVersion = & node --version
     if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
+        throw "Node failed with exit code $LASTEXITCODE."
+    }
+
+    Write-Host "Checked-out task preflight passed for $([Security.Principal.WindowsIdentity]::GetCurrent().Name) with Node $nodeVersion and a $archiveLength-byte Docker archive."
+    & node azure-devops/tasks/PicketScanV1/index.js
+    $handlerExitCode = $LASTEXITCODE
+    if ($handlerExitCode -ne 0) {
+        throw "Checked-out Picket task handler failed with exit code $handlerExitCode."
     }
   name: picketContainerScan
   displayName: Scan Docker archive with checked-out task

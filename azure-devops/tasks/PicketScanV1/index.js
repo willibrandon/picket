@@ -55,19 +55,21 @@ function main() {
 
     if (isScannerError(exitCode, findings)) {
       complete("Failed", "Picket scan failed before producing findings.");
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     if (shouldFail(inputs.failOn, exitCode, findings)) {
       complete("Failed", `Picket scan failed with policy '${inputs.failOn}'.`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     complete("Succeeded", "Picket scan completed.");
   }
   catch (error) {
     complete("Failed", error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 

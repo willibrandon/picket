@@ -4,9 +4,27 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const task = require("./index.js");
+
+test("task entry point flushes actionable validation failures before exiting", () => {
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith("INPUT_")));
+  environment.INPUT_REGISTRY_PLATFORM = "linux/amd64";
+  const result = spawnSync(process.execPath, [path.join(__dirname, "index.js")], {
+    encoding: "utf8",
+    env: environment,
+    windowsHide: true
+  });
+
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.equal(
+    result.stdout.trim(),
+    "##vso[task.complete result=Failed;]Registry source options require registryImage.");
+});
 
 test("escapeProperty neutralizes Azure logging command delimiters", () => {
   assert.equal(

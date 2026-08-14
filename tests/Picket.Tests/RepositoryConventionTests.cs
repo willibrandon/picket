@@ -1190,6 +1190,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("createPicketArguments forwards registry controls without treating the image as a path", handlerTests);
         Assert.Contains("readInputs rejects conflicting primary sources", handlerTests);
         Assert.Contains("readInputs rejects mixed or incomplete registry authentication", handlerTests);
+        Assert.Contains("task entry point flushes actionable validation failures before exiting", handlerTests);
+        Assert.Contains("process.exitCode = 1", handler);
         Assert.Contains("## Container Image Sources", documentation);
         Assert.Contains("dockerArchive: \"$(Agent.TempDirectory)/example-app.tar\"", documentation);
         Assert.Contains("registryTokenEnv: \"PICKET_REGISTRY_TOKEN\"", documentation);
@@ -1197,6 +1199,8 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("docker save --output \"$(containerArchivePath)\"", pipeline);
         Assert.Contains("node azure-devops/tasks/PicketScanV1/index.js", pipeline);
         Assert.Contains("INPUT_DOCKER_ARCHIVE: $(containerArchivePath)", pipeline);
+        Assert.Contains("Checked-out task preflight passed", pipeline);
+        Assert.Contains("Checked-out Picket task handler failed with exit code", pipeline);
         Assert.Contains("Picket Docker archive task report did not retain in-image provenance.", pipeline);
         Assert.Contains("Picket Docker archive task report contains an unredacted fixture secret.", pipeline);
     }
