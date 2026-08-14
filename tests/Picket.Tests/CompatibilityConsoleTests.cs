@@ -264,11 +264,14 @@ public sealed partial class CompatibilityConsoleTests
             @echo off
             chcp 437 >nul
             echo harmless | "{GetCliExecutablePath()}" stdin --no-color
+            set "picket_exit_code=%errorlevel%"
             chcp
+            echo PICKET_EXIT_CODE:%picket_exit_code%
             pause >nul
             """);
 
-        CancellationToken cancellationToken = TestContext.CancellationToken;
+        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        CancellationToken cancellationToken = runCancellation.Token;
         await using Hex1bTerminal terminal = Hex1bTerminal.CreateBuilder()
             .WithPtyProcess(options =>
             {
@@ -283,29 +286,27 @@ public sealed partial class CompatibilityConsoleTests
             .Build();
 
         Task<int> runTask = terminal.RunAsync(cancellationToken);
-        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
-            .WaitUntil(
-                s => s.ContainsText("no leaks found") && s.ContainsText("437"),
-                TimeSpan.FromSeconds(15),
-                "scan summary and preserved code page")
-            .Build()
-            .ApplyAsync(terminal, cancellationToken)
-            .ConfigureAwait(false);
-        await new Hex1bTerminalInputSequenceBuilder()
-            .Type("q")
-            .Build()
-            .ApplyAsync(terminal, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            var automator = new Hex1bTerminalAutomator(terminal, defaultTimeout: TimeSpan.FromSeconds(15));
+            await automator.WaitUntilAsync(
+                s => s.ContainsText("no leaks found")
+                    && s.ContainsText("437")
+                    && s.ContainsText("PICKET_EXIT_CODE:0"),
+                description: "scan summary, preserved code page, and successful exit").ConfigureAwait(false);
+            using Hex1bTerminalSnapshot snapshot = automator.CreateSnapshot();
+            string screenText = snapshot.GetScreenText();
 
-        int exitCode = await runTask.ConfigureAwait(false);
-        string screenText = snapshot.GetScreenText();
-
-        Assert.AreEqual(0, exitCode);
-        Assert.Contains("○", screenText);
-        Assert.Contains("│╲", screenText);
-        Assert.Contains("○ ░", screenText);
-        Assert.Contains("░    picket", screenText);
-        Assert.Contains("437", screenText);
+            Assert.Contains("○", screenText);
+            Assert.Contains("│╲", screenText);
+            Assert.Contains("○ ░", screenText);
+            Assert.Contains("░    picket", screenText);
+            Assert.Contains("437", screenText);
+        }
+        finally
+        {
+            await StopTerminalAsync(runCancellation, runTask).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -501,11 +502,14 @@ public sealed partial class CompatibilityConsoleTests
             @echo off
             chcp 437 >nul
             "{GetCliExecutablePath()}" scan "{targetPath}" --config "{configPath}" --report-format json
+            set "picket_exit_code=%errorlevel%"
             chcp
+            echo PICKET_EXIT_CODE:%picket_exit_code%
             pause >nul
             """);
 
-        CancellationToken cancellationToken = TestContext.CancellationToken;
+        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        CancellationToken cancellationToken = runCancellation.Token;
         await using Hex1bTerminal terminal = Hex1bTerminal.CreateBuilder()
             .WithPtyProcess(options =>
             {
@@ -520,27 +524,25 @@ public sealed partial class CompatibilityConsoleTests
             .Build();
 
         Task<int> runTask = terminal.RunAsync(cancellationToken);
-        Hex1bTerminalSnapshot snapshot = await new Hex1bTerminalInputSequenceBuilder()
-            .WaitUntil(
-                s => s.ContainsText("\"schema\":\"picket.report.v1\"") && s.ContainsText("437"),
-                TimeSpan.FromSeconds(15),
-                "native JSON and preserved code page")
-            .Build()
-            .ApplyAsync(terminal, cancellationToken)
-            .ConfigureAwait(false);
-        await new Hex1bTerminalInputSequenceBuilder()
-            .Type("q")
-            .Build()
-            .ApplyAsync(terminal, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            var automator = new Hex1bTerminalAutomator(terminal, defaultTimeout: TimeSpan.FromSeconds(15));
+            await automator.WaitUntilAsync(
+                s => s.ContainsText("\"schema\":\"picket.report.v1\"")
+                    && s.ContainsText("437")
+                    && s.ContainsText("PICKET_EXIT_CODE:0"),
+                description: "native JSON, preserved code page, and successful exit").ConfigureAwait(false);
+            using Hex1bTerminalSnapshot snapshot = automator.CreateSnapshot();
+            string screenText = snapshot.GetScreenText();
 
-        int exitCode = await runTask.ConfigureAwait(false);
-        string screenText = snapshot.GetScreenText();
-
-        Assert.AreEqual(0, exitCode);
-        Assert.Contains("\"schema\":\"picket.report.v1\"", screenText);
-        Assert.DoesNotContain("≻", screenText);
-        Assert.Contains("437", screenText);
+            Assert.Contains("\"schema\":\"picket.report.v1\"", screenText);
+            Assert.DoesNotContain("≻", screenText);
+            Assert.Contains("437", screenText);
+        }
+        finally
+        {
+            await StopTerminalAsync(runCancellation, runTask).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -627,6 +629,18 @@ public sealed partial class CompatibilityConsoleTests
         }
 
         return directory ?? throw new DirectoryNotFoundException("Could not locate repository root.");
+    }
+
+    private static async Task StopTerminalAsync(CancellationTokenSource cancellation, Task<int> runTask)
+    {
+        await cancellation.CancelAsync().ConfigureAwait(false);
+        try
+        {
+            await runTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
     }
 
     private static string NormalizeStderr(string value)
