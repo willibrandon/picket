@@ -2,9 +2,11 @@
 
 Install [Picket from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=willibrandon.picket), then run secret scanning in Azure Pipelines with the `PicketScan@1` task.
 
-The task builds a `picket scan` command from validated inputs, writes reports to a task-owned report directory, emits Azure DevOps output variables, and can publish SARIF, JSONL, and HTML reports as build artifacts.
+The task builds a `picket scan` command from validated workspace, Docker archive, OCI archive, registry image, or Azure DevOps source inputs, writes reports to a task-owned report directory, emits Azure DevOps output variables, and can publish SARIF, JSONL, and HTML reports as build artifacts.
 
 Credential handling stays explicit. The task passes remote Azure DevOps credentials by environment variable name, so token values do not appear in command lines, logs, summaries, or task metadata.
+
+Container registry authentication follows the same rule: `registryTokenEnv`, `registryUsernameEnv`, and `registryPasswordEnv` contain environment variable names, never credential values.
 
 ## Example
 
@@ -22,6 +24,8 @@ steps:
 ```
 
 Use `picketPath` when the executable is not named `picket` or is not available on `PATH`. Live verification and remote Azure DevOps enumeration are opt-in task inputs.
+
+Use `dockerArchive`, `ociArchive`, or `registryImage` to scan a container image through the task. These inputs, `target`, and remote Azure DevOps enumeration are mutually exclusive. Omitting all source inputs retains the `$(Build.SourcesDirectory)` workspace default.
 
 When `verify` is enabled, `liveMaxRequests` defaults to 100 outbound provider requests per scan and `liveMaxRequestsPerProvider` defaults to 25 for any one provider. Retries consume the budgets; cache hits do not.
 

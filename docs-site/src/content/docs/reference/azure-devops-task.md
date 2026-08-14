@@ -11,7 +11,7 @@ This page is generated from `azure-devops/tasks/PicketScanV1/task.json`.
 
 Task name: `PicketScan`
 
-Version: `1.0.5`
+Version: `1.0.6`
 
 ## Inputs
 
@@ -20,15 +20,175 @@ Version: `1.0.5`
     <div class="reference-card-heading">
       <code>target</code><span>filePath</span>
     </div>
-    <p class="reference-card-description">File, directory, or checked-out repository path to scan.</p>
+    <p class="reference-card-description">File, directory, or checked-out repository path to scan. Mutually exclusive with container image and remote source inputs. Empty defaults to $(Build.SourcesDirectory) when no other source is selected.</p>
     <dl class="reference-card-facts">
       <div>
         <dt>Required</dt>
-        <dd>true</dd>
+        <dd>false</dd>
       </div>
       <div>
         <dt>Default</dt>
-        <dd><code>$(Build.SourcesDirectory)</code></dd>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>dockerArchive</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">Docker image archive produced by docker save.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>ociArchive</code><span>filePath</span>
+    </div>
+    <p class="reference-card-description">OCI image-layout archive.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryImage</code><span>string</span>
+    </div>
+    <p class="reference-card-description">OCI or Docker registry image reference, including Docker Hub shorthand.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryEndpoint</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional OCI Distribution API endpoint override. Requires registryImage.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryAuthEndpoint</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional explicitly trusted cross-host bearer-token endpoint. Requires registryImage.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryTokenEnv</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Environment variable containing a pre-issued registry bearer token. The token value is not passed on the command line.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryUsernameEnv</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Environment variable containing the registry username. Requires registryPasswordEnv.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryPasswordEnv</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Environment variable containing the registry password or personal access token. Requires registryUsernameEnv.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryPlatform</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional os/architecture[/variant] selector for a multi-platform registry image.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
+      </div>
+    </dl>
+  </article>
+  <article class="reference-card">
+    <div class="reference-card-heading">
+      <code>registryMaxImageMegabytes</code><span>string</span>
+    </div>
+    <p class="reference-card-description">Optional positive aggregate download cap for unique image manifests, configs, and layers in decimal MB.</p>
+    <dl class="reference-card-facts">
+      <div>
+        <dt>Required</dt>
+        <dd>false</dd>
+      </div>
+      <div>
+        <dt>Default</dt>
+        <dd>-</dd>
       </div>
     </dl>
   </article>

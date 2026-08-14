@@ -382,6 +382,66 @@ public sealed partial class RepositoryConventionTests
     }
 
     /// <summary>
+    /// Verifies that the GitHub Action exposes one validated container or filesystem source and forwards registry controls.
+    /// </summary>
+    [TestMethod]
+    public void GitHubActionContainerSourcesArePublicAndForwarded()
+    {
+        string action = ReadRepositoryFile("action.yml");
+        string helper = ReadRepositoryFile(".github/actions/run-picket.cs");
+        string sourceSelector = ReadRepositoryFile(".github/actions/PicketActionScanSource.cs");
+        string documentation = ReadRepositoryFile("docs/ACTION.md");
+        string workflow = ReadRepositoryFile(".github/workflows/ci.yml");
+
+        Assert.Contains("default: \"\"", ReadActionInputBlock(action, "path"));
+        foreach (string input in new[]
+        {
+            "docker-archive",
+            "oci-archive",
+            "registry-image",
+            "registry-endpoint",
+            "registry-auth-endpoint",
+            "registry-token-env",
+            "registry-username-env",
+            "registry-password-env",
+            "registry-platform",
+            "registry-max-image-megabytes",
+            "allow-non-public-source-endpoints",
+            "allow-insecure-source-endpoints",
+        })
+        {
+            Assert.Contains($"  {input}:", action);
+            Assert.Contains($"| `{input}` |", documentation);
+        }
+
+        Assert.Contains("PICKET_DOCKER_ARCHIVE: ${{ inputs.docker-archive }}", action);
+        Assert.Contains("PICKET_OCI_ARCHIVE: ${{ inputs.oci-archive }}", action);
+        Assert.Contains("PICKET_REGISTRY_IMAGE: ${{ inputs.registry-image }}", action);
+        Assert.Contains("PICKET_REGISTRY_TOKEN_ENV: ${{ inputs.registry-token-env }}", action);
+        Assert.Contains("PICKET_REGISTRY_USERNAME_ENV: ${{ inputs.registry-username-env }}", action);
+        Assert.Contains("PICKET_REGISTRY_PASSWORD_ENV: ${{ inputs.registry-password-env }}", action);
+        Assert.Contains("PICKET_ALLOW_NON_PUBLIC_SOURCE_ENDPOINTS: ${{ inputs.allow-non-public-source-endpoints }}", action);
+        Assert.Contains("PICKET_ALLOW_INSECURE_SOURCE_ENDPOINTS: ${{ inputs.allow-insecure-source-endpoints }}", action);
+        Assert.Contains("#:include PicketActionScanSource.cs", helper);
+        Assert.Contains("PicketActionScanSource.TryCreate", helper);
+        Assert.Contains("scanSource.AppendArguments(arguments, ResolveWorkspacePath);", helper);
+        Assert.Contains("path, docker-archive, oci-archive, and registry-image are mutually exclusive", sourceSelector);
+        Assert.Contains("registry source options require registry-image", sourceSelector);
+        Assert.Contains("--docker-archive", sourceSelector);
+        Assert.Contains("--oci-archive", sourceSelector);
+        Assert.Contains("--registry-image", sourceSelector);
+        Assert.Contains("--registry-max-image-megabytes", sourceSelector);
+        Assert.Contains("## Container Image Sources", documentation);
+        Assert.Contains("docker save", documentation);
+        Assert.Contains("registry-token-env: PICKET_REGISTRY_TOKEN", documentation);
+        Assert.Contains("the credential value remains in the step environment", documentation);
+        Assert.Contains("docker build --tag picket-action-fixture:ci $buildContext", workflow);
+        Assert.Contains("docker-archive: ${{ runner.temp }}/picket-action-image.tar", workflow);
+        Assert.Contains("Picket Docker archive report did not retain in-image provenance.", workflow);
+        Assert.Contains("Picket Docker archive report contains an unredacted fixture secret.", workflow);
+    }
+
+    /// <summary>
     /// Verifies that Action documentation explains how custom configuration affects native defaults.
     /// </summary>
     [TestMethod]
@@ -984,11 +1044,21 @@ public sealed partial class RepositoryConventionTests
         Assert.AreEqual("PicketScan", taskRoot.GetProperty("name").GetString());
         Assert.AreEqual("Picket scan", taskRoot.GetProperty("friendlyName").GetString());
         Assert.AreEqual(1, taskRoot.GetProperty("version").GetProperty("Major").GetInt32());
-        Assert.AreEqual(5, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
+        Assert.AreEqual(6, taskRoot.GetProperty("version").GetProperty("Patch").GetInt32());
         Assert.AreEqual("index.js", taskRoot.GetProperty("execution").GetProperty("Node20_1").GetProperty("target").GetString());
 
         HashSet<string> inputNames = ReadJsonNameSet(taskRoot.GetProperty("inputs"));
         Assert.Contains("target", inputNames);
+        Assert.Contains("dockerArchive", inputNames);
+        Assert.Contains("ociArchive", inputNames);
+        Assert.Contains("registryImage", inputNames);
+        Assert.Contains("registryEndpoint", inputNames);
+        Assert.Contains("registryAuthEndpoint", inputNames);
+        Assert.Contains("registryTokenEnv", inputNames);
+        Assert.Contains("registryUsernameEnv", inputNames);
+        Assert.Contains("registryPasswordEnv", inputNames);
+        Assert.Contains("registryPlatform", inputNames);
+        Assert.Contains("registryMaxImageMegabytes", inputNames);
         Assert.Contains("picketPath", inputNames);
         Assert.Contains("profile", inputNames);
         Assert.Contains("rulePacks", inputNames);
@@ -1033,9 +1103,10 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("spawnSync(inputs.picketPath", handler);
         Assert.Contains("\"scan\"", handler);
         Assert.Contains("formats.includes(\"jsonl\")", handler);
-        Assert.Contains("getOptionalFileInput(\"config\", target)", handler);
-        Assert.Contains("getOptionalFileInput(\"baselinePath\", target)", handler);
-        Assert.Contains("getOptionalFileInput(\"ignorePath\", target)", handler);
+        Assert.Contains("getOptionalFileInput(\"target\", sourceDirectory)", handler);
+        Assert.Contains("getOptionalFileInput(\"config\", sourceDirectory)", handler);
+        Assert.Contains("getOptionalFileInput(\"baselinePath\", sourceDirectory)", handler);
+        Assert.Contains("getOptionalFileInput(\"ignorePath\", sourceDirectory)", handler);
         Assert.Contains("addValue(args, \"--ignore-path\", inputs.ignorePath)", handler);
         Assert.Contains("isDefaultInputDirectory(value, defaultDirectory)", handler);
         Assert.Contains("process.env.BUILD_SOURCESDIRECTORY", handler);
@@ -1085,6 +1156,56 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("`ignorePath` accepts the same native entries as `.picketignore`", azureDevOps);
         Assert.Contains("This default is outside `$(Build.SourcesDirectory)`", azureDevOps);
         Assert.Contains("azure-devops/vss-extension.json", marketplaces);
+    }
+
+    /// <summary>
+    /// Verifies that the Azure DevOps task forwards container sources without injecting a workspace target.
+    /// </summary>
+    [TestMethod]
+    public void AzureDevOpsTaskContainerSourcesArePublicAndForwarded()
+    {
+        using JsonDocument task = JsonDocument.Parse(ReadRepositoryFile("azure-devops/tasks/PicketScanV1/task.json"));
+        string handler = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.js");
+        string handlerTests = ReadRepositoryFile("azure-devops/tasks/PicketScanV1/index.test.js");
+        string documentation = ReadRepositoryFile("docs/AZURE_DEVOPS.md");
+        string pipeline = ReadRepositoryFile("azure-pipelines.yml");
+
+        JsonElement target = task.RootElement
+            .GetProperty("inputs")
+            .EnumerateArray()
+            .Single(input => input.GetProperty("name").GetString() == "target");
+        Assert.AreEqual(string.Empty, target.GetProperty("defaultValue").GetString());
+        Assert.IsFalse(target.GetProperty("required").GetBoolean());
+        Assert.AreEqual("Picket scan", task.RootElement.GetProperty("instanceNameFormat").GetString());
+
+        Assert.Contains("target, dockerArchive, ociArchive, registryImage, and Azure DevOps source inputs are mutually exclusive", handler);
+        Assert.Contains("Registry source options require registryImage", handler);
+        Assert.Contains("--docker-archive", handler);
+        Assert.Contains("--oci-archive", handler);
+        Assert.Contains("--registry-image", handler);
+        Assert.Contains("--registry-auth-endpoint", handler);
+        Assert.Contains("--registry-max-image-megabytes", handler);
+        Assert.Contains("else if (!inputs.azureDevOpsSourceSelected && !hasAzureDevOpsSource(inputs))", handler);
+        Assert.Contains("createPicketArguments forwards a Docker archive as the sole primary source", handlerTests);
+        Assert.Contains("createPicketArguments forwards registry controls without treating the image as a path", handlerTests);
+        Assert.Contains("readInputs rejects conflicting primary sources", handlerTests);
+        Assert.Contains("readInputs rejects mixed or incomplete registry authentication", handlerTests);
+        Assert.Contains("task entry point flushes actionable validation failures before exiting", handlerTests);
+        Assert.Contains("process.exitCode = 1", handler);
+        Assert.Contains("## Container Image Sources", documentation);
+        Assert.Contains("dockerArchive: \"$(Agent.TempDirectory)/example-app.tar\"", documentation);
+        Assert.Contains("registryTokenEnv: \"PICKET_REGISTRY_TOKEN\"", documentation);
+        Assert.Contains("The secret value remains in the task environment", documentation);
+        Assert.Contains("docker save --output \"$(containerArchivePath)\"", pipeline);
+        Assert.Contains("node azure-devops/tasks/PicketScanV1/index.js", pipeline);
+        Assert.Contains("$env:INPUT_DOCKER_ARCHIVE = \"$(containerArchivePath)\"", pipeline);
+        Assert.Contains("reserved INPUT_ prefix", pipeline);
+        Assert.DoesNotContain("INPUT_DOCKER_ARCHIVE: $(containerArchivePath)", pipeline);
+        Assert.Contains("task input was not assigned", pipeline);
+        Assert.Contains("Checked-out task preflight passed", pipeline);
+        Assert.Contains("Checked-out Picket task handler failed with exit code", pipeline);
+        Assert.Contains("Picket Docker archive task report did not retain in-image provenance.", pipeline);
+        Assert.Contains("Picket Docker archive task report contains an unredacted fixture secret.", pipeline);
     }
 
     /// <summary>
@@ -1160,9 +1281,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Agent.OS -equals Windows_NT", pipeline);
         Assert.Contains("PicketScan@1", pipeline);
         Assert.Contains("picket.exe", pipeline);
-        Assert.Contains("trigger: none", normalizedPipeline);
+        Assert.Contains("trigger:\n  branches:\n    include:\n    - main", normalizedPipeline);
         Assert.Contains("pr:\n- main", normalizedPipeline);
-        Assert.DoesNotContain("trigger:\n- main", normalizedPipeline);
+        Assert.DoesNotContain("trigger: none", normalizedPipeline);
         Assert.DoesNotContain("pr: none", normalizedPipeline);
         Assert.Contains("pwsh:", pipeline);
         Assert.DoesNotContain("vmImage:", pipeline);
@@ -2483,7 +2604,7 @@ public sealed partial class RepositoryConventionTests
             (string stdout, string stderr) = await WaitForExitAndReadOutputAsync(validProcess, TestContext.CancellationToken).ConfigureAwait(false);
             Assert.AreEqual(0, validProcess.ExitCode, string.Concat(stdout, stderr));
             Assert.Contains("extension: willibrandon.picket 0.1.3", stdout);
-            Assert.Contains("task: PicketScan@1.0.5", stdout);
+            Assert.Contains("task: PicketScan@1.0.6", stdout);
         }
 
         File.WriteAllText(checksumPath, $"{new string('0', 64)}  {Path.GetFileName(vsixPath)}\n");
