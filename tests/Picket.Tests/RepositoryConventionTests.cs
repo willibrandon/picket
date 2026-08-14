@@ -1281,9 +1281,9 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Agent.OS -equals Windows_NT", pipeline);
         Assert.Contains("PicketScan@1", pipeline);
         Assert.Contains("picket.exe", pipeline);
-        Assert.Contains("trigger: none", normalizedPipeline);
+        Assert.Contains("trigger:\n  branches:\n    include:\n    - main", normalizedPipeline);
         Assert.Contains("pr:\n- main", normalizedPipeline);
-        Assert.DoesNotContain("trigger:\n- main", normalizedPipeline);
+        Assert.DoesNotContain("trigger: none", normalizedPipeline);
         Assert.DoesNotContain("pr: none", normalizedPipeline);
         Assert.Contains("pwsh:", pipeline);
         Assert.DoesNotContain("vmImage:", pipeline);

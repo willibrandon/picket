@@ -296,13 +296,13 @@ The extension can either bundle signed Picket CLI binaries or acquire determinis
 
 ## Test And Release Gates
 
-The root `azure-pipelines.yml` keeps a Marketplace-installed `PicketScan@1` workspace smoke test and separately runs the checked-out task handler against a real Docker archive. Running the handler from the checkout validates new task inputs before that task version is published. The Windows self-hosted job builds and exports a `FROM scratch` image, scans it with the locally published CLI, and verifies findings, SARIF and JSONL output, in-image provenance, and full secret redaction. Because Azure Pipelines removes user-defined variables whose names begin with its reserved `input` prefix, the checked-out-handler step assigns task-style `INPUT_*` variables inside PowerShell instead of declaring them in the YAML `env` mapping. Installed tasks still receive those variables from the Azure task host. See Microsoft's [variable naming restrictions](https://learn.microsoft.com/azure/devops/pipelines/process/variables#variable-naming-restrictions).
+The root `azure-pipelines.yml` runs for pull requests targeting `main` and pushes to `main`, keeping Azure performance baselines current with the target branch. It keeps a Marketplace-installed `PicketScan@1` workspace smoke test and separately runs the checked-out task handler against a real Docker archive. Running the handler from the checkout validates new task inputs before that task version is published. The Windows self-hosted job builds and exports a `FROM scratch` image, scans it with the locally published CLI, and verifies findings, SARIF and JSONL output, in-image provenance, and full secret redaction. Because Azure Pipelines removes user-defined variables whose names begin with its reserved `input` prefix, the checked-out-handler step assigns task-style `INPUT_*` variables inside PowerShell instead of declaring them in the YAML `env` mapping. Installed tasks still receive those variables from the Azure task host. See Microsoft's [variable naming restrictions](https://learn.microsoft.com/azure/devops/pipelines/process/variables#variable-naming-restrictions).
 
 Before publishing the task:
 
 - validate task metadata and VSIX packaging in CI,
 - run task smoke tests on Windows, Linux, and macOS agents,
-- run self-hosted marketplace smoke tests only through explicit manual queueing,
+- run self-hosted marketplace smoke tests for pull requests and pushes to `main`,
 - cover workspace scans without remote credentials,
 - cover remote Azure DevOps API behavior with recorded responses or local fakes by default,
 - keep live Azure DevOps tests opt-in through dedicated test credentials,
