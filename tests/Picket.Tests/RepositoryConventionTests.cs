@@ -826,9 +826,9 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("--no-audit", workflow);
         Assert.Contains("npm exec -- tfx extension create", workflow);
         Assert.DoesNotContain("npx --yes", workflow);
-        Assert.Contains("\"brace-expansion\": \"5.0.9\"", azureDevOpsPackage);
-        Assert.Contains("\"glob\": \"13.0.6\"", azureDevOpsPackage);
-        Assert.Contains("\"minimatch\": \"10.2.5\"", azureDevOpsPackage);
+        Assert.Contains("\"brace-expansion\": \"5.0.12\"", azureDevOpsPackage);
+        Assert.Contains("\"glob\": \"14.0.3\"", azureDevOpsPackage);
+        Assert.Contains("\"minimatch\": \"11.0.4\"", azureDevOpsPackage);
         Assert.Contains("\"tfx-cli\": \"0.23.4\"", azureDevOpsPackage);
         Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
         Assert.Contains("--manifest-globs vss-extension.json", workflow);
