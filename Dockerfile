@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk@sha256:ed034a8bf0b24ded0cbbac07e17825d8e9ebfe21e308191d0f7421eaf5ad4664
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b
 ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/runtime-deps@sha256:894098eafc82e5fa02ba9f2b71d426dc78252876b9e914caae77ed95cfce185a
 
 FROM ${DOTNET_SDK_IMAGE} AS build
