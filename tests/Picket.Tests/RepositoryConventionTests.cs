@@ -737,7 +737,7 @@ public sealed partial class RepositoryConventionTests
         Assert.Contains("Build-ZstandardMusl.cs", releaseWorkflow);
         Assert.Contains("Publish-LinuxMusl.cs", ciWorkflow);
         Assert.Contains("Publish-LinuxMusl.cs", releaseWorkflow);
-        Assert.Contains("mcr.microsoft.com/dotnet/sdk@sha256:804af59ab9617c61c0a7f57d548c76e436d4c32e36c77c006aa8064c608f70fb", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
+        Assert.Contains("mcr.microsoft.com/dotnet/sdk@sha256:8a339f2175a99aad64cd618450303b8361d565eebbdf8aad95cdf8e6b54ab9d3", ReadRepositoryFile("scripts/Publish-LinuxMusl.cs"));
         Assert.Contains("Smoke test Linux musl zstandard scan", ciWorkflow);
         Assert.Contains("Smoke test Linux musl zstandard scan", releaseWorkflow);
         Assert.Contains("musl-tools zstd", ciWorkflow);
@@ -826,9 +826,9 @@ public sealed partial class RepositoryConventionTests
         Assert.DoesNotContain("--no-audit", workflow);
         Assert.Contains("npm exec -- tfx extension create", workflow);
         Assert.DoesNotContain("npx --yes", workflow);
-        Assert.Contains("\"brace-expansion\": \"5.0.9\"", azureDevOpsPackage);
-        Assert.Contains("\"glob\": \"13.0.6\"", azureDevOpsPackage);
-        Assert.Contains("\"minimatch\": \"10.2.5\"", azureDevOpsPackage);
+        Assert.Contains("\"brace-expansion\": \"5.0.12\"", azureDevOpsPackage);
+        Assert.Contains("\"glob\": \"14.0.3\"", azureDevOpsPackage);
+        Assert.Contains("\"minimatch\": \"11.0.4\"", azureDevOpsPackage);
         Assert.Contains("\"tfx-cli\": \"0.23.4\"", azureDevOpsPackage);
         Assert.Contains("\"node_modules/tfx-cli\"", azureDevOpsLock);
         Assert.Contains("--manifest-globs vss-extension.json", workflow);

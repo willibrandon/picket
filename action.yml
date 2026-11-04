@@ -166,7 +166,7 @@ inputs:
   dotnet-version:
     description: .NET SDK version used to run the source-based action.
     required: false
-    default: 10.0.302
+    default: 10.0.403
   setup-dotnet:
     description: Install the configured .NET SDK before running Picket.
     required: false
